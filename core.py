@@ -8,9 +8,9 @@ import platform
 import json
 import sys
 
-def inyectar_logos_paraguacraft(minecraft_directory, version):
+def inyectar_logos_paraguacraft(game_dir, version):
     pack_name = "ParaguacraftBrandPack"
-    pack_dir = os.path.join(minecraft_directory, "resourcepacks", pack_name)
+    pack_dir = os.path.join(game_dir, "resourcepacks", pack_name)
     textures_gui_title_dir = os.path.join(pack_dir, "assets", "minecraft", "textures", "gui", "title")
     os.makedirs(textures_gui_title_dir, exist_ok=True)
 
@@ -40,7 +40,7 @@ def inyectar_logos_paraguacraft(minecraft_directory, version):
 
     if not exito: return
 
-    options_path = os.path.join(minecraft_directory, "options.txt")
+    options_path = os.path.join(game_dir, "options.txt")
     if os.path.exists(options_path):
         with open(options_path, "r") as f: lines = f.readlines()
         
@@ -53,8 +53,8 @@ def inyectar_logos_paraguacraft(minecraft_directory, version):
                 else: f.write(line)
             if not found: f.write(f'resourcePacks:["vanilla","file/{pack_name}"]\n')
 
-def optimizar_graficos(minecraft_directory):
-    options_path = os.path.join(minecraft_directory, "options.txt")
+def optimizar_graficos(game_dir):
+    options_path = os.path.join(game_dir, "options.txt")
     if os.path.exists(options_path):
         with open(options_path, "r") as f: lineas = f.readlines()
         with open(options_path, "w") as f:
@@ -69,7 +69,7 @@ def optimizar_graficos(minecraft_directory):
                 elif linea.startswith("enableVsync:"): f.write("enableVsync:false\n")
                 else: f.write(linea)
 
-    config_dir = os.path.join(minecraft_directory, "config")
+    config_dir = os.path.join(game_dir, "config")
     os.makedirs(config_dir, exist_ok=True)
     sodium_path = os.path.join(config_dir, "sodium-options.json")
 
@@ -96,35 +96,23 @@ def optimizar_graficos(minecraft_directory):
 
     with open(sodium_path, "w") as f: json.dump(sodium_config, f, indent=4)
 
-def limpiar_carpeta_mods(minecraft_directory, progress_callback):
-    mods_dir = os.path.join(minecraft_directory, "mods")
-    if os.path.exists(mods_dir):
-        if progress_callback: progress_callback("Limpiando mods de otras versiones...")
-        shutil.rmtree(mods_dir, ignore_errors=True)
-    os.makedirs(mods_dir, exist_ok=True)
-
-# --- NUEVA FUNCIÓN: DESCARGA INTELIGENTE DE SHADERS Y TEXTURAS ---
-def instalar_extras_graficos(minecraft_directory, version, progress_callback, graficos_minimos):
-    rp_dir = os.path.join(minecraft_directory, "resourcepacks")
-    sp_dir = os.path.join(minecraft_directory, "shaderpacks")
+def instalar_extras_graficos(game_dir, version, progress_callback, graficos_minimos):
+    rp_dir = os.path.join(game_dir, "resourcepacks")
+    sp_dir = os.path.join(game_dir, "shaderpacks")
     os.makedirs(rp_dir, exist_ok=True)
     os.makedirs(sp_dir, exist_ok=True)
 
     headers = {"User-Agent": "ParaguacraftLauncher/1.0"}
 
-    # Elegimos qué descargar según el hardware objetivo
     if graficos_minimos:
-        # Replicamos el "Boost FPS" de Opticraft con texturas 8x8
         proyectos = [("f8thful", rp_dir)] 
         if progress_callback: progress_callback("Instalando Texturas 8x8 (Boost FPS)...")
     else:
-        # Para la PC Gamer: Shaders espectaculares y optimizados
         proyectos = [("makeup-ultra-fast", sp_dir)]
         if progress_callback: progress_callback("Instalando Shaders Ultra Rápidos...")
 
     for slug, carpeta_destino in proyectos:
         url_api = f"https://api.modrinth.com/v2/project/{slug}/version"
-        # Para Shaders y Texturas no filtramos por "fabric", solo por versión del juego
         params = {"game_versions": f'["{version}"]'}
         
         try:
@@ -144,15 +132,15 @@ def instalar_extras_graficos(minecraft_directory, version, progress_callback, gr
         except Exception as e:
             pass
 
-def instalar_mods_optimode(minecraft_directory, version, progress_callback):
-    limpiar_carpeta_mods(minecraft_directory, progress_callback)
-    mods_dir = os.path.join(minecraft_directory, "mods")
+def instalar_mods_optimode(game_dir, version, progress_callback):
+    mods_dir = os.path.join(game_dir, "mods")
+    os.makedirs(mods_dir, exist_ok=True)
     
     slugs_mods = [
         "fabric-api", "sodium", "lithium", "ferrite-core", 
         "modernfix", "iris", "modmenu", "entityculling", "immediatelyfast"
     ]
-    headers = {"User-Agent": "ParaguacraftLauncher/1.0 (contacto@paraguacraft.com)"}
+    headers = {"User-Agent": "ParaguacraftLauncher/1.0"}
     
     if progress_callback: progress_callback(f"Buscando mods de ultra-optimización para {version}...")
 
@@ -177,29 +165,35 @@ def instalar_mods_optimode(minecraft_directory, version, progress_callback):
         except: pass
 
 def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type="G1GC", optimizar=False, optimode=False, papa_mode=False, usar_mesa=False, mostrar_consola=False, progress_callback=None):
-    minecraft_directory = minecraft_launcher_lib.utils.get_minecraft_directory()
+    base_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
     
     def on_progress(event):
         if progress_callback: progress_callback(event)
+
+    # 1. GESTOR AUTOMÁTICO DE JAVA (Tus amigos no necesitan instalar Java, el launcher lo hace)
+    if progress_callback: progress_callback("Verificando motor Java (Automático)...")
+    minecraft_launcher_lib.install.install_jvm_runtime(version, base_dir, callback={"setStatus": on_progress})
 
     version_a_lanzar = version
 
     if optimode:
         if progress_callback: progress_callback("Preparando el Motor de Paraguacraft...")
         loader_nuevo = minecraft_launcher_lib.fabric.get_latest_loader_version()
-        minecraft_launcher_lib.fabric.install_fabric(version, minecraft_directory, loader_nuevo, callback={"setStatus": on_progress})
-        
-        # Instalamos mods de rendimiento
-        instalar_mods_optimode(minecraft_directory, version, progress_callback)
-        # Instalamos los recursos gráficos automáticos (Shaders o Texturas)
-        instalar_extras_graficos(minecraft_directory, version, progress_callback, optimizar)
-        
+        minecraft_launcher_lib.fabric.install_fabric(version, base_dir, loader_nuevo, callback={"setStatus": on_progress})
         version_a_lanzar = f"fabric-loader-{loader_nuevo}-{version}"
     else:
-        minecraft_launcher_lib.install.install_minecraft_version(version, minecraft_directory, callback={"setStatus": on_progress})
+        minecraft_launcher_lib.install.install_minecraft_version(version, base_dir, callback={"setStatus": on_progress})
 
-    inyectar_logos_paraguacraft(minecraft_directory, version)
-    if optimizar: optimizar_graficos(minecraft_directory)
+    # 2. AISLAMIENTO DE INSTANCIAS (Carpeta única para esta versión)
+    game_dir = os.path.join(base_dir, "instancias", f"Paraguacraft_{version_a_lanzar}")
+    os.makedirs(game_dir, exist_ok=True)
+
+    if optimode:
+        instalar_mods_optimode(game_dir, version, progress_callback)
+        instalar_extras_graficos(game_dir, version, progress_callback, optimizar)
+
+    inyectar_logos_paraguacraft(game_dir, version)
+    if optimizar: optimizar_graficos(game_dir)
 
     jvm_arguments = [
         f"-Xmx{max_ram}", f"-Xms{max_ram}",
@@ -222,7 +216,8 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
         "username": username,
         "uuid": str(uuid.uuid4()),
         "token": "",
-        "jvmArguments": jvm_arguments
+        "jvmArguments": jvm_arguments,
+        "gameDirectory": game_dir  # ¡LA MAGIA DEL AISLAMIENTO ESTÁ ACÁ!
     }
 
     if papa_mode:
@@ -230,7 +225,7 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
         options["resolutionWidth"] = "800"
         options["resolutionHeight"] = "600"
 
-    command = minecraft_launcher_lib.command.get_minecraft_command(version_a_lanzar, minecraft_directory, options)
+    command = minecraft_launcher_lib.command.get_minecraft_command(version_a_lanzar, base_dir, options)
 
     entorno = os.environ.copy()
     if usar_mesa:
