@@ -211,6 +211,19 @@ class ParaguaCraftLauncher(ctk.CTk):
         hilo.start()
 
     def ejecutar_motor(self, version, usuario, ram, gc_type):
+        # --- 3. DISCORD RICH PRESENCE ---
+        rpc = None
+        try:
+            from pypresence import Presence
+            import time
+            # ID genérica de Discord App. Para personalizarla 100% podés crear una en el Discord Developer Portal
+            client_id = '1222684879684145243' 
+            rpc = Presence(client_id)
+            rpc.connect()
+            rpc.update(state="Jugando a Paraguacraft", start=int(time.time()))
+        except Exception:
+            pass # Si Discord está cerrado o no está instalado pypresence, ignora y sigue abriendo el juego
+
         try:
             if self.cerrar_var.get():
                 self.withdraw()
@@ -221,6 +234,10 @@ class ParaguaCraftLauncher(ctk.CTk):
             self.deiconify()
             self.lbl_estado.configure(text=f"Error: {str(e)[:40]}")
         finally:
+            if rpc:
+                try: rpc.close()
+                except: pass
+                
             if self.cerrar_var.get():
                 self.destroy()
             else:
