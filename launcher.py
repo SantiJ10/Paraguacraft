@@ -11,6 +11,11 @@ import zipfile
 import io
 import requests
 import psutil
+from datetime import datetime
+
+if sys.platform == "win32":
+    import win32gui
+    import win32con
 
 if sys.platform == "win32":
     if sys.stdout is None: sys.stdout = open(os.devnull, "w")
@@ -29,17 +34,17 @@ APPDATA_DIR = os.path.join(os.getenv('APPDATA'), "ParaguacraftLauncher")
 os.makedirs(APPDATA_DIR, exist_ok=True)
 CONFIG_FILE = os.path.join(APPDATA_DIR, "paraguacraft_config.json")
 SESSION_FILE = os.path.join(APPDATA_DIR, "paraguacraft_session.json")
+LOG_DIR = os.path.join(minecraft_launcher_lib.utils.get_minecraft_directory(), "logs")
 
-# === CONFIGURACIÓN DE PARAGUACRAFT ===
-CLIENT_ID = "72fb7c48-c2f5-4d13-b0e7-9835b3b906c0" # TU ID DE AZURE BLINDADO
+# === CONFIGURACIÓN DE PARAGUACRAFT (DATOS BLINDADOS) ===
+CLIENT_ID = "72fb7c48-c2f5-4d13-b0e7-9835b3b906c0" 
 REDIRECT_URI = "https://login.live.com/oauth20_desktop.srf"
-SERVER_IP = "process-import.gl.at.ply.gg:2055" # IP que querés monitorear 
-MODS_ZIP_URL = "" # Link directo al .zip con tus mods (dejalo vacío si no tenés)
-LAUNCHER_VERSION = "1.0.0"
-UPDATE_URL = "" # Link a un .txt en RAW con la versión más nueva
-# CAMBIÁ ESTO POR TU ID DE DISCORD PORTAL PARA QUE EL LOGO SE VEA
 DISCORD_APP_ID = "1487516329631154206" 
-# =====================================
+SERVER_IP = "process-import.gl.at.ply.gg:2055" 
+MODS_ZIP_URL = "" 
+LAUNCHER_VERSION = "1.0.0"
+UPDATE_URL = "" 
+# =====================================================
 
 class ParaguaCraftLauncher(ctk.CTk):
     def __init__(self):
@@ -48,17 +53,23 @@ class ParaguaCraftLauncher(ctk.CTk):
         self.geometry("600x780") 
         self.resizable(False, False)
 
+        self.limpiador_deep_var = ctk.BooleanVar(value=False)
+        self.backup_var = ctk.BooleanVar(value=True) 
+        
+        self.veces_iniciadas = ctk.IntVar(value=0)
+        self.horas_jugadas_total = ctk.DoubleVar(value=0.0)
+
         self.gc_var = ctk.StringVar(value="G1GC (Equilibrado / Recomendado)")
         self.opt_var = ctk.BooleanVar(value=False)
         self.optimode_var = ctk.BooleanVar(value=True)
         self.papa_var = ctk.BooleanVar(value=False)
-        self.cerrar_var = ctk.BooleanVar(value=False)
         self.mesa_var = ctk.BooleanVar(value=False)
         self.consola_var = ctk.BooleanVar(value=False)
         
         self.ms_data = None
         self.rpc = None
         self.usuarios_guardados = []
+        self.hilo_juego_activo = False # Para apagar el Terminator cuando cerres el juego
 
         self.frame_main = ctk.CTkFrame(self)
         self.frame_main.pack(pady=15, padx=20, fill="both", expand=True)
@@ -66,14 +77,12 @@ class ParaguaCraftLauncher(ctk.CTk):
         self.label_titulo = ctk.CTkLabel(self.frame_main, text="ParaguaCraft Launcher", font=ctk.CTkFont(size=28, weight="bold"))
         self.label_titulo.pack(pady=(20, 5))
 
-        # 🟢 Monitor de Servidor
         self.lbl_server = ctk.CTkLabel(self.frame_main, text=f"🟡 Comprobando estado de {SERVER_IP}...", font=ctk.CTkFont(size=12, slant="italic"))
         self.lbl_server.pack(pady=(0, 10))
 
         self.frame_user = ctk.CTkFrame(self.frame_main, fg_color="transparent")
         self.frame_user.pack(pady=5, fill="x", padx=50)
         
-        # 👤 Gestor Multicuentas (ComboBox)
         self.combo_usuario = ctk.CTkComboBox(
             self.frame_user, values=["JugadorOffline"], 
             width=350, height=40, font=ctk.CTkFont(size=16), justify="center"
@@ -107,7 +116,6 @@ class ParaguaCraftLauncher(ctk.CTk):
         self.frame_opciones = ctk.CTkFrame(self.frame_main, fg_color="transparent")
         self.frame_opciones.pack(pady=10, fill="x", padx=50)
 
-        # 🚀 Asignación de RAM Inteligente 
         ram_total = max(2, int(psutil.virtual_memory().total / (1024**3)))
         ram_disponible = max(1, ram_total - 1)
         opciones_ram = [f"{i}GB" for i in range(1, ram_disponible + 1)]
@@ -148,11 +156,9 @@ class ParaguaCraftLauncher(ctk.CTk):
                 if data.get("online"):
                     jug = data["players"]["online"]
                     max_j = data["players"]["max"]
-                    self.lbl_server.configure(text=f"🟢 {SERVER_IP} está ONLINE ({jug}/{max_j})", text_color="#2ecc71")
-                else:
-                    self.lbl_server.configure(text=f"🔴 {SERVER_IP} está OFFLINE", text_color="#e74c3c")
-        except:
-            self.lbl_server.configure(text="No se pudo comprobar el servidor", text_color="gray")
+                    self.lbl_server.configure(text=f"🟢 El Server está ONLINE ({jug}/{max_j})", text_color="#2ecc71")
+                else: self.lbl_server.configure(text=f"🔴 El Server está OFFLINE", text_color="#e74c3c")
+        except: self.lbl_server.configure(text="No se pudo comprobar el servidor", text_color="gray")
 
     def buscar_actualizaciones(self):
         try:
@@ -169,7 +175,6 @@ class ParaguaCraftLauncher(ctk.CTk):
             from pypresence import Presence
             self.rpc = Presence(DISCORD_APP_ID)
             self.rpc.connect()
-            #large_image="logo" requiere que subas una imagen llamada "logo" al discord portal
             self.rpc.update(state="En el menú principal", details="Preparándose para jugar", large_image="logo", large_text="Paraguacraft Launcher")
         except: pass
 
@@ -178,33 +183,23 @@ class ParaguaCraftLauncher(ctk.CTk):
             from minecraft_launcher_lib.microsoft_account import get_login_url, complete_login, url_contains_auth_code, get_auth_code_from_url
             url = get_login_url(CLIENT_ID, REDIRECT_URI)
             webbrowser.open(url)
-            
-            dialog = ctk.CTkInputDialog(
-                text="1. Iniciá sesión en el navegador.\n2. Cuando cargue la página en blanco, copiá TODO el link de arriba.\n3. Pegalo acá abajo:", 
-                title="Conectar Cuenta Premium"
-            )
+            dialog = ctk.CTkInputDialog(text="1. Iniciá sesión en el navegador.\n2. Copiá TODO el link de arriba.\n3. Pegalo acá abajo:", title="Conectar Cuenta Premium")
             url_respuesta = dialog.get_input()
-
             if url_respuesta:
                 if url_contains_auth_code(url_respuesta):
                     auth_code = get_auth_code_from_url(url_respuesta)
                     self.lbl_estado.configure(text="Verificando licencia con Mojang...")
                     self.update()
-
                     account_data = complete_login(CLIENT_ID, None, REDIRECT_URI, auth_code)
-
                     self.ms_data = account_data
                     self.combo_usuario.set(account_data["name"])
                     self.combo_usuario.configure(state="disabled") 
                     self.btn_microsoft.configure(text="Desconectar Premium", command=self.logout_microsoft, fg_color="#C70039", hover_color="#900C3F")
-
                     with open(SESSION_FILE, "w") as f: json.dump(account_data, f)
                     self.lbl_estado.configure(text=f"¡Bienvenido, {account_data['name']} (Premium)!")
                     messagebox.showinfo("Login Exitoso", f"Cuenta Premium verificada: {account_data['name']}")
-                else:
-                    messagebox.showerror("Error", "No copiaste bien el link o cancelaste el login.")
-        except Exception as e:
-            messagebox.showerror("Error de Login", str(e))
+                else: messagebox.showerror("Error", "No copiaste bien el link o cancelaste el login.")
+        except Exception as e: messagebox.showerror("Error de Login", str(e))
 
     def cargar_sesion_microsoft(self):
         if os.path.exists(SESSION_FILE):
@@ -241,9 +236,13 @@ class ParaguaCraftLauncher(ctk.CTk):
                     self.opt_var.set(datos.get("opt_minimos", False))
                     self.optimode_var.set(datos.get("optimode", True))
                     self.papa_var.set(datos.get("papa_mode", False))
-                    self.cerrar_var.set(datos.get("cerrar_launcher", False))
                     self.mesa_var.set(datos.get("mesa", False))
                     self.consola_var.set(datos.get("consola", False))
+                    
+                    self.veces_iniciadas.set(datos.get("veces_iniciadas", 0))
+                    self.horas_jugadas_total.set(datos.get("horas_jugadas_total", 0.0))
+                    self.limpiador_deep_var.set(datos.get("limpiador_deep", False))
+                    self.backup_var.set(datos.get("backup_on_launch", True))
             except: pass
 
     def guardar_configuracion(self):
@@ -254,10 +253,10 @@ class ParaguaCraftLauncher(ctk.CTk):
 
         try:
             datos = {
-                "usuario": usuario_actual, "historial_usuarios": self.usuarios_guardados,
-                "ram": self.combo_ram.get(), "gc": self.gc_var.get(),
+                "usuario": usuario_actual, "historial_usuarios": self.usuarios_guardados, "ram": self.combo_ram.get(), "gc": self.gc_var.get(),
                 "opt_minimos": self.opt_var.get(), "optimode": self.optimode_var.get(), "papa_mode": self.papa_var.get(),
-                "cerrar_launcher": self.cerrar_var.get(), "mesa": self.mesa_var.get(), "consola": self.consola_var.get()
+                "mesa": self.mesa_var.get(), "consola": self.consola_var.get(), "veces_iniciadas": self.veces_iniciadas.get(),
+                "horas_jugadas_total": self.horas_jugadas_total.get(), "limpiador_deep": self.limpiador_deep_var.get(), "backup_on_launch": self.backup_var.get()
             }
             with open(CONFIG_FILE, "w") as f: json.dump(datos, f)
         except: pass
@@ -275,14 +274,16 @@ class ParaguaCraftLauncher(ctk.CTk):
 
             self.lista_versiones.delete(0, tk.END)
             for ver in versiones_finales: self.lista_versiones.insert(tk.END, ver)
-            self.lista_versiones.selection_set(0)
-        except:
-            self.lbl_estado.configure(text="Error al cargar versiones.")
+            try:
+                indice_target = versiones_finales.index("1.21.1")
+                self.lista_versiones.selection_set(indice_target)
+            except: self.lista_versiones.selection_set(0)
+        except: self.lbl_estado.configure(text="Error al cargar versiones.")
 
     def abrir_config(self):
         vent = ctk.CTkToplevel(self)
         vent.title("Ajustes Avanzados")
-        vent.geometry("450x650")
+        vent.geometry("450x700")
         vent.grab_set()
 
         ctk.CTkLabel(vent, text="Rendimiento y Opciones", font=ctk.CTkFont(weight="bold")).pack(pady=15)
@@ -293,11 +294,14 @@ class ParaguaCraftLauncher(ctk.CTk):
         ctk.CTkCheckBox(vent, text="Aplicar gráficos al mínimo (Mejora FPS)", variable=self.opt_var).pack(pady=5)
         ctk.CTkCheckBox(vent, text="Auto-descargar Mods de Optimización", variable=self.optimode_var).pack(pady=5)
         ctk.CTkCheckBox(vent, text="Modo 'PC Papa' (Resolución 800x600)", variable=self.papa_var).pack(pady=5)
-        ctk.CTkCheckBox(vent, text="Cerrar launcher al iniciar", variable=self.cerrar_var).pack(pady=5)
-        
-        # LOS BOTONES QUE HABÍAMOS PERDIDO (Aca están de vuelta)
         ctk.CTkCheckBox(vent, text="OpenGL Mesa", variable=self.mesa_var).pack(pady=5)
         ctk.CTkCheckBox(vent, text="Mostrar Consola", variable=self.consola_var).pack(pady=5)
+        
+        frame_premium = ctk.CTkFrame(vent, fg_color="#2b2b2b")
+        frame_premium.pack(pady=15, padx=20, fill="x")
+        ctk.CTkLabel(frame_premium, text="Mantenimiento Automático", font=ctk.CTkFont(weight="bold")).pack(pady=5)
+        ctk.CTkCheckBox(frame_premium, text="💾 Auto-Backup Salvavidas (Zip al iniciar)", variable=self.backup_var).pack(pady=5, padx=10, anchor="w")
+        ctk.CTkCheckBox(frame_premium, text="🧹 Limpieza Profunda al Iniciar (logs/crash)", variable=self.limpiador_deep_var).pack(pady=5, padx=10, anchor="w")
         
         frame_skins = ctk.CTkFrame(vent, fg_color="#2b2b2b")
         frame_skins.pack(pady=15, padx=20, fill="x")
@@ -319,9 +323,8 @@ class ParaguaCraftLauncher(ctk.CTk):
             try:
                 shutil.copy(ruta, os.path.join(skin_path, "steve.png"))
                 shutil.copy(ruta, os.path.join(skin_path, "alex.png"))
-                messagebox.showinfo("Skin Guardada", "¡Skin aplicada! Se verá cuando juegues Offline con el 'ParaguacraftBrandPack' activo.")
-            except:
-                messagebox.showerror("Error", "No se pudo copiar la skin.")
+                messagebox.showinfo("Skin Guardada", "¡Skin aplicada!")
+            except: messagebox.showerror("Error", "No se pudo copiar la skin.")
 
     def borrar_skin(self):
         mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
@@ -349,11 +352,9 @@ class ParaguaCraftLauncher(ctk.CTk):
                 z = zipfile.ZipFile(io.BytesIO(r.content))
                 z.extractall(mods_dir)
                 self.lbl_estado.configure(text="¡Mods instalados con éxito!")
-                messagebox.showinfo("Mods", "¡Paquete de mods instalado correctamente en tu carpeta de Minecraft!")
-            else:
-                self.lbl_estado.configure(text="Error al descargar mods.")
-        except Exception as e:
-            self.lbl_estado.configure(text=f"Error: {str(e)}")
+                messagebox.showinfo("Mods", "¡Paquete instalado correctamente!")
+            else: self.lbl_estado.configure(text="Error al descargar mods.")
+        except Exception as e: self.lbl_estado.configure(text=f"Error: {str(e)}")
 
     def abrir_carpeta_minecraft(self):
         minecraft_directory = minecraft_launcher_lib.utils.get_minecraft_directory()
@@ -367,6 +368,18 @@ class ParaguaCraftLauncher(ctk.CTk):
         self.lbl_estado.configure(text=mensaje)
         self.barra_progreso.step()
 
+    def _hacer_backup_real(self):
+        try:
+            mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+            saves_dir = os.path.join(mine_dir, "saves")
+            if os.path.exists(saves_dir):
+                backup_folder = os.path.join(mine_dir, "backups_paraguacraft")
+                os.makedirs(backup_folder, exist_ok=True)
+                fecha = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+                archivo_zip = os.path.join(backup_folder, f"backup_mundos_{fecha}")
+                shutil.make_archive(archivo_zip, 'zip', saves_dir)
+        except Exception: pass
+
     def iniciar_juego_thread(self):
         seleccion = self.lista_versiones.curselection()
         if not seleccion:
@@ -379,16 +392,19 @@ class ParaguaCraftLauncher(ctk.CTk):
             return
 
         version = self.lista_versiones.get(seleccion[0])
-        ram = self.combo_ram.get().replace("GB", "G") # Ajuste del formato de RAM para el core
+        ram_seleccionada = self.combo_ram.get()
+        ram = ram_seleccionada.replace("GB", "G") 
         gc_type = self.gc_var.get().split()[0]
 
+        self.veces_iniciadas.set(self.veces_iniciadas.get() + 1)
         self.guardar_configuracion()
+        
         self.boton_jugar.configure(state="disabled", text="TRABAJANDO...")
         self.barra_progreso.set(0)
 
-        # large_image="logo" requiere que subas una imagen llamada "logo" al discord portal
+        # 🌟 EL ARREGLO DE DISCORD: AHORA DICE "JUGANDO PARAGUACRAFT" MÁS LA VERSIÓN
         if self.rpc:
-            try: self.rpc.update(state=f"Jugando Minecraft {version}", details=f"Jugador: {usuario}", large_image="logo")
+            try: self.rpc.update(state=f"Jugando Paraguacraft {version}", details=f"Jugador: {usuario}", large_image="logo")
             except: pass
 
         uuid_real = None
@@ -397,28 +413,72 @@ class ParaguaCraftLauncher(ctk.CTk):
             uuid_real = self.ms_data["id"]
             token_real = self.ms_data["access_token"]
 
+        self.hilo_juego_activo = True
         hilo = threading.Thread(target=self.ejecutar_motor, args=(version, usuario, ram, gc_type, uuid_real, token_real), daemon=True)
         hilo.start()
 
-    def ejecutar_motor(self, version, usuario, ram, gc_type, uuid_real, token_real):
+    def ejecutar_motor(self, version_jugada, usuario, ram, gc_type, uuid_real, token_real):
         try:
-            if self.cerrar_var.get():
-                self.withdraw()
-                
-            # ACÁ ESTABA EL ERROR: Cambiado self.papa_mode.get() por self.papa_var.get()
-            lanzar_minecraft(version, usuario, ram, gc_type, self.opt_var.get(), self.optimode_var.get(), self.papa_var.get(), self.mesa_var.get(), self.consola_var.get(), self.actualizar_progreso, uuid_real, token_real)
+            if self.backup_var.get():
+                self.after(0, lambda: self.lbl_estado.configure(text="Creando auto-backup salvavidas (Zip)..."))
+                self._hacer_backup_real()
             
-            if not self.cerrar_var.get():
-                self.after(0, lambda: self.lbl_estado.configure(text="Juego finalizado."))
+            if self.limpiador_deep_var.get() and os.path.exists(LOG_DIR):
+                self.after(0, lambda: self.lbl_estado.configure(text="Ejecutando limpiador profundo invisible..."))
+                try:
+                    for filename in os.listdir(LOG_DIR):
+                        if filename.endswith(".log.gz") or filename == "latest.log":
+                            os.remove(os.path.join(LOG_DIR, filename))
+                except Exception: pass
+
+            self.after(0, lambda: self.lbl_estado.configure(text="Lanzando Paraguacraft..."))
+            
+            # 🔥 INICIAMOS EL TERMINATOR DE VENTANAS
+            threading.Thread(target=self._hilo_ninja_renombrar, args=(version_jugada,), daemon=True).start()
+
+            start_time = datetime.now()
+            
+            lanzar_minecraft(version_jugada, usuario, ram, gc_type, self.opt_var.get(), self.optimode_var.get(), self.papa_var.get(), self.mesa_var.get(), self.consola_var.get(), self.actualizar_progreso, uuid_real, token_real)
+            
+            self.hilo_juego_activo = False # Apagamos el Terminator
+            
+            end_time = datetime.now()
+            duracion = end_time - start_time
+            horas_jugadas_sesion = duracion.total_seconds() / 3600.0
+            
+            nuevo_total_horas = self.horas_jugadas_total.get() + horas_jugadas_sesion
+            self.horas_jugadas_total.set(nuevo_total_horas)
+            self.guardar_configuracion()
+            
+            self.after(0, lambda: self.lbl_estado.configure(text=f"Juego finalizado (Jugaste {horas_jugadas_sesion:.2f}hs)"))
+                
         except Exception as e:
+            self.hilo_juego_activo = False
             error_msg = f"Error: {str(e)[:40]}"
             self.after(0, self.deiconify)
             self.after(0, lambda m=error_msg: self.lbl_estado.configure(text=m))
         finally:
-            if self.cerrar_var.get():
-                self.after(0, self.destroy)
-            else:
-                self.after(0, lambda: self.boton_jugar.configure(state="normal", text="INICIAR PARAGUACRAFT"))
+            self.after(0, lambda: self.boton_jugar.configure(state="normal", text="INICIAR PARAGUACRAFT"))
+
+    # 🪟 EL TERMINATOR DE VENTANAS (Chequea y renombra constantemente)
+    def _hilo_ninja_renombrar(self, version_jugada):
+        if sys.platform != "win32": return
+        import time
+        # Mientras el juego esté abierto, va a vigilar cada 2 segundos
+        while self.hilo_juego_activo:
+            time.sleep(2)
+            try:
+                def callback(hwnd, windows_list):
+                    if win32gui.IsWindowVisible(hwnd):
+                        text = win32gui.GetWindowText(hwnd)
+                        # Si Minecraft cambia su nombre a "Minecraft", lo pisamos.
+                        if "Minecraft" in text and "Launcher" not in text: 
+                            win32gui.SetWindowText(hwnd, f"Paraguacraft {version_jugada}")
+                    return True
+                
+                matching_windows = []
+                win32gui.EnumWindows(callback, matching_windows)
+            except Exception: pass
 
 if __name__ == "__main__":
     app = ParaguaCraftLauncher()
