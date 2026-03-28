@@ -15,8 +15,7 @@ OutputBaseFilename=Instalar_Paraguacraft
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
 [Files]
-Source: "C:\Users\San\Documents\Amin\Proyectos\paraguacraft\dist\Paraguacraft\Paraguacraft.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Users\San\Documents\Amin\Proyectos\paraguacraft\dist\Paraguacraft\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "C:\Users\San\Documents\Amin\Proyectos\paraguacraft\dist\Paraguacraft.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\Paraguacraft"; Filename: "{app}\Paraguacraft.exe"

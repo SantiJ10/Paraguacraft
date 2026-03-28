@@ -8,6 +8,18 @@ import platform
 import json
 import sys
 
+def limpiar_cache_corrupto(version, minecraft_directory):
+    version_dir = os.path.join(minecraft_directory, "versions", version)
+    version_json = os.path.join(version_dir, f"{version}.json")
+    
+    if os.path.exists(version_json):
+        try:
+            with open(version_json, "r", encoding="utf-8") as f: json.load(f)
+        except:
+            shutil.rmtree(version_dir, ignore_errors=True)
+    elif os.path.exists(version_dir):
+        shutil.rmtree(version_dir, ignore_errors=True)
+
 def inyectar_logos_paraguacraft(game_dir, version):
     pack_name = "ParaguacraftBrandPack"
     pack_dir = os.path.join(game_dir, "resourcepacks", pack_name)
@@ -20,17 +32,12 @@ def inyectar_logos_paraguacraft(game_dir, version):
     elif "1.20.1" in version: formato = 15
 
     mcmeta = {"pack": {"pack_format": formato, "description": "Marca Oficial Paraguacraft"}}
-    with open(os.path.join(pack_dir, "pack.mcmeta"), "w") as f:
-        json.dump(mcmeta, f)
+    with open(os.path.join(pack_dir, "pack.mcmeta"), "w") as f: json.dump(mcmeta, f)
 
     if getattr(sys, 'frozen', False): base_path = sys._MEIPASS
     else: base_path = os.path.dirname(os.path.abspath(__file__))
     
-    activos = {
-        "paraguacraft_main_menu.png": "minecraft.png",
-        "paraguacraft_startup.png": "mojangstudios.png"
-    }
-
+    activos = {"paraguacraft_main_menu.png": "minecraft.png", "paraguacraft_startup.png": "mojangstudios.png"}
     exito = True
     for src_name, dest_name in activos.items():
         logo_src = os.path.join(base_path, src_name)
@@ -43,7 +50,6 @@ def inyectar_logos_paraguacraft(game_dir, version):
     options_path = os.path.join(game_dir, "options.txt")
     if os.path.exists(options_path):
         with open(options_path, "r") as f: lines = f.readlines()
-        
         found = False
         with open(options_path, "w") as f:
             for line in lines:
@@ -99,9 +105,7 @@ def optimizar_graficos(game_dir):
 def instalar_extras_graficos(game_dir, version, progress_callback, graficos_minimos):
     rp_dir = os.path.join(game_dir, "resourcepacks")
     sp_dir = os.path.join(game_dir, "shaderpacks")
-    os.makedirs(rp_dir, exist_ok=True)
-    os.makedirs(sp_dir, exist_ok=True)
-
+    os.makedirs(rp_dir, exist_ok=True); os.makedirs(sp_dir, exist_ok=True)
     headers = {"User-Agent": "ParaguacraftLauncher/1.0"}
 
     if graficos_minimos:
@@ -114,7 +118,6 @@ def instalar_extras_graficos(game_dir, version, progress_callback, graficos_mini
     for slug, carpeta_destino in proyectos:
         url_api = f"https://api.modrinth.com/v2/project/{slug}/version"
         params = {"game_versions": f'["{version}"]'}
-        
         try:
             r = requests.get(url_api, params=params, headers=headers, timeout=10)
             if r.status_code == 200:
@@ -122,24 +125,17 @@ def instalar_extras_graficos(game_dir, version, progress_callback, graficos_mini
                 if len(data) > 0:
                     archivo = data[0]["files"][0]
                     ruta_archivo = os.path.join(carpeta_destino, archivo["filename"])
-                    
                     if not os.path.exists(ruta_archivo):
                         if progress_callback: progress_callback(f"Descargando {archivo['filename']}...")
                         r_dl = requests.get(archivo["url"], stream=True, headers=headers, timeout=15)
                         if r_dl.status_code == 200:
-                            with open(ruta_archivo, "wb") as f:
-                                shutil.copyfileobj(r_dl.raw, f)
-        except Exception as e:
-            pass
+                            with open(ruta_archivo, "wb") as f: shutil.copyfileobj(r_dl.raw, f)
+        except Exception: pass
 
 def instalar_mods_optimode(game_dir, version, progress_callback):
     mods_dir = os.path.join(game_dir, "mods")
     os.makedirs(mods_dir, exist_ok=True)
-    
-    slugs_mods = [
-        "fabric-api", "sodium", "lithium", "ferrite-core", 
-        "modernfix", "iris", "modmenu", "entityculling", "immediatelyfast"
-    ]
+    slugs_mods = ["fabric-api", "sodium", "lithium", "ferrite-core", "modernfix", "iris", "modmenu", "entityculling", "immediatelyfast"]
     headers = {"User-Agent": "ParaguacraftLauncher/1.0"}
     
     if progress_callback: progress_callback(f"Buscando mods de ultra-optimización para {version}...")
@@ -147,7 +143,6 @@ def instalar_mods_optimode(game_dir, version, progress_callback):
     for slug in slugs_mods:
         url_api = f"https://api.modrinth.com/v2/project/{slug}/version"
         params = {"loaders": '["fabric"]', "game_versions": f'["{version}"]'}
-        
         try:
             r = requests.get(url_api, params=params, headers=headers, timeout=10)
             if r.status_code == 200:
@@ -155,37 +150,33 @@ def instalar_mods_optimode(game_dir, version, progress_callback):
                 if len(data) > 0:
                     archivo = data[0]["files"][0]
                     mod_path = os.path.join(mods_dir, archivo["filename"])
-                    
                     if not os.path.exists(mod_path):
-                        if progress_callback: progress_callback(f"Descargando {archivo['filename']}...")
                         r_dl = requests.get(archivo["url"], stream=True, headers=headers, timeout=15)
                         if r_dl.status_code == 200:
-                            with open(mod_path, "wb") as f:
-                                shutil.copyfileobj(r_dl.raw, f)
-        except: pass
+                            with open(mod_path, "wb") as f: shutil.copyfileobj(r_dl.raw, f)
+        except Exception: pass
 
 def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type="G1GC", optimizar=False, optimode=False, papa_mode=False, usar_mesa=False, mostrar_consola=False, progress_callback=None):
-    base_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+    minecraft_directory = minecraft_launcher_lib.utils.get_minecraft_directory()
     
     def on_progress(event):
         if progress_callback: progress_callback(event)
 
-    # 1. GESTOR AUTOMÁTICO DE JAVA (Tus amigos no necesitan instalar Java, el launcher lo hace)
-    if progress_callback: progress_callback("Verificando motor Java (Automático)...")
-    minecraft_launcher_lib.install.install_jvm_runtime(version, base_dir, callback={"setStatus": on_progress})
-
+    limpiar_cache_corrupto(version, minecraft_directory)
     version_a_lanzar = version
 
     if optimode:
-        if progress_callback: progress_callback("Preparando el Motor de Paraguacraft...")
+        if progress_callback: progress_callback("Instalando Fabric (Motor de mods)...")
         loader_nuevo = minecraft_launcher_lib.fabric.get_latest_loader_version()
-        minecraft_launcher_lib.fabric.install_fabric(version, base_dir, loader_nuevo, callback={"setStatus": on_progress})
+        limpiar_cache_corrupto(f"fabric-loader-{loader_nuevo}-{version}", minecraft_directory)
+        minecraft_launcher_lib.fabric.install_fabric(version, minecraft_directory, loader_nuevo, callback={"setStatus": on_progress})
         version_a_lanzar = f"fabric-loader-{loader_nuevo}-{version}"
     else:
-        minecraft_launcher_lib.install.install_minecraft_version(version, base_dir, callback={"setStatus": on_progress})
+        if progress_callback: progress_callback("Instalando versión Vanilla...")
+        minecraft_launcher_lib.install.install_minecraft_version(version, minecraft_directory, callback={"setStatus": on_progress})
 
-    # 2. AISLAMIENTO DE INSTANCIAS (Carpeta única para esta versión)
-    game_dir = os.path.join(base_dir, "instancias", f"Paraguacraft_{version_a_lanzar}")
+    folder_name = f"Paraguacraft_{version_a_lanzar}".replace(".", "_").replace("-", "_")
+    game_dir = os.path.join(minecraft_directory, "instancias", folder_name)
     os.makedirs(game_dir, exist_ok=True)
 
     if optimode:
@@ -195,10 +186,7 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
     inyectar_logos_paraguacraft(game_dir, version)
     if optimizar: optimizar_graficos(game_dir)
 
-    jvm_arguments = [
-        f"-Xmx{max_ram}", f"-Xms{max_ram}",
-        "-XX:+UnlockExperimentalVMOptions", "-XX:+DisableExplicitGC", "-XX:+AlwaysPreTouch"
-    ]
+    jvm_arguments = [f"-Xmx{max_ram}", f"-Xms{max_ram}", "-XX:+UnlockExperimentalVMOptions", "-XX:+DisableExplicitGC", "-XX:+AlwaysPreTouch"]
     
     if gc_type == "G1GC":
         jvm_arguments.extend([
@@ -217,7 +205,7 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
         "uuid": str(uuid.uuid4()),
         "token": "",
         "jvmArguments": jvm_arguments,
-        "gameDirectory": game_dir  # ¡LA MAGIA DEL AISLAMIENTO ESTÁ ACÁ!
+        "gameDirectory": game_dir
     }
 
     if papa_mode:
@@ -225,18 +213,25 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
         options["resolutionWidth"] = "800"
         options["resolutionHeight"] = "600"
 
-    command = minecraft_launcher_lib.command.get_minecraft_command(version_a_lanzar, base_dir, options)
+    command = minecraft_launcher_lib.command.get_minecraft_command(version_a_lanzar, minecraft_directory, options)
 
     entorno = os.environ.copy()
     if usar_mesa:
         entorno["MESA_GL_VERSION_OVERRIDE"] = "3.3"
         entorno["MESA_GLSL_VERSION_OVERRIDE"] = "330"
 
-    flags_creacion = 0
-    if mostrar_consola and platform.system() == "Windows": flags_creacion = subprocess.CREATE_NEW_CONSOLE
+    # LA MAGIA ANTI-CRASHEO PARA '--NOCONSOLE'
+    if mostrar_consola and platform.system() == "Windows": 
+        flags_creacion = subprocess.CREATE_NEW_CONSOLE
+        salida = None
+    else:
+        # Obliga al proceso a ejecutarse 100% oculto y manda los logs a un agujero negro (DEVNULL)
+        flags_creacion = subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0
+        salida = subprocess.DEVNULL 
 
-    if progress_callback: progress_callback("¡Despegando Paraguacraft!")
-    proceso = subprocess.Popen(command, env=entorno, creationflags=flags_creacion)
+    if progress_callback: progress_callback("¡Abriendo Paraguacraft!")
+    
+    proceso = subprocess.Popen(command, env=entorno, creationflags=flags_creacion, stdout=salida, stderr=salida, stdin=subprocess.DEVNULL)
     proceso.wait()
 
 if __name__ == "__main__":
