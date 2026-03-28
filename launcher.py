@@ -1,10 +1,16 @@
+import sys
+import os
+
+# ESCUDO ANTI-CRASHEO PARA PYINSTALLER NOCONSOLE
+if sys.platform == "win32":
+    if sys.stdout is None: sys.stdout = open(os.devnull, "w")
+    if sys.stderr is None: sys.stderr = open(os.devnull, "w")
+
 import customtkinter as ctk
 import tkinter as tk
 import threading
-import os
 import platform
 import subprocess
-import webbrowser
 import json
 import minecraft_launcher_lib
 from tkinter import filedialog, messagebox
@@ -14,19 +20,23 @@ from core import lanzar_minecraft
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
-CONFIG_FILE = "paraguacraft_config.json"
+# --- FIX DE PERMISOS PARA INNO SETUP ---
+# Obligamos a que el archivo de configuración se guarde en AppData, donde siempre hay permisos
+APPDATA_DIR = os.path.join(os.getenv('APPDATA'), "ParaguacraftLauncher")
+os.makedirs(APPDATA_DIR, exist_ok=True)
+CONFIG_FILE = os.path.join(APPDATA_DIR, "paraguacraft_config.json")
+# ---------------------------------------
 
 class ParaguaCraftLauncher(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("ParaguaCraft Launcher")
-        self.geometry("600x750")
+        self.geometry("600x700")
         self.resizable(False, False)
 
-        # Variables de configuración
         self.gc_var = ctk.StringVar(value="G1GC (Equilibrado / Recomendado)")
         self.opt_var = ctk.BooleanVar(value=False)
-        self.optimode_var = ctk.BooleanVar(value=True) # Mods activados por defecto
+        self.optimode_var = ctk.BooleanVar(value=True)
         self.papa_var = ctk.BooleanVar(value=False)
         self.cerrar_var = ctk.BooleanVar(value=False)
         self.mesa_var = ctk.BooleanVar(value=False)
@@ -38,21 +48,15 @@ class ParaguaCraftLauncher(ctk.CTk):
         self.label_titulo = ctk.CTkLabel(self.frame_main, text="ParaguaCraft Launcher", font=ctk.CTkFont(size=28, weight="bold"))
         self.label_titulo.pack(pady=(20, 10))
 
-        # --- ZONA DE USUARIO OFFLINE (GIGANTE Y CENTRADA) ---
         self.frame_user = ctk.CTkFrame(self.frame_main, fg_color="transparent")
         self.frame_user.pack(pady=10, fill="x", padx=50)
         
         self.entry_usuario = ctk.CTkEntry(
-            self.frame_user, 
-            placeholder_text="Ingresá tu Nombre de Jugador", 
-            width=350, 
-            height=40, 
-            font=ctk.CTkFont(size=16),
-            justify="center"
+            self.frame_user, placeholder_text="Ingresá tu Nombre de Jugador", 
+            width=350, height=40, font=ctk.CTkFont(size=16), justify="center"
         )
         self.entry_usuario.pack(pady=5)
 
-        # --- LISTA DE VERSIONES (CON BORDES) ---
         self.label_version = ctk.CTkLabel(self.frame_main, text="Seleccionar Versión:", font=ctk.CTkFont(weight="bold"))
         self.label_version.pack(pady=(10, 5))
 
@@ -70,7 +74,6 @@ class ParaguaCraftLauncher(ctk.CTk):
         self.lista_versiones.pack(side="left", fill="both", expand=True, padx=5, pady=5)
         self.scroll_versiones.configure(command=self.lista_versiones.yview)
 
-        # --- AJUSTES RÁPIDOS ---
         self.frame_opciones = ctk.CTkFrame(self.frame_main, fg_color="transparent")
         self.frame_opciones.pack(pady=15, fill="x", padx=50)
 
@@ -82,11 +85,9 @@ class ParaguaCraftLauncher(ctk.CTk):
         self.btn_config = ctk.CTkButton(self.frame_opciones, text="Ajustes Extra", command=self.abrir_config, fg_color="#4a4a4a", width=120)
         self.btn_config.pack(side="right")
 
-        # Ícono de Carpeta en vez de texto
         self.btn_carpeta = ctk.CTkButton(self.frame_opciones, text="📂", command=self.abrir_carpeta_minecraft, fg_color="#2b7b4b", width=40)
         self.btn_carpeta.pack(side="right", padx=10)
 
-        # --- ESTADO Y PROGRESO ---
         self.lbl_estado = ctk.CTkLabel(self.frame_main, text="Listo", text_color="gray")
         self.lbl_estado.pack(pady=5)
 
@@ -117,26 +118,21 @@ class ParaguaCraftLauncher(ctk.CTk):
             except: pass
 
     def guardar_configuracion(self):
-        datos = {
-            "usuario": self.entry_usuario.get(),
-            "ram": self.combo_ram.get(),
-            "gc": self.gc_var.get(),
-            "opt_minimos": self.opt_var.get(),
-            "optimode": self.optimode_var.get(),
-            "papa_mode": self.papa_var.get(),
-            "cerrar_launcher": self.cerrar_var.get(),
-            "mesa": self.mesa_var.get(),
-            "consola": self.consola_var.get()
-        }
-        with open(CONFIG_FILE, "w") as f:
-            json.dump(datos, f)
+        try:
+            datos = {
+                "usuario": self.entry_usuario.get(), "ram": self.combo_ram.get(), "gc": self.gc_var.get(),
+                "opt_minimos": self.opt_var.get(), "optimode": self.optimode_var.get(), "papa_mode": self.papa_var.get(),
+                "cerrar_launcher": self.cerrar_var.get(), "mesa": self.mesa_var.get(), "consola": self.consola_var.get()
+            }
+            with open(CONFIG_FILE, "w") as f: json.dump(datos, f)
+        except Exception:
+            pass # Si por algún motivo de Windows no puede guardar, lo ignora y abre el juego igual
 
     def cargar_versiones(self):
         try:
             versiones = minecraft_launcher_lib.utils.get_version_list()
             lista_releases = [v["id"] for v in versiones if v["type"] == "release" or v["id"].startswith("1.")]
-            for ver in lista_releases:
-                self.lista_versiones.insert(tk.END, ver)
+            for ver in lista_releases: self.lista_versiones.insert(tk.END, ver)
             self.lista_versiones.selection_set(0)
         except:
             self.lbl_estado.configure(text="Error al cargar versiones.")
@@ -148,15 +144,8 @@ class ParaguaCraftLauncher(ctk.CTk):
         vent.grab_set()
 
         ctk.CTkLabel(vent, text="Rendimiento y Opciones", font=ctk.CTkFont(weight="bold")).pack(pady=15)
-        
-        # GARBAGE COLLECTOR
         ctk.CTkLabel(vent, text="Garbage Collector (Java):").pack(pady=(5,0))
-        opciones_gc = [
-            "G1GC (Equilibrado / Recomendado)",
-            "ZGC (Latencia Ultra Baja, requiere RAM)",
-            "Shenandoah (Rendimiento fluido de fondo)",
-            "CMS (Para versiones antiguas)"
-        ]
+        opciones_gc = ["G1GC (Equilibrado / Recomendado)", "ZGC (Latencia Ultra Baja, requiere RAM)", "Shenandoah (Rendimiento fluido de fondo)", "CMS (Para versiones antiguas)"]
         ctk.CTkComboBox(vent, values=opciones_gc, variable=self.gc_var, width=320).pack(pady=10)
 
         ctk.CTkCheckBox(vent, text="Aplicar gráficos al mínimo", variable=self.opt_var).pack(pady=5)
@@ -184,6 +173,9 @@ class ParaguaCraftLauncher(ctk.CTk):
         else: subprocess.Popen(["xdg-open", minecraft_directory])
 
     def actualizar_progreso(self, mensaje):
+        self.after(0, self._actualizar_gui, mensaje)
+
+    def _actualizar_gui(self, mensaje):
         self.lbl_estado.configure(text=mensaje)
         self.barra_progreso.step()
 
@@ -203,7 +195,6 @@ class ParaguaCraftLauncher(ctk.CTk):
         gc_type = self.gc_var.get().split()[0]
 
         self.guardar_configuracion()
-
         self.boton_jugar.configure(state="disabled", text="TRABAJANDO...")
         self.barra_progreso.set(0)
 
@@ -211,37 +202,21 @@ class ParaguaCraftLauncher(ctk.CTk):
         hilo.start()
 
     def ejecutar_motor(self, version, usuario, ram, gc_type):
-        # --- 3. DISCORD RICH PRESENCE ---
-        rpc = None
-        try:
-            from pypresence import Presence
-            import time
-            # ID genérica de Discord App. Para personalizarla 100% podés crear una en el Discord Developer Portal
-            client_id = '1222684879684145243' 
-            rpc = Presence(client_id)
-            rpc.connect()
-            rpc.update(state="Jugando a Paraguacraft", start=int(time.time()))
-        except Exception:
-            pass # Si Discord está cerrado o no está instalado pypresence, ignora y sigue abriendo el juego
-
         try:
             if self.cerrar_var.get():
                 self.withdraw()
             lanzar_minecraft(version, usuario, ram, gc_type, self.opt_var.get(), self.optimode_var.get(), self.papa_var.get(), self.mesa_var.get(), self.consola_var.get(), self.actualizar_progreso)
             if not self.cerrar_var.get():
-                self.lbl_estado.configure(text="Juego finalizado.")
+                self.after(0, lambda: self.lbl_estado.configure(text="Juego finalizado."))
         except Exception as e:
-            self.deiconify()
-            self.lbl_estado.configure(text=f"Error: {str(e)[:40]}")
+            error_msg = f"Error: {str(e)[:40]}"
+            self.after(0, self.deiconify)
+            self.after(0, lambda m=error_msg: self.lbl_estado.configure(text=m))
         finally:
-            if rpc:
-                try: rpc.close()
-                except: pass
-                
             if self.cerrar_var.get():
-                self.destroy()
+                self.after(0, self.destroy)
             else:
-                self.boton_jugar.configure(state="normal", text="INICIAR PARAGUACRAFT")
+                self.after(0, lambda: self.boton_jugar.configure(state="normal", text="INICIAR PARAGUACRAFT"))
 
 if __name__ == "__main__":
     app = ParaguaCraftLauncher()
