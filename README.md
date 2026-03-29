@@ -1,0 +1,1 @@
+Paraguacraft Launcher es un cliente personalizado desarrollado en Python utilizando CustomTkinter. Cuenta con integración de Discord RPC, sistema de auto-actualización vía HTTP y un gestor de rendimiento de Java.

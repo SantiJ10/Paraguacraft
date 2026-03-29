@@ -30,21 +30,32 @@ from core import lanzar_minecraft
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
+# LIMPIADOR DE ACTUALIZACIONES
+if getattr(sys, 'frozen', False):
+    directorio_actual = os.path.dirname(sys.executable)
+    viejo_exe = os.path.join(directorio_actual, "Paraguacraft_Viejo.exe")
+    if os.path.exists(viejo_exe):
+        try:
+            os.remove(viejo_exe)
+        except:
+            pass
+
 APPDATA_DIR = os.path.join(os.getenv('APPDATA'), "ParaguacraftLauncher")
 os.makedirs(APPDATA_DIR, exist_ok=True)
 CONFIG_FILE = os.path.join(APPDATA_DIR, "paraguacraft_config.json")
 SESSION_FILE = os.path.join(APPDATA_DIR, "paraguacraft_session.json")
 LOG_DIR = os.path.join(minecraft_launcher_lib.utils.get_minecraft_directory(), "logs")
 
-# === CONFIGURACIÓN DE PARAGUACRAFT (DATOS BLINDADOS) ===
+# URL Configuracion
 CLIENT_ID = "72fb7c48-c2f5-4d13-b0e7-9835b3b906c0" 
 REDIRECT_URI = "https://login.live.com/oauth20_desktop.srf"
 DISCORD_APP_ID = "1487516329631154206" 
 SERVER_IP = "process-import.gl.at.ply.gg:2055" 
 MODS_ZIP_URL = "" 
-LAUNCHER_VERSION = "1.0.0"
-UPDATE_URL = "" 
-# =====================================================
+
+LAUNCHER_VERSION = "1.0.1"
+UPDATE_URL = "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/refs/heads/main/version.txt"
+DOWNLOAD_URL = "https://github.com/SantiJ10/Paraguacraft/releases/download/v.1.0.1/Paraguacraft.exe"
 
 class ParaguaCraftLauncher(ctk.CTk):
     def __init__(self):
@@ -69,7 +80,7 @@ class ParaguaCraftLauncher(ctk.CTk):
         self.ms_data = None
         self.rpc = None
         self.usuarios_guardados = []
-        self.hilo_juego_activo = False # Para apagar el Terminator cuando cerres el juego
+        self.hilo_juego_activo = False
 
         self.frame_main = ctk.CTkFrame(self)
         self.frame_main.pack(pady=15, padx=20, fill="both", expand=True)
@@ -131,6 +142,7 @@ class ParaguaCraftLauncher(ctk.CTk):
         self.btn_carpeta = ctk.CTkButton(self.frame_opciones, text="📂", command=self.abrir_carpeta_minecraft, fg_color="#2b7b4b", width=40)
         self.btn_carpeta.pack(side="right", padx=10)
 
+
         self.lbl_estado = ctk.CTkLabel(self.frame_main, text="Listo", text_color="gray")
         self.lbl_estado.pack(pady=5)
 
@@ -145,6 +157,7 @@ class ParaguaCraftLauncher(ctk.CTk):
         self.cargar_sesion_microsoft()
         threading.Thread(target=self.cargar_versiones, daemon=True).start()
         threading.Thread(target=self.ping_servidor, daemon=True).start()
+        
         threading.Thread(target=self.buscar_actualizaciones, daemon=True).start()
         threading.Thread(target=self.iniciar_discord_rpc, daemon=True).start()
 
@@ -157,18 +170,80 @@ class ParaguaCraftLauncher(ctk.CTk):
                     jug = data["players"]["online"]
                     max_j = data["players"]["max"]
                     self.lbl_server.configure(text=f"🟢 El Server está ONLINE ({jug}/{max_j})", text_color="#2ecc71")
-                else: self.lbl_server.configure(text=f"🔴 El Server está OFFLINE", text_color="#e74c3c")
-        except: self.lbl_server.configure(text="No se pudo comprobar el servidor", text_color="gray")
+                else:
+                    self.lbl_server.configure(text=f"🔴 El Server está OFFLINE", text_color="#e74c3c")
+        except:
+            self.lbl_server.configure(text="No se pudo comprobar el servidor", text_color="gray")
 
+    # 🚀 MOTOR DE AUTO-UPDATER 
     def buscar_actualizaciones(self):
         try:
-            if not UPDATE_URL: return
-            r = requests.get(UPDATE_URL, timeout=3)
+            if not UPDATE_URL or not DOWNLOAD_URL: return
+            r = requests.get(UPDATE_URL, timeout=10) 
             if r.status_code == 200:
                 version_remota = r.text.strip()
-                if version_remota != LAUNCHER_VERSION and len(version_remota) < 10:
-                    messagebox.showinfo("¡Actualización Disponible!", f"Salió la versión {version_remota} del launcher.\n¡Pedile el nuevo archivo a Santi!")
-        except: pass
+                if version_remota != LAUNCHER_VERSION:
+                    self.after(0, self.preguntar_actualizacion, version_remota)
+        except Exception as e:
+            print(f"Error de conexión: {e}")
+
+    def preguntar_actualizacion(self, version_remota):
+        respuesta = messagebox.askyesno(
+            "¡Actualización Disponible!",
+            f"¡Salió la versión {version_remota} de Paraguacraft!\n\n¿Querés actualizarlo ahora automáticamente? (Tarda unos segundos)"
+        )
+        if respuesta:
+            threading.Thread(target=self.ejecutar_actualizacion, daemon=True).start()
+
+    def ejecutar_actualizacion(self):
+        try:
+            self.actualizar_progreso("Descargando actualización (Esto puede tardar)...")
+            self.boton_jugar.configure(state="disabled", text="ACTUALIZANDO...")
+            
+            r = requests.get(DOWNLOAD_URL, stream=True, timeout=30)
+            r.raise_for_status()
+            
+            exe_actual = sys.executable 
+            directorio = os.path.dirname(exe_actual)
+            nombre_exe = os.path.basename(exe_actual)
+            nuevo_exe = os.path.join(directorio, "Paraguacraft_Nuevo.exe")
+            
+            # 1. Descargamos el nuevo archivo
+            with open(nuevo_exe, "wb") as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    f.write(chunk)
+                    
+            self.actualizar_progreso("Aplicando actualización...")
+            bat_path = os.path.join(directorio, "update_paraguacraft.bat")
+            
+            # 2. BAT super simple: Solo borra el viejo y renombra el nuevo (no lo ejecuta)
+            bat_content = f"""@echo off
+timeout /t 2 /nobreak > NUL
+:bucle
+del /f /q "{nombre_exe}"
+if exist "{nombre_exe}" (
+    timeout /t 1 /nobreak > NUL
+    goto bucle
+)
+ren "Paraguacraft_Nuevo.exe" "{nombre_exe}"
+del "%~f0"
+"""
+            with open(bat_path, "w") as f:
+                f.write(bat_content)
+                
+            # 3. Lanzamos el script invisible
+            subprocess.Popen([bat_path], creationflags=subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0)
+            
+            # 4. Le avisamos al usuario que tiene que reabrirlo
+            messagebox.showinfo("¡Actualización Lista!", "La actualización se descargó correctamente.\n\nEl launcher se cerrará ahora para instalarla. Por favor, vuelve a abrirlo en unos segundos para jugar.")
+            
+            # 5. Cierre limpio e instantáneo
+            os._exit(0)
+            
+        except Exception as e:
+            self.actualizar_progreso("Error al actualizar.")
+            self.after(0, lambda: messagebox.showerror("Error", f"No se pudo actualizar: {str(e)}"))
+            self.boton_jugar.configure(state="normal", text="INICIAR PARAGUACRAFT")
 
     def iniciar_discord_rpc(self):
         try:
@@ -198,8 +273,10 @@ class ParaguaCraftLauncher(ctk.CTk):
                     with open(SESSION_FILE, "w") as f: json.dump(account_data, f)
                     self.lbl_estado.configure(text=f"¡Bienvenido, {account_data['name']} (Premium)!")
                     messagebox.showinfo("Login Exitoso", f"Cuenta Premium verificada: {account_data['name']}")
-                else: messagebox.showerror("Error", "No copiaste bien el link o cancelaste el login.")
-        except Exception as e: messagebox.showerror("Error de Login", str(e))
+                else:
+                    messagebox.showerror("Error", "No copiaste bien el link o cancelaste el login.")
+        except Exception as e:
+            messagebox.showerror("Error de Login", str(e))
 
     def cargar_sesion_microsoft(self):
         if os.path.exists(SESSION_FILE):
@@ -253,10 +330,14 @@ class ParaguaCraftLauncher(ctk.CTk):
 
         try:
             datos = {
-                "usuario": usuario_actual, "historial_usuarios": self.usuarios_guardados, "ram": self.combo_ram.get(), "gc": self.gc_var.get(),
+                "usuario": usuario_actual, "historial_usuarios": self.usuarios_guardados,
+                "ram": self.combo_ram.get(), "gc": self.gc_var.get(),
                 "opt_minimos": self.opt_var.get(), "optimode": self.optimode_var.get(), "papa_mode": self.papa_var.get(),
-                "mesa": self.mesa_var.get(), "consola": self.consola_var.get(), "veces_iniciadas": self.veces_iniciadas.get(),
-                "horas_jugadas_total": self.horas_jugadas_total.get(), "limpiador_deep": self.limpiador_deep_var.get(), "backup_on_launch": self.backup_var.get()
+                "mesa": self.mesa_var.get(), "consola": self.consola_var.get(),
+                "veces_iniciadas": self.veces_iniciadas.get(),
+                "horas_jugadas_total": self.horas_jugadas_total.get(),
+                "limpiador_deep": self.limpiador_deep_var.get(),
+                "backup_on_launch": self.backup_var.get()
             }
             with open(CONFIG_FILE, "w") as f: json.dump(datos, f)
         except: pass
@@ -275,7 +356,7 @@ class ParaguaCraftLauncher(ctk.CTk):
             self.lista_versiones.delete(0, tk.END)
             for ver in versiones_finales: self.lista_versiones.insert(tk.END, ver)
             try:
-                indice_target = versiones_finales.index("1.21.1")
+                indice_target = versiones_finales.index("1.21.11")
                 self.lista_versiones.selection_set(indice_target)
             except: self.lista_versiones.selection_set(0)
         except: self.lbl_estado.configure(text="Error al cargar versiones.")
@@ -402,7 +483,6 @@ class ParaguaCraftLauncher(ctk.CTk):
         self.boton_jugar.configure(state="disabled", text="TRABAJANDO...")
         self.barra_progreso.set(0)
 
-        # 🌟 EL ARREGLO DE DISCORD: AHORA DICE "JUGANDO PARAGUACRAFT" MÁS LA VERSIÓN
         if self.rpc:
             try: self.rpc.update(state=f"Jugando Paraguacraft {version}", details=f"Jugador: {usuario}", large_image="logo")
             except: pass
@@ -433,14 +513,13 @@ class ParaguaCraftLauncher(ctk.CTk):
 
             self.after(0, lambda: self.lbl_estado.configure(text="Lanzando Paraguacraft..."))
             
-            # 🔥 INICIAMOS EL TERMINATOR DE VENTANAS
             threading.Thread(target=self._hilo_ninja_renombrar, args=(version_jugada,), daemon=True).start()
 
             start_time = datetime.now()
             
             lanzar_minecraft(version_jugada, usuario, ram, gc_type, self.opt_var.get(), self.optimode_var.get(), self.papa_var.get(), self.mesa_var.get(), self.consola_var.get(), self.actualizar_progreso, uuid_real, token_real)
             
-            self.hilo_juego_activo = False # Apagamos el Terminator
+            self.hilo_juego_activo = False
             
             end_time = datetime.now()
             duracion = end_time - start_time
@@ -460,18 +539,15 @@ class ParaguaCraftLauncher(ctk.CTk):
         finally:
             self.after(0, lambda: self.boton_jugar.configure(state="normal", text="INICIAR PARAGUACRAFT"))
 
-    # 🪟 EL TERMINATOR DE VENTANAS (Chequea y renombra constantemente)
     def _hilo_ninja_renombrar(self, version_jugada):
         if sys.platform != "win32": return
         import time
-        # Mientras el juego esté abierto, va a vigilar cada 2 segundos
         while self.hilo_juego_activo:
             time.sleep(2)
             try:
                 def callback(hwnd, windows_list):
                     if win32gui.IsWindowVisible(hwnd):
                         text = win32gui.GetWindowText(hwnd)
-                        # Si Minecraft cambia su nombre a "Minecraft", lo pisamos.
                         if "Minecraft" in text and "Launcher" not in text: 
                             win32gui.SetWindowText(hwnd, f"Paraguacraft {version_jugada}")
                     return True
