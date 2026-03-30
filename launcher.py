@@ -700,21 +700,19 @@ del "%~f0"
             self.after(0, lambda: self.boton_jugar.configure(state="normal", text="INICIAR PARAGUACRAFT"))
 
     def _hilo_ninja_renombrar(self, version_jugada):
-        if sys.platform != "win32": return
         import time
+        import win32gui
+        
         while self.hilo_juego_activo:
-            time.sleep(2)
-            try:
-                def callback(hwnd, windows_list):
-                    if win32gui.IsWindowVisible(hwnd):
-                        text = win32gui.GetWindowText(hwnd)
-                        if "Minecraft" in text and "Launcher" not in text: 
-                            win32gui.SetWindowText(hwnd, f"Paraguacraft {version_jugada}")
-                    return True
-                
-                matching_windows = []
-                win32gui.EnumWindows(callback, matching_windows)
-            except Exception: pass
+            time.sleep(1)
+            def callback(hwnd, extra):
+                if win32gui.IsWindowVisible(hwnd):
+                    titulo = win32gui.GetWindowText(hwnd)
+                    if "Minecraft" in titulo and "ParaguaCraft Launcher" not in titulo:
+                        nuevo_titulo = titulo.replace("Minecraft*", "Paraguacraft").replace("Minecraft", "Paraguacraft")
+                        if nuevo_titulo != titulo:
+                            win32gui.SetWindowText(hwnd, nuevo_titulo)
+            win32gui.EnumWindows(callback, None)
     
     # --- FUNCIONES NUEVAS: MULTICUENTA, TEMAS Y HARDWARE ---
 
@@ -945,73 +943,59 @@ del "%~f0"
 
     def _hilo_discord_rpc_dinamico(self, version_jugada, usuario, tipo_cliente):
         if not self.rpc: return
-        import time
-        import os
-        import minecraft_launcher_lib
+        import time, os, minecraft_launcher_lib
 
+        # 1. Ubicación de la instancia
         version_base = version_jugada.strip()
         if version_base.startswith("fabric-loader-"):
             version_base = version_base.split("-")[-1]
             tipo_cliente = "Fabric"
-        elif "forge" in version_base.lower():
-            version_base = version_base.split("-")[0]
-            tipo_cliente = "Forge"
-
         folder_name = f"Paraguacraft_{version_base}_{tipo_cliente}".replace(".", "_")
-        mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
-        log_path = os.path.join(mine_dir, "instancias", folder_name, "logs", "latest.log")
+        log_path = os.path.join(minecraft_launcher_lib.utils.get_minecraft_directory(), "instancias", folder_name, "logs", "latest.log")
         
-        # EL TRUCO: Borramos el log viejo para obligar a Python a esperar el nuevo
         try:
-            if os.path.exists(log_path):
-                os.remove(log_path)
-        except:
-            pass
+            if os.path.exists(log_path): os.remove(log_path)
+        except: pass
             
         estado_actual = "En el menú principal"
-        
+        self.rpc.update(state=estado_actual, details=f"👤 {usuario} | 🎮 {version_jugada}", large_image="logo")
+
         try:
-            self.rpc.update(state=estado_actual, details=f"👤 {usuario} | 🎮 {version_jugada}", large_image="logo")
+            while not os.path.exists(log_path) and self.hilo_juego_activo: time.sleep(1)
             
-            # Esperamos a que el juego cree el archivo log nuevo (Hasta 3 minutos)
-            tiempo_espera = 0
-            while not os.path.exists(log_path) and self.hilo_juego_activo and tiempo_espera < 180:
-                time.sleep(1)
-                tiempo_espera += 1
-                
-            if not os.path.exists(log_path): return 
-            
-            # Leemos el archivo nuevo línea por línea
             with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
                 while self.hilo_juego_activo:
                     linea = f.readline()
                     if not linea:
-                        time.sleep(0.5) 
-                        f.seek(f.tell()) # <--- ESTA LÍNEA OBLIGA A WINDOWS A ACTUALIZAR EL ARCHIVO EN VIVO
+                        time.sleep(0.5)
+                        f.seek(f.tell()) # Actualiza el puntero para ver cambios en vivo
                         continue
 
-                    # --- DETECCIÓN INTELIGENTE (Versión 1.21+) ---
-                    
-                    # 1. Multijugador
-                    if "Connecting to" in linea:
-                        partes = linea.split("Connecting to ")
-                        if len(partes) > 1:
-                            ip = partes[1].split(",")[0].split(":")[0].strip() 
-                            estado_actual = f"🌐 Multijugador: {ip}"
-                            self.rpc.update(state=estado_actual, details=f"👤 {usuario} | 🎮 {version_jugada}", large_image="logo")
-                            
-                    # 2. Mundo Local (Singleplayer)
-                    elif "Starting integrated minecraft server" in linea or "Preparing start region for dimension" in linea:
-                        estado_actual = "🌍 Jugando en Mundo Local"
-                        self.rpc.update(state=estado_actual, details=f"👤 {usuario} | 🎮 {version_jugada}", large_image="logo")
+                    # --- DETECCIÓN DE ESTADOS ---
+                    # A. Si hosteás LAN con e4mc
+                    if "Local game hosted on domain" in linea:
+                        try:
+                            ip_lan = linea.split("[")[1].split("]")[0]
+                            estado_actual = f"🏠 Hosteando LAN: {ip_lan}"
+                        except: estado_actual = "🏠 Hosteando Mundo LAN"
                         
-                    # 3. Salida al menú principal
-                    elif "Stopping server" in linea or "Disconnecting from" in linea or "Disconnected from" in linea:
+                    # B. Si te conectás a un server (Hypixel, etc)
+                    elif "Connecting to" in linea:
+                        ip = linea.split("Connecting to ")[1].split(",")[0].split(":")[0].strip()
+                        estado_actual = f"🌐 Multijugador: {ip}"
+                            
+                    # C. Si entrás a un mundo local normal
+                    elif "Starting integrated minecraft server" in linea:
+                        if "Hosteando" not in estado_actual: # No pisar el estado LAN si ya lo detectó
+                            estado_actual = "🌍 Jugando en Mundo Local"
+                        
+                    # D. Si volvés al menú
+                    elif "Disconnecting from" in linea or "Stopping server" in linea:
                         estado_actual = "En el menú principal"
-                        self.rpc.update(state=estado_actual, details=f"👤 {usuario} | 🎮 {version_jugada}", large_image="logo")
 
-        except Exception as e:
-            print(f"El espía de Discord falló: {e}")
+                    self.rpc.update(state=estado_actual, details=f"👤 {usuario} | 🎮 {version_jugada}", large_image="logo")
+
+        except Exception as e: print(f"Error RPC: {e}")
 
     def procesar_archivos_soltados(self, archivos):
         try:
