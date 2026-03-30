@@ -56,7 +56,7 @@ DISCORD_APP_ID = "1487516329631154206"
 SERVER_IP = "process-import.gl.at.ply.gg:2055" 
 MODS_ZIP_URL = "" 
 
-LAUNCHER_VERSION = "1.0.2"
+LAUNCHER_VERSION = "1.0.3"
 UPDATE_URL = "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/refs/heads/main/version.txt"
 
 class ParaguaCraftLauncher(ctk.CTk):
@@ -64,7 +64,7 @@ class ParaguaCraftLauncher(ctk.CTk):
         super().__init__()
         self.title(f"ParaguaCraft Launcher v{LAUNCHER_VERSION}")
         self.centrar_ventana(self, 600, 780)
-        self.resizable(False, False)
+        self.resizable(True, True)
 
         icono_base = "iconomc.ico"
         if getattr(sys, 'frozen', False):
@@ -190,8 +190,9 @@ class ParaguaCraftLauncher(ctk.CTk):
         threading.Thread(target=self.iniciar_discord_rpc, daemon=True).start()
 
         # Activamos el sensor magnético para arrastrar y soltar
+        # Activamos el sensor magnético para arrastrar y soltar
         try:
-            windnd.hook_dropurls(self.winfo_id(), self.procesar_archivos_soltados)
+            windnd.hook_dropfiles(self.winfo_id(), self.procesar_archivos_soltados)
         except Exception as e:
             print("No se pudo iniciar el Drag & Drop:", e)
 
@@ -457,6 +458,7 @@ del "%~f0"
         # Hacemos la ventana un pelín más ancha para que respiren los textos
         self.centrar_ventana(vent, 480, 780) 
         vent.grab_set()
+        vent.resizable(True, True)
 
         if getattr(sys, 'frozen', False):
             icono_ajustes = os.path.join(sys._MEIPASS, "iconomc.ico")
@@ -529,15 +531,23 @@ del "%~f0"
         
         ctk.CTkButton(frame_skin_buttons, text="🖼️ Elegir Skin", command=self.elegir_skin, fg_color="#8e44ad", hover_color="#5e3370").pack(side="left", padx=5, expand=True, fill="x")
         ctk.CTkButton(frame_skin_buttons, text="❌ Borrar", command=self.borrar_skin, fg_color="#c0392b", hover_color="#922b21", width=80).pack(side="right", padx=5)
-
         # --- 6. BOTONES FINALES ---
         frame_botones_finales = ctk.CTkFrame(scroll_main, fg_color="transparent")
         frame_botones_finales.pack(fill="x", padx=10, pady=15)
 
-        self.btn_tienda = ctk.CTkButton(frame_botones_finales, text="🛒 Tienda de Mods", command=self.abrir_tienda, fg_color="#27ae60", hover_color="#2ecc71", font=ctk.CTkFont(weight="bold"), height=40)
+        # Fila 1: Tienda y SOS (Lado a lado)
+        frame_fila1 = ctk.CTkFrame(frame_botones_finales, fg_color="transparent")
+        frame_fila1.pack(fill="x", pady=(0, 5))
+        
+        self.btn_tienda = ctk.CTkButton(frame_fila1, text="🛒 Tienda de Mods", command=self.abrir_tienda, fg_color="#27ae60", hover_color="#2ecc71", font=ctk.CTkFont(weight="bold"), height=40)
         self.btn_tienda.pack(side="left", expand=True, fill="x", padx=(0, 5))
 
-        ctk.CTkButton(frame_botones_finales, text="🚑 Reparación (SOS)", command=self.ejecutar_reparacion_sos, fg_color="#c0392b", hover_color="#922b21", height=40).pack(side="right", expand=True, fill="x", padx=(5, 0))
+        ctk.CTkButton(frame_fila1, text="🚑 Reparación (SOS)", command=self.ejecutar_reparacion_sos, fg_color="#c0392b", hover_color="#922b21", height=40).pack(side="right", expand=True, fill="x", padx=(5, 0))
+
+        # Fila 2 y 3: Las nuevas herramientas del Sprint
+        ctk.CTkButton(frame_botones_finales, text="🔄 Smart Updater (Actualizar Mods)", command=self.actualizar_mods_instancia, fg_color="#2980b9", hover_color="#1f618d", height=35).pack(fill="x", pady=5)
+        
+        ctk.CTkButton(frame_botones_finales, text="🖥️ Creador de Servidor Dedicado Local", command=self.crear_servidor_local, fg_color="#8e44ad", hover_color="#5e3370", height=35).pack(fill="x", pady=5)
 
     def elegir_skin(self):
         ruta = filedialog.askopenfilename(title="Skin (.png)", filetypes=[("PNG", "*.png")])
@@ -731,17 +741,26 @@ del "%~f0"
         self.guardar_configuracion()
 
     def auto_configurar_hardware(self):
+        # Lee RAM y Núcleos del Procesador físicos
         ram_total_gb = max(1, int(psutil.virtual_memory().total / (1024 ** 3)))
-        if ram_total_gb <= 8:
+        cpu_cores = psutil.cpu_count(logical=False) or 2 
+
+        if ram_total_gb <= 8 or cpu_cores <= 2:
+            # PC Básica: Deja 3GB de RAM, activa gráficos al mínimo y fuerza Fabric
             self.combo_ram.set("3GB")
             self.opt_var.set(True) 
-            self.tipo_cliente_var.set("Fabric") # <--- Corregido acá
-        elif ram_total_gb <= 16:
+            self.tipo_cliente_var.set("Fabric") 
+            self.papa_var.set(ram_total_gb <= 4) # Si tiene 4 o menos, activa Modo Papa
+        elif ram_total_gb <= 16 and cpu_cores <= 4:
+            # PC Media
             self.combo_ram.set("6GB")
             self.opt_var.set(False) 
+            self.papa_var.set(False)
         else:
+            # PC Alta (Sobrada)
             self.combo_ram.set("8GB") 
             self.opt_var.set(False) 
+            self.papa_var.set(False)
         
         self.guardar_configuracion()
 
@@ -770,6 +789,55 @@ del "%~f0"
     # =======================================================
     # 🛒 SPRINT 3: TIENDA DE MODS MULTIPROPÓSITO (MODRINTH)
     # =======================================================
+
+    def actualizar_mods_instancia(self):
+        # 1. Identificar versión y carpeta
+        seleccion = self.lista_versiones.curselection()
+        if not seleccion: return
+        version_actual = self.lista_versiones.get(seleccion[0])
+        tipo_cliente_ui = self.tipo_cliente_var.get().split()[0]
+        
+        folder_name = f"Paraguacraft_{version_actual}_{tipo_cliente_ui}".replace(".", "_")
+        mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+        mods_dir = os.path.join(mine_dir, "instancias", folder_name, "mods")
+        
+        if not os.path.exists(mods_dir):
+            messagebox.showinfo("Aviso", "No hay mods instalados en esta versión todavía.")
+            return
+
+        def _hilo_updater():
+            self.actualizar_progreso("Buscando actualizaciones de mods...")
+            mods_locales = [f for f in os.listdir(mods_dir) if f.endswith(".jar")]
+            actualizados = 0
+
+            for mod_file in mods_locales:
+                # Intentamos sacar el nombre del mod del archivo (aproximado)
+                nombre_busqueda = mod_file.split("-")[0].split("_")[0]
+                url_api = f"https://api.modrinth.com/v2/search?query={nombre_busqueda}&facets=[[\"versions:{version_actual}\"],[\"project_type:mod\"]]"
+                
+                try:
+                    r = requests.get(url_api, timeout=5).json()
+                    if r.get("hits"):
+                        slug = r["hits"][0]["slug"]
+                        # Verificamos la versión más nueva en Modrinth
+                        v_r = requests.get(f"https://api.modrinth.com/v2/project/{slug}/version", params={"game_versions": f'["{version_actual}"]', "loaders": '["fabric"]'}).json()
+                        if v_r:
+                            nuevo_archivo = v_r[0]["files"][0]["filename"]
+                            if nuevo_archivo != mod_file:
+                                self.actualizar_progreso(f"Actualizando {slug}...")
+                                # Bajamos el nuevo
+                                r_dl = requests.get(v_r[0]["files"][0]["url"])
+                                with open(os.path.join(mods_dir, nuevo_archivo), "wb") as f:
+                                    f.write(r_dl.content)
+                                # Borramos el viejo
+                                os.remove(os.path.join(mods_dir, mod_file))
+                                actualizados += 1
+                except: continue
+
+            self.actualizar_progreso("¡Mods al día!")
+            messagebox.showinfo("Smart Updater", f"Proceso terminado. Se actualizaron {actualizados} mods.")
+
+        threading.Thread(target=_hilo_updater, daemon=True).start()
     
     def abrir_tienda(self):
         vent_tienda = ctk.CTkToplevel(self)
@@ -1057,6 +1125,93 @@ del "%~f0"
                 
         except Exception as e:
             messagebox.showerror("Error al procesar", f"Hubo un problema instalando el archivo:\n{e}")
+
+    def crear_servidor_local(self):
+        # 1. Preguntar dónde guardarlo
+        carpeta_server = filedialog.askdirectory(title="Elegí una carpeta VACÍA para tu servidor")
+        if not carpeta_server: return
+        
+        # 2. Preguntar versión (Usamos la seleccionada en la lista como sugerencia)
+        seleccion = self.lista_versiones.curselection()
+        sugerencia = self.lista_versiones.get(seleccion[0]) if seleccion else "1.21.1"
+        # Limpiamos si seleccionó algo de fabric para que quede solo el número
+        if "fabric" in sugerencia: sugerencia = sugerencia.split("-")[-1]
+        
+        dialog = ctk.CTkInputDialog(text="Ingresá la versión EXACTA (ej: 1.21.1):", title="Versión del Server")
+        ver_server = dialog.get_input()
+        if not ver_server: return
+
+        def _hilo_server():
+            try:
+                self.actualizar_progreso(f"Buscando servidor para la versión {ver_server}...")
+                
+                # 3. Buscamos en el manifiesto oficial de Mojang
+                manifest = requests.get("https://launchermeta.mojang.com/mc/game/version_manifest.json", timeout=10).json()
+                version_url = None
+                for v in manifest["versions"]:
+                    if v["id"] == ver_server:
+                        version_url = v["url"]
+                        break
+                
+                if not version_url:
+                    raise Exception(f"La versión '{ver_server}' no existe en Mojang.\nAsegurate de poner una versión oficial válida (Ej: 1.21.1).")
+                
+                # 4. Entramos a la versión y sacamos el link del server.jar
+                v_data = requests.get(version_url, timeout=10).json()
+                if "server" not in v_data.get("downloads", {}):
+                    raise Exception("Esta versión no tiene un servidor oficial disponible.")
+                    
+                server_jar_url = v_data["downloads"]["server"]["url"]
+                
+                # 5. Descargamos el archivo pesado
+                self.actualizar_progreso(f"Descargando server.jar ({ver_server})...")
+                r_jar = requests.get(server_jar_url, stream=True, timeout=30)
+                r_jar.raise_for_status()
+                
+                with open(os.path.join(carpeta_server, "server.jar"), "wb") as f:
+                    for chunk in r_jar.iter_content(chunk_size=8192):
+                        f.write(chunk)
+                
+                # 6. Aceptamos la EULA automáticamente
+                with open(os.path.join(carpeta_server, "eula.txt"), "w") as f:
+                    f.write("eula=true")
+                
+                # 7. MAGIA EXTRA 2.0: Buscador agresivo de Java
+                mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+                runtime_dir = os.path.join(mine_dir, "runtime")
+                java_cmd = "java" # Fallback por defecto
+                
+                if os.path.exists(runtime_dir):
+                    # Buscamos todos los java.exe instalados por el launcher
+                    javas_encontrados = []
+                    for root, _, files in os.walk(runtime_dir):
+                        if "java.exe" in files:
+                            javas_encontrados.append(os.path.join(root, "java.exe"))
+                    
+                    if javas_encontrados:
+                        # Buscamos el Java 21 (suele estar en carpetas 'delta' o 'gamma')
+                        java_ideal = None
+                        for j in javas_encontrados:
+                            if "delta" in j.lower() or "gamma" in j.lower() or "21" in j.lower():
+                                java_ideal = j
+                                break
+                        
+                        if not java_ideal: java_ideal = javas_encontrados[0]
+                        # Lo encerramos en comillas por si la ruta tiene espacios
+                        java_cmd = f'"{java_ideal}"'
+
+                # 8. Creamos el archivo de arranque apuntando al Java correcto
+                bat_content = f"@echo off\n{java_cmd} -Xmx4G -Xms4G -jar server.jar nogui\npause"
+                with open(os.path.join(carpeta_server, "iniciar_server.bat"), "w", encoding="utf-8") as f:
+                    f.write(bat_content)
+                
+                self.actualizar_progreso("¡Servidor listo!")
+                messagebox.showinfo("Servidor Creado Mágicamente ✨", f"¡Todo listo en {carpeta_server}!\n\nEl launcher ya descargó el server.jar original de Mojang y forzó el uso del Java interno.\n\nSolo dale doble clic a 'iniciar_server.bat' adentro de la carpeta para prenderlo.")
+            except Exception as e:
+                self.actualizar_progreso("Error al crear servidor.")
+                messagebox.showerror("Error", str(e))
+
+        threading.Thread(target=_hilo_server, daemon=True).start()
 
 if __name__ == "__main__":
     app = ParaguaCraftLauncher()
