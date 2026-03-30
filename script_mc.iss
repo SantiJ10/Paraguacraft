@@ -1,6 +1,6 @@
 [Setup]
 AppName=Paraguacraft
-AppVersion=1.0.1
+AppVersion=1.0.2
 AppPublisher=Jaful
 DefaultDirName={autopf}\Paraguacraft
 DefaultGroupName=Paraguacraft
