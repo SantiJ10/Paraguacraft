@@ -143,10 +143,10 @@ class ParaguaCraftLauncher(ctk.CTk):
         self.label_version = ctk.CTkLabel(self.frame_main, text="Seleccionar Versión:", font=ctk.CTkFont(weight="bold"))
         self.label_version.pack(pady=(10, 5))
 
-        # FIX VISUAL: Le damos un ancho y alto fijo, y le prohibimos estirarse de más
+        # FIX VISUAL
         self.frame_lista = ctk.CTkFrame(self.frame_main, border_width=2, border_color="#3a3a3a", width=400, height=160)
         self.frame_lista.pack(pady=5) # Le sacamos el fill="x" y el expand
-        self.frame_lista.pack_propagate(False) # ESTO ES CLAVE: Obliga a la caja a mantener el 400x160
+        self.frame_lista.pack_propagate(False)
         
         self.scroll_versiones = ctk.CTkScrollbar(self.frame_lista)
         self.scroll_versiones.pack(side="right", fill="y", padx=(0, 2), pady=2)
@@ -199,8 +199,6 @@ class ParaguaCraftLauncher(ctk.CTk):
         threading.Thread(target=self.buscar_actualizaciones, daemon=True).start()
         threading.Thread(target=self.iniciar_discord_rpc, daemon=True).start()
 
-        # Activamos el sensor magnético para arrastrar y soltar
-        # Activamos el sensor magnético para arrastrar y soltar
         try:
             windnd.hook_dropfiles(self.winfo_id(), self.procesar_archivos_soltados)
         except Exception as e:
@@ -222,16 +220,16 @@ class ParaguaCraftLauncher(ctk.CTk):
     def ping_servidor(self):
         def hacer_ping():
             try:
-                # Intento 1: Por internet (Para cuando lo usan tus amigos)
+                # Intento 1: Por internet
                 server = JavaServer.lookup(SERVER_IP)
                 status = server.status()
             except Exception:
                 try:
-                    # Intento 2: Red local / Bucle interno (Para cuando lo usás vos en tu PC)
+                    # Intento 2: Red local
                     server_local = JavaServer.lookup("127.0.0.1:25565")
                     status = server_local.status()
                 except Exception:
-                    # Si los dos fallan, ahí sí está apagado posta
+                    # Si los dos fallan, esta apagado
                     self.after(0, lambda: self.lbl_server.configure(text="🔴 El Server está OFFLINE", text_color="#e74c3c"))
                     return
 
@@ -241,8 +239,7 @@ class ParaguaCraftLauncher(ctk.CTk):
         
         threading.Thread(target=hacer_ping, daemon=True).start()
 
-    # 🚀 MOTOR DE AUTO-UPDATER 
-    # 🚀 MOTOR DE AUTO-UPDATER DINÁMICO
+    #  MOTOR DE AUTO-UPDATER DINÁMICO
     def buscar_actualizaciones(self):
         try:
             if not UPDATE_URL: return
@@ -260,7 +257,6 @@ class ParaguaCraftLauncher(ctk.CTk):
             f"¡Salió la versión {version_remota} de Paraguacraft!\n\n¿Querés actualizarlo ahora automáticamente? (Tarda unos segundos)"
         )
         if respuesta:
-            # Le pasamos el número de versión nuevo a la función de descarga
             threading.Thread(target=self.ejecutar_actualizacion, args=(version_remota,), daemon=True).start()
 
     def ejecutar_actualizacion(self, version_remota):
@@ -268,11 +264,10 @@ class ParaguaCraftLauncher(ctk.CTk):
             self.actualizar_progreso("Descargando actualización (Esto puede tardar)...")
             self.boton_jugar.configure(state="disabled", text="ACTUALIZANDO...")
             
-            # MAGIA INGENIERIL: Armamos el link dinámico con la versión que leyó del texto
             url_descarga_dinamica = f"https://github.com/SantiJ10/Paraguacraft/releases/download/v.{version_remota}/Paraguacraft.exe"
             
             r = requests.get(url_descarga_dinamica, stream=True, timeout=30)
-            r.raise_for_status() # Esto corta si hay un error 404
+            r.raise_for_status()
             
             # --- NUEVO: CÁLCULO DE PESO PARA LA BARRA ---
             total_length = int(r.headers.get('content-length', 0))
@@ -289,7 +284,6 @@ class ParaguaCraftLauncher(ctk.CTk):
                         f.write(chunk)
                         descargado += len(chunk)
                         if total_length > 0:
-                            # Calculamos el porcentaje y movemos la barra
                             porcentaje = descargado / total_length
                             self.barra_progreso.set(porcentaje)
                             self.lbl_estado.configure(text=f"Descargando actualización: {int(porcentaje * 100)}%")
@@ -402,7 +396,6 @@ del "%~f0"
                     self.limpiador_deep_var.set(datos.get("limpiador_deep", False))
                     self.backup_var.set(datos.get("backup_on_launch", True))
                     
-                    # --- CARGAR EL TEMA VISUAL ---
                     if hasattr(self, 'tema_var'):
                         self.tema_var.set(datos.get("tema", "dark"))
                         ctk.set_appearance_mode(self.tema_var.get())
@@ -442,21 +435,17 @@ del "%~f0"
     def cargar_versiones(self):
         try:
             mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
-            # 1. Cargamos las que ya tiene instaladas la PC (Acá van a estar tus Fabric locales)
             versiones_locales = minecraft_launcher_lib.utils.get_installed_versions(mine_dir)
             lista_locales = [v["id"] for v in versiones_locales]
             
-            # 2. Le pedimos a Mojang la lista oficial
             versiones_oficiales = minecraft_launcher_lib.utils.get_version_list()
             
-            # FILTRO INGENIERO: Solo "releases" y filtramos la mugre
             lista_oficiales = []
             palabras_prohibidas = ["rc", "pre", "snapshot", "alpha", "beta"]
             
             for v in versiones_oficiales:
                 if v["type"] == "release":
                     version_limpia = v["id"].lower()
-                    # Si no contiene ninguna palabra prohibida, la aceptamos
                     if not any(palabra in version_limpia for palabra in palabras_prohibidas):
                         lista_oficiales.append(v["id"])
 
@@ -477,7 +466,6 @@ del "%~f0"
     def abrir_config(self):
         vent = ctk.CTkToplevel(self)
         vent.title("Ajustes Avanzados")
-        # Hacemos la ventana un pelín más ancha para que respiren los textos
         self.centrar_ventana(vent, 480, 780) 
         vent.grab_set()
         vent.resizable(True, True)
@@ -490,7 +478,6 @@ del "%~f0"
             try: vent.iconbitmap(icono_ajustes)
             except: pass
 
-        # Contenedor principal con barra de scroll para que no se apriete nada
         scroll_main = ctk.CTkScrollableFrame(vent, fg_color="transparent")
         scroll_main.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -527,7 +514,7 @@ del "%~f0"
         
         ctk.CTkLabel(frame_ajustes, text="Ajustes de Lanzamiento", font=ctk.CTkFont(weight="bold")).pack(pady=(10, 5))
         
-        # El anchor="w" hace que todos queden pegados a la izquierda como soldados
+        # El anchor="w" hace que todos queden pegados a la izquierda
         ctk.CTkCheckBox(frame_ajustes, text="📉 Aplicar gráficos al mínimo (Mejora FPS)", variable=self.opt_var).pack(pady=5, padx=20, anchor="w")
         ctk.CTkCheckBox(frame_ajustes, text="🥔 Modo 'PC Papa' (Resolución 800x600)", variable=self.papa_var).pack(pady=5, padx=20, anchor="w")
         ctk.CTkCheckBox(frame_ajustes, text="🌐 Multijugador LAN a distancia (e4mc)", variable=self.lan_distancia_var).pack(pady=5, padx=20, anchor="w")
@@ -546,10 +533,9 @@ del "%~f0"
         frame_skins = ctk.CTkFrame(scroll_main, border_width=2, border_color=borde_color, corner_radius=10)
         frame_skins.pack(fill="x", padx=10, pady=10)
         
-        # Cambiamos el título para que abarque ambas opciones
         ctk.CTkLabel(frame_skins, text="Gestor de Skins", font=ctk.CTkFont(weight="bold")).pack(pady=(10, 5))
         
-        # Fila 1: Opciones Offline (Igual que antes pero con texto más claro)
+        # Fila 1: Opciones Offline
         frame_skin_buttons = ctk.CTkFrame(frame_skins, fg_color="transparent")
         frame_skin_buttons.pack(fill="x", pady=(0, 5), padx=10)
         
@@ -683,7 +669,6 @@ del "%~f0"
         hilo = threading.Thread(target=self.ejecutar_motor, args=(version, usuario, ram, gc_type, tipo_cliente, uuid_real, token_real), daemon=True)
         hilo.start()
 
-    # EL CAMBIO EN LA FIRMA: Ahora recibe tipo_cliente
     def ejecutar_motor(self, version_jugada, usuario, ram, gc_type, tipo_cliente, uuid_real, token_real):
         try:
             if self.backup_var.get():
@@ -704,19 +689,15 @@ del "%~f0"
 
             start_time = datetime.now()
             
-            # EL CAMBIO EN LA LLAMADA AL CORE: Le enviamos el tipo_cliente a core.py
-# EL CAMBIO EN LA LLAMADA AL CORE
             lanzar_minecraft(version_jugada, usuario, ram, gc_type, self.opt_var.get(), tipo_cliente, self.papa_var.get(), self.mesa_var.get(), self.consola_var.get(), self.actualizar_progreso, uuid_real, token_real, self.lan_distancia_var.get())
             self.after(0, lambda: self.lbl_estado.configure(text="Lanzando Paraguacraft..."))
             
             threading.Thread(target=self._hilo_ninja_renombrar, args=(version_jugada,), daemon=True).start()
             
-            # --- NUEVO: ACTIVAMOS EL ESPÍA DE DISCORD ---
             threading.Thread(target=self._hilo_discord_rpc_dinamico, args=(version_jugada, usuario, tipo_cliente), daemon=True).start()
 
             start_time = datetime.now()
             
-            # EL CAMBIO EN LA LLAMADA AL CORE: Le enviamos el tipo_cliente a core.py
             lanzar_minecraft(version_jugada, usuario, ram, gc_type, self.opt_var.get(), tipo_cliente, self.papa_var.get(), self.mesa_var.get(), self.consola_var.get(), self.actualizar_progreso, uuid_real, token_real)
             
             self.hilo_juego_activo = False
@@ -816,10 +797,6 @@ del "%~f0"
             except Exception as e:
                 messagebox.showerror("Error", f"No se pudo completar la limpieza: {e}")
 
-    # =======================================================
-    # 🛒 SPRINT 3: TIENDA DE MODS MULTIPROPÓSITO (MODRINTH)
-    # =======================================================
-
     def actualizar_mods_instancia(self):
         # 1. Identificar versión y carpeta
         seleccion = self.lista_versiones.curselection()
@@ -841,7 +818,6 @@ del "%~f0"
             actualizados = 0
 
             for mod_file in mods_locales:
-                # Intentamos sacar el nombre del mod del archivo (aproximado)
                 nombre_busqueda = mod_file.split("-")[0].split("_")[0]
                 url_api = f"https://api.modrinth.com/v2/search?query={nombre_busqueda}&facets=[[\"versions:{version_actual}\"],[\"project_type:mod\"]]"
                 
@@ -920,7 +896,6 @@ del "%~f0"
         elif categoria_elegida == "Texturas": tipo_proyecto = "resourcepack"
         elif categoria_elegida == "Modpacks": tipo_proyecto = "modpack"
 
-        # Armamos los filtros de la API dinámicamente
         facets = f'[["versions:{version_actual}"],["project_type:{tipo_proyecto}"]'
         # Shaders y Texturas no dependen de Fabric/Forge en Modrinth, así que solo filtramos motor si es un Mod o Modpack
         if tipo_proyecto in ["mod", "modpack"]:
@@ -959,12 +934,10 @@ del "%~f0"
             desc = mod.get("description", "")[:90] + "..." 
             slug = mod.get("slug")
             
-            # FIX DEL BUG VISUAL: Empaquetamos el botón PRIMERO a la derecha
             btn_instalar = ctk.CTkButton(frame_mod, text="⬇️ Instalar", width=80, fg_color="#d35400", hover_color="#a04000",
                                          command=lambda s=slug, t=titulo, tp=tipo_proyecto: self.instalar_contenido_tienda(s, t, tp))
             btn_instalar.pack(side="right", padx=15, pady=10)
             
-            # Y DESPUÉS el texto, para que no lo empuje
             frame_info = ctk.CTkFrame(frame_mod, fg_color="transparent")
             frame_info.pack(side="left", fill="both", expand=True, padx=10, pady=10)
             
@@ -973,14 +946,13 @@ del "%~f0"
             ctk.CTkLabel(frame_info, text=desc, font=ctk.CTkFont(size=12), justify="left").pack(anchor="w", pady=(2,0))
 
     def instalar_contenido_tienda(self, slug, titulo, tipo_proyecto):
-        # 1. Obtenemos versión y cliente actuales de la interfaz principal
         seleccion = self.lista_versiones.curselection()
         if seleccion: version_actual = self.lista_versiones.get(seleccion[0])
         else: version_actual = "1.21.1" 
         
         tipo_cliente_ui = self.tipo_cliente_var.get().split()[0] # Saca "Vanilla", "Fabric" o "Forge"
         
-        # 2. Reconstruimos la ruta exacta del aislamiento de instancias (Igual que en core.py)
+        # 2. Reconstruye la ruta exacta del aislamiento de instancias (Igual que en core.py)
         folder_name = f"Paraguacraft_{version_actual}_{tipo_cliente_ui}".replace(".", "_")
         mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
         instancia_dir = os.path.join(mine_dir, "instancias", folder_name)
@@ -995,20 +967,19 @@ del "%~f0"
 
         os.makedirs(carpeta_destino, exist_ok=True)
 
-        # 4. Lanzamos el hilo de descarga para no congelar el launcher
+        # 4. Lanza el hilo de descarga para no congelar el launcher
         tipo_loader = tipo_cliente_ui.lower()
         threading.Thread(target=self._hilo_descarga_tienda, args=(slug, titulo, version_actual, tipo_loader, carpeta_destino), daemon=True).start()
 
     def _hilo_descarga_tienda(self, slug, titulo, version, tipo_loader, carpeta_destino):
         self.actualizar_progreso(f"Buscando archivo de {titulo}...")
         
-        # Le pedimos a Modrinth la versión exacta del archivo
         url_api = f"https://api.modrinth.com/v2/project/{slug}/version"
         params = {"game_versions": f'["{version}"]'}
         
-        # Si va a la carpeta mods, le exigimos a la API que sea compatible con nuestro motor
+        # Si va a la carpeta mods, le exige a la API que sea compatible con el motor
         if "mods" in carpeta_destino:
-            if tipo_loader == "vanilla": tipo_loader = "fabric" # Fallback de seguridad
+            if tipo_loader == "vanilla": tipo_loader = "fabric"
             params["loaders"] = f'["{tipo_loader}"]'
             
         try:
@@ -1016,7 +987,6 @@ del "%~f0"
             if r.status_code == 200:
                 data = r.json()
                 if len(data) > 0:
-                    # Agarramos el archivo más reciente (el primero de la lista)
                     archivo = data[0]["files"][0]
                     nombre_archivo = archivo["filename"]
                     url_descarga = archivo["url"]
@@ -1070,7 +1040,7 @@ del "%~f0"
                         continue
 
                     # --- DETECCIÓN DE ESTADOS ---
-                    # A. Si hosteás LAN (e4mc o Vanilla)
+                    # A. Si hosteo LAN (e4mc o Vanilla)
                     if "Local game hosted on" in linea:
                         import re
                         # Busca cualquier cosa que esté entre corchetes [link o puerto]
@@ -1079,17 +1049,17 @@ del "%~f0"
                             dato_lan = match.group(1)
                             estado_actual = f"🏠 Hosteando LAN: {dato_lan}"
                         
-                    # B. Si te conectás a un server (Hypixel, etc)
+                    # B. Si se conecta a un server (Hypixel, etc)
                     elif "Connecting to" in linea:
                         ip = linea.split("Connecting to ")[1].split(",")[0].split(":")[0].strip()
                         estado_actual = f"🌐 Multijugador: {ip}"
                             
-                    # C. Si entrás a un mundo local normal
+                    # C. Si entro a un mundo local normal
                     elif "Starting integrated minecraft server" in linea:
                         if "Hosteando" not in estado_actual: # No pisar el estado LAN si ya lo detectó
                             estado_actual = "🌍 Jugando en Mundo Local"
                         
-                    # D. Si volvés al menú
+                    # D. Si vuelvo al menú
                     elif "Disconnecting from" in linea or "Stopping server" in linea:
                         estado_actual = "En el menú principal"
 
@@ -1099,7 +1069,7 @@ del "%~f0"
 
     def procesar_archivos_soltados(self, archivos):
         try:
-            # 1. Miramos qué versión tiene elegida el usuario en la lista
+            # 1. Mira qué versión tiene elegida el usuario en la lista
             seleccion = self.lista_versiones.curselection()
             if not seleccion:
                 messagebox.showwarning("Aviso", "¡Elegí una versión en la lista primero para saber dónde instalar los mods/shaders!")
@@ -1108,16 +1078,16 @@ del "%~f0"
             version_actual = self.lista_versiones.get(seleccion[0])
             tipo_cliente_ui = self.tipo_cliente_var.get().split()[0]
             
-            # 2. Armamos la ruta a la caja fuerte de esa versión (Instancia Aislada)
+            # 2. Arma la ruta a la caja fuerte de esa versión (Instancia Aislada)
             folder_name = f"Paraguacraft_{version_actual}_{tipo_cliente_ui}".replace(".", "_")
             mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
             instancia_dir = os.path.join(mine_dir, "instancias", folder_name)
             
             archivos_procesados = []
             
-            # 3. Analizamos archivo por archivo de los que tiró el usuario
+            # 3. Analiza archivo por archivo de los que tiró el usuario
             for archivo_bytes in archivos:
-                # windnd nos devuelve la ruta en bytes, la pasamos a texto normal
+                # windnd devuelve la ruta en bytes, la pasa a texto normal
                 ruta_archivo = archivo_bytes.decode('gbk') 
                 nombre_archivo = os.path.basename(ruta_archivo)
                 carpeta_destino = ""
@@ -1126,7 +1096,7 @@ del "%~f0"
                 if ruta_archivo.endswith('.jar'):
                     carpeta_destino = os.path.join(instancia_dir, "mods")
                     
-                # REGLA B: Si es un .zip, somos ingenieros y miramos qué tiene adentro
+                # REGLA B: Si es un .zip
                 elif ruta_archivo.endswith('.zip'):
                     with zipfile.ZipFile(ruta_archivo, 'r') as z:
                         archivos_zip = z.namelist()
@@ -1143,14 +1113,13 @@ del "%~f0"
                         else:
                             carpeta_destino = os.path.join(instancia_dir, "mods")
                 
-                # 4. Si sabemos dónde va, lo copiamos
+                # 4. Si se sabe dónde va, lo copia
                 if carpeta_destino:
                     os.makedirs(carpeta_destino, exist_ok=True)
                     destino_final = os.path.join(carpeta_destino, nombre_archivo)
                     shutil.copyfile(ruta_archivo, destino_final)
                     archivos_procesados.append(nombre_archivo)
             
-            # 5. Le avisamos que salió todo bien
             if archivos_procesados:
                 lista_nombres = "\n".join(archivos_procesados)
                 messagebox.showinfo("Instalación Mágica ✨", f"Se instalaron correctamente en tu perfil de {version_actual}:\n\n{lista_nombres}")
@@ -1163,10 +1132,10 @@ del "%~f0"
         carpeta_server = filedialog.askdirectory(title="Elegí una carpeta VACÍA para tu servidor")
         if not carpeta_server: return
         
-        # 2. Preguntar versión (Usamos la seleccionada en la lista como sugerencia)
+        # 2. Preguntar versión
         seleccion = self.lista_versiones.curselection()
         sugerencia = self.lista_versiones.get(seleccion[0]) if seleccion else "1.21.1"
-        # Limpiamos si seleccionó algo de fabric para que quede solo el número
+        # Limpia si seleccionó algo de fabric para que quede solo el número
         if "fabric" in sugerencia: sugerencia = sugerencia.split("-")[-1]
         
         dialog = ctk.CTkInputDialog(text="Ingresá la versión EXACTA (ej: 1.21.1):", title="Versión del Server")
@@ -1177,7 +1146,7 @@ del "%~f0"
             try:
                 self.actualizar_progreso(f"Buscando servidor para la versión {ver_server}...")
                 
-                # 3. Buscamos en el manifiesto oficial de Mojang
+                # 3. Busca en el manifiesto oficial de Mojang
                 manifest = requests.get("https://launchermeta.mojang.com/mc/game/version_manifest.json", timeout=10).json()
                 version_url = None
                 for v in manifest["versions"]:
@@ -1188,14 +1157,14 @@ del "%~f0"
                 if not version_url:
                     raise Exception(f"La versión '{ver_server}' no existe en Mojang.\nAsegurate de poner una versión oficial válida (Ej: 1.21.1).")
                 
-                # 4. Entramos a la versión y sacamos el link del server.jar
+                # 4. Entra a la versión y saca el link del server.jar
                 v_data = requests.get(version_url, timeout=10).json()
                 if "server" not in v_data.get("downloads", {}):
                     raise Exception("Esta versión no tiene un servidor oficial disponible.")
                     
                 server_jar_url = v_data["downloads"]["server"]["url"]
                 
-                # 5. Descargamos el archivo pesado
+                # 5. Descarga el archivo pesado
                 self.actualizar_progreso(f"Descargando server.jar ({ver_server})...")
                 r_jar = requests.get(server_jar_url, stream=True, timeout=30)
                 r_jar.raise_for_status()
@@ -1204,24 +1173,24 @@ del "%~f0"
                     for chunk in r_jar.iter_content(chunk_size=8192):
                         f.write(chunk)
                 
-                # 6. Aceptamos la EULA automáticamente
+                # 6. Acepta la EULA automáticamente
                 with open(os.path.join(carpeta_server, "eula.txt"), "w") as f:
                     f.write("eula=true")
                 
-                # 7. MAGIA EXTRA 2.0: Buscador agresivo de Java
+                # 7. Buscador agresivo de Java
                 mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
                 runtime_dir = os.path.join(mine_dir, "runtime")
                 java_cmd = "java" # Fallback por defecto
                 
                 if os.path.exists(runtime_dir):
-                    # Buscamos todos los java.exe instalados por el launcher
+                    # Busca todos los java.exe instalados por el launcher
                     javas_encontrados = []
                     for root, _, files in os.walk(runtime_dir):
                         if "java.exe" in files:
                             javas_encontrados.append(os.path.join(root, "java.exe"))
                     
                     if javas_encontrados:
-                        # Buscamos el Java 21 (suele estar en carpetas 'delta' o 'gamma')
+                        # Busca el Java 21 (suele estar en carpetas 'delta' o 'gamma')
                         java_ideal = None
                         for j in javas_encontrados:
                             if "delta" in j.lower() or "gamma" in j.lower() or "21" in j.lower():
@@ -1229,10 +1198,10 @@ del "%~f0"
                                 break
                         
                         if not java_ideal: java_ideal = javas_encontrados[0]
-                        # Lo encerramos en comillas por si la ruta tiene espacios
+                        # Lo encierra en comillas por si la ruta tiene espacios
                         java_cmd = f'"{java_ideal}"'
 
-                # 8. Creamos el archivo de arranque apuntando al Java correcto
+                # 8. Crea el archivo de arranque apuntando al Java correcto
                 bat_content = f"@echo off\n{java_cmd} -Xmx4G -Xms4G -jar server.jar nogui\npause"
                 with open(os.path.join(carpeta_server, "iniciar_server.bat"), "w", encoding="utf-8") as f:
                     f.write(bat_content)
@@ -1261,7 +1230,7 @@ del "%~f0"
                     # El área de la cara en una skin de MC es (8, 8, 16, 16)
                     img = img_full.crop((8, 8, 16, 16)).resize((64, 64), Image.Resampling.NEAREST)
                 else:
-                    return # Si no hay skin, no mostramos nada
+                    return # Si no hay skin, no muestra nada
 
             ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(64, 64))
             self.lbl_avatar.configure(image=ctk_img)
