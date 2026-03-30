@@ -156,13 +156,9 @@ def instalar_mods_optimode(game_dir, version, progress_callback, lan_distancia=F
     mods_dir = os.path.join(game_dir, "mods")
     os.makedirs(mods_dir, exist_ok=True)
     
-    if len([f for f in os.listdir(mods_dir) if f.endswith('.jar')]) >= 5:
-        if progress_callback: progress_callback("✅ Mods detectados. Arranque rápido...")
-        return
-
     slugs_mods = ["fabric-api", "sodium", "lithium", "ferrite-core", "modernfix", "iris", "modmenu", "entityculling", "immediatelyfast"]
     
-    # NUEVO: Si activó el LAN, sumamos e4mc a la descarga
+    # Si activó el LAN, sumamos e4mc a la lista de descargas
     if lan_distancia:
         slugs_mods.append("e4mc")
         
@@ -171,7 +167,8 @@ def instalar_mods_optimode(game_dir, version, progress_callback, lan_distancia=F
         if int(version.split(".")[1]) < 14: return
     except: pass
     
-    if progress_callback: progress_callback("Descargando mods de optimización (Solo primera vez)...")
+    if progress_callback: progress_callback("Verificando mods...")
+    
     for slug in slugs_mods:
         url_api = f"https://api.modrinth.com/v2/project/{slug}/version"
         params = {"loaders": '["fabric"]', "game_versions": f'["{version}"]'}
@@ -182,17 +179,14 @@ def instalar_mods_optimode(game_dir, version, progress_callback, lan_distancia=F
                 if len(data) > 0:
                     archivo = data[0]["files"][0]
                     mod_path = os.path.join(mods_dir, archivo["filename"])
+                    
+                    # El chequeo individual: Solo lo baja si no existe en la carpeta
                     if not os.path.exists(mod_path):
+                        if progress_callback: progress_callback(f"Descargando {slug}...")
                         r_dl = requests.get(archivo["url"], stream=True, headers=headers, timeout=10)
                         if r_dl.status_code == 200:
                             with open(mod_path, "wb") as f: shutil.copyfileobj(r_dl.raw, f)
         except Exception: pass
-
-# --- EL CEREBRO DEL JUEGO ---
-
-# --- EL CEREBRO DEL JUEGO ---
-
-# --- EL CEREBRO DEL JUEGO (TU LÓGICA ORIGINAL MEJORADA) ---
 
 def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type="G1GC", optimizar=False, tipo_cliente="Fabric", papa_mode=False, usar_mesa=False, mostrar_consola=False, progress_callback=None, uuid_real=None, token_real=None, lan_distancia=False):
     minecraft_directory = minecraft_launcher_lib.utils.get_minecraft_directory()
