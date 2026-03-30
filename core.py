@@ -7,18 +7,28 @@ import shutil
 import platform
 import json
 import sys
-import psutil
 
 def limpiar_cache_corrupto(version, minecraft_directory):
     version_dir = os.path.join(minecraft_directory, "versions", version)
     version_json = os.path.join(version_dir, f"{version}.json")
-    if os.path.exists(version_json):
-        try:
-            with open(version_json, "r", encoding="utf-8") as f: json.load(f)
-        except:
-            shutil.rmtree(version_dir, ignore_errors=True)
-    elif os.path.exists(version_dir):
+    version_jar = os.path.join(version_dir, f"{version}.jar")
+    
+    if not os.path.exists(version_dir): return
+    
+    if not os.path.exists(version_json):
         shutil.rmtree(version_dir, ignore_errors=True)
+        return
+        
+    try:
+        with open(version_json, "r", encoding="utf-8") as f: data = json.load(f)
+    except:
+        shutil.rmtree(version_dir, ignore_errors=True)
+        return
+        
+    if "inheritsFrom" not in data:
+        if not os.path.exists(version_jar):
+            shutil.rmtree(version_dir, ignore_errors=True)
+            return
 
 def inyectar_logos_paraguacraft(game_dir, version, graficos_minimos):
     pack_name = "ParaguacraftBrandPack"
@@ -51,7 +61,6 @@ def inyectar_logos_paraguacraft(game_dir, version, graficos_minimos):
     if getattr(sys, 'frozen', False): base_path = sys._MEIPASS
     else: base_path = os.path.dirname(os.path.abspath(__file__))
     
-    # REGLA 1.20+: Solo inyecta el logo en versiones modernas
     if version_mayor >= 20:
         activos = {
             "paraguacraft_main_menu.png": "minecraft.png",
@@ -137,17 +146,14 @@ def instalar_extras_graficos(game_dir, version, progress_callback, graficos_mini
     sp_dir = os.path.join(game_dir, "shaderpacks")
     os.makedirs(rp_dir, exist_ok=True); os.makedirs(sp_dir, exist_ok=True)
     
-    # ⚡ BYPASS VELOCIDAD: Si los packs ya existen, saltamos la descarga
     if graficos_minimos and os.path.exists(os.path.join(rp_dir, "Pack_Graficos_Minimos.zip")): return
     if not graficos_minimos and os.path.exists(os.path.join(sp_dir, "Shader_Paraguacraft.zip")): return
 
     headers = {"User-Agent": "ParaguacraftLauncher/1.0"}
     if graficos_minimos:
-        # Reemplazamos el feo por Faithful 32x
         proyectos = [("faithful-32x", rp_dir, "Pack_Graficos_Minimos.zip")] 
         if progress_callback: progress_callback("Buscando Texturas Faithful 32x...")
     else:
-        # Reemplazamos por MakeUp - Ultra Fast Shaders
         proyectos = [("makeup-ultra-fast", sp_dir, "Shader_Paraguacraft.zip")]
         if progress_callback: progress_callback("Buscando Shaders MakeUp...")
 
@@ -172,7 +178,6 @@ def instalar_mods_optimode(game_dir, version, progress_callback):
     mods_dir = os.path.join(game_dir, "mods")
     os.makedirs(mods_dir, exist_ok=True)
     
-    # ⚡ BYPASS VELOCIDAD: Si detecta archivos .jar en la carpeta mods, asume que ya están instalados y arranca al instante.
     if len([f for f in os.listdir(mods_dir) if f.endswith('.jar')]) >= 5:
         if progress_callback: progress_callback("✅ Mods detectados. Arranque rápido...")
         return
@@ -199,71 +204,84 @@ def instalar_mods_optimode(game_dir, version, progress_callback):
                             with open(mod_path, "wb") as f: shutil.copyfileobj(r_dl.raw, f)
         except Exception: pass
 
+
+# =========================================================================
+# EL CEREBRO DEL LAUNCHER (CÓDIGO OFICIAL Y LIMPIO)
+# =========================================================================
+
 def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type="G1GC", optimizar=False, tipo_cliente="Fabric", papa_mode=False, usar_mesa=False, mostrar_consola=False, progress_callback=None, uuid_real=None, token_real=None):
     minecraft_directory = minecraft_launcher_lib.utils.get_minecraft_directory()
-    def on_progress(event):
-        if progress_callback: progress_callback(event)
 
-    # 1. FILTRO INTELIGENTE: Si el usuario eligió un Fabric viejo de la lista, extraemos el juego base
-    version_base = version
-    if version.startswith("fabric-loader-"):
-        version_base = version.split("-")[-1]
+    version_base = version.strip()
+    if version_base.startswith("fabric-loader-"):
+        version_base = version_base.split("-")[-1]
         tipo_cliente = "Fabric"
-    elif "forge" in version.lower():
-        version_base = version.split("-")[0]
+    elif "forge" in version_base.lower():
+        version_base = version_base.split("-")[0]
         tipo_cliente = "Forge"
 
-    limpiar_cache_corrupto(version_base, minecraft_directory)
+    # 1. PURGA DEL MANIFIESTO (Evita errores de "Not Found" por caché roto)
+    manifest_path = os.path.join(minecraft_directory, "versions", "version_manifest_v2.json")
+    if os.path.exists(manifest_path):
+        try: os.remove(manifest_path)
+        except: pass
 
-    # 2. SIEMPRE instalamos la base Vanilla primero
-    if progress_callback: progress_callback(f"Verificando juego base ({version_base})...")
-    minecraft_launcher_lib.install.install_minecraft_version(version_base, minecraft_directory, callback={"setStatus": on_progress})
-    
+    # 2. INSTALACIÓN SILENCIOSA (Desconectamos la barra para que el hilo no explote)
+    if progress_callback: progress_callback(f"Descargando base {version_base} (Puede tardar, no toques nada)...")
+
+    try:
+        # Al no tener "callback=", Python no se ahoga actualizando la interfaz
+        minecraft_launcher_lib.install.install_minecraft_version(version_base, minecraft_directory)
+    except Exception as e:
+        raise Exception(f"Mojang rechazó la descarga: {e}")
+
+    # Verificación estricta: ¿De verdad se instaló en el disco duro?
+    ruta_json_base = os.path.join(minecraft_directory, "versions", version_base, f"{version_base}.json")
+    if not os.path.exists(ruta_json_base):
+        raise Exception("El juego no se pudo descargar. Revisá tu conexión a internet.")
+
     version_a_lanzar = version_base
-    
-    # 3. MOTOR DE INSTALACIÓN (FABRIC / FORGE)
+
+    # 3. MOTOR DE INSTALACIÓN
     if tipo_cliente == "Fabric":
-        if progress_callback: progress_callback("Verificando motor Fabric...")
-        try:
-            loader_nuevo = minecraft_launcher_lib.fabric.get_latest_loader_version()
-            version_fabric = f"fabric-loader-{loader_nuevo}-{version_base}"
-            
-            # Solo instalamos si no existe, evitamos el bug de "Eliminación Fantasma" de Windows
-            if not os.path.exists(os.path.join(minecraft_directory, "versions", version_fabric, f"{version_fabric}.json")):
-                minecraft_launcher_lib.fabric.install_fabric(version_base, minecraft_directory, loader_nuevo, callback={"setStatus": on_progress})
-            
-            version_a_lanzar = version_fabric
-        except Exception: version_a_lanzar = version_base
-    
+        if progress_callback: progress_callback("Inyectando motor Fabric (Instalación silenciosa)...")
+        loader_nuevo = minecraft_launcher_lib.fabric.get_latest_loader_version()
+        minecraft_launcher_lib.fabric.install_fabric(version_base, minecraft_directory, loader_nuevo)
+        version_a_lanzar = f"fabric-loader-{loader_nuevo}-{version_base}"
+
     elif tipo_cliente == "Forge":
-        if progress_callback: progress_callback("Buscando Forge compatible...")
-        try:
-            forge_version = minecraft_launcher_lib.forge.find_forge_version(version_base)
-            if forge_version:
-                if not os.path.exists(os.path.join(minecraft_directory, "versions", forge_version, f"{forge_version}.json")):
-                    minecraft_launcher_lib.forge.install_forge_version(forge_version, minecraft_directory, callback={"setStatus": on_progress})
-                version_a_lanzar = forge_version
-        except Exception: version_a_lanzar = version_base
+        if progress_callback: progress_callback("Inyectando motor Forge...")
+        forge_version = minecraft_launcher_lib.forge.find_forge_version(version_base)
+        if forge_version:
+            minecraft_launcher_lib.forge.install_forge_version(forge_version, minecraft_directory)
+            version_a_lanzar = forge_version
 
-    # 4. DESCARGAR LIBRERÍAS DEL MOTOR (El paso clave que le da vida a Fabric)
-    if progress_callback: progress_callback("Descargando librerías del cliente...")
-    minecraft_launcher_lib.install.install_minecraft_version(version_a_lanzar, minecraft_directory, callback={"setStatus": on_progress})
+    # 4. LIBRERÍAS DEL MOTOR
+    if version_a_lanzar != version_base:
+        if progress_callback: progress_callback(f"Descargando librerías de {tipo_cliente}...")
+        minecraft_launcher_lib.install.install_minecraft_version(version_a_lanzar, minecraft_directory)
 
-    # 5. AISLAMIENTO DE INSTANCIAS (Cada cliente tiene su carpeta)
+    # --- VERIFICACIÓN BLINDADA DEL MOTOR ---
+    ruta_json_motor = os.path.join(minecraft_directory, "versions", version_a_lanzar, f"{version_a_lanzar}.json")
+    if not os.path.exists(ruta_json_motor):
+        raise Exception(f"Fallo crítico instalando {tipo_cliente}. Se abortó la descarga.")
+
+    # 5. AISLAMIENTO DE INSTANCIAS
     folder_name = f"Paraguacraft_{version_base}_{tipo_cliente}".replace(".", "_")
     game_dir = os.path.join(minecraft_directory, "instancias", folder_name)
     os.makedirs(game_dir, exist_ok=True)
 
     # 6. MODS Y GRÁFICOS
+    if progress_callback: progress_callback("Configurando optimizaciones y mods...")
     if tipo_cliente == "Fabric": instalar_mods_optimode(game_dir, version_base, progress_callback)
     instalar_extras_graficos(game_dir, version_base, progress_callback, optimizar)
     inyectar_logos_paraguacraft(game_dir, version_base, optimizar)
     optimizar_graficos(game_dir, optimizar, version_base)
 
-    # 7. GESTOR AUTOMÁTICO DE JAVA
-    if progress_callback: progress_callback("Alineando motores Java (Mojang)...")
-    minecraft_launcher_lib.runtime.install_jvm_runtime(version_a_lanzar, minecraft_directory, callback={"setStatus": on_progress})
-    java_path = minecraft_launcher_lib.runtime.get_executable_path(version_a_lanzar, minecraft_directory)
+    # 7. GESTOR AUTOMÁTICO DE JAVA FINAL
+    if progress_callback: progress_callback("Descargando Java y abriendo juego...")
+    minecraft_launcher_lib.runtime.install_jvm_runtime(version_a_lanzar, minecraft_directory)
+    java_path_final = minecraft_launcher_lib.runtime.get_executable_path(version_a_lanzar, minecraft_directory)
 
     # 8. ARGUMENTOS DE JAVA Y LANZAMIENTO
     jvm_arguments = [f"-Xmx{max_ram}", f"-Xms{max_ram}", "-XX:+UnlockExperimentalVMOptions", "-XX:+DisableExplicitGC", "-XX:+AlwaysPreTouch"]
@@ -276,7 +294,7 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
     options = {
         "username": username, "uuid": uuid_real if uuid_real else str(uuid.uuid4()),
         "token": token_real if token_real else "", "jvmArguments": jvm_arguments, "gameDirectory": game_dir,
-        "executablePath": java_path 
+        "executablePath": java_path_final 
     }
     
     if papa_mode: options["customResolution"] = True; options["resolutionWidth"] = "800"; options["resolutionHeight"] = "600"
@@ -288,7 +306,7 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
     if mostrar_consola and platform.system() == "Windows": flags_creacion = subprocess.CREATE_NEW_CONSOLE; salida = None
     else: flags_creacion = subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0; salida = subprocess.DEVNULL 
 
-    if progress_callback: progress_callback("¡Abriendo Paraguacraft!")
+    if progress_callback: progress_callback("¡Lanzando proceso...")
     proceso = subprocess.Popen(command, env=entorno, creationflags=flags_creacion, stdout=salida, stderr=salida, stdin=subprocess.DEVNULL)
     
     try:
