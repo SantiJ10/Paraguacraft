@@ -55,9 +55,8 @@ DISCORD_APP_ID = "1487516329631154206"
 SERVER_IP = "process-import.gl.at.ply.gg:2055" 
 MODS_ZIP_URL = "" 
 
-LAUNCHER_VERSION = "1.0.1"
+LAUNCHER_VERSION = "1.0.2"
 UPDATE_URL = "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/refs/heads/main/version.txt"
-DOWNLOAD_URL = "https://github.com/SantiJ10/Paraguacraft/releases/download/v.1.0.1/Paraguacraft.exe"
 
 class ParaguaCraftLauncher(ctk.CTk):
     def __init__(self):
@@ -224,9 +223,10 @@ class ParaguaCraftLauncher(ctk.CTk):
         threading.Thread(target=hacer_ping, daemon=True).start()
 
     # 🚀 MOTOR DE AUTO-UPDATER 
+    # 🚀 MOTOR DE AUTO-UPDATER DINÁMICO
     def buscar_actualizaciones(self):
         try:
-            if not UPDATE_URL or not DOWNLOAD_URL: return
+            if not UPDATE_URL: return
             r = requests.get(UPDATE_URL, timeout=10) 
             if r.status_code == 200:
                 version_remota = r.text.strip()
@@ -241,22 +241,25 @@ class ParaguaCraftLauncher(ctk.CTk):
             f"¡Salió la versión {version_remota} de Paraguacraft!\n\n¿Querés actualizarlo ahora automáticamente? (Tarda unos segundos)"
         )
         if respuesta:
-            threading.Thread(target=self.ejecutar_actualizacion, daemon=True).start()
+            # Le pasamos el número de versión nuevo a la función de descarga
+            threading.Thread(target=self.ejecutar_actualizacion, args=(version_remota,), daemon=True).start()
 
-    def ejecutar_actualizacion(self):
+    def ejecutar_actualizacion(self, version_remota):
         try:
             self.actualizar_progreso("Descargando actualización (Esto puede tardar)...")
             self.boton_jugar.configure(state="disabled", text="ACTUALIZANDO...")
             
-            r = requests.get(DOWNLOAD_URL, stream=True, timeout=30)
-            r.raise_for_status()
+            # MAGIA INGENIERIL: Armamos el link dinámico con la versión que leyó del texto
+            url_descarga_dinamica = f"https://github.com/SantiJ10/Paraguacraft/releases/download/v.{version_remota}/Paraguacraft.exe"
+            
+            r = requests.get(url_descarga_dinamica, stream=True, timeout=30)
+            r.raise_for_status() # Esto corta si hay un error 404
             
             exe_actual = sys.executable 
             directorio = os.path.dirname(exe_actual)
             nombre_exe = os.path.basename(exe_actual)
             nuevo_exe = os.path.join(directorio, "Paraguacraft_Nuevo.exe")
             
-            # 1. Descargamos el nuevo archivo
             with open(nuevo_exe, "wb") as f:
                 for chunk in r.iter_content(chunk_size=8192):
                     f.write(chunk)
@@ -264,7 +267,6 @@ class ParaguaCraftLauncher(ctk.CTk):
             self.actualizar_progreso("Aplicando actualización...")
             bat_path = os.path.join(directorio, "update_paraguacraft.bat")
             
-            # 2. BAT super simple: Solo borra el viejo y renombra el nuevo (no lo ejecuta)
             bat_content = f"""@echo off
 timeout /t 2 /nobreak > NUL
 :bucle
@@ -279,19 +281,15 @@ del "%~f0"
             with open(bat_path, "w") as f:
                 f.write(bat_content)
                 
-            # 3. Lanzamos el script invisible
             subprocess.Popen([bat_path], creationflags=subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0)
             
-            # 4. Le avisamos al usuario que tiene que reabrirlo
             messagebox.showinfo("¡Actualización Lista!", "La actualización se descargó correctamente.\n\nEl launcher se cerrará ahora para instalarla. Por favor, vuelve a abrirlo en unos segundos para jugar.")
-            
-            # 5. Cierre limpio e instantáneo
             os._exit(0)
             
         except Exception as e:
             self.actualizar_progreso("Error al actualizar.")
             self.after(0, lambda: messagebox.showerror("Error", f"No se pudo actualizar: {str(e)}"))
-            self.boton_jugar.configure(state="normal", text="INICIAR PARAGUACRAFT")
+            self.after(0, lambda: self.boton_jugar.configure(state="normal", text="INICIAR PARAGUACRAFT"))
 
     def iniciar_discord_rpc(self):
         try:
