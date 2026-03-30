@@ -204,28 +204,49 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
 
     version_a_lanzar = version_base
 
-    # 1. MOTOR DE INSTALACIÓN (Estilo original y nativo)
+    # --- BYPASS DE ARRANQUE RÁPIDO ---
+    version_instalada = False
     if tipo_cliente == "Fabric":
-        if progress_callback: progress_callback("Instalando Fabric (Motor de mods)...")
-        loader_nuevo = minecraft_launcher_lib.fabric.get_latest_loader_version()
-        # Esta única línea hace toda la magia sola (baja base, librerías y fabric)
-        minecraft_launcher_lib.fabric.install_fabric(version_base, minecraft_directory, loader_nuevo, callback={"setStatus": on_progress})
-        version_a_lanzar = f"fabric-loader-{loader_nuevo}-{version_base}"
-        
-    elif tipo_cliente == "Forge":
-        if progress_callback: progress_callback("Instalando Forge...")
-        forge_version = minecraft_launcher_lib.forge.find_forge_version(version_base)
-        if forge_version:
-            minecraft_launcher_lib.forge.install_forge_version(forge_version, minecraft_directory, callback={"setStatus": on_progress})
-            version_a_lanzar = forge_version
+        # Chequea si existe alguna carpeta de Fabric para esta versión
+        versiones_locales = os.listdir(os.path.join(minecraft_directory, "versions")) if os.path.exists(os.path.join(minecraft_directory, "versions")) else []
+        for v in versiones_locales:
+            if v.startswith("fabric-loader-") and version_base in v:
+                version_a_lanzar = v
+                version_instalada = True
+                break
     else:
-        if progress_callback: progress_callback(f"Descargando juego base {version_base}...")
-        minecraft_launcher_lib.install.install_minecraft_version(version_base, minecraft_directory, callback={"setStatus": on_progress})
+        ruta_version = os.path.join(minecraft_directory, "versions", version_base)
+        if os.path.exists(ruta_version): version_instalada = True
+
+    # Si NO está instalada, ejecutamos el motor de descarga
+    # Si NO está instalada, ejecutamos el motor de descarga
+    if not version_instalada:
+        # 1. MOTOR DE INSTALACIÓN (Estilo original y nativo)
+        if tipo_cliente == "Fabric":
+            if progress_callback: progress_callback("Instalando Fabric (Motor de mods)...")
+            loader_nuevo = minecraft_launcher_lib.fabric.get_latest_loader_version()
+            # Esta única línea hace toda la magia sola (baja base, librerías y fabric)
+            minecraft_launcher_lib.fabric.install_fabric(version_base, minecraft_directory, loader_nuevo, callback={"setStatus": on_progress})
+            version_a_lanzar = f"fabric-loader-{loader_nuevo}-{version_base}"
+            
+        elif tipo_cliente == "Forge":
+            if progress_callback: progress_callback("Instalando Forge...")
+            forge_version = minecraft_launcher_lib.forge.find_forge_version(version_base)
+            if forge_version:
+                minecraft_launcher_lib.forge.install_forge_version(forge_version, minecraft_directory, callback={"setStatus": on_progress})
+                version_a_lanzar = forge_version
+        else:
+            if progress_callback: progress_callback(f"Descargando juego base {version_base}...")
+            minecraft_launcher_lib.install.install_minecraft_version(version_base, minecraft_directory, callback={"setStatus": on_progress})
+
+    # 2. AISLAMIENTO DE INSTANCIAS (El secreto para que no se mezclen los mods)
 
     # 2. AISLAMIENTO DE INSTANCIAS (El secreto para que no se mezclen los mods)
     folder_name = f"Paraguacraft_{version_base}_{tipo_cliente}".replace(".", "_")
     game_dir = os.path.join(minecraft_directory, "instancias", folder_name)
     os.makedirs(game_dir, exist_ok=True)
+    # Forzamos la carpeta temporal para texturas de servidores
+    os.makedirs(os.path.join(game_dir, "server-resource-packs"), exist_ok=True)
 
     # 3. MODS Y GRÁFICOS (Apuntando a la nueva carpeta aislada)
     if tipo_cliente == "Fabric": 
