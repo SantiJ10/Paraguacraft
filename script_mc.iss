@@ -1,25 +1,27 @@
 [Setup]
 AppName=Paraguacraft
-AppVersion=1.0.2
+AppVersion=1.0.4
 AppPublisher=Jaful
-DefaultDirName={autopf}\Paraguacraft
+DefaultDirName={userappdata}\Paraguacraft
 DefaultGroupName=Paraguacraft
+PrivilegesRequired=lowest
 UninstallDisplayIcon={app}\Paraguacraft.exe
-SetupIconFile=C:\Users\San\Documents\Amin\Proyectos\paraguacraft\iconomc.ico
+SetupIconFile=C:\Users\Amin\Documents\Amin\Proyectos\Paraguacraft\iconomc.ico
 Compression=lzma2/ultra
 SolidCompression=yes
-OutputDir=C:\Users\San\Documents\Amin\Proyectos\paraguacraft
-OutputBaseFilename=Instalar_Paraguacraft
+OutputDir=C:\Users\Amin\Documents\Amin\Proyectos\Paraguacraft
+OutputBaseFilename=Instalar_Paraguacraft_v1.0.4
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
 [Files]
-Source: "C:\Users\San\Documents\Amin\Proyectos\paraguacraft\dist\Paraguacraft.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "C:\Users\Amin\Documents\Amin\Proyectos\Paraguacraft\dist\Paraguacraft.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\Paraguacraft"; Filename: "{app}\Paraguacraft.exe"
-Name: "{autodesktop}\Paraguacraft"; Filename: "{app}\Paraguacraft.exe"; Tasks: desktopicon
+; Cambiamos autodesktop por userdesktop para que no pida permisos al crear el acceso directo
+Name: "{userdesktop}\Paraguacraft"; Filename: "{app}\Paraguacraft.exe"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\Paraguacraft.exe"; Description: "{cm:LaunchProgram,Paraguacraft}"; Flags: nowait postinstall skipifsilent
