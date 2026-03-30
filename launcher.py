@@ -15,6 +15,8 @@ from datetime import datetime
 from mcstatus import JavaServer
 import threading
 import windnd
+from PIL import Image, ImageTk
+from http.server import SimpleHTTPRequestHandler, HTTPServer
 
 if sys.platform == "win32":
     import win32gui
@@ -56,7 +58,7 @@ DISCORD_APP_ID = "1487516329631154206"
 SERVER_IP = "process-import.gl.at.ply.gg:2055" 
 MODS_ZIP_URL = "" 
 
-LAUNCHER_VERSION = "1.0.3"
+LAUNCHER_VERSION = "1.0.4"
 UPDATE_URL = "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/refs/heads/main/version.txt"
 
 class ParaguaCraftLauncher(ctk.CTk):
@@ -99,6 +101,12 @@ class ParaguaCraftLauncher(ctk.CTk):
 
         self.label_titulo = ctk.CTkLabel(self.frame_main, text="ParaguaCraft Launcher", font=ctk.CTkFont(size=28, weight="bold"))
         self.label_titulo.pack(pady=(20, 5))
+        # Contenedor del Avatar
+        self.frame_avatar = ctk.CTkFrame(self.frame_main, fg_color="transparent")
+        self.frame_avatar.pack(pady=5)
+        
+        self.lbl_avatar = ctk.CTkLabel(self.frame_avatar, text="", width=64, height=64)
+        self.lbl_avatar.pack(side="left", padx=10)
 
         self.lbl_server = ctk.CTkLabel(self.frame_main, text=f"🟡 Comprobando estado de {SERVER_IP}...", font=ctk.CTkFont(size=12, slant="italic"))
         self.lbl_server.pack(pady=(0, 10))
@@ -135,8 +143,10 @@ class ParaguaCraftLauncher(ctk.CTk):
         self.label_version = ctk.CTkLabel(self.frame_main, text="Seleccionar Versión:", font=ctk.CTkFont(weight="bold"))
         self.label_version.pack(pady=(10, 5))
 
-        self.frame_lista = ctk.CTkFrame(self.frame_main, border_width=2, border_color="#3a3a3a")
-        self.frame_lista.pack(pady=5, fill="x", padx=50)
+        # FIX VISUAL: Le damos un ancho y alto fijo, y le prohibimos estirarse de más
+        self.frame_lista = ctk.CTkFrame(self.frame_main, border_width=2, border_color="#3a3a3a", width=400, height=160)
+        self.frame_lista.pack(pady=5) # Le sacamos el fill="x" y el expand
+        self.frame_lista.pack_propagate(False) # ESTO ES CLAVE: Obliga a la caja a mantener el 400x160
         
         self.scroll_versiones = ctk.CTkScrollbar(self.frame_lista)
         self.scroll_versiones.pack(side="right", fill="y", padx=(0, 2), pady=2)
@@ -144,7 +154,7 @@ class ParaguaCraftLauncher(ctk.CTk):
         self.lista_versiones = tk.Listbox(
             self.frame_lista, yscrollcommand=self.scroll_versiones.set, 
             bg="#242424", fg="#e0e0e0", font=("Consolas", 11), 
-            selectbackground="#1f538d", borderwidth=0, highlightthickness=0, height=8
+            selectbackground="#1f538d", borderwidth=0, highlightthickness=0
         )
         self.lista_versiones.pack(side="left", fill="both", expand=True, padx=5, pady=5)
         self.scroll_versiones.configure(command=self.lista_versiones.yview)
@@ -264,6 +274,10 @@ class ParaguaCraftLauncher(ctk.CTk):
             r = requests.get(url_descarga_dinamica, stream=True, timeout=30)
             r.raise_for_status() # Esto corta si hay un error 404
             
+            # --- NUEVO: CÁLCULO DE PESO PARA LA BARRA ---
+            total_length = int(r.headers.get('content-length', 0))
+            descargado = 0
+            
             exe_actual = sys.executable 
             directorio = os.path.dirname(exe_actual)
             nombre_exe = os.path.basename(exe_actual)
@@ -271,7 +285,15 @@ class ParaguaCraftLauncher(ctk.CTk):
             
             with open(nuevo_exe, "wb") as f:
                 for chunk in r.iter_content(chunk_size=8192):
-                    f.write(chunk)
+                    if chunk:
+                        f.write(chunk)
+                        descargado += len(chunk)
+                        if total_length > 0:
+                            # Calculamos el porcentaje y movemos la barra
+                            porcentaje = descargado / total_length
+                            self.barra_progreso.set(porcentaje)
+                            self.lbl_estado.configure(text=f"Descargando actualización: {int(porcentaje * 100)}%")
+                            self.update() # Refresca la ventana al instante
                     
             self.actualizar_progreso("Aplicando actualización...")
             bat_path = os.path.join(directorio, "update_paraguacraft.bat")
@@ -524,13 +546,21 @@ del "%~f0"
         frame_skins = ctk.CTkFrame(scroll_main, border_width=2, border_color=borde_color, corner_radius=10)
         frame_skins.pack(fill="x", padx=10, pady=10)
         
-        ctk.CTkLabel(frame_skins, text="Gestor de Skins (Offline)", font=ctk.CTkFont(weight="bold")).pack(pady=(10, 5))
+        # Cambiamos el título para que abarque ambas opciones
+        ctk.CTkLabel(frame_skins, text="Gestor de Skins", font=ctk.CTkFont(weight="bold")).pack(pady=(10, 5))
         
+        # Fila 1: Opciones Offline (Igual que antes pero con texto más claro)
         frame_skin_buttons = ctk.CTkFrame(frame_skins, fg_color="transparent")
-        frame_skin_buttons.pack(fill="x", pady=(0, 10), padx=10)
+        frame_skin_buttons.pack(fill="x", pady=(0, 5), padx=10)
         
-        ctk.CTkButton(frame_skin_buttons, text="🖼️ Elegir Skin", command=self.elegir_skin, fg_color="#8e44ad", hover_color="#5e3370").pack(side="left", padx=5, expand=True, fill="x")
+        ctk.CTkButton(frame_skin_buttons, text="🖼️ Skin Offline", command=self.elegir_skin, fg_color="#8e44ad", hover_color="#5e3370").pack(side="left", padx=5, expand=True, fill="x")
         ctk.CTkButton(frame_skin_buttons, text="❌ Borrar", command=self.borrar_skin, fg_color="#c0392b", hover_color="#922b21", width=80).pack(side="right", padx=5)
+
+        # Fila 2: Opción Premium (Botón ancho y dorado)
+        frame_skin_premium = ctk.CTkFrame(frame_skins, fg_color="transparent")
+        frame_skin_premium.pack(fill="x", pady=(0, 10), padx=10)
+        
+        ctk.CTkButton(frame_skin_premium, text="👑 Cambiar Skin Premium (API Mojang)", command=self.cambiar_skin_premium_api, fg_color="#d4af37", text_color="black", hover_color="#b5952f").pack(fill="x", padx=5)
         # --- 6. BOTONES FINALES ---
         frame_botones_finales = ctk.CTkFrame(scroll_main, fg_color="transparent")
         frame_botones_finales.pack(fill="x", padx=10, pady=15)
@@ -1011,7 +1041,7 @@ del "%~f0"
 
     def _hilo_discord_rpc_dinamico(self, version_jugada, usuario, tipo_cliente):
         if not self.rpc: return
-        import time, os, minecraft_launcher_lib
+        import time, os, minecraft_launcher_lib, re
 
         # 1. Ubicación de la instancia
         version_base = version_jugada.strip()
@@ -1040,12 +1070,14 @@ del "%~f0"
                         continue
 
                     # --- DETECCIÓN DE ESTADOS ---
-                    # A. Si hosteás LAN con e4mc
-                    if "Local game hosted on domain" in linea:
-                        try:
-                            ip_lan = linea.split("[")[1].split("]")[0]
-                            estado_actual = f"🏠 Hosteando LAN: {ip_lan}"
-                        except: estado_actual = "🏠 Hosteando Mundo LAN"
+                    # A. Si hosteás LAN (e4mc o Vanilla)
+                    if "Local game hosted on" in linea:
+                        import re
+                        # Busca cualquier cosa que esté entre corchetes [link o puerto]
+                        match = re.search(r'\[(.*?)\]', linea)
+                        if match:
+                            dato_lan = match.group(1)
+                            estado_actual = f"🏠 Hosteando LAN: {dato_lan}"
                         
                     # B. Si te conectás a un server (Hypixel, etc)
                     elif "Connecting to" in linea:
@@ -1212,6 +1244,74 @@ del "%~f0"
                 messagebox.showerror("Error", str(e))
 
         threading.Thread(target=_hilo_server, daemon=True).start()
+
+    def actualizar_avatar_visual(self):
+        usuario = self.combo_usuario.get().strip()
+        mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+        
+        try:
+            if self.ms_data: # ES PREMIUM
+                url = f"https://mc-heads.net/avatar/{usuario}/64"
+                img_data = requests.get(url).content
+                img = Image.open(io.BytesIO(img_data))
+            else: # ES OFFLINE
+                path_skin = os.path.join(mine_dir, "resourcepacks", "ParaguacraftBrandPack", "assets", "minecraft", "textures", "entity", "player", "steve.png")
+                if os.path.exists(path_skin):
+                    img_full = Image.open(path_skin)
+                    # El área de la cara en una skin de MC es (8, 8, 16, 16)
+                    img = img_full.crop((8, 8, 16, 16)).resize((64, 64), Image.Resampling.NEAREST)
+                else:
+                    return # Si no hay skin, no mostramos nada
+
+            ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(64, 64))
+            self.lbl_avatar.configure(image=ctk_img)
+        except: pass
+
+    def cambiar_skin_premium_api(self):
+        if not self.ms_data:
+            messagebox.showwarning("Premium Requerido", "Esta función es solo para cuentas Premium conectadas.")
+            return
+            
+        ruta = filedialog.askopenfilename(title="Elegí tu nueva Skin (.png)", filetypes=[("PNG", "*.png")])
+        if not ruta: return
+        
+        token = self.ms_data["access_token"]
+        url = "https://api.minecraftservices.com/minecraft/profile/skins"
+        headers = {"Authorization": f"Bearer {token}"}
+        # 'variant': 'classic' para skin normal, 'slim' para Alex
+        payload = {'variant': 'classic'}
+        files = [('file', ('skin.png', open(ruta, 'rb'), 'image/png'))]
+        
+        try:
+            r = requests.post(url, headers=headers, data=payload, files=files)
+            if r.status_code == 200:
+                messagebox.showinfo("Éxito", "¡Skin Premium actualizada en los servidores de Mojang!")
+                self.actualizar_avatar_visual()
+            else:
+                messagebox.showerror("Error", f"No se pudo cambiar: {r.status_code}")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+    def iniciar_servidor_skins_local(self):
+        class SkinHandler(SimpleHTTPRequestHandler):
+            def do_GET(self):
+                mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+                path_skin = os.path.join(mine_dir, "resourcepacks", "ParaguacraftBrandPack", "assets", "minecraft", "textures", "entity", "player", "steve.png")
+                if self.path == "/skin.png":
+                    self.send_response(200)
+                    self.send_header("Content-type", "image/png")
+                    self.end_headers()
+                    with open(path_skin, 'rb') as f: self.wfile.write(f.read())
+                else:
+                    self.send_error(404)
+
+        def _run_server():
+            try:
+                server = HTTPServer(('0.0.0.0', 8080), SkinHandler)
+                server.serve_forever()
+            except: pass
+
+        threading.Thread(target=_run_server, daemon=True).start()
 
 if __name__ == "__main__":
     app = ParaguaCraftLauncher()
