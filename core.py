@@ -7,6 +7,7 @@ import shutil
 import platform
 import json
 import sys
+import psutil
 
 def limpiar_cache_corrupto(version, minecraft_directory):
     version_dir = os.path.join(minecraft_directory, "versions", version)
@@ -142,11 +143,13 @@ def instalar_extras_graficos(game_dir, version, progress_callback, graficos_mini
 
     headers = {"User-Agent": "ParaguacraftLauncher/1.0"}
     if graficos_minimos:
-        proyectos = [("f8thful", rp_dir, "Pack_Graficos_Minimos.zip")] 
-        if progress_callback: progress_callback("Buscando Texturas 8x8...")
+        # Reemplazamos el feo por Faithful 32x
+        proyectos = [("faithful-32x", rp_dir, "Pack_Graficos_Minimos.zip")] 
+        if progress_callback: progress_callback("Buscando Texturas Faithful 32x...")
     else:
+        # Reemplazamos por MakeUp - Ultra Fast Shaders
         proyectos = [("makeup-ultra-fast", sp_dir, "Shader_Paraguacraft.zip")]
-        if progress_callback: progress_callback("Buscando Shaders...")
+        if progress_callback: progress_callback("Buscando Shaders MakeUp...")
 
     for slug, carpeta_destino, nombre_final in proyectos:
         url_api = f"https://api.modrinth.com/v2/project/{slug}/version"
@@ -196,40 +199,73 @@ def instalar_mods_optimode(game_dir, version, progress_callback):
                             with open(mod_path, "wb") as f: shutil.copyfileobj(r_dl.raw, f)
         except Exception: pass
 
-def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type="G1GC", optimizar=False, optimode=False, papa_mode=False, usar_mesa=False, mostrar_consola=False, progress_callback=None, uuid_real=None, token_real=None):
+def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type="G1GC", optimizar=False, tipo_cliente="Fabric", papa_mode=False, usar_mesa=False, mostrar_consola=False, progress_callback=None, uuid_real=None, token_real=None):
     minecraft_directory = minecraft_launcher_lib.utils.get_minecraft_directory()
     def on_progress(event):
         if progress_callback: progress_callback(event)
 
-    limpiar_cache_corrupto(version, minecraft_directory)
-    version_a_lanzar = version
-    soporta_fabric = True
-    try:
-        if int(version.split(".")[1]) < 14: soporta_fabric = False
-    except: pass
+    # 1. FILTRO INTELIGENTE: Si el usuario eligió un Fabric viejo de la lista, extraemos el juego base
+    version_base = version
+    if version.startswith("fabric-loader-"):
+        version_base = version.split("-")[-1]
+        tipo_cliente = "Fabric"
+    elif "forge" in version.lower():
+        version_base = version.split("-")[0]
+        tipo_cliente = "Forge"
 
-    if optimode and soporta_fabric:
-        if progress_callback: progress_callback("Verificando Fabric...")
+    limpiar_cache_corrupto(version_base, minecraft_directory)
+
+    # 2. SIEMPRE instalamos la base Vanilla primero
+    if progress_callback: progress_callback(f"Verificando juego base ({version_base})...")
+    minecraft_launcher_lib.install.install_minecraft_version(version_base, minecraft_directory, callback={"setStatus": on_progress})
+    
+    version_a_lanzar = version_base
+    
+    # 3. MOTOR DE INSTALACIÓN (FABRIC / FORGE)
+    if tipo_cliente == "Fabric":
+        if progress_callback: progress_callback("Verificando motor Fabric...")
         try:
             loader_nuevo = minecraft_launcher_lib.fabric.get_latest_loader_version()
-            limpiar_cache_corrupto(f"fabric-loader-{loader_nuevo}-{version}", minecraft_directory)
-            minecraft_launcher_lib.fabric.install_fabric(version, minecraft_directory, loader_nuevo, callback={"setStatus": on_progress})
-            version_a_lanzar = f"fabric-loader-{loader_nuevo}-{version}"
-        except Exception: version_a_lanzar = version
-    else:
-        if "OptiFine" not in version:
-            if progress_callback: progress_callback("Instalando versión base...")
-            minecraft_launcher_lib.install.install_minecraft_version(version, minecraft_directory, callback={"setStatus": on_progress})
+            version_fabric = f"fabric-loader-{loader_nuevo}-{version_base}"
+            
+            # Solo instalamos si no existe, evitamos el bug de "Eliminación Fantasma" de Windows
+            if not os.path.exists(os.path.join(minecraft_directory, "versions", version_fabric, f"{version_fabric}.json")):
+                minecraft_launcher_lib.fabric.install_fabric(version_base, minecraft_directory, loader_nuevo, callback={"setStatus": on_progress})
+            
+            version_a_lanzar = version_fabric
+        except Exception: version_a_lanzar = version_base
+    
+    elif tipo_cliente == "Forge":
+        if progress_callback: progress_callback("Buscando Forge compatible...")
+        try:
+            forge_version = minecraft_launcher_lib.forge.find_forge_version(version_base)
+            if forge_version:
+                if not os.path.exists(os.path.join(minecraft_directory, "versions", forge_version, f"{forge_version}.json")):
+                    minecraft_launcher_lib.forge.install_forge_version(forge_version, minecraft_directory, callback={"setStatus": on_progress})
+                version_a_lanzar = forge_version
+        except Exception: version_a_lanzar = version_base
 
-    folder_name = f"Paraguacraft_{version_a_lanzar}".replace(".", "_").replace("-", "_")
+    # 4. DESCARGAR LIBRERÍAS DEL MOTOR (El paso clave que le da vida a Fabric)
+    if progress_callback: progress_callback("Descargando librerías del cliente...")
+    minecraft_launcher_lib.install.install_minecraft_version(version_a_lanzar, minecraft_directory, callback={"setStatus": on_progress})
+
+    # 5. AISLAMIENTO DE INSTANCIAS (Cada cliente tiene su carpeta)
+    folder_name = f"Paraguacraft_{version_base}_{tipo_cliente}".replace(".", "_")
     game_dir = os.path.join(minecraft_directory, "instancias", folder_name)
     os.makedirs(game_dir, exist_ok=True)
 
-    if optimode and soporta_fabric: instalar_mods_optimode(game_dir, version, progress_callback)
-    instalar_extras_graficos(game_dir, version, progress_callback, optimizar)
-    inyectar_logos_paraguacraft(game_dir, version, optimizar)
-    optimizar_graficos(game_dir, optimizar, version)
+    # 6. MODS Y GRÁFICOS
+    if tipo_cliente == "Fabric": instalar_mods_optimode(game_dir, version_base, progress_callback)
+    instalar_extras_graficos(game_dir, version_base, progress_callback, optimizar)
+    inyectar_logos_paraguacraft(game_dir, version_base, optimizar)
+    optimizar_graficos(game_dir, optimizar, version_base)
 
+    # 7. GESTOR AUTOMÁTICO DE JAVA
+    if progress_callback: progress_callback("Alineando motores Java (Mojang)...")
+    minecraft_launcher_lib.runtime.install_jvm_runtime(version_a_lanzar, minecraft_directory, callback={"setStatus": on_progress})
+    java_path = minecraft_launcher_lib.runtime.get_executable_path(version_a_lanzar, minecraft_directory)
+
+    # 8. ARGUMENTOS DE JAVA Y LANZAMIENTO
     jvm_arguments = [f"-Xmx{max_ram}", f"-Xms{max_ram}", "-XX:+UnlockExperimentalVMOptions", "-XX:+DisableExplicitGC", "-XX:+AlwaysPreTouch"]
     if gc_type == "G1GC":
         jvm_arguments.extend(["-XX:+UseG1GC", "-XX:G1NewSizePercent=30", "-XX:G1MaxNewSizePercent=40", "-XX:G1HeapRegionSize=8M", "-XX:G1ReservePercent=20", "-XX:G1HeapWastePercent=5", "-XX:G1MixedGCCountTarget=4", "-XX:InitiatingHeapOccupancyPercent=15", "-XX:G1MixedGCLiveThresholdPercent=90", "-XX:G1RSetUpdatingPauseTimePercent=5", "-XX:SurvivorRatio=32", "-XX:+PerfDisableSharedMem", "-XX:MaxTenuringThreshold=1", "-Dusing.aikars.flags=https://mcflags.emc.gs", "-Daikars.new.flags=true"])
@@ -239,11 +275,13 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
 
     options = {
         "username": username, "uuid": uuid_real if uuid_real else str(uuid.uuid4()),
-        "token": token_real if token_real else "", "jvmArguments": jvm_arguments, "gameDirectory": game_dir
+        "token": token_real if token_real else "", "jvmArguments": jvm_arguments, "gameDirectory": game_dir,
+        "executablePath": java_path 
     }
+    
     if papa_mode: options["customResolution"] = True; options["resolutionWidth"] = "800"; options["resolutionHeight"] = "600"
-
     command = minecraft_launcher_lib.command.get_minecraft_command(version_a_lanzar, minecraft_directory, options)
+    
     entorno = os.environ.copy()
     if usar_mesa: entorno["MESA_GL_VERSION_OVERRIDE"] = "3.3"; entorno["MESA_GLSL_VERSION_OVERRIDE"] = "330"
 
@@ -252,6 +290,13 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
 
     if progress_callback: progress_callback("¡Abriendo Paraguacraft!")
     proceso = subprocess.Popen(command, env=entorno, creationflags=flags_creacion, stdout=salida, stderr=salida, stdin=subprocess.DEVNULL)
+    
+    try:
+        import psutil
+        p = psutil.Process(proceso.pid)
+        if sys.platform == "win32": p.nice(psutil.HIGH_PRIORITY_CLASS)
+    except: pass
+    
     proceso.wait()
 
 if __name__ == "__main__": pass
