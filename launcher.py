@@ -14,6 +14,7 @@ import psutil
 from datetime import datetime
 from mcstatus import JavaServer
 import threading
+import windnd
 
 if sys.platform == "win32":
     import win32gui
@@ -86,6 +87,7 @@ class ParaguaCraftLauncher(ctk.CTk):
         self.papa_var = ctk.BooleanVar(value=False)
         self.mesa_var = ctk.BooleanVar(value=False)
         self.consola_var = ctk.BooleanVar(value=False)
+        self.lan_distancia_var = ctk.BooleanVar(value=False)
         
         self.ms_data = None
         self.rpc = None
@@ -186,6 +188,12 @@ class ParaguaCraftLauncher(ctk.CTk):
         
         threading.Thread(target=self.buscar_actualizaciones, daemon=True).start()
         threading.Thread(target=self.iniciar_discord_rpc, daemon=True).start()
+
+        # Activamos el sensor magnético para arrastrar y soltar
+        try:
+            windnd.hook_dropurls(self.winfo_id(), self.procesar_archivos_soltados)
+        except Exception as e:
+            print("No se pudo iniciar el Drag & Drop:", e)
 
     def centrar_ventana(self, ventana, ancho, alto):
         # Saca la resolución de la pantalla
@@ -357,6 +365,7 @@ del "%~f0"
                     self.combo_ram.set(datos.get("ram", "4GB"))
                     self.gc_var.set(datos.get("gc", "G1GC (Equilibrado / Recomendado)"))
                     self.opt_var.set(datos.get("opt_minimos", False))
+                    self.lan_distancia_var.set(datos.get("lan_distancia", False))
                     
                     # --- EL NUEVO SELECTOR DE CLIENTE ---
                     self.tipo_cliente_var.set(datos.get("tipo_cliente", "Fabric"))
@@ -387,6 +396,7 @@ del "%~f0"
                 "usuario": usuario_actual, "historial_usuarios": self.usuarios_guardados,
                 "ram": self.combo_ram.get(), "gc": self.gc_var.get(),
                 "opt_minimos": self.opt_var.get(), 
+                "lan_distancia": self.lan_distancia_var.get(),
                 
                 # --- GUARDAR EL SELECTOR DE CLIENTE ---
                 "tipo_cliente": self.tipo_cliente_var.get(), 
@@ -444,7 +454,8 @@ del "%~f0"
     def abrir_config(self):
         vent = ctk.CTkToplevel(self)
         vent.title("Ajustes Avanzados")
-        self.centrar_ventana(vent, 450, 780)
+        # Hacemos la ventana un pelín más ancha para que respiren los textos
+        self.centrar_ventana(vent, 480, 780) 
         vent.grab_set()
 
         if getattr(sys, 'frozen', False):
@@ -455,58 +466,78 @@ del "%~f0"
             try: vent.iconbitmap(icono_ajustes)
             except: pass
 
-        ctk.CTkLabel(vent, text="Personalización y Sistema", font=ctk.CTkFont(weight="bold")).pack(pady=(15, 5))
-        
-        frame_top = ctk.CTkFrame(vent, fg_color="transparent")
-        frame_top.pack(fill="x", padx=20, pady=5)
-        
-        ctk.CTkLabel(frame_top, text="Tema Visual:").pack(side="left", padx=(0, 10))
-        combo_tema = ctk.CTkComboBox(frame_top, values=["dark", "light", "system"], command=self.cambiar_tema, width=120)
-        combo_tema.set(self.tema_var.get())
-        combo_tema.pack(side="left")
-        
-        ctk.CTkButton(frame_top, text="🔍 Auto-Configurar PC", command=self.auto_configurar_hardware, fg_color="#2980b9", hover_color="#1f618d").pack(side="right")
-        
-
-        ctk.CTkLabel(vent, text="Rendimiento y Opciones", font=ctk.CTkFont(weight="bold")).pack(pady=(15, 5))
-        ctk.CTkLabel(vent, text="Garbage Collector (Java):").pack(pady=(5,0))
-        opciones_gc = ["G1GC (Equilibrado / Recomendado)", "ZGC (Latencia Ultra Baja, requiere RAM)", "Shenandoah (Rendimiento fluido de fondo)", "CMS (Para versiones antiguas)"]
-        ctk.CTkComboBox(vent, values=opciones_gc, variable=self.gc_var, width=350).pack(pady=10)
+        # Contenedor principal con barra de scroll para que no se apriete nada
+        scroll_main = ctk.CTkScrollableFrame(vent, fg_color="transparent")
+        scroll_main.pack(fill="both", expand=True, padx=10, pady=10)
 
         borde_color = ("#c0c0c0", "#3a3a3a")
 
-        frame_premium = ctk.CTkFrame(vent, fg_color="transparent", border_width=2, border_color=borde_color)
-        frame_premium.pack(pady=15, padx=20, fill="x")
+        # --- 1. PERSONALIZACIÓN Y SISTEMA ---
+        ctk.CTkLabel(scroll_main, text="Personalización y Sistema", font=ctk.CTkFont(weight="bold", size=15)).pack(pady=(10, 5))
+        frame_top = ctk.CTkFrame(scroll_main, fg_color="transparent")
+        frame_top.pack(fill="x", padx=10, pady=5)
         
-        ctk.CTkLabel(frame_premium, text="Mantenimiento Automático", font=ctk.CTkFont(weight="bold")).pack(pady=5)
-        ctk.CTkCheckBox(frame_premium, text="💾 Auto-Backup Salvavidas (Zip al iniciar)", variable=self.backup_var).pack(pady=5, padx=10, anchor="w")
-        ctk.CTkCheckBox(frame_premium, text="🧹 Limpieza Profunda al Iniciar (logs/crash)", variable=self.limpiador_deep_var).pack(pady=5, padx=10, anchor="w")
+        ctk.CTkLabel(frame_top, text="Tema Visual:").pack(side="left", padx=(0, 10))
+        combo_tema = ctk.CTkComboBox(frame_top, values=["dark", "light", "system"], command=self.cambiar_tema, width=100)
+        combo_tema.set(self.tema_var.get())
+        combo_tema.pack(side="left")
         
-        frame_skins = ctk.CTkFrame(vent, fg_color="transparent", border_width=2, border_color=borde_color)
-        frame_skins.pack(pady=15, padx=20, fill="x")
+        ctk.CTkButton(frame_top, text="🔍 Auto-Configurar", command=self.auto_configurar_hardware, fg_color="#2980b9", hover_color="#1f618d", width=120).pack(side="right")
+
+        # --- 2. MOTOR Y RENDIMIENTO JAVA ---
+        ctk.CTkLabel(scroll_main, text="Motor y Rendimiento", font=ctk.CTkFont(weight="bold", size=15)).pack(pady=(15, 5))
+        frame_motor = ctk.CTkFrame(scroll_main, border_width=2, border_color=borde_color, corner_radius=10)
+        frame_motor.pack(fill="x", padx=10, pady=5)
+
+        ctk.CTkLabel(frame_motor, text="Garbage Collector (Java):", text_color="gray").pack(pady=(10,0))
+        opciones_gc = ["G1GC (Equilibrado / Recomendado)", "ZGC (Latencia Ultra Baja, requiere RAM)", "Shenandoah (Rendimiento fluido de fondo)", "CMS (Para versiones antiguas)"]
+        ctk.CTkComboBox(frame_motor, values=opciones_gc, variable=self.gc_var, width=380).pack(pady=(5, 10), padx=10)
+
+        ctk.CTkLabel(frame_motor, text="Motor del Juego:", text_color="gray").pack(pady=(5,0))
+        opciones_cliente = ["Vanilla (Juego Base)", "Fabric (Optimizado/Recomendado)", "Forge (Mods Clásicos)"]
+        ctk.CTkComboBox(frame_motor, values=opciones_cliente, variable=self.tipo_cliente_var, width=380).pack(pady=(5, 10), padx=10)
+
+        # --- 3. AJUSTES DEL JUEGO (Todos los checks alineados perfecto) ---
+        frame_ajustes = ctk.CTkFrame(scroll_main, border_width=2, border_color=borde_color, corner_radius=10)
+        frame_ajustes.pack(fill="x", padx=10, pady=10)
         
-        ctk.CTkLabel(frame_skins, text="Gestor de Skins (Offline)", font=ctk.CTkFont(weight="bold")).pack(pady=5)
+        ctk.CTkLabel(frame_ajustes, text="Ajustes de Lanzamiento", font=ctk.CTkFont(weight="bold")).pack(pady=(10, 5))
+        
+        # El anchor="w" hace que todos queden pegados a la izquierda como soldados
+        ctk.CTkCheckBox(frame_ajustes, text="📉 Aplicar gráficos al mínimo (Mejora FPS)", variable=self.opt_var).pack(pady=5, padx=20, anchor="w")
+        ctk.CTkCheckBox(frame_ajustes, text="🥔 Modo 'PC Papa' (Resolución 800x600)", variable=self.papa_var).pack(pady=5, padx=20, anchor="w")
+        ctk.CTkCheckBox(frame_ajustes, text="🌐 Multijugador LAN a distancia (e4mc)", variable=self.lan_distancia_var).pack(pady=5, padx=20, anchor="w")
+        ctk.CTkCheckBox(frame_ajustes, text="🖥️ Forzar OpenGL Mesa (Para errores gráficos)", variable=self.mesa_var).pack(pady=5, padx=20, anchor="w")
+        ctk.CTkCheckBox(frame_ajustes, text="📜 Mostrar Consola de Depuración", variable=self.consola_var).pack(pady=(5, 10), padx=20, anchor="w")
+
+        # --- 4. MANTENIMIENTO ---
+        frame_mantenimiento = ctk.CTkFrame(scroll_main, border_width=2, border_color=borde_color, corner_radius=10)
+        frame_mantenimiento.pack(fill="x", padx=10, pady=10)
+        
+        ctk.CTkLabel(frame_mantenimiento, text="Mantenimiento Automático", font=ctk.CTkFont(weight="bold")).pack(pady=(10, 5))
+        ctk.CTkCheckBox(frame_mantenimiento, text="💾 Auto-Backup Salvavidas (Zip al iniciar)", variable=self.backup_var).pack(pady=5, padx=20, anchor="w")
+        ctk.CTkCheckBox(frame_mantenimiento, text="🧹 Limpieza Profunda al Iniciar (logs/crash)", variable=self.limpiador_deep_var).pack(pady=(5, 10), padx=20, anchor="w")
+
+        # --- 5. GESTOR DE SKINS ---
+        frame_skins = ctk.CTkFrame(scroll_main, border_width=2, border_color=borde_color, corner_radius=10)
+        frame_skins.pack(fill="x", padx=10, pady=10)
+        
+        ctk.CTkLabel(frame_skins, text="Gestor de Skins (Offline)", font=ctk.CTkFont(weight="bold")).pack(pady=(10, 5))
         
         frame_skin_buttons = ctk.CTkFrame(frame_skins, fg_color="transparent")
-        frame_skin_buttons.pack(fill="x", pady=5)
+        frame_skin_buttons.pack(fill="x", pady=(0, 10), padx=10)
         
-        btn_skin = ctk.CTkButton(frame_skin_buttons, text="🖼️ Elegir Skin Personalizada", command=self.elegir_skin, fg_color="#8e44ad", hover_color="#5e3370")
-        btn_skin.pack(pady=5, padx=10, side="left", expand=True)
-        btn_skin_reset = ctk.CTkButton(frame_skin_buttons, text="❌ Borrar", command=self.borrar_skin, fg_color="#c0392b", hover_color="#922b21", width=60)
-        btn_skin_reset.pack(pady=5, padx=10, side="right")
+        ctk.CTkButton(frame_skin_buttons, text="🖼️ Elegir Skin", command=self.elegir_skin, fg_color="#8e44ad", hover_color="#5e3370").pack(side="left", padx=5, expand=True, fill="x")
+        ctk.CTkButton(frame_skin_buttons, text="❌ Borrar", command=self.borrar_skin, fg_color="#c0392b", hover_color="#922b21", width=80).pack(side="right", padx=5)
 
-        ctk.CTkCheckBox(vent, text="Aplicar gráficos al mínimo (Mejora FPS)", variable=self.opt_var).pack(pady=5)
-        ctk.CTkLabel(vent, text="Motor del Juego:").pack(pady=(5,0))
-        opciones_cliente = ["Vanilla (Juego Base)", "Fabric (Optimizado/Recomendado)", "Forge (Mods Clásicos)"]
-        ctk.CTkComboBox(vent, values=opciones_cliente, variable=self.tipo_cliente_var, width=350).pack(pady=5)
-        ctk.CTkCheckBox(vent, text="Modo 'PC Papa' (Resolución 800x600)", variable=self.papa_var).pack(pady=5)
-        ctk.CTkCheckBox(vent, text="OpenGL Mesa", variable=self.mesa_var).pack(pady=5)
-        ctk.CTkCheckBox(vent, text="Mostrar Consola", variable=self.consola_var).pack(pady=5)
+        # --- 6. BOTONES FINALES ---
+        frame_botones_finales = ctk.CTkFrame(scroll_main, fg_color="transparent")
+        frame_botones_finales.pack(fill="x", padx=10, pady=15)
 
-        self.btn_tienda = ctk.CTkButton(vent, text="🛒 Tienda de Mods (Modrinth)", command=self.abrir_tienda, fg_color="#27ae60", hover_color="#2ecc71", font=ctk.CTkFont(weight="bold"))
-        self.btn_tienda.pack(side="bottom", pady=(10, 20))
+        self.btn_tienda = ctk.CTkButton(frame_botones_finales, text="🛒 Tienda de Mods", command=self.abrir_tienda, fg_color="#27ae60", hover_color="#2ecc71", font=ctk.CTkFont(weight="bold"), height=40)
+        self.btn_tienda.pack(side="left", expand=True, fill="x", padx=(0, 5))
 
-        ctk.CTkButton(vent, text="🚑 Reparación Rápida (SOS)", command=self.ejecutar_reparacion_sos, fg_color="#c0392b", hover_color="#922b21").pack(side="bottom", pady=10)
+        ctk.CTkButton(frame_botones_finales, text="🚑 Reparación (SOS)", command=self.ejecutar_reparacion_sos, fg_color="#c0392b", hover_color="#922b21", height=40).pack(side="right", expand=True, fill="x", padx=(5, 0))
 
     def elegir_skin(self):
         ruta = filedialog.askopenfilename(title="Skin (.png)", filetypes=[("PNG", "*.png")])
@@ -630,6 +661,18 @@ del "%~f0"
             self.after(0, lambda: self.lbl_estado.configure(text="Lanzando Paraguacraft..."))
             
             threading.Thread(target=self._hilo_ninja_renombrar, args=(version_jugada,), daemon=True).start()
+
+            start_time = datetime.now()
+            
+            # EL CAMBIO EN LA LLAMADA AL CORE: Le enviamos el tipo_cliente a core.py
+# EL CAMBIO EN LA LLAMADA AL CORE
+            lanzar_minecraft(version_jugada, usuario, ram, gc_type, self.opt_var.get(), tipo_cliente, self.papa_var.get(), self.mesa_var.get(), self.consola_var.get(), self.actualizar_progreso, uuid_real, token_real, self.lan_distancia_var.get())
+            self.after(0, lambda: self.lbl_estado.configure(text="Lanzando Paraguacraft..."))
+            
+            threading.Thread(target=self._hilo_ninja_renombrar, args=(version_jugada,), daemon=True).start()
+            
+            # --- NUEVO: ACTIVAMOS EL ESPÍA DE DISCORD ---
+            threading.Thread(target=self._hilo_discord_rpc_dinamico, args=(version_jugada, usuario, tipo_cliente), daemon=True).start()
 
             start_time = datetime.now()
             
@@ -899,6 +942,137 @@ del "%~f0"
         except Exception as e:
             self.actualizar_progreso("Error de red.")
             self.after(0, lambda: messagebox.showerror("Error de Conexión", f"No se pudo descargar el archivo: {e}"))
+
+    def _hilo_discord_rpc_dinamico(self, version_jugada, usuario, tipo_cliente):
+        if not self.rpc: return
+        import time
+        import os
+        import minecraft_launcher_lib
+
+        version_base = version_jugada.strip()
+        if version_base.startswith("fabric-loader-"):
+            version_base = version_base.split("-")[-1]
+            tipo_cliente = "Fabric"
+        elif "forge" in version_base.lower():
+            version_base = version_base.split("-")[0]
+            tipo_cliente = "Forge"
+
+        folder_name = f"Paraguacraft_{version_base}_{tipo_cliente}".replace(".", "_")
+        mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+        log_path = os.path.join(mine_dir, "instancias", folder_name, "logs", "latest.log")
+        
+        # EL TRUCO: Borramos el log viejo para obligar a Python a esperar el nuevo
+        try:
+            if os.path.exists(log_path):
+                os.remove(log_path)
+        except:
+            pass
+            
+        estado_actual = "En el menú principal"
+        
+        try:
+            self.rpc.update(state=estado_actual, details=f"👤 {usuario} | 🎮 {version_jugada}", large_image="logo")
+            
+            # Esperamos a que el juego cree el archivo log nuevo (Hasta 3 minutos)
+            tiempo_espera = 0
+            while not os.path.exists(log_path) and self.hilo_juego_activo and tiempo_espera < 180:
+                time.sleep(1)
+                tiempo_espera += 1
+                
+            if not os.path.exists(log_path): return 
+            
+            # Leemos el archivo nuevo línea por línea
+            with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
+                while self.hilo_juego_activo:
+                    linea = f.readline()
+                    if not linea:
+                        time.sleep(0.5) 
+                        f.seek(f.tell()) # <--- ESTA LÍNEA OBLIGA A WINDOWS A ACTUALIZAR EL ARCHIVO EN VIVO
+                        continue
+
+                    # --- DETECCIÓN INTELIGENTE (Versión 1.21+) ---
+                    
+                    # 1. Multijugador
+                    if "Connecting to" in linea:
+                        partes = linea.split("Connecting to ")
+                        if len(partes) > 1:
+                            ip = partes[1].split(",")[0].split(":")[0].strip() 
+                            estado_actual = f"🌐 Multijugador: {ip}"
+                            self.rpc.update(state=estado_actual, details=f"👤 {usuario} | 🎮 {version_jugada}", large_image="logo")
+                            
+                    # 2. Mundo Local (Singleplayer)
+                    elif "Starting integrated minecraft server" in linea or "Preparing start region for dimension" in linea:
+                        estado_actual = "🌍 Jugando en Mundo Local"
+                        self.rpc.update(state=estado_actual, details=f"👤 {usuario} | 🎮 {version_jugada}", large_image="logo")
+                        
+                    # 3. Salida al menú principal
+                    elif "Stopping server" in linea or "Disconnecting from" in linea or "Disconnected from" in linea:
+                        estado_actual = "En el menú principal"
+                        self.rpc.update(state=estado_actual, details=f"👤 {usuario} | 🎮 {version_jugada}", large_image="logo")
+
+        except Exception as e:
+            print(f"El espía de Discord falló: {e}")
+
+    def procesar_archivos_soltados(self, archivos):
+        try:
+            # 1. Miramos qué versión tiene elegida el usuario en la lista
+            seleccion = self.lista_versiones.curselection()
+            if not seleccion:
+                messagebox.showwarning("Aviso", "¡Elegí una versión en la lista primero para saber dónde instalar los mods/shaders!")
+                return
+            
+            version_actual = self.lista_versiones.get(seleccion[0])
+            tipo_cliente_ui = self.tipo_cliente_var.get().split()[0]
+            
+            # 2. Armamos la ruta a la caja fuerte de esa versión (Instancia Aislada)
+            folder_name = f"Paraguacraft_{version_actual}_{tipo_cliente_ui}".replace(".", "_")
+            mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+            instancia_dir = os.path.join(mine_dir, "instancias", folder_name)
+            
+            archivos_procesados = []
+            
+            # 3. Analizamos archivo por archivo de los que tiró el usuario
+            for archivo_bytes in archivos:
+                # windnd nos devuelve la ruta en bytes, la pasamos a texto normal
+                ruta_archivo = archivo_bytes.decode('gbk') 
+                nombre_archivo = os.path.basename(ruta_archivo)
+                carpeta_destino = ""
+                
+                # REGLA A: Si es un .jar, es un Mod. Va derecho a la carpeta mods.
+                if ruta_archivo.endswith('.jar'):
+                    carpeta_destino = os.path.join(instancia_dir, "mods")
+                    
+                # REGLA B: Si es un .zip, somos ingenieros y miramos qué tiene adentro
+                elif ruta_archivo.endswith('.zip'):
+                    with zipfile.ZipFile(ruta_archivo, 'r') as z:
+                        archivos_zip = z.namelist()
+                        
+                        # Si tiene una carpeta "shaders", es un Shaderpack
+                        if any(f.startswith('shaders/') for f in archivos_zip):
+                            carpeta_destino = os.path.join(instancia_dir, "shaderpacks")
+                            
+                        # Si tiene el archivo de descripción oficial, es un Resourcepack (Texturas)
+                        elif 'pack.mcmeta' in archivos_zip:
+                            carpeta_destino = os.path.join(instancia_dir, "resourcepacks")
+                            
+                        # Si es un zip pero no tiene nada de eso, a veces los creadores empaquetan mods ahí
+                        else:
+                            carpeta_destino = os.path.join(instancia_dir, "mods")
+                
+                # 4. Si sabemos dónde va, lo copiamos
+                if carpeta_destino:
+                    os.makedirs(carpeta_destino, exist_ok=True)
+                    destino_final = os.path.join(carpeta_destino, nombre_archivo)
+                    shutil.copyfile(ruta_archivo, destino_final)
+                    archivos_procesados.append(nombre_archivo)
+            
+            # 5. Le avisamos que salió todo bien
+            if archivos_procesados:
+                lista_nombres = "\n".join(archivos_procesados)
+                messagebox.showinfo("Instalación Mágica ✨", f"Se instalaron correctamente en tu perfil de {version_actual}:\n\n{lista_nombres}")
+                
+        except Exception as e:
+            messagebox.showerror("Error al procesar", f"Hubo un problema instalando el archivo:\n{e}")
 
 if __name__ == "__main__":
     app = ParaguaCraftLauncher()
