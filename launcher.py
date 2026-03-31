@@ -15,8 +15,11 @@ from datetime import datetime
 from mcstatus import JavaServer
 import threading
 import windnd
+import hashlib
 from PIL import Image, ImageTk
 from http.server import SimpleHTTPRequestHandler, HTTPServer
+from src.modelo import GestorMods, TiendaAPI, CreadorServidor
+from src.controlador import GameBooster
 
 if sys.platform == "win32":
     import win32gui
@@ -58,7 +61,7 @@ DISCORD_APP_ID = "1487516329631154206"
 SERVER_IP = "process-import.gl.at.ply.gg:2055" 
 MODS_ZIP_URL = "" 
 
-LAUNCHER_VERSION = "1.0.4"
+LAUNCHER_VERSION = "1.0.5"
 UPDATE_URL = "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/refs/heads/main/version.txt"
 
 class ParaguaCraftLauncher(ctk.CTk):
@@ -199,6 +202,16 @@ class ParaguaCraftLauncher(ctk.CTk):
         threading.Thread(target=self.buscar_actualizaciones, daemon=True).start()
         threading.Thread(target=self.iniciar_discord_rpc, daemon=True).start()
 
+        # --- MONITOR DE TELEMETRÍA (HUD) ---
+        self.lbl_telemetria = ctk.CTkLabel(
+            self.frame_main, 
+            text="⚡ Iniciando sensores de hardware...", 
+            text_color="#2ecc71", 
+            font=ctk.CTkFont(size=12, weight="bold")
+        )
+        self.lbl_telemetria.pack(side="bottom", pady=(5, 0))
+        threading.Thread(target=self._hilo_telemetria, daemon=True).start()
+
         try:
             windnd.hook_dropfiles(self.winfo_id(), self.procesar_archivos_soltados)
         except Exception as e:
@@ -315,6 +328,24 @@ del "%~f0"
             self.actualizar_progreso("Error al actualizar.")
             self.after(0, lambda: messagebox.showerror("Error", f"No se pudo actualizar: {str(e)}"))
             self.after(0, lambda: self.boton_jugar.configure(state="normal", text="INICIAR PARAGUACRAFT"))
+
+    def _hilo_telemetria(self):
+        import time, psutil
+        while True:
+            try:
+                # Lee los sensores cada 1 segundo
+                cpu = psutil.cpu_percent(interval=1)
+                ram_libre = psutil.virtual_memory().available / (1024**3)
+                ram_total = psutil.virtual_memory().total / (1024**3)
+                
+                # Lógica de colores según el estrés del hardware
+                color = "#2ecc71" # Verde (Óptimo)
+                if cpu > 85 or ram_libre < 3: color = "#e74c3c" # Rojo (Peligro/Stuttering inminente)
+                elif cpu > 60: color = "#f1c40f" # Amarillo (Carga pesada)
+                
+                texto = f"⚡ CPU: {cpu}%  |  💾 RAM Libre: {ram_libre:.1f}GB / {ram_total:.1f}GB"
+                self.after(0, lambda t=texto, c=color: self.lbl_telemetria.configure(text=t, text_color=c))
+            except: pass
 
     def iniciar_discord_rpc(self):
         try:
@@ -569,21 +600,45 @@ del "%~f0"
         ruta = filedialog.askopenfilename(title="Skin (.png)", filetypes=[("PNG", "*.png")])
         if ruta:
             mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
-            skin_path = os.path.join(mine_dir, "resourcepacks", "ParaguacraftBrandPack", "assets", "minecraft", "textures", "entity", "player")
-            os.makedirs(skin_path, exist_ok=True)
+            
+            # Las nuevas rutas obligatorias para 1.19.3+ (Steve es wide, Alex es slim)
+            skin_path_wide = os.path.join(mine_dir, "resourcepacks", "ParaguacraftBrandPack", "assets", "minecraft", "textures", "entity", "player", "wide")
+            skin_path_slim = os.path.join(mine_dir, "resourcepacks", "ParaguacraftBrandPack", "assets", "minecraft", "textures", "entity", "player", "slim")
+            # Ruta clásica por si jugás en la 1.16 o 1.8
+            skin_path_old = os.path.join(mine_dir, "resourcepacks", "ParaguacraftBrandPack", "assets", "minecraft", "textures", "entity")
+            
+            os.makedirs(skin_path_wide, exist_ok=True)
+            os.makedirs(skin_path_slim, exist_ok=True)
+            os.makedirs(skin_path_old, exist_ok=True)
+            
             try:
-                shutil.copy(ruta, os.path.join(skin_path, "steve.png"))
-                shutil.copy(ruta, os.path.join(skin_path, "alex.png"))
-                messagebox.showinfo("Skin Guardada", "¡Skin aplicada!")
+                # 1. Aplicamos a Steve (Brazos gruesos)
+                shutil.copy(ruta, os.path.join(skin_path_wide, "steve.png"))
+                shutil.copy(ruta, os.path.join(skin_path_old, "steve.png"))
+                
+                # 2. Aplicamos a Alex (Brazos finos, por si a tu amigo le toca esta)
+                shutil.copy(ruta, os.path.join(skin_path_slim, "alex.png"))
+                shutil.copy(ruta, os.path.join(skin_path_old, "alex.png"))
+                
+                messagebox.showinfo("Skin Guardada", "¡Skin aplicada para todas las versiones y modelos!")
+                self.actualizar_avatar_visual()
             except: messagebox.showerror("Error", "No se pudo copiar la skin.")
 
     def borrar_skin(self):
         mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
-        skin_path = os.path.join(mine_dir, "resourcepacks", "ParaguacraftBrandPack", "assets", "minecraft", "textures", "entity", "player")
+        rutas_limpiar = [
+            os.path.join(mine_dir, "resourcepacks", "ParaguacraftBrandPack", "assets", "minecraft", "textures", "entity", "player", "wide"),
+            os.path.join(mine_dir, "resourcepacks", "ParaguacraftBrandPack", "assets", "minecraft", "textures", "entity", "player", "slim"),
+            os.path.join(mine_dir, "resourcepacks", "ParaguacraftBrandPack", "assets", "minecraft", "textures", "entity")
+        ]
+        
         try:
-            if os.path.exists(os.path.join(skin_path, "steve.png")): os.remove(os.path.join(skin_path, "steve.png"))
-            if os.path.exists(os.path.join(skin_path, "alex.png")): os.remove(os.path.join(skin_path, "alex.png"))
-            messagebox.showinfo("Skin Borrada", "Skin restablecida a la de defecto (Steve).")
+            for ruta in rutas_limpiar:
+                if os.path.exists(os.path.join(ruta, "steve.png")): os.remove(os.path.join(ruta, "steve.png"))
+                if os.path.exists(os.path.join(ruta, "alex.png")): os.remove(os.path.join(ruta, "alex.png"))
+            
+            messagebox.showinfo("Skin Borrada", "Skin restablecida a la de defecto (Steve/Alex).")
+            self.actualizar_avatar_visual()
         except: pass
 
     def descargar_mods_zip(self):
@@ -683,22 +738,18 @@ del "%~f0"
                             os.remove(os.path.join(LOG_DIR, filename))
                 except Exception: pass
 
-            self.after(0, lambda: self.lbl_estado.configure(text="Lanzando Paraguacraft..."))
-            
-            threading.Thread(target=self._hilo_ninja_renombrar, args=(version_jugada,), daemon=True).start()
+            # 1. ACTIVAMOS EL BOOSTER DESDE EL CONTROLADOR (Limpia procesos)
+            self.after(0, lambda: GameBooster.activar_modo_gamer(self.actualizar_progreso))
 
-            start_time = datetime.now()
-            
-            lanzar_minecraft(version_jugada, usuario, ram, gc_type, self.opt_var.get(), tipo_cliente, self.papa_var.get(), self.mesa_var.get(), self.consola_var.get(), self.actualizar_progreso, uuid_real, token_real, self.lan_distancia_var.get())
             self.after(0, lambda: self.lbl_estado.configure(text="Lanzando Paraguacraft..."))
             
+            # 2. LANZAMOS LOS HILOS SECUNDARIOS (Ninja y Discord)
             threading.Thread(target=self._hilo_ninja_renombrar, args=(version_jugada,), daemon=True).start()
-            
             threading.Thread(target=self._hilo_discord_rpc_dinamico, args=(version_jugada, usuario, tipo_cliente), daemon=True).start()
 
+            # 3. LANZAMOS EL JUEGO REAL
             start_time = datetime.now()
-            
-            lanzar_minecraft(version_jugada, usuario, ram, gc_type, self.opt_var.get(), tipo_cliente, self.papa_var.get(), self.mesa_var.get(), self.consola_var.get(), self.actualizar_progreso, uuid_real, token_real)
+            lanzar_minecraft(version_jugada, usuario, ram, gc_type, self.opt_var.get(), tipo_cliente, self.papa_var.get(), self.mesa_var.get(), self.consola_var.get(), self.actualizar_progreso, uuid_real, token_real, self.lan_distancia_var.get())
             
             self.hilo_juego_activo = False
             
@@ -798,7 +849,6 @@ del "%~f0"
                 messagebox.showerror("Error", f"No se pudo completar la limpieza: {e}")
 
     def actualizar_mods_instancia(self):
-        # 1. Identificar versión y carpeta
         seleccion = self.lista_versiones.curselection()
         if not seleccion: return
         version_actual = self.lista_versiones.get(seleccion[0])
@@ -812,38 +862,16 @@ del "%~f0"
             messagebox.showinfo("Aviso", "No hay mods instalados en esta versión todavía.")
             return
 
-        def _hilo_updater():
-            self.actualizar_progreso("Buscando actualizaciones de mods...")
-            mods_locales = [f for f in os.listdir(mods_dir) if f.endswith(".jar")]
-            actualizados = 0
+        def _hilo_mvc():
+            # Acá el Controlador (launcher.py) le pasa la tarea al Modelo (GestorMods)
+            # y le pasa 'self.actualizar_progreso' para que el Modelo pueda actualizar la UI sin romper Tkinter
+            actualizados, reparados = GestorMods.verificar_y_actualizar(mods_dir, version_actual, self.actualizar_progreso)
+            
+            # Una vez que el Modelo termina, el Controlador manda el pop-up
+            mensaje_final = f"Proceso finalizado.\n\nMods actualizados: {actualizados}\nArchivos corruptos reparados: {reparados}"
+            self.after(0, lambda: messagebox.showinfo("Smart Updater Pro", mensaje_final))
 
-            for mod_file in mods_locales:
-                nombre_busqueda = mod_file.split("-")[0].split("_")[0]
-                url_api = f"https://api.modrinth.com/v2/search?query={nombre_busqueda}&facets=[[\"versions:{version_actual}\"],[\"project_type:mod\"]]"
-                
-                try:
-                    r = requests.get(url_api, timeout=5).json()
-                    if r.get("hits"):
-                        slug = r["hits"][0]["slug"]
-                        # Verificamos la versión más nueva en Modrinth
-                        v_r = requests.get(f"https://api.modrinth.com/v2/project/{slug}/version", params={"game_versions": f'["{version_actual}"]', "loaders": '["fabric"]'}).json()
-                        if v_r:
-                            nuevo_archivo = v_r[0]["files"][0]["filename"]
-                            if nuevo_archivo != mod_file:
-                                self.actualizar_progreso(f"Actualizando {slug}...")
-                                # Bajamos el nuevo
-                                r_dl = requests.get(v_r[0]["files"][0]["url"])
-                                with open(os.path.join(mods_dir, nuevo_archivo), "wb") as f:
-                                    f.write(r_dl.content)
-                                # Borramos el viejo
-                                os.remove(os.path.join(mods_dir, mod_file))
-                                actualizados += 1
-                except: continue
-
-            self.actualizar_progreso("¡Mods al día!")
-            messagebox.showinfo("Smart Updater", f"Proceso terminado. Se actualizaron {actualizados} mods.")
-
-        threading.Thread(target=_hilo_updater, daemon=True).start()
+        threading.Thread(target=_hilo_mvc, daemon=True).start()
     
     def abrir_tienda(self):
         vent_tienda = ctk.CTkToplevel(self)
@@ -896,23 +924,14 @@ del "%~f0"
         elif categoria_elegida == "Texturas": tipo_proyecto = "resourcepack"
         elif categoria_elegida == "Modpacks": tipo_proyecto = "modpack"
 
-        facets = f'[["versions:{version_actual}"],["project_type:{tipo_proyecto}"]'
-        # Shaders y Texturas no dependen de Fabric/Forge en Modrinth, así que solo filtramos motor si es un Mod o Modpack
-        if tipo_proyecto in ["mod", "modpack"]:
-            facets += f',["categories:{tipo}"]'
-        facets += ']'
+        # DELEGAMOS LA BÚSQUEDA AL MODELO
+        exito, resultado = TiendaAPI.buscar_mods(query, version_actual, tipo, tipo_proyecto)
         
-        url = f'https://api.modrinth.com/v2/search?query={query}&limit=8&facets={facets}'
-        
-        try:
-            r = requests.get(url, headers={"User-Agent": "ParaguacraftLauncher/1.0"}, timeout=10)
-            if r.status_code == 200:
-                data = r.json()
-                self.after(0, self.mostrar_resultados_tienda, data.get("hits", []), tipo_proyecto)
-            else:
-                self.after(0, self.mostrar_error_tienda, f"Error de la API: {r.status_code}")
-        except Exception:
-            self.after(0, self.mostrar_error_tienda, "No hay conexión a internet o la API está caída.")
+        # ACTUAMOS SEGÚN LA RESPUESTA
+        if exito:
+            self.after(0, self.mostrar_resultados_tienda, resultado, tipo_proyecto)
+        else:
+            self.after(0, self.mostrar_error_tienda, resultado)
 
     def mostrar_error_tienda(self, mensaje):
         for widget in self.scroll_resultados.winfo_children(): widget.destroy()
@@ -974,40 +993,19 @@ del "%~f0"
     def _hilo_descarga_tienda(self, slug, titulo, version, tipo_loader, carpeta_destino):
         self.actualizar_progreso(f"Buscando archivo de {titulo}...")
         
-        url_api = f"https://api.modrinth.com/v2/project/{slug}/version"
-        params = {"game_versions": f'["{version}"]'}
+        # DELEGAMOS LA DESCARGA AL MODELO
+        exito, mensaje = TiendaAPI.descargar_mod(slug, version, tipo_loader, carpeta_destino, self.actualizar_progreso)
         
-        # Si va a la carpeta mods, le exige a la API que sea compatible con el motor
-        if "mods" in carpeta_destino:
-            if tipo_loader == "vanilla": tipo_loader = "fabric"
-            params["loaders"] = f'["{tipo_loader}"]'
-            
-        try:
-            r = requests.get(url_api, params=params, headers={"User-Agent": "ParaguacraftLauncher/1.0"}, timeout=10)
-            if r.status_code == 200:
-                data = r.json()
-                if len(data) > 0:
-                    archivo = data[0]["files"][0]
-                    nombre_archivo = archivo["filename"]
-                    url_descarga = archivo["url"]
-                    
-                    ruta_final = os.path.join(carpeta_destino, nombre_archivo)
-                    
-                    self.actualizar_progreso(f"Descargando {titulo}...")
-                    r_dl = requests.get(url_descarga, stream=True, timeout=20)
-                    with open(ruta_final, "wb") as f:
-                        shutil.copyfileobj(r_dl.raw, f)
-                        
-                    self.actualizar_progreso("¡Instalación exitosa!")
-                    self.after(0, lambda: messagebox.showinfo("Tienda Paraguacraft", f"¡'{titulo}' se instaló correctamente!\n\nSe guardó en tu perfil de {version} ({tipo_loader.capitalize()})."))
-                else:
-                    self.actualizar_progreso("Versión no compatible.")
-                    self.after(0, lambda: messagebox.showerror("Error de Compatibilidad", f"El creador de '{titulo}' no subió una versión compatible con Minecraft {version} en {tipo_loader.capitalize()}."))
+        # ACTUAMOS SEGÚN LA RESPUESTA (Solo mostramos cartelitos)
+        if exito:
+            self.actualizar_progreso("¡Instalación exitosa!")
+            self.after(0, lambda: messagebox.showinfo("Tienda Paraguacraft", f"¡'{titulo}' se instaló correctamente!\n\nSe guardó en tu perfil de {version} ({tipo_loader.capitalize()})."))
+        else:
+            self.actualizar_progreso("Error al instalar.")
+            if mensaje == "incompatible":
+                self.after(0, lambda: messagebox.showerror("Error de Compatibilidad", f"El creador de '{titulo}' no subió una versión compatible con Minecraft {version} en {tipo_loader.capitalize()}."))
             else:
-                self.actualizar_progreso("Error en la API.")
-        except Exception as e:
-            self.actualizar_progreso("Error de red.")
-            self.after(0, lambda: messagebox.showerror("Error de Conexión", f"No se pudo descargar el archivo: {e}"))
+                self.after(0, lambda: messagebox.showerror("Error de Conexión", f"No se pudo descargar el archivo: {mensaje}"))
 
     def _hilo_discord_rpc_dinamico(self, version_jugada, usuario, tipo_cliente):
         if not self.rpc: return
@@ -1128,14 +1126,11 @@ del "%~f0"
             messagebox.showerror("Error al procesar", f"Hubo un problema instalando el archivo:\n{e}")
 
     def crear_servidor_local(self):
-        # 1. Preguntar dónde guardarlo
         carpeta_server = filedialog.askdirectory(title="Elegí una carpeta VACÍA para tu servidor")
         if not carpeta_server: return
         
-        # 2. Preguntar versión
         seleccion = self.lista_versiones.curselection()
         sugerencia = self.lista_versiones.get(seleccion[0]) if seleccion else "1.21.1"
-        # Limpia si seleccionó algo de fabric para que quede solo el número
         if "fabric" in sugerencia: sugerencia = sugerencia.split("-")[-1]
         
         dialog = ctk.CTkInputDialog(text="Ingresá la versión EXACTA (ej: 1.21.1):", title="Versión del Server")
@@ -1143,74 +1138,15 @@ del "%~f0"
         if not ver_server: return
 
         def _hilo_server():
-            try:
-                self.actualizar_progreso(f"Buscando servidor para la versión {ver_server}...")
-                
-                # 3. Busca en el manifiesto oficial de Mojang
-                manifest = requests.get("https://launchermeta.mojang.com/mc/game/version_manifest.json", timeout=10).json()
-                version_url = None
-                for v in manifest["versions"]:
-                    if v["id"] == ver_server:
-                        version_url = v["url"]
-                        break
-                
-                if not version_url:
-                    raise Exception(f"La versión '{ver_server}' no existe en Mojang.\nAsegurate de poner una versión oficial válida (Ej: 1.21.1).")
-                
-                # 4. Entra a la versión y saca el link del server.jar
-                v_data = requests.get(version_url, timeout=10).json()
-                if "server" not in v_data.get("downloads", {}):
-                    raise Exception("Esta versión no tiene un servidor oficial disponible.")
-                    
-                server_jar_url = v_data["downloads"]["server"]["url"]
-                
-                # 5. Descarga el archivo pesado
-                self.actualizar_progreso(f"Descargando server.jar ({ver_server})...")
-                r_jar = requests.get(server_jar_url, stream=True, timeout=30)
-                r_jar.raise_for_status()
-                
-                with open(os.path.join(carpeta_server, "server.jar"), "wb") as f:
-                    for chunk in r_jar.iter_content(chunk_size=8192):
-                        f.write(chunk)
-                
-                # 6. Acepta la EULA automáticamente
-                with open(os.path.join(carpeta_server, "eula.txt"), "w") as f:
-                    f.write("eula=true")
-                
-                # 7. Buscador agresivo de Java
-                mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
-                runtime_dir = os.path.join(mine_dir, "runtime")
-                java_cmd = "java" # Fallback por defecto
-                
-                if os.path.exists(runtime_dir):
-                    # Busca todos los java.exe instalados por el launcher
-                    javas_encontrados = []
-                    for root, _, files in os.walk(runtime_dir):
-                        if "java.exe" in files:
-                            javas_encontrados.append(os.path.join(root, "java.exe"))
-                    
-                    if javas_encontrados:
-                        # Busca el Java 21 (suele estar en carpetas 'delta' o 'gamma')
-                        java_ideal = None
-                        for j in javas_encontrados:
-                            if "delta" in j.lower() or "gamma" in j.lower() or "21" in j.lower():
-                                java_ideal = j
-                                break
-                        
-                        if not java_ideal: java_ideal = javas_encontrados[0]
-                        # Lo encierra en comillas por si la ruta tiene espacios
-                        java_cmd = f'"{java_ideal}"'
-
-                # 8. Crea el archivo de arranque apuntando al Java correcto
-                bat_content = f"@echo off\n{java_cmd} -Xmx4G -Xms4G -jar server.jar nogui\npause"
-                with open(os.path.join(carpeta_server, "iniciar_server.bat"), "w", encoding="utf-8") as f:
-                    f.write(bat_content)
-                
-                self.actualizar_progreso("¡Servidor listo!")
-                messagebox.showinfo("Servidor Creado Mágicamente ✨", f"¡Todo listo en {carpeta_server}!\n\nEl launcher ya descargó el server.jar original de Mojang y forzó el uso del Java interno.\n\nSolo dale doble clic a 'iniciar_server.bat' adentro de la carpeta para prenderlo.")
-            except Exception as e:
+            # Le pasamos la tarea pesada al Modelo
+            exito, mensaje = CreadorServidor.descargar_y_preparar(carpeta_server, ver_server, self.actualizar_progreso)
+            
+            # El Modelo responde, la Vista muestra los pop-ups
+            if exito:
+                self.after(0, lambda: messagebox.showinfo("Servidor Creado Mágicamente ✨", mensaje))
+            else:
                 self.actualizar_progreso("Error al crear servidor.")
-                messagebox.showerror("Error", str(e))
+                self.after(0, lambda: messagebox.showerror("Error", mensaje))
 
         threading.Thread(target=_hilo_server, daemon=True).start()
 
