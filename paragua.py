@@ -12,8 +12,14 @@ import webbrowser
 import shutil
 import subprocess
 import requests
+import socket
+import struct
+import zipfile
+import datetime
+import socketserver
+from http.server import BaseHTTPRequestHandler
 
-VERSION = "2.0.0"  # Actualizar en cada release
+VERSION = "2.1.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 
 # Credenciales oficiales
@@ -53,6 +59,10 @@ class Api:
         self._servidor_lock = threading.Lock()
         self._playit_proc = None
         self._playit_address = ""
+        self._musica_proc = None
+        self._stats_file = "paraguacraft_stats.json"
+        self._spotify_token = None
+        self._spotify_refresh = None
 
         self.config_actual = {
             "usuario": "Invitado",
@@ -67,6 +77,9 @@ class Api:
             "limpiador_deep_var": False,
             "lan_distancia": False,
             "fabric_loader_version": "",
+            "fondo_animado": "",
+            "spotify_client_id": "e73630182fed44d8a91b108d34c8e61d",
+            "spotify_client_secret": "7a712d078edc408690f73c0be68abb08",
         }
 
         if os.path.exists(self.ruta_config):
@@ -87,14 +100,17 @@ class Api:
     def iniciar_discord_rpc(self):
         try:
             from pypresence import Presence
-
             self.rpc = Presence(DISCORD_APP_ID)
             self.rpc.connect()
+            usuario = self.config_actual.get("usuario", "Invitado")
             self.rpc.update(
-                state="Navegando por el Launcher",
-                details="Preparándose para jugar",
+                state=f"Conectado como {usuario}",
+                details="En el launcher",
                 large_image="logo",
                 large_text="Paraguacraft",
+                small_image="logo",
+                small_text="Launcher Paraguacraft",
+                start=int(time.time()),
             )
         except Exception:
             self.rpc = None
@@ -102,24 +118,75 @@ class Api:
     def _rpc_menu(self):
         if self.rpc:
             try:
+                usuario = self.config_actual.get("usuario", "Invitado")
                 self.rpc.update(
-                    state="En el launcher",
-                    details="Paraguacraft",
+                    state=f"Conectado como {usuario}",
+                    details="Explorando el launcher",
                     large_image="logo",
                     large_text="Paraguacraft",
+                    start=int(time.time()),
                 )
             except Exception:
                 pass
 
+    def _rpc_jugando(self, version, motor):
+        if self.rpc:
+            try:
+                usuario = self.config_actual.get("usuario", "Invitado")
+                self.rpc.update(
+                    state=f"{version} · {motor}",
+                    details=f"Jugando como {usuario}",
+                    large_image="logo",
+                    large_text=f"Paraguacraft {version}",
+                    small_image="logo",
+                    small_text=motor,
+                    start=int(time.time()),
+                )
+            except Exception:
+                pass
+
+    def actualizar_rpc(self, estado, detalle=""):
+        if self.rpc:
+            try:
+                self.rpc.update(
+                    state=estado,
+                    details=detalle or "Paraguacraft",
+                    large_image="logo",
+                    large_text="Paraguacraft",
+                    start=int(time.time()),
+                )
+            except Exception:
+                pass
+        return {"ok": True}
+
     def get_usuario(self):
         return {"nombre": self.config_actual.get("usuario", "Invitado"), "premium": self.config_actual.get("is_premium", False)}
+
+    def _refresh_ms_token(self):
+        if not self.ms_data:
+            return
+        try:
+            from minecraft_launcher_lib.microsoft_account import refresh_authorization_token
+            new_data = refresh_authorization_token(CLIENT_ID, None, REDIRECT_URI, self.ms_data["refresh_token"])
+            if new_data and "access_token" in new_data:
+                self.ms_data.update(new_data)
+                with open(self.ruta_sesion, "w") as f:
+                    json.dump(self.ms_data, f)
+        except Exception as e:
+            print("[MS Refresh] Error al refrescar token:", e)
 
     def login_microsoft_paso1(self):
         try:
             from minecraft_launcher_lib.microsoft_account import get_login_url
-
             url = get_login_url(CLIENT_ID, REDIRECT_URI)
-            webbrowser.open(url)
+            try:
+                webbrowser.open(url)
+            except Exception:
+                import os, subprocess
+                try:
+                    os.startfile(url)
+                except Exception:
+                    subprocess.Popen(['cmd', '/c', 'start', '', url], shell=False)
             return True
         except Exception as e:
             return str(e)
@@ -127,7 +194,6 @@ class Api:
     def login_microsoft_paso2(self, url_respuesta):
         try:
             from minecraft_launcher_lib.microsoft_account import complete_login, url_contains_auth_code, get_auth_code_from_url
-
             if url_contains_auth_code(url_respuesta):
                 auth_code = get_auth_code_from_url(url_respuesta)
                 self.ms_data = complete_login(CLIENT_ID, None, REDIRECT_URI, auth_code)
@@ -137,17 +203,15 @@ class Api:
                 with open(self.ruta_sesion, "w") as f:
                     json.dump(self.ms_data, f)
                 self._guardar()
-                webview.windows[0].evaluate_js(f"actualizarUiUsuario('{nombre_premium}', true)")
-                return "EXITO"
-            return "URL inválida."
+                return {"ok": True, "nombre": nombre_premium}
+            return {"ok": False, "error": "URL inválida."}
         except Exception as e:
-            return f"Error: {e}"
+            return {"ok": False, "error": str(e)}
 
     def login_invitado(self, nombre):
         self.config_actual["usuario"] = nombre
         self.config_actual["is_premium"] = False
         self._guardar()
-        webview.windows[0].evaluate_js(f"actualizarUiUsuario('{nombre}', false)")
         return nombre
 
     def cerrar_sesion(self):
@@ -497,6 +561,9 @@ class Api:
     def lanzar_juego(self, version, motor, server_ip=""):
         print(f"Lanzando {version} con {motor}. AutoJoin: {server_ip}")
         self.hilo_juego_activo = True
+        self.config_actual["ultima_version"] = version
+        self.config_actual["ultimo_motor"] = motor
+        self._guardar()
 
         if self.rpc:
             try:
@@ -523,6 +590,9 @@ class Api:
                 from core import lanzar_minecraft
 
                 webview.windows[0].evaluate_js(f"actualizarEstadoPanel({json.dumps('Iniciando motor...')})")
+
+                self._refresh_ms_token()
+                self._rpc_jugando(version, motor)
 
                 uuid_real = self.ms_data["id"] if self.ms_data else None
                 token_real = self.ms_data["access_token"] if self.ms_data else None
@@ -763,6 +833,145 @@ class Api:
         }
 
 
+    def guardar_skin(self, skin_url, nombre="skin"):
+        import re
+        try:
+            if not skin_url:
+                return {"ok": False, "error": "URL vacía"}
+            r = requests.get(skin_url, timeout=10)
+            r.raise_for_status()
+            skins_dir = os.path.join(os.path.expanduser("~"), "Paraguacraft_Skins")
+            os.makedirs(skins_dir, exist_ok=True)
+            safe_name = re.sub(r"[^a-zA-Z0-9_\-]", "_", nombre)[:40] or "skin"
+            out_path = os.path.join(skins_dir, safe_name + ".png")
+            with open(out_path, "wb") as f:
+                f.write(r.content)
+            return {"ok": True, "path": out_path}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def get_ultima_version_jugada(self):
+        return {
+            "version": self.config_actual.get("ultima_version", ""),
+            "motor": self.config_actual.get("ultimo_motor", "Vanilla"),
+        }
+
+    def get_versiones_mod(self, project_id, version_mc, tipo):
+        try:
+            params = {}
+            if version_mc:
+                params["game_versions"] = json.dumps([version_mc])
+            url = f"https://api.modrinth.com/v2/project/{project_id}/version"
+            r = requests.get(url, timeout=10, params=params,
+                             headers={"User-Agent": "Paraguacraft-Launcher"})
+            data = r.json()
+            versions = []
+            for v in (data if isinstance(data, list) else [])[:25]:
+                f0 = v.get("files", [{}])[0]
+                versions.append({
+                    "id": v["id"],
+                    "name": v.get("name", v["id"]),
+                    "game_versions": v.get("game_versions", []),
+                    "loaders": v.get("loaders", []),
+                    "downloads": v.get("downloads", 0),
+                    "date_published": v.get("date_published", "")[:10],
+                    "size_mb": round(f0.get("size", 0) / (1024 * 1024), 2),
+                    "filename": f0.get("filename", ""),
+                })
+            return {"ok": True, "versions": versions}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "versions": []}
+
+    def instalar_mod_desde_modrinth(self, project_id, version_id, tipo, version_mc, motor):
+        try:
+            url = f"https://api.modrinth.com/v2/version/{version_id}"
+            r = requests.get(url, timeout=10, headers={"User-Agent": "Paraguacraft-Launcher"})
+            data = r.json()
+            files = data.get("files", [])
+            primary = next((f for f in files if f.get("primary")), files[0] if files else None)
+            if not primary:
+                return {"ok": False, "error": "No se encontró archivo primario"}
+            download_url = primary["url"]
+            filename = primary["filename"]
+            from core import carpeta_instancia_paraguacraft
+            import minecraft_launcher_lib
+            mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+            folder = carpeta_instancia_paraguacraft(version_mc.strip(), motor)
+            base = os.path.join(mine_dir, "instancias", folder)
+            tipo_mapa = {"mod": "mods", "resourcepack": "resourcepacks",
+                         "shader": "shaderpacks", "datapack": "datapacks",
+                         "modpack": "mods", "plugin": "plugins"}
+            dest_dir = os.path.join(base, tipo_mapa.get(tipo, "mods"))
+            os.makedirs(dest_dir, exist_ok=True)
+            dest_path = os.path.join(dest_dir, filename)
+            def _hilo():
+                try:
+                    r2 = requests.get(download_url, stream=True, timeout=120,
+                                      headers={"User-Agent": "Paraguacraft-Launcher"})
+                    r2.raise_for_status()
+                    with open(dest_path, "wb") as f:
+                        for chunk in r2.iter_content(65536):
+                            if chunk:
+                                f.write(chunk)
+                    webview.windows[0].evaluate_js(
+                        f"onModInstalado({json.dumps({'ok': True, 'nombre': filename})})")
+                except Exception as exc:
+                    webview.windows[0].evaluate_js(
+                        f"onModInstalado({json.dumps({'ok': False, 'error': str(exc)})})")
+            threading.Thread(target=_hilo, daemon=True).start()
+            return {"ok": True, "nombre": filename}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def get_limpieza_info(self):
+        try:
+            import minecraft_launcher_lib
+            mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+            logs_dir = os.path.join(mine_dir, "logs")
+            crash_dir = os.path.join(mine_dir, "crash-reports")
+            assets_idx = os.path.join(mine_dir, "assets", "indexes")
+            logs_mb = round(_tamano_carpeta(logs_dir) / (1024 ** 2), 1)
+            crash_mb = round(_tamano_carpeta(crash_dir) / (1024 ** 2), 1)
+            mc_ram_mb = 0
+            for proc in psutil.process_iter(["name", "memory_info"]):
+                try:
+                    if "java" in (proc.info["name"] or "").lower():
+                        mc_ram_mb += proc.info["memory_info"].rss // (1024 ** 2)
+                except Exception:
+                    pass
+            return {"ok": True, "logs_mb": logs_mb, "crash_mb": crash_mb,
+                    "mc_ram_mb": mc_ram_mb}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "logs_mb": 0, "crash_mb": 0, "mc_ram_mb": 0}
+
+    def ejecutar_limpieza(self, tipo):
+        try:
+            import minecraft_launcher_lib
+            mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+            borrados = 0
+            if tipo in ("logs", "ambos"):
+                logs_dir = os.path.join(mine_dir, "logs")
+                if os.path.isdir(logs_dir):
+                    for f in os.listdir(logs_dir):
+                        if f != "latest.log":
+                            try:
+                                os.remove(os.path.join(logs_dir, f))
+                                borrados += 1
+                            except Exception:
+                                pass
+            if tipo in ("crash", "ambos"):
+                crash_dir = os.path.join(mine_dir, "crash-reports")
+                if os.path.isdir(crash_dir):
+                    for f in os.listdir(crash_dir):
+                        try:
+                            os.remove(os.path.join(crash_dir, f))
+                            borrados += 1
+                        except Exception:
+                            pass
+            return {"ok": True, "borrados": borrados}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
     def verificar_actualizacion(self):
         try:
             url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
@@ -826,10 +1035,1498 @@ class Api:
         return {"ok": True}
 
 
+    # ── VARINT HELPERS ──────────────────────────────────────────────────
+    def _pack_varint(self, val):
+        out = bytearray()
+        while True:
+            b = val & 0x7F; val >>= 7
+            out.append(b | 0x80 if val else b)
+            if not val: break
+        return bytes(out)
+
+    def _read_varint_bytes(self, data, offset):
+        n = shift = 0
+        while offset < len(data):
+            b = data[offset]; offset += 1
+            n |= (b & 0x7F) << shift; shift += 7
+            if not (b & 0x80): break
+        return n, offset
+
+    # ── PING SERVIDOR MC ────────────────────────────────────────────────
+    def ping_servidor(self, ip, puerto=25565):
+        try:
+            puerto = int(puerto)
+            t0 = time.time()
+            with socket.create_connection((ip, puerto), timeout=4) as s:
+                host_b = ip.encode("utf-8")
+                data = bytearray()
+                data += b"\x00"
+                data += b"\x00"
+                data += self._pack_varint(len(host_b)) + host_b
+                data += struct.pack(">H", puerto)
+                data += b"\x01"
+                s.sendall(self._pack_varint(len(data)) + bytes(data))
+                s.sendall(b"\x01\x00")
+                raw = b""
+                while len(raw) < 5:
+                    chunk = s.recv(4096)
+                    if not chunk: break
+                    raw += chunk
+                pkt_len, off = self._read_varint_bytes(raw, 0)
+                while len(raw) < off + pkt_len:
+                    chunk = s.recv(4096)
+                    if not chunk: break
+                    raw += chunk
+                _, off = self._read_varint_bytes(raw, off)
+                str_len, off = self._read_varint_bytes(raw, off)
+                srv = json.loads(raw[off:off + str_len].decode("utf-8"))
+            latency = int((time.time() - t0) * 1000)
+            desc = srv.get("description", "")
+            motd = desc if isinstance(desc, str) else desc.get("text", "")
+            return {
+                "ok": True, "latency_ms": latency,
+                "players_online": srv.get("players", {}).get("online", 0),
+                "players_max": srv.get("players", {}).get("max", 0),
+                "version": srv.get("version", {}).get("name", "?"),
+                "motd": motd,
+            }
+        except Exception as e:
+            return {"ok": False, "error": str(e), "latency_ms": -1}
+
+    # ── DETECTOR MODS CONFLICTIVOS ───────────────────────────────────────
+    def get_mods_conflictivos(self, version, motor):
+        try:
+            mods_dir = os.path.join(self._dir_instancia(version, motor), "mods")
+            if not os.path.isdir(mods_dir):
+                return {"ok": True, "conflictos": [], "total": 0}
+            ids_vistos = {}
+            for archivo in os.listdir(mods_dir):
+                if not archivo.endswith((".jar", ".jar.disabled")):
+                    continue
+                path = os.path.join(mods_dir, archivo)
+                try:
+                    with zipfile.ZipFile(path, "r") as z:
+                        mod_id = None
+                        names = z.namelist()
+                        if "fabric.mod.json" in names:
+                            mod_id = json.loads(z.read("fabric.mod.json")).get("id")
+                        elif "quilt.mod.json" in names:
+                            mod_id = json.loads(z.read("quilt.mod.json")).get("quilt_loader", {}).get("id")
+                        elif "META-INF/mods.toml" in names:
+                            content = z.read("META-INF/mods.toml").decode("utf-8", errors="ignore")
+                            m = re.search(r'modId\s*=\s*"([^"]+)"', content)
+                            if m: mod_id = m.group(1)
+                        if mod_id:
+                            ids_vistos.setdefault(mod_id, []).append(archivo)
+                except Exception:
+                    pass
+            conflictos = [{"mod_id": k, "archivos": v} for k, v in ids_vistos.items() if len(v) > 1]
+            return {"ok": True, "conflictos": conflictos, "total": len(conflictos)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── OPTIMIZADOR JAVA ─────────────────────────────────────────────────
+    def get_java_recomendado(self):
+        try:
+            ram_gb = psutil.virtual_memory().total / (1024 ** 3)
+            cores = psutil.cpu_count(logical=False) or 2
+            ram_rec = max(2, min(8, int(ram_gb * 0.35)))
+            gc = "ZGC" if ram_gb >= 16 else "G1GC"
+            gc_why = ("Tenés mucha RAM — ZGC elimina lag spikes." if ram_gb >= 16
+                      else "G1GC es el mejor equilibrio para tu RAM.")
+            flags = [f"-Xmx{ram_rec}G", f"-Xms{max(1, ram_rec//2)}G",
+                     "-XX:+UnlockExperimentalVMOptions", f"-XX:+Use{gc}GC",
+                     "-XX:+AlwaysPreTouch"]
+            if gc == "G1GC":
+                flags += ["-XX:MaxGCPauseMillis=200", "-XX:G1NewSizePercent=20",
+                          "-XX:G1MaxNewSizePercent=40", "-XX:G1HeapRegionSize=16M"]
+            rating = "Alto rendimiento" if ram_gb >= 16 else ("Buen rendimiento" if ram_gb >= 8 else "Rendimiento básico")
+            return {"ok": True, "ram_total_gb": round(ram_gb, 1), "ram_rec_gb": ram_rec,
+                    "cpu_cores": cores, "gc_rec": gc, "gc_why": gc_why,
+                    "flags": flags, "rating": rating}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def aplicar_java_recomendado(self):
+        try:
+            rec = self.get_java_recomendado()
+            if rec["ok"]:
+                self.config_actual["ram_asignada"] = rec["ram_rec_gb"]
+                self.config_actual["gc_type"] = rec["gc_rec"]
+                self._guardar()
+                return {"ok": True, "ram": rec["ram_rec_gb"], "gc": rec["gc_rec"]}
+            return rec
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── BACKUP DE MUNDOS ─────────────────────────────────────────────────
+    def get_mundos(self):
+        try:
+            import minecraft_launcher_lib
+            saves = os.path.join(minecraft_launcher_lib.utils.get_minecraft_directory(), "saves")
+            if not os.path.isdir(saves):
+                return {"ok": True, "mundos": []}
+            mundos = []
+            for nombre in os.listdir(saves):
+                ruta = os.path.join(saves, nombre)
+                if os.path.isdir(ruta):
+                    stat = os.stat(ruta)
+                    mundos.append({"nombre": nombre,
+                                   "modificado": time.strftime("%d/%m/%Y %H:%M", time.localtime(stat.st_mtime)),
+                                   "tamano_mb": round(_tamano_carpeta(ruta) / (1024 * 1024), 1)})
+            mundos.sort(key=lambda x: x["modificado"], reverse=True)
+            return {"ok": True, "mundos": mundos}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def backup_mundo(self, nombre_mundo):
+        try:
+            import minecraft_launcher_lib
+            mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+            mundo_dir = os.path.join(mine_dir, "saves", nombre_mundo)
+            if not os.path.isdir(mundo_dir):
+                return {"ok": False, "error": "Mundo no encontrado."}
+            backup_dir = os.path.join(os.path.dirname(os.path.abspath(self.ruta_config)), "paraguacraft_backups")
+            os.makedirs(backup_dir, exist_ok=True)
+            ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            nombre_zip = f"{nombre_mundo}_{ts}.zip"
+            ruta_zip = os.path.join(backup_dir, nombre_zip)
+            with zipfile.ZipFile(ruta_zip, "w", zipfile.ZIP_DEFLATED) as zf:
+                for root, _, files in os.walk(mundo_dir):
+                    for f in files:
+                        fp = os.path.join(root, f)
+                        zf.write(fp, os.path.relpath(fp, os.path.dirname(mundo_dir)))
+            return {"ok": True, "archivo": nombre_zip, "tamano_mb": round(os.path.getsize(ruta_zip) / (1024 * 1024), 1)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def listar_backups(self):
+        try:
+            backup_dir = os.path.join(os.path.dirname(os.path.abspath(self.ruta_config)), "paraguacraft_backups")
+            if not os.path.isdir(backup_dir):
+                return {"ok": True, "backups": []}
+            backups = []
+            for f in os.listdir(backup_dir):
+                if not f.endswith(".zip"): continue
+                ruta = os.path.join(backup_dir, f)
+                stat = os.stat(ruta)
+                backups.append({"archivo": f,
+                                "fecha": time.strftime("%d/%m/%Y %H:%M", time.localtime(stat.st_mtime)),
+                                "tamano_mb": round(stat.st_size / (1024 * 1024), 1),
+                                "mundo": "_".join(f.replace(".zip", "").split("_")[:-2])})
+            backups.sort(key=lambda x: x["fecha"], reverse=True)
+            return {"ok": True, "backups": backups}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def restaurar_mundo(self, archivo_backup):
+        try:
+            import minecraft_launcher_lib
+            saves = os.path.join(minecraft_launcher_lib.utils.get_minecraft_directory(), "saves")
+            backup_dir = os.path.join(os.path.dirname(os.path.abspath(self.ruta_config)), "paraguacraft_backups")
+            ruta_zip = os.path.join(backup_dir, archivo_backup)
+            if not os.path.exists(ruta_zip):
+                return {"ok": False, "error": "Backup no encontrado."}
+            with zipfile.ZipFile(ruta_zip, "r") as zf:
+                zf.extractall(saves)
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def eliminar_backup(self, archivo_backup):
+        try:
+            backup_dir = os.path.join(os.path.dirname(os.path.abspath(self.ruta_config)), "paraguacraft_backups")
+            ruta = os.path.join(backup_dir, archivo_backup)
+            if os.path.exists(ruta): os.remove(ruta)
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── ESTADÍSTICAS DE SESIONES ─────────────────────────────────────────
+    def get_estadisticas(self):
+        try:
+            if not os.path.exists(self._stats_file):
+                return {"ok": True, "sesiones": [], "total_segundos": 0, "total_dias": 0}
+            with open(self._stats_file, "r") as f:
+                data = json.load(f)
+            return {"ok": True, **data}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def guardar_sesion_estadistica(self, version, motor, segundos):
+        try:
+            data = {"sesiones": [], "total_segundos": 0, "total_dias": 0}
+            if os.path.exists(self._stats_file):
+                with open(self._stats_file, "r") as f:
+                    data = json.load(f)
+            sesion = {"fecha": datetime.date.today().isoformat(), "version": version,
+                      "motor": motor, "segundos": int(segundos)}
+            data.setdefault("sesiones", []).append(sesion)
+            data["total_segundos"] = data.get("total_segundos", 0) + int(segundos)
+            data["total_dias"] = len(set(s["fecha"] for s in data["sesiones"]))
+            with open(self._stats_file, "w") as f:
+                json.dump(data, f, indent=2)
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── PERFILES EXPORTABLES ─────────────────────────────────────────────
+    def exportar_perfil(self, version, motor):
+        try:
+            perfil = {"version": version, "motor": motor,
+                      "ram_asignada": self.config_actual.get("ram_asignada", 4),
+                      "gc_type": self.config_actual.get("gc_type", "G1GC"),
+                      "opt_minimos": self.config_actual.get("opt_minimos", False),
+                      "papa_mode": self.config_actual.get("papa_mode", False),
+                      "exportado_por": self.config_actual.get("usuario", "Jugador"),
+                      "launcher": "Paraguacraft", "version_launcher": VERSION}
+            try:
+                mods_dir = os.path.join(self._dir_instancia(version, motor), "mods")
+                if os.path.isdir(mods_dir):
+                    perfil["mods"] = [f for f in os.listdir(mods_dir) if f.endswith(".jar")]
+            except Exception:
+                pass
+            return {"ok": True, "json": json.dumps(perfil, indent=2, ensure_ascii=False)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def importar_perfil(self, json_str):
+        try:
+            perfil = json.loads(json_str)
+            for k in ("ram_asignada", "gc_type", "opt_minimos", "papa_mode"):
+                if k in perfil:
+                    self.config_actual[k] = perfil[k]
+            self._guardar()
+            return {"ok": True, "version": perfil.get("version", "?"), "motor": perfil.get("motor", "?")}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── NOTICIAS MINECRAFT ───────────────────────────────────────────────
+    def get_noticias_minecraft(self):
+        try:
+            r = requests.get("https://launchercontent.mojang.com/v2/news.json",
+                             timeout=8, headers={"User-Agent": "Paraguacraft-Launcher"})
+            entries = r.json().get("entries", [])[:6]
+            noticias = []
+            for e in entries:
+                img = e.get("newsPageImage", {})
+                noticias.append({"titulo": e.get("title", ""),
+                                 "subtitulo": e.get("subTitle", ""),
+                                 "fecha": e.get("date", ""),
+                                 "imagen": img.get("url", "") if isinstance(img, dict) else "",
+                                 "url": e.get("readMoreLink", ""),
+                                 "categoria": e.get("category", "")})
+            return {"ok": True, "noticias": noticias}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "noticias": []}
+
+    # ── NOTIFICACIONES WINDOWS ───────────────────────────────────────────
+    def notificar_windows(self, titulo, mensaje):
+        def _notif():
+            try:
+                from win10toast import ToastNotifier
+                ToastNotifier().show_toast(titulo, mensaje, duration=5, threaded=False)
+                return
+            except ImportError:
+                pass
+            ps = (
+                "Add-Type -AssemblyName System.Windows.Forms;"
+                "$n=New-Object System.Windows.Forms.NotifyIcon;"
+                "$n.Icon=[System.Drawing.SystemIcons]::Information;"
+                "$n.Visible=$true;"
+                f"$n.ShowBalloonTip(5000,'{titulo}','{mensaje}',"
+                "[System.Windows.Forms.ToolTipIcon]::Info);"
+                "Start-Sleep 6;$n.Dispose()"
+            )
+            subprocess.Popen(["powershell", "-WindowStyle", "Hidden", "-Command", ps],
+                             creationflags=subprocess.CREATE_NO_WINDOW)
+        threading.Thread(target=_notif, daemon=True).start()
+        return {"ok": True}
+
+    # ── MÚSICA DE MINECRAFT ──────────────────────────────────────────────
+    def get_musica_mc_lista(self):
+        try:
+            import minecraft_launcher_lib
+            mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+            indexes_dir = os.path.join(mine_dir, "assets", "indexes")
+            if not os.path.isdir(indexes_dir):
+                return {"ok": False, "error": "Assets no descargados aún.", "tracks": []}
+            indices = sorted(os.listdir(indexes_dir), reverse=True)
+            if not indices:
+                return {"ok": False, "error": "Sin índices de assets.", "tracks": []}
+            with open(os.path.join(indexes_dir, indices[0]), "r") as f:
+                objects = json.load(f).get("objects", {})
+            tracks = []
+            for key, val in objects.items():
+                if "sounds/music" not in key: continue
+                h = val["hash"]
+                path = os.path.join(mine_dir, "assets", "objects", h[:2], h)
+                nombre = key.replace("minecraft/sounds/music/", "").replace(".ogg", "")
+                nombre = nombre.replace("/", " – ").replace("_", " ").title()
+                tracks.append({"nombre": nombre, "path": path,
+                               "disponible": os.path.exists(path), "key": key})
+            tracks.sort(key=lambda x: x["nombre"])
+            return {"ok": True, "tracks": tracks}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "tracks": []}
+
+    def tocar_musica_mc(self, path):
+        try:
+            self.detener_musica_mc()
+            if not os.path.exists(path):
+                return {"ok": False, "error": "Archivo no encontrado."}
+            try:
+                import pygame
+                if not pygame.mixer.get_init():
+                    pygame.mixer.init(frequency=44100)
+                pygame.mixer.music.load(path)
+                pygame.mixer.music.play()
+                return {"ok": True, "motor": "pygame"}
+            except ImportError:
+                pass
+            self._musica_proc = subprocess.Popen(
+                ["powershell", "-WindowStyle", "Hidden", "-Command",
+                 f'Add-Type -AssemblyName presentationcore; $m=New-Object System.Windows.Media.MediaPlayer; $m.Open([uri]"{path}"); $m.Play(); Start-Sleep 600'],
+                creationflags=subprocess.CREATE_NO_WINDOW)
+            return {"ok": True, "motor": "powershell"}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def detener_musica_mc(self):
+        try:
+            try:
+                import pygame
+                if pygame.mixer.get_init(): pygame.mixer.music.stop()
+            except Exception:
+                pass
+            if self._musica_proc:
+                try: self._musica_proc.terminate()
+                except Exception: pass
+                self._musica_proc = None
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── FONDO ANIMADO ────────────────────────────────────────────────────
+    def get_fondo_actual(self):
+        return {"ok": True, "fondo": self.config_actual.get("fondo_animado", "")}
+
+    def elegir_fondo_animado(self):
+        try:
+            ventana = webview.windows[0] if webview.windows else None
+            if not ventana:
+                return {"ok": False, "error": "Ventana no disponible."}
+            archivos = ventana.create_file_dialog(
+                webview.OPEN_DIALOG,
+                file_types=("Imágenes y videos (*.gif;*.mp4;*.webm;*.jpg;*.jpeg;*.png)|*.gif;*.mp4;*.webm;*.jpg;*.jpeg;*.png",)
+            )
+            if archivos:
+                ruta = archivos[0]
+                self.config_actual["fondo_animado"] = ruta
+                self._guardar()
+                return {"ok": True, "fondo": ruta}
+            return {"ok": True, "fondo": None}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def eliminar_fondo_animado(self):
+        self.config_actual["fondo_animado"] = ""
+        self._guardar()
+        return {"ok": True}
+
+    # ── MODO COMPACTO ────────────────────────────────────────────────────
+    def set_modo_compacto(self, activar):
+        try:
+            ventana = webview.windows[0] if webview.windows else None
+            if ventana:
+                if activar:
+                    ventana.resize(340, 110)
+                else:
+                    ventana.resize(1150, 700)
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── SPOTIFY ──────────────────────────────────────────────────────────
+    def get_spotify_auth_url(self, client_id):
+        import urllib.parse
+        scopes = "user-read-playback-state user-modify-playback-state user-read-currently-playing"
+        params = {"client_id": client_id, "response_type": "code",
+                  "redirect_uri": "http://localhost:8888/callback", "scope": scopes}
+        url = "https://accounts.spotify.com/authorize?" + urllib.parse.urlencode(params)
+        webbrowser.open(url)
+        return {"ok": True, "url": url}
+
+    def conectar_spotify(self, client_id, client_secret, code):
+        return self._spotify_exchange(client_id, client_secret, code, "http://localhost:8888/callback")
+
+    def _spotify_exchange(self, client_id, client_secret, code, redirect_uri):
+        import base64
+        try:
+            creds = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
+            r = requests.post("https://accounts.spotify.com/api/token",
+                              headers={"Authorization": f"Basic {creds}",
+                                       "Content-Type": "application/x-www-form-urlencoded"},
+                              data={"grant_type": "authorization_code", "code": code,
+                                    "redirect_uri": redirect_uri}, timeout=10)
+            data = r.json()
+            if "access_token" in data:
+                self._spotify_token = data["access_token"]
+                self._spotify_refresh = data.get("refresh_token")
+                self.config_actual["spotify_client_id"] = client_id
+                self.config_actual["spotify_client_secret"] = client_secret
+                self._guardar()
+                return {"ok": True}
+            return {"ok": False, "error": data.get("error_description", "Error de autenticación")}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def get_spotify_nowplaying(self):
+        if not self._spotify_token:
+            return {"ok": False, "error": "No conectado.", "reproduciendo": False}
+        try:
+            r = requests.get("https://api.spotify.com/v1/me/player/currently-playing",
+                             headers={"Authorization": f"Bearer {self._spotify_token}"}, timeout=5)
+            if r.status_code == 204:
+                return {"ok": True, "reproduciendo": False}
+            if r.status_code == 401:
+                self._spotify_token = None
+                return {"ok": False, "error": "Token expirado.", "reproduciendo": False}
+            data = r.json()
+            item = data.get("item", {}) or {}
+            return {"ok": True, "reproduciendo": data.get("is_playing", False),
+                    "titulo": item.get("name", ""),
+                    "artista": ", ".join(a["name"] for a in item.get("artists", [])),
+                    "album": item.get("album", {}).get("name", ""),
+                    "imagen": (item.get("album", {}).get("images") or [{}])[0].get("url", ""),
+                    "progreso_ms": data.get("progress_ms", 0),
+                    "duracion_ms": item.get("duration_ms", 1)}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "reproduciendo": False}
+
+    def spotify_control(self, accion):
+        if not self._spotify_token:
+            return {"ok": False, "error": "No conectado."}
+        try:
+            endpoints = {"play": ("PUT", ".../play"), "pause": ("PUT", ".../pause"),
+                         "next": ("POST", ".../next"), "prev": ("POST", ".../previous")}
+            base = "https://api.spotify.com/v1/me/player"
+            urls = {"play": (requests.put, f"{base}/play"), "pause": (requests.put, f"{base}/pause"),
+                    "next": (requests.post, f"{base}/next"), "prev": (requests.post, f"{base}/previous")}
+            if accion not in urls:
+                return {"ok": False, "error": "Acción desconocida."}
+            fn, url = urls[accion]
+            r = fn(url, headers={"Authorization": f"Bearer {self._spotify_token}"}, timeout=5)
+            return {"ok": r.status_code in (200, 204)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── CURSEFORGE STORE ─────────────────────────────────────────────────
+    _CF_API_KEY = "$2a$10$sKRER9jBZLtecCRlUxqmEu.MTg.NQZ2WqS6SlKBidvdvVWoBBylOG"
+    _GEMINI_API_KEY = "AIzaSyDP-8z7bbSJoKxV9KDiEbXoU_iMw43piZU"
+    _SP_CLIENT_ID = "e73630182fed44d8a91b108d34c8e61d"
+    _SP_CLIENT_SECRET = "7a712d078edc408690f73c0be68abb08"
+
+    def buscar_curseforge(self, query, tipo="mods", mc_version=""):
+        try:
+            game_id = 432  # Minecraft
+            class_map = {"mods": 6, "resourcepacks": 12, "shaders": 6552, "modpacks": 4471}
+            class_id = class_map.get(tipo, 6)
+            params = {"gameId": game_id, "classId": class_id, "searchFilter": query,
+                      "sortField": 2, "sortOrder": "desc", "pageSize": 16}
+            if mc_version:
+                params["gameVersion"] = mc_version
+            r = requests.get("https://api.curseforge.com/v1/mods/search",
+                             headers={"x-api-key": self._CF_API_KEY, "Accept": "application/json"},
+                             params=params, timeout=10)
+            if r.status_code != 200:
+                return {"ok": False, "error": f"HTTP {r.status_code}", "hits": []}
+            data = r.json().get("data", [])
+            hits = []
+            for m in data:
+                logo = (m.get("logo") or {}).get("thumbnailUrl", "")
+                hits.append({
+                    "project_id": str(m.get("id", "")),
+                    "slug": m.get("slug", ""),
+                    "title": m.get("name", ""),
+                    "description": m.get("summary", ""),
+                    "icon_url": logo,
+                    "downloads": m.get("downloadCount", 0),
+                    "source": "curseforge"
+                })
+            return {"ok": True, "hits": hits}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "hits": []}
+
+    def get_versiones_curseforge(self, project_id, mc_version=""):
+        try:
+            r = requests.get(f"https://api.curseforge.com/v1/mods/{project_id}/files",
+                             headers={"x-api-key": self._CF_API_KEY, "Accept": "application/json"},
+                             params={"gameVersion": mc_version, "pageSize": 10}, timeout=10)
+            if r.status_code != 200:
+                return {"ok": False, "error": f"HTTP {r.status_code}", "versions": []}
+            data = r.json().get("data", [])
+            vers = []
+            for f in data:
+                gvs = f.get("gameVersions", [])
+                vers.append({
+                    "id": str(f.get("id", "")),
+                    "name": f.get("displayName", ""),
+                    "game_versions": gvs,
+                    "loaders": [v for v in gvs if v.lower() in ("forge","fabric","quilt","neoforge")],
+                    "size_mb": round(f.get("fileLength", 0) / 1048576, 2),
+                    "date_published": (f.get("fileDate") or "")[:10],
+                    "download_url": f.get("downloadUrl", "")
+                })
+            return {"ok": True, "versions": vers}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "versions": []}
+
+    def instalar_mod_curseforge(self, project_id, file_id, tipo, version, motor):
+        try:
+            r = requests.get(f"https://api.curseforge.com/v1/mods/{project_id}/files/{file_id}/download-url",
+                             headers={"x-api-key": self._CF_API_KEY}, timeout=10)
+            if r.status_code != 200:
+                return {"ok": False, "error": "No se pudo obtener URL de descarga"}
+            url = r.json().get("data", "")
+            if not url:
+                return {"ok": False, "error": "URL vacía"}
+            from core import carpeta_instancia_paraguacraft
+            carpeta_tipo = {"mod": "mods", "resourcepack": "resourcepacks",
+                            "shader": "shaderpacks", "modpack": "mods"}.get(tipo, "mods")
+            dest = os.path.join(carpeta_instancia_paraguacraft(version, motor), carpeta_tipo)
+            os.makedirs(dest, exist_ok=True)
+            nombre = url.split("/")[-1].split("?")[0] or f"cf_{file_id}.jar"
+            ruta = os.path.join(dest, nombre)
+            with requests.get(url, stream=True, timeout=60) as dl:
+                with open(ruta, "wb") as f:
+                    for chunk in dl.iter_content(65536):
+                        f.write(chunk)
+            return {"ok": True, "nombre": nombre}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── COMPARTIR INSTANCIA POR CÓDIGO ────────────────────────────────────
+    def generar_codigo_instancia(self, version, motor):
+        try:
+            from core import carpeta_instancia_paraguacraft
+            inst_dir = carpeta_instancia_paraguacraft(version, motor)
+            mods_dir = os.path.join(inst_dir, "mods")
+            mods = []
+            if os.path.isdir(mods_dir):
+                for jar in os.listdir(mods_dir):
+                    if jar.endswith((".jar", ".jar.disabled")):
+                        mods.append(jar)
+            cfg = self.config_actual
+            manifiesto = {
+                "paraguacraft": True,
+                "version": version,
+                "motor": motor,
+                "ram": cfg.get("ram_asignada", 4),
+                "gc": cfg.get("gc_type", "G1GC"),
+                "mods": mods,
+                "creado": datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+                "autor": cfg.get("usuario", "Jugador")
+            }
+            json_str = json.dumps(manifiesto, ensure_ascii=False, indent=2)
+            r = requests.post("https://dpaste.org/api/",
+                              data={"content": json_str, "syntax": "json", "expiry_days": 30},
+                              timeout=10)
+            if r.status_code == 200:
+                url = r.text.strip().strip('"')
+                codigo = url.rstrip("/").split("/")[-1]
+                return {"ok": True, "codigo": codigo, "url": url,
+                        "mods": len(mods), "version": version, "motor": motor}
+            return {"ok": False, "error": f"dpaste error {r.status_code}"}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def importar_instancia_por_codigo(self, codigo):
+        try:
+            codigo = codigo.strip().upper()
+            r = requests.get(f"https://dpaste.org/{codigo}/raw", timeout=10)
+            if r.status_code != 200:
+                return {"ok": False, "error": "Código inválido o expirado."}
+            manifiesto = json.loads(r.text)
+            if not manifiesto.get("paraguacraft"):
+                return {"ok": False, "error": "El código no es un perfil Paraguacraft."}
+            return {"ok": True, "manifiesto": manifiesto}
+        except json.JSONDecodeError:
+            return {"ok": False, "error": "Contenido inválido."}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def descargar_mods_manifiesto(self, manifiesto):
+        try:
+            version = manifiesto.get("version", "")
+            motor = manifiesto.get("motor", "")
+            mods_lista = manifiesto.get("mods", [])
+            if not version or not motor:
+                return {"ok": False, "error": "Manifiesto sin versión/motor."}
+            self.config_actual["ram_asignada"] = manifiesto.get("ram", self.config_actual.get("ram_asignada", 4))
+            self.config_actual["gc_type"] = manifiesto.get("gc", self.config_actual.get("gc_type", "G1GC"))
+            self._guardar()
+            aplicados = 0
+            errores = []
+            for mod_nombre in mods_lista:
+                slug = os.path.splitext(mod_nombre)[0].rstrip("-disabled").lower()
+                try:
+                    sr = requests.get(f"https://api.modrinth.com/v2/search?query={requests.utils.quote(slug)}&limit=1",
+                                      timeout=8).json()
+                    if sr.get("hits"):
+                        pid = sr["hits"][0]["project_id"]
+                        vr = requests.get(f"https://api.modrinth.com/v2/project/{pid}/version",
+                                          params={"game_versions": f'["{version}"]'}, timeout=8).json()
+                        if vr:
+                            self.instalar_mod_desde_modrinth(pid, vr[0]["id"], "mod", version, motor)
+                            aplicados += 1
+                except Exception:
+                    errores.append(slug)
+            return {"ok": True, "aplicados": aplicados, "errores": errores, "total": len(mods_lista)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── GAME MODE / OS OPTIMIZER ──────────────────────────────────────────
+    _game_mode_activo = False
+
+    def activar_game_mode(self):
+        try:
+            procesos_suspendidos = []
+            blacklist = {
+                "SearchIndexer.exe", "OneDrive.exe", "Teams.exe", "MicrosoftTeams.exe",
+                "Widgets.exe", "SearchApp.exe", "YourPhone.exe", "PhoneExperienceHost.exe",
+                "GameBarFTServer.exe", "XboxPCApp.exe", "SkypeApp.exe", "slack.exe",
+                "discord.exe", "spotify.exe", "chrome.exe", "msedge.exe", "firefox.exe",
+                "AdobeUpdateService.exe", "CCXProcess.exe", "NortonSecurity.exe",
+                "MsMpEng.exe", "SgrmBroker.exe", "SpeechRuntime.exe", "Cortana.exe",
+                "WMIProviderHost.exe", "SysMain.exe", "SearchUI.exe"
+            }
+            for proc in psutil.process_iter(["pid", "name", "status"]):
+                try:
+                    name = proc.info["name"]
+                    if name in blacklist and proc.info["status"] != psutil.STATUS_ZOMBIE:
+                        proc.suspend()
+                        procesos_suspendidos.append(name)
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pass
+            # Limpiar standby RAM (Windows)
+            if platform.system() == "Windows":
+                try:
+                    subprocess.run(
+                        ["powershell", "-Command",
+                         "[System.GC]::Collect(); [System.GC]::WaitForPendingFinalizers()"],
+                        capture_output=True, timeout=5)
+                    import ctypes
+                    ctypes.windll.psapi.EmptyWorkingSet(ctypes.windll.kernel32.GetCurrentProcess())
+                except Exception:
+                    pass
+            # Prioridad alta a javaw.exe si ya corre
+            javaw_count = 0
+            for proc in psutil.process_iter(["name", "pid"]):
+                try:
+                    if proc.info["name"].lower() in ("javaw.exe", "java.exe"):
+                        p = psutil.Process(proc.info["pid"])
+                        p.nice(psutil.HIGH_PRIORITY_CLASS if platform.system() == "Windows" else -15)
+                        javaw_count += 1
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pass
+            self._game_mode_activo = True
+            self._procesos_suspendidos = procesos_suspendidos
+            return {"ok": True, "suspendidos": len(procesos_suspendidos), "javaw": javaw_count,
+                    "nombres": procesos_suspendidos[:10]}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def desactivar_game_mode(self):
+        try:
+            reanudados = 0
+            suspendidos = getattr(self, "_procesos_suspendidos", [])
+            for proc in psutil.process_iter(["name", "status"]):
+                try:
+                    if proc.info["name"] in suspendidos and proc.info["status"] == psutil.STATUS_STOPPED:
+                        proc.resume()
+                        reanudados += 1
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pass
+            # Restaurar prioridad javaw
+            for proc in psutil.process_iter(["name", "pid"]):
+                try:
+                    if proc.info["name"].lower() in ("javaw.exe", "java.exe"):
+                        p = psutil.Process(proc.info["pid"])
+                        p.nice(psutil.NORMAL_PRIORITY_CLASS if platform.system() == "Windows" else 0)
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pass
+            self._game_mode_activo = False
+            return {"ok": True, "reanudados": reanudados}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def get_game_mode_status(self):
+        javaw_corriendo = any(
+            p.info["name"].lower() in ("javaw.exe", "java.exe")
+            for p in psutil.process_iter(["name"]) if p.info.get("name")
+        )
+        return {"activo": self._game_mode_activo, "javaw_corriendo": javaw_corriendo}
+
+    def set_javaw_prioridad(self, nivel="alta"):
+        try:
+            prio_map = {
+                "alta": (psutil.HIGH_PRIORITY_CLASS, -15),
+                "realtime": (psutil.REALTIME_PRIORITY_CLASS, -20),
+                "normal": (psutil.NORMAL_PRIORITY_CLASS, 0),
+                "baja": (psutil.BELOW_NORMAL_PRIORITY_CLASS, 5)
+            }
+            prio_win, prio_unix = prio_map.get(nivel, prio_map["alta"])
+            cambiados = 0
+            for proc in psutil.process_iter(["name", "pid"]):
+                try:
+                    if proc.info["name"].lower() in ("javaw.exe", "java.exe"):
+                        p = psutil.Process(proc.info["pid"])
+                        p.nice(prio_win if platform.system() == "Windows" else prio_unix)
+                        cambiados += 1
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pass
+            return {"ok": True, "cambiados": cambiados, "nivel": nivel}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── PERFILES DE HARDWARE ──────────────────────────────────────────────
+    PERFILES_HARDWARE = {
+        "baja": {
+            "nombre": "Gama Baja",
+            "descripcion": "Máximo rendimiento, mínimos visuales",
+            "ram_max_gb": 3,
+            "chunks": 8,
+            "mods_modrinth": [
+                ("sodium", "Sodium"),
+                ("lithium", "Lithium"),
+                ("ferrite-core", "FerriteCore"),
+                ("starlight", "Starlight"),
+                ("entityculling", "EntityCulling"),
+                ("memoryleakfix", "MemoryLeakFix"),
+                ("no-chat-reports", "No Chat Reports"),
+            ],
+            "gc": "ZGC",
+            "ram_fraction": 0.45
+        },
+        "media": {
+            "nombre": "Gama Media",
+            "descripcion": "Balance visual / rendimiento + shaders livianos",
+            "ram_max_gb": 5,
+            "chunks": 10,
+            "mods_modrinth": [
+                ("sodium", "Sodium"),
+                ("lithium", "Lithium"),
+                ("iris", "Iris Shaders"),
+                ("ferrite-core", "FerriteCore"),
+                ("entityculling", "EntityCulling"),
+                ("memoryleakfix", "MemoryLeakFix"),
+                ("indium", "Indium"),
+            ],
+            "shaders_modrinth": [("makeup-ultra-fast-shaders", "Makeup Ultra Fast Shaders")],
+            "gc": "G1GC",
+            "ram_fraction": 0.5
+        },
+        "alta": {
+            "nombre": "Gama Alta",
+            "descripcion": "Calidad visual alta + optimizaciones",
+            "ram_max_gb": 8,
+            "chunks": 14,
+            "mods_modrinth": [
+                ("sodium", "Sodium"),
+                ("lithium", "Lithium"),
+                ("iris", "Iris Shaders"),
+                ("indium", "Indium"),
+                ("ferrite-core", "FerriteCore"),
+                ("entityculling", "EntityCulling"),
+                ("memoryleakfix", "MemoryLeakFix"),
+                ("replaymod", "ReplayMod"),
+                ("itemmodel-fix", "ItemModel Fix"),
+            ],
+            "shaders_modrinth": [("complementary-reimagined", "Complementary Reimagined")],
+            "gc": "G1GC",
+            "ram_fraction": 0.6
+        }
+    }
+
+    def detectar_perfil_hardware_sugerido(self):
+        try:
+            ram_gb = round(psutil.virtual_memory().total / 1073741824, 1)
+            cpu_cores = psutil.cpu_count(logical=False) or 2
+            if ram_gb <= 8 or cpu_cores <= 4:
+                sugerido = "baja"
+            elif ram_gb <= 16 or cpu_cores <= 8:
+                sugerido = "media"
+            else:
+                sugerido = "alta"
+            perfil = self.PERFILES_HARDWARE[sugerido]
+            ram_rec = min(int(ram_gb * perfil["ram_fraction"]), perfil["ram_max_gb"])
+            return {"ok": True, "ram_gb": ram_gb, "cpu_cores": cpu_cores,
+                    "sugerido": sugerido, "nombre": perfil["nombre"],
+                    "descripcion": perfil["descripcion"],
+                    "ram_rec": ram_rec, "chunks": perfil["chunks"],
+                    "mods": [m[1] for m in perfil["mods_modrinth"]],
+                    "shaders": [s[1] for s in perfil.get("shaders_modrinth", [])]}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def aplicar_perfil_hardware(self, perfil_id, version, motor):
+        try:
+            if perfil_id not in self.PERFILES_HARDWARE:
+                return {"ok": False, "error": "Perfil desconocido."}
+            key = f"perfil_hw_{version}_{motor}"
+            if self.config_actual.get(key):
+                return {"ok": True, "ya_aplicado": True, "mensaje": "Perfil ya fue aplicado para esta instancia."}
+            perfil = self.PERFILES_HARDWARE[perfil_id]
+            ram_gb = round(psutil.virtual_memory().total / 1073741824, 1)
+            ram_rec = min(int(ram_gb * perfil["ram_fraction"]), perfil["ram_max_gb"])
+            self.config_actual["ram_asignada"] = ram_rec
+            self.config_actual["gc_type"] = perfil["gc"]
+            self._guardar()
+            instalados, errores = [], []
+            for slug, nombre in perfil["mods_modrinth"]:
+                try:
+                    sr = requests.get(f"https://api.modrinth.com/v2/search?query={requests.utils.quote(slug)}&limit=1",
+                                      timeout=8).json()
+                    if sr.get("hits"):
+                        pid = sr["hits"][0]["project_id"]
+                        params = {"game_versions": f'["{version}"]', "loaders": f'["{motor.lower()}"]'}
+                        vr = requests.get(f"https://api.modrinth.com/v2/project/{pid}/version",
+                                          params=params, timeout=8).json()
+                        if not vr:
+                            params.pop("loaders")
+                            vr = requests.get(f"https://api.modrinth.com/v2/project/{pid}/version",
+                                              params=params, timeout=8).json()
+                        if vr:
+                            res = self.instalar_mod_desde_modrinth(pid, vr[0]["id"], "mod", version, motor)
+                            if res.get("ok"):
+                                instalados.append(nombre)
+                            else:
+                                errores.append(nombre)
+                        else:
+                            errores.append(nombre)
+                    else:
+                        errores.append(nombre)
+                except Exception:
+                    errores.append(nombre)
+            for slug, nombre in perfil.get("shaders_modrinth", []):
+                try:
+                    sr = requests.get(f"https://api.modrinth.com/v2/search?query={requests.utils.quote(slug)}&limit=1",
+                                      timeout=8).json()
+                    if sr.get("hits"):
+                        pid = sr["hits"][0]["project_id"]
+                        vr = requests.get(f"https://api.modrinth.com/v2/project/{pid}/version",
+                                          params={"game_versions": f'["{version}"]'}, timeout=8).json()
+                        if vr:
+                            res = self.instalar_mod_desde_modrinth(pid, vr[0]["id"], "shader", version, motor)
+                            if res.get("ok"):
+                                instalados.append(nombre)
+                            else:
+                                errores.append(nombre)
+                except Exception:
+                    errores.append(nombre)
+            # Marcar como aplicado (no volver a instalar)
+            self.config_actual[key] = perfil_id
+            self._guardar()
+            return {"ok": True, "ya_aplicado": False, "instalados": instalados,
+                    "errores": errores, "ram": ram_rec, "gc": perfil["gc"],
+                    "chunks": perfil["chunks"]}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── ANALIZADOR CRASH LOG ──────────────────────────────────────────────
+    _CRASH_PATTERNS = [
+        (r"net\.fabricmc\.loader.*incompatible", "Incompatibilidad de mods Fabric detectada."),
+        (r"optifine.*sodium|sodium.*optifine", "OptiFine y Sodium son incompatibles. Desactivá OptiFine o usá Iris+Sodium."),
+        (r"java\.lang\.OutOfMemoryError", "Sin memoria RAM suficiente. Aumentá la RAM asignada al juego."),
+        (r"java\.lang\.OutOfMemoryError.*PermGen", "PermGen agotado. Actualizá a Java 8+ o aumentá PermGen."),
+        (r"StackOverflowError", "Stack overflow. Puede ser un mod buggy o recursión infinita."),
+        (r"UnsatisfiedLinkError.*lwjgl", "Error de LWJGL nativo. Reinstalá el juego o actualizá drivers gráficos."),
+        (r"GLFW error.*65543|GLFWException", "Error de ventana GLFW. Actualizá drivers de GPU."),
+        (r"class.*has been loaded from.*different.*loader", "Conflicto de classloader entre mods. Revisá versiones duplicadas."),
+        (r"Duplicate mod.*same mod ID", "Mods duplicados detectados. Eliminá uno de los JARs conflictivos."),
+        (r"mixin.*failed|MixinException", "Un mod con Mixin falló. Actualizá los mods a versiones compatibles."),
+        (r"forge.*requires.*minecraft.*but", "Versión de Forge incompatible con esta versión de Minecraft."),
+        (r"fabric.*requires.*minecraft.*but", "Versión de Fabric incompatible con esta versión de Minecraft."),
+        (r"id_of_mod.*already registered|Registry.*already.*registered", "Dos mods registran el mismo item/bloque ID. Incompatibilidad de contenido."),
+        (r"Driver crashed.*shutting down|GL_OUT_OF_MEMORY", "La GPU se quedó sin VRAM. Bajá la calidad gráfica o los chunks renderizados."),
+        (r"Unable to make.*accessible|InaccessibleObjectException", "Error de reflexión Java. Actualizá Java 17+ o verificá los flags JVM."),
+        (r"CrashReport.*caused by.*incompatible.*receiving channel", "Incompatibilidad de protocolo de red con el servidor."),
+        (r"Missing required.*dependency.*mod", "Falta una dependencia de mod. Revisá el README de los mods instalados."),
+    ]
+
+    def analizar_crash_log(self, version="", motor=""):
+        try:
+            import minecraft_launcher_lib
+            mc_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+            logs_dir = os.path.join(mc_dir, "logs")
+            crash_dir = os.path.join(mc_dir, "crash-reports")
+            contenido = ""
+            fuente = ""
+            latest = os.path.join(logs_dir, "latest.log")
+            if os.path.isfile(latest):
+                with open(latest, "r", encoding="utf-8", errors="replace") as f:
+                    contenido = f.read()[-60000:]
+                fuente = "latest.log"
+            if os.path.isdir(crash_dir):
+                crashfiles = sorted(
+                    [os.path.join(crash_dir, x) for x in os.listdir(crash_dir)
+                     if x.endswith(".txt")],
+                    key=os.path.getmtime, reverse=True
+                )
+                if crashfiles:
+                    with open(crashfiles[0], "r", encoding="utf-8", errors="replace") as f:
+                        contenido += "\n" + f.read()[-30000:]
+                    fuente += (" + " if fuente else "") + os.path.basename(crashfiles[0])
+            if not contenido:
+                return {"ok": False, "error": "No se encontraron logs de Minecraft."}
+            diagnosticos = []
+            lower = contenido.lower()
+            for pat, msg in self._CRASH_PATTERNS:
+                if re.search(pat, contenido, re.IGNORECASE):
+                    diagnosticos.append(msg)
+            mod_match = re.findall(r'Loaded mods:\s*(.*?)(?:\n\n|\Z)', contenido, re.DOTALL)
+            mods_cargados = []
+            if mod_match:
+                mods_cargados = [m.strip() for m in mod_match[0].split(",") if m.strip()][:20]
+            # Map diagnostics strings → structured issues for frontend
+            _sev_map = [
+                ("OutOfMemory", "error"), ("StackOverflow", "error"), ("Driver crashed", "error"),
+                ("GL_OUT_OF_MEMORY", "error"), ("UnsatisfiedLink", "error"), ("GLFW", "error"),
+            ]
+            issues = []
+            for msg in (diagnosticos if diagnosticos else ["No se detectaron patrones conocidos. Revisá el log manualmente."]):
+                sev = "advertencia"
+                for kw, s in _sev_map:
+                    if kw.lower() in msg.lower():
+                        sev = s; break
+                if any(w in msg.lower() for w in ["incompatible", "conflicto", "falta", "duplicad", "mixin", "driver", "memory", "overflow", "glfw", "vram"]):
+                    sev = "error"
+                titulo = msg.split(".")[0].strip()[:60]
+                desc = msg
+                sug = ""
+                if "RAM" in msg or "memoria" in msg.lower():
+                    sug = "Aumentá la RAM en Configuración → RAM asignada."
+                elif "Sodium" in msg and "OptiFine" in msg:
+                    sug = "Desactivá OptiFine y usá Iris en su lugar."
+                elif "duplicad" in msg.lower():
+                    sug = "Borrá el JAR duplicado de la carpeta mods."
+                elif "driver" in msg.lower() or "VRAM" in msg:
+                    sug = "Actualizá los drivers de tu GPU desde el sitio del fabricante."
+                issues.append({"severidad": sev, "titulo": titulo, "descripcion": desc, "sugerencia": sug})
+            return {"ok": True, "fuente": fuente, "issues": issues,
+                    "mods_cargados": mods_cargados,
+                    "fragmento": contenido[-3000:]}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def analizar_crash_con_ia(self, fragmento, _unused_key=""):
+        try:
+            if not fragmento:
+                return {"ok": False, "error": "Fragmento vacío."}
+            prompt = ("Sos un experto en Minecraft y modding. Analizá este log de crash y explicá:"
+                      " 1) Cuál fue la causa principal, 2) Qué mods o configuración lo generó,"
+                      " 3) Cómo solucionarlo paso a paso. Respondé en español, claro y conciso.\n\nLOG:\n"
+                      + fragmento[:4000])
+            payload = {"contents": [{"parts": [{"text": prompt}]}],
+                       "generationConfig": {"temperature": 0.2, "maxOutputTokens": 600}}
+            url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
+                   f"gemini-1.5-flash:generateContent?key={self._GEMINI_API_KEY}")
+            r = requests.post(url, json=payload,
+                              headers={"Content-Type": "application/json"}, timeout=25)
+            if r.status_code == 200:
+                data = r.json()
+                texto = data["candidates"][0]["content"]["parts"][0]["text"]
+                return {"ok": True, "analisis": texto}
+            return {"ok": False, "error": f"Gemini error {r.status_code}: {r.text[:200]}"}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def _gemini(self, prompt, max_tokens=800, temperature=0.7):
+        try:
+            payload = {"contents": [{"parts": [{"text": prompt}]}],
+                       "generationConfig": {"temperature": temperature, "maxOutputTokens": max_tokens}}
+            url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
+                   f"gemini-1.5-flash:generateContent?key={self._GEMINI_API_KEY}")
+            r = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=25)
+            if r.status_code == 200:
+                return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+            return None
+        except Exception:
+            return None
+
+    # ── GEMINI CHAT ───────────────────────────────────────────────────────
+    def gemini_chat(self, mensaje, historial=None):
+        try:
+            ctx = ("Sos un asistente experto en Minecraft integrado en el launcher Paraguacraft. "
+                   "Respondé siempre en español rioplatense, de forma concisa y amigable. "
+                   "Podés responder sobre recetas, comandos, mods, seeds, versiones, estrategias, builds, etc.")
+            conv = ""
+            for h in (historial or [])[-6:]:
+                rol = "Usuario" if h["rol"] == "user" else "Asistente"
+                conv += f"\n{rol}: {h['texto']}"
+            prompt = f"{ctx}\n\nConversación:{conv}\n\nUsuario: {mensaje}\nAsistente:"
+            resp = self._gemini(prompt, max_tokens=500)
+            if resp:
+                return {"ok": True, "respuesta": resp.strip()}
+            return {"ok": False, "error": "Sin respuesta de Gemini."}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── GEMINI COMANDOS ───────────────────────────────────────────────────
+    def gemini_generar_comando(self, descripcion, version="1.21"):
+        try:
+            prompt = (f"Sos un experto en comandos de Minecraft. Versión: {version}.\n"
+                      f"Generá el/los comandos exactos para: {descripcion}\n"
+                      "Respondé SOLO con los comandos (uno por línea), sin explicación. "
+                      "Si necesitás más de uno, ponelos en orden de ejecución.")
+            resp = self._gemini(prompt, max_tokens=300, temperature=0.1)
+            if resp:
+                cmds = [l.strip() for l in resp.strip().splitlines() if l.strip()]
+                return {"ok": True, "comandos": cmds}
+            return {"ok": False, "error": "Sin respuesta."}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── GEMINI MODPACK ────────────────────────────────────────────────────
+    def gemini_generar_modpack(self, descripcion, version, motor):
+        try:
+            prompt = (f"Sos un experto en modding de Minecraft. El usuario quiere: \"{descripcion}\".\n"
+                      f"Versión: {version}, Loader: {motor}.\n"
+                      "Devolvé una lista JSON de exactamente 8 slugs de mods de Modrinth compatibles "
+                      "con esa versión y loader, ordenados por importancia. Solo el array JSON, sin texto extra. "
+                      "Ejemplo: [\"sodium\",\"lithium\",\"fabric-api\",\"jei\"]")
+            resp = self._gemini(prompt, max_tokens=200, temperature=0.2)
+            if not resp:
+                return {"ok": False, "error": "Sin respuesta de Gemini."}
+            import re
+            match = re.search(r'\[.*?\]', resp, re.DOTALL)
+            if not match:
+                return {"ok": False, "error": "Formato de respuesta inválido."}
+            slugs = json.loads(match.group())
+            return {"ok": True, "slugs": slugs}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── SCREENSHOTS ───────────────────────────────────────────────────────
+    def get_screenshots(self):
+        try:
+            import minecraft_launcher_lib
+            mc_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+            shots_dir = os.path.join(mc_dir, "screenshots")
+            if not os.path.isdir(shots_dir):
+                return {"ok": True, "screenshots": []}
+            items = []
+            for f in sorted(os.listdir(shots_dir), reverse=True):
+                if f.lower().endswith((".png", ".jpg", ".jpeg")):
+                    full = os.path.join(shots_dir, f)
+                    items.append({"nombre": f, "ruta": full.replace("\\", "/"),
+                                  "fecha": datetime.datetime.fromtimestamp(os.path.getmtime(full)).strftime("%d/%m/%Y %H:%M")})
+            return {"ok": True, "screenshots": items[:50]}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "screenshots": []}
+
+    # ── MOD UPDATES ───────────────────────────────────────────────────────
+    def get_mod_updates(self, version, motor):
+        try:
+            import minecraft_launcher_lib
+            mc_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+            mods_dir = os.path.join(mc_dir, "mods")
+            if not os.path.isdir(mods_dir):
+                return {"ok": True, "mods": []}
+            loader = "fabric" if "fabric" in motor.lower() else "forge" if "forge" in motor.lower() else "quilt"
+            archivos = [f for f in os.listdir(mods_dir) if f.endswith(".jar")]
+            resultados = []
+            for jar in archivos[:20]:
+                slug_guess = jar.replace(".jar","").split("-")[0].lower()
+                try:
+                    url = f"https://api.modrinth.com/v2/project/{slug_guess}/version"
+                    params = {"game_versions": f'["{version}"]', "loaders": f'["{loader}"]'}
+                    r = requests.get(url, params=params, headers={"User-Agent": "ParaguacraftLauncher/2.0"}, timeout=5)
+                    if r.status_code == 200 and r.json():
+                        latest = r.json()[0]
+                        resultados.append({"archivo": jar, "slug": slug_guess,
+                                           "version_nueva": latest.get("version_number","?"),
+                                           "fecha": latest.get("date_published","")[:10],
+                                           "update_disponible": True})
+                    else:
+                        resultados.append({"archivo": jar, "slug": slug_guess,
+                                           "update_disponible": False})
+                except Exception:
+                    resultados.append({"archivo": jar, "slug": slug_guess, "update_disponible": False})
+            return {"ok": True, "mods": resultados}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "mods": []}
+
+    # ── TURBO MODE ────────────────────────────────────────────────────────
+    _turbo_activo = False
+    _turbo_dns_backup = []
+
+    def turbo_mode_toggle(self, activar):
+        try:
+            import subprocess
+            self._turbo_activo = activar
+            msgs = []
+            if activar:
+                result = subprocess.run(
+                    ['netsh', 'interface', 'ip', 'set', 'dns', 'name=Wi-Fi', 'static', '1.1.1.1'],
+                    capture_output=True, text=True, timeout=5)
+                msgs.append("DNS → Cloudflare 1.1.1.1 ✅" if result.returncode == 0 else "DNS: requiere admin")
+                kill_list = ["Teams.exe", "OneDrive.exe", "Spotify.exe", "Discord.exe"]
+                killed = []
+                for proc_name in kill_list:
+                    k = subprocess.run(['taskkill', '/F', '/IM', proc_name], capture_output=True, timeout=3)
+                    if k.returncode == 0:
+                        killed.append(proc_name.replace(".exe",""))
+                if killed:
+                    msgs.append(f"Cerrados: {', '.join(killed)}")
+                msgs.append("Modo Turbo activado 🚀")
+            else:
+                msgs.append("Modo Turbo desactivado")
+            return {"ok": True, "activo": activar, "mensajes": msgs}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── OVERLAY ───────────────────────────────────────────────────────────
+    _overlay_window = None
+
+    def abrir_overlay(self):
+        try:
+            _base = os.path.dirname(os.path.abspath(__file__))
+            overlay_html = os.path.join(_base, "web", "overlay.html")
+            if not os.path.exists(overlay_html):
+                return {"ok": False, "error": "overlay.html no encontrado"}
+            if self.__class__._overlay_window is not None:
+                try:
+                    self.__class__._overlay_window.destroy()
+                except Exception:
+                    pass
+            w = webview.create_window("Paraguacraft Overlay", url=overlay_html,
+                                      width=260, height=120, frameless=True,
+                                      on_top=True, background_color="#00000000",
+                                      transparent=True, resizable=False)
+            self.__class__._overlay_window = w
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def cerrar_overlay(self):
+        try:
+            if self.__class__._overlay_window:
+                self.__class__._overlay_window.destroy()
+                self.__class__._overlay_window = None
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── BENCHMARKING COMUNITARIO ───────────────────────────────────────────
+    def run_benchmark(self):
+        try:
+            import math as _math
+            t0 = time.perf_counter()
+            acc = 0
+            for i in range(1, 2_500_001):
+                acc += _math.sqrt(i) * _math.log(i)
+            elapsed = time.perf_counter() - t0
+            score = max(1, round(1_000_000 / elapsed))
+
+            cpu_name = platform.processor() or platform.machine() or "CPU desconocida"
+            ram_total = round(psutil.virtual_memory().total / (1024 ** 3), 1)
+            usuario = self.config_actual.get("usuario", "Invitado")
+            entrada = {
+                "usuario": usuario,
+                "score": score,
+                "cpu": cpu_name[:60],
+                "ram_gb": ram_total,
+                "os": platform.system(),
+                "fecha": datetime.datetime.utcnow().isoformat(),
+            }
+            self._benchmark_submit(entrada)
+            return {"ok": True, "score": score, "cpu": cpu_name[:60], "ram_gb": ram_total, "tiempo_s": round(elapsed, 2)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def _benchmark_submit(self, entrada):
+        try:
+            from src.nube import MONGO_URI
+            if "<db_password>" in MONGO_URI:
+                return
+            import pymongo
+            client = pymongo.MongoClient(MONGO_URI, serverSelectionTimeoutMS=4000)
+            db = client["paraguacraft_db"]
+            col = db["benchmarks"]
+            usuario = entrada.get("usuario", "Invitado")
+            col.update_one({"usuario": usuario}, {"$set": entrada}, upsert=True)
+            client.close()
+        except Exception:
+            pass
+
+    def get_benchmark_leaderboard(self):
+        try:
+            from src.nube import MONGO_URI
+            if "<db_password>" in MONGO_URI:
+                return {"ok": False, "error": "MongoDB no configurado. Completá la contraseña en src/nube.py", "rankings": []}
+            import pymongo
+            client = pymongo.MongoClient(MONGO_URI, serverSelectionTimeoutMS=4000)
+            db = client["paraguacraft_db"]
+            col = db["benchmarks"]
+            docs = list(col.find({}, {"_id": 0}).sort("score", -1).limit(15))
+            client.close()
+            return {"ok": True, "rankings": docs}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "rankings": []}
+
+    # ── GENERADOR DE SKINS CON IA ─────────────────────────────────────────
+    def gemini_generar_skin(self, descripcion):
+        try:
+            prompt = (
+                "Sos un diseñador de skins de Minecraft. El usuario quiere una skin con esta descripción: "
+                f'"{descripcion}"\n'
+                "Devolvé SOLO un JSON con exactamente estas 6 claves y valores en formato hex (#RRGGBB):\n"
+                '{"skin": "#color_piel", "cabello": "#color_pelo", "camiseta": "#color_ropa_superior", '
+                '"pantalon": "#color_pantalon", "zapatos": "#color_zapatos", "ojos": "#color_ojos"}\n'
+                "Sin texto extra, solo el JSON."
+            )
+            resp = self._gemini(prompt, max_tokens=80, temperature=0.3)
+            if not resp:
+                return {"ok": False, "error": "Sin respuesta de Gemini."}
+            match = re.search(r'\{[^}]+\}', resp, re.DOTALL)
+            if not match:
+                return {"ok": False, "error": "Gemini no devolvió JSON válido."}
+            colores = json.loads(match.group())
+            keys = {"skin", "cabello", "camiseta", "pantalon", "zapatos", "ojos"}
+            if not keys.issubset(colores.keys()):
+                return {"ok": False, "error": "JSON incompleto de Gemini."}
+            resultado = self._generar_skin_pil(colores)
+            resultado["colores"] = colores
+            return resultado
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def _hex_to_rgb(self, hex_str):
+        h = hex_str.lstrip("#")
+        if len(h) == 3:
+            h = "".join(c*2 for c in h)
+        return tuple(int(h[i:i+2], 16) for i in (0, 2, 4)) + (255,)
+
+    def _generar_skin_pil(self, colores):
+        try:
+            from PIL import Image, ImageDraw
+            img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+            d = ImageDraw.Draw(img)
+
+            def fill(x0, y0, x1, y1, hex_c):
+                d.rectangle([x0, y0, x1 - 1, y1 - 1], fill=self._hex_to_rgb(hex_c))
+
+            c = colores
+            # ── HEAD ──────────────────────────────────────────────────────
+            fill(8, 0, 16, 8,   c["cabello"])   # top
+            fill(0, 8, 8, 16,   c["skin"])       # right
+            fill(8, 8, 16, 16,  c["skin"])       # front (face)
+            fill(16, 8, 24, 16, c["skin"])       # left
+            fill(24, 8, 32, 16, c["cabello"])    # back
+            fill(8, 16, 16, 24, c["skin"])       # bottom
+            # Eyes (2 pixels on front face)
+            fill(9, 10, 11, 12,  c["ojos"])
+            fill(13, 10, 15, 12, c["ojos"])
+            # ── BODY ──────────────────────────────────────────────────────
+            fill(16, 20, 20, 28, c["camiseta"])  # right
+            fill(20, 20, 28, 28, c["camiseta"])  # front
+            fill(28, 20, 32, 28, c["camiseta"])  # left
+            fill(32, 20, 40, 28, c["camiseta"])  # back
+            fill(20, 16, 28, 20, c["camiseta"])  # top
+            fill(28, 16, 36, 20, c["camiseta"])  # bottom
+            # ── RIGHT ARM ─────────────────────────────────────────────────
+            fill(40, 16, 44, 20, c["camiseta"])  # top
+            fill(40, 20, 44, 28, c["skin"])      # right
+            fill(44, 20, 48, 28, c["camiseta"])  # front
+            fill(48, 20, 52, 28, c["skin"])      # left
+            fill(52, 20, 56, 28, c["camiseta"])  # back
+            fill(44, 28, 48, 32, c["skin"])      # bottom
+            # ── LEFT ARM (64x64 format) ────────────────────────────────────
+            fill(32, 48, 36, 52, c["camiseta"])  # top
+            fill(32, 52, 36, 60, c["skin"])      # right
+            fill(36, 52, 40, 60, c["camiseta"])  # front
+            fill(40, 52, 44, 60, c["skin"])      # left
+            fill(44, 52, 48, 60, c["camiseta"])  # back
+            fill(36, 60, 40, 64, c["skin"])      # bottom
+            # ── RIGHT LEG ─────────────────────────────────────────────────
+            fill(0, 16, 4, 20,  c["pantalon"])   # top
+            fill(0, 20, 4, 28,  c["pantalon"])   # right
+            fill(4, 20, 8, 28,  c["pantalon"])   # front
+            fill(8, 20, 12, 28, c["pantalon"])   # left
+            fill(12, 20, 16, 28, c["pantalon"])  # back
+            # Shoes on lower half of leg
+            fill(4, 25, 8, 28,  c["zapatos"])    # front shoe
+            fill(0, 25, 4, 28,  c["zapatos"])    # right shoe
+            fill(8, 25, 12, 28, c["zapatos"])    # left shoe
+            fill(0, 16, 8, 20,  c["pantalon"])   # top
+            fill(4, 28, 8, 32,  c["zapatos"])    # bottom
+            # ── LEFT LEG (64x64 format) ────────────────────────────────────
+            fill(16, 48, 20, 52, c["pantalon"])  # top
+            fill(16, 52, 20, 60, c["pantalon"])  # right
+            fill(20, 52, 24, 60, c["pantalon"])  # front
+            fill(24, 52, 28, 60, c["pantalon"])  # left
+            fill(28, 52, 32, 60, c["pantalon"])  # back
+            # Shoes on lower half
+            fill(20, 57, 24, 60, c["zapatos"])   # front shoe
+            fill(16, 57, 20, 60, c["zapatos"])   # right shoe
+            fill(24, 57, 28, 60, c["zapatos"])   # left shoe
+            fill(20, 60, 24, 64, c["zapatos"])   # bottom
+
+            out_path = os.path.join(os.path.expanduser("~"), "AppData", "Roaming",
+                                    ".minecraft", "paraguacraft_skin_gen.png")
+            img.save(out_path, "PNG")
+            return {"ok": True, "ruta": out_path.replace("\\", "/")}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def aplicar_skin_generada(self):
+        try:
+            out_path = os.path.join(os.path.expanduser("~"), "AppData", "Roaming",
+                                    ".minecraft", "paraguacraft_skin_gen.png")
+            if not os.path.exists(out_path):
+                return {"ok": False, "error": "Skin no generada aún."}
+            dest = os.path.join(os.path.expanduser("~"), "AppData", "Roaming",
+                                ".minecraft", "paraguacraft_skin_aplicada.png")
+            shutil.copy2(out_path, dest)
+            return {"ok": True, "ruta": dest.replace("\\", "/")}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+
+# ─── LOCAL HTTP API SERVER (bypasses pywebview bridge) ───────────────────────
+_api_http_port = 0
+_api_http_ref = None
+_spotify_pending_code = None
+
+class _LocalAPIHandler(BaseHTTPRequestHandler):
+    def log_message(self, *a): pass
+
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self._cors()
+        self.end_headers()
+
+    def do_GET(self):
+        global _spotify_pending_code
+        import urllib.parse as _up
+        parsed = _up.urlparse(self.path)
+        qs = _up.parse_qs(parsed.query)
+
+        if parsed.path == '/api/ms_start':
+            r = _api_http_ref.login_microsoft_paso1()
+            self._json({'ok': r is True, 'error': None if r is True else str(r)})
+
+        elif parsed.path == '/callback':  # Spotify OAuth redirect
+            code = qs.get('code', [None])[0]
+            if code:
+                _spotify_pending_code = code
+                html = '<html><body style="background:#121212;color:#1DB954;font-family:sans-serif;text-align:center;padding:60px"><h2>\u2705 Spotify autorizado</h2><p>Ya pod\u00e9s cerrar esta ventana y volver al launcher.</p></body></html>'.encode('utf-8')
+            else:
+                html = '<html><body style="background:#121212;color:#e74c3c;font-family:sans-serif;text-align:center;padding:60px"><h2>\u274c Error</h2><p>No se recibio el codigo de autorizacion.</p></body></html>'.encode('utf-8')
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.send_header('Content-Length', str(len(html)))
+            self.end_headers()
+            self.wfile.write(html)
+
+        elif parsed.path == '/api/spotify_auth_start':
+            cid = qs.get('cid', [''])[0]
+            sec = qs.get('sec', [''])[0]
+            if not cid:
+                self._json({'ok': False, 'error': 'Falta Client ID'}); return
+            _spotify_pending_code = None
+            # Save credentials for later
+            _api_http_ref.config_actual['spotify_client_id'] = cid
+            if sec:
+                _api_http_ref.config_actual['spotify_client_secret'] = sec
+            import urllib.parse as _up2
+            scopes = 'user-read-playback-state user-modify-playback-state user-read-currently-playing'
+            redirect_uri = f'http://127.0.0.1:{_api_http_port}/callback'
+            params = {'client_id': cid, 'response_type': 'code', 'redirect_uri': redirect_uri, 'scope': scopes}
+            url = 'https://accounts.spotify.com/authorize?' + _up2.urlencode(params)
+            webbrowser.open(url)
+            self._json({'ok': True})
+
+        elif parsed.path == '/api/spotify_code_ready':
+            if _spotify_pending_code:
+                self._json({'ok': True, 'code': _spotify_pending_code})
+            else:
+                self._json({'ok': False})
+
+        elif parsed.path == '/api/spotify_connect':
+            code = qs.get('code', [''])[0]
+            cid = _api_http_ref.config_actual.get('spotify_client_id', '')
+            sec = _api_http_ref.config_actual.get('spotify_client_secret', '')
+            redirect_uri = f'http://127.0.0.1:{_api_http_port}/callback'
+            self._json(_api_http_ref._spotify_exchange(cid, sec, code, redirect_uri))
+
+        elif parsed.path == '/api/spotify_nowplaying':
+            self._json(_api_http_ref.get_spotify_nowplaying())
+
+        elif parsed.path == '/api/spotify_control':
+            accion = qs.get('accion', [''])[0]
+            self._json(_api_http_ref.spotify_control(accion))
+
+        elif parsed.path == '/api/get_usuario':
+            self._json(_api_http_ref.get_usuario())
+
+        elif parsed.path == '/api/get_settings':
+            self._json(_api_http_ref.get_settings())
+
+        else:
+            self.send_response(404); self.end_headers()
+
+    def do_POST(self):
+        length = int(self.headers.get('Content-Length', 0))
+        body = json.loads(self.rfile.read(length) or b'{}')
+        if self.path == '/api/ms_complete':
+            self._json(_api_http_ref.login_microsoft_paso2(body.get('url', '')))
+        elif self.path == '/api/login_invitado':
+            nombre = _api_http_ref.login_invitado(body.get('nombre', ''))
+            self._json({'ok': True, 'nombre': nombre})
+        else:
+            self.send_response(404); self.end_headers()
+
+    def _cors(self):
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+
+    def _json(self, data):
+        payload = json.dumps(data).encode()
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self._cors()
+        self.send_header('Content-Length', str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
+
+
+def _start_local_api(api):
+    global _api_http_port, _api_http_ref
+    _api_http_ref = api
+    for candidate in range(9875, 9885):
+        try:
+            socketserver.ThreadingTCPServer.allow_reuse_address = True
+            srv = socketserver.ThreadingTCPServer(('127.0.0.1', candidate), _LocalAPIHandler)
+            srv.daemon_threads = True
+            _api_http_port = candidate
+            threading.Thread(target=srv.serve_forever, daemon=True).start()
+            return candidate
+        except OSError:
+            continue
+    raise RuntimeError("No se pudo iniciar el servidor de API local (puertos 9875-9884 ocupados)")
+# ──────────────────────────────────────────────────────────────────────────────
+
+
 if __name__ == "__main__":
     api = Api()
     _base = sys._MEIPASS if getattr(sys, "frozen", False) else os.path.dirname(os.path.abspath(__file__))
     html_path = os.path.join(_base, "web", "index.html")
+
+    port = _start_local_api(api)
 
     ventana = webview.create_window(
         "Paraguacraft Launcher",
@@ -840,4 +2537,12 @@ if __name__ == "__main__":
         min_size=(950, 600),
         background_color="#101010",
     )
-    webview.start(debug=False)
+
+    def _on_loaded():
+        try:
+            ventana.evaluate_js(f'window._API_PORT = {port};')
+        except Exception:
+            pass
+
+    ventana.events.loaded += _on_loaded
+    webview.start(debug=False, http_server=True)
