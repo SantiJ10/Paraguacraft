@@ -673,7 +673,7 @@
                         </div>
                     </div>
                     
-                    <p id="lbl-estado-juego" class="text-center text-xs text-[#3498DB] font-bold mb-2 h-4"></p>
+                    <p id="lbl-estado-juego" class="text-center text-xs text-[#3498DB] font-bold mb-2 min-h-[1.25rem] break-all"></p>
                     
                     <div class="flex gap-2 mt-auto pb-2">
                         <button type="button" onclick="abrirGestorInstancia()" title="Gestor de mods, packs y versión" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] w-12 h-12 rounded flex items-center justify-center text-xl transition border border-[#333]">⚙️</button>
@@ -1302,6 +1302,80 @@
                             <div class="text-right text-[#333] text-[9px]">Paraguacraft</div>
                         </div>
                         <div class="bg-[#0A0A0A] rounded-lg p-3 border border-[#2A2A2A] text-xs text-gray-500 space-y-1">
+                            <p class="font-bold text-gray-400">¿Cómo usarlo?</p>
+                            <p>1. Hacé clic en «Abrir Overlay»</p>
+                            <p>2. Se abre una ventana siempre encima de Minecraft</p>
+                            <p>3. Cerrala con el botón de cierre del overlay</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BENCHMARK COMUNITARIO -->
+            <div id="hpanel-benchmark" class="hidden flex-1 min-h-0 overflow-y-auto pr-1">
+                <div class="grid grid-cols-2 gap-5">
+                    <div class="bg-[#181818] border border-[#F39C12]/30 rounded-xl p-6 flex flex-col gap-4">
+                        <div class="flex items-center gap-3">
+                            <span class="text-4xl">🏆</span>
+                            <div>
+                                <h3 class="font-black text-lg text-[#F39C12]">Benchmark de CPU</h3>
+                                <p class="text-xs text-gray-500">Medí el rendimiento de tu PC y comparalo con la comunidad</p>
+                            </div>
+                        </div>
+                        <div class="bg-[#0A0A0A] rounded-lg p-4 border border-[#2A2A2A] text-xs text-gray-400 space-y-1.5">
+                            <p>✅ Test matemático real (~3 segundos)</p>
+                            <p>✅ Puntaje enviado al ranking comunitario</p>
+                            <p>✅ Guarda CPU, RAM y SO de tu PC</p>
+                        </div>
+                        <button id="btn-bench" onclick="iniciarBenchmark()" class="bg-[#F39C12] hover:bg-[#E67E22] text-black font-black py-2.5 rounded transition">🚀 Iniciar Benchmark</button>
+                        <p id="bench-msg" class="text-xs text-center text-gray-500 min-h-[1rem]"></p>
+                        <div id="bench-score-box" class="hidden bg-[#0A0A0A] border border-[#F39C12]/30 rounded-xl p-4 text-center space-y-1">
+                            <p class="text-4xl font-black text-[#F39C12]" id="bench-score">–</p>
+                            <p class="text-xs text-gray-400" id="bench-hw-info"></p>
+                            <p class="text-[10px] text-gray-600" id="bench-tiempo"></p>
+                        </div>
+                    </div>
+                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col gap-3">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-black">🌐 Ranking comunitario</h3>
+                            <button onclick="cargarLeaderboard()" class="text-xs text-gray-500 hover:text-white transition">↻ Actualizar</button>
+                        </div>
+                        <div id="bench-leaderboard" class="space-y-1.5 max-h-80 overflow-y-auto">
+                            <p class="text-xs text-gray-500 text-center py-4">Hacé clic en «Actualizar» para ver el ranking.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SKIN IA -->
+            <div id="hpanel-skingen" class="hidden flex-1 min-h-0 overflow-y-auto pr-1">
+                <div class="grid grid-cols-2 gap-5">
+                    <div class="bg-[#181818] border border-[#9B59B6]/30 rounded-xl p-6 flex flex-col gap-4">
+                        <div class="flex items-center gap-3">
+                            <span class="text-4xl">🎨</span>
+                            <div>
+                                <h3 class="font-black text-lg text-[#9B59B6]">Generador de Skins con IA</h3>
+                                <p class="text-xs text-gray-500">Gemini crea una paleta y PIL dibuja la textura 64×64</p>
+                            </div>
+                        </div>
+                        <textarea id="skin-gen-desc" placeholder="Ej: Un ninja con armadura roja y ojos azules" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none focus:border-[#9B59B6] resize-none h-20"></textarea>
+                        <button id="btn-skin-gen" onclick="generarSkinIA()" class="bg-[#9B59B6] hover:bg-[#7D3C98] text-white font-black py-2.5 rounded transition">🤖 Generar skin con IA</button>
+                        <p id="skin-gen-msg" class="text-xs text-center text-gray-500 min-h-[1rem]"></p>
+                        <div id="skin-gen-colores" class="hidden">
+                            <p class="text-xs text-gray-400 font-bold mb-2">Paleta generada:</p>
+                            <div id="skin-gen-paleta" class="flex flex-wrap gap-3"></div>
+                        </div>
+                        <div id="skin-gen-acciones" class="hidden">
+                            <button onclick="aplicarSkinGenerada()" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black py-2 px-4 rounded transition text-sm w-full">✅ Aplicar skin en .minecraft</button>
+                        </div>
+                    </div>
+                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col gap-3">
+                        <h3 class="font-black">Vista previa</h3>
+                        <div id="skin-gen-preview-placeholder" class="flex items-center justify-center h-48 bg-[#0A0A0A] rounded-xl border border-[#2A2A2A]">
+                            <p class="text-xs text-gray-600">La skin aparecerá aquí luego de generarla</p>
+                        </div>
+                        <img id="skin-gen-preview" class="hidden w-32 h-32 mx-auto rounded-lg border border-[#9B59B6]/30" style="image-rendering:pixelated" alt="Skin generada">
+                        <div class="bg-[#0A0A0A] rounded-lg p-3 border border-[#2A2A2A] text-xs text-gray-500 space-y-1">
                             <p class="font-bold text-gray-400">¿Cómo funciona?</p>
                             <p>1. Gemini analiza tu descripción y elige 6 colores</p>
                             <p>2. PIL dibuja la textura 64×64 con esos colores</p>
@@ -1366,16 +1440,40 @@
             if (_pywebviewInitRan) return;
             _pywebviewInitRan = true;
             _habilitarLoginBtns();
+            for (const mayor in dataVersionesBase) {
+                dataVersionesBase[mayor].subs = mayor === "otras" ? [] : [mayor];
+            }
+            let _subsPopulated = false;
             try {
                 const versionesMojang = await pywebview.api.get_versiones_oficiales();
-                for (const mayor in dataVersionesBase) {
-                    if (versionesMojang && versionesMojang[mayor] && versionesMojang[mayor].length > 0) {
-                        dataVersionesBase[mayor].subs = versionesMojang[mayor];
-                    } else {
-                        dataVersionesBase[mayor].subs = mayor === "otras" ? [] : [mayor];
+                if (versionesMojang && Object.keys(versionesMojang).length > 0) {
+                    for (const mayor in dataVersionesBase) {
+                        if (versionesMojang[mayor] && versionesMojang[mayor].length > 0) {
+                            dataVersionesBase[mayor].subs = versionesMojang[mayor];
+                        }
                     }
+                    _subsPopulated = true;
                 }
             } catch (e) { console.error(e); }
+            if (!_subsPopulated) {
+                try {
+                    const _mr = await fetch('https://launchermeta.mojang.com/mc/game/version_manifest_v2.json');
+                    const _md = await _mr.json();
+                    const _releases = _md.versions.filter(v => v.type === 'release').map(v => v.id);
+                    const _grupos = {};
+                    _releases.forEach(vid => {
+                        const p = vid.split('.');
+                        if (p.length >= 2) { const k = p[0]+'.'+p[1]; (_grupos[k] = _grupos[k]||[]).push(vid); }
+                    });
+                    _grupos['26.1'] = ['26.1.1'];
+                    const _featured = new Set();
+                    Object.keys(dataVersionesBase).forEach(k => (_grupos[k]||[]).forEach(v => _featured.add(v)));
+                    _grupos['otras'] = _releases.filter(v => !_featured.has(v));
+                    for (const mayor in dataVersionesBase) {
+                        if (_grupos[mayor] && _grupos[mayor].length > 0) dataVersionesBase[mayor].subs = _grupos[mayor];
+                    }
+                } catch(e2) { console.error('Mojang fallback:', e2); }
+            }
 
             dibujarGrillaVersiones();
             wireGestorModalOnce();
@@ -1501,24 +1599,41 @@
             for (const [vM, d] of Object.entries(dataVersionesBase)) {
                 const imgF = vM === 'otras' ? 'Otra_Version' : vM.replace(/\./g, '_');
                 const tituloTarjeta = vM === 'otras' ? 'OTRAS VERSIONES' : ('PARAGUA ' + vM);
+                const _vp = vM.split('.');
+                const _showLogo = vM === '26.1' || (vM !== 'otras' && parseInt(_vp[0]) === 1 && parseInt(_vp[1] || 0) >= 16);
+                const _logoHtml = _showLogo ? `<img src="assets/paraguacraft_logo.png" class="absolute bottom-2 right-2 h-8 opacity-90 drop-shadow-lg" onerror="this.style.display='none'" alt="">` : '';
                 grid.innerHTML += `
                 <div onclick="seleccionarVersion('${vM}')" class="lunar-card relative h-[180px] rounded-xl overflow-hidden cursor-pointer bg-[#1A1A1A] group">
                     <img src="assets/${imgF}.png" class="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:scale-105 transition duration-500" onerror="this.src='https://via.placeholder.com/400x200/1A1A1A/2ECC71?text=${encodeURIComponent(tituloTarjeta)}'">
                     <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
+                    ${_logoHtml}
                     <div class="absolute inset-0 p-5 flex flex-col justify-between"><h3 class="text-2xl font-black drop-shadow-md text-white leading-tight">${tituloTarjeta}</h3></div>
                 </div>`;
             }
         }
 
-        async function actualizarLoadersParaVersion() {
+        function _getLoadersForVersion(v) {
+            v = (v || '').trim();
+            if (!v) return ['Vanilla'];
+            if (v.startsWith('26')) return ['Vanilla', 'Fabric', 'Fabric + Iris'];
+            const parts = v.split('.');
+            const major = parseInt(parts[0]);
+            const minor = (parts.length > 1 && /^\d+$/.test(parts[1])) ? parseInt(parts[1]) : 0;
+            const out = ['Vanilla'];
+            if (major !== 1) return out;
+            if (minor === 7 || minor === 8 || minor === 12 || (minor >= 16 && minor <= 20)) out.push('OptiFine');
+            if (minor === 8 || minor === 12) out.push('Forge');
+            if (minor >= 16 && minor <= 21) { out.push('Fabric'); out.push('Fabric + Iris'); }
+            return out;
+        }
+
+        function actualizarLoadersParaVersion() {
             const sV = document.getElementById('panel-version-sel');
             const sL = document.getElementById('panel-loader-sel');
-            if (!sV || !sL || !sV.value) return;
-            try {
-                const loaders = await pywebview.api.get_loaders_for_version(sV.value);
-                sL.innerHTML = "";
-                loaders.forEach(l => { sL.innerHTML += `<option value="${l}">${l}</option>`; });
-            } catch (e) { console.error(e); }
+            if (!sV || !sL) return;
+            const loaders = _getLoadersForVersion(sV.value);
+            sL.innerHTML = '';
+            loaders.forEach(l => { sL.innerHTML += `<option value="${l}">${l}</option>`; });
         }
 
         function seleccionarVersion(vM) {
@@ -1737,8 +1852,11 @@
         // --- LOGIN Y UI ---
         function actualizarUiUsuario(n, esPremium) {
             try {
+                window._cachedUsuario = n;
                 const lblNombre = document.getElementById("nav-username");
                 if(lblNombre) lblNombre.innerText = n;
+                const welcomeLbl = document.getElementById('inicio-welcome-name');
+                if(welcomeLbl) welcomeLbl.textContent = (n && n !== 'Invitado') ? n : 'Jugador';
                 setTimeout(cargarDatosInicio, 200);
                 
                 const overlay = document.getElementById("login-overlay");
@@ -2090,63 +2208,61 @@
             const v = document.getElementById('panel-version-sel').value;
             const l = document.getElementById('panel-loader-sel').value;
             if (!v) { alert('Seleccioná una versión primero.'); return; }
-            // Check if HW profile has already been applied for this instance (one-time)
-            try {
-                const cfg = await pywebview.api.get_settings();
-                const key = 'perfil_hw_' + v + '_' + (l || 'Vanilla');
-                if (!cfg.config[key]) {
-                    _hwPerfilPendingVer = v;
-                    _hwPerfilPendingMotor = l;
-                    const info = await pywebview.api.detectar_perfil_hardware_sugerido();
-                    if (info && info.ok) {
-                        const el = document.getElementById('hw-sugerido-info');
-                        if (el) el.innerHTML = `<span class="text-white font-bold">Tu PC:</span> ${info.ram_gb}GB RAM · ${info.cpu_cores} núcleos — Perfil sugerido: <span class="text-[#2ECC71] font-black">${info.nombre}</span>. Los mods se instalan <strong class="text-white">una sola vez</strong>.`;
-                    }
-                    document.getElementById('hw-perfil-modal').classList.remove('hidden');
-                    return;
-                }
-            } catch(e) {}
             _lanzarJuegoReal(v, l);
         }
 
         let _hwPerfilPendingVer = null, _hwPerfilPendingMotor = null;
 
-        async function aplicarHwPerfil(perfilId) {
-            const v = _hwPerfilPendingVer, l = _hwPerfilPendingMotor;
-            if (!v) { _cerrarHwModal(); return; }
-            const prog = document.getElementById('hw-progress');
-            const lbl = document.getElementById('hw-progress-lbl');
-            if (prog) prog.classList.remove('hidden');
-            if (lbl) lbl.textContent = 'Instalando mods del perfil ' + perfilId + '...';
-            try {
-                await pywebview.api.aplicar_perfil_hardware(perfilId, v, l);
-            } catch(e) {}
-            _cerrarHwModal();
-            _lanzarJuegoReal(v, l);
-        }
-
-        function _cerrarHwModal() {
-            document.getElementById('hw-perfil-modal').classList.add('hidden');
-            const prog = document.getElementById('hw-progress');
-            if (prog) prog.classList.add('hidden');
-        }
-
-        function cerrarHwPerfilModal() {
-            const v = _hwPerfilPendingVer, l = _hwPerfilPendingMotor;
-            _cerrarHwModal();
-            if (v) _lanzarJuegoReal(v, l);
-        }
+        let _gamePoller = null;
 
         async function _lanzarJuegoReal(v, l) {
             _hwPerfilPendingVer = null; _hwPerfilPendingMotor = null;
             const btn = document.getElementById('btn-launch-game');
             if(btn) { btn.innerText = "Iniciando..."; btn.classList.replace('bg-[#2ECC71]', 'bg-gray-600'); btn.disabled = true; }
-            syncPanelDesdeModal();
-            await pywebview.api.lanzar_juego(v, l, "");
+            try {
+                const resp = await fetch(`http://127.0.0.1:${window._API_PORT}/api/lanzar_juego`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({version: v, motor: l, server_ip: ''})
+                });
+                const d = await resp.json();
+                if (d.ok) {
+                    _startGamePoller();
+                } else {
+                    actualizarEstadoPanel('Error: ' + (d.error || 'desconocido'));
+                    resetLaunchButton();
+                }
+            } catch(e) {
+                actualizarEstadoPanel('Error al iniciar: ' + String(e));
+                resetLaunchButton();
+            }
         }
-        function actualizarEstadoPanel(m) { 
+
+        function _startGamePoller() {
+            if (_gamePoller) { clearInterval(_gamePoller); _gamePoller = null; }
+            let _wasRunning = false;
+            _gamePoller = setInterval(async () => {
+                try {
+                    const r = await fetch(`http://127.0.0.1:${window._API_PORT}/api/game_status`);
+                    const d = await r.json();
+                    if (d.status && d.status !== 'idle') actualizarEstadoPanel(d.status);
+                    if (d.running) {
+                        _wasRunning = true;
+                    } else if (_wasRunning || (d.status && d.status !== 'idle' && d.status !== 'Iniciando...')) {
+                        clearInterval(_gamePoller); _gamePoller = null;
+                        resetLaunchButton();
+                    }
+                } catch(e) { /* keep polling on network error */ }
+            }, 800);
+            setTimeout(() => { if (_gamePoller) { clearInterval(_gamePoller); _gamePoller = null; resetLaunchButton(); } }, 600000);
+        }
+
+        function actualizarEstadoPanel(m) {
             const lbl = document.getElementById('lbl-estado-juego');
-            if(lbl) lbl.innerText = m; 
+            if (!lbl) return;
+            lbl.innerText = m;
+            const isErr = m && (m.startsWith('Error') || m.toLowerCase().includes('traceback'));
+            lbl.className = 'text-center text-xs font-bold mb-2 min-h-[1.25rem] break-all ' + (isErr ? 'text-[#E74C3C]' : 'text-[#3498DB]');
         }
         function resetLaunchButton() {
             const btn = document.getElementById('btn-launch-game');
@@ -2632,7 +2748,7 @@
                             <p class="text-xs text-gray-500 truncate">${m.archivo}</p>
                         </div>
                         <span class="text-xs text-[#F39C12] font-mono shrink-0">v${m.version_nueva}</span>
-                        <button onclick="pywebview.api.instalar_mod_modrinth('${m.slug}','${ver}','${motor}','')" class="bg-[#F39C12] hover:bg-[#E67E22] text-black font-bold px-3 py-1.5 rounded text-xs shrink-0">Actualizar</button>
+                        <button onclick="pywebview.api.instalar_mod_modrinth('${m.slug}','${ver}','${motor}','')" class="bg-[#F39C12] hover:bg-[#E67E22] text-black font-bold px-3 py-1.5 rounded transition text-xs shrink-0">Actualizar</button>
                     </div>`).join('') +
                     sin.map(m => `<div class="flex items-center gap-3 bg-[#181818] border border-[#2A2A2A] rounded-lg px-4 py-2 opacity-50">
                         <span>✅</span><p class="text-xs text-gray-500 truncate flex-1">${m.slug || m.archivo}</p><span class="text-xs text-gray-600">Al día</span>
@@ -2812,28 +2928,32 @@
         async function cargarMundos() {
             const box = document.getElementById('backup-mundos-lista');
             box.innerHTML = '<p class="text-gray-500 text-sm">Cargando...</p>';
-            const d = await pywebview.api.get_mundos();
-            if (!d.ok || !d.mundos.length) { box.innerHTML = '<p class="text-gray-500 text-sm">Sin mundos encontrados.</p>'; return; }
-            box.innerHTML = d.mundos.map(m => `
-            <div class="flex items-center justify-between bg-[#0A0A0A] px-3 py-2 rounded border border-[#2A2A2A]">
-                <div><p class="font-bold text-sm text-white">${m.nombre}</p><p class="text-xs text-gray-500">${m.modificado} · ${m.tamano_mb} MB</p></div>
-                <button onclick="hacerBackup('${m.nombre}')" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black text-xs px-3 py-1.5 rounded transition shrink-0">💾 Backup</button>
-            </div>`).join('');
+            try {
+                const d = await pywebview.api.get_mundos();
+                if (!d.ok || !d.mundos.length) { box.innerHTML = '<p class="text-gray-500 text-sm">Sin mundos encontrados.</p>'; return; }
+                box.innerHTML = d.mundos.map(m => `
+                <div class="flex items-center justify-between bg-[#0A0A0A] px-3 py-2 rounded border border-[#2A2A2A]">
+                    <div><p class="font-bold text-sm text-white">${m.nombre}</p><p class="text-xs text-gray-500">${m.modificado} &middot; ${m.tamano_mb} MB</p></div>
+                    <button onclick="hacerBackup('${m.nombre}')" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black text-xs px-3 py-1.5 rounded transition shrink-0">Backup</button>
+                </div>`).join('');
+            } catch(e) { box.innerHTML = '<p class="text-gray-500 text-sm">Sin mundos encontrados.</p>'; }
         }
 
         async function cargarBackups() {
             const box = document.getElementById('backup-lista');
             box.innerHTML = '<p class="text-gray-500 text-sm">Cargando...</p>';
-            const d = await pywebview.api.listar_backups();
-            if (!d.ok || !d.backups.length) { box.innerHTML = '<p class="text-gray-500 text-sm">Sin backups.</p>'; return; }
-            box.innerHTML = d.backups.map(b => `
-            <div class="flex items-center justify-between bg-[#0A0A0A] px-3 py-2 rounded border border-[#2A2A2A]">
-                <div class="min-w-0"><p class="font-bold text-xs text-white truncate">${b.mundo}</p><p class="text-xs text-gray-500">${b.fecha} · ${b.tamano_mb} MB</p></div>
-                <div class="flex gap-1 shrink-0">
-                    <button onclick="restaurarBackup('${b.archivo}')" class="bg-[#3498DB] hover:bg-[#2980B9] text-white font-black text-xs px-2 py-1 rounded transition">↩</button>
-                    <button onclick="eliminarBackup('${b.archivo}')" class="bg-[#E74C3C] hover:bg-[#C0392B] text-white font-black text-xs px-2 py-1 rounded transition">✕</button>
-                </div>
-            </div>`).join('');
+            try {
+                const d = await pywebview.api.listar_backups();
+                if (!d.ok || !d.backups.length) { box.innerHTML = '<p class="text-gray-500 text-sm">Sin backups.</p>'; return; }
+                box.innerHTML = d.backups.map(b => `
+                <div class="flex items-center justify-between bg-[#0A0A0A] px-3 py-2 rounded border border-[#2A2A2A]">
+                    <div class="min-w-0"><p class="font-bold text-xs text-white truncate">${b.mundo}</p><p class="text-xs text-gray-500">${b.fecha} · ${b.tamano_mb} MB</p></div>
+                    <div class="flex gap-1 shrink-0">
+                        <button onclick="restaurarBackup('${b.archivo}')" class="bg-[#3498DB] hover:bg-[#2980B9] text-white font-black text-xs px-2 py-1 rounded transition">↩</button>
+                        <button onclick="eliminarBackup('${b.archivo}')" class="bg-[#E74C3C] hover:bg-[#C0392B] text-white font-black text-xs px-2 py-1 rounded transition">✕</button>
+                    </div>
+                </div>`).join('');
+            } catch(e) { box.innerHTML = '<p class="text-gray-500 text-sm">Error al cargar backups: ' + e + '</p>'; }
         }
 
         async function hacerBackup(nombre) {
@@ -3122,7 +3242,7 @@
                 if (!d.ok || !d.noticias.length) { box.innerHTML = ''; return; }
                 box.innerHTML = d.noticias.slice(0,3).map(n => `
                 <div class="bg-[#181818]/80 backdrop-blur-sm border border-[#2A2A2A] rounded-xl overflow-hidden hover:border-[#2ECC71] transition cursor-pointer flex-1 min-w-0" onclick="pywebview.api.notificar_windows('Abriendo noticia','${(n.titulo||'').replace(/'/g,'')}')">
-                    ${n.imagen ? `<img src="${n.imagen}" class="w-full h-24 object-cover" onerror="this.style.display='none'">` : ''}
+                    ${n.imagen ? `<img src="${n.imagen}" class="w-full h-24 object-cover" onerror="this.src='https://via.placeholder.com/400x200/2A2A2A/FFFFFF?text=Minecraft'">` : ''}
                     <div class="p-3"><p class="font-black text-xs text-white line-clamp-2">${n.titulo}</p><p class="text-[10px] text-gray-500 mt-1">${n.categoria} · ${n.fecha}</p></div>
                 </div>`).join('');
             } catch(e) { if (box) box.innerHTML = ''; }
@@ -3308,7 +3428,7 @@
                 const res = document.getElementById('gm-resultado');
                 if (r.ok) {
                     dot.className = 'w-3 h-3 rounded-full bg-[#2ECC71] animate-pulse';
-                    lbl.textContent = 'ACTIVO'; lbl.className = 'text-sm font-black text-[#2ECC71]';
+                    lbl.textContent = 'ACTIVO'; lbl.className = 'text-sm font-bold text-[#2ECC71]';
                     res.classList.remove('hidden');
                     res.textContent = r.detalles || 'Game Mode activado. Procesos innecesarios suspendidos.';
                 } else {
