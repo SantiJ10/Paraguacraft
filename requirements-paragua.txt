@@ -1,0 +1,9 @@
+# Dependencias del launcher paragua.py (pywebview)
+pywebview>=4.0
+psutil>=5.9
+pypresence>=4.3
+minecraft-launcher-lib>=6.0
+requests>=2.28
+bsdiff4>=1.2
+pymongo>=4.0
+pywin32>=306; sys_platform == "win32"
