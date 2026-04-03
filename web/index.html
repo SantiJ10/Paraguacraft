@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paraguacraft</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { user-select: none; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #2A2A2A; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #3A3A3A; }
+        .lunar-card { transition: all 0.2s ease-in-out; border: 2px solid transparent; }
+        .lunar-card:hover { border-color: #2ECC71; transform: translateY(-2px); box-shadow: 0 10px 25px -5px rgba(46, 204, 113, 0.2); }
+        .vista-seccion { display: none; }
+        .toggle-checkbox:checked { right: 0; border-color: #2ECC71; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #2ECC71; }
+    </style>
+</head>
+<body class="bg-[#121212] text-white h-screen flex flex-col relative" onclick="cerrarDropdowns(event)">
+
+    <div id="login-overlay" class="absolute inset-0 z-[200] bg-[#121212] flex flex-col items-center justify-center">
+        <h1 class="text-6xl font-black tracking-widest text-white drop-shadow-md mb-2">PARAGUACRAFT</h1>
+        <p class="text-gray-400 mb-12">Iniciá sesión para entrar al ecosistema.</p>
+        
+        <button id="btn-ms-login" onclick="loginMicrosoft()" class="bg-[#0078D4] hover:bg-[#106EBE] text-white font-bold text-lg py-4 w-80 rounded-md shadow-lg transition mb-4">
+            Login con Microsoft (Premium)
+        </button>
+        
+        <div class="flex w-80 gap-2">
+            <input type="text" id="input-guest" placeholder="Nombre Offline..." class="bg-[#1E1E1E] text-white px-4 py-3 rounded-md outline-none border border-[#2A2A2A] focus:border-[#2ECC71] flex-1">
+            <button onclick="loginInvitado()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] px-4 py-3 rounded-md font-bold transition">Entrar</button>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="absolute inset-0 z-[150] bg-black/80 hidden flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-[#121212] w-5/6 max-w-5xl h-5/6 rounded-xl border border-[#2A2A2A] flex overflow-hidden shadow-2xl">
+            <div class="w-1/4 bg-[#181818] border-r border-[#2A2A2A] p-4 flex flex-col gap-2">
+                <button type="button" onclick="mostrarPanelAjustes('juego')" id="tab-aj-juego" class="text-left px-4 py-3 rounded-lg font-bold text-white bg-[#2A2A2A] flex items-center gap-3 transition">🎮 Juego & Rendimiento</button>
+                <button type="button" onclick="mostrarPanelAjustes('telemetria')" id="tab-aj-tele" class="text-left px-4 py-3 rounded-lg font-bold text-gray-400 hover:bg-[#2A2A2A] hover:text-white flex items-center gap-3 transition">📊 Telemetría en vivo</button>
+                <div class="mt-auto text-xs text-gray-600 px-4"><p>© Paraguacraft</p></div>
+            </div>
+            <div class="w-3/4 bg-[#121212] flex flex-col">
+                <div class="p-6 border-b border-[#2A2A2A] flex justify-between items-center">
+                    <h2 id="settings-panel-title" class="text-2xl font-black">Juego & Rendimiento</h2>
+                    <button onclick="cerrarAjustes()" class="text-gray-400 hover:text-white text-2xl">✕</button>
+                </div>
+                
+                <div id="panel-ajuste-juego" class="p-8 overflow-y-auto flex-1 space-y-6">
+                    <p class="text-sm text-gray-500 mb-2">RAM y Java del perfil activo están en <span class="text-[#2ECC71]">Versiones → gestor (engranaje junto a Iniciar juego)</span>.</p>
+
+                    <div class="mb-6">
+                        <h3 class="font-bold mb-1">Ajustes de Lanzamiento</h3>
+                        <div class="bg-[#181818] p-4 rounded-lg border border-[#2A2A2A] space-y-4">
+                            <label class="flex items-center justify-between cursor-pointer">
+                                <span class="text-sm font-bold">📉 Gráficos al Mínimo (Mejora FPS)</span>
+                                <div class="relative"><input type="checkbox" id="tgl-opt_minimos" onchange="pywebview.api.save_setting('opt_minimos', this.checked)" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-[#2A2A2A] appearance-none cursor-pointer"/><div class="toggle-label block overflow-hidden h-5 w-10 rounded-full bg-[#2A2A2A]"></div></div>
+                            </label>
+                            <label class="flex items-center justify-between cursor-pointer">
+                                <div><span class="text-sm font-bold">🥔 Modo 'PC Papa'</span><p class="text-xs text-gray-500">Resolución 800x600</p></div>
+                                <div class="relative"><input type="checkbox" id="tgl-papa_mode" onchange="pywebview.api.save_setting('papa_mode', this.checked)" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-[#2A2A2A] appearance-none cursor-pointer"/><div class="toggle-label block overflow-hidden h-5 w-10 rounded-full bg-[#2A2A2A]"></div></div>
+                            </label>
+                            <label class="flex items-center justify-between cursor-pointer">
+                                <span class="text-sm font-bold">🌐 Multijugador LAN a distancia (e4mc)</span>
+                                <div class="relative"><input type="checkbox" id="tgl-lan_distancia" onchange="pywebview.api.save_setting('lan_distancia', this.checked)" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-[#2A2A2A] appearance-none cursor-pointer"/><div class="toggle-label block overflow-hidden h-5 w-10 rounded-full bg-[#2A2A2A]"></div></div>
+                            </label>
+                            <label class="flex items-center justify-between cursor-pointer">
+                                <span class="text-sm font-bold">📜 Mostrar Consola de Depuración</span>
+                                <div class="relative"><input type="checkbox" id="tgl-mostrar_consola" onchange="pywebview.api.save_setting('mostrar_consola', this.checked)" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-[#2A2A2A] appearance-none cursor-pointer"/><div class="toggle-label block overflow-hidden h-5 w-10 rounded-full bg-[#2A2A2A]"></div></div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="mb-6">
+                        <h3 class="font-bold mb-1">Mantenimiento Automático</h3>
+                        <div class="bg-[#181818] p-4 rounded-lg border border-[#2A2A2A] space-y-4">
+                            <label class="flex items-center justify-between cursor-pointer">
+                                <div><span class="text-sm font-bold">💾 Auto-Backup Salvavidas</span><p class="text-xs text-gray-500">Guarda un .zip de tus mundos al iniciar</p></div>
+                                <div class="relative"><input type="checkbox" id="tgl-backup_var" onchange="pywebview.api.save_setting('backup_var', this.checked)" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-[#2A2A2A] appearance-none cursor-pointer"/><div class="toggle-label block overflow-hidden h-5 w-10 rounded-full bg-[#2A2A2A]"></div></div>
+                            </label>
+                            <label class="flex items-center justify-between cursor-pointer">
+                                <div><span class="text-sm font-bold">🧹 Limpieza Profunda</span><p class="text-xs text-gray-500">Borra logs y crash reports viejos</p></div>
+                                <div class="relative"><input type="checkbox" id="tgl-limpiador_deep_var" onchange="pywebview.api.save_setting('limpiador_deep_var', this.checked)" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-[#2A2A2A] appearance-none cursor-pointer"/><div class="toggle-label block overflow-hidden h-5 w-10 rounded-full bg-[#2A2A2A]"></div></div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="panel-ajuste-telemetria" class="hidden p-8 overflow-y-auto flex-1 space-y-6">
+                    <p class="text-sm text-gray-400 mb-4">Uso en tiempo real del sistema y tamaño aproximado de la carpeta de Minecraft (como en launchers modernos).</p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-[#181818] p-4 rounded-lg border border-[#2A2A2A]">
+                            <span class="text-xs font-bold text-gray-500 uppercase">CPU</span>
+                            <p id="tel-cpu" class="text-3xl font-black text-[#2ECC71]">—</p>
+                        </div>
+                        <div class="bg-[#181818] p-4 rounded-lg border border-[#2A2A2A]">
+                            <span class="text-xs font-bold text-gray-500 uppercase">RAM sistema</span>
+                            <p id="tel-ram" class="text-2xl font-black text-white">—</p>
+                            <div class="w-full h-2 bg-[#2A2A2A] rounded mt-2"><div id="tel-ram-bar" class="h-2 bg-[#3498DB] rounded" style="width:0%"></div></div>
+                        </div>
+                        <div class="bg-[#181818] p-4 rounded-lg border border-[#2A2A2A] col-span-2">
+                            <span class="text-xs font-bold text-gray-500 uppercase">Almacenamiento (disco usuario)</span>
+                            <p id="tel-disk" class="text-xl font-bold text-white mt-1">—</p>
+                        </div>
+                        <div class="bg-[#181818] p-4 rounded-lg border border-[#2A2A2A] col-span-2">
+                            <span class="text-xs font-bold text-gray-500 uppercase">Carpeta .minecraft (aprox.)</span>
+                            <p id="tel-mc" class="text-2xl font-black text-[#9B59B6] mt-1">—</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="gestor-instancia-modal" class="absolute inset-0 z-[155] bg-black/85 hidden flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-[#121212] w-[92%] max-w-5xl h-[86%] rounded-xl border border-[#2A2A2A] flex flex-col overflow-hidden shadow-2xl">
+            <div class="p-4 border-b border-[#2A2A2A] flex justify-between items-center shrink-0">
+                <h2 class="text-xl font-black tracking-wide">Gestor de instancia</h2>
+                <button type="button" onclick="cerrarGestorInstancia()" class="text-gray-400 hover:text-white text-2xl leading-none px-2">✕</button>
+            </div>
+            <div class="flex flex-1 min-h-0">
+                <div class="w-52 bg-[#181818] border-r border-[#2A2A2A] p-3 flex flex-col gap-1 shrink-0">
+                    <button type="button" onclick="gestorTabPrincipal('contenido')" id="gestor-tab-contenido" class="text-left px-3 py-2.5 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white">📦 Contenido</button>
+                    <button type="button" onclick="gestorTabPrincipal('java')" id="gestor-tab-java" class="text-left px-3 py-2.5 rounded-lg font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white">☕ Entorno Java</button>
+                    <button type="button" onclick="gestorTabPrincipal('versiones')" id="gestor-tab-versiones" class="text-left px-3 py-2.5 rounded-lg font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white">🎮 Versiones</button>
+                </div>
+                <div class="flex-1 flex flex-col min-w-0 min-h-0 bg-[#121212]">
+                    <div id="gestor-panel-contenido" class="gestor-panel flex-1 flex flex-col p-4 min-h-0 overflow-hidden">
+                        <div class="flex flex-wrap gap-2 mb-3 shrink-0">
+                            <button type="button" onclick="gestorSubTab('mods')" id="gst-sub-mods" class="gst-sub px-3 py-1.5 rounded text-sm font-bold bg-[#2ECC71] text-black">Mods</button>
+                            <button type="button" onclick="gestorSubTab('resourcepacks')" id="gst-sub-resourcepacks" class="gst-sub px-3 py-1.5 rounded text-sm font-bold bg-[#2A2A2A] text-white">Resource packs</button>
+                            <button type="button" onclick="gestorSubTab('shaders')" id="gst-sub-shaders" class="gst-sub px-3 py-1.5 rounded text-sm font-bold bg-[#2A2A2A] text-white">Shaders</button>
+                            <button type="button" onclick="gestorSubTab('datapacks')" id="gst-sub-datapacks" class="gst-sub px-3 py-1.5 rounded text-sm font-bold bg-[#2A2A2A] text-white">Data packs</button>
+                        </div>
+                        <div class="flex flex-wrap gap-2 mb-3 shrink-0">
+                            <input type="text" id="gestor-buscar" placeholder="Buscar por nombre..." class="flex-1 min-w-[140px] bg-[#1E1E1E] border border-[#333] rounded px-3 py-2 text-sm outline-none focus:border-[#2ECC71]" oninput="refrescarListaGestorFiltrado()">
+                            <input type="text" id="gestor-filtro-mc" placeholder="Filtrar texto (ej. 1.21)" class="w-40 bg-[#1E1E1E] border border-[#333] rounded px-3 py-2 text-sm outline-none focus:border-[#2ECC71]" oninput="refrescarListaGestorFiltrado()">
+                            <button type="button" onclick="gestorUsarVersionPerfil()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] px-3 py-2 rounded text-xs font-bold border border-[#333]" title="Pone en el filtro la versión MC del perfil">Versión del perfil</button>
+                            <button type="button" onclick="gestorAbrirCarpetaActual()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] px-3 py-2 rounded text-xs font-bold border border-[#333]">Abrir carpeta</button>
+                        </div>
+                        <div id="gestor-lista" class="flex-1 overflow-y-auto space-y-2 min-h-0 pr-1"></div>
+                    </div>
+                    <div id="gestor-panel-java" class="gestor-panel hidden flex-1 flex-col p-6 overflow-y-auto space-y-6">
+                        <div>
+                            <h3 class="font-bold mb-2">Memoria (RAM)</h3>
+                            <div class="flex items-center gap-4 bg-[#181818] p-4 rounded-lg border border-[#2A2A2A]">
+                                <span class="bg-[#1E1E1E] px-3 py-1 rounded font-bold text-sm" id="gestor-ram-lbl">4 GB</span>
+                                <input type="range" id="gestor-ram-slider" min="1" max="16" value="4" class="w-full h-2 bg-[#2A2A2A] rounded-lg appearance-none cursor-pointer" oninput="updateRamGestor(this.value)">
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="font-bold mb-2">Garbage Collector</h3>
+                            <select id="gestor-sel-gc" onchange="pywebview.api.save_setting('gc_type', this.value)" class="bg-[#121212] border border-[#333] text-white p-2 rounded outline-none text-sm font-bold w-full max-w-md cursor-pointer">
+                                <option value="G1GC">G1GC (Equilibrado)</option>
+                                <option value="ZGC">ZGC</option>
+                                <option value="Shenandoah">Shenandoah</option>
+                                <option value="CMS">CMS</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="gestor-panel-versiones" class="gestor-panel hidden flex-1 flex-col p-6 overflow-y-auto space-y-5">
+                        <div>
+                            <span class="text-xs font-bold text-gray-400 uppercase tracking-wide">Versión del juego</span>
+                            <select id="modal-version-sel" class="mt-1 bg-[#121212] border border-[#2A2A2A] text-white p-2 rounded outline-none w-full max-w-md text-sm font-bold cursor-pointer"></select>
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold text-gray-400 uppercase tracking-wide">Loader / Add-ons</span>
+                            <select id="modal-loader-sel" class="mt-1 bg-[#121212] border border-[#2A2A2A] text-white p-2 rounded outline-none w-full max-w-md text-sm font-bold cursor-pointer"></select>
+                        </div>
+                        <div id="wrap-fabric-loader-ver" class="hidden">
+                            <span class="text-xs font-bold text-gray-400 uppercase tracking-wide">Versión del loader Fabric (opcional)</span>
+                            <p class="text-xs text-gray-600 mb-1">Solo aplica al instalar Fabric por primera vez en esta PC para esta versión.</p>
+                            <select id="modal-fabric-loader-sel" class="mt-1 bg-[#121212] border border-[#2A2A2A] text-white p-2 rounded outline-none w-full max-w-md text-sm font-bold cursor-pointer"></select>
+                            <button type="button" onclick="guardarFabricLoaderVersion()" class="mt-2 text-xs font-bold text-[#3498DB] hover:underline">Guardar selección</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <nav class="h-[65px] bg-[#0A0A0A] flex items-center px-6 border-b border-[#1E1E1E] shrink-0 z-50">
+        
+        <div class="flex items-center gap-4 relative">
+            <div onclick="toggleLogoMenu(event)" class="text-2xl font-black tracking-widest text-white cursor-pointer select-none">
+                PARAGUACRAFT <span class="text-xs text-gray-500">▼</span>
+            </div>
+            <div id="logo-dropdown" class="absolute top-[45px] left-0 w-56 bg-[#181818] border border-[#2A2A2A] rounded-lg shadow-2xl hidden flex-col py-2 z-[200]">
+                <button onclick="cerrarSesion()" class="text-left px-4 py-2 text-sm font-bold text-[#E74C3C] hover:bg-[#2A2A2A] transition w-full">↪ Sign Out</button>
+            </div>
+            <div class="flex items-center gap-2 bg-[#121212] px-3 py-1 rounded-full border border-[#1E1E1E]">
+                <div class="w-2.5 h-2.5 bg-[#2ECC71] rounded-full animate-pulse"></div>
+                <span class="text-[11px] font-bold text-gray-300">Global Players Online</span>
+            </div>
+            <div id="breadcrumb" class="text-gray-500 text-xs font-bold ml-2">Inicio / Dashboard</div>
+        </div>
+
+        <div class="absolute left-1/2 transform -translate-x-1/2 flex space-x-6 text-[13px] font-bold text-gray-400">
+            <button onclick="cambiarPestaña('inicio', 'Inicio')" id="btn-inicio" class="nav-btn text-white border-b-2 border-[#2ECC71] pb-1 transition">Inicio</button>
+            <button onclick="cambiarPestaña('servidores', 'Servidores')" id="btn-servidores" class="nav-btn hover:text-white transition">Servidores</button>
+            <button onclick="cambiarPestaña('versiones', 'Versiones')" id="btn-versiones" class="nav-btn hover:text-white transition">Versiones</button>
+            <button onclick="cambiarPestaña('skins', 'Skins')" id="btn-skins" class="nav-btn hover:text-white transition">Skins</button>
+            <button onclick="cambiarPestaña('mods', 'Mods')" id="btn-mods" class="nav-btn hover:text-white transition">Mods</button>
+        </div>
+
+        <div class="ml-auto flex items-center space-x-3 relative dropdown-container">
+            <button id="btn-update" onclick="abrirModalUpdate()" class="hidden relative bg-[#F39C12] hover:bg-[#E67E22] text-black font-black text-xs px-3 py-1.5 rounded transition">
+                ⬆ Actualizar <span id="btn-update-ver"></span>
+            </button>
+            <button onclick="abrirAjustes()" class="bg-[#181818] hover:bg-[#2A2A2A] text-gray-300 p-2 rounded flex items-center transition border border-[#2A2A2A]">⚙️</button>
+            <button onclick="toggleUserMenu(event)" class="bg-[#181818] hover:bg-[#2A2A2A] px-4 py-1.5 rounded font-bold text-sm flex items-center transition border border-[#2A2A2A]">
+                <img id="nav-skin-head" src="" class="w-5 h-5 mr-2 rounded-sm hidden">
+                <span id="nav-username">Invitado</span> <span class="ml-2 text-[10px] text-gray-500">▼</span>
+            </button>
+            <div id="user-dropdown" class="absolute top-[45px] right-0 w-48 bg-[#181818] border border-[#2A2A2A] rounded-lg shadow-2xl hidden flex-col py-2 z-[200]">
+                <button onclick="cerrarSesion()" class="text-left px-4 py-2 text-sm font-bold text-[#E74C3C] hover:bg-[#2A2A2A] transition w-full">↪ Sign Out</button>
+            </div>
+        </div>
+    </nav>
+
+    <div id="update-modal" class="absolute inset-0 z-[300] bg-black/80 hidden flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-[#121212] w-[480px] rounded-xl border border-[#F39C12]/40 shadow-2xl p-6 flex flex-col gap-4">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h2 class="text-xl font-black text-[#F39C12]">⬆ Nueva versión disponible</h2>
+                    <p class="text-xs text-gray-500 mt-1">Versión actual: <span id="upd-ver-actual" class="font-mono"></span> → Nueva: <span id="upd-ver-nueva" class="font-mono text-[#2ECC71] font-bold"></span></p>
+                </div>
+                <button onclick="cerrarModalUpdate()" class="text-gray-500 hover:text-white text-xl leading-none">✕</button>
+            </div>
+            <div class="bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg p-3 max-h-40 overflow-y-auto">
+                <pre id="upd-notas" class="text-xs text-gray-300 whitespace-pre-wrap font-sans">Cargando notas...</pre>
+            </div>
+            <div id="upd-progress" class="hidden">
+                <div class="flex items-center gap-3 bg-[#181818] border border-[#2A2A2A] rounded-lg p-3">
+                    <div class="w-4 h-4 border-2 border-[#F39C12] border-t-transparent rounded-full animate-spin shrink-0"></div>
+                    <span class="text-sm font-bold text-[#F39C12]">Descargando actualización...</span>
+                </div>
+            </div>
+            <div id="upd-actions" class="flex gap-3">
+                <button id="btn-upd-instalar" onclick="instalarActualizacion()" class="flex-1 bg-[#F39C12] hover:bg-[#E67E22] text-black font-black py-2 rounded transition">⬆ Instalar y reiniciar</button>
+                <button onclick="cerrarModalUpdate()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold py-2 px-5 rounded transition">Ahora no</button>
+            </div>
+            <p class="text-[10px] text-gray-600 text-center">El launcher se cerrará, se actualizará y se reabrirá automáticamente.</p>
+        </div>
+    </div>
+
+    <main class="flex-1 relative bg-[#121212] w-full h-full overflow-hidden">
+        
+        <div id="vista-inicio" class="vista-seccion absolute inset-0 flex-col overflow-y-auto" style="display: flex;">
+            <div class="absolute inset-0 z-0 opacity-10 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#2ECC71] via-[#121212] to-[#121212] pointer-events-none"></div>
+            <div class="z-10 flex flex-col items-center px-10 pt-10 pb-12 w-full max-w-4xl mx-auto">
+
+                <div class="text-center mb-8">
+                    <h1 class="text-5xl font-black tracking-tight mb-3">Bienvenido a <span class="text-[#2ECC71]">Paraguacraft</span></h1>
+                    <p class="text-gray-400 text-base max-w-xl mx-auto">El launcher hecho por y para la comunidad. Jugá todas las versiones de Minecraft, con o sin cuenta premium, desde un solo lugar.</p>
+                </div>
+
+                <button onclick="cambiarPestaña('versiones', 'Versiones')" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black text-base py-3 px-12 rounded-md shadow-[0_0_20px_rgba(46,204,113,0.25)] transition transform hover:scale-105 mb-10">
+                    ▶ ELEGIR VERSIÓN Y JUGAR
+                </button>
+
+                <div class="grid grid-cols-3 gap-4 w-full mb-6">
+                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col gap-2 hover:border-[#2ECC71] transition">
+                        <span class="text-2xl">🎮</span>
+                        <h3 class="font-black text-white">Todas las versiones</h3>
+                        <p class="text-xs text-gray-400">Desde 1.7 hasta 26.1, con soporte para Fabric, Forge y Vanilla. Cada versión tiene su propio perfil e instancia.</p>
+                    </div>
+                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col gap-2 hover:border-[#3498DB] transition">
+                        <span class="text-2xl">👤</span>
+                        <h3 class="font-black text-white">Premium y No-Premium</h3>
+                        <p class="text-xs text-gray-400">Iniciá sesión con tu cuenta de Microsoft o jugá offline con cualquier nombre. Sin restricciones.</p>
+                    </div>
+                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col gap-2 hover:border-[#9B59B6] transition">
+                        <span class="text-2xl">📦</span>
+                        <h3 class="font-black text-white">Gestor de mods</h3>
+                        <p class="text-xs text-gray-400">Buscá e instalá mods, resource packs y shaders directo desde Modrinth. Todo desde el launcher.</p>
+                    </div>
+                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col gap-2 hover:border-[#F39C12] transition">
+                        <span class="text-2xl">🌐</span>
+                        <h3 class="font-black text-white">Servidor propio</h3>
+                        <p class="text-xs text-gray-400">Creá y administrá tu servidor local con un clic. Compartí la IP con playit.gg para jugar con amigos sin abrir puertos.</p>
+                    </div>
+                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col gap-2 hover:border-[#E74C3C] transition">
+                        <span class="text-2xl">🔄</span>
+                        <h3 class="font-black text-white">Actualizaciones automáticas</h3>
+                        <p class="text-xs text-gray-400">El launcher se actualiza solo desde GitHub. Siempre vas a tener la última versión sin hacer nada.</p>
+                    </div>
+                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col gap-2 hover:border-[#1ABC9C] transition">
+                        <span class="text-2xl">🎨</span>
+                        <h3 class="font-black text-white">Logo y marca propios</h3>
+                        <p class="text-xs text-gray-400">El logo de Paraguacraft aparece en el menú principal del juego en todas las versiones soportadas.</p>
+                    </div>
+                </div>
+
+                <p class="text-xs text-gray-600 text-center">Paraguacraft Launcher — Hecho con ❤️ para la comunidad paraguaya de Minecraft</p>
+            </div>
+        </div>
+
+        <div id="vista-servidores" class="vista-seccion absolute inset-0 flex-col p-6">
+            <div class="flex gap-3 mb-5 shrink-0">
+                <button onclick="svTab('publicos')" id="srv-tab-pub" class="px-5 py-2 rounded-lg font-bold text-sm bg-[#2ECC71] text-black transition"> Servidores Públicos</button>
+                <button onclick="svTab('local')" id="srv-tab-local" class="px-5 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition"> Mi Servidor Local</button>
+            </div>
+
+            <div id="srv-panel-publicos" class="flex-1 overflow-y-auto">
+                <div class="grid grid-cols-2 gap-4 pb-10">
+                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col justify-between hover:border-[#3498DB] transition group">
+                        <div class="flex items-center gap-4 mb-4">
+                            <span class="text-4xl">🔷</span>
+                            <div><h3 class="text-xl font-bold text-white group-hover:text-[#3498DB]">Hypixel Network</h3><p class="text-gray-400 text-sm">mc.hypixel.net</p></div>
+                        </div>
+                        <div class="flex justify-between items-end">
+                            <span class="text-[#2ECC71] font-bold text-sm"> Online</span>
+                            <button onclick="autoJoinServer('mc.hypixel.net')" class="bg-[#2A2A2A] hover:bg-[#3498DB] hover:text-white text-[#3498DB] font-bold py-2 px-5 rounded transition">Auto-Join</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="srv-panel-local" class="flex-1 hidden flex-col gap-4 overflow-y-auto">
+                <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-4 shrink-0">
+                    <h3 class="font-black text-lg mb-3"> Crear servidor</h3>
+                    <p class="text-xs text-gray-500 mb-3">El servidor se configurará con <span class="text-[#2ECC71] font-bold">online-mode=false</span> → entran <span class="text-[#2ECC71]">premium</span> y <span class="text-[#F39C12]">no-premium</span>.</p>
+                    <div class="flex flex-wrap gap-3 items-end">
+                        <div class="flex flex-col gap-1">
+                            <span class="text-xs text-gray-400 font-bold uppercase tracking-wide">Versión</span>
+                            <input id="srv-ver" type="text" value="1.21.1" class="bg-[#121212] border border-[#333] text-white px-3 py-2 rounded outline-none text-sm w-28 focus:border-[#9B59B6]">
+                        </div>
+                        <div class="flex flex-col gap-1 flex-1 min-w-[200px]">
+                            <span class="text-xs text-gray-400 font-bold uppercase tracking-wide">Carpeta del servidor</span>
+                            <div class="flex gap-2">
+                                <input id="srv-carpeta" type="text" placeholder="Elegí o escribí la ruta..." class="bg-[#121212] border border-[#333] text-white px-3 py-2 rounded outline-none text-sm flex-1 focus:border-[#9B59B6]">
+                                <button onclick="elegirCarpetaServidor()" title="Elegir carpeta" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] px-3 py-2 rounded font-bold text-sm transition border border-[#333]">📂</button>
+                            </div>
+                        </div>
+                        <button onclick="crearServidor()" class="bg-[#9B59B6] hover:bg-[#7D3C98] text-white font-black px-6 py-2 rounded transition h-[38px]">Crear</button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 shrink-0">
+                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-4">
+                        <h3 class="font-black text-lg mb-3"> Control del servidor</h3>
+                        <div class="flex items-center gap-3 mb-4">
+                            <div id="srv-dot" class="w-3 h-3 rounded-full bg-red-500"></div>
+                            <span id="srv-status-lbl" class="font-bold text-gray-400 text-sm">Detenido</span>
+                        </div>
+                        <div class="flex gap-2 mb-4">
+                            <button onclick="iniciarServidor()" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black px-4 py-2 rounded text-sm flex-1 transition">▶ Iniciar</button>
+                            <button onclick="detenerServidor()" class="bg-[#E74C3C] hover:bg-[#C0392B] text-white font-black px-4 py-2 rounded text-sm flex-1 transition">■ Detener</button>
+                        </div>
+                        <div class="flex gap-2">
+                            <input id="srv-cmd-input" type="text" placeholder="Comando (ej: say Hola)" onkeypress="if(event.key==='Enter')enviarComandoServidor()" class="bg-[#121212] border border-[#333] text-white px-3 py-2 rounded outline-none text-sm flex-1 focus:border-[#2ECC71]">
+                            <button onclick="enviarComandoServidor()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] px-3 py-2 rounded font-bold text-sm transition border border-[#333]">↵</button>
+                        </div>
+                    </div>
+                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-4">
+                        <h3 class="font-black text-lg mb-1"> playit.gg</h3>
+                        <p class="text-xs text-gray-500 mb-3">Túnel internet — funciona para <span class="text-[#2ECC71]">premium</span> y <span class="text-[#F39C12]">no-premium</span>.</p>
+                        <div class="flex items-center gap-3 mb-4">
+                            <div id="playit-dot" class="w-3 h-3 rounded-full bg-red-500"></div>
+                            <span id="playit-status-lbl" class="font-bold text-gray-400 text-sm">Inactivo</span>
+                        </div>
+                        <div class="flex gap-2 mb-3">
+                            <button onclick="iniciarPlayitgg()" class="bg-[#3498DB] hover:bg-[#2980B9] text-white font-black px-4 py-2 rounded text-sm flex-1 transition">▶ Iniciar Túnel</button>
+                            <button onclick="detenerPlayitgg()" class="bg-[#E74C3C] hover:bg-[#C0392B] text-white font-black px-4 py-2 rounded text-sm flex-1 transition">■ Detener</button>
+                        </div>
+                        <div class="bg-[#121212] border border-[#333] rounded p-3 flex items-center justify-between gap-2">
+                            <span id="playit-ip-lbl" class="text-[#2ECC71] font-black font-mono text-sm flex-1 truncate">Esperando túnel...</span>
+                            <button onclick="copiarIP()" class="text-gray-400 hover:text-white transition text-xs font-bold shrink-0">📋 Copiar</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-[#0A0A0A] border border-[#2A2A2A] rounded-xl p-4 flex flex-col" style="min-height:180px;max-height:260px">
+                    <div class="flex justify-between items-center mb-2 shrink-0">
+                        <h3 class="font-black text-xs text-gray-400 tracking-wider uppercase">Consola</h3>
+                        <button onclick="limpiarConsolaServidor()" class="text-xs text-gray-600 hover:text-white transition">Limpiar</button>
+                    </div>
+                    <div id="srv-console" class="flex-1 overflow-y-auto font-mono text-xs space-y-0.5 min-h-0"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="vista-versiones" class="vista-seccion absolute inset-0 p-6 flex-row gap-6">
+            <div class="w-3/4 flex flex-col h-full">
+                <h2 class="text-2xl font-black tracking-wide mb-4">VERSIONS & PROFILES</h2>
+                <div class="overflow-y-auto pr-2 h-full pb-20">
+                    <div class="grid grid-cols-2 gap-5" id="grid-versiones"></div>
+                </div>
+            </div>
+            
+            <div class="w-1/4 bg-[#181818] rounded-xl border border-[#2A2A2A] flex flex-col h-full">
+                <div class="p-4 border-b border-[#2A2A2A]"><span class="text-xs font-black text-gray-400 tracking-wider">SELECTED PROFILE</span></div>
+                <div class="p-5 flex-1 flex flex-col">
+                    <div class="w-full h-32 bg-[#2A2A2A] rounded-lg mb-4 overflow-hidden relative shadow-inner">
+                        <img id="panel-img" src="../assets/main_banner.png" class="w-full h-full object-cover opacity-90" onerror="this.style.display='none'">
+                    </div>
+                    <h3 id="panel-title" class="text-xl font-black mb-1 text-white">Seleccioná un perfil</h3>
+                    <p id="panel-desc" class="text-xs text-gray-400 mb-4 h-10">...</p>
+                    
+                    <div class="space-y-3 mb-6">
+                        <div class="flex flex-col gap-1">
+                            <span class="text-xs font-bold text-gray-400 uppercase tracking-wide">Sub-Version</span>
+                            <select id="panel-version-sel" class="bg-[#121212] border border-[#2A2A2A] text-white p-2 rounded outline-none w-full text-sm font-bold cursor-pointer"></select>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <span class="text-xs font-bold text-gray-400 uppercase tracking-wide">Loader / Addons</span>
+                            <select id="panel-loader-sel" class="bg-[#121212] border border-[#2A2A2A] text-white p-2 rounded outline-none w-full text-sm font-bold cursor-pointer"></select>
+                        </div>
+                    </div>
+                    
+                    <p id="lbl-estado-juego" class="text-center text-xs text-[#3498DB] font-bold mb-2 h-4"></p>
+                    
+                    <div class="flex gap-2 mt-auto pb-2">
+                        <button type="button" onclick="abrirGestorInstancia()" title="Gestor de mods, packs y versión" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] w-12 h-12 rounded flex items-center justify-center text-xl transition border border-[#333]">⚙️</button>
+                        <button id="btn-launch-game" onclick="dispararJuego()" class="flex-1 bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black text-lg rounded shadow-[0_0_15px_rgba(46,204,113,0.2)] transition transform hover:scale-[1.02]">INICIAR JUEGO</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="vista-skins" class="vista-seccion absolute inset-0 flex-col p-8">
+            <h2 class="text-3xl font-black mb-6">SKIN CATÁLOGO</h2>
+            <div class="flex gap-4 mb-8 bg-[#181818] p-4 rounded-lg border border-[#2A2A2A] max-w-xl">
+                <input type="text" id="buscador-skin" placeholder="Ej: SantiJ10" onkeypress="if(event.key === 'Enter') actualizarVistaSkin()" class="bg-[#121212] border border-[#333] text-white px-4 py-2 rounded outline-none focus:border-[#2ECC71] flex-1">
+                <button onclick="actualizarVistaSkin()" class="bg-[#2ECC71] text-black hover:bg-[#27AE60] px-6 py-2 rounded font-bold transition">Ver Skin</button>
+            </div>
+            <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-8 flex items-center justify-center gap-10">
+                <img id="skin-body-render" src="https://minotar.net/armor/body/Steve/250.png" class="h-[250px]">
+                <img id="skin-head-render" src="https://minotar.net/helm/Steve/200.png" class="h-[150px]">
+            </div>
+        </div>
+
+        <div id="vista-mods" class="vista-seccion absolute inset-0 flex-col p-6">
+            <div class="flex flex-col gap-4 mb-4 shrink-0">
+                <h2 class="text-3xl font-black tracking-wide">TIENDA MODRINTH</h2>
+                <p class="text-sm text-gray-500 max-w-3xl">Descargá contenido desde Modrinth. Para activar o desactivar lo que ya tenés instalado usá el <span class="text-[#2ECC71] font-bold">gestor de instancia</span> (engranaje junto a Iniciar juego en Versiones).</p>
+                <div class="flex flex-wrap justify-between items-end gap-3">
+                    <div class="flex flex-wrap gap-3 bg-[#181818] p-3 rounded-lg border border-[#2A2A2A]">
+                        <select id="filtro-tipo" onchange="buscarModrinthAPI()" class="bg-[#121212] text-white px-3 py-2 rounded outline-none border border-[#333] text-sm font-bold">
+                            <option value="mod">Mods</option>
+                            <option value="resourcepack">Resource packs</option>
+                            <option value="shader">Shaders</option>
+                            <option value="datapack">Data packs</option>
+                            <option value="modpack">Modpacks</option>
+                            <option value="plugin">Plugins</option>
+                        </select>
+                        <input type="text" id="buscador-mods" onkeypress="if(event.key === 'Enter') buscarModrinthAPI()" placeholder="Buscar en Modrinth..." class="bg-[#121212] border border-[#333] text-white px-4 py-2 rounded outline-none w-64 text-sm min-w-[200px]">
+                        <button type="button" onclick="buscarModrinthAPI()" class="bg-[#2ECC71] text-black px-5 py-2 rounded font-bold text-sm">Buscar</button>
+                    </div>
+                </div>
+            </div>
+            <div id="grid-resultados-mods" class="grid grid-cols-2 gap-4 overflow-y-auto pr-2 pb-20 flex-1 min-h-0"></div>
+        </div>
+
+    </main>
+
+    <script>
+        const dataVersionesBase = {
+            "26.1": { desc: "The 2026 Game Drops." },
+            "1.21": { desc: "Trial Chambers y contenido reciente." },
+            "1.20": { desc: "Trails & Tales." },
+            "1.19": { desc: "The Wild Update." },
+            "1.18": { desc: "Caves & Cliffs Parte 2." },
+            "1.17": { desc: "Caves & Cliffs Parte 1." },
+            "1.16": { desc: "The Nether Update." },
+            "1.12": { desc: "World of Color." },
+            "1.8": { desc: "PvP clásico." },
+            "1.7": { desc: "The Update that Changed the World." },
+            "otras": { desc: "Todas las demás versiones release (vanilla 1.0 …) que no están en los packs Paragua." }
+        };
+
+        let telemetryInterval = null;
+
+        window.addEventListener('pywebviewready', async function() {
+            try {
+                const versionesMojang = await pywebview.api.get_versiones_oficiales();
+                for (const mayor in dataVersionesBase) {
+                    if (versionesMojang && versionesMojang[mayor] && versionesMojang[mayor].length > 0) {
+                        dataVersionesBase[mayor].subs = versionesMojang[mayor];
+                    } else {
+                        dataVersionesBase[mayor].subs = mayor === "otras" ? [] : [mayor];
+                    }
+                }
+            } catch (e) { console.error(e); }
+
+            dibujarGrillaVersiones();
+            wireGestorModalOnce();
+
+            try {
+                const user = await pywebview.api.get_usuario();
+                if (user.nombre !== "Invitado") actualizarUiUsuario(user.nombre, user.premium);
+
+                const data = await pywebview.api.get_settings();
+                const grs = document.getElementById("gestor-ram-slider");
+                if (grs) {
+                    grs.max = data.ram_max;
+                    grs.value = data.config.ram_asignada || 4;
+                    const gl = document.getElementById("gestor-ram-lbl");
+                    if (gl) gl.innerText = (data.config.ram_asignada || 4) + " GB";
+                }
+
+                const switches = ['opt_minimos', 'papa_mode', 'lan_distancia', 'mostrar_consola', 'backup_var', 'limpiador_deep_var'];
+                switches.forEach(s => {
+                    const el = document.getElementById('tgl-' + s);
+                    if (el) el.checked = data.config[s] === true;
+                });
+                if (data.config.gc_type) {
+                    const gcSel = document.getElementById("gestor-sel-gc");
+                    if (gcSel) gcSel.value = data.config.gc_type;
+                }
+            } catch (e) { console.error(e); }
+
+            buscarModrinthAPI();
+            iniciarTelemetriaSiModal();
+            setTimeout(verificarActualizaciones, 3000);
+        });
+
+        function abrirAjustes() {
+            mostrarPanelAjustes('juego');
+            document.getElementById('settings-modal').classList.remove('hidden');
+        }
+
+        function cerrarAjustes() {
+            detenerTelemetriaModal();
+            document.getElementById('settings-modal').classList.add('hidden');
+        }
+
+        function mostrarPanelAjustes(cual) {
+            const pj = document.getElementById('panel-ajuste-juego');
+            const pt = document.getElementById('panel-ajuste-telemetria');
+            const tj = document.getElementById('tab-aj-juego');
+            const tt = document.getElementById('tab-aj-tele');
+            const title = document.getElementById('settings-panel-title');
+            if (cual === 'juego') {
+                pj.classList.remove('hidden');
+                pt.classList.add('hidden');
+                tj.classList.add('bg-[#2A2A2A]', 'text-white');
+                tj.classList.remove('text-gray-400');
+                tt.classList.remove('bg-[#2A2A2A]', 'text-white');
+                tt.classList.add('text-gray-400');
+                title.innerText = 'Juego & Rendimiento';
+                detenerTelemetriaModal();
+            } else {
+                pj.classList.add('hidden');
+                pt.classList.remove('hidden');
+                tt.classList.add('bg-[#2A2A2A]', 'text-white');
+                tt.classList.remove('text-gray-400');
+                tj.classList.remove('bg-[#2A2A2A]', 'text-white');
+                tj.classList.add('text-gray-400');
+                title.innerText = 'Telemetría en vivo';
+                tickTelemetria();
+                telemetryInterval = setInterval(tickTelemetria, 1500);
+            }
+        }
+
+        function detenerTelemetriaModal() {
+            if (telemetryInterval) { clearInterval(telemetryInterval); telemetryInterval = null; }
+        }
+
+        function iniciarTelemetriaSiModal() {
+            const sm = document.getElementById('settings-modal');
+            if (!sm) return;
+            new MutationObserver(() => {
+                if (sm.classList.contains('hidden')) detenerTelemetriaModal();
+            }).observe(sm, { attributes: true, attributeFilter: ['class'] });
+        }
+
+        async function tickTelemetria() {
+            try {
+                const t = await pywebview.api.get_telemetry();
+                const cpu = document.getElementById('tel-cpu');
+                const ram = document.getElementById('tel-ram');
+                const ramBar = document.getElementById('tel-ram-bar');
+                const disk = document.getElementById('tel-disk');
+                const mc = document.getElementById('tel-mc');
+                if (cpu) cpu.innerText = t.cpu_percent + '%';
+                if (ram) ram.innerText = t.ram_used_gb + ' / ' + t.ram_total_gb + ' GB';
+                if (ramBar) ramBar.style.width = t.ram_percent + '%';
+                if (disk) disk.innerText = 'Libre: ' + t.disk_free_gb + ' GB de ' + t.disk_total_gb + ' GB (' + Math.round(t.disk_percent) + '% usado)';
+                if (mc) mc.innerText = t.minecraft_folder_mb + ' MB';
+            } catch (e) { console.error(e); }
+        }
+
+        function dibujarGrillaVersiones() {
+            const grid = document.getElementById("grid-versiones");
+            if (!grid) return;
+            grid.innerHTML = "";
+            for (const [vM, d] of Object.entries(dataVersionesBase)) {
+                const imgF = vM === 'otras' ? 'Otra_Version' : vM.replace(/\./g, '_');
+                const tituloTarjeta = vM === 'otras' ? 'OTRAS VERSIONES' : ('PARAGUA ' + vM);
+                grid.innerHTML += `
+                <div onclick="seleccionarVersion('${vM}')" class="lunar-card relative h-[180px] rounded-xl overflow-hidden cursor-pointer bg-[#1A1A1A] group">
+                    <img src="assets/${imgF}.png" class="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:scale-105 transition duration-500" onerror="this.src='https://via.placeholder.com/400x200/1A1A1A/2ECC71?text=${encodeURIComponent(tituloTarjeta)}'">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
+                    <div class="absolute inset-0 p-5 flex flex-col justify-between"><h3 class="text-2xl font-black drop-shadow-md text-white leading-tight">${tituloTarjeta}</h3></div>
+                </div>`;
+            }
+        }
+
+        async function actualizarLoadersParaVersion() {
+            const sV = document.getElementById('panel-version-sel');
+            const sL = document.getElementById('panel-loader-sel');
+            if (!sV || !sL || !sV.value) return;
+            try {
+                const loaders = await pywebview.api.get_loaders_for_version(sV.value);
+                sL.innerHTML = "";
+                loaders.forEach(l => { sL.innerHTML += `<option value="${l}">${l}</option>`; });
+            } catch (e) { console.error(e); }
+        }
+
+        function seleccionarVersion(vM) {
+            const d = dataVersionesBase[vM];
+            const etiqueta = vM === 'otras' ? 'Otras versiones' : ('Paraguacraft ' + vM);
+            document.getElementById('panel-title').innerText = etiqueta;
+            document.getElementById('panel-desc').innerText = d.desc;
+
+            const panelImg = document.getElementById('panel-img');
+            if (panelImg) {
+                const imgF = vM === 'otras' ? 'Otra_Version' : vM.replace(/\./g, '_');
+                panelImg.src = `assets/${imgF}.png`;
+                panelImg.classList.remove('hidden');
+            }
+
+            const sV = document.getElementById('panel-version-sel');
+            if (sV) {
+                sV.innerHTML = "";
+                (d.subs || []).forEach(s => { sV.innerHTML += `<option value="${s}">${s}</option>`; });
+                sV.onchange = actualizarLoadersParaVersion;
+            }
+            actualizarLoadersParaVersion();
+        }
+
+        window._gestorSub = 'mods';
+        window._gestorListaCache = [];
+
+        function abrirGestorInstancia() {
+            document.getElementById('gestor-instancia-modal').classList.remove('hidden');
+            syncModalDesdePanel();
+            gestorTabPrincipal('contenido');
+            gestorSubTab('mods');
+            cargarFabricLoaderSelect();
+        }
+
+        function cerrarGestorInstancia() {
+            document.getElementById('gestor-instancia-modal').classList.add('hidden');
+        }
+
+        function syncModalDesdePanel() {
+            const sV = document.getElementById('panel-version-sel');
+            const sL = document.getElementById('panel-loader-sel');
+            const mV = document.getElementById('modal-version-sel');
+            const mL = document.getElementById('modal-loader-sel');
+            if (!sV || !mV || !sL || !mL) return;
+            mV.innerHTML = sV.innerHTML;
+            mV.value = sV.value;
+            mL.innerHTML = sL.innerHTML;
+            mL.value = sL.value;
+            actualizarFabricLoaderVisibility();
+        }
+
+        function wireGestorModalOnce() {
+            const mV = document.getElementById('modal-version-sel');
+            const mL = document.getElementById('modal-loader-sel');
+            if (!mV || !mL || mV.dataset.wired) return;
+            mV.dataset.wired = '1';
+            mV.addEventListener('change', async () => {
+                const pV = document.getElementById('panel-version-sel');
+                if (pV) pV.value = mV.value;
+                await actualizarLoadersParaVersion();
+                const pL = document.getElementById('panel-loader-sel');
+                if (mL && pL) {
+                    mL.innerHTML = pL.innerHTML;
+                    mL.value = pL.value;
+                }
+                actualizarFabricLoaderVisibility();
+            });
+            mL.addEventListener('change', () => {
+                const pL = document.getElementById('panel-loader-sel');
+                if (pL) pL.value = mL.value;
+                actualizarFabricLoaderVisibility();
+            });
+        }
+
+        function syncPanelDesdeModal() {
+            const sV = document.getElementById('panel-version-sel');
+            const sL = document.getElementById('panel-loader-sel');
+            const mV = document.getElementById('modal-version-sel');
+            const mL = document.getElementById('modal-loader-sel');
+            if (sV && mV) { sV.innerHTML = mV.innerHTML; sV.value = mV.value; }
+            if (sL && mL) { sL.innerHTML = mL.innerHTML; sL.value = mL.value; }
+        }
+
+        function actualizarFabricLoaderVisibility() {
+            const wrap = document.getElementById('wrap-fabric-loader-ver');
+            const sL = document.getElementById('panel-loader-sel');
+            if (!wrap || !sL) return;
+            const on = (sL.value || '').toLowerCase().includes('fabric');
+            wrap.classList.toggle('hidden', !on);
+        }
+
+        async function cargarFabricLoaderSelect() {
+            const sel = document.getElementById('modal-fabric-loader-sel');
+            if (!sel || !window.pywebview) return;
+            try {
+                const vers = await pywebview.api.get_fabric_loader_versions();
+                const cur = (await pywebview.api.get_settings()).config.fabric_loader_version || '';
+                sel.innerHTML = '<option value="">(Última estable / automático)</option>';
+                vers.forEach(v => { sel.innerHTML += `<option value="${v}">${v}</option>`; });
+                if (cur) sel.value = cur;
+            } catch (e) { console.error(e); }
+        }
+
+        async function guardarFabricLoaderVersion() {
+            const sel = document.getElementById('modal-fabric-loader-sel');
+            if (!sel) return;
+            await pywebview.api.save_setting('fabric_loader_version', sel.value || '');
+            alert('Versión de Fabric guardada.');
+        }
+
+        function gestorTabPrincipal(cual) {
+            const tabs = ['contenido', 'java', 'versiones'];
+            tabs.forEach(t => {
+                const btn = document.getElementById('gestor-tab-' + t);
+                const panel = document.getElementById('gestor-panel-' + t);
+                if (btn) {
+                    btn.classList.toggle('bg-[#2A2A2A]', t === cual);
+                    btn.classList.toggle('text-white', t === cual);
+                    btn.classList.toggle('text-gray-400', t !== cual);
+                }
+                if (panel) panel.classList.toggle('hidden', t !== cual);
+            });
+            if (cual === 'contenido') refrescarListaGestor();
+            if (cual === 'versiones') { syncModalDesdePanel(); cargarFabricLoaderSelect(); }
+        }
+
+        function gestorSubTab(sub) {
+            window._gestorSub = sub;
+            document.querySelectorAll('.gst-sub').forEach(b => {
+                const on = b.id === 'gst-sub-' + sub;
+                b.classList.toggle('bg-[#2ECC71]', on);
+                b.classList.toggle('text-black', on);
+                b.classList.toggle('bg-[#2A2A2A]', !on);
+                b.classList.toggle('text-white', !on);
+            });
+            refrescarListaGestor();
+        }
+
+        async function refrescarListaGestor() {
+            const sV = document.getElementById('panel-version-sel');
+            const sL = document.getElementById('panel-loader-sel');
+            const box = document.getElementById('gestor-lista');
+            if (!box || !sV || !sL || !sV.value || !sL.value) {
+                if (box) box.innerHTML = '<p class="text-gray-500 text-sm">Elegí versión y loader en el panel o en la pestaña Versiones.</p>';
+                return;
+            }
+            box.innerHTML = '<p class="text-gray-500 text-sm">Cargando...</p>';
+            try {
+                const lista = await pywebview.api.get_instance_content(sV.value, sL.value, window._gestorSub);
+                window._gestorListaCache = lista;
+                refrescarListaGestorFiltrado();
+            } catch (e) {
+                box.innerHTML = '<p class="text-red-400 text-sm">Error al cargar.</p>';
+                console.error(e);
+            }
+        }
+
+        function refrescarListaGestorFiltrado() {
+            const box = document.getElementById('gestor-lista');
+            if (!box) return;
+            const q = (document.getElementById('gestor-buscar')?.value || '').toLowerCase();
+            const fv = (document.getElementById('gestor-filtro-mc')?.value || '').toLowerCase();
+            let lista = window._gestorListaCache || [];
+            lista = lista.filter(it => {
+                const nv = (it.nombre_visible || it.archivo || '').toLowerCase();
+                const okQ = !q || nv.includes(q);
+                const okV = !fv || nv.includes(fv);
+                return okQ && okV;
+            });
+            box.innerHTML = '';
+            if (!lista.length) {
+                box.innerHTML = '<p class="text-gray-500 text-sm">No hay entradas (o ninguna coincide con el filtro).</p>';
+                return;
+            }
+            lista.forEach(it => {
+                const row = document.createElement('div');
+                row.className = 'flex flex-wrap items-center justify-between gap-2 bg-[#121212] px-3 py-2 rounded border border-[#2A2A2A]';
+                const activo = it.estado === 'Activo';
+                const mundo = it.mundo ? `<span class="text-[10px] text-gray-500">Mundo: ${it.mundo}</span>` : '';
+                row.innerHTML = `<div class="flex-1 min-w-0"><span class="font-mono text-xs break-all">${it.nombre_visible || it.archivo}</span> ${mundo}</div>
+                    <span class="text-[10px] px-2 py-0.5 rounded shrink-0 ${activo ? 'bg-[#2ECC71]/20 text-[#2ECC71]' : 'bg-gray-700 text-gray-400'}">${it.estado}</span>
+                    <button type="button" class="text-xs font-bold text-[#3498DB] hover:underline shrink-0">Alternar</button>`;
+                row.querySelector('button').onclick = async () => {
+                    const sV = document.getElementById('panel-version-sel');
+                    const sL = document.getElementById('panel-loader-sel');
+                    await pywebview.api.toggle_instance_content(sV.value, sL.value, window._gestorSub, it.archivo, it.mundo || null);
+                    refrescarListaGestor();
+                };
+                box.appendChild(row);
+            });
+        }
+
+        function gestorUsarVersionPerfil() {
+            const sV = document.getElementById('panel-version-sel');
+            const f = document.getElementById('gestor-filtro-mc');
+            if (sV && f) f.value = sV.value || '';
+            refrescarListaGestorFiltrado();
+        }
+
+        async function gestorAbrirCarpetaActual() {
+            const sV = document.getElementById('panel-version-sel');
+            const sL = document.getElementById('panel-loader-sel');
+            const map = { mods: 'mods', resourcepacks: 'resourcepacks', shaders: 'shaderpacks', datapacks: 'datapacks' };
+            const sub = map[window._gestorSub] || 'mods';
+            if (!sV || !sL) return;
+            await pywebview.api.open_instance_folder(sV.value, sL.value, sub);
+        }
+
+        function updateRamGestor(val) {
+            const lbl = document.getElementById('gestor-ram-lbl');
+            if (lbl) lbl.innerText = val + ' GB';
+            pywebview.api.save_setting('ram_asignada', parseInt(val, 10));
+        }
+
+        // --- LOGIN Y UI ---
+        function actualizarUiUsuario(n, esPremium) {
+            try {
+                const lblNombre = document.getElementById("nav-username");
+                if(lblNombre) lblNombre.innerText = n;
+                
+                const overlay = document.getElementById("login-overlay");
+                if(overlay) overlay.style.display = "none";
+                
+                const imgHead = document.getElementById("nav-skin-head");
+                if(imgHead) {
+                    if(esPremium) {
+                        const nombreLimpio = n.replace(" [PREMIUM]", "");
+                        imgHead.src = `https://minotar.net/helm/${nombreLimpio}/20.png`;
+                        imgHead.classList.remove("hidden");
+                    } else {
+                        imgHead.classList.add("hidden");
+                    }
+                }
+            } catch(e) { console.error("Error UI:", e); }
+        }
+
+        async function loginMicrosoft() {
+            const btn = document.getElementById("btn-ms-login");
+            if(btn) { btn.innerText = "Abriendo navegador..."; btn.classList.replace('bg-[#0078D4]', 'bg-gray-600'); }
+            
+            const resp = await pywebview.api.login_microsoft_paso1();
+            if(resp === true) {
+                const urlRespuesta = prompt("Pegá el link final de Microsoft acá:");
+                if(urlRespuesta) {
+                    if(btn) btn.innerText = "Verificando...";
+                    const res = await pywebview.api.login_microsoft_paso2(urlRespuesta);
+                    if(res !== "EXITO") { alert("Error: " + res); resetBtnMS(); }
+                } else { resetBtnMS(); }
+            } else { alert("Error: " + resp); resetBtnMS(); }
+        }
+
+        function resetBtnMS() {
+            const btn = document.getElementById("btn-ms-login");
+            if(btn) { btn.innerText = "Login con Microsoft (Premium)"; btn.classList.replace('bg-gray-600', 'bg-[#0078D4]'); }
+        }
+
+        async function loginInvitado() {
+            const n = document.getElementById("input-guest").value;
+            if(n) {
+                await pywebview.api.login_invitado(n);
+                actualizarUiUsuario(n, false);
+            }
+        }
+
+        async function cerrarSesion() {
+            await pywebview.api.cerrar_sesion();
+            
+            const userDrop = document.getElementById("user-dropdown");
+            if(userDrop) userDrop.classList.add("hidden");
+            
+            const logoDrop = document.getElementById("logo-dropdown");
+            if(logoDrop) logoDrop.classList.add("hidden");
+
+            const imgHead = document.getElementById("nav-skin-head");
+            if(imgHead) imgHead.classList.add("hidden");
+            
+            const lblNombre = document.getElementById("nav-username");
+            if(lblNombre) lblNombre.innerText = "Invitado";
+            
+            const overlay = document.getElementById("login-overlay");
+            if(overlay) overlay.style.display = "flex";
+            
+            resetBtnMS();
+        }
+
+        // --- MENÚS ---
+        function toggleLogoMenu(e) { e.stopPropagation(); document.getElementById("logo-dropdown").classList.toggle("hidden"); }
+        function toggleUserMenu(e) { e.stopPropagation(); document.getElementById("user-dropdown").classList.toggle("hidden"); }
+        function cerrarDropdowns(e) {
+            if(!e.target.closest('.dropdown-container') && !e.target.closest('#nav-username') && !e.target.closest('.text-2xl')) {
+                const ud = document.getElementById("user-dropdown");
+                if(ud) ud.classList.add("hidden");
+                const ld = document.getElementById("logo-dropdown");
+                if(ld) ld.classList.add("hidden");
+            }
+        }
+
+        function cambiarPestaña(idVista, ruta) {
+            document.querySelectorAll('.vista-seccion').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('border-b-2', 'border-[#2ECC71]', 'pb-1', 'text-white'));
+            const v = document.getElementById('vista-' + idVista);
+            if (v) { v.style.display = 'flex'; v.style.flexDirection = idVista === 'versiones' ? 'row' : 'column'; }
+            const btn = document.getElementById('btn-' + idVista);
+            if (btn) btn.classList.add('border-b-2', 'border-[#2ECC71]', 'pb-1', 'text-white');
+            const bread = document.getElementById("breadcrumb");
+            if (bread) bread.innerText = ruta;
+        }
+
+        // --- SKINS Y MODS ---
+        function actualizarVistaSkin() {
+            const u = document.getElementById("buscador-skin").value || "Steve";
+            const b = document.getElementById("skin-body-render");
+            const h = document.getElementById("skin-head-render");
+            if(b) b.src = `https://minotar.net/armor/body/${u}/250.png`;
+            if(h) h.src = `https://minotar.net/helm/${u}/200.png`;
+        }
+
+        async function buscarModrinthAPI() {
+            const q = encodeURIComponent(document.getElementById('buscador-mods').value || '');
+            const t = document.getElementById('filtro-tipo').value;
+            const grid = document.getElementById('grid-resultados-mods');
+            if(!grid) return;
+            grid.innerHTML = `<div class="col-span-2 text-center text-gray-500 mt-10">Buscando...</div>`;
+            try {
+                const facets = encodeURIComponent(JSON.stringify([["project_type:" + t]]));
+                const res = await fetch(`https://api.modrinth.com/v2/search?query=${q}&limit=16&facets=${facets}`);
+                const data = await res.json();
+                grid.innerHTML = "";
+                if(!data.hits || data.hits.length === 0) { grid.innerHTML = `<div class="col-span-2 text-center text-gray-500 mt-10">No hay resultados.</div>`; return; }
+                data.hits.forEach(m => {
+                    grid.innerHTML += `
+                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-4 flex items-center gap-5 hover:border-[#2ECC71] transition group">
+                        <img src="${m.icon_url || 'https://via.placeholder.com/64/2A2A2A/FFFFFF?text=M'}" class="w-16 h-16 rounded-lg object-cover" alt="">
+                        <div class="flex-1 min-w-0"><h4 class="font-black text-white group-hover:text-[#2ECC71] transition truncate">${m.title}</h4><p class="text-xs text-gray-400 line-clamp-2">${m.description || ''}</p></div>
+                        <a href="https://modrinth.com/${m.project_type || 'mod'}/${m.slug}" target="_blank" rel="noopener" class="bg-[#2A2A2A] hover:bg-[#2ECC71] hover:text-black text-[#2ECC71] font-bold py-2 px-4 rounded-lg transition text-sm shrink-0">Ver en Modrinth</a>
+                    </div>`;
+                });
+            } catch(e) { grid.innerHTML = `<div class="col-span-2 text-center text-red-500 mt-10">Error de red.</div>`; }
+        }
+
+        // --- AUTO-UPDATE ---
+        let _updUrl = null;
+
+        async function verificarActualizaciones() {
+            try {
+                const r = await pywebview.api.verificar_actualizacion();
+                if (r && r.actualizar && r.url) {
+                    _updUrl = r.url;
+                    const btn = document.getElementById('btn-update');
+                    const ver = document.getElementById('btn-update-ver');
+                    if (btn) { btn.classList.remove('hidden'); }
+                    if (ver) ver.innerText = 'v' + r.version_nueva;
+                    document.getElementById('upd-ver-actual').innerText = r.version_actual || '';
+                    document.getElementById('upd-ver-nueva').innerText = r.version_nueva || '';
+                    document.getElementById('upd-notas').innerText = r.notas || 'Sin notas de lanzamiento.';
+                }
+            } catch(e) { console.error('[Update]', e); }
+        }
+
+        function abrirModalUpdate() {
+            document.getElementById('update-modal').classList.remove('hidden');
+        }
+
+        function cerrarModalUpdate() {
+            document.getElementById('update-modal').classList.add('hidden');
+        }
+
+        async function instalarActualizacion() {
+            if (!_updUrl) { alert('URL de descarga no disponible. Descargá manualmente desde GitHub.'); return; }
+            const prog = document.getElementById('upd-progress');
+            const actions = document.getElementById('upd-actions');
+            if (prog) prog.classList.remove('hidden');
+            if (actions) actions.classList.add('hidden');
+            const r = await pywebview.api.aplicar_actualizacion(_updUrl);
+            if (r && !r.ok) {
+                if (prog) prog.classList.add('hidden');
+                if (actions) actions.classList.remove('hidden');
+                alert('Error: ' + r.error + '\n\nDescargá el .exe manualmente desde GitHub Releases.');
+            }
+        }
+        // --- FIN AUTO-UPDATE ---
+
+        async function autoJoinServer(ip) {
+            const v = document.getElementById('panel-version-sel').value;
+            const l = document.getElementById('panel-loader-sel').value;
+            if (!v) { cambiarPestaña('versiones', 'Versiones'); return; }
+            const btn = document.getElementById('btn-launch-game');
+            if (btn) { btn.innerText = 'Conectando...'; btn.classList.replace('bg-[#2ECC71]', 'bg-gray-600'); btn.disabled = true; }
+            cambiarPestaña('versiones', 'Versiones');
+            await pywebview.api.lanzar_juego(v, l, ip);
+        }
+
+        // --- SERVIDOR LOCAL ---
+        function svTab(cual) {
+            const pub = document.getElementById('srv-panel-publicos');
+            const loc = document.getElementById('srv-panel-local');
+            const tPub = document.getElementById('srv-tab-pub');
+            const tLoc = document.getElementById('srv-tab-local');
+            if (cual === 'publicos') {
+                pub.style.display = ''; pub.classList.remove('hidden');
+                loc.classList.add('hidden'); loc.style.display = '';
+                tPub.className = 'px-5 py-2 rounded-lg font-bold text-sm bg-[#2ECC71] text-black transition';
+                tLoc.className = 'px-5 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition';
+            } else {
+                pub.classList.add('hidden');
+                loc.classList.remove('hidden'); loc.style.display = 'flex'; loc.style.flexDirection = 'column';
+                tLoc.className = 'px-5 py-2 rounded-lg font-bold text-sm bg-[#2ECC71] text-black transition';
+                tPub.className = 'px-5 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition';
+                actualizarEstadoServidor();
+            }
+        }
+
+        async function elegirCarpetaServidor() {
+            const carpeta = await pywebview.api.seleccionar_carpeta_servidor();
+            if (carpeta) document.getElementById('srv-carpeta').value = carpeta;
+        }
+
+        async function crearServidor() {
+            const ver = document.getElementById('srv-ver').value.trim();
+            const carpeta = document.getElementById('srv-carpeta').value.trim();
+            if (!ver) { alert('Ingresá la versión del servidor (ej: 1.21.1)'); return; }
+            if (!carpeta) { alert('Elegí una carpeta para el servidor.'); return; }
+            servidorAppendLog('[SETUP] Creando servidor ' + ver + ' en ' + carpeta + '...');
+            const r = await pywebview.api.crear_servidor(ver, carpeta);
+            if (r && !r.ok) servidorAppendLog('[ERROR] ' + r.error);
+        }
+
+        async function iniciarServidor() {
+            const carpeta = document.getElementById('srv-carpeta').value.trim() || null;
+            const r = await pywebview.api.iniciar_servidor(carpeta);
+            if (r && !r.ok) { servidorAppendLog('[ERROR] ' + r.error); return; }
+            actualizarEstadoServidor();
+        }
+
+        async function detenerServidor() {
+            await pywebview.api.detener_servidor();
+            actualizarEstadoServidor();
+        }
+
+        async function enviarComandoServidor() {
+            const inp = document.getElementById('srv-cmd-input');
+            if (!inp || !inp.value.trim()) return;
+            const cmd = inp.value.trim();
+            await pywebview.api.enviar_comando_servidor(cmd);
+            servidorAppendLog('> ' + cmd);
+            inp.value = '';
+        }
+
+        async function iniciarPlayitgg() {
+            const carpeta = document.getElementById('srv-carpeta').value.trim() || null;
+            const r = await pywebview.api.iniciar_playitgg(carpeta);
+            if (r && !r.ok) { servidorAppendLog('[ERROR PLAYIT] ' + r.error); return; }
+            actualizarEstadoServidor();
+        }
+
+        async function detenerPlayitgg() {
+            await pywebview.api.detener_playitgg();
+            document.getElementById('playit-ip-lbl').innerText = 'Esperando túnel...';
+            document.getElementById('playit-dot').className = 'w-3 h-3 rounded-full bg-red-500';
+            document.getElementById('playit-status-lbl').innerText = 'Inactivo';
+            document.getElementById('playit-status-lbl').className = 'font-bold text-gray-400 text-sm';
+            actualizarEstadoServidor();
+        }
+
+        async function actualizarEstadoServidor() {
+            try {
+                const s = await pywebview.api.get_estado_servidor();
+                const dot = document.getElementById('srv-dot');
+                const lbl = document.getElementById('srv-status-lbl');
+                if (!dot) return;
+                if (s.corriendo) {
+                    dot.className = 'w-3 h-3 rounded-full bg-[#2ECC71] animate-pulse';
+                    lbl.innerText = 'Corriendo'; lbl.className = 'font-bold text-[#2ECC71] text-sm';
+                } else {
+                    dot.className = 'w-3 h-3 rounded-full bg-red-500';
+                    lbl.innerText = 'Detenido'; lbl.className = 'font-bold text-gray-400 text-sm';
+                }
+                const pdot = document.getElementById('playit-dot');
+                const plbl = document.getElementById('playit-status-lbl');
+                if (s.playit_corriendo) {
+                    pdot.className = 'w-3 h-3 rounded-full bg-[#3498DB] animate-pulse';
+                    plbl.innerText = 'Activo'; plbl.className = 'font-bold text-[#3498DB] text-sm';
+                } else {
+                    pdot.className = 'w-3 h-3 rounded-full bg-red-500';
+                    plbl.innerText = 'Inactivo'; plbl.className = 'font-bold text-gray-400 text-sm';
+                }
+                if (s.playit_address) actualizarDireccionPlayit(s.playit_address);
+                if (s.carpeta) document.getElementById('srv-carpeta').value = s.carpeta;
+            } catch(e) { console.error(e); }
+        }
+
+        function actualizarDireccionPlayit(ip) {
+            const lbl = document.getElementById('playit-ip-lbl');
+            if (lbl && ip) lbl.innerText = ip;
+        }
+
+        function copiarIP() {
+            const ip = (document.getElementById('playit-ip-lbl') || {}).innerText || '';
+            if (!ip || ip === 'Esperando túnel...') return;
+            navigator.clipboard.writeText(ip).catch(() => {
+                const ta = document.createElement('textarea');
+                ta.value = ip; document.body.appendChild(ta); ta.select();
+                document.execCommand('copy'); document.body.removeChild(ta);
+            });
+        }
+
+        function servidorAppendLog(msg) {
+            const cons = document.getElementById('srv-console');
+            if (!cons) return;
+            const colorMap = [
+                [/\[ERROR\]/i, 'text-red-400'],
+                [/\[WARN\]/i, 'text-yellow-400'],
+                [/Done \(/, 'text-[#2ECC71] font-bold'],
+                [/\[SETUP\]/, 'text-[#9B59B6]'],
+                [/\[PLAYIT\]/, 'text-[#3498DB]'],
+                [/^> /, 'text-white font-bold'],
+            ];
+            let cls = 'text-green-400';
+            for (const [pat, c] of colorMap) {
+                if (typeof pat === 'string' ? msg.includes(pat) : pat.test(msg)) { cls = c; break; }
+            }
+            const el = document.createElement('div');
+            el.className = 'leading-5 ' + cls;
+            el.textContent = msg;
+            cons.appendChild(el);
+            cons.scrollTop = cons.scrollHeight;
+        }
+
+        function limpiarConsolaServidor() {
+            const c = document.getElementById('srv-console');
+            if (c) c.innerHTML = '';
+        }
+        // --- FIN SERVIDOR LOCAL ---
+
+        async function dispararJuego() {
+            const v = document.getElementById('panel-version-sel').value;
+            const l = document.getElementById('panel-loader-sel').value;
+            const btn = document.getElementById('btn-launch-game');
+            if(btn) { btn.innerText = "Iniciando..."; btn.classList.replace('bg-[#2ECC71]', 'bg-gray-600'); btn.disabled = true; }
+            syncPanelDesdeModal();
+            await pywebview.api.lanzar_juego(v, l, "");
+        }
+        function actualizarEstadoPanel(m) { 
+            const lbl = document.getElementById('lbl-estado-juego');
+            if(lbl) lbl.innerText = m; 
+        }
+        function resetLaunchButton() {
+            const btn = document.getElementById('btn-launch-game');
+            if(btn) { btn.innerText = "INICIAR JUEGO"; btn.classList.replace('bg-gray-600', 'bg-[#2ECC71]'); btn.disabled = false; }
+        }
+    </script>
+</body>
+</html>
