@@ -2,6 +2,8 @@ import webview
 import json
 import os
 import sys
+if sys.stdout is None: sys.stdout = open(os.devnull, "w")
+if sys.stderr is None: sys.stderr = open(os.devnull, "w")
 import threading
 import time
 import re
@@ -16,10 +18,15 @@ import socket
 import struct
 import zipfile
 import datetime
+import traceback
 import socketserver
 from http.server import BaseHTTPRequestHandler
+try:
+    from core import lanzar_minecraft as _lanzar_minecraft_ref  # noqa – forces PyInstaller to bundle core
+except Exception:
+    _lanzar_minecraft_ref = None
 
-VERSION = "2.1.0"  # Actualizar en cada release
+VERSION = "2.3.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 
 # Credenciales oficiales
@@ -61,6 +68,7 @@ class Api:
         self._playit_address = ""
         self._musica_proc = None
         self._stats_file = "paraguacraft_stats.json"
+        self._game_status = {"running": False, "status": "idle"}
         self._spotify_token = None
         self._spotify_refresh = None
 
@@ -470,15 +478,19 @@ class Api:
             import win32gui
         except ImportError:
             return
+        nuevo_titulo = f"Paraguacraft {version_jugada}"
         while self.hilo_juego_activo:
-            time.sleep(1.1)
+            time.sleep(0.3)
 
             def callback(hwnd, _):
                 if not win32gui.IsWindowVisible(hwnd):
                     return
                 titulo = win32gui.GetWindowText(hwnd)
-                if "Minecraft" in titulo and "Paraguacraft Launcher" not in titulo:
-                    win32gui.SetWindowText(hwnd, f"Paraguacraft {version_jugada}")
+                if "Minecraft" in titulo and "Paraguacraft Launcher" not in titulo and titulo != nuevo_titulo:
+                    try:
+                        win32gui.SetWindowText(hwnd, nuevo_titulo)
+                    except Exception:
+                        pass
 
             try:
                 win32gui.EnumWindows(callback, None)
@@ -508,15 +520,24 @@ class Api:
                 pass
 
             estado_actual = "En el menú principal"
-            try:
-                self.rpc.update(
-                    state=estado_actual,
-                    details=f"👤 {usuario} | 🎮 {version_jugada} | {motor_elegido}",
-                    large_image="logo",
-                    large_text="Paraguacraft",
-                )
-            except Exception:
-                pass
+            session_start = int(time.time())
+            en_mundo = False
+
+            def _rpc_update():
+                try:
+                    self.rpc.update(
+                        state=estado_actual,
+                        details=f"👤 {usuario} · {version_jugada} · {motor_elegido}",
+                        large_image="logo",
+                        large_text=f"Paraguacraft {version_jugada}",
+                        small_image="logo" if en_mundo else None,
+                        small_text=motor_elegido if en_mundo else None,
+                        start=session_start,
+                    )
+                except Exception:
+                    pass
+
+            _rpc_update()
 
             while not os.path.exists(log_path) and self.hilo_juego_activo:
                 time.sleep(1)
@@ -534,27 +555,42 @@ class Api:
                         except OSError:
                             pass
                         continue
+                    changed = True
                     if "Local game hosted on" in linea:
                         m = re.search(r"\[(.*?)\]", linea)
                         if m:
                             estado_actual = f"🏠 LAN: {m.group(1)}"
+                        en_mundo = True
+                        session_start = int(time.time())
                     elif "Connecting to" in linea:
                         ip = linea.split("Connecting to ")[1].split(",")[0].split(":")[0].strip()
                         estado_actual = f"🌐 Multijugador: {ip}"
+                        en_mundo = True
+                        session_start = int(time.time())
                     elif "Starting integrated minecraft server" in linea:
                         if "LAN" not in estado_actual:
                             estado_actual = "🌍 Mundo local"
+                        en_mundo = True
+                        session_start = int(time.time())
                     elif "Disconnecting from" in linea or "Stopping server" in linea:
                         estado_actual = "En el menú principal"
-                    try:
-                        self.rpc.update(
-                            state=estado_actual,
-                            details=f"👤 {usuario} | 🎮 {version_jugada}",
-                            large_image="logo",
-                            large_text="Paraguacraft",
-                        )
-                    except Exception:
-                        break
+                        en_mundo = False
+                        session_start = int(time.time())
+                    else:
+                        changed = False
+                    if changed:
+                        try:
+                            self.rpc.update(
+                                state=estado_actual,
+                                details=f"👤 {usuario} · {version_jugada} · {motor_elegido}",
+                                large_image="logo",
+                                large_text=f"Paraguacraft {version_jugada}",
+                                small_image="logo" if en_mundo else None,
+                                small_text=motor_elegido if en_mundo else None,
+                                start=session_start,
+                            )
+                        except Exception:
+                            break
         except Exception as e:
             print("Error RPC dinámico:", e)
 
@@ -585,11 +621,34 @@ class Api:
             daemon=True,
         ).start()
 
+        self._game_status = {"running": True, "status": "Iniciando..."}
+
+        def _set_status(msg):
+            self._game_status["status"] = str(msg)
+            try:
+                webview.windows[0].evaluate_js(f"actualizarEstadoPanel({json.dumps(str(msg))})")
+            except Exception:
+                pass
+
+        def _log_launch(msg):
+            for _ld in [
+                os.path.join(os.environ.get("APPDATA", ""), "ParaguacraftLauncher"),
+                os.path.join(os.path.expanduser("~"), "AppData", "Roaming", "ParaguacraftLauncher"),
+            ]:
+                try:
+                    os.makedirs(_ld, exist_ok=True)
+                    with open(os.path.join(_ld, "launch_debug.log"), "a") as _f:
+                        _f.write("[" + str(datetime.datetime.now()) + "] " + str(msg)[:2000] + "\n")
+                    break
+                except Exception:
+                    pass
+
         def hilo_lanzar():
             try:
                 from core import lanzar_minecraft
+                _log_launch(f"START version={version} motor={motor}")
 
-                webview.windows[0].evaluate_js(f"actualizarEstadoPanel({json.dumps('Iniciando motor...')})")
+                _set_status("Iniciando motor...")
 
                 self._refresh_ms_token()
                 self._rpc_jugando(version, motor)
@@ -614,19 +673,31 @@ class Api:
                     token_real=token_real,
                     lan_distancia=self.config_actual.get("lan_distancia", False),
                     fabric_loader_override=fabric_override,
-                    progress_callback=lambda m: webview.windows[0].evaluate_js(f"actualizarEstadoPanel({json.dumps(m)})"),
+                    progress_callback=_set_status,
                 )
 
-                webview.windows[0].evaluate_js(f"actualizarEstadoPanel({json.dumps('¡Juego cerrado!')})")
-                webview.windows[0].evaluate_js("resetLaunchButton()")
+                _log_launch("DONE - juego cerrado")
+                self._game_status = {"running": False, "status": "Juego cerrado."}
+                try:
+                    webview.windows[0].evaluate_js("resetLaunchButton()")
+                except Exception:
+                    pass
                 self._rpc_menu()
             except Exception as e:
-                print(f"Error crítico: {e}")
-                webview.windows[0].evaluate_js(f"actualizarEstadoPanel({json.dumps('Error: ' + str(e)[:80])})")
-                webview.windows[0].evaluate_js("resetLaunchButton()")
+                tb = traceback.format_exc()
+                err = f"Error: {str(e)[:120]}"
+                _log_launch(f"ERROR: {tb}")
+                print(f"Error critico lanzar: {tb}")
+                self._game_status = {"running": False, "status": err}
+                try:
+                    webview.windows[0].evaluate_js(f"actualizarEstadoPanel({json.dumps(err)})")
+                    webview.windows[0].evaluate_js("resetLaunchButton()")
+                except Exception:
+                    pass
                 self._rpc_menu()
             finally:
                 self.hilo_juego_activo = False
+                self._game_status["running"] = False
 
         threading.Thread(target=hilo_lanzar, daemon=True).start()
         return "Iniciando"
@@ -2441,6 +2512,7 @@ class _LocalAPIHandler(BaseHTTPRequestHandler):
             _api_http_ref.config_actual['spotify_client_id'] = cid
             if sec:
                 _api_http_ref.config_actual['spotify_client_secret'] = sec
+            _api_http_ref._guardar()
             import urllib.parse as _up2
             scopes = 'user-read-playback-state user-modify-playback-state user-read-currently-playing'
             redirect_uri = f'http://127.0.0.1:{_api_http_port}/callback'
@@ -2475,6 +2547,9 @@ class _LocalAPIHandler(BaseHTTPRequestHandler):
         elif parsed.path == '/api/get_settings':
             self._json(_api_http_ref.get_settings())
 
+        elif parsed.path == '/api/game_status':
+            self._json(_api_http_ref._game_status if _api_http_ref else {"running": False, "status": "idle"})
+
         else:
             self.send_response(404); self.end_headers()
 
@@ -2486,6 +2561,18 @@ class _LocalAPIHandler(BaseHTTPRequestHandler):
         elif self.path == '/api/login_invitado':
             nombre = _api_http_ref.login_invitado(body.get('nombre', ''))
             self._json({'ok': True, 'nombre': nombre})
+        elif self.path == '/api/lanzar_juego':
+            version = body.get('version', '')
+            motor = body.get('motor', '')
+            server_ip = body.get('server_ip', '')
+            if _api_http_ref and version:
+                try:
+                    _api_http_ref.lanzar_juego(version, motor, server_ip)
+                    self._json({'ok': True})
+                except Exception as _e:
+                    self._json({'ok': False, 'error': str(_e)})
+            else:
+                self._json({'ok': False, 'error': 'version requerida'})
         else:
             self.send_response(404); self.end_headers()
 
@@ -2520,11 +2607,19 @@ def _start_local_api(api):
     raise RuntimeError("No se pudo iniciar el servidor de API local (puertos 9875-9884 ocupados)")
 # ──────────────────────────────────────────────────────────────────────────────
 
-
 if __name__ == "__main__":
     api = Api()
     _base = sys._MEIPASS if getattr(sys, "frozen", False) else os.path.dirname(os.path.abspath(__file__))
     html_path = os.path.join(_base, "web", "index.html")
+
+    try:
+        import shutil as _shutil
+        _logo_src = os.path.join(_base, "paraguacraft_main_menu.png")
+        _logo_dst = os.path.join(_base, "web", "assets", "paraguacraft_logo.png")
+        if os.path.exists(_logo_src) and not os.path.exists(_logo_dst):
+            _shutil.copy2(_logo_src, _logo_dst)
+    except Exception:
+        pass
 
     port = _start_local_api(api)
 
@@ -2541,6 +2636,23 @@ if __name__ == "__main__":
     def _on_loaded():
         try:
             ventana.evaluate_js(f'window._API_PORT = {port};')
+        except Exception:
+            pass
+        try:
+            import win32gui as _w32g, win32con as _w32c, time as _t
+            _t.sleep(0.5)
+            maximized = [False]
+            def _cb_max(hwnd, _):
+                if maximized[0]:
+                    return
+                try:
+                    t = _w32g.GetWindowText(hwnd)
+                    if "Paraguacraft" in t and _w32g.IsWindowVisible(hwnd):
+                        _w32g.ShowWindow(hwnd, _w32c.SW_MAXIMIZE)
+                        maximized[0] = True
+                except Exception:
+                    pass
+            _w32g.EnumWindows(_cb_max, None)
         except Exception:
             pass
 

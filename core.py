@@ -8,8 +8,10 @@ import platform
 import json
 import sys
 import bsdiff4
-import os
-from src.nube import GestorNube
+try:
+    from src.nube import GestorNube
+except Exception:
+    GestorNube = None
 
 def carpeta_instancia_paraguacraft(version_base, motor_elegido):
     """Mismo criterio en todo el launcher (logs, mods, RPC)."""
@@ -34,7 +36,12 @@ def aplicar_delta_patch(ruta_archivo_viejo, ruta_parche, ruta_archivo_nuevo):
         print(f"Error en la reconstrucción binaria (Delta Patch): {e}")
         return False
 
-def inyectar_logos_paraguacraft(game_dir, version, graficos_minimos):
+def inyectar_logos_paraguacraft(game_dir, version, graficos_minimos, progress_callback=None):
+    def _cb(msg):
+        if progress_callback:
+            try: progress_callback(msg)
+            except Exception: pass
+
     pack_name = "ParaguacraftBrandPack"
     pack_dir = os.path.join(game_dir, "resourcepacks", pack_name)
     textures_gui_title_dir = os.path.join(pack_dir, "assets", "minecraft", "textures", "gui", "title")
@@ -42,67 +49,72 @@ def inyectar_logos_paraguacraft(game_dir, version, graficos_minimos):
 
     def _copy_logo_minecraft_png(src_path, dest_path, version_mayor_local):
         if not os.path.exists(src_path):
+            _cb(f"[Logo] No encontrado: {src_path}")
             return
-        if 16 <= version_mayor_local <= 20:
+        # All versions 1.16+ use the same two-row split rendering:
+        #   blit LEFT:  texture UV (0,0)-(155,44)   → row0 of our PNG
+        #   blit RIGHT: texture UV (0,45)-(155,89)  → row1 of our PNG
+        try:
+            from PIL import Image
+            import io as _io
+
+            im = Image.open(src_path)
+            if im.mode != "RGBA":
+                im = im.convert("RGBA")
+
+            target_w, target_h = 256, 64
             try:
-                from PIL import Image
-                import zipfile as _zf, io as _io
+                mc_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+                version_json = os.path.join(mc_dir, "versions", version, version + ".json")
+                if os.path.exists(version_json):
+                    with open(version_json) as _vf:
+                        _vdata = json.load(_vf)
+                    assets_id = _vdata.get("assetIndex", {}).get("id", version)
+                    assets_index = os.path.join(mc_dir, "assets", "indexes", assets_id + ".json")
+                    if os.path.exists(assets_index):
+                        with open(assets_index) as _af:
+                            _aindex = json.load(_af)
+                        _obj = _aindex.get("objects", {})
+                        _key = "minecraft/textures/gui/title/minecraft.png"
+                        if _key in _obj:
+                            _hash = _obj[_key]["hash"]
+                            _asset = os.path.join(mc_dir, "assets", "objects", _hash[:2], _hash)
+                            if os.path.exists(_asset):
+                                van = Image.open(_asset)
+                                target_w, target_h = van.size
+            except Exception:
+                pass
 
-                im = Image.open(src_path)
-                if im.mode != "RGBA":
-                    im = im.convert("RGBA")
+            HALF_W = 155
+            RENDER_H = 44
+            ROW2_Y = 45
 
-                # --- Determinar dimensiones exactas del PNG vanilla desde el JAR ---
-                # Esto garantiza que nuestro PNG de reemplazo tenga el mismo tamaño
-                # que espera Minecraft, sin importar la versión exacta (1.16-1.20).
-                target_w, target_h = 256, 64  # fallback razonable
-                try:
-                    mc_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
-                    jar = os.path.join(mc_dir, "versions", version, version + ".jar")
-                    with _zf.ZipFile(jar, "r") as z:
-                        with z.open("assets/minecraft/textures/gui/title/minecraft.png") as f:
-                            van = Image.open(_io.BytesIO(f.read()))
-                            target_w, target_h = van.size
-                except Exception:
-                    pass
+            w, h = im.size
+            if w <= 0 or h <= 0:
+                raise ValueError("invalid image size")
 
-                # Minecraft 1.16-1.20 renders the logo with 2 blit calls:
-                #   blit(k,   l, u=0, v=0,  155, 44) → screen LEFT,  reads texture[x=0..154, y=0..43]
-                #   blit(k+155, l, u=0, v=45, 155, 44) → screen RIGHT, reads texture[x=0..154, y=45..88]
-                # Total displayed area = 310 × 44 px.
-                # Fix: scale the logo to 310×44, put LEFT 155px in row1 and RIGHT 155px in row2.
-                HALF_W = 155
-                RENDER_H = 44
-                ROW2_Y = 45
+            scale = min((HALF_W * 2) / w, RENDER_H / h)
+            new_w = max(1, int(round(w * scale)))
+            new_h = max(1, int(round(h * scale)))
+            logo_scaled = im.resize((new_w, new_h), Image.LANCZOS)
 
-                w, h = im.size
-                if w <= 0 or h <= 0:
-                    raise ValueError("invalid image")
+            canvas = Image.new("RGBA", (HALF_W * 2, RENDER_H), (0, 0, 0, 0))
+            px = (HALF_W * 2 - new_w) // 2
+            py = (RENDER_H - new_h) // 2
+            canvas.paste(logo_scaled, (px, py), logo_scaled)
 
-                # Scale to fill the combined 310×44 display area
-                scale = min((HALF_W * 2) / w, RENDER_H / h)
-                new_w = max(1, int(round(w * scale)))
-                new_h = max(1, int(round(h * scale)))
-                logo_scaled = im.resize((new_w, new_h), Image.LANCZOS)
-
-                # Full 310×44 canvas (logo centred)
-                canvas = Image.new("RGBA", (HALF_W * 2, RENDER_H), (0, 0, 0, 0))
-                px = (HALF_W * 2 - new_w) // 2
-                py = (RENDER_H - new_h) // 2
-                canvas.paste(logo_scaled, (px, py), logo_scaled)
-
-                out = Image.new("RGBA", (target_w, target_h), (0, 0, 0, 0))
-                # Row 1 (y=0..43): left 155 px → blit reads this for the left screen half
-                out.paste(canvas.crop((0, 0, HALF_W, RENDER_H)), (0, 0))
-                # Row 2 (y=45+): right 155 px → blit reads this for the right screen half
-                out.paste(canvas.crop((HALF_W, 0, HALF_W * 2, RENDER_H)), (0, ROW2_Y))
-
-                out.save(dest_path)
-                print(f"[Paraguacraft] Logo legacy generado: {dest_path} ({target_w}x{target_h})")
-                return
-            except Exception as e:
-                print(f"[Paraguacraft] Error logo legacy 1.16-1.20: {e}. Copia directa.")
-        shutil.copyfile(src_path, dest_path)
+            out = Image.new("RGBA", (target_w, target_h), (0, 0, 0, 0))
+            out.paste(canvas.crop((0, 0, HALF_W, RENDER_H)), (0, 0))
+            out.paste(canvas.crop((HALF_W, 0, HALF_W * 2, RENDER_H)), (0, ROW2_Y))
+            out.save(dest_path)
+            _cb(f"[Logo] OK {os.path.basename(dest_path)} ({target_w}x{target_h})")
+            return
+        except Exception as e:
+            _cb(f"[Logo] Error PIL: {e}. Copiando directo.")
+            try:
+                shutil.copyfile(src_path, dest_path)
+            except Exception as e2:
+                _cb(f"[Logo] Error copia: {e2}")
 
     try:
         version_split = version.split(".")
@@ -113,20 +125,15 @@ def inyectar_logos_paraguacraft(game_dir, version, graficos_minimos):
     except Exception:
         version_mayor = 20
 
-    formato = 8
-    if version_mayor >= 21 or version_mayor == 26: formato = 34
-    elif version_mayor == 20: formato = 22
-    elif version_mayor == 19: formato = 9
-    elif version_mayor == 18: formato = 8
-    elif version_mayor == 17: formato = 7
-    elif version_mayor == 16: formato = 6
-    elif version_mayor >= 13: formato = 8
+    if version_mayor >= 13: formato = 8
     elif version_mayor >= 9: formato = 2
     else: formato = 1
 
-    pack_block = {"pack_format": formato, "description": "Marca Oficial Paraguacraft"}
-    if version_mayor >= 20:
-        pack_block["supported_formats"] = {"min_inclusive": 8, "max_inclusive": 99}
+    if version_mayor >= 16:
+        formato = 9999
+        pack_block = {"pack_format": 9999, "description": "Marca Oficial Paraguacraft", "supported_formats": [6, 9999]}
+    else:
+        pack_block = {"pack_format": formato, "description": "Marca Oficial Paraguacraft"}
     mcmeta = {"pack": pack_block}
     with open(os.path.join(pack_dir, "pack.mcmeta"), "w") as f: json.dump(mcmeta, f)
 
@@ -136,22 +143,73 @@ def inyectar_logos_paraguacraft(game_dir, version, graficos_minimos):
     # Marca en menú: 1.16.1 en adelante (incluye 26.x por versión_mayor=26)
     aplica_marca_menu = version_mayor >= 16
     if aplica_marca_menu:
-        activos = {
-            "paraguacraft_main_menu.png": "minecraft.png",
-            "paraguacraft_startup.png": "mojangstudios.png",
-        }
-        for src_name, dest_name in activos.items():
-            logo_src = os.path.join(base_path, src_name)
-            logo_dest = os.path.join(textures_gui_title_dir, dest_name)
-            if os.path.exists(logo_src):
-                if dest_name == "minecraft.png":
-                    _copy_logo_minecraft_png(logo_src, logo_dest, version_mayor)
-                else:
-                    shutil.copyfile(logo_src, logo_dest)
-        edicion_src = os.path.join(base_path, "paraguacraft_edition.png")
-        edicion_dst = os.path.join(textures_gui_title_dir, "edition.png")
-        if os.path.exists(edicion_src):
-            shutil.copyfile(edicion_src, edicion_dst)
+        import hashlib as _hashlib
+        stamp_file = os.path.join(pack_dir, ".logo_stamp")
+        main_src = os.path.join(base_path, "paraguacraft_main_menu.png")
+        try:
+            with open(main_src, "rb") as _sf:
+                current_stamp = _hashlib.md5(_sf.read()).hexdigest()
+        except Exception:
+            current_stamp = ""
+        try:
+            with open(stamp_file, "r") as _sf:
+                cached_stamp = _sf.read().strip()
+        except Exception:
+            cached_stamp = ""
+
+        logo_dest_mc = os.path.join(textures_gui_title_dir, "minecraft.png")
+        if current_stamp and current_stamp == cached_stamp and os.path.exists(logo_dest_mc):
+            _cb("[Logo] Sin cambios, saltando.")
+        else:
+            activos = {
+                "paraguacraft_main_menu.png": "minecraft.png",
+                "paraguacraft_startup.png": "mojangstudios.png",
+            }
+            for src_name, dest_name in activos.items():
+                logo_src = os.path.join(base_path, src_name)
+                logo_dest = os.path.join(textures_gui_title_dir, dest_name)
+                if os.path.exists(logo_src):
+                    if dest_name == "minecraft.png":
+                        _copy_logo_minecraft_png(logo_src, logo_dest, version_mayor)
+                    else:
+                        shutil.copyfile(logo_src, logo_dest)
+            edicion_src = os.path.join(base_path, "paraguacraft_edition.png")
+            edicion_dst = os.path.join(textures_gui_title_dir, "edition.png")
+            if os.path.exists(edicion_src):
+                shutil.copyfile(edicion_src, edicion_dst)
+            if current_stamp:
+                try:
+                    with open(stamp_file, "w") as _sf:
+                        _sf.write(current_stamp)
+                except Exception:
+                    pass
+
+        logo_dest_mc = os.path.join(textures_gui_title_dir, "minecraft.png")
+        if version_mayor >= 21 and os.path.exists(logo_dest_mc):
+            try:
+                mc_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+                version_json_path = os.path.join(mc_dir, "versions", version, version + ".json")
+                if os.path.exists(version_json_path):
+                    with open(version_json_path) as _vf:
+                        _vdata = json.load(_vf)
+                    _assets_id = _vdata.get("assetIndex", {}).get("id")
+                    if _assets_id:
+                        _idx_path = os.path.join(mc_dir, "assets", "indexes", _assets_id + ".json")
+                        if os.path.exists(_idx_path):
+                            with open(_idx_path) as _af:
+                                _aindex = json.load(_af)
+                            _hash = _aindex.get("objects", {}).get(
+                                "minecraft/textures/gui/title/minecraft.png", {}
+                            ).get("hash")
+                            if _hash:
+                                _asset_path = os.path.join(
+                                    mc_dir, "assets", "objects", _hash[:2], _hash
+                                )
+                                if os.path.exists(_asset_path):
+                                    shutil.copy2(logo_dest_mc, _asset_path)
+                                    _cb("[Logo] Asset directo inyectado OK.")
+            except Exception as _e:
+                _cb(f"[Logo] Asset directo: {_e}")
 
     options_path = os.path.join(game_dir, "options.txt")
     lineas = []
@@ -231,37 +289,35 @@ def instalar_extras_graficos(game_dir, version, progress_callback, graficos_mini
     rp_dir = os.path.join(game_dir, "resourcepacks")
     sp_dir = os.path.join(game_dir, "shaderpacks")
     os.makedirs(rp_dir, exist_ok=True); os.makedirs(sp_dir, exist_ok=True)
-    
-    if graficos_minimos and os.path.exists(os.path.join(rp_dir, "Pack_Graficos_Minimos.zip")): return
-    if not graficos_minimos and os.path.exists(os.path.join(sp_dir, "Shader_Paraguacraft.zip")): return
+
+    if not graficos_minimos:
+        return
+
+    if os.path.exists(os.path.join(rp_dir, "Pack_Graficos_Minimos.zip")): return
 
     headers = {"User-Agent": "ParaguacraftLauncher/1.0"}
-    if graficos_minimos:
-        proyectos = [("faithful-32x", rp_dir, "Pack_Graficos_Minimos.zip")] 
-        if progress_callback: progress_callback("Buscando Texturas Faithful 32x...")
-    else:
-        proyectos = [("makeup-ultra-fast", sp_dir, "Shader_Paraguacraft.zip")]
-        if progress_callback: progress_callback("Buscando Shaders MakeUp...")
-
-    for slug, carpeta_destino, nombre_final in proyectos:
-        url_api = f"https://api.modrinth.com/v2/project/{slug}/version"
-        params = {"game_versions": f'["{version}"]'}
-        try:
-            r = requests.get(url_api, params=params, headers=headers, timeout=5)
-            if r.status_code == 200:
-                data = r.json()
-                if len(data) > 0:
-                    archivo = data[0]["files"][0]
-                    ruta_archivo = os.path.join(carpeta_destino, nombre_final)
-                    if not os.path.exists(ruta_archivo):
-                        if progress_callback: progress_callback(f"Descargando mejoras visuales...")
-                        r_dl = requests.get(archivo["url"], stream=True, headers=headers, timeout=10)
-                        if r_dl.status_code == 200:
-                            with open(ruta_archivo, "wb") as f: shutil.copyfileobj(r_dl.raw, f)
-        except Exception: pass
+    if progress_callback: progress_callback("Buscando Texturas Faithful 32x...")
+    url_api = "https://api.modrinth.com/v2/project/faithful-32x/version"
+    params = {"game_versions": f'["{version}"]'}
+    try:
+        r = requests.get(url_api, params=params, headers=headers, timeout=4)
+        if r.status_code == 200:
+            data = r.json()
+            if len(data) > 0:
+                archivo = data[0]["files"][0]
+                ruta_archivo = os.path.join(rp_dir, "Pack_Graficos_Minimos.zip")
+                if not os.path.exists(ruta_archivo):
+                    if progress_callback: progress_callback("Descargando texturas...")
+                    r_dl = requests.get(archivo["url"], stream=True, headers=headers, timeout=10)
+                    if r_dl.status_code == 200:
+                        with open(ruta_archivo, "wb") as f: shutil.copyfileobj(r_dl.raw, f)
+    except Exception: pass
 
 def _descargar_mods_fabric_slugs(mods_dir, version, slugs, progress_callback, headers):
     os.makedirs(mods_dir, exist_ok=True)
+    existing = [f for f in os.listdir(mods_dir) if f.endswith(".jar") or f.endswith(".jar.disabled")]
+    if len(existing) >= len(slugs):
+        return
     for slug in slugs:
         url_api = f"https://api.modrinth.com/v2/project/{slug}/version"
         params = {"loaders": '["fabric"]', "game_versions": f'["{version}"]'}
@@ -300,15 +356,21 @@ def instalar_bundle_fabric_iris_cache(minecraft_directory, game_dir, version, pr
     if lan_distancia:
         slugs.append("e4mc")
 
-    headers = {"User-Agent": "ParaguacraftLauncher/2.1"}
-    if progress_callback:
-        progress_callback("Comprobando caché Fabric + Iris...")
+    marker = os.path.join(cache_root, ".cache_ok")
+    cache_jars = [f for f in os.listdir(cache_root) if f.endswith(".jar")]
 
-    _descargar_mods_fabric_slugs(cache_root, version, slugs, progress_callback, headers)
+    if not os.path.exists(marker) or len(cache_jars) < 4:
+        headers = {"User-Agent": "ParaguacraftLauncher/2.1"}
+        if progress_callback:
+            progress_callback("Descargando mods Fabric + Iris...")
+        _descargar_mods_fabric_slugs(cache_root, version, slugs, progress_callback, headers)
+        try:
+            with open(marker, "w") as _m: _m.write("ok")
+        except Exception:
+            pass
+        cache_jars = [f for f in os.listdir(cache_root) if f.endswith(".jar")]
 
-    for f in os.listdir(cache_root):
-        if not f.endswith(".jar"):
-            continue
+    for f in cache_jars:
         dest = os.path.join(mods_dir, f)
         if not os.path.exists(dest) and not os.path.exists(dest + ".disabled"):
             try:
@@ -402,7 +464,7 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
     instalar_mods_por_motor(game_dir, version_base, motor_elegido, progress_callback, lan_distancia, minecraft_directory)
         
     instalar_extras_graficos(game_dir, version_base, progress_callback, optimizar)
-    inyectar_logos_paraguacraft(game_dir, version_base, optimizar)
+    inyectar_logos_paraguacraft(game_dir, version_base, optimizar, progress_callback)
     if optimizar: 
         optimizar_graficos(game_dir, optimizar, version_base)
 
@@ -436,16 +498,24 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
         entorno["MESA_GL_VERSION_OVERRIDE"] = "3.3"
         entorno["MESA_GLSL_VERSION_OVERRIDE"] = "330"
 
-    gestor_nube = GestorNube()
     options_txt_path = os.path.join(game_dir, "options.txt")
     servers_dat_path = os.path.join(game_dir, "servers.dat")
 
-    if progress_callback:
-        progress_callback("☁️ Sincronizando datos de la nube...")
-    gestor_nube.descargar_datos(username, options_txt_path, servers_dat_path)
+    if GestorNube is not None:
+        try:
+            import threading as _threading
+            if progress_callback:
+                progress_callback("☁️ Sincronizando nube...")
+            _t = _threading.Thread(
+                target=lambda: GestorNube().descargar_datos(username, options_txt_path, servers_dat_path),
+                daemon=True)
+            _t.start()
+            _t.join(timeout=3)
+        except Exception:
+            pass
 
     # La nube puede sobrescribir options.txt sin el resource pack; lo re-inyectamos.
-    inyectar_logos_paraguacraft(game_dir, version_base, optimizar)
+    inyectar_logos_paraguacraft(game_dir, version_base, optimizar, progress_callback)
 
     if progress_callback:
         progress_callback("¡Abriendo Paraguacraft!")
@@ -468,4 +538,8 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
         pass
 
     proceso.wait()
-    gestor_nube.subir_datos(username, options_txt_path, servers_dat_path)
+    if GestorNube is not None:
+        try:
+            GestorNube().subir_datos(username, options_txt_path, servers_dat_path)
+        except Exception:
+            pass
