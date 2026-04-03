@@ -215,3 +215,129 @@ class CreadorServidor:
 
         except Exception as e:
             return False, str(e)
+
+class GestorLocalMods:
+    @staticmethod
+    def obtener_lista_mods(mods_dir):
+        """Devuelve una lista con el nombre de cada mod y su estado actual."""
+        if not os.path.exists(mods_dir): return []
+        mods = []
+        for f in os.listdir(mods_dir):
+            if f.endswith(".jar") or f.endswith(".jar.disabled"):
+                estado = "Activo" if f.endswith(".jar") else "Desactivado"
+                mods.append({"archivo": f, "estado": estado})
+        return mods
+
+    @staticmethod
+    def alternar_estado_mod(mods_dir, nombre_archivo):
+        """Alterna la extensión entre .jar y .jar.disabled."""
+        ruta_actual = os.path.join(mods_dir, nombre_archivo)
+        if not os.path.exists(ruta_actual): return None
+
+        if nombre_archivo.endswith(".jar"):
+            nueva_ruta = ruta_actual + ".disabled"
+            nuevo_nombre = nombre_archivo + ".disabled"
+        elif nombre_archivo.endswith(".jar.disabled"):
+            nueva_ruta = ruta_actual.replace(".disabled", "")
+            nuevo_nombre = nombre_archivo.replace(".disabled", "")
+        else:
+            return None
+
+        try:
+            os.rename(ruta_actual, nueva_ruta)
+            return nuevo_nombre
+        except Exception:
+            return None
+
+
+class GestorContenidoInstancia:
+    """Mods (.jar), resource packs, shaderpacks y datapacks por mundo (activar/desactivar con .disabled)."""
+    PACK_SISTEMA = "ParaguacraftBrandPack"
+
+    @staticmethod
+    def _alternar_disabled_en_carpeta(carpeta, nombre_entrada):
+        if not carpeta or not nombre_entrada:
+            return False
+        ruta = os.path.join(carpeta, nombre_entrada)
+        if not os.path.exists(ruta):
+            return False
+        try:
+            if nombre_entrada.endswith(".disabled"):
+                destino = os.path.join(carpeta, nombre_entrada[:-9])
+            else:
+                destino = os.path.join(carpeta, nombre_entrada + ".disabled")
+            os.rename(ruta, destino)
+            return True
+        except OSError:
+            return False
+
+    @staticmethod
+    def listar_resource_packs(rp_dir):
+        salida = []
+        if not os.path.isdir(rp_dir):
+            return salida
+        for name in os.listdir(rp_dir):
+            if name == GestorContenidoInstancia.PACK_SISTEMA:
+                continue
+            if name.startswith("."):
+                continue
+            full = os.path.join(rp_dir, name)
+            if not (os.path.isfile(full) or os.path.isdir(full)):
+                continue
+            if name.endswith(".disabled"):
+                estado = "Desactivado"
+                visible = name[:-9]
+            else:
+                estado = "Activo"
+                visible = name
+            salida.append({"archivo": name, "nombre_visible": visible, "estado": estado})
+        return salida
+
+    @staticmethod
+    def listar_shaderpacks(sp_dir):
+        return GestorContenidoInstancia.listar_resource_packs(sp_dir)
+
+    @staticmethod
+    def listar_datapacks(game_dir):
+        salida = []
+        saves = os.path.join(game_dir, "saves")
+        if not os.path.isdir(saves):
+            return salida
+        for mundo in os.listdir(saves):
+            dp = os.path.join(saves, mundo, "datapacks")
+            if not os.path.isdir(dp):
+                continue
+            for name in os.listdir(dp):
+                if name.startswith("."):
+                    continue
+                full = os.path.join(dp, name)
+                if not os.path.isfile(full) and not os.path.isdir(full):
+                    continue
+                if name.endswith(".disabled"):
+                    estado = "Desactivado"
+                    visible = name[:-9]
+                else:
+                    estado = "Activo"
+                    visible = name
+                salida.append(
+                    {
+                        "archivo": name,
+                        "nombre_visible": visible,
+                        "mundo": mundo,
+                        "estado": estado,
+                    }
+                )
+        return salida
+
+    @staticmethod
+    def alternar_resourcepack(rp_dir, nombre_archivo):
+        return GestorContenidoInstancia._alternar_disabled_en_carpeta(rp_dir, nombre_archivo)
+
+    @staticmethod
+    def alternar_shaderpack(sp_dir, nombre_archivo):
+        return GestorContenidoInstancia._alternar_disabled_en_carpeta(sp_dir, nombre_archivo)
+
+    @staticmethod
+    def alternar_datapack(game_dir, mundo, nombre_archivo):
+        dp = os.path.join(game_dir, "saves", mundo, "datapacks")
+        return GestorContenidoInstancia._alternar_disabled_en_carpeta(dp, nombre_archivo)

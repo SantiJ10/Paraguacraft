@@ -39,14 +39,16 @@ ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
 # LIMPIADOR DE ACTUALIZACIONES
+# LIMPIADOR DE ACTUALIZACIONES SILENCIOSO
 if getattr(sys, 'frozen', False):
-    directorio_actual = os.path.dirname(sys.executable)
-    viejo_exe = os.path.join(directorio_actual, "Paraguacraft_Viejo.exe")
+    import os, sys
+    exe_actual = sys.executable
+    viejo_exe = exe_actual + ".old"
     if os.path.exists(viejo_exe):
         try:
             os.remove(viejo_exe)
-        except:
-            pass
+        except Exception as e:
+            print(f"No se pudo limpiar el exe viejo: {e}")
 
 APPDATA_DIR = os.path.join(os.getenv('APPDATA'), "ParaguacraftLauncher")
 os.makedirs(APPDATA_DIR, exist_ok=True)
@@ -61,7 +63,7 @@ DISCORD_APP_ID = "1487516329631154206"
 SERVER_IP = "process-import.gl.at.ply.gg:2055" 
 MODS_ZIP_URL = "" 
 
-LAUNCHER_VERSION = "1.0.5"
+LAUNCHER_VERSION = "1.0.7"
 UPDATE_URL = "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/refs/heads/main/version.txt"
 
 class ParaguaCraftLauncher(ctk.CTk):
@@ -180,6 +182,10 @@ class ParaguaCraftLauncher(ctk.CTk):
         self.btn_carpeta = ctk.CTkButton(self.frame_opciones, text="📂", command=self.abrir_carpeta_minecraft, fg_color="#2b7b4b", width=40)
         self.btn_carpeta.pack(side="right", padx=10)
 
+        # --- BOTÓN NUEVO DEL GESTOR DE MODS ---
+        self.btn_gestor_mods = ctk.CTkButton(self.frame_opciones, text="🧩 Gestor de Mods", command=self.abrir_gestor_mods, fg_color="#8e44ad", hover_color="#5e3370", width=140)
+        self.btn_gestor_mods.pack(side="right", padx=(0, 10))
+
 
         self.lbl_estado = ctk.CTkLabel(self.frame_main, text="Listo", text_color="gray")
         self.lbl_estado.pack(pady=5)
@@ -202,7 +208,7 @@ class ParaguaCraftLauncher(ctk.CTk):
         threading.Thread(target=self.buscar_actualizaciones, daemon=True).start()
         threading.Thread(target=self.iniciar_discord_rpc, daemon=True).start()
 
-        # --- MONITOR DE TELEMETRÍA (HUD) ---
+        # --- MONITOR DE TELEMETRÍA (HUD) --- 
         self.lbl_telemetria = ctk.CTkLabel(
             self.frame_main, 
             text="⚡ Iniciando sensores de hardware...", 
@@ -263,35 +269,54 @@ class ParaguaCraftLauncher(ctk.CTk):
                     self.after(0, self.preguntar_actualizacion, version_remota)
         except Exception as e:
             print(f"Error de conexión: {e}")
+    
 
     def preguntar_actualizacion(self, version_remota):
         respuesta = messagebox.askyesno(
             "¡Actualización Disponible!",
-            f"¡Salió la versión {version_remota} de Paraguacraft!\n\n¿Querés actualizarlo ahora automáticamente? (Tarda unos segundos)"
+            f"¡Salió la versión {version_remota} de Paraguacraft!\n\n¿Querés actualizar ahora? Es una descarga rápida y 100% segura."
         )
         if respuesta:
-            threading.Thread(target=self.ejecutar_actualizacion, args=(version_remota,), daemon=True).start()
+            # Apuntamos a la nueva función
+            threading.Thread(target=self.ejecutar_actualizacion_segura, args=(version_remota,), daemon=True).start()
 
-    def ejecutar_actualizacion(self, version_remota):
+    def ejecutar_actualizacion_segura(self, version_remota):
+        import requests
+        import sys
+        import os
+        import subprocess
+        from tkinter import messagebox
+
         try:
-            self.actualizar_progreso("Descargando actualización (Esto puede tardar)...")
+            self.actualizar_progreso("Preparando actualización segura...")
             self.boton_jugar.configure(state="disabled", text="ACTUALIZANDO...")
-            
-            url_descarga_dinamica = f"https://github.com/SantiJ10/Paraguacraft/releases/download/v.{version_remota}/Paraguacraft.exe"
-            
-            r = requests.get(url_descarga_dinamica, stream=True, timeout=30)
+
+            # URL directa al .exe en tu GitHub
+            url_descarga_exe = f"https://github.com/SantiJ10/Paraguacraft/releases/download/v.{version_remota}/Paraguacraft.exe"
+
+            r = requests.get(url_descarga_exe, stream=True, timeout=30)
             r.raise_for_status()
-            
-            # --- NUEVO: CÁLCULO DE PESO PARA LA BARRA ---
+
             total_length = int(r.headers.get('content-length', 0))
             descargado = 0
+
+            exe_actual = sys.executable
             
-            exe_actual = sys.executable 
-            directorio = os.path.dirname(exe_actual)
-            nombre_exe = os.path.basename(exe_actual)
-            nuevo_exe = os.path.join(directorio, "Paraguacraft_Nuevo.exe")
-            
-            with open(nuevo_exe, "wb") as f:
+            # Si estás probando el código desde VS Code (.py), cancela para no romper nada
+            if not getattr(sys, 'frozen', False):
+                messagebox.showinfo("Desarrollo", "Estás en entorno Python. Simulando actualización exitosa.")
+                self.boton_jugar.configure(state="normal", text="INICIAR PARAGUACRAFT")
+                return
+
+            ruta_vieja = exe_actual + ".old"
+
+            # 1. El truco maestro: Renombramos el archivo que se está ejecutando AHORA MISMO
+            if os.path.exists(ruta_vieja):
+                os.remove(ruta_vieja) # Por si quedó basura de antes
+            os.rename(exe_actual, ruta_vieja)
+
+            # 2. Descargamos el archivo nuevo y lo guardamos con el nombre original impecable
+            with open(exe_actual, "wb") as f:
                 for chunk in r.iter_content(chunk_size=8192):
                     if chunk:
                         f.write(chunk)
@@ -299,35 +324,26 @@ class ParaguaCraftLauncher(ctk.CTk):
                         if total_length > 0:
                             porcentaje = descargado / total_length
                             self.barra_progreso.set(porcentaje)
-                            self.lbl_estado.configure(text=f"Descargando actualización: {int(porcentaje * 100)}%")
-                            self.update() # Refresca la ventana al instante
-                    
-            self.actualizar_progreso("Aplicando actualización...")
-            bat_path = os.path.join(directorio, "update_paraguacraft.bat")
+                            self.lbl_estado.configure(text=f"Descargando versión {version_remota}: {int(porcentaje * 100)}%")
+                            self.update() # Mantiene la barra fluida
+
+            self.actualizar_progreso("¡Actualización completada! Reiniciando...")
             
-            bat_content = f"""@echo off
-timeout /t 2 /nobreak > NUL
-:bucle
-del /f /q "{nombre_exe}"
-if exist "{nombre_exe}" (
-    timeout /t 1 /nobreak > NUL
-    goto bucle
-)
-ren "Paraguacraft_Nuevo.exe" "{nombre_exe}"
-del "%~f0"
-"""
-            with open(bat_path, "w") as f:
-                f.write(bat_content)
-                
-            subprocess.Popen([bat_path], creationflags=subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0)
-            
-            messagebox.showinfo("¡Actualización Lista!", "La actualización se descargó correctamente.\n\nEl launcher se cerrará ahora para instalarla. Por favor, vuelve a abrirlo en unos segundos para jugar.")
-            os._exit(0)
-            
+            # 3. Lanzamos el launcher nuevo y suicidamos al viejo al instante
+            subprocess.Popen([exe_actual])
+            sys.exit()
+
         except Exception as e:
-            self.actualizar_progreso("Error al actualizar.")
-            self.after(0, lambda: messagebox.showerror("Error", f"No se pudo actualizar: {str(e)}"))
+            print(f"Error crítico en actualización: {e}")
+            self.actualizar_progreso("Error al actualizar. Reintentá más tarde.")
+            self.after(0, lambda: messagebox.showerror("Error", f"Fallo en la conexión: {str(e)}"))
             self.after(0, lambda: self.boton_jugar.configure(state="normal", text="INICIAR PARAGUACRAFT"))
+            
+            # Si se cortó el internet a mitad de camino, restauramos el nombre viejo para no romper tu launcher
+            try:
+                if os.path.exists(ruta_vieja) and not os.path.exists(exe_actual):
+                    os.rename(ruta_vieja, exe_actual)
+            except: pass
 
     def _hilo_telemetria(self):
         import time, psutil
@@ -353,7 +369,8 @@ del "%~f0"
             self.rpc = Presence(DISCORD_APP_ID)
             self.rpc.connect()
             self.rpc.update(state="En el menú principal", details="Preparándose para jugar", large_image="logo", large_text="Paraguacraft Launcher")
-        except: pass
+        except: 
+            self.rpc = None # ¡CLAVE! Si falla, anulamos la conexión
 
     def login_microsoft(self):
         try:
@@ -595,6 +612,60 @@ del "%~f0"
         ctk.CTkButton(frame_botones_finales, text="🔄 Smart Updater (Actualizar Mods)", command=self.actualizar_mods_instancia, fg_color="#2980b9", hover_color="#1f618d", height=35).pack(fill="x", pady=5)
         
         ctk.CTkButton(frame_botones_finales, text="🖥️ Creador de Servidor Dedicado Local", command=self.crear_servidor_local, fg_color="#8e44ad", hover_color="#5e3370", height=35).pack(fill="x", pady=5)
+
+    def abrir_gestor_mods(self):
+        seleccion = self.lista_versiones.curselection()
+        if not seleccion:
+            messagebox.showwarning("Aviso", "Seleccioná una versión en la lista primero.")
+            return
+            
+        version_actual = self.lista_versiones.get(seleccion[0])
+        tipo_cliente_ui = self.tipo_cliente_var.get().split()[0]
+        
+        folder_name = f"Paraguacraft_{version_actual}_{tipo_cliente_ui}".replace(".", "_")
+        mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+        mods_dir = os.path.join(mine_dir, "instancias", folder_name, "mods")
+
+        if not os.path.exists(mods_dir):
+            messagebox.showinfo("Gestor", "No hay mods instalados para esta versión todavía.")
+            return
+
+        vent_gestor = ctk.CTkToplevel(self)
+        vent_gestor.title(f"Gestor de Mods - {version_actual}")
+        self.centrar_ventana(vent_gestor, 450, 550)
+        vent_gestor.grab_set()
+
+        ctk.CTkLabel(vent_gestor, text="Interruptor de Mods", font=ctk.CTkFont(size=20, weight="bold")).pack(pady=10)
+        ctk.CTkLabel(vent_gestor, text="Apagá los mods que colisionen (ej. Iris).", text_color="gray").pack(pady=(0,10))
+
+        scroll_mods = ctk.CTkScrollableFrame(vent_gestor, width=400, height=400)
+        scroll_mods.pack(pady=10, padx=20, fill="both", expand=True)
+
+        from src.modelo import GestorLocalMods
+        lista_mods = GestorLocalMods.obtener_lista_mods(mods_dir)
+
+        if not lista_mods:
+            ctk.CTkLabel(scroll_mods, text="Carpeta de mods vacía.").pack(pady=20)
+            return
+
+        # Generador dinámico de interruptores
+        def crear_switch(mod_info):
+            estado_inicial = mod_info["estado"] == "Activo"
+            # Limpiamos el nombre para que quede estético en la ventana
+            nombre_limpio = mod_info["archivo"].replace(".jar", "").replace(".disabled", "")
+
+            var = ctk.BooleanVar(value=estado_inicial)
+
+            def alternar():
+                nuevo_nombre = GestorLocalMods.alternar_estado_mod(mods_dir, mod_info["archivo"])
+                if nuevo_nombre:
+                    mod_info["archivo"] = nuevo_nombre # Se actualiza en memoria para el próximo clic
+
+            switch = ctk.CTkSwitch(scroll_mods, text=nombre_limpio, variable=var, command=alternar)
+            switch.pack(pady=8, anchor="w", padx=10)
+
+        for mod in lista_mods:
+            crear_switch(mod)
 
     def elegir_skin(self):
         ruta = filedialog.askopenfilename(title="Skin (.png)", filetypes=[("PNG", "*.png")])
@@ -1011,22 +1082,22 @@ del "%~f0"
         if not self.rpc: return
         import time, os, minecraft_launcher_lib, re
 
-        # 1. Ubicación de la instancia
-        version_base = version_jugada.strip()
-        if version_base.startswith("fabric-loader-"):
-            version_base = version_base.split("-")[-1]
-            tipo_cliente = "Fabric"
-        folder_name = f"Paraguacraft_{version_base}_{tipo_cliente}".replace(".", "_")
-        log_path = os.path.join(minecraft_launcher_lib.utils.get_minecraft_directory(), "instancias", folder_name, "logs", "latest.log")
-        
         try:
-            if os.path.exists(log_path): os.remove(log_path)
-        except: pass
+            # 1. Ubicación de la instancia
+            version_base = version_jugada.strip()
+            if version_base.startswith("fabric-loader-"):
+                version_base = version_base.split("-")[-1]
+                tipo_cliente = "Fabric"
+            folder_name = f"Paraguacraft_{version_base}_{tipo_cliente}".replace(".", "_")
+            log_path = os.path.join(minecraft_launcher_lib.utils.get_minecraft_directory(), "instancias", folder_name, "logs", "latest.log")
             
-        estado_actual = "En el menú principal"
-        self.rpc.update(state=estado_actual, details=f"👤 {usuario} | 🎮 {version_jugada}", large_image="logo")
+            try:
+                if os.path.exists(log_path): os.remove(log_path)
+            except: pass
+                
+            estado_actual = "En el menú principal"
+            self.rpc.update(state=estado_actual, details=f"👤 {usuario} | 🎮 {version_jugada}", large_image="logo")
 
-        try:
             while not os.path.exists(log_path) and self.hilo_juego_activo: time.sleep(1)
             
             with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
@@ -1034,36 +1105,26 @@ del "%~f0"
                     linea = f.readline()
                     if not linea:
                         time.sleep(0.5)
-                        f.seek(f.tell()) # Actualiza el puntero para ver cambios en vivo
+                        f.seek(f.tell()) 
                         continue
 
                     # --- DETECCIÓN DE ESTADOS ---
-                    # A. Si hosteo LAN (e4mc o Vanilla)
                     if "Local game hosted on" in linea:
-                        import re
-                        # Busca cualquier cosa que esté entre corchetes [link o puerto]
                         match = re.search(r'\[(.*?)\]', linea)
-                        if match:
-                            dato_lan = match.group(1)
-                            estado_actual = f"🏠 Hosteando LAN: {dato_lan}"
-                        
-                    # B. Si se conecta a un server (Hypixel, etc)
+                        if match: estado_actual = f"🏠 Hosteando LAN: {match.group(1)}"
                     elif "Connecting to" in linea:
                         ip = linea.split("Connecting to ")[1].split(",")[0].split(":")[0].strip()
                         estado_actual = f"🌐 Multijugador: {ip}"
-                            
-                    # C. Si entro a un mundo local normal
                     elif "Starting integrated minecraft server" in linea:
-                        if "Hosteando" not in estado_actual: # No pisar el estado LAN si ya lo detectó
-                            estado_actual = "🌍 Jugando en Mundo Local"
-                        
-                    # D. Si vuelvo al menú
+                        if "Hosteando" not in estado_actual: estado_actual = "🌍 Jugando en Mundo Local"
                     elif "Disconnecting from" in linea or "Stopping server" in linea:
                         estado_actual = "En el menú principal"
 
                     self.rpc.update(state=estado_actual, details=f"👤 {usuario} | 🎮 {version_jugada}", large_image="logo")
 
-        except Exception as e: print(f"Error RPC: {e}")
+        except Exception as e: 
+            print(f"Error RPC: {e}")
+            self.rpc = None
 
     def procesar_archivos_soltados(self, archivos):
         try:
