@@ -30,15 +30,15 @@ VERSION = "2.4.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 
 try:
-    import secrets as _sec
-    _GEMINI_API_KEY = _sec.GEMINI_API_KEY
-    _CF_API_KEY     = _sec.CF_API_KEY
-    _SP_CLIENT_ID   = _sec.SP_CLIENT_ID
-    _SP_CLIENT_SECRET = _sec.SP_CLIENT_SECRET
-except ImportError:
-    _GEMINI_API_KEY = ""
-    _CF_API_KEY     = ""
-    _SP_CLIENT_ID   = ""
+    import credentials as _cred
+    _GEMINI_API_KEY   = _cred.GEMINI_API_KEY
+    _CF_API_KEY       = _cred.CF_API_KEY
+    _SP_CLIENT_ID     = _cred.SP_CLIENT_ID
+    _SP_CLIENT_SECRET = _cred.SP_CLIENT_SECRET
+except (ImportError, AttributeError):
+    _GEMINI_API_KEY   = ""
+    _CF_API_KEY       = ""
+    _SP_CLIENT_ID     = ""
     _SP_CLIENT_SECRET = ""
 
 # Credenciales oficiales

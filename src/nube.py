@@ -4,10 +4,10 @@ from pymongo.errors import ConnectionFailure
 
 MONGO_URI = "mongodb+srv://cluster0.y5grb.mongodb.net/?appName=Cluster0"
 try:
-    import secrets as _sec
-    MONGO_USER = _sec.MONGO_USER
-    MONGO_PASS = _sec.MONGO_PASS
-except ImportError:
+    import credentials as _cred
+    MONGO_USER = _cred.MONGO_USER
+    MONGO_PASS = _cred.MONGO_PASS
+except (ImportError, AttributeError):
     MONGO_USER = ""
     MONGO_PASS = ""
 
