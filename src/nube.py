@@ -3,8 +3,13 @@ import pymongo
 from pymongo.errors import ConnectionFailure
 
 MONGO_URI = "mongodb+srv://cluster0.y5grb.mongodb.net/?appName=Cluster0"
-MONGO_USER = "jalufsanti"
-MONGO_PASS = "#Aminsj1001"
+try:
+    import secrets as _sec
+    MONGO_USER = _sec.MONGO_USER
+    MONGO_PASS = _sec.MONGO_PASS
+except ImportError:
+    MONGO_USER = ""
+    MONGO_PASS = ""
 
 class GestorNube:
     def __init__(self):

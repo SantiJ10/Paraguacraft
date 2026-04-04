@@ -29,6 +29,18 @@ except Exception:
 VERSION = "2.4.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 
+try:
+    import secrets as _sec
+    _GEMINI_API_KEY = _sec.GEMINI_API_KEY
+    _CF_API_KEY     = _sec.CF_API_KEY
+    _SP_CLIENT_ID   = _sec.SP_CLIENT_ID
+    _SP_CLIENT_SECRET = _sec.SP_CLIENT_SECRET
+except ImportError:
+    _GEMINI_API_KEY = ""
+    _CF_API_KEY     = ""
+    _SP_CLIENT_ID   = ""
+    _SP_CLIENT_SECRET = ""
+
 # Credenciales oficiales
 CLIENT_ID = "72fb7c48-c2f5-4d13-b0e7-9835b3b906c0"
 REDIRECT_URI = "https://login.live.com/oauth20_desktop.srf"
@@ -86,8 +98,8 @@ class Api:
             "lan_distancia": False,
             "fabric_loader_version": "",
             "fondo_animado": "",
-            "spotify_client_id": "e73630182fed44d8a91b108d34c8e61d",
-            "spotify_client_secret": "7a712d078edc408690f73c0be68abb08",
+            "spotify_client_id": _SP_CLIENT_ID,
+            "spotify_client_secret": _SP_CLIENT_SECRET,
         }
 
         if os.path.exists(self.ruta_config):
@@ -1620,10 +1632,10 @@ class Api:
             return {"ok": False, "error": str(e)}
 
     # ── CURSEFORGE STORE ─────────────────────────────────────────────────
-    _CF_API_KEY = "$2a$10$sKRER9jBZLtecCRlUxqmEu.MTg.NQZ2WqS6SlKBidvdvVWoBBylOG"
-    _GEMINI_API_KEY = "AIzaSyDP-8z7bbSJoKxV9KDiEbXoU_iMw43piZU"
-    _SP_CLIENT_ID = "e73630182fed44d8a91b108d34c8e61d"
-    _SP_CLIENT_SECRET = "7a712d078edc408690f73c0be68abb08"
+    _CF_API_KEY = _CF_API_KEY
+    _GEMINI_API_KEY = _GEMINI_API_KEY
+    _SP_CLIENT_ID = _SP_CLIENT_ID
+    _SP_CLIENT_SECRET = _SP_CLIENT_SECRET
 
     def buscar_curseforge(self, query, tipo="mods", mc_version=""):
         try:
