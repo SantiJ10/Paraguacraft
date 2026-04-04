@@ -26,7 +26,7 @@ try:
 except Exception:
     _lanzar_minecraft_ref = None
 
-VERSION = "2.3.0"  # Actualizar en cada release
+VERSION = "2.4.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 
 # Credenciales oficiales
@@ -674,6 +674,7 @@ class Api:
                     lan_distancia=self.config_actual.get("lan_distancia", False),
                     fabric_loader_override=fabric_override,
                     progress_callback=_set_status,
+                    server_ip=server_ip or "",
                 )
 
                 _log_launch("DONE - juego cerrado")
@@ -991,6 +992,32 @@ class Api:
                         f"onModInstalado({json.dumps({'ok': False, 'error': str(exc)})})")
             threading.Thread(target=_hilo, daemon=True).start()
             return {"ok": True, "nombre": filename}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def instalar_mod_modrinth(self, slug, version, motor, extra=""):
+        try:
+            loader = motor.lower().replace(" + iris", "").replace("optifine", "").strip().replace(" ", "-") or "fabric"
+            sr = requests.get(
+                f"https://api.modrinth.com/v2/search?query={requests.utils.quote(slug)}&limit=1",
+                headers={"User-Agent": "Paraguacraft-Launcher"}, timeout=8).json()
+            if not sr.get("hits"):
+                return {"ok": False, "error": f"No se encontró '{slug}' en Modrinth"}
+            pid = sr["hits"][0]["project_id"]
+            params = {"loaders": f'["{loader}"]'}
+            if version:
+                params["game_versions"] = f'["{version}"]'
+            vr = requests.get(
+                f"https://api.modrinth.com/v2/project/{pid}/version",
+                params=params, headers={"User-Agent": "Paraguacraft-Launcher"}, timeout=8).json()
+            if not vr or not isinstance(vr, list):
+                params.pop("loaders", None)
+                vr = requests.get(
+                    f"https://api.modrinth.com/v2/project/{pid}/version",
+                    params=params, headers={"User-Agent": "Paraguacraft-Launcher"}, timeout=8).json()
+            if not vr or not isinstance(vr, list):
+                return {"ok": False, "error": f"Sin versiones compatibles para '{slug}'"}
+            return self.instalar_mod_desde_modrinth(pid, vr[0]["id"], "mod", version, motor)
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
@@ -1611,23 +1638,11 @@ class Api:
                              headers={"x-api-key": self._CF_API_KEY, "Accept": "application/json"},
                              params=params, timeout=10)
             if r.status_code != 200:
-                return {"ok": False, "error": f"HTTP {r.status_code}", "hits": []}
+                return {"error": f"HTTP {r.status_code} — API CurseForge no disponible", "data": []}
             data = r.json().get("data", [])
-            hits = []
-            for m in data:
-                logo = (m.get("logo") or {}).get("thumbnailUrl", "")
-                hits.append({
-                    "project_id": str(m.get("id", "")),
-                    "slug": m.get("slug", ""),
-                    "title": m.get("name", ""),
-                    "description": m.get("summary", ""),
-                    "icon_url": logo,
-                    "downloads": m.get("downloadCount", 0),
-                    "source": "curseforge"
-                })
-            return {"ok": True, "hits": hits}
+            return {"data": data}
         except Exception as e:
-            return {"ok": False, "error": str(e), "hits": []}
+            return {"error": str(e), "data": []}
 
     def get_versiones_curseforge(self, project_id, mc_version=""):
         try:
@@ -1933,7 +1948,7 @@ class Api:
             perfil = self.PERFILES_HARDWARE[sugerido]
             ram_rec = min(int(ram_gb * perfil["ram_fraction"]), perfil["ram_max_gb"])
             return {"ok": True, "ram_gb": ram_gb, "cpu_cores": cpu_cores,
-                    "sugerido": sugerido, "nombre": perfil["nombre"],
+                    "perfil_id": sugerido, "sugerido": sugerido, "nombre": perfil["nombre"],
                     "descripcion": perfil["descripcion"],
                     "ram_rec": ram_rec, "chunks": perfil["chunks"],
                     "mods": [m[1] for m in perfil["mods_modrinth"]],
@@ -1999,8 +2014,8 @@ class Api:
             # Marcar como aplicado (no volver a instalar)
             self.config_actual[key] = perfil_id
             self._guardar()
-            return {"ok": True, "ya_aplicado": False, "instalados": instalados,
-                    "errores": errores, "ram": ram_rec, "gc": perfil["gc"],
+            return {"ok": True, "ya_aplicado": False, "mods_instalados": instalados,
+                    "errores": errores, "ram_asignada": ram_rec, "gc": perfil["gc"],
                     "chunks": perfil["chunks"]}
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -2263,67 +2278,416 @@ class Api:
 
     def abrir_overlay(self):
         try:
-            _base = os.path.dirname(os.path.abspath(__file__))
-            overlay_html = os.path.join(_base, "web", "overlay.html")
-            if not os.path.exists(overlay_html):
-                return {"ok": False, "error": "overlay.html no encontrado"}
+            import tkinter as tk
             if self.__class__._overlay_window is not None:
                 try:
                     self.__class__._overlay_window.destroy()
                 except Exception:
                     pass
-            w = webview.create_window("Paraguacraft Overlay", url=overlay_html,
-                                      width=260, height=120, frameless=True,
-                                      on_top=True, background_color="#00000000",
-                                      transparent=True, resizable=False)
-            self.__class__._overlay_window = w
+                self.__class__._overlay_window = None
+
+            def _run():
+                try:
+                    import time as _time
+                    import subprocess as _sp
+                    import ctypes, re as _re
+
+                    root = tk.Tk()
+                    root.overrideredirect(True)
+                    root.attributes('-topmost', True)
+                    root.attributes('-alpha', 0.90)
+                    root.configure(bg='#0D0D0D')
+                    sw = root.winfo_screenwidth()
+                    root.geometry(f'220x185+{sw - 230}+20')
+
+                    def _drag_start(e): root._dx = e.x; root._dy = e.y
+                    def _drag_move(e):
+                        root.geometry(f'+{root.winfo_x()+e.x-root._dx}+{root.winfo_y()+e.y-root._dy}')
+
+                    outer = tk.Frame(root, bg='#0D0D0D', highlightbackground='#2ECC71',
+                                     highlightthickness=1)
+                    outer.pack(fill='both', expand=True)
+                    outer.bind('<Button-1>', _drag_start)
+                    outer.bind('<B1-Motion>', _drag_move)
+
+                    header = tk.Frame(outer, bg='#0D0D0D')
+                    header.pack(fill='x', padx=5, pady=(4, 2))
+                    header.bind('<Button-1>', _drag_start)
+                    header.bind('<B1-Motion>', _drag_move)
+                    tk.Label(header, text='Paraguacraft', bg='#0D0D0D', fg='#2ECC71',
+                             font=('Segoe UI', 8, 'bold')).pack(side='left')
+                    tk.Button(header, text='✕', bg='#0D0D0D', fg='#555',
+                              relief='flat', cursor='hand2', font=('Segoe UI', 8),
+                              activebackground='#E74C3C', activeforeground='white',
+                              command=root.destroy).pack(side='right')
+
+                    _ROW_DEFS = [
+                        ('FPS',      '🎮', '#F1C40F'),
+                        ('CPU',      '🧠', '#2ECC71'),
+                        ('CPU°',     '🌡', '#E67E22'),
+                        ('GPU',      '🖥', '#3498DB'),
+                        ('GPU°',     '🌡', '#E74C3C'),
+                        ('RAM',      '💾', '#9B59B6'),
+                        ('VRAM',     '📦', '#1ABC9C'),
+                    ]
+                    _labels = {}
+                    for key, icon, color in _ROW_DEFS:
+                        fr = tk.Frame(outer, bg='#0D0D0D')
+                        fr.pack(fill='x', padx=7, pady=1)
+                        fr.bind('<Button-1>', _drag_start)
+                        fr.bind('<B1-Motion>', _drag_move)
+                        lbl_key = tk.Label(fr, text=f'{icon} {key}', bg='#0D0D0D',
+                                           fg='#555555', font=('Consolas', 8), width=7, anchor='w')
+                        lbl_key.pack(side='left')
+                        lbl_key.bind('<Button-1>', _drag_start)
+                        lbl_key.bind('<B1-Motion>', _drag_move)
+                        lbl_val = tk.Label(fr, text='—', bg='#0D0D0D', fg=color,
+                                           font=('Consolas', 8, 'bold'), anchor='w')
+                        lbl_val.pack(side='left', fill='x', expand=True)
+                        lbl_val.bind('<Button-1>', _drag_start)
+                        lbl_val.bind('<B1-Motion>', _drag_move)
+                        _labels[key] = (lbl_val, color)
+
+                    _cache = {'cpu_temp': '—', 'gpu_pct': '—', 'gpu_temp': '—', 'vram': '—'}
+                    _alive = [True]
+
+                    def _bg_gpu():
+                        _flags = _sp.CREATE_NO_WINDOW
+                        while _alive[0]:
+                            nvidia_ok = False
+                            # 1. NVIDIA via nvidia-smi
+                            try:
+                                r = _sp.run(
+                                    ['nvidia-smi',
+                                     '--query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total',
+                                     '--format=csv,noheader,nounits'],
+                                    capture_output=True, text=True, timeout=4,
+                                    creationflags=_flags)
+                                if r.returncode == 0:
+                                    p = [x.strip() for x in r.stdout.strip().split(',')]
+                                    if len(p) >= 4:
+                                        _cache['gpu_pct'] = p[0] + '%'
+                                        _cache['gpu_temp'] = p[1] + '°C'
+                                        _cache['vram'] = f'{p[2]}MB/{p[3]}MB'
+                                        nvidia_ok = True
+                            except Exception:
+                                pass
+
+                            if not nvidia_ok:
+                                # 2. AMD/Intel: Windows Perf Counter GPU usage (Win10+)
+                                try:
+                                    r2 = _sp.run(
+                                        ['powershell', '-NoProfile', '-Command',
+                                         '$s=(Get-Counter "\\GPU Engine(*engtype_3D*)\\Utilization Percentage"'
+                                         ' -ErrorAction SilentlyContinue).CounterSamples |'
+                                         ' Where-Object {$_.CookedValue -gt 0} |'
+                                         ' Measure-Object -Property CookedValue -Sum;'
+                                         ' if($s){[Math]::Min(100,[Math]::Round($s.Sum))}else{0}'],
+                                        capture_output=True, text=True, timeout=6,
+                                        creationflags=_flags)
+                                    val = r2.stdout.strip()
+                                    if val and val.replace('.', '').isdigit():
+                                        _cache['gpu_pct'] = f'{round(float(val))}%'
+                                except Exception:
+                                    pass
+
+                                # 3. VRAM used: Windows Perf Counter dedicated memory (Win10+)
+                                try:
+                                    r3 = _sp.run(
+                                        ['powershell', '-NoProfile', '-Command',
+                                         '$s=(Get-Counter "\\GPU Process Memory(*)\\Dedicated Usage"'
+                                         ' -ErrorAction SilentlyContinue).CounterSamples |'
+                                         ' Measure-Object -Property CookedValue -Sum;'
+                                         ' if($s){[Math]::Round($s.Sum/1MB)}else{0}'],
+                                        capture_output=True, text=True, timeout=6,
+                                        creationflags=_flags)
+                                    val3 = r3.stdout.strip()
+                                    # Total VRAM from WMI
+                                    r4 = _sp.run(
+                                        ['powershell', '-NoProfile', '-Command',
+                                         '[Math]::Round((Get-WmiObject Win32_VideoController |'
+                                         ' Select-Object -First 1).AdapterRAM/1MB)'],
+                                        capture_output=True, text=True, timeout=4,
+                                        creationflags=_flags)
+                                    val4 = r4.stdout.strip()
+                                    if val3 and val3.isdigit() and val4 and val4.isdigit():
+                                        _cache['vram'] = f'{val3}MB/{val4}MB'
+                                    elif val3 and val3.isdigit():
+                                        _cache['vram'] = f'{val3}MB'
+                                except Exception:
+                                    pass
+
+                            _time.sleep(2)
+
+                    def _bg_cpu_temp():
+                        _flags = _sp.CREATE_NO_WINDOW
+                        while _alive[0]:
+                            found = False
+                            # 1. MSAcpi_ThermalZoneTemperature (returns tenths of Kelvin)
+                            try:
+                                r = _sp.run(
+                                    ['powershell', '-NoProfile', '-Command',
+                                     '(Get-WmiObject -Namespace "root/wmi" MSAcpi_ThermalZoneTemperature'
+                                     ' -ErrorAction SilentlyContinue |'
+                                     ' Select-Object -First 1).CurrentTemperature'],
+                                    capture_output=True, text=True, timeout=4,
+                                    creationflags=_flags)
+                                val = r.stdout.strip()
+                                if val and val.replace('.', '').isdigit():
+                                    temp_c = round((float(val) - 2732) / 10)
+                                    if 0 < temp_c < 120:
+                                        _cache['cpu_temp'] = f'{temp_c}°C'
+                                        found = True
+                            except Exception:
+                                pass
+                            # 2. Win32_PerfFormattedData_Counters_ThermalZoneInformation (Kelvin)
+                            if not found:
+                                try:
+                                    r2 = _sp.run(
+                                        ['powershell', '-NoProfile', '-Command',
+                                         '(Get-WmiObject Win32_PerfFormattedData_Counters_ThermalZoneInformation'
+                                         ' -ErrorAction SilentlyContinue |'
+                                         ' Select-Object -First 1).Temperature'],
+                                        capture_output=True, text=True, timeout=4,
+                                        creationflags=_flags)
+                                    val2 = r2.stdout.strip()
+                                    if val2 and val2.replace('.', '').isdigit():
+                                        temp_c = round(float(val2) - 273.15)
+                                        if 0 < temp_c < 120:
+                                            _cache['cpu_temp'] = f'{temp_c}°C'
+                                except Exception:
+                                    pass
+                            _time.sleep(3)
+
+                    def _get_mc_fps():
+                        try:
+                            EnumWP = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_long, ctypes.c_long)
+                            found = []
+                            def _cb(hwnd, _):
+                                n = ctypes.windll.user32.GetWindowTextLengthW(hwnd)
+                                if n > 0:
+                                    buf = ctypes.create_unicode_buffer(n + 1)
+                                    ctypes.windll.user32.GetWindowTextW(hwnd, buf, n + 1)
+                                    m = _re.search(r'(\d+)\s*fps', buf.value, _re.IGNORECASE)
+                                    if m:
+                                        found.append(m.group(1) + ' fps')
+                                return True
+                            ctypes.windll.user32.EnumWindows(EnumWP(_cb), 0)
+                            return found[0] if found else '—'
+                        except Exception:
+                            return '—'
+
+                    threading.Thread(target=_bg_gpu, daemon=True).start()
+                    threading.Thread(target=_bg_cpu_temp, daemon=True).start()
+
+                    def _set(key, text, color=None):
+                        lbl, default_color = _labels[key]
+                        lbl.config(text=text, fg=color or default_color)
+
+                    def _update():
+                        try:
+                            _set('FPS', _get_mc_fps())
+                            cpu = psutil.cpu_percent(interval=None)
+                            cpu_color = '#2ECC71' if cpu < 70 else '#F39C12' if cpu < 90 else '#E74C3C'
+                            _set('CPU', f'{cpu:.0f}%', cpu_color)
+                            _set('CPU°', _cache['cpu_temp'])
+                            _set('GPU', _cache['gpu_pct'])
+                            _set('GPU°', _cache['gpu_temp'])
+                            vm = psutil.virtual_memory()
+                            _set('RAM', f'{vm.used/(1024**3):.1f}/{vm.total/(1024**3):.0f}GB')
+                            _set('VRAM', _cache['vram'])
+                            root.after(1000, _update)
+                        except Exception:
+                            pass
+
+                    _update()
+                    self.__class__._overlay_window = root
+                    root.mainloop()
+                except Exception:
+                    pass
+                finally:
+                    _alive[0] = False
+                    self.__class__._overlay_window = None
+
+            threading.Thread(target=_run, daemon=True).start()
             return {"ok": True}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
     def cerrar_overlay(self):
         try:
-            if self.__class__._overlay_window:
-                self.__class__._overlay_window.destroy()
+            w = self.__class__._overlay_window
+            if w is not None:
+                try:
+                    w.destroy()
+                except Exception:
+                    pass
                 self.__class__._overlay_window = None
             return {"ok": True}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
-    # ── BENCHMARKING COMUNITARIO ───────────────────────────────────────────
+    # ── BENCHMARK DE PC COMPLETO ───────────────────────────────────────────
     def run_benchmark(self):
         try:
             import math as _math
+            import subprocess as _sp
+            import tempfile as _tf
+
+            # 1. CPU benchmark (test matemático)
             t0 = time.perf_counter()
             acc = 0
             for i in range(1, 2_500_001):
                 acc += _math.sqrt(i) * _math.log(i)
             elapsed = time.perf_counter() - t0
-            score = max(1, round(1_000_000 / elapsed))
+            cpu_score = max(1, round(1_000_000 / elapsed))
 
+            # 2. Info básica
             cpu_name = platform.processor() or platform.machine() or "CPU desconocida"
-            ram_total = round(psutil.virtual_memory().total / (1024 ** 3), 1)
-            usuario = self.config_actual.get("usuario", "Invitado")
-            entrada = {
-                "usuario": usuario,
-                "score": score,
-                "cpu": cpu_name[:60],
-                "ram_gb": ram_total,
-                "os": platform.system(),
-                "fecha": datetime.datetime.utcnow().isoformat(),
+            ram_gb = round(psutil.virtual_memory().total / (1024 ** 3), 1)
+
+            # 3. GPU (via wmic)
+            try:
+                _flags = _sp.CREATE_NO_WINDOW if platform.system() == "Windows" else 0
+                r_gpu = _sp.run(
+                    ['wmic', 'path', 'win32_VideoController', 'get', 'name'],
+                    capture_output=True, text=True, timeout=5, creationflags=_flags)
+                lines = [l.strip() for l in r_gpu.stdout.split('\n')
+                         if l.strip() and l.strip().lower() != 'name']
+                gpu_name = lines[0] if lines else "Desconocida"
+            except Exception:
+                gpu_name = "Desconocida"
+
+            # 4. Tipo de almacenamiento (PowerShell)
+            storage_type = "Desconocido"
+            try:
+                _flags = _sp.CREATE_NO_WINDOW if platform.system() == "Windows" else 0
+                r_disk = _sp.run(
+                    ['powershell', '-NoProfile', '-Command',
+                     'Get-PhysicalDisk | Select-Object -First 1 -ExpandProperty MediaType'],
+                    capture_output=True, text=True, timeout=6, creationflags=_flags)
+                media = r_disk.stdout.strip()
+                if 'SSD' in media or media == '4':
+                    storage_type = "SSD"
+                elif 'HDD' in media or media in ('3', 'Unspecified'):
+                    storage_type = "HDD"
+                else:
+                    storage_type = "SSD"
+            except Exception:
+                pass
+
+            # 5. Velocidad de disco (escritura 10 MB)
+            disk_speed_mb = 0
+            try:
+                test_data = os.urandom(10 * 1024 * 1024)
+                with _tf.NamedTemporaryFile(delete=False, suffix='.tmp') as tmp:
+                    tmp_path = tmp.name
+                t_d = time.perf_counter()
+                with open(tmp_path, 'wb') as f:
+                    f.write(test_data)
+                disk_speed_mb = round(10.0 / max(0.001, time.perf_counter() - t_d))
+                try:
+                    os.unlink(tmp_path)
+                except Exception:
+                    pass
+            except Exception:
+                pass
+
+            # 6. Puntuación total (0-100)
+            pts = 0
+            # CPU (0-40)
+            pts += (40 if cpu_score >= 3_000_000 else
+                    30 if cpu_score >= 2_000_000 else
+                    20 if cpu_score >= 1_000_000 else
+                    10 if cpu_score >= 500_000 else 5)
+            # RAM (0-25)
+            pts += (25 if ram_gb >= 16 else
+                    18 if ram_gb >= 8 else
+                    12 if ram_gb >= 6 else
+                    6 if ram_gb >= 4 else 2)
+            # GPU (0-25)
+            gn = gpu_name.lower()
+            if any(x in gn for x in ['rtx', 'gtx', 'rx ', 'geforce', 'arc a', 'radeon rx']):
+                pts += 25
+            elif any(x in gn for x in ['nvidia', 'amd radeon', 'radeon']):
+                pts += 18
+            elif any(x in gn for x in ['iris xe', 'iris plus', 'radeon vega', '680m', '780m']):
+                pts += 14
+            else:
+                pts += 6
+            # Almacenamiento (0-10)
+            pts += 10 if storage_type == "SSD" else 4 if storage_type == "HDD" else 7
+
+            # 7. Tier y recomendaciones
+            if pts >= 70:
+                tier = "alta"
+                tier_label = "🏆 PC Gamer"
+                tier_color = "#2ECC71"
+                tier_desc = "Excelente PC para gaming"
+                mc_version = "1.21.x"
+                mc_motor = "Fabric + Iris Shaders"
+                mc_ram = "8G"
+                mc_chunks = "16"
+                mc_fps = "100+"
+                mc_config = "Ultra — máxima calidad"
+                mc_shaders = "Sí, recomendados"
+            elif pts >= 40:
+                tier = "media"
+                tier_label = "⚡ PC Casual"
+                tier_color = "#F39C12"
+                tier_desc = "Buena para la mayoría de versiones"
+                mc_version = "1.20.4"
+                mc_motor = "Fabric"
+                mc_ram = "4G"
+                mc_chunks = "12"
+                mc_fps = "60+"
+                mc_config = "Media"
+                mc_shaders = "No recomendados"
+            else:
+                tier = "baja"
+                tier_label = "🔧 PC Básica"
+                tier_color = "#E74C3C"
+                tier_desc = "Funcional en versiones optimizadas"
+                mc_version = "1.16.5"
+                mc_motor = "Vanilla / OptiFine"
+                mc_ram = "2G"
+                mc_chunks = "8"
+                mc_fps = "30+"
+                mc_config = "Mínima / Optimizada"
+                mc_shaders = "No"
+
+            return {
+                "ok": True,
+                "cpu_score": cpu_score,
+                "cpu_name": cpu_name[:60],
+                "cpu_tiempo_s": round(elapsed, 2),
+                "ram_gb": ram_gb,
+                "gpu_name": gpu_name[:60],
+                "storage_type": storage_type,
+                "disk_speed_mb": disk_speed_mb,
+                "total_pts": pts,
+                "tier": tier,
+                "tier_label": tier_label,
+                "tier_color": tier_color,
+                "tier_desc": tier_desc,
+                "mc_version": mc_version,
+                "mc_motor": mc_motor,
+                "mc_ram": mc_ram,
+                "mc_chunks": mc_chunks,
+                "mc_fps": mc_fps,
+                "mc_config": mc_config,
+                "mc_shaders": mc_shaders,
             }
-            self._benchmark_submit(entrada)
-            return {"ok": True, "score": score, "cpu": cpu_name[:60], "ram_gb": ram_total, "tiempo_s": round(elapsed, 2)}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
     def _benchmark_submit(self, entrada):
         try:
-            from src.nube import MONGO_URI
-            if "<db_password>" in MONGO_URI:
-                return
+            from src.nube import MONGO_URI, MONGO_USER, MONGO_PASS
             import pymongo
-            client = pymongo.MongoClient(MONGO_URI, serverSelectionTimeoutMS=4000)
+            client = pymongo.MongoClient(
+                MONGO_URI, username=MONGO_USER, password=MONGO_PASS,
+                authSource="admin", serverSelectionTimeoutMS=4000)
             db = client["paraguacraft_db"]
             col = db["benchmarks"]
             usuario = entrada.get("usuario", "Invitado")
@@ -2334,11 +2698,11 @@ class Api:
 
     def get_benchmark_leaderboard(self):
         try:
-            from src.nube import MONGO_URI
-            if "<db_password>" in MONGO_URI:
-                return {"ok": False, "error": "MongoDB no configurado. Completá la contraseña en src/nube.py", "rankings": []}
+            from src.nube import MONGO_URI, MONGO_USER, MONGO_PASS
             import pymongo
-            client = pymongo.MongoClient(MONGO_URI, serverSelectionTimeoutMS=4000)
+            client = pymongo.MongoClient(
+                MONGO_URI, username=MONGO_USER, password=MONGO_PASS,
+                authSource="admin", serverSelectionTimeoutMS=4000)
             db = client["paraguacraft_db"]
             col = db["benchmarks"]
             docs = list(col.find({}, {"_id": 0}).sort("score", -1).limit(15))
@@ -2550,6 +2914,24 @@ class _LocalAPIHandler(BaseHTTPRequestHandler):
         elif parsed.path == '/api/game_status':
             self._json(_api_http_ref._game_status if _api_http_ref else {"running": False, "status": "idle"})
 
+        elif parsed.path == '/api/skin_proxy':
+            name = qs.get('name', ['Steve'])[0].strip() or 'Steve'
+            try:
+                _sr = requests.get(f'https://minotar.net/skin/{name}', timeout=6)
+                if _sr.status_code == 200 and _sr.content:
+                    payload = _sr.content
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'image/png')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.send_header('Cache-Control', 'public, max-age=300')
+                    self.send_header('Content-Length', str(len(payload)))
+                    self.end_headers()
+                    self.wfile.write(payload)
+                else:
+                    self.send_response(404); self.end_headers()
+            except Exception:
+                self.send_response(503); self.end_headers()
+
         else:
             self.send_response(404); self.end_headers()
 
@@ -2573,6 +2955,18 @@ class _LocalAPIHandler(BaseHTTPRequestHandler):
                     self._json({'ok': False, 'error': str(_e)})
             else:
                 self._json({'ok': False, 'error': 'version requerida'})
+        elif self.path == '/api/call':
+            method = body.get('method', '')
+            args = body.get('args', [])
+            if not method or not _api_http_ref or not hasattr(_api_http_ref, method) or method.startswith('_'):
+                self._json({'ok': False, 'error': f'Method not found: {method}'}); return
+            try:
+                result = getattr(_api_http_ref, method)(*args)
+                if result is None:
+                    result = {'ok': True}
+                self._json(result)
+            except Exception as _ce:
+                self._json({'ok': False, 'error': str(_ce)})
         else:
             self.send_response(404); self.end_headers()
 

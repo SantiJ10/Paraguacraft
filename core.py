@@ -403,7 +403,7 @@ def instalar_mods_por_motor(game_dir, version, motor_elegido, progress_callback,
             _descargar_mods_fabric_slugs(mods_dir, version, ["e4mc"], progress_callback, headers)
         return
 
-def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type="G1GC", optimizar=False, motor_elegido="Vanilla", papa_mode=False, usar_mesa=False, mostrar_consola=False, progress_callback=None, uuid_real=None, token_real=None, lan_distancia=False, fabric_loader_override=None):
+def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type="G1GC", optimizar=False, motor_elegido="Vanilla", papa_mode=False, usar_mesa=False, mostrar_consola=False, progress_callback=None, uuid_real=None, token_real=None, lan_distancia=False, fabric_loader_override=None, server_ip=""):
     minecraft_directory = minecraft_launcher_lib.utils.get_minecraft_directory()
     
     def on_progress(event):
@@ -493,6 +493,14 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
 
     command = minecraft_launcher_lib.command.get_minecraft_command(version_a_lanzar, minecraft_directory, options)
 
+    if server_ip and isinstance(server_ip, str) and server_ip.strip():
+        ip_clean = server_ip.strip()
+        if ":" in ip_clean:
+            parts = ip_clean.rsplit(":", 1)
+            command += ["--server", parts[0], "--port", parts[1]]
+        else:
+            command += ["--server", ip_clean, "--port", "25565"]
+
     entorno = os.environ.copy()
     if usar_mesa:
         entorno["MESA_GL_VERSION_OVERRIDE"] = "3.3"
@@ -510,7 +518,7 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
                 target=lambda: GestorNube().descargar_datos(username, options_txt_path, servers_dat_path),
                 daemon=True)
             _t.start()
-            _t.join(timeout=3)
+            _t.join(timeout=1)
         except Exception:
             pass
 

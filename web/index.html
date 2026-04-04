@@ -1311,37 +1311,90 @@
                 </div>
             </div>
 
-            <!-- BENCHMARK COMUNITARIO -->
+            <!-- BENCHMARK DE PC -->
             <div id="hpanel-benchmark" class="hidden flex-1 min-h-0 overflow-y-auto pr-1">
-                <div class="grid grid-cols-2 gap-5">
-                    <div class="bg-[#181818] border border-[#F39C12]/30 rounded-xl p-6 flex flex-col gap-4">
-                        <div class="flex items-center gap-3">
-                            <span class="text-4xl">🏆</span>
+                <div class="flex flex-col gap-4">
+                    <!-- Header -->
+                    <div class="bg-[#181818] border border-[#F39C12]/30 rounded-xl p-5 flex items-center justify-between gap-4">
+                        <div class="flex items-center gap-4">
+                            <span class="text-4xl">🖥️</span>
                             <div>
-                                <h3 class="font-black text-lg text-[#F39C12]">Benchmark de CPU</h3>
-                                <p class="text-xs text-gray-500">Medí el rendimiento de tu PC y comparalo con la comunidad</p>
+                                <h3 class="font-black text-lg text-[#F39C12]">Benchmark de PC Completo</h3>
+                                <p class="text-xs text-gray-500">Analizá tu CPU, GPU, RAM y almacenamiento para saber qué versión de Minecraft te va mejor</p>
                             </div>
                         </div>
-                        <div class="bg-[#0A0A0A] rounded-lg p-4 border border-[#2A2A2A] text-xs text-gray-400 space-y-1.5">
-                            <p>✅ Test matemático real (~3 segundos)</p>
-                            <p>✅ Puntaje enviado al ranking comunitario</p>
-                            <p>✅ Guarda CPU, RAM y SO de tu PC</p>
-                        </div>
-                        <button id="btn-bench" onclick="iniciarBenchmark()" class="bg-[#F39C12] hover:bg-[#E67E22] text-black font-black py-2.5 rounded transition">🚀 Iniciar Benchmark</button>
-                        <p id="bench-msg" class="text-xs text-center text-gray-500 min-h-[1rem]"></p>
-                        <div id="bench-score-box" class="hidden bg-[#0A0A0A] border border-[#F39C12]/30 rounded-xl p-4 text-center space-y-1">
-                            <p class="text-4xl font-black text-[#F39C12]" id="bench-score">–</p>
-                            <p class="text-xs text-gray-400" id="bench-hw-info"></p>
-                            <p class="text-[10px] text-gray-600" id="bench-tiempo"></p>
-                        </div>
+                        <button id="btn-bench" onclick="iniciarBenchmark()" class="bg-[#F39C12] hover:bg-[#E67E22] text-black font-black px-6 py-2.5 rounded-lg transition shrink-0">🚀 Iniciar Análisis</button>
                     </div>
-                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col gap-3">
-                        <div class="flex items-center justify-between">
-                            <h3 class="font-black">🌐 Ranking comunitario</h3>
-                            <button onclick="cargarLeaderboard()" class="text-xs text-gray-500 hover:text-white transition">↻ Actualizar</button>
+                    <!-- Mensaje de estado -->
+                    <p id="bench-msg" class="text-xs text-center text-gray-500 min-h-[1.2rem]"></p>
+                    <!-- Resultados (hidden hasta correr) -->
+                    <div id="bench-results" class="hidden flex flex-col gap-4">
+                        <!-- Tier badge -->
+                        <div id="bench-tier-box" class="rounded-xl p-5 border flex items-center gap-5">
+                            <div class="text-5xl" id="bench-tier-icon">🏆</div>
+                            <div class="flex-1">
+                                <p class="font-black text-2xl" id="bench-tier-label">–</p>
+                                <p class="text-sm text-gray-400" id="bench-tier-desc">–</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-4xl font-black" id="bench-total-pts">–</p>
+                                <p class="text-xs text-gray-500">puntos / 100</p>
+                            </div>
                         </div>
-                        <div id="bench-leaderboard" class="space-y-1.5 max-h-80 overflow-y-auto">
-                            <p class="text-xs text-gray-500 text-center py-4">Hacé clic en «Actualizar» para ver el ranking.</p>
+                        <!-- Hardware grid -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-4 flex flex-col gap-1">
+                                <p class="text-xs text-gray-500 font-bold uppercase tracking-wider">🧠 CPU</p>
+                                <p class="font-bold text-sm text-white" id="bench-cpu-name">–</p>
+                                <p class="text-xs text-[#F39C12]" id="bench-cpu-score">–</p>
+                            </div>
+                            <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-4 flex flex-col gap-1">
+                                <p class="text-xs text-gray-500 font-bold uppercase tracking-wider">🎮 GPU</p>
+                                <p class="font-bold text-sm text-white" id="bench-gpu-name">–</p>
+                            </div>
+                            <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-4 flex flex-col gap-1">
+                                <p class="text-xs text-gray-500 font-bold uppercase tracking-wider">💾 RAM</p>
+                                <p class="font-bold text-sm text-white" id="bench-ram">–</p>
+                            </div>
+                            <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-4 flex flex-col gap-1">
+                                <p class="text-xs text-gray-500 font-bold uppercase tracking-wider">💿 Almacenamiento</p>
+                                <p class="font-bold text-sm text-white" id="bench-storage">–</p>
+                                <p class="text-xs text-gray-500" id="bench-disk-speed">–</p>
+                            </div>
+                        </div>
+                        <!-- Recomendaciones MC -->
+                        <div class="bg-[#181818] border border-[#2ECC71]/20 rounded-xl p-5">
+                            <p class="font-black text-[#2ECC71] mb-3">⛏️ Recomendación para Minecraft</p>
+                            <div class="grid grid-cols-3 gap-3 text-sm">
+                                <div class="bg-[#0A0A0A] rounded-lg p-3 flex flex-col gap-1">
+                                    <p class="text-xs text-gray-500">Versión recomendada</p>
+                                    <p class="font-bold text-white" id="bench-mc-ver">–</p>
+                                </div>
+                                <div class="bg-[#0A0A0A] rounded-lg p-3 flex flex-col gap-1">
+                                    <p class="text-xs text-gray-500">Motor / Loader</p>
+                                    <p class="font-bold text-white" id="bench-mc-motor">–</p>
+                                </div>
+                                <div class="bg-[#0A0A0A] rounded-lg p-3 flex flex-col gap-1">
+                                    <p class="text-xs text-gray-500">RAM asignada</p>
+                                    <p class="font-bold text-white" id="bench-mc-ram">–</p>
+                                </div>
+                                <div class="bg-[#0A0A0A] rounded-lg p-3 flex flex-col gap-1">
+                                    <p class="text-xs text-gray-500">FPS estimados</p>
+                                    <p class="font-bold" id="bench-mc-fps">–</p>
+                                </div>
+                                <div class="bg-[#0A0A0A] rounded-lg p-3 flex flex-col gap-1">
+                                    <p class="text-xs text-gray-500">Distancia de render</p>
+                                    <p class="font-bold text-white" id="bench-mc-chunks">–</p>
+                                </div>
+                                <div class="bg-[#0A0A0A] rounded-lg p-3 flex flex-col gap-1">
+                                    <p class="text-xs text-gray-500">Shaders</p>
+                                    <p class="font-bold text-white" id="bench-mc-shaders">–</p>
+                                </div>
+                            </div>
+                            <div class="mt-3 bg-[#0A0A0A] rounded-lg p-3">
+                                <p class="text-xs text-gray-500">Configuración gráfica</p>
+                                <p class="font-bold text-white" id="bench-mc-config">–</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1409,6 +1462,44 @@
 
     <script>
         window._API_PORT = 9875;
+
+        // ── PYWEBVIEW PROXY FALLBACK ──────────────────────────────────────────
+        // Ensures pywebview.api.xxx() NEVER throws ReferenceError.
+        // All calls route through the local HTTP /api/call endpoint.
+        // This fires before any user interaction, so no call can fail.
+        (function() {
+            function _makeApiProxy() {
+                return new Proxy({}, {
+                    get: function(_, method) {
+                        return async function() {
+                            var args = Array.prototype.slice.call(arguments);
+                            var port = window._API_PORT || 9875;
+                            try {
+                                var r = await fetch('http://127.0.0.1:' + port + '/api/call', {
+                                    method: 'POST',
+                                    headers: {'Content-Type': 'application/json'},
+                                    body: JSON.stringify({method: method, args: args})
+                                });
+                                return await r.json();
+                            } catch(e) {
+                                return {ok: false, error: String(e)};
+                            }
+                        };
+                    }
+                });
+            }
+            if (typeof window.pywebview === 'undefined') {
+                window.pywebview = {api: _makeApiProxy()};
+            }
+            // On pywebviewready, keep our reliable HTTP proxy (don't switch back to bridge)
+            window.addEventListener('pywebviewready', function() {
+                if (!window.pywebview || !window.pywebview.api) {
+                    window.pywebview = {api: _makeApiProxy()};
+                }
+            });
+        })();
+        // ─────────────────────────────────────────────────────────────────────
+
         const dataVersionesBase = {
             "26.1": { desc: "The 2026 Game Drops." },
             "1.21": { desc: "Trial Chambers y contenido reciente." },
@@ -2500,13 +2591,14 @@
             const h = document.getElementById('skin-head-render');
             const nlbl = document.getElementById('skin-jugador-nombre');
             const ulbl = document.getElementById('skin-url-lbl');
+            const port = window._API_PORT || 9875;
+            const skinProxyUrl = `http://127.0.0.1:${port}/api/skin_proxy?name=${encodeURIComponent(u)}`;
             if (h) h.src = `https://minotar.net/helm/${u}/128.png`;
             if (nlbl) nlbl.textContent = u;
-            const skinUrl = `https://minotar.net/skin/${u}`;
-            if (ulbl) ulbl.textContent = skinUrl;
+            if (ulbl) ulbl.textContent = `https://minotar.net/skin/${u}`;
             const canvas = document.getElementById('skin-3d-canvas');
             if (!canvas) return;
-            // Init or re-use skinview3d
+            // Init or re-use skinview3d with local proxy URL to avoid CORS issues
             if (typeof skinview3d !== 'undefined') {
                 if (_skin3DViewer) {
                     try { _skin3DViewer.dispose(); } catch(e) {}
@@ -2517,7 +2609,7 @@
                         canvas: canvas,
                         width: 220,
                         height: 400,
-                        skin: skinUrl
+                        skin: skinProxyUrl
                     });
                     _skin3DViewer.autoRotate = false;
                     _skin3DViewer.autoRotateSpeed = 0.8;
@@ -2527,18 +2619,19 @@
                     const walkBtn = document.getElementById('btn-skin-walk');
                     if (walkBtn) walkBtn.textContent = '▶ Animar';
                 } catch(e) {
-                    canvas.getContext('2d') && _drawSkinFallback(canvas, skinUrl);
+                    canvas.getContext('2d') && _drawSkinFallback(canvas, u);
                 }
             } else {
-                _drawSkinFallback(canvas, skinUrl);
+                _drawSkinFallback(canvas, u);
             }
         }
 
-        function _drawSkinFallback(canvas, skinUrl) {
+        function _drawSkinFallback(canvas, name) {
+            const port = window._API_PORT || 9875;
             const ctx = canvas.getContext('2d');
             const img = new Image(); img.crossOrigin = 'anonymous';
             img.onload = () => { ctx.clearRect(0,0,canvas.width,canvas.height); ctx.drawImage(img,0,0,canvas.width,canvas.height); };
-            img.src = `https://minotar.net/armor/body/${skinUrl.split('/').pop()}/200.png`;
+            img.src = `http://127.0.0.1:${port}/api/skin_proxy?name=${encodeURIComponent(name)}`;
         }
 
         function skin3DRotate(dir) {
@@ -2582,10 +2675,11 @@
         async function aplicarSkinDesdeNombre(nombre) {
             const url = `https://minotar.net/skin/${nombre}`;
             try {
-                await pywebview.api.guardar_skin(url);
-                alert('✅ Skin de ' + nombre + ' aplicada.');
+                const r = await pywebview.api.guardar_skin(url, nombre);
+                if (r && r.ok === false) throw new Error(r.error || 'Error');
+                alert('✅ Skin de ' + nombre + ' descargada y guardada.');
             } catch(e) {
-                alert('No se pudo aplicar la skin de ' + nombre + '.');
+                alert('No se pudo aplicar la skin de ' + nombre + ': ' + String(e));
             }
         }
         // --- FIN SKINS ---
@@ -2781,63 +2875,64 @@
             msg.textContent = 'Abriendo...';
             try {
                 const r = await pywebview.api.abrir_overlay();
-                msg.textContent = r.ok ? 'Overlay abierto ✅' : '❌ ' + r.error;
+                msg.textContent = r.ok ? '✅ Overlay abierto' : '❌ ' + r.error;
             } catch(e) { msg.textContent = '❌ ' + e; }
-            setTimeout(() => { if(msg) msg.textContent = ''; }, 3000);
         }
 
-        // ══ BENCHMARK ════════════════════════════════════════════════════
+        // ══ BENCHMARK DE PC ══════════════════════════════════════════════
         async function iniciarBenchmark() {
             const btn = document.getElementById('btn-bench');
             const msg = document.getElementById('bench-msg');
-            const box = document.getElementById('bench-score-box');
+            const results = document.getElementById('bench-results');
             btn.disabled = true;
-            btn.textContent = '⏳ Calculando...';
-            msg.textContent = 'Ejecutando benchmark de CPU (~3s)...';
+            btn.textContent = '⏳ Analizando...';
+            if (results) results.classList.add('hidden');
+            msg.textContent = 'Analizando CPU, GPU, RAM y almacenamiento (~10s)...';
             try {
-                const r = await pywebview.api.run_benchmark();
-                if (r.ok) {
-                    box.classList.remove('hidden');
-                    document.getElementById('bench-score').textContent = r.score.toLocaleString();
-                    document.getElementById('bench-hw-info').textContent = r.cpu + ' · ' + r.ram_gb + ' GB RAM';
-                    document.getElementById('bench-tiempo').textContent = 'Completado en ' + r.tiempo_s + 's';
-                    msg.textContent = '✅ Puntaje subido al ranking comunitario';
-                    cargarLeaderboard();
-                } else {
-                    msg.textContent = '❌ ' + r.error;
-                }
+                const port = window._API_PORT || 9875;
+                const resp = await fetch(`http://127.0.0.1:${port}/api/call`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({method: 'run_benchmark', args: []})
+                });
+                const r = await resp.json();
+                if (!r.ok) { msg.textContent = '❌ ' + (r.error || 'Error desconocido'); return; }
+
+                // Tier badge
+                const tierBox = document.getElementById('bench-tier-box');
+                const color = r.tier_color || '#F39C12';
+                tierBox.style.borderColor = color + '55';
+                tierBox.style.background = color + '11';
+                document.getElementById('bench-tier-label').style.color = color;
+                document.getElementById('bench-tier-label').textContent = r.tier_label;
+                document.getElementById('bench-tier-desc').textContent = r.tier_desc;
+                document.getElementById('bench-total-pts').style.color = color;
+                document.getElementById('bench-total-pts').textContent = r.total_pts;
+
+                // Hardware
+                document.getElementById('bench-cpu-name').textContent = r.cpu_name;
+                document.getElementById('bench-cpu-score').textContent = r.cpu_score.toLocaleString() + ' pts CPU · ' + r.cpu_tiempo_s + 's';
+                document.getElementById('bench-gpu-name').textContent = r.gpu_name;
+                document.getElementById('bench-ram').textContent = r.ram_gb + ' GB';
+                document.getElementById('bench-storage').textContent = r.storage_type;
+                document.getElementById('bench-disk-speed').textContent = r.disk_speed_mb > 0 ? r.disk_speed_mb + ' MB/s escritura' : '';
+
+                // Minecraft recommendations
+                document.getElementById('bench-mc-ver').textContent = r.mc_version;
+                document.getElementById('bench-mc-motor').textContent = r.mc_motor;
+                document.getElementById('bench-mc-ram').textContent = r.mc_ram;
+                const fpsEl = document.getElementById('bench-mc-fps');
+                fpsEl.textContent = r.mc_fps;
+                fpsEl.style.color = color;
+                document.getElementById('bench-mc-chunks').textContent = r.mc_chunks + ' chunks';
+                document.getElementById('bench-mc-shaders').textContent = r.mc_shaders;
+                document.getElementById('bench-mc-config').textContent = r.mc_config;
+
+                results.classList.remove('hidden');
+                msg.textContent = '✅ Análisis completo en ' + r.cpu_tiempo_s + 's';
             } catch(e) { msg.textContent = '❌ ' + e; }
             btn.disabled = false;
-            btn.textContent = '🚀 Iniciar Benchmark';
-        }
-
-        async function cargarLeaderboard() {
-            const lb = document.getElementById('bench-leaderboard');
-            lb.innerHTML = '<div class="text-center text-gray-500 text-xs py-4 animate-pulse">Cargando ranking...</div>';
-            try {
-                const r = await pywebview.api.get_benchmark_leaderboard();
-                if (!r.ok) {
-                    lb.innerHTML = `<p class="text-xs text-red-400 text-center py-4">${r.error}</p>`;
-                    return;
-                }
-                if (!r.rankings.length) {
-                    lb.innerHTML = '<p class="text-xs text-gray-500 text-center py-4">Sin datos aún. ¡Sé el primero en hacer benchmark!</p>';
-                    return;
-                }
-                const usuario = '${window._cachedUsuario || ""}';
-                lb.innerHTML = r.rankings.map((row, i) => {
-                    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`;
-                    const isMe = row.usuario && row.usuario === window._cachedUsuario;
-                    return `<div class="flex items-center gap-3 px-3 py-2 rounded-lg ${isMe ? 'bg-[#2ECC71]/10 border border-[#2ECC71]/30' : 'bg-[#0A0A0A] border border-[#2A2A2A]'}">
-                        <span class="text-sm w-6 text-center shrink-0">${medal}</span>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-xs font-bold truncate ${isMe ? 'text-[#2ECC71]' : 'text-white'}">${row.usuario || '?'}</p>
-                            <p class="text-[10px] text-gray-600 truncate">${(row.cpu || '').substring(0,35)}</p>
-                        </div>
-                        <span class="text-[#F39C12] font-black text-sm shrink-0">${(row.score||0).toLocaleString()}</span>
-                    </div>`;
-                }).join('');
-            } catch(e) { lb.innerHTML = `<p class="text-xs text-red-400 text-center py-4">${e}</p>`; }
+            btn.textContent = '🚀 Iniciar Análisis';
         }
 
         // ══ SKIN IA ═══════════════════════════════════════════════════════
