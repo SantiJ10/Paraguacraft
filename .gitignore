@@ -8,3 +8,4 @@ Logs/
 *.exe
 *.log
 *.gz
+secrets.py
