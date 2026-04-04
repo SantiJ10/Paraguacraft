@@ -2,14 +2,21 @@ import os
 import pymongo
 from pymongo.errors import ConnectionFailure
 
-# Reemplazá <db_password> por tu contraseña real
-MONGO_URI = "mongodb+srv://jalufsanti:<db_password>@cluster0.y5grb.mongodb.net/?appName=Cluster0"
+MONGO_URI = "mongodb+srv://cluster0.y5grb.mongodb.net/?appName=Cluster0"
+MONGO_USER = "jalufsanti"
+MONGO_PASS = "#Aminsj1001"
 
 class GestorNube:
     def __init__(self):
         try:
             # Conexión rápida (3 segundos) para que si no hay internet, el launcher no se trabe
-            self.cliente = pymongo.MongoClient(MONGO_URI, serverSelectionTimeoutMS=3000)
+            self.cliente = pymongo.MongoClient(
+                MONGO_URI,
+                username=MONGO_USER,
+                password=MONGO_PASS,
+                authSource="admin",
+                serverSelectionTimeoutMS=3000,
+            )
             self.db = self.cliente["paraguacraft_db"]
             self.coleccion_perfiles = self.db["perfiles_usuarios"]
         except ConnectionFailure:
