@@ -2870,10 +2870,12 @@
         // --- INSTALAR MOD DESDE MODRINTH ---
         let _imodProjectId = null;
         let _imodTipo = 'mod';
+        let _imodSource = 'modrinth';
 
         function abrirInstalarMod(projectId, titulo, tipo) {
             _imodProjectId = projectId;
             _imodTipo = tipo;
+            _imodSource = 'modrinth';
             document.getElementById('imod-titulo').textContent = 'Instalar: ' + titulo;
             document.getElementById('imod-subtitulo').textContent = 'Tipo: ' + tipo;
             document.getElementById('imod-lista').innerHTML = '<p class="text-xs text-gray-500 text-center mt-4">Escribí la versión MC y hacé clic en Buscar.</p>';
@@ -2892,19 +2894,22 @@
             const motor = document.getElementById('imod-motor').value;
             const lista = document.getElementById('imod-lista');
             lista.innerHTML = '<p class="text-xs text-gray-500 text-center mt-4">Buscando versiones...</p>';
-            const res = await pywebview.api.get_versiones_mod(_imodProjectId, verMc, _imodTipo);
-            if (!res.ok || res.versions.length === 0) {
+            const res = _imodSource === 'curseforge'
+                ? await pywebview.api.get_versiones_curseforge(_imodProjectId, verMc)
+                : await pywebview.api.get_versiones_mod(_imodProjectId, verMc, _imodTipo);
+            if (!res.ok || !res.versions || res.versions.length === 0) {
                 lista.innerHTML = '<p class="text-xs text-gray-500 text-center mt-4">No se encontraron versiones compatibles.</p>';
                 return;
             }
             lista.innerHTML = '';
             res.versions.forEach(v => {
-                const gv = v.game_versions.slice(0,3).join(', ') + (v.game_versions.length > 3 ? '…' : '');
+                const gv = (v.game_versions || []).slice(0,3).join(', ') + ((v.game_versions||[]).length > 3 ? '…' : '');
+                const loaders = (v.loaders || []).join(', ') || '—';
                 lista.innerHTML += `
                 <div class="bg-[#181818] border border-[#2A2A2A] rounded-lg p-3 flex items-center justify-between gap-3 hover:border-[#2ECC71] transition">
                     <div class="flex-1 min-w-0">
                         <p class="font-bold text-sm text-white truncate">${v.name}</p>
-                        <p class="text-xs text-gray-500">${gv} · ${v.loaders.join(', ')} · ${v.size_mb} MB · ${v.date_published}</p>
+                        <p class="text-xs text-gray-500">${gv} · ${loaders} · ${v.size_mb} MB · ${v.date_published}</p>
                     </div>
                     <button onclick="instalarModVersion('${_imodProjectId}','${v.id}','${_imodTipo}','${verMc}','${motor}')" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black px-3 py-1.5 rounded transition shrink-0">⬇ Instalar</button>
                 </div>`;
@@ -2913,7 +2918,10 @@
 
         async function instalarModVersion(projectId, versionId, tipo, verMc, motor) {
             document.getElementById('imod-instalando').classList.remove('hidden');
-            await pywebview.api.instalar_mod_desde_modrinth(projectId, versionId, tipo, verMc, motor);
+            const result = _imodSource === 'curseforge'
+                ? await pywebview.api.instalar_mod_curseforge(projectId, versionId, tipo, verMc, motor)
+                : await pywebview.api.instalar_mod_desde_modrinth(projectId, versionId, tipo, verMc, motor);
+            onModInstalado(result);
         }
 
         function onModInstalado(result) {
@@ -3325,7 +3333,7 @@
                     return;
                 }
                 grid.innerHTML = r.screenshots.map(s => `
-                    <div class="group relative bg-[#0A0A0A] rounded-xl overflow-hidden border border-[#2A2A2A] hover:border-[#2ECC71]/50 transition cursor-pointer" onclick="verScreenshot('${s.ruta.replace(/\\/g,'\\\\')}')">
+                    <div class="group relative bg-[#0A0A0A] border border-[#2A2A2A] rounded-xl overflow-hidden border border-[#2A2A2A] hover:border-[#2ECC71]/50 transition cursor-pointer" onclick="verScreenshot('${s.ruta.replace(/\\/g,'\\\\')}')">
                         <img src="file:///${s.ruta}" class="w-full h-40 object-cover group-hover:scale-105 transition duration-300" onerror="this.src='https://via.placeholder.com/400x200/0A0A0A/333?text=IMG'">
                         <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition"></div>
                         <div class="p-2">
@@ -3507,7 +3515,7 @@
         async function cargarWhitelist() {
             const lista = document.getElementById('whitelist-lista');
             if (!lista) return;
-            lista.innerHTML = '<p class="text-gray-400 text-xs">Cargando...</p>';
+            lista.innerHTML = '<p class="text-gray-500 text-xs">Cargando...</p>';
             try {
                 const r = await pywebview.api.get_whitelist();
                 if (!r.ok) { lista.innerHTML = '<p class="text-red-400 text-xs">' + (r.error || 'Error') + '</p>'; return; }
@@ -3516,7 +3524,7 @@
                 lista.innerHTML = jugadores.map(function(j) {
                     const n = j.name || j;
                     return '<div class="flex items-center justify-between bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg px-3 py-2">'
-                        + '<div class="flex items-center gap-2"><img src="https://minotar.net/helm/' + n + '/20.png" class="w-5 h-5 rounded" onerror="this.style.display=\'none\'">'
+                        + '<div class="flex items-center gap-2"><img src="https://minotar.net/helm/' + n + '/20.png" class="w-5 h-5 rounded" onerror="this.src=\'https://minotar.net/armor/body/Steve/20.png\'">'
                         + '<span class="text-sm font-bold">' + n + '</span></div>'
                         + '<button onclick="eliminarWhitelist(\'' + n + '\')" class="text-xs text-red-400 hover:text-red-300 transition">✕</button></div>';
                 }).join('');
@@ -3685,6 +3693,7 @@
 
         // ══ SKIN IA ═══════════════════════════════════════════════════════
         let _skinGenRuta = '';
+
         async function generarSkinIA() {
             const desc = (document.getElementById('skin-gen-desc').value || '').trim();
             const btn = document.getElementById('btn-skin-gen');
@@ -4373,13 +4382,14 @@
         function abrirInstalarModCF(projectId, titulo, tipo) {
             _cfProjectId = projectId;
             _cfTipo = tipo;
+            _imodProjectId = projectId;
+            _imodTipo = tipo;
+            _imodSource = 'curseforge';
             document.getElementById('imod-titulo').textContent = 'Instalar (CF): ' + titulo;
             document.getElementById('imod-subtitulo').textContent = 'Tipo: ' + tipo + ' · CurseForge';
             document.getElementById('imod-lista').innerHTML = '<p class="text-xs text-gray-500 text-center mt-4">Escribí la versión MC y hacé clic en Buscar.</p>';
             document.getElementById('imod-instalando').classList.add('hidden');
             document.getElementById('instalar-mod-modal').classList.remove('hidden');
-            // Override cargar versiones para usar CF
-            document.getElementById('imod-lista').setAttribute('data-source', 'curseforge');
         }
 
         // ══ COMPARTIR INSTANCIA ════════════════════════════════════════════

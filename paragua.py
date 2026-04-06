@@ -30,7 +30,7 @@ try:
 except Exception:
     _lanzar_minecraft_ref = None
 
-VERSION = "2.8.0"  # Actualizar en cada release
+VERSION = "2.9.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 
 try:
@@ -1189,21 +1189,13 @@ class Api:
             dest_dir = os.path.join(base, tipo_mapa.get(tipo, "mods"))
             os.makedirs(dest_dir, exist_ok=True)
             dest_path = os.path.join(dest_dir, filename)
-            def _hilo():
-                try:
-                    r2 = requests.get(download_url, stream=True, timeout=120,
-                                      headers={"User-Agent": "Paraguacraft-Launcher"})
-                    r2.raise_for_status()
-                    with open(dest_path, "wb") as f:
-                        for chunk in r2.iter_content(65536):
-                            if chunk:
-                                f.write(chunk)
-                    webview.windows[0].evaluate_js(
-                        f"onModInstalado({json.dumps({'ok': True, 'nombre': filename})})")
-                except Exception as exc:
-                    webview.windows[0].evaluate_js(
-                        f"onModInstalado({json.dumps({'ok': False, 'error': str(exc)})})")
-            threading.Thread(target=_hilo, daemon=True).start()
+            r2 = requests.get(download_url, stream=True, timeout=120,
+                              headers={"User-Agent": "Paraguacraft-Launcher"})
+            r2.raise_for_status()
+            with open(dest_path, "wb") as f:
+                for chunk in r2.iter_content(65536):
+                    if chunk:
+                        f.write(chunk)
             return {"ok": True, "nombre": filename}
         except Exception as e:
             return {"ok": False, "error": str(e)}
