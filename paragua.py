@@ -30,7 +30,7 @@ try:
 except Exception:
     _lanzar_minecraft_ref = None
 
-VERSION = "3.0.0"  # Actualizar en cada release
+VERSION = "3.1.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 
 try:
@@ -1291,11 +1291,11 @@ class Api:
             url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
             r = requests.get(url, timeout=8, headers={"User-Agent": "Paraguacraft-Launcher"})
             data = r.json()
-            tag = data.get("tag_name", "").lstrip("v")
+            tag = data.get("tag_name", "").strip().lstrip("v").lstrip(".")
             if not tag:
                 return {"actualizar": False, "version_actual": VERSION}
             def _ver_tuple(v):
-                try: return tuple(int(x) for x in v.split("."))
+                try: return tuple(int(x) for x in v.strip().lstrip("v").lstrip(".").split("."))
                 except: return (0,)
             if _ver_tuple(tag) > _ver_tuple(VERSION):
                 exe_url = None
@@ -1324,7 +1324,8 @@ class Api:
             try:
                 tmp = os.path.join(tempfile.gettempdir(), "Paraguacraft_update.exe")
                 exe_actual = sys.executable
-                r = requests.get(download_url, stream=True, timeout=120)
+                marker = os.path.join(tempfile.gettempdir(), "paraguacraft_updated.flag")
+                r = requests.get(download_url, stream=True, timeout=180)
                 r.raise_for_status()
                 with open(tmp, "wb") as f:
                     for chunk in r.iter_content(65536):
@@ -1333,13 +1334,24 @@ class Api:
                 bat = os.path.join(tempfile.gettempdir(), "paragua_updater.bat")
                 with open(bat, "w") as f:
                     f.write("@echo off\n")
-                    f.write("timeout /t 2 /nobreak > nul\n")
-                    f.write(f'move /y "{tmp}" "{exe_actual}"\n')
+                    f.write("timeout /t 5 /nobreak > nul\n")
+                    f.write("set cnt=0\n")
+                    f.write(":retry\n")
+                    f.write(f'move /y "{tmp}" "{exe_actual}" >nul 2>&1\n')
+                    f.write("if errorlevel 1 (\n")
+                    f.write("  set /a cnt+=1\n")
+                    f.write("  if %cnt% lss 6 (\n")
+                    f.write("    timeout /t 2 /nobreak > nul\n")
+                    f.write("    goto retry\n")
+                    f.write("  )\n")
+                    f.write("  exit /b 1\n")
+                    f.write(")\n")
+                    f.write(f'echo updated > "{marker}"\n')
                     f.write(f'start "" "{exe_actual}"\n')
                     f.write('del "%~f0"\n')
                 subprocess.Popen(
                     ["cmd", "/c", bat],
-                    creationflags=subprocess.CREATE_NO_WINDOW,
+                    creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
                     close_fds=True,
                 )
                 os._exit(0)
@@ -1874,8 +1886,22 @@ class Api:
             return {"ok": False, "error": str(e), "resultados": []}
 
     # ── FONDO ANIMADO ────────────────────────────────────────────────────
+    def check_post_update(self):
+        import tempfile
+        marker = os.path.join(tempfile.gettempdir(), "paraguacraft_updated.flag")
+        if os.path.isfile(marker):
+            try: os.remove(marker)
+            except Exception: pass
+            return {"updated": True, "version": VERSION}
+        return {"updated": False}
+
     def get_fondo_actual(self):
-        return {"ok": True, "fondo": self.config_actual.get("fondo_animado", "")}
+        fondo = self.config_actual.get("fondo_animado", "")
+        if fondo and not os.path.isfile(fondo):
+            self.config_actual["fondo_animado"] = ""
+            self._guardar()
+            fondo = ""
+        return {"ok": True, "fondo": fondo}
 
     def elegir_fondo_animado(self):
         try:
