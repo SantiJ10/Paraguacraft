@@ -51,61 +51,62 @@ def inyectar_logos_paraguacraft(game_dir, version, graficos_minimos, progress_ca
         if not os.path.exists(src_path):
             _cb(f"[Logo] No encontrado: {src_path}")
             return
-        # All versions 1.16+ use the same two-row split rendering:
-        #   blit LEFT:  texture UV (0,0)-(155,44)   → row0 of our PNG
-        #   blit RIGHT: texture UV (0,45)-(155,89)  → row1 of our PNG
         try:
             from PIL import Image
-            import io as _io
+            import zipfile as _zf, io as _zio
 
             im = Image.open(src_path)
             if im.mode != "RGBA":
                 im = im.convert("RGBA")
 
-            target_w, target_h = 256, 64
+            target_w, target_h = 256, 256
             try:
                 mc_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
-                version_json = os.path.join(mc_dir, "versions", version, version + ".json")
-                if os.path.exists(version_json):
-                    with open(version_json) as _vf:
-                        _vdata = json.load(_vf)
-                    assets_id = _vdata.get("assetIndex", {}).get("id", version)
-                    assets_index = os.path.join(mc_dir, "assets", "indexes", assets_id + ".json")
-                    if os.path.exists(assets_index):
-                        with open(assets_index) as _af:
-                            _aindex = json.load(_af)
-                        _obj = _aindex.get("objects", {})
-                        _key = "minecraft/textures/gui/title/minecraft.png"
-                        if _key in _obj:
-                            _hash = _obj[_key]["hash"]
-                            _asset = os.path.join(mc_dir, "assets", "objects", _hash[:2], _hash)
-                            if os.path.exists(_asset):
-                                van = Image.open(_asset)
-                                target_w, target_h = van.size
+                _jar = os.path.join(mc_dir, "versions", version, version + ".jar")
+                _jar_key = "assets/minecraft/textures/gui/title/minecraft.png"
+                if os.path.exists(_jar):
+                    with _zf.ZipFile(_jar) as _z:
+                        if _jar_key in _z.namelist():
+                            van = Image.open(_zio.BytesIO(_z.read(_jar_key)))
+                            target_w, target_h = van.size
             except Exception:
                 pass
-
-            HALF_W = 155
-            RENDER_H = 44
-            ROW2_Y = 45
 
             w, h = im.size
             if w <= 0 or h <= 0:
                 raise ValueError("invalid image size")
 
-            scale = min((HALF_W * 2) / w, RENDER_H / h)
-            new_w = max(1, int(round(w * scale)))
-            new_h = max(1, int(round(h * scale)))
-            logo_scaled = im.resize((new_w, new_h), Image.LANCZOS)
-
-            canvas = Image.new("RGBA", (HALF_W * 2, RENDER_H), (0, 0, 0, 0))
-            px = (HALF_W * 2 - new_w) // 2
-            py = (RENDER_H - new_h) // 2
-            canvas.paste(logo_scaled, (px, py), logo_scaled)
-
             out = Image.new("RGBA", (target_w, target_h), (0, 0, 0, 0))
-            out.paste(canvas.crop((0, 0, HALF_W, RENDER_H)), (0, 0))
-            out.paste(canvas.crop((HALF_W, 0, HALF_W * 2, RENDER_H)), (0, ROW2_Y))
+
+            if target_w >= 512:
+                # NEW style (1.21.4+, 26.1.1): single full-res piece 1024x176
+                # Vanilla stores logo as one high-res image; Minecraft scales it down
+                LOGO_W = target_w
+                LOGO_H = 176
+                scale = min(LOGO_W / w, LOGO_H / h)
+                new_w = max(1, int(round(w * scale)))
+                new_h = max(1, int(round(h * scale)))
+                logo_scaled = im.resize((new_w, new_h), Image.LANCZOS)
+                px = (LOGO_W - new_w) // 2
+                py = (LOGO_H - new_h) // 2
+                out.paste(logo_scaled, (px, py), logo_scaled)
+            else:
+                # OLD style (1.16.5, 1.18.2): two-row split in 256x256
+                # blit LEFT (0,0)-(155,44) + blit RIGHT (0,45)-(155,89)
+                HALF_W = 155
+                RENDER_H = 44
+                ROW2_Y = 45
+                scale = min((HALF_W * 2) / w, RENDER_H / h)
+                new_w = max(1, int(round(w * scale)))
+                new_h = max(1, int(round(h * scale)))
+                logo_scaled = im.resize((new_w, new_h), Image.LANCZOS)
+                canvas = Image.new("RGBA", (HALF_W * 2, RENDER_H), (0, 0, 0, 0))
+                px = (HALF_W * 2 - new_w) // 2
+                py = (RENDER_H - new_h) // 2
+                canvas.paste(logo_scaled, (px, py), logo_scaled)
+                out.paste(canvas.crop((0, 0, HALF_W, RENDER_H)), (0, 0))
+                out.paste(canvas.crop((HALF_W, 0, HALF_W * 2, RENDER_H)), (0, ROW2_Y))
+
             out.save(dest_path)
             _cb(f"[Logo] OK {os.path.basename(dest_path)} ({target_w}x{target_h})")
             return
@@ -120,35 +121,41 @@ def inyectar_logos_paraguacraft(game_dir, version, graficos_minimos, progress_ca
         version_split = version.split(".")
         if version_split[0] == "26":
             version_mayor = 26
+            version_minor = int(version_split[1]) if len(version_split) >= 2 else 0
         else:
-            version_mayor = int(version_split[1])
+            version_mayor = int(version_split[1]) if len(version_split) >= 2 else 20
+            version_minor = int(version_split[2]) if len(version_split) >= 3 else 0
     except Exception:
         version_mayor = 20
+        version_minor = 0
 
-    if version_mayor >= 13: formato = 8
-    elif version_mayor >= 9: formato = 2
-    else: formato = 1
+    usa_nuevo_schema = version_mayor >= 26 or (version_mayor == 21 and version_minor >= 5)
 
     if version_mayor >= 16:
-        formato = 9999
-        pack_block = {"pack_format": 9999, "description": "Marca Oficial Paraguacraft", "supported_formats": [6, 9999]}
+        if usa_nuevo_schema:
+            pack_block = {"description": "Marca Oficial Paraguacraft", "min_format": 70, "max_format": 99999}
+        else:
+            pack_block = {"pack_format": 9999, "description": "Marca Oficial Paraguacraft", "supported_formats": [6, 9999]}
+    elif version_mayor >= 6:
+        pack_block = {"pack_format": 9999, "description": "Marca Oficial Paraguacraft", "supported_formats": [1, 9999]}
     else:
-        pack_block = {"pack_format": formato, "description": "Marca Oficial Paraguacraft"}
-    mcmeta = {"pack": pack_block}
-    with open(os.path.join(pack_dir, "pack.mcmeta"), "w") as f: json.dump(mcmeta, f)
+        pack_block = {"pack_format": 1, "description": "Marca Oficial Paraguacraft"}
+    mcmeta_str = json.dumps({"pack": pack_block})
+    with open(os.path.join(pack_dir, "pack.mcmeta"), "w") as f: f.write(mcmeta_str)
 
     if getattr(sys, 'frozen', False): base_path = sys._MEIPASS
     else: base_path = os.path.dirname(os.path.abspath(__file__))
 
-    # Marca en menú: 1.16.1 en adelante (incluye 26.x por versión_mayor=26)
-    aplica_marca_menu = version_mayor >= 16
+    # Marca en menú: 1.6.1 en adelante (incluye 26.x por versión_mayor=26)
+    aplica_marca_menu = version_mayor >= 6
     if aplica_marca_menu:
         import hashlib as _hashlib
-        stamp_file = os.path.join(pack_dir, ".logo_stamp")
+        stamp_file = os.path.join(pack_dir, ".logo_stamp_v2")
         main_src = os.path.join(base_path, "paraguacraft_main_menu.png")
+        _LOGO_VER = ":r6"
         try:
             with open(main_src, "rb") as _sf:
-                current_stamp = _hashlib.md5(_sf.read()).hexdigest()
+                current_stamp = _hashlib.md5(_sf.read()).hexdigest() + _LOGO_VER
         except Exception:
             current_stamp = ""
         try:
@@ -161,8 +168,10 @@ def inyectar_logos_paraguacraft(game_dir, version, graficos_minimos, progress_ca
         if current_stamp and current_stamp == cached_stamp and os.path.exists(logo_dest_mc):
             _cb("[Logo] Sin cambios, saltando.")
         else:
+            _legacy = os.path.join(base_path, "paraguacraft_legacy.png")
+            _main = "paraguacraft_legacy.png" if (version_mayor < 16 and os.path.exists(_legacy)) else "paraguacraft_main_menu.png"
             activos = {
-                "paraguacraft_main_menu.png": "minecraft.png",
+                _main: "minecraft.png",
                 "paraguacraft_startup.png": "mojangstudios.png",
             }
             for src_name, dest_name in activos.items():
@@ -184,32 +193,19 @@ def inyectar_logos_paraguacraft(game_dir, version, graficos_minimos, progress_ca
                 except Exception:
                     pass
 
-        logo_dest_mc = os.path.join(textures_gui_title_dir, "minecraft.png")
-        if version_mayor >= 21 and os.path.exists(logo_dest_mc):
-            try:
-                mc_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
-                version_json_path = os.path.join(mc_dir, "versions", version, version + ".json")
-                if os.path.exists(version_json_path):
-                    with open(version_json_path) as _vf:
-                        _vdata = json.load(_vf)
-                    _assets_id = _vdata.get("assetIndex", {}).get("id")
-                    if _assets_id:
-                        _idx_path = os.path.join(mc_dir, "assets", "indexes", _assets_id + ".json")
-                        if os.path.exists(_idx_path):
-                            with open(_idx_path) as _af:
-                                _aindex = json.load(_af)
-                            _hash = _aindex.get("objects", {}).get(
-                                "minecraft/textures/gui/title/minecraft.png", {}
-                            ).get("hash")
-                            if _hash:
-                                _asset_path = os.path.join(
-                                    mc_dir, "assets", "objects", _hash[:2], _hash
-                                )
-                                if os.path.exists(_asset_path):
-                                    shutil.copy2(logo_dest_mc, _asset_path)
-                                    _cb("[Logo] Asset directo inyectado OK.")
-            except Exception as _e:
-                _cb(f"[Logo] Asset directo: {_e}")
+    if usa_nuevo_schema and aplica_marca_menu:
+        import zipfile as _zf_pack
+        zip_path = os.path.join(game_dir, "resourcepacks", pack_name + ".zip")
+        try:
+            with _zf_pack.ZipFile(zip_path, 'w', _zf_pack.ZIP_DEFLATED) as _zf:
+                _zf.writestr("pack.mcmeta", mcmeta_str)
+                for _fname in ["minecraft.png", "mojangstudios.png", "edition.png"]:
+                    _src = os.path.join(textures_gui_title_dir, _fname)
+                    if os.path.exists(_src):
+                        _zf.write(_src, f"assets/minecraft/textures/gui/title/{_fname}")
+            _cb(f"[Logo] ZIP creado: {pack_name}.zip")
+        except Exception as _ze:
+            _cb(f"[Logo] Error ZIP: {_ze}")
 
     options_path = os.path.join(game_dir, "options.txt")
     lineas = []
@@ -217,16 +213,21 @@ def inyectar_logos_paraguacraft(game_dir, version, graficos_minimos, progress_ca
         with open(options_path, "r") as f: lineas = f.readlines()
     
     lineas = [l for l in lineas if not l.startswith("resourcePacks:")]
+    lineas = [l for l in lineas if not l.startswith("incompatibleResourcePacks:")]
     
     if version_mayor < 13:
         packs = []
         if graficos_minimos: packs.append('"Pack_Graficos_Minimos.zip"')
+        if aplica_marca_menu: packs.append(f'"{pack_name}"')
         if len(packs) > 0: lineas.append(f'resourcePacks:[{",".join(packs)}]\n')
     else:
         packs = ['"vanilla"']
         if graficos_minimos: packs.append('"file/Pack_Graficos_Minimos.zip"')
         if aplica_marca_menu:
-            packs.append(f'"file/{pack_name}"')
+            if usa_nuevo_schema:
+                packs.append(f'"file/{pack_name}.zip"')
+            else:
+                packs.append(f'"file/{pack_name}"')
         lineas.append(f'resourcePacks:[{",".join(packs)}]\n')
     
     with open(options_path, "w") as f: f.writelines(lineas)
@@ -359,7 +360,7 @@ def instalar_bundle_fabric_iris_cache(minecraft_directory, game_dir, version, pr
     marker = os.path.join(cache_root, ".cache_ok")
     cache_jars = [f for f in os.listdir(cache_root) if f.endswith(".jar")]
 
-    if not os.path.exists(marker) or len(cache_jars) < 4:
+    if not os.path.exists(marker):
         headers = {"User-Agent": "ParaguacraftLauncher/2.1"}
         if progress_callback:
             progress_callback("Descargando mods Fabric + Iris...")
@@ -428,12 +429,26 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
         versiones_locales = os.listdir(os.path.join(minecraft_directory, "versions")) if os.path.exists(os.path.join(minecraft_directory, "versions")) else []
         for v in versiones_locales:
             if v.startswith("fabric-loader-") and version_base in v:
-                version_a_lanzar = v
-                version_instalada = True
-                break
+                _fjson = os.path.join(minecraft_directory, "versions", v, v + ".json")
+                if os.path.exists(_fjson):
+                    version_a_lanzar = v
+                    version_instalada = True
+                    break
+                else:
+                    try:
+                        shutil.rmtree(os.path.join(minecraft_directory, "versions", v))
+                    except Exception:
+                        pass
     else:
         ruta_version = os.path.join(minecraft_directory, "versions", version_base)
-        if os.path.exists(ruta_version): version_instalada = True
+        version_json_path = os.path.join(ruta_version, version_base + ".json")
+        if os.path.exists(ruta_version) and os.path.exists(version_json_path):
+            version_instalada = True
+        elif os.path.exists(ruta_version) and not os.path.exists(version_json_path):
+            try:
+                shutil.rmtree(ruta_version)
+            except Exception:
+                pass
 
     # Si NO está instalada, ejecutamos el motor de descarga
     if not version_instalada:
@@ -465,11 +480,23 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
         
     instalar_extras_graficos(game_dir, version_base, progress_callback, optimizar)
     inyectar_logos_paraguacraft(game_dir, version_base, optimizar, progress_callback)
+
     if optimizar: 
         optimizar_graficos(game_dir, optimizar, version_base)
 
     # (A PARTIR DE ACÁ SIGUE TU CÓDIGO NORMAL CON jvm_arguments Y GestorNube)
     # 4. ARGUMENTOS DE JAVA
+    try:
+        _vp = version_base.split(".")
+        if _vp[0] == "26":
+            _vm = 26
+        else:
+            _vm = int(_vp[1]) if len(_vp) >= 2 else 20
+    except Exception:
+        _vm = 20
+    if _vm < 17 and gc_type in ("ZGC", "Shenandoah"):
+        gc_type = "G1GC"
+
     jvm_arguments = [f"-Xmx{max_ram}", f"-Xms{max_ram}", "-XX:+UnlockExperimentalVMOptions", "-XX:+DisableExplicitGC", "-XX:+AlwaysPreTouch"]
     if gc_type == "G1GC":
         jvm_arguments.extend(["-XX:+UseG1GC", "-XX:G1NewSizePercent=30", "-XX:G1MaxNewSizePercent=40", "-XX:G1HeapRegionSize=8M", "-XX:G1ReservePercent=20", "-XX:G1HeapWastePercent=5", "-XX:G1MixedGCCountTarget=4", "-XX:InitiatingHeapOccupancyPercent=15", "-XX:G1MixedGCLiveThresholdPercent=90", "-XX:G1RSetUpdatingPauseTimePercent=5", "-XX:SurvivorRatio=32", "-XX:+PerfDisableSharedMem", "-XX:MaxTenuringThreshold=1", "-Dusing.aikars.flags=https://mcflags.emc.gs", "-Daikars.new.flags=true"])
@@ -512,28 +539,27 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
     if GestorNube is not None:
         try:
             import threading as _threading
-            if progress_callback:
-                progress_callback("☁️ Sincronizando nube...")
-            _t = _threading.Thread(
+            _threading.Thread(
                 target=lambda: GestorNube().descargar_datos(username, options_txt_path, servers_dat_path),
-                daemon=True)
-            _t.start()
-            _t.join(timeout=1)
+                daemon=True).start()
         except Exception:
             pass
-
-    # La nube puede sobrescribir options.txt sin el resource pack; lo re-inyectamos.
-    inyectar_logos_paraguacraft(game_dir, version_base, optimizar, progress_callback)
 
     if progress_callback:
         progress_callback("¡Abriendo Paraguacraft!")
 
+    logs_dir = os.path.join(game_dir, "logs")
+    os.makedirs(logs_dir, exist_ok=True)
+    game_log_path = os.path.join(logs_dir, "paraguacraft_launch.log")
+
     if mostrar_consola and platform.system() == "Windows":
         flags_creacion = subprocess.CREATE_NEW_CONSOLE
+        log_file = None
         salida = None
     else:
         flags_creacion = subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0
-        salida = subprocess.DEVNULL
+        log_file = open(game_log_path, "w", encoding="utf-8", errors="replace")
+        salida = log_file
 
     proceso = subprocess.Popen(command, env=entorno, creationflags=flags_creacion, stdout=salida, stderr=salida, stdin=subprocess.DEVNULL)
 
@@ -545,7 +571,22 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
     except Exception:
         pass
 
-    proceso.wait()
+    rc = proceso.wait()
+    if log_file:
+        try: log_file.close()
+        except Exception: pass
+
+    if rc != 0 and progress_callback:
+        crash_dir = os.path.join(game_dir, "crash-reports")
+        crash_hint = ""
+        if os.path.isdir(crash_dir):
+            reports = sorted(
+                [f for f in os.listdir(crash_dir) if f.endswith(".txt")],
+                key=lambda f: os.path.getmtime(os.path.join(crash_dir, f)),
+                reverse=True)
+            if reports:
+                crash_hint = f" | crash: {reports[0]}"
+        progress_callback(f"Juego terminó con error (código {rc}){crash_hint}. Ver: {game_log_path}")
     if GestorNube is not None:
         try:
             GestorNube().subir_datos(username, options_txt_path, servers_dat_path)

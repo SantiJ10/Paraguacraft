@@ -15,6 +15,10 @@ import shutil
 import subprocess
 import requests
 import socket
+try:
+    import minecraft_launcher_lib
+except ImportError:
+    minecraft_launcher_lib = None
 import struct
 import zipfile
 import datetime
@@ -26,7 +30,7 @@ try:
 except Exception:
     _lanzar_minecraft_ref = None
 
-VERSION = "2.4.0"  # Actualizar en cada release
+VERSION = "2.7.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 
 try:
@@ -35,11 +39,13 @@ try:
     _CF_API_KEY       = _cred.CF_API_KEY
     _SP_CLIENT_ID     = _cred.SP_CLIENT_ID
     _SP_CLIENT_SECRET = _cred.SP_CLIENT_SECRET
+    _YOUTUBE_API_KEY  = getattr(_cred, "YOUTUBE_API_KEY", "")
 except (ImportError, AttributeError):
     _GEMINI_API_KEY   = ""
     _CF_API_KEY       = ""
     _SP_CLIENT_ID     = ""
     _SP_CLIENT_SECRET = ""
+    _YOUTUBE_API_KEY  = ""
 
 # Credenciales oficiales
 CLIENT_ID = "72fb7c48-c2f5-4d13-b0e7-9835b3b906c0"
@@ -76,6 +82,7 @@ class Api:
         self._servidor_carpeta = None
         self._servidor_log = []
         self._servidor_lock = threading.Lock()
+        self._servidor_creando = False
         self._playit_proc = None
         self._playit_address = ""
         self._musica_proc = None
@@ -105,6 +112,12 @@ class Api:
         if os.path.exists(self.ruta_config):
             with open(self.ruta_config, "r") as f:
                 self.config_actual.update(json.load(f))
+        saved_refresh = self.config_actual.get("spotify_refresh_token", "")
+        if saved_refresh:
+            self._spotify_refresh = saved_refresh
+        saved_srv = self.config_actual.get("srv_carpeta", "")
+        if saved_srv and os.path.exists(saved_srv):
+            self._servidor_carpeta = saved_srv
 
         if os.path.exists(self.ruta_sesion):
             try:
@@ -469,7 +482,8 @@ class Api:
                     mayor = f"{partes[0]}.{partes[1]}"
                     grupos.setdefault(mayor, []).append(vid)
 
-            grupos["26.1"] = ["26.1.1"]
+            if "26.1" not in grupos:
+                grupos["26.1"] = ["26.1.1"]
 
             featured = set()
             for k in FEATURED_VERSION_KEYS:
@@ -562,10 +576,6 @@ class Api:
                     linea = f.readline()
                     if not linea:
                         time.sleep(0.45)
-                        try:
-                            f.seek(f.tell())
-                        except OSError:
-                            pass
                         continue
                     changed = True
                     if "Local game hosted on" in linea:
@@ -611,18 +621,7 @@ class Api:
         self.hilo_juego_activo = True
         self.config_actual["ultima_version"] = version
         self.config_actual["ultimo_motor"] = motor
-        self._guardar()
-
-        if self.rpc:
-            try:
-                self.rpc.update(
-                    state=f"Jugando {version}",
-                    details=f"{motor}",
-                    large_image="logo",
-                    large_text="Paraguacraft",
-                )
-            except Exception:
-                pass
+        threading.Thread(target=self._guardar, daemon=True).start()
 
         username_limpio = self.config_actual.get("usuario", "Invitado").replace(" [PREMIUM]", "")
 
@@ -634,13 +633,19 @@ class Api:
         ).start()
 
         self._game_status = {"running": True, "status": "Iniciando..."}
+        _last_ui_update = [0.0]
 
         def _set_status(msg):
+            import time as _time
             self._game_status["status"] = str(msg)
-            try:
-                webview.windows[0].evaluate_js(f"actualizarEstadoPanel({json.dumps(str(msg))})")
-            except Exception:
-                pass
+            now = _time.monotonic()
+            if now - _last_ui_update[0] >= 0.4:
+                _last_ui_update[0] = now
+                _js = f"actualizarEstadoPanel({json.dumps(str(msg))})"
+                threading.Thread(
+                    target=lambda: webview.windows[0].evaluate_js(_js),
+                    daemon=True
+                ).start()
 
         def _log_launch(msg):
             for _ld in [
@@ -662,8 +667,8 @@ class Api:
 
                 _set_status("Iniciando motor...")
 
-                self._refresh_ms_token()
-                self._rpc_jugando(version, motor)
+                threading.Thread(target=self._refresh_ms_token, daemon=True).start()
+                threading.Thread(target=self._rpc_jugando, args=(version, motor), daemon=True).start()
 
                 uuid_real = self.ms_data["id"] if self.ms_data else None
                 token_real = self.ms_data["access_token"] if self.ms_data else None
@@ -671,6 +676,7 @@ class Api:
                 fl_raw = (self.config_actual.get("fabric_loader_version") or "").strip()
                 fabric_override = fl_raw if fl_raw and "fabric" in motor.lower() else None
 
+                _t0 = time.time()
                 lanzar_minecraft(
                     version=version,
                     username=username_limpio,
@@ -688,6 +694,9 @@ class Api:
                     progress_callback=_set_status,
                     server_ip=server_ip or "",
                 )
+                _seg = int(time.time() - _t0)
+                if _seg > 10:
+                    threading.Thread(target=lambda: self.guardar_sesion_estadistica(version, motor, _seg), daemon=True).start()
 
                 _log_launch("DONE - juego cerrado")
                 self._game_status = {"running": False, "status": "Juego cerrado."}
@@ -730,52 +739,69 @@ class Api:
             from src.modelo import CreadorServidor
             os.makedirs(carpeta, exist_ok=True)
             self._servidor_carpeta = carpeta
+            self._servidor_creando = True
+            with self._servidor_lock:
+                self._servidor_log.clear()
+                self._servidor_log.append(f"[SETUP] Creando servidor {version} en {carpeta}...")
+                self._servidor_log.append(f"[SETUP] Conectando a Mojang para obtener el servidor...")
 
             def cb(msg):
                 with self._servidor_lock:
                     self._servidor_log.append(f"[SETUP] {msg}")
                     if len(self._servidor_log) > 200:
                         self._servidor_log = self._servidor_log[-200:]
-                try:
-                    webview.windows[0].evaluate_js(f"servidorAppendLog({json.dumps('[SETUP] ' + msg)})")
-                except Exception:
-                    pass
 
-            def _hilo():
-                exito, _ = CreadorServidor.descargar_y_preparar(carpeta, version, cb)
-                if exito:
-                    props_path = os.path.join(carpeta, "server.properties")
-                    if os.path.exists(props_path):
-                        with open(props_path, "r") as f:
-                            content = f.read()
-                        content = re.sub(r"online-mode=.*", "online-mode=false", content)
-                        with open(props_path, "w") as f:
-                            f.write(content)
-                    else:
-                        with open(props_path, "w") as f:
-                            f.write("online-mode=false\nserver-port=25565\nmax-players=20\n")
-                    cb("online-mode=false → premium y no-premium pueden conectarse")
-                    try:
-                        webview.windows[0].evaluate_js("actualizarEstadoServidor()")
-                    except Exception:
-                        pass
+            try:
+                exito, msg_result = CreadorServidor.descargar_y_preparar(carpeta, version, cb)
+            finally:
+                self._servidor_creando = False
+
+            if exito:
+                props_path = os.path.join(carpeta, "server.properties")
+                if os.path.exists(props_path):
+                    with open(props_path, "r") as f:
+                        content = f.read()
+                    content = re.sub(r"online-mode=.*", "online-mode=false", content)
+                    with open(props_path, "w") as f:
+                        f.write(content)
                 else:
-                    try:
-                        webview.windows[0].evaluate_js(f"servidorAppendLog({json.dumps('[ERROR] Fallo al crear servidor')})")
-                    except Exception:
-                        pass
+                    with open(props_path, "w") as f:
+                        f.write("online-mode=false\nserver-port=25565\nmax-players=20\n")
+                self.config_actual["srv_carpeta"] = carpeta
+                threading.Thread(target=self._guardar, daemon=True).start()
+                cb("online-mode=false → premium y no-premium pueden conectarse")
+                cb("✔️ Servidor listo. ¡Ya puedes iniciarlo desde el launcher!")
+            else:
+                with self._servidor_lock:
+                    self._servidor_log.append(f"[ERROR] {msg_result}")
 
-            threading.Thread(target=_hilo, daemon=True).start()
-            return {"ok": True, "carpeta": carpeta}
+            with self._servidor_lock:
+                log_final = list(self._servidor_log)
+            servidor_existe = bool(os.path.exists(os.path.join(carpeta, "server.jar")))
+            return {"ok": True, "log": log_final, "servidor_existe": servidor_existe}
         except Exception as e:
+            self._servidor_creando = False
             return {"ok": False, "error": str(e)}
 
     def iniciar_servidor(self, carpeta=None):
         if self._servidor_proc and self._servidor_proc.poll() is None:
-            return {"ok": False, "error": "El servidor ya est\u00e1 corriendo."}
+            return {"ok": False, "error": "El servidor ya está corriendo."}
         carpeta = carpeta or self._servidor_carpeta
         if not carpeta or not os.path.exists(os.path.join(carpeta, "server.jar")):
-            return {"ok": False, "error": "No se encontr\u00f3 server.jar. Prim\u00e9ro cre\u00e1 el servidor."}
+            return {"ok": False, "error": "No se encontró server.jar. Priméro creá el servidor."}
+        # Kill any stale Java process running in this folder (releases session.lock)
+        try:
+            import psutil as _psu
+            _norm = os.path.normcase(os.path.normpath(carpeta))
+            for _p in _psu.process_iter(['pid', 'name', 'cwd']):
+                try:
+                    if _p.info['name'] in ('java.exe', 'java') and _p.info['cwd'] and \
+                            os.path.normcase(os.path.normpath(_p.info['cwd'])) == _norm:
+                        _p.kill()
+                except Exception:
+                    pass
+        except Exception:
+            pass
         try:
             import minecraft_launcher_lib
             mc_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
@@ -789,33 +815,84 @@ class Api:
             self._servidor_carpeta = carpeta
             with self._servidor_lock:
                 self._servidor_log.clear()
+                self._servidor_log.append(f"[SERVER] Iniciando servidor en {carpeta}...")
+                self._servidor_log.append(f"[SERVER] Java: {java_cmd}")
+                self._servidor_log.append("[SERVER] Esperando output de Minecraft (puede tardar 30-60 seg)...")
+            try:
+                import psutil as _ps
+                total_gb = _ps.virtual_memory().total / (1024 ** 3)
+            except Exception:
+                try:
+                    import ctypes as _ct
+                    _kb = _ct.c_ulonglong(0)
+                    _ct.windll.kernel32.GetPhysicallyInstalledSystemMemory(_ct.byref(_kb))
+                    total_gb = _kb.value / (1024 ** 2)
+                except Exception:
+                    total_gb = 4.0
+            xmx = max(1, min(8, int(total_gb * 0.5)))
+            xms = max(512, xmx * 256)
+            xmx_flag = f"-Xmx{xmx}G"
+            xms_flag = f"-Xms{xms}M" if xms < 1024 else f"-Xms{xms // 1024}G"
+            with self._servidor_lock:
+                self._servidor_log.append(f"[SERVER] RAM asignada: {xms_flag} min / {xmx_flag} max (sistema: {total_gb:.1f} GB)")
             flags = subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0
             self._servidor_proc = subprocess.Popen(
-                [java_cmd, "-Xmx4G", "-Xms1G", "-jar", "server.jar", "nogui"],
+                [java_cmd, xmx_flag, xms_flag, "-jar", "server.jar", "nogui"],
                 cwd=carpeta, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT, text=True, encoding="utf-8",
-                errors="replace", creationflags=flags,
+                errors="replace", bufsize=1, creationflags=flags,
             )
 
-            def _stream():
-                for line in iter(self._servidor_proc.stdout.readline, ""):
-                    line = line.rstrip()
-                    if not line:
-                        continue
-                    with self._servidor_lock:
-                        self._servidor_log.append(line)
-                        if len(self._servidor_log) > 200:
-                            self._servidor_log = self._servidor_log[-200:]
-                    try:
-                        webview.windows[0].evaluate_js(f"servidorAppendLog({json.dumps(line)})")
-                    except Exception:
-                        pass
+            _proc_ref = self._servidor_proc
+
+            def _drain_stdout():
                 try:
-                    webview.windows[0].evaluate_js("actualizarEstadoServidor()")
-                    webview.windows[0].evaluate_js(f"servidorAppendLog({json.dumps('[SERVER] Servidor detenido.')})")
+                    while _proc_ref.poll() is None:
+                        _proc_ref.stdout.read(4096)
                 except Exception:
                     pass
 
+            def _stream():
+                import time as _time
+                log_file = os.path.join(carpeta, "logs", "latest.log")
+                # Record the mtime before Java starts so we can detect when Minecraft
+                # rotates the log and creates a fresh latest.log
+                old_mtime = os.path.getmtime(log_file) if os.path.exists(log_file) else 0
+                pos = 0
+                # Wait up to 60s for Minecraft to create a FRESH latest.log
+                deadline = _time.time() + 60
+                while _time.time() < deadline and _proc_ref.poll() is None:
+                    if os.path.exists(log_file):
+                        try:
+                            cur_mtime = os.path.getmtime(log_file)
+                            if cur_mtime != old_mtime:
+                                break  # fresh file detected
+                        except Exception:
+                            pass
+                    _time.sleep(0.5)
+                # Read the fresh log file until the process exits
+                while _proc_ref.poll() is None:
+                    try:
+                        if os.path.exists(log_file):
+                            with open(log_file, "r", encoding="utf-8", errors="replace") as _f:
+                                _f.seek(pos)
+                                chunk = _f.read()
+                                if chunk:
+                                    for line in chunk.splitlines():
+                                        line = line.strip()
+                                        if line:
+                                            with self._servidor_lock:
+                                                self._servidor_log.append(line)
+                                                if len(self._servidor_log) > 300:
+                                                    self._servidor_log = self._servidor_log[-300:]
+                                    pos = _f.tell()
+                    except Exception:
+                        pass
+                    _time.sleep(0.5)
+                with self._servidor_lock:
+                    self._servidor_log.append("[SERVER] Servidor detenido.")
+
+            threading.Thread(target=_drain_stdout, daemon=True).start()
             threading.Thread(target=_stream, daemon=True).start()
             return {"ok": True}
         except Exception as e:
@@ -850,45 +927,75 @@ class Api:
 
     def iniciar_playitgg(self, carpeta=None):
         if self._playit_proc and self._playit_proc.poll() is None:
-            return {"ok": False, "error": "playit.gg ya est\u00e1 corriendo."}
+            return {"ok": False, "error": "playit.gg ya está corriendo."}
         carpeta = carpeta or self._servidor_carpeta
         playit_exe = os.path.join(carpeta or "", "playit.exe")
         if not os.path.exists(playit_exe):
-            return {"ok": False, "error": "No se encontr\u00f3 playit.exe. Prim\u00e9ro cre\u00e1 el servidor."}
+            return {"ok": False, "error": "No se encontró playit.exe. Priméro creá el servidor."}
         try:
             self._playit_address = ""
+            import tempfile as _tmp
+            _log_fd, _log_path = _tmp.mkstemp(prefix="playit_", suffix=".log", text=True)
+            os.close(_log_fd)
+            with self._servidor_lock:
+                self._servidor_log.append("[PLAYIT] Iniciando playit.gg...")
+                self._servidor_log.append("[PLAYIT] Esperando conexión con el servidor de playit...")
+            # Redirect stdout+stderr to a temp file (avoids pipe buffering).
+            # File I/O is unbuffered at OS level so output is visible immediately.
+            _log_fh = open(_log_path, "w", encoding="utf-8", errors="replace")
             flags = subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0
             self._playit_proc = subprocess.Popen(
-                [playit_exe], cwd=carpeta, stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT, text=True, encoding="utf-8",
-                errors="replace", creationflags=flags,
+                [playit_exe], cwd=carpeta,
+                stdout=_log_fh, stderr=_log_fh,
+                creationflags=flags,
             )
+            _log_fh.close()  # close our write handle; process keeps its own
 
-            def _stream():
-                import re as _re
-                for line in iter(self._playit_proc.stdout.readline, ""):
-                    line = line.rstrip()
-                    if not line:
-                        continue
-                    m = _re.search(r"([\w\-.]+\.ply\.gg:\d+)", line)
-                    if not m:
-                        m = _re.search(r"address[:\s]+([\w\-.]+:\d+)", line, _re.IGNORECASE)
-                    if m and not self._playit_address:
-                        self._playit_address = m.group(1)
-                        try:
-                            webview.windows[0].evaluate_js(f"actualizarDireccionPlayit({json.dumps(self._playit_address)})")
-                        except Exception:
-                            pass
+            def _tail_log():
+                import time as _t, re as _re
+                _ansi = _re.compile(r'\x1b(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+                _seen = set()
+                pos = 0
+                while self._playit_proc.poll() is None:
                     try:
-                        webview.windows[0].evaluate_js(f"servidorAppendLog({json.dumps('[PLAYIT] ' + line)})")
+                        with open(_log_path, "r", encoding="utf-8", errors="replace") as _f:
+                            _f.seek(pos)
+                            chunk = _f.read()
+                            if chunk:
+                                # split on both \n and \r, take last segment per \r group
+                                for raw in chunk.split('\n'):
+                                    # handle \r spinner: only last non-empty segment matters
+                                    parts = [p for p in raw.split('\r') if p.strip()]
+                                    line = _ansi.sub('', parts[-1]).strip() if parts else ''
+                                    if not line or line in _seen:
+                                        continue
+                                    _seen.add(line)
+                                    if len(_seen) > 200:
+                                        _seen.clear()
+                                    with self._servidor_lock:
+                                        self._servidor_log.append("[PLAYIT] " + line)
+                                        if len(self._servidor_log) > 300:
+                                            self._servidor_log = self._servidor_log[-300:]
+                                    # Auto-open claim URL in browser
+                                    claim = _re.search(r"(https://playit\.gg/claim/\S+)", line)
+                                    if claim:
+                                        import webbrowser as _wb
+                                        _wb.open(claim.group(1))
+                                    if not self._playit_address:
+                                        m = (_re.search(r"((?:[\w\-]+\.)+(?:ply\.gg|joinmc\.link|auto\.playit\.gg|playit\.gg)(?::\d+)?)", line)
+                                             or _re.search(r"address[=:\s]+([\w\-.]+(?::\d+)?)", line, _re.IGNORECASE))
+                                        if m:
+                                            self._playit_address = m.group(1)
+                                pos = _f.tell()
                     except Exception:
                         pass
+                    _t.sleep(1)
                 try:
-                    webview.windows[0].evaluate_js("actualizarEstadoServidor()")
+                    os.remove(_log_path)
                 except Exception:
                     pass
 
-            threading.Thread(target=_stream, daemon=True).start()
+            threading.Thread(target=_tail_log, daemon=True).start()
             return {"ok": True}
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -907,13 +1014,17 @@ class Api:
         corriendo = self._servidor_proc is not None and self._servidor_proc.poll() is None
         playit_corriendo = self._playit_proc is not None and self._playit_proc.poll() is None
         with self._servidor_lock:
-            log_reciente = list(self._servidor_log[-60:])
+            log_reciente = list(self._servidor_log)
+        carpeta = self._servidor_carpeta or ""
+        servidor_existe = bool(carpeta and os.path.exists(os.path.join(carpeta, "server.jar")))
         return {
             "corriendo": corriendo,
-            "carpeta": self._servidor_carpeta or "",
+            "carpeta": carpeta,
+            "servidor_existe": servidor_existe,
             "playit_corriendo": playit_corriendo,
             "playit_address": self._playit_address,
             "log": log_reciente,
+            "creando": self._servidor_creando,
         }
 
 
@@ -1037,11 +1148,14 @@ class Api:
         try:
             import minecraft_launcher_lib
             mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
-            logs_dir = os.path.join(mine_dir, "logs")
-            crash_dir = os.path.join(mine_dir, "crash-reports")
-            assets_idx = os.path.join(mine_dir, "assets", "indexes")
-            logs_mb = round(_tamano_carpeta(logs_dir) / (1024 ** 2), 1)
-            crash_mb = round(_tamano_carpeta(crash_dir) / (1024 ** 2), 1)
+            instancias_dir = os.path.join(mine_dir, "instancias")
+            logs_bytes = _tamano_carpeta(os.path.join(mine_dir, "logs"))
+            crash_bytes = _tamano_carpeta(os.path.join(mine_dir, "crash-reports"))
+            if os.path.isdir(instancias_dir):
+                for inst in os.listdir(instancias_dir):
+                    inst_path = os.path.join(instancias_dir, inst)
+                    logs_bytes += _tamano_carpeta(os.path.join(inst_path, "logs"))
+                    crash_bytes += _tamano_carpeta(os.path.join(inst_path, "crash-reports"))
             mc_ram_mb = 0
             for proc in psutil.process_iter(["name", "memory_info"]):
                 try:
@@ -1049,8 +1163,8 @@ class Api:
                         mc_ram_mb += proc.info["memory_info"].rss // (1024 ** 2)
                 except Exception:
                     pass
-            return {"ok": True, "logs_mb": logs_mb, "crash_mb": crash_mb,
-                    "mc_ram_mb": mc_ram_mb}
+            return {"ok": True, "logs_mb": round(logs_bytes / (1024 ** 2), 1),
+                    "crash_mb": round(crash_bytes / (1024 ** 2), 1), "mc_ram_mb": mc_ram_mb}
         except Exception as e:
             return {"ok": False, "error": str(e), "logs_mb": 0, "crash_mb": 0, "mc_ram_mb": 0}
 
@@ -1058,26 +1172,34 @@ class Api:
         try:
             import minecraft_launcher_lib
             mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+            instancias_dir = os.path.join(mine_dir, "instancias")
             borrados = 0
+            _dirs_logs = [os.path.join(mine_dir, "logs")]
+            _dirs_crash = [os.path.join(mine_dir, "crash-reports")]
+            if os.path.isdir(instancias_dir):
+                for inst in os.listdir(instancias_dir):
+                    inst_path = os.path.join(instancias_dir, inst)
+                    _dirs_logs.append(os.path.join(inst_path, "logs"))
+                    _dirs_crash.append(os.path.join(inst_path, "crash-reports"))
             if tipo in ("logs", "ambos"):
-                logs_dir = os.path.join(mine_dir, "logs")
-                if os.path.isdir(logs_dir):
-                    for f in os.listdir(logs_dir):
-                        if f != "latest.log":
+                for logs_dir in _dirs_logs:
+                    if os.path.isdir(logs_dir):
+                        for f in os.listdir(logs_dir):
+                            if f != "latest.log":
+                                try:
+                                    os.remove(os.path.join(logs_dir, f))
+                                    borrados += 1
+                                except Exception:
+                                    pass
+            if tipo in ("crash", "ambos"):
+                for crash_dir in _dirs_crash:
+                    if os.path.isdir(crash_dir):
+                        for f in os.listdir(crash_dir):
                             try:
-                                os.remove(os.path.join(logs_dir, f))
+                                os.remove(os.path.join(crash_dir, f))
                                 borrados += 1
                             except Exception:
                                 pass
-            if tipo in ("crash", "ambos"):
-                crash_dir = os.path.join(mine_dir, "crash-reports")
-                if os.path.isdir(crash_dir):
-                    for f in os.listdir(crash_dir):
-                        try:
-                            os.remove(os.path.join(crash_dir, f))
-                            borrados += 1
-                        except Exception:
-                            pass
             return {"ok": True, "borrados": borrados}
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -1203,6 +1325,45 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e), "latency_ms": -1}
 
+    # ── JUGADORES ONLINE GLOBAL ──────────────────────────────────────────
+    _SERVIDORES_GLOBAL = [
+        ("mc.hypixel.net",          25565),
+        ("play.cubecraft.net",       25565),
+        ("play.wynncraft.com",       25565),
+        ("minemen.club",             25565),
+        ("play.jartexnetwork.com",   25565),
+        ("extremecraft.net",         25565),
+        ("play.fadecloud.com",       25565),
+        ("play.minesuperior.com",    25565),
+    ]
+
+    def get_jugadores_online_global(self):
+        resultados = []
+        lock = threading.Lock()
+
+        def _ping_one(ip, puerto):
+            r = self.ping_servidor(ip, puerto)
+            if r.get("ok") and r.get("players_online", 0) > 0:
+                with lock:
+                    resultados.append({
+                        "ip": ip,
+                        "online": r["players_online"],
+                        "max": r["players_max"],
+                    })
+
+        hilos = [
+            threading.Thread(target=_ping_one, args=(ip, puerto), daemon=True)
+            for ip, puerto in self._SERVIDORES_GLOBAL
+        ]
+        for h in hilos:
+            h.start()
+        for h in hilos:
+            h.join(timeout=5)
+
+        total = sum(r["online"] for r in resultados)
+        return {"ok": True, "total": total, "servidores": resultados,
+                "respondieron": len(resultados)}
+
     # ── DETECTOR MODS CONFLICTIVOS ───────────────────────────────────────
     def get_mods_conflictivos(self, version, motor):
         try:
@@ -1273,17 +1434,28 @@ class Api:
     def get_mundos(self):
         try:
             import minecraft_launcher_lib
-            saves = os.path.join(minecraft_launcher_lib.utils.get_minecraft_directory(), "saves")
-            if not os.path.isdir(saves):
-                return {"ok": True, "mundos": []}
+            mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+            instancias_dir = os.path.join(mine_dir, "instancias")
+            saves_dirs = []
+            if os.path.isdir(instancias_dir):
+                for inst in os.listdir(instancias_dir):
+                    s = os.path.join(instancias_dir, inst, "saves")
+                    if os.path.isdir(s):
+                        saves_dirs.append(s)
+            global_saves = os.path.join(mine_dir, "saves")
+            if os.path.isdir(global_saves):
+                saves_dirs.append(global_saves)
             mundos = []
-            for nombre in os.listdir(saves):
-                ruta = os.path.join(saves, nombre)
-                if os.path.isdir(ruta):
-                    stat = os.stat(ruta)
-                    mundos.append({"nombre": nombre,
-                                   "modificado": time.strftime("%d/%m/%Y %H:%M", time.localtime(stat.st_mtime)),
-                                   "tamano_mb": round(_tamano_carpeta(ruta) / (1024 * 1024), 1)})
+            vistos = set()
+            for saves in saves_dirs:
+                for nombre in os.listdir(saves):
+                    ruta = os.path.join(saves, nombre)
+                    if os.path.isdir(ruta) and nombre not in vistos:
+                        vistos.add(nombre)
+                        stat = os.stat(ruta)
+                        mundos.append({"nombre": nombre, "ruta_saves": saves,
+                                       "modificado": time.strftime("%d/%m/%Y %H:%M", time.localtime(stat.st_mtime)),
+                                       "tamano_mb": round(_tamano_carpeta(ruta) / (1024 * 1024), 1)})
             mundos.sort(key=lambda x: x["modificado"], reverse=True)
             return {"ok": True, "mundos": mundos}
         except Exception as e:
@@ -1293,8 +1465,19 @@ class Api:
         try:
             import minecraft_launcher_lib
             mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
-            mundo_dir = os.path.join(mine_dir, "saves", nombre_mundo)
-            if not os.path.isdir(mundo_dir):
+            instancias_dir = os.path.join(mine_dir, "instancias")
+            mundo_dir = None
+            if os.path.isdir(instancias_dir):
+                for inst in os.listdir(instancias_dir):
+                    candidate = os.path.join(instancias_dir, inst, "saves", nombre_mundo)
+                    if os.path.isdir(candidate):
+                        mundo_dir = candidate
+                        break
+            if mundo_dir is None:
+                candidate = os.path.join(mine_dir, "saves", nombre_mundo)
+                if os.path.isdir(candidate):
+                    mundo_dir = candidate
+            if mundo_dir is None:
                 return {"ok": False, "error": "Mundo no encontrado."}
             backup_dir = os.path.join(os.path.dirname(os.path.abspath(self.ruta_config)), "paraguacraft_backups")
             os.makedirs(backup_dir, exist_ok=True)
@@ -1332,13 +1515,34 @@ class Api:
     def restaurar_mundo(self, archivo_backup):
         try:
             import minecraft_launcher_lib
-            saves = os.path.join(minecraft_launcher_lib.utils.get_minecraft_directory(), "saves")
+            mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
             backup_dir = os.path.join(os.path.dirname(os.path.abspath(self.ruta_config)), "paraguacraft_backups")
             ruta_zip = os.path.join(backup_dir, archivo_backup)
             if not os.path.exists(ruta_zip):
                 return {"ok": False, "error": "Backup no encontrado."}
+            nombre_mundo = "_".join(archivo_backup.replace(".zip", "").split("_")[:-2])
+            instancias_dir = os.path.join(mine_dir, "instancias")
+            dest_saves = None
+            if nombre_mundo and os.path.isdir(instancias_dir):
+                for inst in os.listdir(instancias_dir):
+                    candidate = os.path.join(instancias_dir, inst, "saves", nombre_mundo)
+                    if os.path.isdir(candidate):
+                        dest_saves = os.path.join(instancias_dir, inst, "saves")
+                        break
+            if dest_saves is None:
+                ult_ver = self.config_actual.get("ultima_version", "")
+                ult_mot = self.config_actual.get("ultimo_motor", "")
+                if ult_ver and ult_mot:
+                    try:
+                        from core import carpeta_instancia_paraguacraft
+                        dest_saves = os.path.join(instancias_dir, carpeta_instancia_paraguacraft(ult_ver, ult_mot), "saves")
+                    except Exception:
+                        pass
+            if dest_saves is None:
+                dest_saves = os.path.join(mine_dir, "saves")
+            os.makedirs(dest_saves, exist_ok=True)
             with zipfile.ZipFile(ruta_zip, "r") as zf:
-                zf.extractall(saves)
+                zf.extractall(dest_saves)
             return {"ok": True}
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -1430,6 +1634,14 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e), "noticias": []}
 
+    def abrir_url_navegador(self, url):
+        try:
+            import webbrowser
+            webbrowser.open(url)
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
     # ── NOTIFICACIONES WINDOWS ───────────────────────────────────────────
     def notificar_windows(self, titulo, mensaje):
         def _notif():
@@ -1517,6 +1729,68 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    def set_musica_mc_volumen(self, volumen):
+        try:
+            import pygame
+            if pygame.mixer.get_init():
+                pygame.mixer.music.set_volume(max(0.0, min(1.0, float(volumen))))
+                return {"ok": True}
+            return {"ok": False, "error": "No hay música reproduciéndose."}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def get_musica_mc_estado(self):
+        try:
+            import pygame
+            if pygame.mixer.get_init() and pygame.mixer.music.get_busy():
+                pos_ms = pygame.mixer.music.get_pos()
+                vol = pygame.mixer.music.get_volume()
+                return {"ok": True, "reproduciendo": True, "posicion_ms": pos_ms, "volumen": round(vol, 2)}
+            return {"ok": True, "reproduciendo": False, "posicion_ms": 0, "volumen": 1.0}
+        except Exception:
+            return {"ok": True, "reproduciendo": False, "posicion_ms": 0, "volumen": 1.0}
+
+    def buscar_youtube(self, query):
+        try:
+            if not _YOUTUBE_API_KEY:
+                return {"ok": False, "error": "API key de YouTube no configurada.", "resultados": []}
+            base_url = "https://www.googleapis.com/youtube/v3/search"
+            def _parse_items(items, tipo_forzado=None):
+                out = []
+                for item in items:
+                    kind = item["id"].get("kind", "")
+                    vid_id = item["id"].get("videoId") or item["id"].get("playlistId")
+                    snip = item.get("snippet", {})
+                    es_playlist = "playlist" in kind
+                    out.append({
+                        "id": vid_id,
+                        "tipo": tipo_forzado or ("playlist" if es_playlist else "video"),
+                        "titulo": snip.get("title", ""),
+                        "canal": snip.get("channelTitle", ""),
+                        "thumb": (snip.get("thumbnails", {}).get("medium") or {}).get("url", ""),
+                    })
+                return out
+            resultados = []
+            r_vid = requests.get(base_url, params={
+                "part": "snippet", "q": query, "type": "video",
+                "videoEmbeddable": "true", "maxResults": 9, "key": _YOUTUBE_API_KEY
+            }, timeout=8)
+            data_vid = r_vid.json()
+            if "error" not in data_vid:
+                resultados.extend(_parse_items(data_vid.get("items", []), "video"))
+            r_pl = requests.get(base_url, params={
+                "part": "snippet", "q": query, "type": "playlist",
+                "maxResults": 3, "key": _YOUTUBE_API_KEY
+            }, timeout=8)
+            data_pl = r_pl.json()
+            if "error" not in data_pl:
+                resultados.extend(_parse_items(data_pl.get("items", []), "playlist"))
+            if not resultados and "error" in data_vid:
+                return {"ok": False, "error": data_vid["error"].get("message", "Error API"), "resultados": []}
+            return {"ok": True, "resultados": resultados}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "resultados": []}
+
     # ── FONDO ANIMADO ────────────────────────────────────────────────────
     def get_fondo_actual(self):
         return {"ok": True, "fondo": self.config_actual.get("fondo_animado", "")}
@@ -1585,23 +1859,77 @@ class Api:
                 self._spotify_refresh = data.get("refresh_token")
                 self.config_actual["spotify_client_id"] = client_id
                 self.config_actual["spotify_client_secret"] = client_secret
+                if self._spotify_refresh:
+                    self.config_actual["spotify_refresh_token"] = self._spotify_refresh
                 self._guardar()
                 return {"ok": True}
             return {"ok": False, "error": data.get("error_description", "Error de autenticación")}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    def _spotify_do_refresh(self):
+        if not self._spotify_refresh:
+            return False
+        try:
+            import base64
+            cid = self.config_actual.get("spotify_client_id", "")
+            sec = self.config_actual.get("spotify_client_secret", "")
+            if not cid or not sec:
+                return False
+            creds = base64.b64encode(f"{cid}:{sec}".encode()).decode()
+            r = requests.post("https://accounts.spotify.com/api/token",
+                              headers={"Authorization": f"Basic {creds}",
+                                       "Content-Type": "application/x-www-form-urlencoded"},
+                              data={"grant_type": "refresh_token",
+                                    "refresh_token": self._spotify_refresh}, timeout=10)
+            data = r.json()
+            if "access_token" in data:
+                self._spotify_token = data["access_token"]
+                if "refresh_token" in data:
+                    self._spotify_refresh = data["refresh_token"]
+                    self.config_actual["spotify_refresh_token"] = self._spotify_refresh
+                    self._guardar()
+                return True
+            return False
+        except Exception:
+            return False
+
+    def spotify_try_autoconnect(self):
+        if self._spotify_token:
+            return {"ok": True}
+        saved = self.config_actual.get("spotify_refresh_token", "")
+        if not saved:
+            return {"ok": False, "error": "Sin sesión guardada."}
+        self._spotify_refresh = saved
+        if self._spotify_do_refresh():
+            return {"ok": True}
+        self.config_actual.pop("spotify_refresh_token", None)
+        self._guardar()
+        return {"ok": False, "error": "Sesión expirada, autorizá nuevamente."}
+
+    def _spotify_headers(self):
+        return {"Authorization": f"Bearer {self._spotify_token}"}
+
     def get_spotify_nowplaying(self):
         if not self._spotify_token:
             return {"ok": False, "error": "No conectado.", "reproduciendo": False}
         try:
             r = requests.get("https://api.spotify.com/v1/me/player/currently-playing",
-                             headers={"Authorization": f"Bearer {self._spotify_token}"}, timeout=5)
+                             headers=self._spotify_headers(), timeout=5)
             if r.status_code == 204:
                 return {"ok": True, "reproduciendo": False}
             if r.status_code == 401:
-                self._spotify_token = None
-                return {"ok": False, "error": "Token expirado.", "reproduciendo": False}
+                if self._spotify_do_refresh():
+                    r = requests.get("https://api.spotify.com/v1/me/player/currently-playing",
+                                     headers=self._spotify_headers(), timeout=5)
+                    if r.status_code not in (200, 204):
+                        self._spotify_token = None
+                        return {"ok": False, "error": "Sesión expirada, reconectá.", "reproduciendo": False}
+                    if r.status_code == 204:
+                        return {"ok": True, "reproduciendo": False}
+                else:
+                    self._spotify_token = None
+                    return {"ok": False, "error": "Sesión expirada, reconectá.", "reproduciendo": False}
             data = r.json()
             item = data.get("item", {}) or {}
             return {"ok": True, "reproduciendo": data.get("is_playing", False),
@@ -1610,7 +1938,9 @@ class Api:
                     "album": item.get("album", {}).get("name", ""),
                     "imagen": (item.get("album", {}).get("images") or [{}])[0].get("url", ""),
                     "progreso_ms": data.get("progress_ms", 0),
-                    "duracion_ms": item.get("duration_ms", 1)}
+                    "duracion_ms": item.get("duration_ms", 1),
+                    "shuffle": data.get("shuffle_state", False),
+                    "repeat": data.get("repeat_state", "off")}
         except Exception as e:
             return {"ok": False, "error": str(e), "reproduciendo": False}
 
@@ -1618,15 +1948,41 @@ class Api:
         if not self._spotify_token:
             return {"ok": False, "error": "No conectado."}
         try:
-            endpoints = {"play": ("PUT", ".../play"), "pause": ("PUT", ".../pause"),
-                         "next": ("POST", ".../next"), "prev": ("POST", ".../previous")}
             base = "https://api.spotify.com/v1/me/player"
             urls = {"play": (requests.put, f"{base}/play"), "pause": (requests.put, f"{base}/pause"),
                     "next": (requests.post, f"{base}/next"), "prev": (requests.post, f"{base}/previous")}
             if accion not in urls:
                 return {"ok": False, "error": "Acción desconocida."}
             fn, url = urls[accion]
-            r = fn(url, headers={"Authorization": f"Bearer {self._spotify_token}"}, timeout=5)
+            r = fn(url, headers=self._spotify_headers(), timeout=5)
+            if r.status_code == 401 and self._spotify_do_refresh():
+                r = fn(url, headers=self._spotify_headers(), timeout=5)
+            return {"ok": r.status_code in (200, 204)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def spotify_shuffle(self, state):
+        if not self._spotify_token:
+            return {"ok": False, "error": "No conectado."}
+        try:
+            r = requests.put(f"https://api.spotify.com/v1/me/player/shuffle?state={'true' if state else 'false'}",
+                             headers=self._spotify_headers(), timeout=5)
+            if r.status_code == 401 and self._spotify_do_refresh():
+                r = requests.put(f"https://api.spotify.com/v1/me/player/shuffle?state={'true' if state else 'false'}",
+                                 headers=self._spotify_headers(), timeout=5)
+            return {"ok": r.status_code in (200, 204)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def spotify_repeat(self, state):
+        if not self._spotify_token:
+            return {"ok": False, "error": "No conectado."}
+        try:
+            r = requests.put(f"https://api.spotify.com/v1/me/player/repeat?state={state}",
+                             headers=self._spotify_headers(), timeout=5)
+            if r.status_code == 401 and self._spotify_do_refresh():
+                r = requests.put(f"https://api.spotify.com/v1/me/player/repeat?state={state}",
+                                 headers=self._spotify_headers(), timeout=5)
             return {"ok": r.status_code in (200, 204)}
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -1689,10 +2045,12 @@ class Api:
             url = r.json().get("data", "")
             if not url:
                 return {"ok": False, "error": "URL vacía"}
+            import minecraft_launcher_lib as _mcl
             from core import carpeta_instancia_paraguacraft
             carpeta_tipo = {"mod": "mods", "resourcepack": "resourcepacks",
                             "shader": "shaderpacks", "modpack": "mods"}.get(tipo, "mods")
-            dest = os.path.join(carpeta_instancia_paraguacraft(version, motor), carpeta_tipo)
+            dest = os.path.join(_mcl.utils.get_minecraft_directory(), "instancias",
+                                carpeta_instancia_paraguacraft(version, motor), carpeta_tipo)
             os.makedirs(dest, exist_ok=True)
             nombre = url.split("/")[-1].split("?")[0] or f"cf_{file_id}.jar"
             ruta = os.path.join(dest, nombre)
@@ -1794,7 +2152,7 @@ class Api:
                 "SearchIndexer.exe", "OneDrive.exe", "Teams.exe", "MicrosoftTeams.exe",
                 "Widgets.exe", "SearchApp.exe", "YourPhone.exe", "PhoneExperienceHost.exe",
                 "GameBarFTServer.exe", "XboxPCApp.exe", "SkypeApp.exe", "slack.exe",
-                "discord.exe", "spotify.exe", "chrome.exe", "msedge.exe", "firefox.exe",
+                "chrome.exe", "msedge.exe", "firefox.exe",
                 "AdobeUpdateService.exe", "CCXProcess.exe", "NortonSecurity.exe",
                 "MsMpEng.exe", "SgrmBroker.exe", "SpeechRuntime.exe", "Cortana.exe",
                 "WMIProviderHost.exe", "SysMain.exe", "SearchUI.exe"
@@ -2057,8 +2415,15 @@ class Api:
         try:
             import minecraft_launcher_lib
             mc_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
-            logs_dir = os.path.join(mc_dir, "logs")
-            crash_dir = os.path.join(mc_dir, "crash-reports")
+            _v = (version or "").strip()
+            if _v and _v != "latest" and motor:
+                from core import carpeta_instancia_paraguacraft
+                inst_path = os.path.join(mc_dir, "instancias", carpeta_instancia_paraguacraft(_v, motor))
+                logs_dir = os.path.join(inst_path, "logs")
+                crash_dir = os.path.join(inst_path, "crash-reports")
+            else:
+                logs_dir = os.path.join(mc_dir, "logs")
+                crash_dir = os.path.join(mc_dir, "crash-reports")
             contenido = ""
             fuente = ""
             latest = os.path.join(logs_dir, "latest.log")
@@ -2126,32 +2491,51 @@ class Api:
                       " 1) Cuál fue la causa principal, 2) Qué mods o configuración lo generó,"
                       " 3) Cómo solucionarlo paso a paso. Respondé en español, claro y conciso.\n\nLOG:\n"
                       + fragmento[:4000])
-            payload = {"contents": [{"parts": [{"text": prompt}]}],
-                       "generationConfig": {"temperature": 0.2, "maxOutputTokens": 600}}
-            url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
-                   f"gemini-1.5-flash:generateContent?key={self._GEMINI_API_KEY}")
-            r = requests.post(url, json=payload,
-                              headers={"Content-Type": "application/json"}, timeout=25)
-            if r.status_code == 200:
-                data = r.json()
-                texto = data["candidates"][0]["content"]["parts"][0]["text"]
+            texto, err = self._gemini(prompt, max_tokens=600, temperature=0.2)
+            if texto:
                 return {"ok": True, "analisis": texto}
-            return {"ok": False, "error": f"Gemini error {r.status_code}: {r.text[:200]}"}
+            return {"ok": False, "error": err or "Sin respuesta de Gemini."}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
     def _gemini(self, prompt, max_tokens=800, temperature=0.7):
+        if not self._GEMINI_API_KEY:
+            return None, "API key de Gemini no configurada."
         try:
+            import re as _re
             payload = {"contents": [{"parts": [{"text": prompt}]}],
                        "generationConfig": {"temperature": temperature, "maxOutputTokens": max_tokens}}
-            url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
-                   f"gemini-1.5-flash:generateContent?key={self._GEMINI_API_KEY}")
-            r = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=25)
-            if r.status_code == 200:
-                return r.json()["candidates"][0]["content"]["parts"][0]["text"]
-            return None
-        except Exception:
-            return None
+            _models = (
+                "gemma-3-27b-it",        # 14 400 RPD · 30 RPM
+                "gemma-3-12b-it",        # 14 400 RPD · 30 RPM
+                "gemma-3-4b-it",         # 14 400 RPD · 30 RPM
+                "gemma-3-1b-it",         # 14 400 RPD · 30 RPM
+                "gemini-2.0-flash-lite", # 500 RPD  · 15 RPM
+                "gemini-2.0-flash",      # 20 RPD   · 5 RPM
+                "gemini-1.5-flash",      # fallback
+                "gemini-1.5-flash-8b",   # fallback
+            )
+            last_err = "Sin respuesta de Gemini."
+            for model in _models:
+                url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
+                       f"{model}:generateContent?key={self._GEMINI_API_KEY}")
+                r = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=25)
+                if r.status_code == 200:
+                    return r.json()["candidates"][0]["content"]["parts"][0]["text"], None
+                if r.status_code in (404, 400):
+                    continue
+                if r.status_code == 429:
+                    msg = r.json().get("error", {}).get("message", "")
+                    retry = _re.search(r'retry in ([\d.]+)s', msg)
+                    secs = int(float(retry.group(1))) if retry else None
+                    last_err = (f"⏳ Cuota de Gemini agotada."
+                                f"{f' Reintentá en {secs}s.' if secs else ' Reintentá en unos minutos.'}")
+                    continue
+                last_err = f"Gemini {r.status_code}: " + r.json().get("error", {}).get("message", r.text[:120])
+                break
+            return None, last_err
+        except Exception as e:
+            return None, str(e)
 
     # ── GEMINI CHAT ───────────────────────────────────────────────────────
     def gemini_chat(self, mensaje, historial=None):
@@ -2164,10 +2548,10 @@ class Api:
                 rol = "Usuario" if h["rol"] == "user" else "Asistente"
                 conv += f"\n{rol}: {h['texto']}"
             prompt = f"{ctx}\n\nConversación:{conv}\n\nUsuario: {mensaje}\nAsistente:"
-            resp = self._gemini(prompt, max_tokens=500)
+            resp, err = self._gemini(prompt, max_tokens=500)
             if resp:
                 return {"ok": True, "respuesta": resp.strip()}
-            return {"ok": False, "error": "Sin respuesta de Gemini."}
+            return {"ok": False, "error": err or "Sin respuesta de Gemini."}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
@@ -2178,11 +2562,11 @@ class Api:
                       f"Generá el/los comandos exactos para: {descripcion}\n"
                       "Respondé SOLO con los comandos (uno por línea), sin explicación. "
                       "Si necesitás más de uno, ponelos en orden de ejecución.")
-            resp = self._gemini(prompt, max_tokens=300, temperature=0.1)
+            resp, err = self._gemini(prompt, max_tokens=300, temperature=0.1)
             if resp:
                 cmds = [l.strip() for l in resp.strip().splitlines() if l.strip()]
                 return {"ok": True, "comandos": cmds}
-            return {"ok": False, "error": "Sin respuesta."}
+            return {"ok": False, "error": err or "Sin respuesta."}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
@@ -2194,9 +2578,9 @@ class Api:
                       "Devolvé una lista JSON de exactamente 8 slugs de mods de Modrinth compatibles "
                       "con esa versión y loader, ordenados por importancia. Solo el array JSON, sin texto extra. "
                       "Ejemplo: [\"sodium\",\"lithium\",\"fabric-api\",\"jei\"]")
-            resp = self._gemini(prompt, max_tokens=200, temperature=0.2)
+            resp, err = self._gemini(prompt, max_tokens=200, temperature=0.2)
             if not resp:
-                return {"ok": False, "error": "Sin respuesta de Gemini."}
+                return {"ok": False, "error": err or "Sin respuesta de Gemini."}
             import re
             match = re.search(r'\[.*?\]', resp, re.DOTALL)
             if not match:
@@ -2206,20 +2590,63 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    # ── GEMINI SEMILLAS ────────────────────────────────────────────────────
+    def gemini_generar_semilla(self, descripcion):
+        try:
+            prompt = (
+                "Sos un experto en Minecraft. El jugador describe el tipo de mundo que quiere. "
+                "Generá 3 seeds de Minecraft (números o texto) con una breve explicación de cada una "
+                "(biomas cercanos al spawn, estructuras, etc.). "
+                "Respondé en español, formato claro con numeración. "
+                f"\nDescripción del jugador: {descripcion[:300]}"
+            )
+            resp, err = self._gemini(prompt, max_tokens=400, temperature=0.7)
+            if resp:
+                return {"ok": True, "respuesta": resp}
+            return {"ok": False, "error": err or "Sin respuesta de Gemini."}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── GEMINI SURVIVAL ASSIST ─────────────────────────────────────────────
+    def gemini_survival_assist(self, pregunta):
+        try:
+            prompt = (
+                "Sos un asistente experto en Minecraft Survival. "
+                "Respondé de forma ULTRA CONCISA y directa en español. "
+                "Máximo 3-4 líneas por respuesta. Priorizá pasos claros y recetas exactas. "
+                f"\nPregunta: {pregunta[:400]}"
+            )
+            resp, err = self._gemini(prompt, max_tokens=300, temperature=0.3)
+            if resp:
+                return {"ok": True, "respuesta": resp}
+            return {"ok": False, "error": err or "Sin respuesta de Gemini."}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
     # ── SCREENSHOTS ───────────────────────────────────────────────────────
     def get_screenshots(self):
         try:
             import minecraft_launcher_lib
             mc_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
-            shots_dir = os.path.join(mc_dir, "screenshots")
-            if not os.path.isdir(shots_dir):
-                return {"ok": True, "screenshots": []}
+            shot_dirs = [os.path.join(mc_dir, "screenshots")]
+            instancias_dir = os.path.join(mc_dir, "instancias")
+            if os.path.isdir(instancias_dir):
+                for inst in os.listdir(instancias_dir):
+                    s = os.path.join(instancias_dir, inst, "screenshots")
+                    if os.path.isdir(s):
+                        shot_dirs.append(s)
             items = []
-            for f in sorted(os.listdir(shots_dir), reverse=True):
-                if f.lower().endswith((".png", ".jpg", ".jpeg")):
-                    full = os.path.join(shots_dir, f)
-                    items.append({"nombre": f, "ruta": full.replace("\\", "/"),
-                                  "fecha": datetime.datetime.fromtimestamp(os.path.getmtime(full)).strftime("%d/%m/%Y %H:%M")})
+            seen = set()
+            for shots_dir in shot_dirs:
+                if not os.path.isdir(shots_dir):
+                    continue
+                for f in os.listdir(shots_dir):
+                    if f.lower().endswith((".png", ".jpg", ".jpeg")) and f not in seen:
+                        seen.add(f)
+                        full = os.path.join(shots_dir, f)
+                        items.append({"nombre": f, "ruta": full.replace("\\", "/"),
+                                      "fecha": datetime.datetime.fromtimestamp(os.path.getmtime(full)).strftime("%d/%m/%Y %H:%M")})
+            items.sort(key=lambda x: x["fecha"], reverse=True)
             return {"ok": True, "screenshots": items[:50]}
         except Exception as e:
             return {"ok": False, "error": str(e), "screenshots": []}
@@ -2229,7 +2656,9 @@ class Api:
         try:
             import minecraft_launcher_lib
             mc_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
-            mods_dir = os.path.join(mc_dir, "mods")
+            from core import carpeta_instancia_paraguacraft
+            mods_dir = os.path.join(mc_dir, "instancias",
+                                    carpeta_instancia_paraguacraft(version.strip(), motor), "mods")
             if not os.path.isdir(mods_dir):
                 return {"ok": True, "mods": []}
             loader = "fabric" if "fabric" in motor.lower() else "forge" if "forge" in motor.lower() else "quilt"
@@ -2270,7 +2699,7 @@ class Api:
                     ['netsh', 'interface', 'ip', 'set', 'dns', 'name=Wi-Fi', 'static', '1.1.1.1'],
                     capture_output=True, text=True, timeout=5)
                 msgs.append("DNS → Cloudflare 1.1.1.1 ✅" if result.returncode == 0 else "DNS: requiere admin")
-                kill_list = ["Teams.exe", "OneDrive.exe", "Spotify.exe", "Discord.exe"]
+                kill_list = ["Teams.exe", "OneDrive.exe"]
                 killed = []
                 for proc_name in kill_list:
                     k = subprocess.run(['taskkill', '/F', '/IM', proc_name], capture_output=True, timeout=3)
@@ -2539,6 +2968,320 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    # ── KEYSTROKE OVERLAY ─────────────────────────────────────────────────
+    _keystroke_window = None
+
+    def abrir_keystroke_overlay(self, cfg=None):
+        if cfg is None:
+            cfg = {}
+        _show_wasd    = bool(cfg.get('show_wasd',    True))
+        _show_extra   = bool(cfg.get('show_extra',   True))
+        _show_mouse   = bool(cfg.get('show_mouse',   True))
+        _show_compass = bool(cfg.get('show_compass', True))
+        try:
+            import tkinter as tk
+            import time
+            from collections import deque
+            if self.__class__._keystroke_window is not None:
+                try: self.__class__._keystroke_window.destroy()
+                except Exception: pass
+                self.__class__._keystroke_window = None
+
+            def _run():
+                _pynput_listener = None
+                try:
+                    import math as _math
+                    C_BG      = '#141414'
+                    C_KEY     = '#1E1E1E'
+                    C_OFF     = '#3A3A3A'
+                    C_TEAL    = '#00CCAA'
+                    C_BLUE    = '#5577FF'
+                    C_RED     = '#FF4466'
+                    C_BORDER  = '#9B59B6'
+                    C_WASD_ON = '#0D3530'
+                    C_MB_L_ON = '#0D2520'
+                    C_MB_R_ON = '#0D1535'
+
+                    root = tk.Tk()
+                    root.overrideredirect(True)
+                    root.attributes('-topmost', True)
+                    root.attributes('-alpha', 0.88)
+                    root.configure(bg=C_BG)
+                    sw = root.winfo_screenwidth()
+                    sh = root.winfo_screenheight()
+                    root.geometry(f'260x390+{sw//2 - 130}+{sh - 440}')
+
+                    def _drag_start(e):
+                        root._ox = root.winfo_x(); root._oy = root.winfo_y()
+                        root._mx = e.x_root; root._my = e.y_root
+                    def _drag_move(e):
+                        root.geometry(f'+{root._ox+e.x_root-root._mx}+{root._oy+e.y_root-root._my}')
+
+                    outer = tk.Frame(root, bg=C_BG,
+                                     highlightbackground=C_BORDER, highlightthickness=1)
+                    outer.pack(fill='both', expand=True)
+
+                    hdr = tk.Frame(outer, bg=C_BG)
+                    hdr.pack(fill='x', padx=6, pady=(4, 2))
+                    tk.Label(hdr, text='Teclas + Mouse', bg=C_BG, fg=C_BORDER,
+                             font=('Segoe UI', 8, 'bold')).pack(side='left')
+                    tk.Button(hdr, text='✕', bg=C_BG, fg='#555', relief='flat',
+                              cursor='hand2', font=('Segoe UI', 8),
+                              command=root.destroy).pack(side='right')
+
+                    wasd_outer = tk.Frame(outer, bg=C_BG)
+                    wasd_outer.pack(pady=(6, 2))
+                    if not _show_wasd: wasd_outer.pack_forget()
+
+                    def _make_key(parent, text, r, c):
+                        f = tk.Frame(parent, bg=C_OFF, highlightthickness=0)
+                        f.grid(row=r, column=c, padx=3, pady=3)
+                        lbl = tk.Label(f, text=text, bg=C_KEY, fg=C_OFF,
+                                       font=('Consolas', 14, 'bold'),
+                                       width=3, height=2, padx=6)
+                        lbl.pack(padx=1, pady=1)
+                        return lbl, f
+
+                    tk.Frame(wasd_outer, bg=C_BG, width=62, height=1).grid(row=0, column=0)
+                    tk.Frame(wasd_outer, bg=C_BG, width=62, height=1).grid(row=0, column=2)
+                    w_lbl, w_fr = _make_key(wasd_outer, 'W', 0, 1)
+                    a_lbl, a_fr = _make_key(wasd_outer, 'A', 1, 0)
+                    s_lbl, s_fr = _make_key(wasd_outer, 'S', 1, 1)
+                    d_lbl, d_fr = _make_key(wasd_outer, 'D', 1, 2)
+
+                    extra_fr = tk.Frame(outer, bg=C_BG)
+                    extra_fr.pack(pady=(0, 6))
+                    if not _show_extra: extra_fr.pack_forget()
+                    _extra_labels = {}
+                    for kid, ktxt in [('space','SPC'),('shift_l','SHF'),
+                                      ('control_l','CTL'),('e','INV')]:
+                        lbl = tk.Label(extra_fr, text=ktxt, bg=C_KEY, fg=C_OFF,
+                                       font=('Consolas', 8, 'bold'), width=4, height=1,
+                                       highlightbackground=C_OFF, highlightthickness=1)
+                        lbl.pack(side='left', padx=2)
+                        _extra_labels[kid] = lbl
+
+                    _key_frames = {'w': w_fr, 'a': a_fr, 's': s_fr, 'd': d_fr}
+                    _key_labels = {'w': w_lbl, 'a': a_lbl, 's': s_lbl, 'd': d_lbl}
+                    _key_labels.update(_extra_labels)
+
+                    mb_outer = tk.Frame(outer, bg=C_BG)
+                    mb_outer.pack(pady=(0, 6))
+                    if not _show_mouse: mb_outer.pack_forget()
+
+                    def _make_mouse_btn(parent, text):
+                        f = tk.Frame(parent, bg=C_OFF, highlightthickness=0)
+                        f.pack(side='left', padx=5)
+                        lbl = tk.Label(f, text=text, bg=C_KEY, fg=C_OFF,
+                                       font=('Consolas', 13, 'bold'),
+                                       width=5, height=2, padx=4)
+                        lbl.pack(padx=1, pady=(1, 0))
+                        cps = tk.Label(f, text='0 CPS', bg=C_KEY, fg='#555',
+                                       font=('Consolas', 8), width=5)
+                        cps.pack(pady=(0, 2))
+                        return lbl, cps, f
+
+                    lmb_lbl, lmb_cps, lmb_fr = _make_mouse_btn(mb_outer, 'IZQ')
+                    rmb_lbl, rmb_cps, rmb_fr = _make_mouse_btn(mb_outer, 'DER')
+
+                    comp_outer = tk.Frame(outer, bg=C_BG)
+                    comp_outer.pack(pady=(2, 8), fill='x')
+                    if not _show_compass: comp_outer.pack_forget()
+                    tk.Label(comp_outer, text='BRÚJULA', bg=C_BG, fg=C_BORDER,
+                             font=('Consolas', 7, 'bold')).pack()
+
+                    CW, CH = 240, 90
+                    canvas = tk.Canvas(comp_outer, width=CW, height=CH,
+                                       bg=C_BG, highlightthickness=0)
+                    canvas.pack()
+
+                    cx, cy, R = CW // 2, CH // 2, 32
+                    canvas.create_oval(cx-R, cy-R, cx+R, cy+R,
+                                       fill='#1A1A1A', outline='#2D2D2D', width=1)
+
+                    _dir_angles = {
+                        'N': -90, 'NE': -45, 'E': 0,  'SE': 45,
+                        'S':  90, 'SW': 135, 'W': 180, 'NW': -135
+                    }
+                    _dir_dots = {}
+                    for dname, ang in _dir_angles.items():
+                        rad = _math.radians(ang)
+                        px = cx + int(_math.cos(rad) * (R - 7))
+                        py = cy + int(_math.sin(rad) * (R - 7))
+                        _dir_dots[dname] = canvas.create_oval(
+                            px-4, py-4, px+4, py+4,
+                            fill='#252525', outline='#353535')
+                        if dname in ('N', 'S', 'E', 'W'):
+                            lx = cx + int(_math.cos(rad) * (R + 12))
+                            ly = cy + int(_math.sin(rad) * (R + 12))
+                            canvas.create_text(lx, ly, text=dname,
+                                               fill='#444', font=('Consolas', 7, 'bold'))
+
+                    _arrow = canvas.create_line(cx, cy, cx, cy - 1, fill=C_TEAL,
+                                                width=2, arrow=tk.LAST,
+                                                arrowshape=(8, 10, 4))
+                    canvas.create_oval(cx-3, cy-3, cx+3, cy+3, fill='#555', outline='')
+                    _spd_txt = canvas.create_text(CW - 30, cy, text='0\npx/s',
+                                                  fill='#555', font=('Consolas', 7),
+                                                  justify='center')
+
+                    def _bind_drag_all(w):
+                        if not isinstance(w, tk.Button):
+                            w.bind('<Button-1>', _drag_start)
+                            w.bind('<B1-Motion>', _drag_move)
+                        for c in w.winfo_children():
+                            _bind_drag_all(c)
+                    _bind_drag_all(outer)
+                    canvas.bind('<Button-1>', _drag_start)
+                    canvas.bind('<B1-Motion>', _drag_move)
+
+                    _lmb_ts   = deque()
+                    _rmb_ts   = deque()
+                    _mpos     = [0, 0]
+                    _mlast    = [0, 0]
+                    _last_tick = [time.time()]
+                    _cur_dir  = [None]
+
+                    def _calc_cps(dq):
+                        now = time.time()
+                        while dq and dq[0] < now - 1.0:
+                            dq.popleft()
+                        return len(dq)
+
+                    def _get_dir8(dx, dy):
+                        if abs(dx) < 3 and abs(dy) < 3:
+                            return None
+                        ang = (_math.degrees(_math.atan2(dy, dx)) + 360) % 360
+                        return ['E','SE','S','SW','W','NW','N','NE'][
+                            int((ang + 22.5) / 45) % 8]
+
+                    def _tick():
+                        if not root.winfo_exists():
+                            return
+                        lc = _calc_cps(_lmb_ts)
+                        rc = _calc_cps(_rmb_ts)
+                        lmb_cps.config(text=f'{lc} CPS', fg=C_TEAL if lc > 0 else '#555')
+                        rmb_cps.config(text=f'{rc} CPS', fg=C_BLUE if rc > 0 else '#555')
+                        now = time.time()
+                        dt = max(now - _last_tick[0], 0.001)
+                        _last_tick[0] = now
+                        dx = _mpos[0] - _mlast[0]
+                        dy = _mpos[1] - _mlast[1]
+                        _mlast[0] = _mpos[0]; _mlast[1] = _mpos[1]
+                        spd = int(((dx*dx + dy*dy) ** 0.5) / dt)
+                        new_dir = _get_dir8(dx, dy)
+                        if new_dir != _cur_dir[0]:
+                            if _cur_dir[0]:
+                                canvas.itemconfig(_dir_dots[_cur_dir[0]],
+                                                  fill='#252525', outline='#353535')
+                            if new_dir:
+                                canvas.itemconfig(_dir_dots[new_dir],
+                                                  fill=C_TEAL, outline=C_TEAL)
+                            _cur_dir[0] = new_dir
+                        if new_dir:
+                            ang_r = _math.radians(_dir_angles[new_dir])
+                            ax = cx + int(_math.cos(ang_r) * 22)
+                            ay = cy + int(_math.sin(ang_r) * 22)
+                            sc = C_RED if spd > 800 else C_TEAL if spd > 100 else '#666'
+                            canvas.coords(_arrow, cx, cy, ax, ay)
+                            canvas.itemconfig(_arrow, fill=sc)
+                        else:
+                            canvas.coords(_arrow, cx, cy, cx, cy)
+                        sc = C_RED if spd > 800 else C_TEAL if spd > 100 else '#555'
+                        canvas.itemconfig(_spd_txt, text=f'{spd}\npx/s', fill=sc)
+                        root.after(80, _tick)
+
+                    root.after(80, _tick)
+
+                    def _on_key(event, pressed):
+                        name = event.keysym.lower()
+                        if name in ('w', 'a', 's', 'd'):
+                            fr = _key_frames[name]
+                            lbl = _key_labels[name]
+                            fr.config(bg=C_TEAL if pressed else C_OFF)
+                            lbl.config(bg=C_WASD_ON if pressed else C_KEY,
+                                       fg=C_TEAL if pressed else C_OFF)
+                        elif name in _key_labels:
+                            _key_labels[name].config(
+                                bg='#2A2A2A' if pressed else C_KEY,
+                                fg=C_TEAL if pressed else C_OFF)
+
+                    root.bind_all('<KeyPress>', lambda e: _on_key(e, True))
+                    root.bind_all('<KeyRelease>', lambda e: _on_key(e, False))
+                    root.focus_force()
+
+                    _pm = None
+                    try:
+                        from pynput import mouse as _pm
+                    except ImportError:
+                        try:
+                            import subprocess as _sp2, sys as _sys2
+                            _sp2.check_call(
+                                [_sys2.executable, '-m', 'pip', 'install', '--quiet', 'pynput'],
+                                stdout=_sp2.DEVNULL, stderr=_sp2.DEVNULL)
+                            from pynput import mouse as _pm
+                        except Exception:
+                            pass
+
+                    if _pm is None:
+                        canvas.itemconfig(_spd_txt, text='instala\npynput', fill='#F39C12')
+                    else:
+                        def _on_click(x, y, button, pressed_):
+                            if not root.winfo_exists():
+                                return False
+                            try:
+                                if button == _pm.Button.left:
+                                    if pressed_: _lmb_ts.append(time.time())
+                                    def _upd_lmb(p=pressed_):
+                                        lmb_fr.config(bg=C_TEAL if p else C_OFF)
+                                        lmb_lbl.config(bg=C_MB_L_ON if p else C_KEY,
+                                                       fg=C_TEAL if p else C_OFF)
+                                    root.after(0, _upd_lmb)
+                                elif button == _pm.Button.right:
+                                    if pressed_: _rmb_ts.append(time.time())
+                                    def _upd_rmb(p=pressed_):
+                                        rmb_fr.config(bg=C_BLUE if p else C_OFF)
+                                        rmb_lbl.config(bg=C_MB_R_ON if p else C_KEY,
+                                                       fg=C_BLUE if p else C_OFF)
+                                    root.after(0, _upd_rmb)
+                            except Exception:
+                                pass
+
+                        def _on_move(x, y):
+                            _mpos[0] = x; _mpos[1] = y
+
+                        _pynput_listener = _pm.Listener(on_click=_on_click, on_move=_on_move)
+                        _pynput_listener.daemon = True
+                        _pynput_listener.start()
+
+                    self.__class__._keystroke_window = root
+                    root.mainloop()
+                except Exception:
+                    pass
+                finally:
+                    self.__class__._keystroke_window = None
+                    if _pynput_listener:
+                        try: _pynput_listener.stop()
+                        except Exception: pass
+
+            threading.Thread(target=_run, daemon=True).start()
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def set_overlay_opacity(self, valor):
+        try:
+            alpha = max(0.2, min(1.0, int(valor) / 100))
+            w = self.__class__._overlay_window
+            if w:
+                w.attributes('-alpha', alpha)
+            kw = self.__class__._keystroke_window
+            if kw:
+                kw.attributes('-alpha', alpha)
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
     # ── BENCHMARK DE PC COMPLETO ───────────────────────────────────────────
     def run_benchmark(self):
         try:
@@ -2734,9 +3477,9 @@ class Api:
                 '"pantalon": "#color_pantalon", "zapatos": "#color_zapatos", "ojos": "#color_ojos"}\n'
                 "Sin texto extra, solo el JSON."
             )
-            resp = self._gemini(prompt, max_tokens=80, temperature=0.3)
+            resp, err = self._gemini(prompt, max_tokens=80, temperature=0.3)
             if not resp:
-                return {"ok": False, "error": "Sin respuesta de Gemini."}
+                return {"ok": False, "error": err or "Sin respuesta de Gemini."}
             match = re.search(r'\{[^}]+\}', resp, re.DOTALL)
             if not match:
                 return {"ok": False, "error": "Gemini no devolvió JSON válido."}
@@ -2841,6 +3584,249 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    # ── SMART RAM ─────────────────────────────────────────────────────────
+    def get_smart_ram(self):
+        try:
+            vm = psutil.virtual_memory()
+            total_gb = round(vm.total / (1024 ** 3), 1)
+            disponible_gb = round(vm.available / (1024 ** 3), 1)
+            reserva_mb = 2048
+            usable_mb = max(1024, int(vm.total / (1024 ** 2)) - reserva_mb)
+            if total_gb >= 32:
+                recomendada_mb = min(8192, usable_mb)
+                nota = "PC de alta gama — 8 GB para Minecraft es ideal."
+            elif total_gb >= 16:
+                recomendada_mb = min(6144, usable_mb)
+                nota = "16 GB RAM — 6 GB es un buen balance."
+            elif total_gb >= 8:
+                recomendada_mb = min(3072, usable_mb)
+                nota = "8 GB RAM — 3 GB evita problemas de estabilidad."
+            else:
+                recomendada_mb = min(2048, usable_mb)
+                nota = "Poca RAM disponible — 2 GB es lo recomendado."
+            return {
+                "ok": True,
+                "ram_total_gb": total_gb,
+                "ram_disponible_gb": disponible_gb,
+                "ram_recomendada_mb": recomendada_mb,
+                "nota": nota
+            }
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def set_ram(self, mb):
+        try:
+            mb = int(mb)
+            self.config_actual["ram_mb"] = mb
+            self._guardar()
+            return {"ok": True, "ram_mb": mb}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── DETECTOR DE CONFLICTOS DE MODS ────────────────────────────────────
+    def detectar_conflictos_mods(self):
+        try:
+            if minecraft_launcher_lib:
+                mc_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+            else:
+                mc_dir = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), '.minecraft')
+            mods_dir = os.path.join(mc_dir, "mods")
+            if not os.path.isdir(mods_dir):
+                return {"ok": False, "error": "No se encontró la carpeta mods."}
+            archivos = [f for f in os.listdir(mods_dir) if f.endswith('.jar')]
+            conflictos = []
+            CONFLICTOS_CONOCIDOS = [
+                (["optifine", "sodium"], "OptiFine y Sodium son incompatibles — usá Iris en lugar de OptiFine."),
+                (["optifine", "iris"], "OptiFine e Iris son incompatibles — elegí uno."),
+                (["sodium", "embeddium"], "Sodium y Embeddium son el mismo mod con distinto nombre."),
+                (["rubidium", "sodium"], "Rubidium y Sodium son incompatibles (mismo propósito)."),
+                (["jei", "rei"], "JEI y REI son incompatibles — usá solo uno."),
+            ]
+            archivos_lower = [f.lower() for f in archivos]
+            for mods_pair, descripcion in CONFLICTOS_CONOCIDOS:
+                found = [m for m in mods_pair if any(m in a for a in archivos_lower)]
+                if len(found) >= 2:
+                    archivos_match = [a for a in archivos if any(m in a.lower() for m in found)]
+                    conflictos.append({"tipo": "incompatible", "descripcion": descripcion,
+                                       "archivos": archivos_match[:3]})
+            seen_ids = {}
+            for archivo in archivos:
+                import re as _re2
+                base = _re2.sub(r'[\d\.\-\_v]+.*', '',
+                                archivo.lower().replace('-','').replace('_','').replace(' ',''))
+                if base in seen_ids:
+                    conflictos.append({"tipo": "duplicado",
+                                       "descripcion": f"Posible duplicado: {seen_ids[base]} y {archivo}",
+                                       "archivos": [seen_ids[base], archivo]})
+                else:
+                    seen_ids[base] = archivo
+            return {"ok": True, "total_mods": len(archivos), "conflictos": conflictos}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── AUTO-OPTIMIZER OPTIONS.TXT ────────────────────────────────────────
+    def optimizar_opciones_mc(self):
+        try:
+            if minecraft_launcher_lib:
+                _mc_dir_opt = minecraft_launcher_lib.utils.get_minecraft_directory()
+            else:
+                _mc_dir_opt = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), '.minecraft')
+            vm = psutil.virtual_memory()
+            total_gb = vm.total / (1024 ** 3)
+            import subprocess as _sp
+            _flags = _sp.CREATE_NO_WINDOW if platform.system() == "Windows" else 0
+            try:
+                r = _sp.run(['wmic', 'cpu', 'get', 'NumberOfCores', '/value'],
+                            capture_output=True, text=True, timeout=4, creationflags=_flags)
+                cores = int([l for l in r.stdout.splitlines() if 'NumberOfCores' in l][0].split('=')[1])
+            except Exception:
+                cores = 4
+            if total_gb >= 16 and cores >= 8:
+                tier = "alta"
+                opciones = {"renderDistance": "14", "simulationDistance": "12",
+                            "particles": "0", "fboEnable": "true", "ao": "2",
+                            "biomeBlendRadius": "4", "maxFps": "260", "fullscreen": "false"}
+            elif total_gb >= 8 and cores >= 4:
+                tier = "media"
+                opciones = {"renderDistance": "10", "simulationDistance": "8",
+                            "particles": "1", "fboEnable": "true", "ao": "1",
+                            "biomeBlendRadius": "2", "maxFps": "120", "fullscreen": "false"}
+            else:
+                tier = "baja"
+                opciones = {"renderDistance": "6", "simulationDistance": "6",
+                            "particles": "2", "fboEnable": "false", "ao": "0",
+                            "biomeBlendRadius": "0", "maxFps": "60", "fullscreen": "false"}
+            mc_dir = _mc_dir_opt
+            opts_path = os.path.join(mc_dir, "options.txt")
+            if os.path.isfile(opts_path):
+                with open(opts_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    lines = f.readlines()
+                updated = {}
+                new_lines = []
+                for line in lines:
+                    key = line.split(':')[0].strip() if ':' in line else None
+                    if key and key in opciones:
+                        new_lines.append(f"{key}:{opciones[key]}\n")
+                        updated[key] = opciones[key]
+                    else:
+                        new_lines.append(line)
+                for k, v in opciones.items():
+                    if k not in updated:
+                        new_lines.append(f"{k}:{v}\n")
+                        updated[k] = v
+                with open(opts_path, 'w', encoding='utf-8') as f:
+                    f.writelines(new_lines)
+                return {"ok": True, "tier": tier, "opciones_aplicadas": updated}
+            else:
+                with open(opts_path, 'w', encoding='utf-8') as f:
+                    for k, v in opciones.items():
+                        f.write(f"{k}:{v}\n")
+                return {"ok": True, "tier": tier, "opciones_aplicadas": opciones}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── COMPARADOR DE RENDIMIENTO POR VERSION ─────────────────────────────
+    def comparar_rendimiento_versiones(self):
+        try:
+            vm = psutil.virtual_memory()
+            total_gb = vm.total / (1024 ** 3)
+            import subprocess as _sp
+            _flags = _sp.CREATE_NO_WINDOW if platform.system() == "Windows" else 0
+            try:
+                r = _sp.run(['wmic', 'cpu', 'get', 'NumberOfCores', '/value'],
+                            capture_output=True, text=True, timeout=4, creationflags=_flags)
+                cores = int([l for l in r.stdout.splitlines() if 'NumberOfCores' in l][0].split('=')[1])
+            except Exception:
+                cores = 4
+            base = 60 if total_gb < 8 else (90 if total_gb < 16 else 130)
+            core_bonus = min(40, (cores - 4) * 5)
+            VERSIONES = [
+                ("1.8.9",  "Vanilla",  2.5,  "FPS ultra alto, sin features modernas"),
+                ("1.12.2", "Fabric",   2.0,  "Clásico modding, buen rendimiento"),
+                ("1.16.5", "Fabric",   1.5,  "Nether update, buen balance"),
+                ("1.18.2", "Fabric",   1.1,  "Caves & Cliffs, más pesado"),
+                ("1.20.1", "Fabric",   1.0,  "Versión estable recomendada"),
+                ("1.21.1", "Fabric",   0.9,  "Última version, más optimización requerida"),
+                ("1.21.4", "Fabric",   0.8,  "Muy nueva, puede ser inestable"),
+            ]
+            versiones_out = []
+            for ver, loader, mult, nota in VERSIONES:
+                fps = max(20, round((base + core_bonus) * mult))
+                versiones_out.append({"version": ver, "loader": loader,
+                                      "fps_estimado": fps, "nota": nota})
+            return {"ok": True, "versiones": versiones_out}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── WHITELIST VISUAL ──────────────────────────────────────────────────
+    def get_whitelist(self):
+        try:
+            if minecraft_launcher_lib:
+                mc_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+            else:
+                mc_dir = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), '.minecraft')
+            wl_path = os.path.join(mc_dir, "whitelist.json")
+            if not os.path.isfile(wl_path):
+                srv_dir = self.config_actual.get("srv_carpeta", "")
+                wl_path = os.path.join(srv_dir, "whitelist.json") if srv_dir else wl_path
+            if not os.path.isfile(wl_path):
+                return {"ok": True, "jugadores": []}
+            with open(wl_path, 'r', encoding='utf-8') as f:
+                jugadores = json.load(f)
+            return {"ok": True, "jugadores": jugadores if isinstance(jugadores, list) else []}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def agregar_whitelist(self, nombre):
+        try:
+            srv_dir = self.config_actual.get("srv_carpeta", "")
+            wl_path = os.path.join(srv_dir, "whitelist.json") if srv_dir else None
+            if not wl_path or not os.path.isdir(srv_dir):
+                return {"ok": False, "error": "Configurá primero la carpeta del servidor."}
+            jugadores = []
+            if os.path.isfile(wl_path):
+                with open(wl_path, 'r', encoding='utf-8') as f:
+                    jugadores = json.load(f)
+            if any(j.get("name", j) == nombre for j in jugadores if isinstance(j, dict)):
+                return {"ok": False, "error": f"{nombre} ya está en la whitelist."}
+            jugadores.append({"uuid": "00000000-0000-0000-0000-000000000000", "name": nombre})
+            with open(wl_path, 'w', encoding='utf-8') as f:
+                json.dump(jugadores, f, indent=2)
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def eliminar_whitelist(self, nombre):
+        try:
+            srv_dir = self.config_actual.get("srv_carpeta", "")
+            wl_path = os.path.join(srv_dir, "whitelist.json") if srv_dir else None
+            if not wl_path or not os.path.isfile(wl_path):
+                return {"ok": False, "error": "whitelist.json no encontrado."}
+            with open(wl_path, 'r', encoding='utf-8') as f:
+                jugadores = json.load(f)
+            jugadores = [j for j in jugadores
+                         if (j.get("name", j) if isinstance(j, dict) else j) != nombre]
+            with open(wl_path, 'w', encoding='utf-8') as f:
+                json.dump(jugadores, f, indent=2)
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def elegir_carpeta_servidor(self):
+        try:
+            import tkinter as tk
+            from tkinter import filedialog
+            root = tk.Tk(); root.withdraw(); root.attributes("-topmost", True)
+            carpeta = filedialog.askdirectory(title="Elegir carpeta del servidor")
+            root.destroy()
+            if carpeta:
+                self.config_actual["srv_carpeta"] = carpeta
+                self._guardar()
+                return {"ok": True, "carpeta": carpeta}
+            return {"ok": False, "error": "Cancelado"}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
 
 # ─── LOCAL HTTP API SERVER (bypasses pywebview bridge) ───────────────────────
 _api_http_port = 0
@@ -2926,6 +3912,21 @@ class _LocalAPIHandler(BaseHTTPRequestHandler):
         elif parsed.path == '/api/game_status':
             self._json(_api_http_ref._game_status if _api_http_ref else {"running": False, "status": "idle"})
 
+        elif parsed.path == '/api/servidor_status':
+            if _api_http_ref:
+                _api = _api_http_ref
+                with _api._servidor_lock:
+                    _log = list(_api._servidor_log)
+                _carpeta = _api._servidor_carpeta or ""
+                self._json({
+                    "log": _log,
+                    "creando": _api._servidor_creando,
+                    "servidor_existe": bool(_carpeta and os.path.exists(os.path.join(_carpeta, "server.jar"))),
+                    "carpeta": _carpeta,
+                })
+            else:
+                self._json({"log": [], "creando": False, "servidor_existe": False, "carpeta": ""})
+
         elif parsed.path == '/api/skin_proxy':
             name = qs.get('name', ['Steve'])[0].strip() or 'Steve'
             try:
@@ -2967,6 +3968,17 @@ class _LocalAPIHandler(BaseHTTPRequestHandler):
                     self._json({'ok': False, 'error': str(_e)})
             else:
                 self._json({'ok': False, 'error': 'version requerida'})
+        elif self.path == '/api/crear_servidor':
+            version = body.get('version', '')
+            carpeta = body.get('carpeta', '')
+            if not _api_http_ref or not version or not carpeta:
+                self._json({'ok': False, 'error': 'version y carpeta son requeridas'})
+            else:
+                try:
+                    result = _api_http_ref.crear_servidor(version, carpeta)
+                    self._json(result)
+                except Exception as _e:
+                    self._json({'ok': False, 'error': str(_e)})
         elif self.path == '/api/call':
             method = body.get('method', '')
             args = body.get('args', [])
@@ -3063,4 +4075,5 @@ if __name__ == "__main__":
             pass
 
     ventana.events.loaded += _on_loaded
-    webview.start(debug=False, http_server=True)
+    webview.start(debug=False, http_server=True,
+                  user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")

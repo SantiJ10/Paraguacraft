@@ -159,59 +159,134 @@ class CreadorServidor:
     @staticmethod
     def descargar_y_preparar(carpeta_server, ver_server, callback_progreso):
         try:
-            callback_progreso(f"Buscando servidor para la versión {ver_server}...")
-            
-            # 1. Busca en el manifiesto oficial de Mojang
-            manifest = requests.get("https://launchermeta.mojang.com/mc/game/version_manifest.json", timeout=10).json()
+            callback_progreso(f"[1/6] Buscando servidor para la versión {ver_server}...")
+
+            # 1. Manifiesto oficial Mojang
+            try:
+                manifest = requests.get(
+                    "https://launchermeta.mojang.com/mc/game/version_manifest.json",
+                    timeout=15).json()
+            except Exception as e:
+                return False, f"No se pudo descargar el manifiesto de Mojang: {e}"
+
             version_url = next((v["url"] for v in manifest["versions"] if v["id"] == ver_server), None)
-            
             if not version_url:
-                return False, f"La versión '{ver_server}' no existe en Mojang.\nAsegurate de poner una versión oficial válida."
-            
-            # 2. Entra a la versión y saca el link del server.jar
-            v_data = requests.get(version_url, timeout=10).json()
+                return False, f"La versión '{ver_server}' no existe en Mojang. Usá una versión oficial (ej: 1.21.1, 1.20.4)."
+
+            # 2. Datos de la versión
+            callback_progreso(f"[2/6] Obteniendo datos de la versión {ver_server}...")
+            try:
+                v_data = requests.get(version_url, timeout=15).json()
+            except Exception as e:
+                return False, f"No se pudo obtener datos de versión: {e}"
+
             if "server" not in v_data.get("downloads", {}):
-                return False, "Esta versión no tiene un servidor oficial disponible."
-                
+                return False, f"La versión {ver_server} no tiene servidor oficial disponible (solo existe para versiones >= 1.2)."
+
             server_jar_url = v_data["downloads"]["server"]["url"]
-            
-            # 3. Descarga el archivo pesado
-            callback_progreso(f"Descargando server.jar ({ver_server})...")
-            r_jar = requests.get(server_jar_url, stream=True, timeout=30)
-            r_jar.raise_for_status()
-            
-            with open(os.path.join(carpeta_server, "server.jar"), "wb") as f:
-                for chunk in r_jar.iter_content(chunk_size=8192):
-                    if chunk: f.write(chunk)
-            
-            # 4. Acepta la EULA
+            expected_size = v_data["downloads"]["server"].get("size", 0)
+
+            # 3. Descarga server.jar (throttle progress a cada 5%)
+            server_jar_path = os.path.join(carpeta_server, "server.jar")
+            if os.path.exists(server_jar_path) and expected_size and os.path.getsize(server_jar_path) == expected_size:
+                callback_progreso("[3/6] server.jar ya existe y está completo, omitiendo descarga...")
+            else:
+                sz_mb = expected_size / 1048576 if expected_size else 0
+                callback_progreso(f"[3/6] Descargando server.jar ({ver_server}, {sz_mb:.1f} MB)...")
+                try:
+                    r_jar = requests.get(server_jar_url, stream=True, timeout=(15, 300))
+                    r_jar.raise_for_status()
+                except Exception as e:
+                    return False, f"Error iniciando descarga de server.jar: {e}"
+                total_bytes = int(r_jar.headers.get("content-length", 0) or expected_size)
+                downloaded = 0
+                _CHUNK = 65536
+                _last_pct = -1
+                with open(server_jar_path, "wb") as f:
+                    for chunk in r_jar.iter_content(chunk_size=_CHUNK):
+                        if chunk:
+                            f.write(chunk)
+                            downloaded += len(chunk)
+                            if total_bytes > 0:
+                                pct = downloaded * 100 // total_bytes
+                                if pct >= _last_pct + 5:
+                                    _last_pct = pct
+                                    callback_progreso(
+                                        f"[3/6] Descargando server.jar... "
+                                        f"{downloaded/1048576:.1f}/{total_bytes/1048576:.1f} MB ({pct}%)")
+                callback_progreso(f"[3/6] server.jar descargado ({downloaded/1048576:.1f} MB).")
+
+            # 4. EULA
+            callback_progreso("[4/6] Aceptando EULA...")
             with open(os.path.join(carpeta_server, "eula.txt"), "w") as f:
-                f.write("eula=true")
-            
-            # 5. Buscador de Java
-            mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
-            runtime_dir = os.path.join(mine_dir, "runtime")
+                f.write("eula=true\n")
+
+            # 5. Buscar Java
+            callback_progreso("[5/6] Buscando Java instalado...")
             java_cmd = "java"
-            
-            if os.path.exists(runtime_dir):
-                javas_encontrados = [os.path.join(root, "java.exe") for root, _, files in os.walk(runtime_dir) if "java.exe" in files]
-                if javas_encontrados:
-                    java_ideal = next((j for j in javas_encontrados if "delta" in j.lower() or "gamma" in j.lower() or "21" in j.lower()), javas_encontrados[0])
-                    java_cmd = f'"{java_ideal}"'
+            try:
+                mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+                runtime_dir = os.path.join(mine_dir, "runtime")
+                if os.path.exists(runtime_dir):
+                    javas = [os.path.join(r, "java.exe")
+                             for r, _, fs in os.walk(runtime_dir) if "java.exe" in fs]
+                    if javas:
+                        best = next((j for j in javas if "21" in j or "delta" in j.lower() or "gamma" in j.lower()), javas[0])
+                        java_cmd = f'"{best}"'
+                        callback_progreso(f"[5/6] Java encontrado: {best}")
+                    else:
+                        callback_progreso("[5/6] Java del launcher no encontrado, usando 'java' del sistema.")
+                else:
+                    callback_progreso("[5/6] Runtime dir no existe, usando 'java' del sistema.")
+            except Exception as e:
+                callback_progreso(f"[5/6] Error buscando Java ({e}), usando 'java' del sistema.")
 
-            # 6. Descarga de Playit.gg
-            callback_progreso("Inyectando túnel Playit.gg...")
-            r_playit = requests.get("https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-win_64.exe", stream=True, timeout=20)
-            with open(os.path.join(carpeta_server, "playit.exe"), "wb") as f:
-                shutil.copyfileobj(r_playit.raw, f)
-
-            # 7. Creación del BAT
-            bat_content = f"@echo off\necho Iniciando Tunel Playit...\nstart cmd /k playit.exe\necho Iniciando Servidor de Minecraft...\n{java_cmd} -Xmx4G -Xms4G -jar server.jar nogui\npause"
+            # 6. Crear iniciar_server.bat
+            callback_progreso("[6/6] Creando iniciar_server.bat...")
+            bat_content = (
+                "@echo off\n"
+                "echo Iniciando Tunel Playit...\n"
+                "if exist playit.exe (start cmd /k playit.exe) else "
+                "(echo playit.exe no encontrado, descargalo de playit.gg)\n"
+                "echo Iniciando Servidor de Minecraft...\n"
+                f"{java_cmd} -Xmx4G -Xms1G -jar server.jar nogui\n"
+                "pause\n"
+            )
             with open(os.path.join(carpeta_server, "iniciar_server.bat"), "w", encoding="utf-8") as f:
                 f.write(bat_content)
-            
-            callback_progreso("¡Servidor y Túnel listos!")
-            return True, f"¡Todo listo en {carpeta_server}!\n\nAl ejecutar el .bat, se abrirán dos consolas:\n1. El Servidor de Minecraft.\n2. El túnel de Playit (Ahí te va a generar un link para que tus amigos entren directo)."
+
+            # 7. Descarga playit.exe (sincrónico, busca URL correcta via GitHub API)
+            playit_path = os.path.join(carpeta_server, "playit.exe")
+            if not os.path.exists(playit_path):
+                callback_progreso("[7/7] Buscando última versión de playit.exe...")
+                try:
+                    api_r = requests.get(
+                        "https://api.github.com/repos/playit-cloud/playit-agent/releases/latest",
+                        timeout=15, headers={"Accept": "application/vnd.github+json"})
+                    api_r.raise_for_status()
+                    assets = api_r.json().get("assets", [])
+                    exe_url = None
+                    for asset in assets:
+                        n = asset["name"].lower()
+                        if n.endswith(".exe") and ("win" in n or "windows" in n):
+                            exe_url = asset["browser_download_url"]
+                            break
+                    if not exe_url:
+                        raise Exception("No se encontró un .exe de Windows en los assets del release.")
+                    tag = api_r.json().get("tag_name", "")
+                    callback_progreso(f"[7/7] Descargando playit.exe {tag}...")
+                    r_p = requests.get(exe_url, stream=True, timeout=(20, 300))
+                    r_p.raise_for_status()
+                    with open(playit_path, "wb") as _f:
+                        shutil.copyfileobj(r_p.raw, _f, length=65536)
+                    callback_progreso("[7/7] playit.exe descargado.")
+                except Exception as _e:
+                    callback_progreso(f"⚠️ playit.exe no descargado: {_e}. Descargalo manualmente desde playit.gg")
+            else:
+                callback_progreso("[7/7] playit.exe ya existe.")
+
+            callback_progreso("✅ Todos los archivos listos.")
+            return True, f"¡Todo listo en {carpeta_server}!"
 
         except Exception as e:
             return False, str(e)

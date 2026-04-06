@@ -10,3 +10,8 @@ Logs/
 *.gz
 secrets.py
 credentials.py
+
+# Archivos temporales de desarrollo/debug
+_*.py
+check_*.py
+paraguacraft_session.json
