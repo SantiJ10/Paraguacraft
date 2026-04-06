@@ -200,7 +200,7 @@
     </div>
 
     <nav class="h-[65px] bg-[#0A0A0A] flex items-center px-6 border-b border-[#1E1E1E] shrink-0 z-50">
-        
+
         <div class="flex items-center gap-4 relative">
             <div onclick="toggleLogoMenu(event)" class="text-2xl font-black tracking-widest text-white cursor-pointer select-none">
                 PARAGUACRAFT <span class="text-xs text-gray-500">▼</span>
@@ -213,9 +213,9 @@
                 <div class="border-t border-[#2A2A2A] my-1"></div>
                 <button onclick="cerrarSesion()" class="text-left px-4 py-2 text-sm font-bold text-[#E74C3C] hover:bg-[#2A2A2A] transition w-full">↪  Cerrar sesión</button>
             </div>
-            <div class="flex items-center gap-2 bg-[#121212] px-3 py-1 rounded-full border border-[#1E1E1E]">
-                <div class="w-2.5 h-2.5 bg-[#2ECC71] rounded-full animate-pulse"></div>
-                <span class="text-[11px] font-bold text-gray-300">Global Players Online</span>
+            <div id="nav-players-badge" class="flex items-center gap-2 bg-[#121212] px-3 py-1 rounded-full border border-[#1E1E1E] cursor-default select-none" title="Jugadores online en los principales servidores">
+                <div id="nav-players-dot" class="w-2.5 h-2.5 bg-gray-600 rounded-full"></div>
+                <span id="nav-players-count" class="text-[11px] font-bold text-gray-500">— online</span>
             </div>
             <div id="breadcrumb" class="text-gray-500 text-xs font-bold ml-2">Inicio / Dashboard</div>
         </div>
@@ -379,8 +379,8 @@
 
     <main class="flex-1 relative bg-[#121212] w-full h-full overflow-hidden">
         
-        <div id="vista-inicio" class="vista-seccion absolute inset-0 flex-col" style="display:flex;">
-            <div class="bg-[#0D0D0D] border-b border-[#1E1E1E] px-5 py-2 flex items-center gap-3 shrink-0 overflow-x-auto">
+        <div id="vista-inicio" class="vista-seccion absolute inset-0 flex-col overflow-y-auto" style="display:flex;">
+            <div class="bg-[#0D0D0D] border-b border-[#1E1E1E] px-5 py-2 flex items-center gap-3 shrink-0 overflow-x-auto sticky top-0 z-10">
                 <span class="text-xs font-black text-gray-500 uppercase tracking-widest shrink-0">⚡ Quick Play</span>
                 <button onclick="inicioQuickPlay('mc.hypixel.net')" class="flex items-center gap-2 bg-[#181818] hover:bg-[#3498DB]/20 border border-[#2A2A2A] hover:border-[#3498DB] px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0">🔷 Hypixel</button>
                 <button onclick="inicioQuickPlay('play.cubecraft.net')" class="flex items-center gap-2 bg-[#181818] hover:bg-[#F39C12]/20 border border-[#2A2A2A] hover:border-[#F39C12] px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0">🟧 CubeCraft</button>
@@ -391,7 +391,7 @@
                 <button onclick="inicioQuickPlay('play.fadecloud.com')" class="flex items-center gap-2 bg-[#181818] hover:bg-[#3498DB]/20 border border-[#2A2A2A] hover:border-[#3498DB] px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0">🌀 FadeCloud</button>
             </div>
 
-            <div class="relative flex-1 flex flex-col items-center justify-center overflow-hidden">
+            <div class="relative flex flex-col items-center justify-center overflow-hidden" style="min-height:calc(100vh - 175px)">
                 <div class="absolute inset-0 z-0">
                     <img src="../assets/main_banner.png" class="w-full h-full object-cover opacity-20" onerror="this.style.display='none'">
                     <div class="absolute inset-0 bg-gradient-to-t from-[#121212] via-transparent to-[#121212]/60"></div>
@@ -414,7 +414,7 @@
                 </div>
             </div>
 
-            <div id="inicio-noticias" class="shrink-0 px-8 pt-3 flex gap-3 overflow-x-auto"></div>
+            <div id="inicio-noticias" class="shrink-0 px-8 pt-4 pb-2 flex gap-3 overflow-x-auto"></div>
 
             <div class="shrink-0 px-8 pb-4 grid grid-cols-4 gap-3">
                 <div class="bg-[#181818]/80 backdrop-blur border border-[#2A2A2A] rounded-xl p-4 flex flex-col gap-1 hover:border-[#2ECC71] transition cursor-pointer" onclick="cambiarPestaña('mods','Mods')">
@@ -583,7 +583,19 @@
             </div>
 
             <div id="srv-panel-local" class="flex-1 hidden flex-col gap-4 overflow-y-auto">
-                <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-4 shrink-0">
+
+                <!-- Banner: servidor ya creado -->
+                <div id="srv-activo-box" class="hidden bg-[#181818] border border-[#2ECC71]/40 rounded-xl p-4 shrink-0 flex items-center gap-4">
+                    <div class="w-3 h-3 rounded-full bg-[#2ECC71] shrink-0"></div>
+                    <div class="flex-1 min-w-0">
+                        <p class="font-black text-sm text-[#2ECC71]">Servidor configurado</p>
+                        <p id="srv-activo-carpeta" class="text-xs text-gray-400 truncate mt-0.5"></p>
+                    </div>
+                    <button onclick="cambiarCarpetaServidor()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white text-xs font-bold px-3 py-2 rounded transition border border-[#333] shrink-0">📂 Cambiar carpeta</button>
+                </div>
+
+                <!-- Panel: crear nuevo servidor (visible solo si no hay uno creado) -->
+                <div id="srv-crear-box" class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-4 shrink-0">
                     <h3 class="font-black text-lg mb-3"> Crear servidor</h3>
                     <p class="text-xs text-gray-500 mb-3">El servidor se configurará con <span class="text-[#2ECC71] font-bold">online-mode=false</span> → entran <span class="text-[#2ECC71]">premium</span> y <span class="text-[#F39C12]">no-premium</span>.</p>
                     <div class="flex flex-wrap gap-3 items-end">
@@ -598,7 +610,7 @@
                                 <button onclick="elegirCarpetaServidor()" title="Elegir carpeta" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] px-3 py-2 rounded font-bold text-sm transition border border-[#333]">📂</button>
                             </div>
                         </div>
-                        <button onclick="crearServidor()" class="bg-[#9B59B6] hover:bg-[#7D3C98] text-white font-black px-6 py-2 rounded transition h-[38px]">Crear</button>
+                        <button id="btn-crear-srv" onclick="crearServidor()" class="bg-[#9B59B6] hover:bg-[#7D3C98] text-white font-black px-6 py-2 rounded transition h-[38px]">Crear</button>
                     </div>
                 </div>
 
@@ -798,6 +810,11 @@
                 <button onclick="herTab('overlay')" id="htab-overlay" class="htab-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🖥️ Overlay</button>
                 <button onclick="herTab('benchmark')" id="htab-benchmark" class="htab-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🏆 Benchmark</button>
                 <button onclick="herTab('skingen')" id="htab-skingen" class="htab-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🎨 Skin IA</button>
+                <button onclick="herTab('smartram')" id="htab-smartram" class="htab-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🧠 Smart RAM</button>
+                <button onclick="herTab('conflictos')" id="htab-conflictos" class="htab-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">⚠️ Conflictos</button>
+                <button onclick="herTab('optimizer')" id="htab-optimizer" class="htab-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🔧 Optimizar MC</button>
+                <button onclick="herTab('comparador')" id="htab-comparador" class="htab-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">📊 Comparador</button>
+                <button onclick="herTab('whitelist')" id="htab-whitelist" class="htab-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">👥 Whitelist</button>
             </div>
 
             <!-- ESTADÍSTICAS -->
@@ -872,68 +889,95 @@
             <div id="hpanel-musica" class="hidden flex-1 min-h-0 overflow-y-auto pr-1">
                 <div class="flex gap-2 mb-4">
                     <button onclick="musicaTab('mc')" id="mtab-mc" class="px-4 py-2 rounded-lg font-bold text-sm bg-[#2ECC71] text-black transition">🎮 Música MC</button>
-                    <button onclick="musicaTab('radio')" id="mtab-radio" class="px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">📻 YouTube Radio</button>
-                    <button onclick="musicaTab('spotify')" id="mtab-spotify" class="px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🎵 Spotify</button>
+                <button onclick="musicaTab('radio')" id="mtab-radio" class="px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">📻 YouTube</button>
+                <button onclick="musicaTab('spotify')" id="mtab-spotify" class="px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🎵 Spotify</button>
+            </div>
+            <!-- MC -->
+            <div id="mpanel-mc" class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-black">🎮 Música de Minecraft</h3>
+                    <button onclick="cargarMusicaMC()" class="text-xs bg-[#2A2A2A] hover:bg-[#3A3A3A] px-3 py-1 rounded transition">↻ Cargar</button>
                 </div>
-                <div id="mpanel-mc" class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5">
-                    <div class="flex justify-between items-center mb-3">
-                        <h3 class="font-black">🎮 Música de Minecraft</h3>
-                        <button onclick="cargarMusicaMC()" class="text-xs bg-[#2A2A2A] hover:bg-[#3A3A3A] px-3 py-1 rounded transition">↻ Cargar</button>
+                <div id="mc-tracks-lista" class="space-y-1 max-h-52 overflow-y-auto mb-3">
+                    <p class="text-gray-500 text-sm">Hacé clic en Cargar para escanear los assets de Minecraft.</p>
+                </div>
+                <div class="border-t border-[#2A2A2A] pt-3">
+                    <div class="flex items-center justify-between mb-2">
+                        <p id="mc-track-actual" class="text-xs text-gray-400 truncate flex-1 mr-2">Sin reproducción</p>
+                        <button onclick="detenerMusicaMC()" class="text-xs bg-[#E74C3C]/20 hover:bg-[#E74C3C]/40 text-[#E74C3C] px-2 py-1 rounded transition shrink-0">■ Stop</button>
                     </div>
-                    <div id="mc-tracks-lista" class="space-y-1 max-h-80 overflow-y-auto">
-                        <p class="text-gray-500 text-sm">Hacé clic en Cargar para escanear los assets de Minecraft.</p>
+                    <div class="bg-[#2A2A2A] h-1 rounded-full mb-3">
+                        <div id="mc-progress-bar" class="bg-[#2ECC71] h-1 rounded-full transition-all" style="width:0%"></div>
                     </div>
-                    <div class="flex items-center gap-3 mt-4 pt-3 border-t border-[#2A2A2A]">
-                        <span id="mc-track-actual" class="text-sm text-[#2ECC71] font-bold flex-1 truncate">Sin reproducción</span>
-                        <button onclick="detenerMusicaMC()" class="bg-[#E74C3C] hover:bg-[#C0392B] text-white font-black px-4 py-1.5 rounded text-sm transition">■ Detener</button>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs text-gray-500 shrink-0">🔊</span>
+                        <input type="range" min="0" max="1" step="0.05" value="1" oninput="setVolumenMC(this.value); document.getElementById('mc-vol-lbl').textContent=Math.round(this.value*100)+'%'" class="flex-1 accent-[#2ECC71] cursor-pointer" style="height:4px">
+                        <span id="mc-vol-lbl" class="text-xs text-gray-500 shrink-0 w-8 text-right">100%</span>
                     </div>
                 </div>
-                <div id="mpanel-radio" class="hidden bg-[#181818] border border-[#2A2A2A] rounded-xl p-5">
-                    <h3 class="font-black mb-4">📻 YouTube Radio</h3>
-                    <div class="grid grid-cols-3 gap-3 mb-4">
-                        <button onclick="ponerRadio('PLAjPo5G_0NPpZxINdEj8e23EpRlpVU9o9')" class="bg-[#2A2A2A] hover:bg-[#C418C4]/30 hover:border-[#C418C4] border border-[#2A2A2A] rounded-lg p-3 text-sm font-bold transition text-left">
-                            <p class="text-white">C418</p><p class="text-xs text-gray-500 mt-1">Música oficial de Minecraft</p></button>
-                        <button onclick="ponerRadio('PLuLHCNjC0u9RNbNcrmS56s3bqkWDTAJYZ')" class="bg-[#2A2A2A] hover:bg-[#1ABC9C]/30 hover:border-[#1ABC9C] border border-[#2A2A2A] rounded-lg p-3 text-sm font-bold transition text-left">
-                            <p class="text-white">Lena Raine</p><p class="text-xs text-gray-500 mt-1">Caves & Cliffs + más</p></button>
-                        <button onclick="ponerRadio('PL3GeP3YLZn5ixsnIOIx9tB4v6s-rsiqmj')" class="bg-[#2A2A2A] hover:bg-[#3498DB]/30 hover:border-[#3498DB] border border-[#2A2A2A] rounded-lg p-3 text-sm font-bold transition text-left">
-                            <p class="text-white">Lofi Gaming</p><p class="text-xs text-gray-500 mt-1">Ambiente para jugar</p></button>
-                    </div>
-                    <div id="yt-radio-frame" class="rounded-xl overflow-hidden bg-black" style="display:none">
-                        <iframe id="yt-iframe" width="100%" height="200" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
-                    </div>
-                    <p class="text-xs text-gray-600 mt-3">Reproducción vía YouTube embed. Requiere conexión a internet.</p>
+            </div>
+            <!-- YOUTUBE RADIO -->
+            <div id="mpanel-radio" class="hidden bg-[#181818] border border-[#2A2A2A] rounded-xl p-5">
+                <h3 class="font-black mb-3">📻 YouTube Music</h3>
+                <div class="grid grid-cols-3 gap-2 mb-3">
+                    <button onclick="ponerRadio('PLAjPo5G_0NPpZxINdEj8e23EpRlpVU9o9')" class="bg-[#2A2A2A] hover:bg-[#C418C4]/30 hover:border-[#C418C4] border border-[#2A2A2A] rounded-lg p-2.5 text-xs font-bold transition text-left"><p class="text-white">🎹 C418</p><p class="text-gray-500 mt-0.5">Minecraft oficial</p></button>
+                    <button onclick="ponerRadio('PLuLHCNjC0u9RNbNcrmS56s3bqkWDTAJYZ')" class="bg-[#2A2A2A] hover:bg-[#1ABC9C]/30 hover:border-[#1ABC9C] border border-[#2A2A2A] rounded-lg p-2.5 text-xs font-bold transition text-left"><p class="text-white">🌿 Lena Raine</p><p class="text-gray-500 mt-0.5">Caves & Cliffs</p></button>
+                    <button onclick="ponerRadio('PL3GeP3YLZn5ixsnIOIx9tB4v6s-rsiqmj')" class="bg-[#2A2A2A] hover:bg-[#3498DB]/30 hover:border-[#3498DB] border border-[#2A2A2A] rounded-lg p-2.5 text-xs font-bold transition text-left"><p class="text-white">☁️ Lofi Gaming</p><p class="text-gray-500 mt-0.5">Ambiente relajado</p></button>
+                    <button onclick="ponerRadio('PLqEoYMKHoGMpV9aSlQi4J8N04iFpL1T0T')" class="bg-[#2A2A2A] hover:bg-[#F39C12]/30 hover:border-[#F39C12] border border-[#2A2A2A] rounded-lg p-2.5 text-xs font-bold transition text-left"><p class="text-white">⚔️ Epic Gaming</p><p class="text-gray-500 mt-0.5">Música épica</p></button>
+                    <button onclick="ponerRadio('PLbIZ6k-SE9SsNO9FGBiCrgFiBRGxEQzl5')" class="bg-[#2A2A2A] hover:bg-[#9B59B6]/30 hover:border-[#9B59B6] border border-[#2A2A2A] rounded-lg p-2.5 text-xs font-bold transition text-left"><p class="text-white">🌙 Synthwave</p><p class="text-gray-500 mt-0.5">Retro vibes</p></button>
+                    <button onclick="ponerRadio('PLqURaoO5FVSRrOfO0l5PFAT5r12OBqXhB')" class="bg-[#2A2A2A] hover:bg-[#E74C3C]/30 hover:border-[#E74C3C] border border-[#2A2A2A] rounded-lg p-2.5 text-xs font-bold transition text-left"><p class="text-white">🎮 Pixel Music</p><p class="text-gray-500 mt-0.5">Chiptune / 8bit</p></button>
                 </div>
-                <div id="mpanel-spotify" class="hidden bg-[#181818] border border-[#2A2A2A] rounded-xl p-5">
-                    <div id="spotify-noconectado">
-                        <h3 class="font-black mb-2">🎵 Conectar Spotify</h3>
-                        <p class="text-xs text-gray-500 mb-4">Necesitás una <strong class="text-white">Spotify Developer App</strong> (gratis). <a href="#" onclick="pywebview.api.notificar_windows && window.open('https://developer.spotify.com/dashboard')" class="text-[#1DB954] underline">Crear app →</a></p>
-                        <div class="flex flex-col gap-2">
-                            <input id="sp-client-id" type="text" placeholder="Client ID" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none focus:border-[#1DB954]">
-                            <input id="sp-client-secret" type="password" placeholder="Client Secret" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none focus:border-[#1DB954]">
-                            <button onclick="iniciarSpotifyAuth()" class="bg-[#1DB954] hover:bg-[#17a349] text-black font-black py-2 rounded transition">Autorizar en Spotify</button>
-                            <div id="sp-code-row" class="hidden flex gap-2">
-                                <input id="sp-code" type="text" placeholder="Pegá el code= de la URL de retorno" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm flex-1 outline-none">
-                                <button onclick="conectarSpotify()" class="bg-[#1DB954] hover:bg-[#17a349] text-black font-black px-4 py-2 rounded transition text-sm">Conectar</button>
-                            </div>
+                <div class="flex gap-2 mb-2">
+                    <input id="yt-search-input" type="text" placeholder="🔍 Buscar en YouTube..." onkeypress="if(event.key==='Enter') buscarYouTube()" class="flex-1 bg-[#0A0A0A] border border-[#333] text-white text-xs px-3 py-2 rounded outline-none focus:border-[#FF0000] transition">
+                    <button onclick="buscarYouTube()" class="bg-[#FF0000] hover:bg-[#cc0000] text-white font-black px-3 py-2 rounded text-xs transition">Buscar</button>
+                </div>
+                <div id="yt-search-results" class="grid grid-cols-3 gap-2 mb-2 max-h-44 overflow-y-auto"></div>
+                <div class="flex gap-2 mb-2">
+                    <input id="yt-custom-url" type="text" placeholder="O pegá URL/ID de YouTube directo..." class="flex-1 bg-[#0A0A0A] border border-[#333] text-white text-xs px-3 py-2 rounded outline-none focus:border-[#FF0000] transition">
+                    <button onclick="ponerRadioCustom()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-black px-3 py-2 rounded text-xs transition border border-[#333]">▶ Abrir</button>
+                </div>
+                <div id="yt-radio-frame" class="rounded-xl overflow-hidden bg-black" style="display:none">
+                    <iframe id="yt-iframe" width="100%" height="220" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+                </div>
+                <div class="flex items-center justify-between mt-2">
+                    <p class="text-xs text-gray-600">Requiere conexión a internet.</p>
+                    <button id="yt-open-btn" onclick="abrirYTEnNavegador()" style="display:none" class="text-xs bg-[#2A2A2A] hover:bg-[#FF0000] hover:text-white text-gray-400 px-2 py-1 rounded transition border border-[#333]">🌐 Abrir en navegador</button>
+                </div>
+            </div>
+            <!-- SPOTIFY -->
+            <div id="mpanel-spotify" class="hidden bg-[#181818] border border-[#2A2A2A] rounded-xl p-5">
+                <div id="spotify-noconectado">
+                    <h3 class="font-black mb-2">🎵 Conectar Spotify</h3>
+                    <p class="text-xs text-gray-500 mb-4">Necesitás una <strong class="text-white">Spotify Developer App</strong> (gratis). <a href="#" onclick="pywebview.api.notificar_windows && window.open('https://developer.spotify.com/dashboard')" class="text-[#1DB954] underline">Crear app →</a></p>
+                    <div class="flex flex-col gap-2">
+                        <input id="sp-client-id" type="text" placeholder="Client ID" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none focus:border-[#1DB954]">
+                        <input id="sp-client-secret" type="password" placeholder="Client Secret" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none focus:border-[#1DB954]">
+                        <button onclick="iniciarSpotifyAuth()" class="bg-[#1DB954] hover:bg-[#17a349] text-black font-black py-2 rounded transition">Autorizar en Spotify</button>
+                        <div id="sp-code-row" class="hidden flex gap-2">
+                            <input id="sp-code" type="text" placeholder="Pegá el code= de la URL de retorno" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm flex-1 outline-none">
+                            <button onclick="conectarSpotify()" class="bg-[#1DB954] hover:bg-[#17a349] text-black font-black px-4 py-2 rounded transition text-sm">Conectar</button>
                         </div>
                     </div>
-                    <div id="spotify-widget" class="hidden">
-                        <div class="flex items-center gap-4">
-                            <img id="sp-img" src="" class="w-20 h-20 rounded-lg object-cover shrink-0" onerror="this.src='https://via.placeholder.com/80/1DB954/000?text=♫'">
-                            <div class="flex-1 min-w-0">
-                                <p id="sp-titulo" class="font-black text-white truncate">Sin reproducción</p>
-                                <p id="sp-artista" class="text-xs text-gray-400 truncate"></p>
-                                <p id="sp-album" class="text-xs text-gray-600 truncate"></p>
-                            </div>
-                        </div>
-                        <div class="flex items-center justify-center gap-4 mt-5">
-                            <button onclick="spotifyCtrl('prev')" class="text-2xl hover:text-[#1DB954] transition">⏮</button>
-                            <button onclick="spotifyCtrl('play')" id="sp-play-btn" class="w-12 h-12 bg-[#1DB954] rounded-full text-sm font-black text-black flex items-center justify-center hover:bg-[#17a349] transition">▶</button>
-                            <button onclick="spotifyCtrl('next')" class="text-2xl hover:text-[#1DB954] transition">⏭</button>
-                        </div>
-                        <div class="mt-3 bg-[#2A2A2A] h-1 rounded-full"><div id="sp-progress" class="bg-[#1DB954] h-1 rounded-full transition-all" style="width:0%"></div></div>
-                    </div>
                 </div>
+                <div id="spotify-widget" class="hidden">
+                    <div class="flex items-center gap-4">
+                        <img id="sp-img" src="" class="w-20 h-20 rounded-lg object-cover shrink-0" onerror="this.src='https://via.placeholder.com/80/1DB954/000?text=♫'">
+                        <div class="flex-1 min-w-0">
+                            <p id="sp-titulo" class="font-black text-white truncate">Sin reproducción</p>
+                            <p id="sp-artista" class="text-xs text-gray-400 truncate"></p>
+                            <p id="sp-album" class="text-xs text-gray-600 truncate"></p>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-center gap-4 mt-5">
+                        <button onclick="toggleShuffle()" id="sp-shuffle-btn" title="Shuffle" class="text-lg text-gray-500 hover:text-[#1DB954] transition">🔀</button>
+                        <button onclick="spotifyCtrl('prev')" class="text-2xl hover:text-[#1DB954] transition">⏮</button>
+                        <button onclick="spotifyCtrl('play')" id="sp-play-btn" class="w-12 h-12 bg-[#1DB954] rounded-full text-sm font-black text-black flex items-center justify-center hover:bg-[#17a349] transition">▶</button>
+                        <button onclick="spotifyCtrl('next')" class="text-2xl hover:text-[#1DB954] transition">⏭</button>
+                        <button onclick="toggleRepeat()" id="sp-repeat-btn" title="Repeat" class="text-lg text-gray-500 hover:text-[#1DB954] transition">🔁</button>
+                    </div>
+                    <div class="mt-3 bg-[#2A2A2A] h-1 rounded-full"><div id="sp-progress" class="bg-[#1DB954] h-1 rounded-full transition-all" style="width:0%"></div></div>
+                </div>
+            </div>
             </div>
 
             <!-- FONDO ANIMADO -->
@@ -1150,6 +1194,8 @@
                     <button onclick="iaTab('chat')" id="iatab-chat" class="px-4 py-2 rounded-lg font-bold text-sm bg-[#9B59B6] text-white transition">💬 Chat</button>
                     <button onclick="iaTab('comandos')" id="iatab-comandos" class="px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">⚡ Comandos</button>
                     <button onclick="iaTab('modpack')" id="iatab-modpack" class="px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">📦 Modpack IA</button>
+                    <button onclick="iaTab('semillas')" id="iatab-semillas" class="px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🌱 Semillas</button>
+                    <button onclick="iaTab('survival')" id="iatab-survival" class="px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">⚔️ Survival</button>
                 </div>
 
                 <!-- Chat -->
@@ -1194,6 +1240,32 @@
                             <button onclick="generarModpackIA()" id="btn-ia-mp" class="bg-[#9B59B6] hover:bg-[#7D3C98] text-white font-black py-2 rounded transition">🤖 Generar e instalar modpack</button>
                         </div>
                         <div id="ia-mp-resultado" class="mt-4 space-y-2"></div>
+                    </div>
+                </div>
+
+                <!-- Semillas IA -->
+                <div id="iapanel-semillas" class="hidden flex flex-col gap-4">
+                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5">
+                        <h3 class="font-black mb-1">🌱 Generador de Seeds con IA</h3>
+                        <p class="text-xs text-gray-500 mb-4">Describí el mundo que querés y Gemini sugiere 3 seeds con descripción de biomas y estructuras.</p>
+                        <div class="flex gap-2 mb-3">
+                            <input id="ia-seed-desc" type="text" placeholder="Ej: Spawn en jungla cerca de templo, con llanuras cerca" onkeypress="if(event.key==='Enter') generarSemillaIA()" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm flex-1 outline-none focus:border-[#9B59B6]">
+                            <button onclick="generarSemillaIA()" id="btn-ia-seed" class="bg-[#9B59B6] hover:bg-[#7D3C98] text-white font-black px-5 py-2 rounded transition text-sm">🌱 Generar</button>
+                        </div>
+                        <div id="ia-seed-resultado" class="bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg p-4 text-sm text-gray-400 whitespace-pre-wrap min-h-[80px]"></div>
+                    </div>
+                </div>
+
+                <!-- Survival Assist -->
+                <div id="iapanel-survival" class="hidden flex flex-col gap-4">
+                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5">
+                        <h3 class="font-black mb-1">⚔️ Asistente Survival</h3>
+                        <p class="text-xs text-gray-500 mb-4">Preguntá cosas rápidas de survival — recetas, próximos pasos, qué farmear, cómo craftearlo.</p>
+                        <div class="flex gap-2 mb-3">
+                            <input id="ia-surv-preg" type="text" placeholder="Ej: ¿Qué necesito para ir al Nether?" onkeypress="if(event.key==='Enter') preguntarSurvival()" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm flex-1 outline-none focus:border-[#2ECC71]">
+                            <button onclick="preguntarSurvival()" id="btn-ia-surv" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black px-5 py-2 rounded transition text-sm">⚔️ Preguntar</button>
+                        </div>
+                        <div id="ia-surv-resultado" class="bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg p-4 text-sm text-gray-400 whitespace-pre-wrap min-h-[80px]"></div>
                     </div>
                 </div>
             </div>
@@ -1291,6 +1363,20 @@
                             <p>✅ Se cierra con el botón ✕</p>
                         </div>
                         <button onclick="abrirOverlay()" class="bg-[#3498DB] hover:bg-[#2980B9] text-white font-black py-2.5 rounded transition">🖥️ Abrir Overlay</button>
+                        <button onclick="abrirKeystrokeOverlay()" class="bg-[#9B59B6] hover:bg-[#7D3C98] text-white font-black py-2.5 rounded transition">⌨️ Overlay de Teclas</button>
+                        <div class="bg-[#0A0A0A] rounded-lg p-3 border border-[#2A2A2A]">
+                            <p class="text-xs font-bold text-gray-400 mb-2">Elementos visibles</p>
+                            <div class="grid grid-cols-2 gap-y-2 gap-x-3">
+                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="ov-show-wasd" checked class="accent-[#9B59B6]"><span class="text-xs text-gray-400">WASD</span></label>
+                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="ov-show-extra" checked class="accent-[#9B59B6]"><span class="text-xs text-gray-400">Espacio / Shift / Ctrl</span></label>
+                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="ov-show-mouse" checked class="accent-[#9B59B6]"><span class="text-xs text-gray-400">Mouse + CPS</span></label>
+                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="ov-show-compass" checked class="accent-[#9B59B6]"><span class="text-xs text-gray-400">Brújula</span></label>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs text-gray-400 font-bold shrink-0">Opacidad</span>
+                            <input type="range" min="20" max="100" value="88" oninput="setOverlayOpacity(this.value)" class="flex-1 accent-[#9B59B6]">
+                        </div>
                         <p id="overlay-msg" class="text-xs text-center text-gray-500 h-4"></p>
                     </div>
                     <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col gap-3">
@@ -1438,11 +1524,112 @@
                 </div>
             </div>
 
+            <!-- SMART RAM -->
+            <div id="hpanel-smartram" class="hidden flex-1 min-h-0 overflow-y-auto pr-1">
+                <div class="grid grid-cols-2 gap-5">
+                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-6 flex flex-col gap-4">
+                        <div class="flex items-center gap-3">
+                            <span class="text-4xl">🧠</span>
+                            <div>
+                                <h3 class="font-black text-lg">Smart RAM</h3>
+                                <p class="text-xs text-gray-500">Detecta tu RAM y calcula la cantidad óptima para Minecraft</p>
+                            </div>
+                        </div>
+                        <button onclick="calcularSmartRAM()" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black py-2.5 rounded transition">🔍 Calcular RAM óptima</button>
+                        <div id="smartram-resultado" class="bg-[#0A0A0A] rounded-lg p-4 border border-[#2A2A2A] text-sm text-gray-400 space-y-2 min-h-[80px]"></div>
+                        <div id="smartram-aplicar" class="hidden">
+                            <button onclick="aplicarSmartRAM()" id="btn-aplicar-ram" class="bg-[#3498DB] hover:bg-[#2980B9] text-white font-black py-2 rounded transition w-full">✅ Aplicar RAM recomendada</button>
+                        </div>
+                    </div>
+                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 text-xs text-gray-500 space-y-2">
+                        <p class="font-bold text-gray-300">¿Qué hace Smart RAM?</p>
+                        <p>Analiza tu RAM total y disponible, reserva 2 GB para el sistema operativo y calcula cuánta asignarle a Minecraft según la potencia de tu PC.</p>
+                        <p>• +32 GB → 8 GB para MC</p>
+                        <p>• 16 GB → 6 GB para MC</p>
+                        <p>• 8 GB → 3 GB para MC</p>
+                        <p>• &lt;8 GB → 2 GB para MC</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CONFLICTOS DE MODS -->
+            <div id="hpanel-conflictos" class="hidden flex-1 min-h-0 overflow-y-auto pr-1">
+                <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="font-black text-lg">⚠️ Detector de Conflictos</h3>
+                            <p class="text-xs text-gray-500">Escanea la carpeta mods en busca de incompatibilidades y duplicados</p>
+                        </div>
+                        <button onclick="detectarConflictosMods()" class="bg-[#E74C3C] hover:bg-[#C0392B] text-white font-black px-6 py-2.5 rounded transition">🔍 Escanear</button>
+                    </div>
+                    <div id="conflictos-resultado" class="space-y-3 min-h-[80px]"></div>
+                </div>
+            </div>
+
+            <!-- OPTIMIZAR MC -->
+            <div id="hpanel-optimizer" class="hidden flex-1 min-h-0 overflow-y-auto pr-1">
+                <div class="grid grid-cols-2 gap-5">
+                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-6 flex flex-col gap-4">
+                        <div class="flex items-center gap-3">
+                            <span class="text-4xl">🔧</span>
+                            <div>
+                                <h3 class="font-black text-lg">Optimizador de options.txt</h3>
+                                <p class="text-xs text-gray-500">Ajusta renderDistance, FPS, partículas y más según tu PC</p>
+                            </div>
+                        </div>
+                        <button onclick="optimizarMC()" class="bg-[#F39C12] hover:bg-[#E67E22] text-black font-black py-2.5 rounded transition">⚡ Optimizar Minecraft</button>
+                        <div id="optimizer-resultado" class="bg-[#0A0A0A] rounded-lg p-4 border border-[#2A2A2A] text-sm text-gray-400 space-y-1 min-h-[80px]"></div>
+                    </div>
+                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 text-xs text-gray-500 space-y-2">
+                        <p class="font-bold text-gray-300">Opciones que ajusta:</p>
+                        <p>• <span class="text-white">renderDistance</span> — chunks visibles</p>
+                        <p>• <span class="text-white">simulationDistance</span> — chunks activos</p>
+                        <p>• <span class="text-white">maxFps</span> — límite de FPS</p>
+                        <p>• <span class="text-white">particles</span> — cantidad de partículas</p>
+                        <p>• <span class="text-white">ao</span> — iluminación suave</p>
+                        <p>• <span class="text-white">biomeBlendRadius</span> — mezcla de biomas</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- COMPARADOR DE VERSIONES -->
+            <div id="hpanel-comparador" class="hidden flex-1 min-h-0 overflow-y-auto pr-1">
+                <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="font-black text-lg">📊 Comparador de Rendimiento</h3>
+                            <p class="text-xs text-gray-500">Estimación de FPS por versión según tu hardware</p>
+                        </div>
+                        <button onclick="compararVersiones()" class="bg-[#3498DB] hover:bg-[#2980B9] text-white font-black px-6 py-2.5 rounded transition">📊 Comparar</button>
+                    </div>
+                    <div id="comparador-resultado" class="space-y-3 min-h-[80px]"></div>
+                </div>
+            </div>
+
+            <!-- WHITELIST -->
+            <div id="hpanel-whitelist" class="hidden flex-1 min-h-0 overflow-y-auto pr-1">
+                <div class="grid grid-cols-2 gap-5">
+                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-6 flex flex-col gap-4">
+                        <h3 class="font-black text-lg">👥 Whitelist del servidor</h3>
+                        <p class="text-xs text-gray-500">Administrá la lista de jugadores permitidos en tu servidor local.</p>
+                        <div class="flex gap-2">
+                            <input id="wl-nombre-input" type="text" placeholder="Nombre del jugador..." onkeypress="if(event.key==='Enter') agregarWhitelist()" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm flex-1 outline-none focus:border-[#2ECC71]">
+                            <button onclick="agregarWhitelist()" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black px-4 py-2 rounded transition text-sm">+ Agregar</button>
+                        </div>
+                    </div>
+                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5">
+                        <h3 class="font-black mb-3">Jugadores permitidos</h3>
+                        <div id="whitelist-lista" class="space-y-2 max-h-80 overflow-y-auto">
+                            <p class="text-gray-500 text-xs">Hacé clic en Actualizar lista.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
         <!-- FIN VISTA HERRAMIENTAS -->
 
     </main>
-
     <!-- MUSIC PLAYER BAR -->
     <div id="music-bar" class="hidden fixed bottom-0 left-0 right-0 z-[150] bg-[#0D0D0D] border-t border-[#2A2A2A] flex items-center gap-4 px-5 py-2.5 shadow-2xl">
         <div class="flex items-center gap-3 flex-1 min-w-0">
@@ -2160,7 +2347,46 @@
                 loc.classList.remove('hidden'); loc.style.display = 'flex'; loc.style.flexDirection = 'column';
                 tLoc.className = 'px-5 py-2 rounded-lg font-bold text-sm bg-[#2ECC71] text-black transition';
                 tPub.className = 'px-5 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition';
+                verificarServidorExistente();
             }
+        }
+
+        async function verificarServidorExistente() {
+            try {
+                const s = await pywebview.api.get_estado_servidor();
+                const crearBox  = document.getElementById('srv-crear-box');
+                const activoBox = document.getElementById('srv-activo-box');
+                const carpetaLbl = document.getElementById('srv-activo-carpeta');
+                if (s.servidor_existe) {
+                    if (crearBox)  crearBox.classList.add('hidden');
+                    if (activoBox) { activoBox.classList.remove('hidden'); activoBox.style.display = 'flex'; }
+                    if (carpetaLbl) carpetaLbl.textContent = s.carpeta;
+                    const inp = document.getElementById('srv-carpeta');
+                    if (inp) inp.value = s.carpeta;
+                    actualizarEstadoServidor();
+                } else {
+                    if (crearBox)  crearBox.classList.remove('hidden');
+                    if (activoBox) activoBox.classList.add('hidden');
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        function servidorCreacionCompleta() {
+            verificarServidorExistente();
+            actualizarEstadoServidor();
+            const btn = document.getElementById('btn-crear-srv');
+            if (btn) { btn.disabled = false; btn.textContent = 'Crear'; }
+        }
+
+        async function cambiarCarpetaServidor() {
+            const carpeta = await pywebview.api.seleccionar_carpeta_servidor();
+            if (!carpeta) return;
+            const crearBox  = document.getElementById('srv-crear-box');
+            const activoBox = document.getElementById('srv-activo-box');
+            if (crearBox)  crearBox.classList.remove('hidden');
+            if (activoBox) activoBox.classList.add('hidden');
+            const inp = document.getElementById('srv-carpeta');
+            if (inp) inp.value = carpeta;
         }
 
         function filtrarSrv(tipo) {
@@ -2183,20 +2409,115 @@
             const carpeta = document.getElementById('srv-carpeta').value.trim();
             if (!ver) { alert('Ingresá la versión del servidor (ej: 1.21.1)'); return; }
             if (!carpeta) { alert('Elegí una carpeta para el servidor.'); return; }
-            servidorAppendLog('[SETUP] Creando servidor ' + ver + ' en ' + carpeta + '...');
-            const r = await pywebview.api.crear_servidor(ver, carpeta);
-            if (r && !r.ok) servidorAppendLog('[ERROR] ' + r.error);
+            const btn = document.getElementById('btn-crear-srv');
+            if (btn) { btn.disabled = true; btn.textContent = '⏳ Creando...'; }
+            limpiarConsolaServidor();
+            servidorAppendLog('[SETUP] Iniciando creación del servidor ' + ver + '...');
+
+            // Live-progress poller — runs while await is blocking the HTTP call
+            const _srvPort = window._API_PORT || 9875;
+            let _logCount = 0;
+            const _srvPoller = setInterval(async () => {
+                try {
+                    const resp = await fetch(`http://127.0.0.1:${_srvPort}/api/servidor_status`);
+                    if (!resp.ok) return;
+                    const s = await resp.json();
+                    const log = s.log || [];
+                    for (let i = _logCount; i < log.length; i++) servidorAppendLog(log[i]);
+                    _logCount = log.length;
+                } catch(e) { /* keep polling */ }
+            }, 800);
+
+            try {
+                // Direct fetch — no pywebview bridge, no timeout, blocks until creation finishes
+                const _resp = await fetch(`http://127.0.0.1:${_srvPort}/api/crear_servidor`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({version: ver, carpeta: carpeta})
+                });
+                const r = await _resp.json();
+                clearInterval(_srvPoller);
+
+                if (!r || r.ok === false) {
+                    servidorAppendLog('[ERROR] ' + ((r && r.error) || 'Error desconocido al crear el servidor.'));
+                    if (btn) { btn.disabled = false; btn.textContent = 'Crear'; }
+                    return;
+                }
+
+                // Fill any log entries the poller may have missed
+                const finalLog = r.log || [];
+                for (let i = _logCount; i < finalLog.length; i++) servidorAppendLog(finalLog[i]);
+
+                if (r.servidor_existe) {
+                    servidorCreacionCompleta();
+                } else {
+                    if (btn) { btn.disabled = false; btn.textContent = 'Crear'; }
+                }
+            } catch(e) {
+                clearInterval(_srvPoller);
+                servidorAppendLog('[ERROR] ' + String(e));
+                if (btn) { btn.disabled = false; btn.textContent = 'Crear'; }
+            }
+        }
+
+        let _serverRunPoller = null;
+        let _serverLogCount = 0;
+
+        async function _pollServidorStatus() {
+            const _port = window._API_PORT || 9875;
+            try {
+                const resp = await fetch(`http://127.0.0.1:${_port}/api/servidor_status`);
+                if (!resp.ok) { servidorAppendLog('[POLL ERR] HTTP ' + resp.status); return; }
+                const s = await resp.json();
+                const log = s.log || [];
+                for (let i = _serverLogCount; i < log.length; i++) servidorAppendLog(log[i]);
+                _serverLogCount = log.length;
+            } catch(e) { servidorAppendLog('[POLL ERR] ' + String(e)); }
+        }
+
+        function _iniciarServerPoller() {
+            if (_serverRunPoller) { clearInterval(_serverRunPoller); _serverRunPoller = null; }
+            _serverRunPoller = setInterval(async () => {
+                await _pollServidorStatus();
+                try {
+                    const st = await pywebview.api.get_estado_servidor();
+                    if (st && st.playit_address) actualizarDireccionPlayit(st.playit_address);
+                    if (st && st.playit_corriendo) {
+                        const pdot = document.getElementById('playit-dot');
+                        const plbl = document.getElementById('playit-status-lbl');
+                        if (pdot) pdot.className = 'w-3 h-3 rounded-full bg-[#3498DB] animate-pulse';
+                        if (plbl) { plbl.innerText = 'Activo'; plbl.className = 'font-bold text-[#3498DB] text-sm'; }
+                    }
+                    if (st && !st.corriendo) {
+                        clearInterval(_serverRunPoller); _serverRunPoller = null;
+                        const dot = document.getElementById('srv-dot');
+                        const lbl = document.getElementById('srv-status-lbl');
+                        if (dot) dot.className = 'w-3 h-3 rounded-full bg-red-500';
+                        if (lbl) { lbl.innerText = 'Detenido'; lbl.className = 'font-bold text-gray-400 text-sm'; }
+                    }
+                } catch(e) {}
+            }, 2000);
         }
 
         async function iniciarServidor() {
             const carpeta = document.getElementById('srv-carpeta').value.trim() || null;
-            const r = await pywebview.api.iniciar_servidor(carpeta);
-            if (r && !r.ok) { servidorAppendLog('[ERROR] ' + r.error); return; }
+            if (_serverRunPoller) { clearInterval(_serverRunPoller); _serverRunPoller = null; }
+            limpiarConsolaServidor();
+            _serverLogCount = 0;
+            servidorAppendLog('[SERVER] Iniciando servidor...');
+            let r;
+            try { r = await pywebview.api.iniciar_servidor(carpeta); }
+            catch(e) { servidorAppendLog('[ERROR] ' + String(e)); return; }
+            if (!r || !r.ok) { servidorAppendLog('[ERROR] ' + (r && r.error || 'Error desconocido')); return; }
+            await _pollServidorStatus();
+            servidorAppendLog('[SERVER] Esperando output de Minecraft...');
             actualizarEstadoServidor();
+            _iniciarServerPoller();
         }
 
         async function detenerServidor() {
             await pywebview.api.detener_servidor();
+            if (_serverRunPoller) { clearInterval(_serverRunPoller); _serverRunPoller = null; }
             actualizarEstadoServidor();
         }
 
@@ -2214,6 +2535,7 @@
             const r = await pywebview.api.iniciar_playitgg(carpeta);
             if (r && !r.ok) { servidorAppendLog('[ERROR PLAYIT] ' + r.error); return; }
             actualizarEstadoServidor();
+            _iniciarServerPoller();
         }
 
         async function detenerPlayitgg() {
@@ -2569,13 +2891,13 @@
             const tCat = document.getElementById('skin-tab-cat');
             const tJug = document.getElementById('skin-tab-jug');
             if (cual === 'catalogo') {
-                cat.classList.remove('hidden'); cat.style.display = 'flex'; cat.style.flexDirection = 'column';
-                jug.classList.add('hidden');
+                cat.style.display = 'flex'; cat.style.flexDirection = 'column';
+                jug.style.display = 'none';
                 tCat.className = 'px-5 py-2 rounded-lg font-bold text-sm bg-[#2ECC71] text-black transition';
                 tJug.className = 'px-5 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition';
             } else {
-                cat.classList.add('hidden');
-                jug.classList.remove('hidden'); jug.style.display = 'flex'; jug.style.flexDirection = 'column';
+                cat.style.display = 'none';
+                jug.style.display = 'flex'; jug.style.flexDirection = 'column';
                 tJug.className = 'px-5 py-2 rounded-lg font-bold text-sm bg-[#2ECC71] text-black transition';
                 tCat.className = 'px-5 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition';
             }
@@ -2686,7 +3008,7 @@
 
         // ══ HERRAMIENTAS: TAB SWITCHER ══════════════════════════════════
         function herTab(cual) {
-            const allTabs = ['estadisticas','backup','perfiles','compartir','gamemode','hwperfil','crash','musica','fondo','java','ia','fotos','updates','turbo','overlay','benchmark','skingen'];
+            const allTabs = ['estadisticas','backup','perfiles','compartir','gamemode','hwperfil','crash','musica','fondo','java','ia','fotos','updates','turbo','overlay','benchmark','skingen','smartram','conflictos','optimizer','comparador','whitelist'];
             allTabs.forEach(t => {
                 const panel = document.getElementById('hpanel-' + t);
                 if (panel) panel.classList.toggle('hidden', t !== cual);
@@ -2705,11 +3027,12 @@
             if (cual === 'estadisticas') cargarEstadisticas();
             if (cual === 'backup') { cargarMundos(); cargarBackups(); }
             if (cual === 'perfiles') poblarPerfilesVersiones();
+            if (cual === 'whitelist') cargarWhitelist();
         }
 
         // ══ IA GEMINI ════════════════════════════════════════════════════
         function iaTab(cual) {
-            ['chat','comandos','modpack'].forEach(t => {
+            ['chat','comandos','modpack','semillas','survival'].forEach(t => {
                 const p = document.getElementById('iapanel-' + t);
                 if (p) p.classList.toggle('hidden', t !== cual);
                 const b = document.getElementById('iatab-' + t);
@@ -2877,6 +3200,227 @@
                 const r = await pywebview.api.abrir_overlay();
                 msg.textContent = r.ok ? '✅ Overlay abierto' : '❌ ' + r.error;
             } catch(e) { msg.textContent = '❌ ' + e; }
+        }
+
+        // ══ KEYSTROKE OVERLAY ════════════════════════════════════════════
+        async function abrirKeystrokeOverlay() {
+            const msg = document.getElementById('overlay-msg');
+            const cfg = {
+                show_wasd:    (document.getElementById('ov-show-wasd')?.checked ?? true),
+                show_extra:   (document.getElementById('ov-show-extra')?.checked ?? true),
+                show_mouse:   (document.getElementById('ov-show-mouse')?.checked ?? true),
+                show_compass: (document.getElementById('ov-show-compass')?.checked ?? true),
+            };
+            try {
+                const r = await pywebview.api.abrir_keystroke_overlay(cfg);
+                if (msg) msg.textContent = r && r.ok ? '✅ Overlay de teclas abierto' : ('❌ ' + (r && r.error || 'Error'));
+            } catch(e) { if (msg) msg.textContent = '❌ ' + e; }
+        }
+
+        async function setOverlayOpacity(val) {
+            try { await pywebview.api.set_overlay_opacity(parseInt(val)); } catch(e) {}
+        }
+
+        // ══ SMART RAM ════════════════════════════════════════════════════
+        let _smartRamRecomendada = 4;
+        async function calcularSmartRAM() {
+            const res = document.getElementById('smartram-resultado');
+            const apDiv = document.getElementById('smartram-aplicar');
+            res.innerHTML = '<p class="text-[#2ECC71]">Analizando RAM...</p>';
+            try {
+                const r = await pywebview.api.get_smart_ram();
+                if (r.ok) {
+                    _smartRamRecomendada = r.ram_recomendada_mb;
+                    res.innerHTML = '<p>RAM total: <span class="text-white font-bold">' + r.ram_total_gb + ' GB</span></p>'
+                        + '<p>Disponible: <span class="text-white font-bold">' + r.ram_disponible_gb + ' GB</span></p>'
+                        + '<p>Recomendada: <span class="text-[#2ECC71] font-black text-lg">' + Math.round(r.ram_recomendada_mb/1024) + ' GB (' + r.ram_recomendada_mb + ' MB)</span></p>'
+                        + '<p class="text-xs text-gray-500 mt-1">' + (r.nota || '') + '</p>';
+                    if (apDiv) apDiv.classList.remove('hidden');
+                } else {
+                    res.innerHTML = '<p class="text-red-400">Error: ' + (r.error || 'desconocido') + '</p>';
+                }
+            } catch(e) { res.innerHTML = '<p class="text-red-400">' + e + '</p>'; }
+        }
+
+        async function aplicarSmartRAM() {
+            const btn = document.getElementById('btn-aplicar-ram');
+            btn.disabled = true; btn.textContent = '⏳ Aplicando...';
+            try {
+                const r = await pywebview.api.set_ram(_smartRamRecomendada);
+                btn.textContent = r && r.ok ? '✅ RAM aplicada' : '❌ Error';
+            } catch(e) { btn.textContent = '❌ Error'; }
+            setTimeout(() => { btn.disabled = false; btn.textContent = '✅ Aplicar RAM recomendada'; }, 2500);
+        }
+
+        // ══ CONFLICTOS DE MODS ═══════════════════════════════════════════
+        async function detectarConflictosMods() {
+            const res = document.getElementById('conflictos-resultado');
+            res.innerHTML = '<p class="text-gray-400 text-sm">Escaneando...</p>';
+            try {
+                const r = await pywebview.api.detectar_conflictos_mods();
+                if (!r.ok) { res.innerHTML = '<p class="text-red-400">' + (r.error || 'Error') + '</p>'; return; }
+                const lista = r.conflictos || [];
+                if (lista.length === 0) { res.innerHTML = '<p class="text-[#2ECC71] font-bold">✅ Sin conflictos detectados.</p>'; return; }
+                res.innerHTML = lista.map(function(c) {
+                    return '<div class="bg-[#181818] border border-[#E74C3C]/30 rounded-lg p-3 text-sm">'
+                        + '<p class="font-bold text-[#E74C3C]">⚠️ ' + (c.tipo === 'duplicado' ? '🔁 Duplicado' : '❌ Incompatible') + ': ' + (c.descripcion || '') + '</p>'
+                        + '<p class="text-xs text-gray-500 mt-1">' + (c.archivos || []).join(', ') + '</p></div>';
+                }).join('');
+            } catch(e) { res.innerHTML = '<p class="text-red-400">' + e + '</p>'; }
+        }
+
+        // ══ OPTIMIZAR MC ═════════════════════════════════════════════════
+        async function optimizarMC() {
+            const res = document.getElementById('optimizer-resultado');
+            res.innerHTML = '<p class="text-gray-400">Analizando y optimizando...</p>';
+            try {
+                const r = await pywebview.api.optimizar_opciones_mc();
+                if (!r.ok) { res.innerHTML = '<p class="text-red-400">' + (r.error || 'Error') + '</p>'; return; }
+                const aplicadas = r.opciones_aplicadas || {}; const entradas = Object.entries(aplicadas); const cambios = entradas;
+                if (cambios.length === 0) { res.innerHTML = '<p class="text-[#2ECC71]">✅ options.txt ya está optimizado.</p>'; return; }
+                res.innerHTML = '<p class="text-[#2ECC71] font-bold mb-2">✅ Opciones aplicadas:</p>'
+                    + cambios.map(function(e) { return '<p class="text-xs font-mono text-gray-300">• ' + e[0] + ': ' + e[1] + '</p>'; }).join('');
+            } catch(e) { res.innerHTML = '<p class="text-red-400">' + e + '</p>'; }
+        }
+
+        // ══ COMPARADOR DE VERSIONES ══════════════════════════════════════
+        async function compararVersiones() {
+            const res = document.getElementById('comparador-resultado');
+            res.innerHTML = '<p class="text-gray-400">Calculando estimaciones...</p>';
+            try {
+                const r = await pywebview.api.comparar_rendimiento_versiones();
+                if (!r.ok) { res.innerHTML = '<p class="text-red-400">' + (r.error || 'Error') + '</p>'; return; }
+                res.innerHTML = (r.versiones || []).map(function(t) {
+                    const col = t.fps_estimado >= 60 ? 'text-[#2ECC71]' : t.fps_estimado >= 30 ? 'text-[#F39C12]' : 'text-[#E74C3C]';
+                    return '<div class="bg-[#181818] border border-[#2A2A2A] rounded-lg p-4 flex items-center justify-between">'
+                        + '<div><p class="font-bold text-white">' + t.version + '</p><p class="text-xs text-gray-500">' + (t.nota || '') + '</p></div>'
+                        + '<div class="text-right"><p class="font-black text-xl ' + col + '">' + t.fps_estimado + ' FPS</p><p class="text-xs text-gray-500">estimado</p></div></div>';
+                }).join('');
+            } catch(e) { res.innerHTML = '<p class="text-red-400">' + e + '</p>'; }
+        }
+
+        // ══ WHITELIST ════════════════════════════════════════════════════
+        async function cargarWhitelist() {
+            const lista = document.getElementById('whitelist-lista');
+            if (!lista) return;
+            lista.innerHTML = '<p class="text-gray-400 text-xs">Cargando...</p>';
+            try {
+                const r = await pywebview.api.get_whitelist();
+                if (!r.ok) { lista.innerHTML = '<p class="text-red-400 text-xs">' + (r.error || 'Error') + '</p>'; return; }
+                const jugadores = r.jugadores || [];
+                if (jugadores.length === 0) { lista.innerHTML = '<p class="text-gray-500 text-xs">Sin jugadores en la whitelist.</p>'; return; }
+                lista.innerHTML = jugadores.map(function(j) {
+                    const n = j.name || j;
+                    return '<div class="flex items-center justify-between bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg px-3 py-2">'
+                        + '<div class="flex items-center gap-2"><img src="https://minotar.net/helm/' + n + '/20.png" class="w-5 h-5 rounded" onerror="this.style.display=\'none\'">'
+                        + '<span class="text-sm font-bold">' + n + '</span></div>'
+                        + '<button onclick="eliminarWhitelist(\'' + n + '\')" class="text-xs text-red-400 hover:text-red-300 transition">✕</button></div>';
+                }).join('');
+            } catch(e) { lista.innerHTML = '<p class="text-red-400 text-xs">' + e + '</p>'; }
+        }
+
+        async function agregarWhitelist() {
+            const input = document.getElementById('wl-nombre-input');
+            const nombre = (input.value || '').trim();
+            if (!nombre) return;
+            input.value = '';
+            try {
+                const r = await pywebview.api.agregar_whitelist(nombre);
+                if (r && r.ok) cargarWhitelist();
+                else alert('Error: ' + (r && r.error || 'desconocido'));
+            } catch(e) { alert(String(e)); }
+        }
+
+        async function eliminarWhitelist(nombre) {
+            try { const r = await pywebview.api.eliminar_whitelist(nombre); if (r && r.ok) cargarWhitelist(); } catch(e) {}
+        }
+
+        // ══ IA SEMILLAS & SURVIVAL ═══════════════════════════════════════
+        async function generarSemillaIA() {
+            const desc = (document.getElementById('ia-seed-desc').value || '').trim();
+            if (!desc) return;
+            const btn = document.getElementById('btn-ia-seed');
+            const res = document.getElementById('ia-seed-resultado');
+            btn.disabled = true; btn.textContent = '⏳ Generando...';
+            res.textContent = 'Consultando IA...';
+            try {
+                const r = await pywebview.api.gemini_generar_semilla(desc);
+                res.textContent = r.ok ? r.semillas : ('Error: ' + r.error);
+            } catch(e) { res.textContent = 'Error: ' + e; }
+            finally { btn.disabled = false; btn.textContent = '🌱 Generar'; }
+        }
+
+        async function preguntarSurvival() {
+            const preg = (document.getElementById('ia-surv-preg').value || '').trim();
+            if (!preg) return;
+            const btn = document.getElementById('btn-ia-surv');
+            const res = document.getElementById('ia-surv-resultado');
+            btn.disabled = true; btn.textContent = '⏳ Pensando...';
+            res.textContent = 'Consultando IA...';
+            try {
+                const r = await pywebview.api.gemini_survival_assist(preg);
+                res.textContent = r.ok ? r.respuesta : ('Error: ' + r.error);
+            } catch(e) { res.textContent = 'Error: ' + e; }
+            finally { btn.disabled = false; btn.textContent = '⚔️ Preguntar'; }
+        }
+
+        // ══ SERVIDOR PRIVADO (hpanel) ════════════════════════════════════
+        async function elegirCarpetaServidorPanel() {
+            try {
+                const r = await pywebview.api.elegir_carpeta_servidor();
+                if (r && r.ruta) document.getElementById('hpanel-srv-carpeta').value = r.ruta;
+            } catch(e) {}
+        }
+
+        async function iniciarServidorInstante() {
+            const carpeta = (document.getElementById('hpanel-srv-carpeta').value || '').trim();
+            const dot = document.getElementById('hpanel-srv-dot');
+            const lbl = document.getElementById('hpanel-srv-lbl');
+            try {
+                const r = await pywebview.api.iniciar_servidor(carpeta || null);
+                if (r && r.ok) { dot.className = 'w-3 h-3 rounded-full bg-[#2ECC71]'; lbl.textContent = 'Activo'; }
+                else alert('Error al iniciar: ' + (r && r.error || 'desconocido'));
+            } catch(e) { alert(String(e)); }
+        }
+
+        async function detenerServidorInstante() {
+            try {
+                await pywebview.api.detener_servidor();
+                document.getElementById('hpanel-srv-dot').className = 'w-3 h-3 rounded-full bg-red-500';
+                document.getElementById('hpanel-srv-lbl').textContent = 'Detenido';
+            } catch(e) {}
+        }
+
+        async function enviarCmdServidor() {
+            const input = document.getElementById('hpanel-srv-cmd');
+            const cmd = (input.value || '').trim();
+            if (!cmd) return;
+            input.value = '';
+            const cons = document.getElementById('hpanel-srv-console');
+            const line = document.createElement('p');
+            line.className = 'text-[#2ECC71]';
+            line.textContent = '> ' + cmd;
+            cons.appendChild(line);
+            cons.scrollTop = cons.scrollHeight;
+            try { await pywebview.api.enviar_comando_servidor(cmd); } catch(e) {}
+        }
+
+        function copiarUrlServidor() {
+            const lbl = document.getElementById('hpanel-playit-lbl');
+            if (lbl) navigator.clipboard.writeText(lbl.textContent).catch(function() {});
+        }
+
+        async function iniciarPlayitggPanel() {
+            const lbl = document.getElementById('hpanel-playit-lbl');
+            try {
+                const r = await pywebview.api.iniciar_playitgg();
+                if (r && r.ok && r.url) { if (lbl) lbl.textContent = r.url; }
+                else if (r && r.error) alert('Error playit.gg: ' + r.error);
+            } catch(e) { alert(String(e)); }
+        }
+
+        async function detenerPlayitggPanel() {
+            try { await pywebview.api.detener_playitgg(); } catch(e) {}
         }
 
         // ══ BENCHMARK DE PC ══════════════════════════════════════════════
@@ -3111,6 +3655,19 @@
                 const btn = document.getElementById('mtab-' + t);
                 if (btn) btn.className = `px-4 py-2 rounded-lg font-bold text-sm transition ${t === cual ? 'bg-[#2ECC71] text-black' : 'bg-[#2A2A2A] text-white hover:bg-[#3A3A3A]'}`;
             });
+            if (cual === 'spotify') verificarSpotifyAuto();
+        }
+
+        async function verificarSpotifyAuto() {
+            try {
+                const r = await pywebview.api.spotify_try_autoconnect();
+                if (r.ok) {
+                    document.getElementById('spotify-noconectado').classList.add('hidden');
+                    document.getElementById('spotify-widget').classList.remove('hidden');
+                    tickSpotify();
+                    if (!_spInterval) _spInterval = setInterval(tickSpotify, 5000);
+                }
+            } catch(e) {}
         }
 
         // ══ MÚSICA MC ═══════════════════════════════════════════════════
@@ -3130,23 +3687,118 @@
             const r = await pywebview.api.tocar_musica_mc(path);
             if (r.ok) {
                 document.getElementById('mc-track-actual').textContent = '▶ ' + nombre;
+                const bar = document.getElementById('mc-progress-bar');
+                if (bar) bar.style.width = '0%';
+                iniciarProgressMC(nombre);
                 actualizarMusicaBar(nombre, 'Minecraft OST', '');
             } else alert('Error: ' + r.error);
         }
 
         async function detenerMusicaMC() {
             await pywebview.api.detener_musica_mc();
+            clearInterval(_mcProgressTimer); _mcProgressTimer = null;
             document.getElementById('mc-track-actual').textContent = 'Sin reproducción';
+            const bar = document.getElementById('mc-progress-bar');
+            if (bar) bar.style.width = '0%';
             document.getElementById('music-bar').classList.add('hidden');
         }
 
+        async function iniciarProgressMC(nombre) {
+            clearInterval(_mcProgressTimer);
+            const DURACION_EST = 180000;
+            _mcProgressTimer = setInterval(async () => {
+                try {
+                    const r = await pywebview.api.get_musica_mc_estado();
+                    if (!r.reproduciendo) { clearInterval(_mcProgressTimer); return; }
+                    const pos = r.posicion_ms || 0;
+                    const pct = Math.min(100, Math.round(pos / DURACION_EST * 100));
+                    const bar = document.getElementById('mc-progress-bar');
+                    if (bar) bar.style.width = pct + '%';
+                    const s = Math.floor(pos / 1000), m = Math.floor(s / 60), ss = s % 60;
+                    const lbl = document.getElementById('mc-track-actual');
+                    if (lbl) lbl.textContent = `▶ ${nombre}  [${m}:${ss.toString().padStart(2,'0')}]`;
+                } catch(e) {}
+            }, 1000);
+        }
+
         // ══ YOUTUBE RADIO ════════════════════════════════════════════════
-        function ponerRadio(playlistId) {
+        let _ytCurrentWatchUrl = '';
+
+        function _setYTEmbed(embedSrc, watchUrl, titulo, subtitulo) {
             const frame = document.getElementById('yt-radio-frame');
             const iframe = document.getElementById('yt-iframe');
-            iframe.src = `https://www.youtube.com/embed/videoseries?list=${playlistId}&autoplay=1`;
+            iframe.src = embedSrc;
             frame.style.display = 'block';
-            actualizarMusicaBar('YouTube Radio', 'Playlist', '');
+            _ytCurrentWatchUrl = watchUrl;
+            const btn = document.getElementById('yt-open-btn');
+            if (btn) btn.style.display = '';
+            actualizarMusicaBar(titulo, subtitulo, '');
+        }
+
+        function ponerRadio(playlistId) {
+            _setYTEmbed(
+                `https://www.youtube.com/embed/videoseries?list=${playlistId}&autoplay=1`,
+                `https://www.youtube.com/playlist?list=${playlistId}`,
+                'YouTube Music', 'Playlist'
+            );
+        }
+
+        function ponerRadioCustom() {
+            const raw = (document.getElementById('yt-custom-url').value || '').trim();
+            if (!raw) return;
+            let embedSrc = '', watchUrl = raw;
+            const listMatch = raw.match(/[?&]list=([^&]+)/);
+            const vidMatch  = raw.match(/(?:v=|youtu\.be\/)([^?&]+)/);
+            if (listMatch) {
+                embedSrc = `https://www.youtube.com/embed/videoseries?list=${listMatch[1]}&autoplay=1`;
+                watchUrl = `https://www.youtube.com/playlist?list=${listMatch[1]}`;
+            } else if (vidMatch) {
+                embedSrc = `https://www.youtube.com/embed/${vidMatch[1]}?autoplay=1`;
+                watchUrl = `https://www.youtube.com/watch?v=${vidMatch[1]}`;
+            } else if (/^[A-Za-z0-9_-]{11}$/.test(raw)) {
+                embedSrc = `https://www.youtube.com/embed/${raw}?autoplay=1`;
+                watchUrl = `https://www.youtube.com/watch?v=${raw}`;
+            } else if (/^PL[A-Za-z0-9_-]+$/.test(raw)) {
+                embedSrc = `https://www.youtube.com/embed/videoseries?list=${raw}&autoplay=1`;
+                watchUrl = `https://www.youtube.com/playlist?list=${raw}`;
+            } else {
+                alert('URL o ID de YouTube no reconocido.'); return;
+            }
+            _setYTEmbed(embedSrc, watchUrl, 'YouTube Music', 'Personalizado');
+        }
+
+        async function buscarYouTube() {
+            const q = (document.getElementById('yt-search-input').value || '').trim();
+            if (!q) return;
+            const res = document.getElementById('yt-search-results');
+            res.innerHTML = '<p class="text-gray-500 text-xs animate-pulse col-span-3">Buscando...</p>';
+            const d = await pywebview.api.buscar_youtube(q);
+            if (!d.ok) { res.innerHTML = `<p class="text-red-400 text-xs col-span-3">Error: ${d.error}</p>`; return; }
+            if (!d.resultados.length) { res.innerHTML = '<p class="text-gray-500 text-xs col-span-3">Sin resultados.</p>'; return; }
+            res.innerHTML = d.resultados.map(r => {
+                const icon = r.tipo === 'playlist' ? '📋' : '🎵';
+                const embedUrl = r.tipo === 'playlist'
+                    ? `https://www.youtube.com/embed/videoseries?list=${r.id}&autoplay=1`
+                    : `https://www.youtube.com/embed/${r.id}?autoplay=1`;
+                const watchUrl = r.tipo === 'playlist'
+                    ? `https://www.youtube.com/playlist?list=${r.id}`
+                    : `https://www.youtube.com/watch?v=${r.id}`;
+                return `<div class="bg-[#0A0A0A] border border-[#2A2A2A] hover:border-[#FF0000] rounded-lg overflow-hidden cursor-pointer transition group" onclick="cargarYTEmbed('${embedUrl}','${r.titulo.replace(/'/g,'').substring(0,40)}','${watchUrl}')">
+                    ${r.thumb ? `<img src="${r.thumb}" class="w-full h-20 object-cover">` : '<div class="w-full h-20 bg-[#1a1a1a] flex items-center justify-center text-2xl">' + icon + '</div>'}
+                    <div class="p-2">
+                        <p class="text-xs font-bold text-white truncate">${icon} ${r.titulo}</p>
+                        <p class="text-[10px] text-gray-500 truncate">${r.canal}</p>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function cargarYTEmbed(embedUrl, titulo, watchUrl) {
+            _setYTEmbed(embedUrl, watchUrl || embedUrl.replace('/embed/', '/watch?v=').replace('videoseries?list=', 'playlist?list='), titulo, 'YouTube');
+        }
+
+        function abrirYTEnNavegador() {
+            if (_ytCurrentWatchUrl) pywebview.api.abrir_url_navegador(_ytCurrentWatchUrl);
         }
 
         // ══ SPOTIFY ══════════════════════════════════════════════════════
@@ -3209,7 +3861,15 @@
             try {
                 const r = await fetch(`http://127.0.0.1:${window._API_PORT}/api/spotify_nowplaying`);
                 const d = await r.json();
-                if (!d.ok || !d.reproduciendo) return;
+                if (!d.ok) {
+                    if (d.error && d.error.includes('expirada')) {
+                        clearInterval(_spInterval); _spInterval = null;
+                        document.getElementById('spotify-widget').classList.add('hidden');
+                        document.getElementById('spotify-noconectado').classList.remove('hidden');
+                    }
+                    return;
+                }
+                if (!d.reproduciendo) return;
                 document.getElementById('sp-titulo').textContent = d.titulo || 'Sin reproducción';
                 document.getElementById('sp-artista').textContent = d.artista || '';
                 document.getElementById('sp-album').textContent = d.album || '';
@@ -3217,6 +3877,16 @@
                 if (d.imagen) img.src = d.imagen;
                 const pct = d.duracion_ms > 0 ? Math.round(d.progreso_ms / d.duracion_ms * 100) : 0;
                 document.getElementById('sp-progress').style.width = pct + '%';
+                const shuffleBtn = document.getElementById('sp-shuffle-btn');
+                if (shuffleBtn) shuffleBtn.className = `text-lg transition ${d.shuffle ? 'text-[#1DB954]' : 'text-gray-500 hover:text-[#1DB954]'}`;
+                const repeatBtn = document.getElementById('sp-repeat-btn');
+                if (repeatBtn) {
+                    const active = d.repeat && d.repeat !== 'off';
+                    repeatBtn.className = `text-lg transition ${active ? 'text-[#1DB954]' : 'text-gray-500 hover:text-[#1DB954]'}`;
+                    repeatBtn.textContent = d.repeat === 'track' ? '🔂' : '🔁';
+                }
+                const playBtn = document.getElementById('sp-play-btn');
+                if (playBtn) playBtn.textContent = d.reproduciendo ? '⏸' : '▶';
                 actualizarMusicaBar(d.titulo, d.artista, d.imagen);
             } catch(e) {}
         }
@@ -3224,6 +3894,31 @@
         async function spotifyCtrl(accion) {
             try { await fetch(`http://127.0.0.1:${window._API_PORT}/api/spotify_control?accion=${accion}`); } catch(e) {}
             setTimeout(tickSpotify, 500);
+        }
+
+        let _spShuffleActivo = false;
+        let _spRepeatEstado = 'off';
+
+        async function toggleShuffle() {
+            _spShuffleActivo = !_spShuffleActivo;
+            try { await pywebview.api.spotify_shuffle(_spShuffleActivo); } catch(e) {}
+            setTimeout(tickSpotify, 400);
+        }
+
+        async function toggleRepeat() {
+            const states = ['off', 'context', 'track'];
+            _spRepeatEstado = states[(states.indexOf(_spRepeatEstado) + 1) % states.length];
+            try { await pywebview.api.spotify_repeat(_spRepeatEstado); } catch(e) {}
+            setTimeout(tickSpotify, 400);
+        }
+
+        let _mcVolTimer = null;
+        let _mcProgressTimer = null;
+        async function setVolumenMC(val) {
+            clearTimeout(_mcVolTimer);
+            _mcVolTimer = setTimeout(async () => {
+                await pywebview.api.set_musica_mc_volumen(parseFloat(val));
+            }, 150);
         }
 
         // ══ MUSIC BAR (global) ════════════════════════════════════════
@@ -3341,6 +4036,27 @@
                     <div class="p-3"><p class="font-black text-xs text-white line-clamp-2">${n.titulo}</p><p class="text-[10px] text-gray-500 mt-1">${n.categoria} · ${n.fecha}</p></div>
                 </div>`).join('');
             } catch(e) { if (box) box.innerHTML = ''; }
+        }
+
+        // ══ JUGADORES ONLINE GLOBAL ══════════════════════════════════════
+        async function actualizarJugadoresOnline() {
+            const dot = document.getElementById('nav-players-dot');
+            const lbl = document.getElementById('nav-players-count');
+            if (!dot || !lbl) return;
+            try {
+                const r = await pywebview.api.get_jugadores_online_global();
+                if (r && r.ok && r.total > 0) {
+                    lbl.textContent = r.total.toLocaleString('es-AR') + ' online';
+                    lbl.className = 'text-[11px] font-bold text-gray-300';
+                    dot.className = 'w-2.5 h-2.5 bg-[#2ECC71] rounded-full animate-pulse';
+                    const badge = document.getElementById('nav-players-badge');
+                    if (badge) badge.title = r.servidores.map(s => `${s.ip}: ${s.online.toLocaleString()}`).join('\n');
+                } else {
+                    lbl.textContent = 'sin datos';
+                    lbl.className = 'text-[11px] font-bold text-gray-500';
+                    dot.className = 'w-2.5 h-2.5 bg-gray-600 rounded-full';
+                }
+            } catch(e) {}
         }
 
         // ══ PING EN VIVO ══════════════════════════════════════════════════
@@ -3678,6 +4394,8 @@
             } catch(e) {}
             setTimeout(cargarNoticiasInicio, 1000);
             setTimeout(pingTodosServidores, 2000);
+            setTimeout(actualizarJugadoresOnline, 5000);
+            setInterval(actualizarJugadoresOnline, 60000);
         }
         // --- FIN EXTRAS ---
     </script>
