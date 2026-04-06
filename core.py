@@ -405,18 +405,67 @@ def instalar_mods_por_motor(game_dir, version, motor_elegido, progress_callback,
         return
 
 def _java_exe_para_mc(minecraft_directory):
-    """Devuelve la ruta al ejecutable Java del runtime bundled de Minecraft, o 'java' como fallback."""
+    """Devuelve la ruta al ejecutable Java del runtime bundled de Minecraft, o 'java' como fallback.
+    Prefiere java-runtime-* (Java 17/21) sobre jre-legacy (Java 8) para el instalador de OptiFine."""
     java_name = "java.exe" if platform.system() == "Windows" else "java"
     runtime_root = os.path.join(minecraft_directory, "runtime")
     if os.path.isdir(runtime_root):
         plat_key = "windows" if platform.system() == "Windows" else ("mac-os" if platform.system() == "Darwin" else "linux")
-        for entry in sorted(os.listdir(runtime_root), reverse=True):
-            if not entry.startswith("java"):
-                continue
+        # Ordenar: java-runtime-* primero (modernos, mayor key=1), jre-legacy ultimo (key=0)
+        entries = sorted(
+            [e for e in os.listdir(runtime_root) if e.startswith("java") or e.startswith("jre")],
+            key=lambda e: (1 if e.startswith("java") else 0, e),
+            reverse=True
+        )
+        for entry in entries:
             bin_path = os.path.join(runtime_root, entry, plat_key, entry, "bin", java_name)
             if os.path.exists(bin_path):
                 return bin_path
     return "java"
+
+def _asegurar_java_runtime(version_id, minecraft_directory, progress_callback):
+    """Lee el JSON de la version, sigue la cadena inheritsFrom, y descarga el runtime Java
+    correcto (jre-legacy, java-runtime-gamma, java-runtime-delta, etc.) si no esta instalado."""
+    try:
+        versions_dir = os.path.join(minecraft_directory, "versions")
+        java_name = "java.exe" if platform.system() == "Windows" else "java"
+        plat_key = "windows" if platform.system() == "Windows" else ("mac-os" if platform.system() == "Darwin" else "linux")
+
+        # Seguir cadena inheritsFrom para encontrar el campo javaVersion
+        java_component = None
+        _visited = set()
+        _current = version_id
+        while _current and _current not in _visited:
+            _visited.add(_current)
+            ver_json_path = os.path.join(versions_dir, _current, _current + ".json")
+            if not os.path.exists(ver_json_path):
+                break
+            with open(ver_json_path, "r", encoding="utf-8") as _f:
+                _data = json.load(_f)
+            if "javaVersion" in _data:
+                java_component = _data["javaVersion"].get("component")
+                break
+            _current = _data.get("inheritsFrom")
+
+        if not java_component:
+            return
+
+        # Comprobar si el runtime ya esta instalado
+        runtime_root = os.path.join(minecraft_directory, "runtime")
+        bin_path = os.path.join(runtime_root, java_component, plat_key, java_component, "bin", java_name)
+        if os.path.exists(bin_path):
+            return
+
+        # Descargar el runtime correcto usando minecraft_launcher_lib
+        if progress_callback:
+            progress_callback(f"Descargando Java requerido ({java_component})...")
+        minecraft_launcher_lib.runtime.install_jvm_runtime(
+            java_component, minecraft_directory,
+            callback={"setStatus": lambda e: (progress_callback(e) if progress_callback else None)}
+        )
+    except Exception as e:
+        print(f"[Java Runtime] Error asegurando runtime para {version_id}: {e}")
+
 
 def _instalar_optifine(version_base, minecraft_directory, progress_callback):
     """Descarga e instala OptiFine para version_base. Devuelve el version ID instalado o None."""
@@ -491,14 +540,15 @@ def _instalar_optifine(version_base, minecraft_directory, progress_callback):
     if progress_callback: progress_callback("OptiFine no pudo instalarse correctamente.")
     return None
 
+
 def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type="G1GC", optimizar=False, motor_elegido="Vanilla", papa_mode=False, usar_mesa=False, mostrar_consola=False, progress_callback=None, uuid_real=None, token_real=None, lan_distancia=False, fabric_loader_override=None, server_ip=""):
     minecraft_directory = minecraft_launcher_lib.utils.get_minecraft_directory()
-    
+
     def on_progress(event):
         if progress_callback: progress_callback(event)
 
     version_base = version.strip()
-    
+
     # 1. Determinamos el Loader base (Fabric, Forge, OptiFine o Vanilla) leyendo el nombre del motor
     motor_lower = motor_elegido.lower()
     if "fabric" in motor_lower:
@@ -578,6 +628,18 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
             if progress_callback: progress_callback(f"Descargando juego base {version_base}...")
             minecraft_launcher_lib.install.install_minecraft_version(version_base, minecraft_directory, callback={"setStatus": on_progress})
 
+    # 1.5 DEPENDENCIAS: para OptiFine y Forge, asegurar que todos los JARs estén
+    # descargados (launchwrapper, etc.) ya que get_minecraft_command los necesita
+    # en disco. install_minecraft_version es idempotente: no re-descarga lo que ya existe.
+    if tipo_cliente_base in ("OptiFine", "Forge") and version_a_lanzar != version_base:
+        try:
+            if progress_callback: progress_callback("Verificando dependencias del loader...")
+            minecraft_launcher_lib.install.install_minecraft_version(
+                version_a_lanzar, minecraft_directory,
+                callback={"setStatus": lambda e: (progress_callback(e) if progress_callback else None)})
+        except Exception as _dep_e:
+            print(f"[Deps] Advertencia verificando dependencias: {_dep_e}")
+
     # 2. AISLAMIENTO DE INSTANCIAS DINÁMICO
     folder_name = carpeta_instancia_paraguacraft(version_base, motor_elegido)
     
@@ -607,12 +669,29 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
     if _vm < 17 and gc_type in ("ZGC", "Shenandoah"):
         gc_type = "G1GC"
 
-    jvm_arguments = [f"-Xmx{max_ram}", f"-Xms{max_ram}", "-XX:+UnlockExperimentalVMOptions", "-XX:+DisableExplicitGC", "-XX:+AlwaysPreTouch"]
-    if gc_type == "G1GC":
-        jvm_arguments.extend(["-XX:+UseG1GC", "-XX:G1NewSizePercent=30", "-XX:G1MaxNewSizePercent=40", "-XX:G1HeapRegionSize=8M", "-XX:G1ReservePercent=20", "-XX:G1HeapWastePercent=5", "-XX:G1MixedGCCountTarget=4", "-XX:InitiatingHeapOccupancyPercent=15", "-XX:G1MixedGCLiveThresholdPercent=90", "-XX:G1RSetUpdatingPauseTimePercent=5", "-XX:SurvivorRatio=32", "-XX:+PerfDisableSharedMem", "-XX:MaxTenuringThreshold=1", "-Dusing.aikars.flags=https://mcflags.emc.gs", "-Daikars.new.flags=true"])
-    elif gc_type == "ZGC": jvm_arguments.append("-XX:+UseZGC")
-    elif gc_type == "Shenandoah": jvm_arguments.append("-XX:+UseShenandoahGC")
-    elif gc_type == "CMS": jvm_arguments.append("-XX:+UseConcMarkSweepGC")
+    if _vm < 17:
+        # Java 8 era (MC <= 1.16): jre-legacy bundled by Mojang is 8u51.
+        # Many Aikars G1GC flags (e.g. G1RSetUpdatingPauseTimePercent) were added
+        # in 8u60+ and are unrecognized on 8u51 → JVM exits with code 1.
+        # Use a conservative set known to work on Java 8u51.
+        jvm_arguments = [
+            f"-Xmx{max_ram}", f"-Xms{max_ram}",
+            "-XX:+UnlockExperimentalVMOptions",
+            "-XX:+UseG1GC",
+            "-XX:G1NewSizePercent=20",
+            "-XX:G1ReservePercent=20",
+            "-XX:MaxGCPauseMillis=50",
+            "-XX:G1HeapRegionSize=32M",
+            "-XX:InitiatingHeapOccupancyPercent=15",
+            "-XX:+DisableExplicitGC",
+        ]
+    else:
+        jvm_arguments = [f"-Xmx{max_ram}", f"-Xms{max_ram}", "-XX:+UnlockExperimentalVMOptions", "-XX:+DisableExplicitGC", "-XX:+AlwaysPreTouch"]
+        if gc_type == "G1GC":
+            jvm_arguments.extend(["-XX:+UseG1GC", "-XX:G1NewSizePercent=30", "-XX:G1MaxNewSizePercent=40", "-XX:G1HeapRegionSize=8M", "-XX:G1ReservePercent=20", "-XX:G1HeapWastePercent=5", "-XX:G1MixedGCCountTarget=4", "-XX:InitiatingHeapOccupancyPercent=15", "-XX:G1MixedGCLiveThresholdPercent=90", "-XX:G1RSetUpdatingPauseTimePercent=5", "-XX:SurvivorRatio=32", "-XX:+PerfDisableSharedMem", "-XX:MaxTenuringThreshold=1", "-Dusing.aikars.flags=https://mcflags.emc.gs", "-Daikars.new.flags=true"])
+        elif gc_type == "ZGC": jvm_arguments.append("-XX:+UseZGC")
+        elif gc_type == "Shenandoah": jvm_arguments.append("-XX:+UseShenandoahGC")
+        elif gc_type == "CMS": jvm_arguments.append("-XX:+UseConcMarkSweepGC")
 
     # 5. CONFIGURACIÓN FINAL DEL JUEGO
     options = {
@@ -627,6 +706,9 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
         options["customResolution"] = True
         options["resolutionWidth"] = "800"
         options["resolutionHeight"] = "600"
+
+    # 4.5 JAVA RUNTIME: asegurar que el Java correcto esta instalado
+    _asegurar_java_runtime(version_a_lanzar, minecraft_directory, progress_callback)
 
     command = minecraft_launcher_lib.command.get_minecraft_command(version_a_lanzar, minecraft_directory, options)
 
