@@ -363,6 +363,7 @@
                     <label class="text-xs font-bold text-gray-400 uppercase">Loader</label>
                     <select id="imod-motor" class="bg-[#1E1E1E] border border-[#333] text-white px-3 py-2 rounded outline-none text-sm focus:border-[#2ECC71]">
                         <option value="Fabric">Fabric</option>
+                        <option value="Fabric + Iris">Fabric + Iris</option>
                         <option value="Forge">Forge</option>
                         <option value="Vanilla">Vanilla</option>
                     </select>
@@ -2872,10 +2873,20 @@
         let _imodTipo = 'mod';
         let _imodSource = 'modrinth';
 
+        function _syncImodMotor() {
+            const activeMotor = (document.getElementById('panel-loader-sel') || {}).value || '';
+            const sel = document.getElementById('imod-motor');
+            if (sel && activeMotor) {
+                const opt = Array.from(sel.options).find(o => o.value === activeMotor);
+                if (opt) sel.value = activeMotor;
+            }
+        }
+
         function abrirInstalarMod(projectId, titulo, tipo) {
             _imodProjectId = projectId;
             _imodTipo = tipo;
             _imodSource = 'modrinth';
+            _syncImodMotor();
             document.getElementById('imod-titulo').textContent = 'Instalar: ' + titulo;
             document.getElementById('imod-subtitulo').textContent = 'Tipo: ' + tipo;
             document.getElementById('imod-lista').innerHTML = '<p class="text-xs text-gray-500 text-center mt-4">Escribí la versión MC y hacé clic en Buscar.</p>';
@@ -4385,6 +4396,7 @@
             _imodProjectId = projectId;
             _imodTipo = tipo;
             _imodSource = 'curseforge';
+            _syncImodMotor();
             document.getElementById('imod-titulo').textContent = 'Instalar (CF): ' + titulo;
             document.getElementById('imod-subtitulo').textContent = 'Tipo: ' + tipo + ' · CurseForge';
             document.getElementById('imod-lista').innerHTML = '<p class="text-xs text-gray-500 text-center mt-4">Escribí la versión MC y hacé clic en Buscar.</p>';
