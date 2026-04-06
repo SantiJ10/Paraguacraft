@@ -30,7 +30,7 @@ try:
 except Exception:
     _lanzar_minecraft_ref = None
 
-VERSION = "2.7.0"  # Actualizar en cada release
+VERSION = "2.8.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 
 try:
@@ -496,6 +496,52 @@ class Api:
         except Exception as e:
             print("Error obteniendo versiones de Mojang:", e)
             return {}
+
+    def get_versiones_instaladas(self):
+        """Escanea .minecraft/versions/ y detecta versiones instaladas con su loader."""
+        try:
+            import minecraft_launcher_lib, re as _re
+            mc_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+            versions_dir = os.path.join(mc_dir, "versions")
+            if not os.path.isdir(versions_dir):
+                return {"ok": True, "instaladas": []}
+            result = []
+            extras = []
+            seen = set()
+            for v in sorted(os.listdir(versions_dir)):
+                if not os.path.exists(os.path.join(versions_dir, v, v + ".json")):
+                    continue
+                version_base = None
+                motor = None
+                if v.startswith("fabric-loader-"):
+                    parts = v.split("-")
+                    version_base = parts[-1]
+                    motor = "Fabric"
+                elif "OptiFine" in v:
+                    if "_OptiFine" in v:
+                        version_base = v.split("_OptiFine")[0]
+                    else:
+                        version_base = v.split("-OptiFine")[0]
+                    motor = "OptiFine"
+                elif _re.search(r"-forge", v, _re.IGNORECASE):
+                    m = _re.match(r"^(\d+\.\d+(?:\.\d+)?)-forge", v, _re.IGNORECASE)
+                    if m:
+                        version_base = m.group(1)
+                        motor = "Forge"
+                if version_base and motor:
+                    parts = version_base.split(".")
+                    group_key = f"{parts[0]}.{parts[1]}" if len(parts) >= 2 else ""
+                    key = (version_base, motor)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    if group_key in FEATURED_VERSION_KEYS:
+                        extras.append({"version": version_base, "motor": motor})
+                    else:
+                        result.append({"version": version_base, "motor": motor})
+            return {"ok": True, "instaladas": result, "extras": extras}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "instaladas": []}
 
     def _hilo_ninja_renombrar(self, version_jugada):
         if sys.platform != "win32":
@@ -1042,6 +1088,50 @@ class Api:
             with open(out_path, "wb") as f:
                 f.write(r.content)
             return {"ok": True, "path": out_path}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def subir_skin_premium(self, skin_path, variante="classic"):
+        if not self.ms_data:
+            return {"ok": False, "error": "Se necesita cuenta Premium conectada"}
+        try:
+            token = self.ms_data.get("access_token", "")
+            url = "https://api.minecraftservices.com/minecraft/profile/skins"
+            headers = {"Authorization": f"Bearer {token}"}
+            with open(skin_path, "rb") as f:
+                skin_bytes = f.read()
+            files = [("file", ("skin.png", skin_bytes, "image/png"))]
+            data = {"variant": variante}
+            r = requests.post(url, headers=headers, data=data, files=files, timeout=10)
+            if r.status_code == 200:
+                return {"ok": True}
+            return {"ok": False, "error": f"HTTP {r.status_code}: {r.text[:120]}"}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def seleccionar_skin_local(self):
+        try:
+            import tkinter as tk
+            from tkinter import filedialog
+            import base64
+            _root = tk.Tk()
+            _root.withdraw()
+            _root.attributes('-topmost', True)
+            path = filedialog.askopenfilename(
+                title="Seleccionar skin de Minecraft (.png)",
+                filetypes=[("PNG", "*.png"), ("Todos los archivos", "*.*")]
+            )
+            _root.destroy()
+            if not path:
+                return {"ok": False, "cancelled": True}
+            with open(path, "rb") as f:
+                raw = f.read()
+            b64 = base64.b64encode(raw).decode()
+            return {
+                "ok": True,
+                "path": path.replace("\\", "/"),
+                "data_url": f"data:image/png;base64,{b64}"
+            }
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
@@ -1797,19 +1887,37 @@ class Api:
 
     def elegir_fondo_animado(self):
         try:
-            ventana = webview.windows[0] if webview.windows else None
-            if not ventana:
-                return {"ok": False, "error": "Ventana no disponible."}
-            archivos = ventana.create_file_dialog(
-                webview.OPEN_DIALOG,
-                file_types=("Imágenes y videos (*.gif;*.mp4;*.webm;*.jpg;*.jpeg;*.png)|*.gif;*.mp4;*.webm;*.jpg;*.jpeg;*.png",)
+            import tkinter as tk
+            from tkinter import filedialog
+            import base64, mimetypes
+            _root = tk.Tk()
+            _root.withdraw()
+            _root.attributes('-topmost', True)
+            path = filedialog.askopenfilename(
+                title="Elegir fondo del launcher",
+                filetypes=[
+                    ("Imágenes y videos", "*.png *.jpg *.jpeg *.gif *.mp4 *.webm"),
+                    ("Imágenes", "*.png *.jpg *.jpeg *.gif"),
+                    ("Videos", "*.mp4 *.webm"),
+                    ("Todos los archivos", "*.*")
+                ]
             )
-            if archivos:
-                ruta = archivos[0]
-                self.config_actual["fondo_animado"] = ruta
-                self._guardar()
-                return {"ok": True, "fondo": ruta}
-            return {"ok": True, "fondo": None}
+            _root.destroy()
+            if not path:
+                return {"ok": True, "fondo": None}
+            norm = path.replace("\\", "/")
+            ext = path.rsplit('.', 1)[-1].lower()
+            self.config_actual["fondo_animado"] = norm
+            self._guardar()
+            if ext in ('mp4', 'webm'):
+                return {"ok": True, "fondo": norm, "tipo": "video"}
+            with open(path, "rb") as f:
+                raw = f.read()
+            mime = {"png":"image/png","jpg":"image/jpeg","jpeg":"image/jpeg",
+                    "gif":"image/gif"}.get(ext, "image/png")
+            b64 = base64.b64encode(raw).decode()
+            return {"ok": True, "fondo": norm, "tipo": "imagen",
+                    "data_url": f"data:{mime};base64,{b64}"}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
@@ -2733,57 +2841,64 @@ class Api:
                     import subprocess as _sp
                     import ctypes, re as _re
 
+                    C_BG  = '#111111'
+                    C_WIN = '#000000'
+
                     root = tk.Tk()
                     root.overrideredirect(True)
                     root.attributes('-topmost', True)
-                    root.attributes('-alpha', 0.90)
-                    root.configure(bg='#0D0D0D')
+                    root.attributes('-alpha', 0.80)
+                    root.configure(bg=C_WIN)
+                    try:
+                        root.wm_attributes('-transparentcolor', C_WIN)
+                    except Exception:
+                        pass
                     sw = root.winfo_screenwidth()
-                    root.geometry(f'220x185+{sw - 230}+20')
+                    root.geometry(f'188x148+{sw - 198}+20')
 
                     def _drag_start(e): root._dx = e.x; root._dy = e.y
                     def _drag_move(e):
                         root.geometry(f'+{root.winfo_x()+e.x-root._dx}+{root.winfo_y()+e.y-root._dy}')
 
-                    outer = tk.Frame(root, bg='#0D0D0D', highlightbackground='#2ECC71',
+                    outer = tk.Frame(root, bg=C_BG, highlightbackground='#2ECC71',
                                      highlightthickness=1)
                     outer.pack(fill='both', expand=True)
                     outer.bind('<Button-1>', _drag_start)
                     outer.bind('<B1-Motion>', _drag_move)
 
-                    header = tk.Frame(outer, bg='#0D0D0D')
-                    header.pack(fill='x', padx=5, pady=(4, 2))
+                    header = tk.Frame(outer, bg=C_BG)
+                    header.pack(fill='x', padx=4, pady=(3, 1))
                     header.bind('<Button-1>', _drag_start)
                     header.bind('<B1-Motion>', _drag_move)
-                    tk.Label(header, text='Paraguacraft', bg='#0D0D0D', fg='#2ECC71',
-                             font=('Segoe UI', 8, 'bold')).pack(side='left')
-                    tk.Button(header, text='✕', bg='#0D0D0D', fg='#555',
-                              relief='flat', cursor='hand2', font=('Segoe UI', 8),
+                    tk.Label(header, text='Paraguacraft', bg=C_BG, fg='#2ECC71',
+                             font=('Segoe UI', 7, 'bold')).pack(side='left')
+                    tk.Button(header, text='✕', bg=C_BG, fg='#555',
+                              relief='flat', cursor='hand2', font=('Segoe UI', 7),
                               activebackground='#E74C3C', activeforeground='white',
                               command=root.destroy).pack(side='right')
 
                     _ROW_DEFS = [
-                        ('FPS',      '🎮', '#F1C40F'),
-                        ('CPU',      '🧠', '#2ECC71'),
-                        ('CPU°',     '🌡', '#E67E22'),
-                        ('GPU',      '🖥', '#3498DB'),
-                        ('GPU°',     '🌡', '#E74C3C'),
-                        ('RAM',      '💾', '#9B59B6'),
-                        ('VRAM',     '📦', '#1ABC9C'),
+                        ('FPS',   '#F1C40F'),
+                        ('CPU',   '#2ECC71'),
+                        ('CPU°',  '#E67E22'),
+                        ('GPU',   '#3498DB'),
+                        ('GPU°',  '#E74C3C'),
+                        ('RAM',   '#9B59B6'),
+                        ('VRAM',  '#1ABC9C'),
                     ]
                     _labels = {}
-                    for key, icon, color in _ROW_DEFS:
-                        fr = tk.Frame(outer, bg='#0D0D0D')
-                        fr.pack(fill='x', padx=7, pady=1)
+                    for key, color in _ROW_DEFS:
+                        fr = tk.Frame(outer, bg=C_BG)
+                        fr.pack(fill='x', padx=6, pady=0)
                         fr.bind('<Button-1>', _drag_start)
                         fr.bind('<B1-Motion>', _drag_move)
-                        lbl_key = tk.Label(fr, text=f'{icon} {key}', bg='#0D0D0D',
-                                           fg='#555555', font=('Consolas', 8), width=7, anchor='w')
+                        lbl_key = tk.Label(fr, text=key, bg=C_BG,
+                                           fg='#666666', font=('Consolas', 7), width=5, anchor='w')
                         lbl_key.pack(side='left')
                         lbl_key.bind('<Button-1>', _drag_start)
                         lbl_key.bind('<B1-Motion>', _drag_move)
-                        lbl_val = tk.Label(fr, text='—', bg='#0D0D0D', fg=color,
-                                           font=('Consolas', 8, 'bold'), anchor='w')
+                        lbl_val = tk.Label(fr, text='—', bg=C_BG, fg=color,
+                                           font=('Consolas', 7, 'bold'), anchor='w')
                         lbl_val.pack(side='left', fill='x', expand=True)
                         lbl_val.bind('<Button-1>', _drag_start)
                         lbl_val.bind('<B1-Motion>', _drag_move)
@@ -2927,15 +3042,15 @@ class Api:
 
                     def _update():
                         try:
-                            _set('FPS', _get_mc_fps())
+                            _set('FPS',  _get_mc_fps())
                             cpu = psutil.cpu_percent(interval=None)
                             cpu_color = '#2ECC71' if cpu < 70 else '#F39C12' if cpu < 90 else '#E74C3C'
-                            _set('CPU', f'{cpu:.0f}%', cpu_color)
+                            _set('CPU',  f'{cpu:.0f}%', cpu_color)
                             _set('CPU°', _cache['cpu_temp'])
-                            _set('GPU', _cache['gpu_pct'])
+                            _set('GPU',  _cache['gpu_pct'])
                             _set('GPU°', _cache['gpu_temp'])
                             vm = psutil.virtual_memory()
-                            _set('RAM', f'{vm.used/(1024**3):.1f}/{vm.total/(1024**3):.0f}GB')
+                            _set('RAM',  f'{vm.used/(1024**3):.1f}/{vm.total/(1024**3):.0f}GB')
                             _set('VRAM', _cache['vram'])
                             root.after(1000, _update)
                         except Exception:
@@ -3278,6 +3393,173 @@ class Api:
             kw = self.__class__._keystroke_window
             if kw:
                 kw.attributes('-alpha', alpha)
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── IA OVERLAY ────────────────────────────────────────────────────────
+    _ia_overlay_window = None
+
+    def abrir_ia_overlay(self):
+        try:
+            import tkinter as tk
+            from tkinter import scrolledtext
+            if self.__class__._ia_overlay_window is not None:
+                try:
+                    self.__class__._ia_overlay_window.destroy()
+                except Exception:
+                    pass
+                self.__class__._ia_overlay_window = None
+
+            def _run():
+                try:
+                    C_BG    = '#0E0E0E'
+                    C_PANEL = '#161616'
+                    C_BORD  = '#9B59B6'
+                    C_IN    = '#1A1A1A'
+                    C_BTN   = '#9B59B6'
+                    C_BTN_H = '#7D3C98'
+                    C_TEXT  = '#E0E0E0'
+                    C_HINT  = '#555555'
+                    C_USER  = '#2ECC71'
+                    C_AI    = '#9B59B6'
+
+                    root = tk.Tk()
+                    root.overrideredirect(True)
+                    root.attributes('-topmost', True)
+                    root.attributes('-alpha', 0.93)
+                    root.configure(bg=C_BG)
+                    sw = root.winfo_screenwidth()
+                    root.geometry(f'360x480+{sw - 375}+60')
+
+                    def _drag_start(e): root._dx = e.x; root._dy = e.y
+                    def _drag_move(e):
+                        root.geometry(f'+{root.winfo_x()+e.x-root._dx}+{root.winfo_y()+e.y-root._dy}')
+
+                    outer = tk.Frame(root, bg=C_BG, highlightbackground=C_BORD, highlightthickness=1)
+                    outer.pack(fill='both', expand=True)
+
+                    header = tk.Frame(outer, bg=C_PANEL)
+                    header.pack(fill='x')
+                    header.bind('<Button-1>', _drag_start)
+                    header.bind('<B1-Motion>', _drag_move)
+                    tk.Label(header, text='🤖 IA Gemini', bg=C_PANEL, fg=C_AI,
+                             font=('Segoe UI', 8, 'bold')).pack(side='left', padx=8, pady=5)
+                    tk.Label(header, text='F9 = ocultar/mostrar', bg=C_PANEL, fg=C_HINT,
+                             font=('Segoe UI', 7)).pack(side='left')
+                    tk.Button(header, text='✕', bg=C_PANEL, fg='#555', relief='flat',
+                              cursor='hand2', font=('Segoe UI', 8),
+                              activebackground='#E74C3C', activeforeground='white',
+                              command=root.destroy).pack(side='right', padx=4)
+
+                    chat = scrolledtext.ScrolledText(
+                        outer, bg=C_IN, fg=C_TEXT, font=('Segoe UI', 8),
+                        relief='flat', wrap='word', state='disabled',
+                        bd=0, insertbackground=C_TEXT, height=20)
+                    chat.pack(fill='both', expand=True, padx=6, pady=(4, 0))
+                    chat.tag_config('user', foreground=C_USER, font=('Segoe UI', 8, 'bold'))
+                    chat.tag_config('ai',   foreground=C_AI,   font=('Segoe UI', 8))
+                    chat.tag_config('err',  foreground='#E74C3C', font=('Segoe UI', 8))
+                    chat.tag_config('hint', foreground=C_HINT,  font=('Segoe UI', 7, 'italic'))
+
+                    def _append(tag, text):
+                        chat.config(state='normal')
+                        chat.insert('end', text + '\n', tag)
+                        chat.config(state='disabled')
+                        chat.see('end')
+
+                    _append('hint', 'Preguntale cualquier cosa sobre Minecraft.\n')
+
+                    bottom = tk.Frame(outer, bg=C_BG)
+                    bottom.pack(fill='x', padx=6, pady=6)
+
+                    inp = tk.Entry(bottom, bg=C_IN, fg=C_TEXT, insertbackground=C_TEXT,
+                                  relief='flat', font=('Segoe UI', 8), bd=0)
+                    inp.pack(side='left', fill='x', expand=True, ipady=5, padx=(0, 4))
+                    inp.configure(highlightbackground=C_BORD, highlightthickness=1)
+
+                    send_btn = tk.Button(bottom, text='Enviar', bg=C_BTN, fg='white',
+                                        relief='flat', font=('Segoe UI', 8, 'bold'),
+                                        cursor='hand2', padx=8,
+                                        activebackground=C_BTN_H, activeforeground='white')
+                    send_btn.pack(side='right', ipady=4)
+
+                    def _send(_event=None):
+                        msg = inp.get().strip()
+                        if not msg:
+                            return
+                        inp.delete(0, 'end')
+                        send_btn.config(state='disabled', text='...')
+                        _append('user', f'Vos: {msg}')
+
+                        def _ask():
+                            try:
+                                resp, err = self._gemini(
+                                    f"Sos un asistente experto en Minecraft. Respondé en español rioplatense, "
+                                    f"de forma concisa y directa. Máximo 4 oraciones.\n\nPregunta: {msg}",
+                                    max_tokens=350, temperature=0.5
+                                )
+                                root.after(0, lambda: _append('ai', f'IA: {resp.strip()}' if resp else f'Error: {err}'))
+                                root.after(0, lambda: (send_btn.config(state='normal', text='Enviar'),))
+                            except Exception as ex:
+                                root.after(0, lambda: _append('err', f'Error: {ex}'))
+                                root.after(0, lambda: send_btn.config(state='normal', text='Enviar'))
+
+                        threading.Thread(target=_ask, daemon=True).start()
+
+                    send_btn.config(command=_send)
+                    inp.bind('<Return>', _send)
+
+                    _hotkey_listener = [None]
+                    _visible = [True]
+
+                    def _toggle_window():
+                        if _visible[0]:
+                            root.withdraw()
+                            _visible[0] = False
+                        else:
+                            root.deiconify()
+                            root.attributes('-topmost', True)
+                            _visible[0] = True
+
+                    def _hotkey_thread():
+                        try:
+                            from pynput import keyboard as _kb
+                            def _on_press(key):
+                                try:
+                                    if key == _kb.Key.f9:
+                                        root.after(0, _toggle_window)
+                                except Exception:
+                                    pass
+                            with _kb.Listener(on_press=_on_press) as lst:
+                                _hotkey_listener[0] = lst
+                                lst.join()
+                        except Exception:
+                            pass
+
+                    threading.Thread(target=_hotkey_thread, daemon=True).start()
+
+                    self.__class__._ia_overlay_window = root
+                    root.mainloop()
+                except Exception:
+                    pass
+                finally:
+                    self.__class__._ia_overlay_window = None
+
+            threading.Thread(target=_run, daemon=True).start()
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def cerrar_ia_overlay(self):
+        try:
+            w = self.__class__._ia_overlay_window
+            if w:
+                try:
+                    w.destroy()
+                except Exception:
+                    pass
+                self.__class__._ia_overlay_window = None
             return {"ok": True}
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -3932,7 +4214,21 @@ class _LocalAPIHandler(BaseHTTPRequestHandler):
             try:
                 _sr = requests.get(f'https://minotar.net/skin/{name}', timeout=6)
                 if _sr.status_code == 200 and _sr.content:
-                    payload = _sr.content
+                    try:
+                        from PIL import Image as _PILImg
+                        from io import BytesIO as _BIO
+                        _img = _PILImg.open(_BIO(_sr.content)).convert('RGBA')
+                        _w, _h = _img.size
+                        _base_h = min(32, _h)
+                        _base = _img.crop((0, 0, _w, _base_h))
+                        _white = _PILImg.new('RGBA', (_w, _base_h), (255, 255, 255, 255))
+                        _white.alpha_composite(_base)
+                        _img.paste(_white, (0, 0))
+                        _buf = _BIO()
+                        _img.save(_buf, format='PNG')
+                        payload = _buf.getvalue()
+                    except Exception:
+                        payload = _sr.content
                     self.send_response(200)
                     self.send_header('Content-Type', 'image/png')
                     self.send_header('Access-Control-Allow-Origin', '*')
@@ -3942,6 +4238,74 @@ class _LocalAPIHandler(BaseHTTPRequestHandler):
                     self.wfile.write(payload)
                 else:
                     self.send_response(404); self.end_headers()
+            except Exception:
+                self.send_response(503); self.end_headers()
+
+        elif parsed.path == '/api/bg_file':
+            path = qs.get('path', [''])[0].strip()
+            try:
+                if not path or not os.path.isfile(path):
+                    self.send_response(404); self.end_headers(); return
+                ext = path.rsplit('.', 1)[-1].lower()
+                mime_map = {'mp4': 'video/mp4', 'webm': 'video/webm',
+                            'gif': 'image/gif', 'png': 'image/png',
+                            'jpg': 'image/jpeg', 'jpeg': 'image/jpeg'}
+                mime = mime_map.get(ext, 'application/octet-stream')
+                file_size = os.path.getsize(path)
+                range_hdr = self.headers.get('Range', '')
+                self.send_response(206 if range_hdr else 200)
+                self.send_header('Content-Type', mime)
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.send_header('Accept-Ranges', 'bytes')
+                self.send_header('Cache-Control', 'no-store')
+                if range_hdr and range_hdr.startswith('bytes='):
+                    parts = range_hdr[6:].split('-')
+                    start = int(parts[0]) if parts[0] else 0
+                    end = int(parts[1]) if parts[1] else file_size - 1
+                    length = end - start + 1
+                    self.send_header('Content-Range', f'bytes {start}-{end}/{file_size}')
+                    self.send_header('Content-Length', str(length))
+                    self.end_headers()
+                    with open(path, 'rb') as fv:
+                        fv.seek(start)
+                        self.wfile.write(fv.read(length))
+                else:
+                    self.send_header('Content-Length', str(file_size))
+                    self.end_headers()
+                    with open(path, 'rb') as fv:
+                        self.wfile.write(fv.read())
+            except Exception:
+                self.send_response(503); self.end_headers()
+
+        elif parsed.path == '/api/skin_local':
+            path = qs.get('path', [''])[0].strip()
+            try:
+                if not path or not os.path.isfile(path):
+                    self.send_response(404); self.end_headers(); return
+                from PIL import Image as _PILImg
+                from io import BytesIO as _BIO
+                with open(path, 'rb') as _f:
+                    _raw = _f.read()
+                try:
+                    _img = _PILImg.open(_BIO(_raw)).convert('RGBA')
+                    _w, _h = _img.size
+                    _base_h = min(32, _h)
+                    _base = _img.crop((0, 0, _w, _base_h))
+                    _white = _PILImg.new('RGBA', (_w, _base_h), (255, 255, 255, 255))
+                    _white.alpha_composite(_base)
+                    _img.paste(_white, (0, 0))
+                    _buf = _BIO()
+                    _img.save(_buf, format='PNG')
+                    payload = _buf.getvalue()
+                except Exception:
+                    payload = _raw
+                self.send_response(200)
+                self.send_header('Content-Type', 'image/png')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.send_header('Cache-Control', 'no-store')
+                self.send_header('Content-Length', str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
             except Exception:
                 self.send_response(503); self.end_headers()
 
