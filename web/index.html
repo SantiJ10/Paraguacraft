@@ -392,8 +392,8 @@
             </div>
 
             <div class="relative flex flex-col items-center justify-center overflow-hidden" style="min-height:calc(100vh - 175px)">
-                <div class="absolute inset-0 z-0">
-                    <img src="../assets/main_banner.png" class="w-full h-full object-cover opacity-20" onerror="this.style.display='none'">
+                <div class="absolute inset-0 z-0" id="inicio-hero-container">
+                    <img id="inicio-hero-bg" src="../assets/main_banner.png" class="w-full h-full object-cover opacity-20" onerror="this.style.display='none'">
                     <div class="absolute inset-0 bg-gradient-to-t from-[#121212] via-transparent to-[#121212]/60"></div>
                 </div>
 
@@ -700,6 +700,7 @@
             <div class="flex gap-3 mb-5 shrink-0">
                 <button onclick="skinTab('catalogo')" id="skin-tab-cat" class="px-5 py-2 rounded-lg font-bold text-sm bg-[#2ECC71] text-black transition">🎨 Catálogo</button>
                 <button onclick="skinTab('jugador')" id="skin-tab-jug" class="px-5 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🔍 Buscar jugador</button>
+                <button onclick="skinTab('importar')" id="skin-tab-imp" class="px-5 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">📁 Importar archivo</button>
             </div>
             <div id="skin-panel-catalogo" class="flex flex-col flex-1 min-h-0">
                 <div class="flex gap-3 mb-4 shrink-0">
@@ -716,11 +717,42 @@
                     <button onclick="skinCatPage(1)" id="skin-cat-next" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] px-4 py-2 rounded font-bold text-sm border border-[#333] transition">Siguiente →</button>
                 </div>
             </div>
+            <div id="skin-panel-importar" class="hidden flex-col flex-1">
+                <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-6 max-w-xl flex flex-col gap-5">
+                    <div>
+                        <h3 class="font-black text-lg mb-1">📁 Importar skin desde archivo</h3>
+                        <p class="text-xs text-gray-400">Elegí un PNG de 64×64 o 64×32 descargado desde <span class="text-[#2ECC71]">NameMC</span>, <span class="text-[#2ECC71]">The Skindex</span> u otro sitio.</p>
+                    </div>
+                    <div class="flex flex-col gap-3">
+                        <div class="flex gap-3 items-center">
+                            <div class="flex-1 bg-[#0A0A0A] border border-[#333] rounded px-4 py-2 text-sm text-gray-400 truncate" id="imp-skin-path-lbl">Ningún archivo seleccionado</div>
+                            <button onclick="seleccionarArchivoSkin()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] border border-[#333] text-white font-bold px-4 py-2 rounded transition text-sm shrink-0">📂 Elegir .png</button>
+                        </div>
+                        <div class="flex gap-3 items-center">
+                            <select id="imp-skin-variante" class="bg-[#121212] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none">
+                                <option value="classic">Steve (Classic)</option>
+                                <option value="slim">Alex (Slim)</option>
+                            </select>
+                            <button onclick="aplicarSkinImportada()" id="btn-imp-aplicar" disabled class="flex-1 bg-[#3498DB] hover:bg-[#2980B9] disabled:bg-[#2A2A2A] disabled:text-gray-600 text-white font-black py-2 rounded transition text-sm">⬆ Aplicar skin</button>
+                        </div>
+                        <p id="imp-skin-msg" class="text-xs text-gray-400 min-h-[1rem]"></p>
+                    </div>
+                    <div id="imp-skin-preview-wrap" class="hidden flex-col items-center gap-3">
+                        <canvas id="imp-skin-canvas" width="160" height="290" class="rounded-lg" style="background:linear-gradient(135deg,#0a0a0a,#1a1a1a)"></canvas>
+                        <p class="text-xs text-gray-500">Vista previa</p>
+                    </div>
+                </div>
+            </div>
             <div id="skin-panel-jugador" class="hidden flex-col flex-1">
-                <div class="flex gap-4 mb-5 bg-[#181818] p-4 rounded-lg border border-[#2A2A2A] max-w-2xl">
-                    <input type="text" id="buscador-skin" placeholder="Ej: SantiJ10" onkeypress="if(event.key==='Enter') actualizarVistaSkin()" class="bg-[#121212] border border-[#333] text-white px-4 py-2 rounded outline-none focus:border-[#2ECC71] flex-1">
-                    <button onclick="actualizarVistaSkin()" class="bg-[#2ECC71] text-black hover:bg-[#27AE60] px-6 py-2 rounded font-bold transition">Ver Skin 3D</button>
-                    <button onclick="aplicarSkinDesdeNombre(document.getElementById('buscador-skin').value||'Steve')" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold px-4 py-2 rounded transition border border-[#333] text-sm">⬇ Aplicar</button>
+                <div class="flex flex-wrap gap-3 mb-5 bg-[#181818] p-4 rounded-lg border border-[#2A2A2A] max-w-2xl items-center">
+                    <input type="text" id="buscador-skin" placeholder="Ej: SantiJ10" onkeypress="if(event.key==='Enter') actualizarVistaSkin()" class="bg-[#121212] border border-[#333] text-white px-4 py-2 rounded outline-none focus:border-[#2ECC71] flex-1 min-w-0">
+                    <button onclick="actualizarVistaSkin()" class="bg-[#2ECC71] text-black hover:bg-[#27AE60] px-6 py-2 rounded font-bold transition shrink-0">Ver Skin 3D</button>
+                    <select id="skin-variante-sel" class="bg-[#121212] border border-[#333] text-white px-2 py-2 rounded text-sm outline-none shrink-0">
+                        <option value="classic">Steve (Classic)</option>
+                        <option value="slim">Alex (Slim)</option>
+                    </select>
+                    <button onclick="aplicarSkinDesdeNombre(document.getElementById('buscador-skin').value||'Steve')" class="bg-[#3498DB] hover:bg-[#2980B9] text-white font-bold px-4 py-2 rounded transition border border-[#2980B9] text-sm shrink-0">⬇ Aplicar</button>
+                    <span id="skin-aplicar-msg" class="text-xs text-gray-400 w-full"></span>
                 </div>
                 <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-6 flex gap-8 items-start flex-1 min-h-0">
                     <div class="flex flex-col items-center gap-3 shrink-0">
@@ -1364,6 +1396,7 @@
                         </div>
                         <button onclick="abrirOverlay()" class="bg-[#3498DB] hover:bg-[#2980B9] text-white font-black py-2.5 rounded transition">🖥️ Abrir Overlay</button>
                         <button onclick="abrirKeystrokeOverlay()" class="bg-[#9B59B6] hover:bg-[#7D3C98] text-white font-black py-2.5 rounded transition">⌨️ Overlay de Teclas</button>
+                        <button onclick="abrirIAOverlay()" id="btn-ia-overlay" class="bg-[#27AE60] hover:bg-[#1E8449] text-white font-black py-2.5 rounded transition">🤖 IA Gemini Overlay</button>
                         <div class="bg-[#0A0A0A] rounded-lg p-3 border border-[#2A2A2A]">
                             <p class="text-xs font-bold text-gray-400 mb-2">Elementos visibles</p>
                             <div class="grid grid-cols-2 gap-y-2 gap-x-3">
@@ -1698,7 +1731,8 @@
             "1.12": { desc: "World of Color." },
             "1.8": { desc: "PvP clásico." },
             "1.7": { desc: "The Update that Changed the World." },
-            "otras": { desc: "Todas las demás versiones release (vanilla 1.0 …) que no están en los packs Paragua." }
+            "otras": { desc: "Todas las demás versiones release (vanilla 1.0 …) que no están en los packs Paragua." },
+            "instaladas": { desc: "Versiones que ya tenés instaladas en tu .minecraft con su loader detectado.", subs: [], _instData: [] }
         };
 
         let telemetryInterval = null;
@@ -1719,6 +1753,7 @@
             _pywebviewInitRan = true;
             _habilitarLoginBtns();
             for (const mayor in dataVersionesBase) {
+                if (mayor === "instaladas") continue;
                 dataVersionesBase[mayor].subs = mayor === "otras" ? [] : [mayor];
             }
             let _subsPopulated = false;
@@ -1755,6 +1790,25 @@
 
             dibujarGrillaVersiones();
             wireGestorModalOnce();
+
+            try {
+                const inst = await pywebview.api.get_versiones_instaladas();
+                if (inst && inst.ok) {
+                    if (inst.instaladas && inst.instaladas.length > 0) {
+                        dataVersionesBase["instaladas"].subs = inst.instaladas.map(i => i.version);
+                        dataVersionesBase["instaladas"]._instData = inst.instaladas;
+                        dibujarGrillaVersiones();
+                    }
+                    if (inst.extras && inst.extras.length > 0) {
+                        window._extraLoaders = window._extraLoaders || {};
+                        inst.extras.forEach(i => {
+                            if (!window._extraLoaders[i.version]) window._extraLoaders[i.version] = [];
+                            if (!window._extraLoaders[i.version].includes(i.motor))
+                                window._extraLoaders[i.version].push(i.motor);
+                        });
+                    }
+                }
+            } catch(e) { console.error('get_versiones_instaladas:', e); }
 
             try {
                 const userResp = await fetch(`http://127.0.0.1:${window._API_PORT}/api/get_usuario`);
@@ -1875,8 +1929,28 @@
             if (!grid) return;
             grid.innerHTML = "";
             for (const [vM, d] of Object.entries(dataVersionesBase)) {
+                if (vM === 'instaladas') {
+                    if (!d._instData || d._instData.length === 0) continue;
+                    const badges = d._instData.slice(0, 4).map(i =>
+                        `<span class="text-[10px] font-bold bg-[#2ECC71]/20 text-[#2ECC71] px-1.5 py-0.5 rounded">${i.version} · ${i.motor}</span>`
+                    ).join('');
+                    const extra = d._instData.length > 4 ? `<span class="text-[10px] text-gray-400">+${d._instData.length - 4} más</span>` : '';
+                    grid.innerHTML += `
+                    <div onclick="seleccionarVersion('instaladas')" class="lunar-card relative h-[180px] rounded-xl overflow-hidden cursor-pointer bg-[#1A1A1A] group col-span-1">
+                        <img src="assets/Otra_Version.png" class="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:scale-105 transition duration-500" onerror="this.style.display='none'">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent"></div>
+                        <div class="absolute inset-0 p-4 flex flex-col justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="text-lg">💾</span>
+                                <h3 class="text-xl font-black drop-shadow-md text-[#2ECC71] leading-tight">INSTALADAS</h3>
+                            </div>
+                            <div class="flex flex-wrap gap-1">${badges}${extra}</div>
+                        </div>
+                    </div>`;
+                    continue;
+                }
                 const imgF = vM === 'otras' ? 'Otra_Version' : vM.replace(/\./g, '_');
-                const tituloTarjeta = vM === 'otras' ? 'OTRAS VERSIONES' : ('PARAGUA ' + vM);
+                const tituloTarjeta = vM === 'otras' ? 'OTRAS VERSIONES' : ('Paraguacraft ' + vM);
                 const _vp = vM.split('.');
                 const _showLogo = vM === '26.1' || (vM !== 'otras' && parseInt(_vp[0]) === 1 && parseInt(_vp[1] || 0) >= 16);
                 const _logoHtml = _showLogo ? `<img src="assets/paraguacraft_logo.png" class="absolute bottom-2 right-2 h-8 opacity-90 drop-shadow-lg" onerror="this.style.display='none'" alt="">` : '';
@@ -1893,15 +1967,23 @@
         function _getLoadersForVersion(v) {
             v = (v || '').trim();
             if (!v) return ['Vanilla'];
-            if (v.startsWith('26')) return ['Vanilla', 'Fabric', 'Fabric + Iris'];
             const parts = v.split('.');
             const major = parseInt(parts[0]);
             const minor = (parts.length > 1 && /^\d+$/.test(parts[1])) ? parseInt(parts[1]) : 0;
-            const out = ['Vanilla'];
-            if (major !== 1) return out;
-            if (minor === 7 || minor === 8 || minor === 12 || (minor >= 16 && minor <= 20)) out.push('OptiFine');
-            if (minor === 8 || minor === 12) out.push('Forge');
-            if (minor >= 16 && minor <= 21) { out.push('Fabric'); out.push('Fabric + Iris'); }
+            let out;
+            if (v.startsWith('26')) {
+                out = ['Vanilla', 'Fabric', 'Fabric + Iris'];
+            } else if (major !== 1) {
+                out = ['Vanilla'];
+            } else {
+                out = ['Vanilla'];
+                if (minor === 7 || minor === 8 || minor === 12 || (minor >= 16 && minor <= 20)) out.push('OptiFine');
+                if (minor === 8 || minor === 12) out.push('Forge');
+                if (minor >= 16 && minor <= 21) { out.push('Fabric'); out.push('Fabric + Iris'); }
+            }
+            if (window._extraLoaders && window._extraLoaders[v]) {
+                window._extraLoaders[v].forEach(l => { if (!out.includes(l)) out.push(l); });
+            }
             return out;
         }
 
@@ -1912,17 +1994,22 @@
             const loaders = _getLoadersForVersion(sV.value);
             sL.innerHTML = '';
             loaders.forEach(l => { sL.innerHTML += `<option value="${l}">${l}</option>`; });
+            const selOpt = sV.options[sV.selectedIndex];
+            if (selOpt && selOpt.dataset.motor) {
+                const dm = selOpt.dataset.motor;
+                if (sL.querySelector(`option[value="${dm}"]`)) sL.value = dm;
+            }
         }
 
         function seleccionarVersion(vM) {
             const d = dataVersionesBase[vM];
-            const etiqueta = vM === 'otras' ? 'Otras versiones' : ('Paraguacraft ' + vM);
+            const etiqueta = vM === 'otras' ? 'Otras versiones' : vM === 'instaladas' ? 'Versiones Instaladas' : ('Paraguacraft ' + vM);
             document.getElementById('panel-title').innerText = etiqueta;
             document.getElementById('panel-desc').innerText = d.desc;
 
             const panelImg = document.getElementById('panel-img');
             if (panelImg) {
-                const imgF = vM === 'otras' ? 'Otra_Version' : vM.replace(/\./g, '_');
+                const imgF = (vM === 'otras' || vM === 'instaladas') ? 'Otra_Version' : vM.replace(/\./g, '_');
                 panelImg.src = `assets/${imgF}.png`;
                 panelImg.classList.remove('hidden');
             }
@@ -1930,7 +2017,17 @@
             const sV = document.getElementById('panel-version-sel');
             if (sV) {
                 sV.innerHTML = "";
-                (d.subs || []).forEach(s => { sV.innerHTML += `<option value="${s}">${s}</option>`; });
+                if (vM === 'instaladas') {
+                    (d._instData || []).forEach(i => {
+                        const opt = document.createElement('option');
+                        opt.value = i.version;
+                        opt.text = `${i.version}  ·  ${i.motor}`;
+                        opt.dataset.motor = i.motor;
+                        sV.appendChild(opt);
+                    });
+                } else {
+                    (d.subs || []).forEach(s => { sV.innerHTML += `<option value="${s}">${s}</option>`; });
+                }
                 sV.onchange = actualizarLoadersParaVersion;
             }
             actualizarLoadersParaVersion();
@@ -2840,7 +2937,18 @@
             'HBomb94','Eret','Fundy','Nihachu','Karl_Jacobs','Antfrost',
             'Purpled','Slimecicle','Sneegsnag','ConnorEatsPants','Hannahxxrose',
             'xIsuma','GoodTimesWithScar','Grian','Mumbo','Rendog',
-            'Etho','BdoubleO100','Tango','ZombieCleo','PearlescentMoon'
+            'Etho','BdoubleO100','Tango','ZombieCleo','PearlescentMoon',
+            'Iskall85','Hypnotizd','Cubfan135','FalseSymmetry','Impulsesv',
+            'Keralis','SmallishBeans','VintageBeef','xBCrafted','Jessassin',
+            'CaptainSparklez','Syndicate','Stampylonghead','DanTDM','LDShadowLady',
+            'iBallisticSquid','PopbobMC','jschlatt','Foolish_Gamers','Awesamdude',
+            'CinnamonToastKen','Skydoesminecraft','AntVenom','SkyDoeMC','Paulsoaresjr',
+            'Sethbling','Docm77','JoeHills','Biffa2001','GeminiTay',
+            'PrincessGentlefire','Stressmonster101','TinFoilChef','Welsknight','xXSlyFoxHoundXx',
+            'TheCampingRusher','ProtoSky','Minx','Vikk','Lachlan',
+            'Woofless','Bodil40','BajanCanadian','JeromeASF','PrestonPlayz',
+            'Logdotzip','UnspeakableGaming','iBallistic','WildX','Aureylian',
+            'Grapeapplesauce','Guude','Pyropuncher','KurtJMac','Mhykol'
         ];
 
         async function buscarCatalogoSkins(randomPage) {
@@ -2885,22 +2993,92 @@
             buscarCatalogoSkins();
         }
 
+        let _impSkinPath = null;
+
         function skinTab(cual) {
-            const cat = document.getElementById('skin-panel-catalogo');
-            const jug = document.getElementById('skin-panel-jugador');
-            const tCat = document.getElementById('skin-tab-cat');
-            const tJug = document.getElementById('skin-tab-jug');
-            if (cual === 'catalogo') {
-                cat.style.display = 'flex'; cat.style.flexDirection = 'column';
-                jug.style.display = 'none';
-                tCat.className = 'px-5 py-2 rounded-lg font-bold text-sm bg-[#2ECC71] text-black transition';
-                tJug.className = 'px-5 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition';
-            } else {
-                cat.style.display = 'none';
-                jug.style.display = 'flex'; jug.style.flexDirection = 'column';
-                tJug.className = 'px-5 py-2 rounded-lg font-bold text-sm bg-[#2ECC71] text-black transition';
-                tCat.className = 'px-5 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition';
-            }
+            const panels = { catalogo: 'skin-panel-catalogo', jugador: 'skin-panel-jugador', importar: 'skin-panel-importar' };
+            const tabs   = { catalogo: 'skin-tab-cat',       jugador: 'skin-tab-jug',      importar: 'skin-tab-imp' };
+            const activeBase = 'px-5 py-2 rounded-lg font-bold text-sm transition';
+            Object.keys(panels).forEach(k => {
+                const p = document.getElementById(panels[k]);
+                const t = document.getElementById(tabs[k]);
+                if (p) { p.style.display = k === cual ? 'flex' : 'none'; if (k === cual) p.style.flexDirection = 'column'; }
+                if (t) t.className = activeBase + (k === cual ? ' bg-[#2ECC71] text-black' : ' bg-[#2A2A2A] text-white hover:bg-[#3A3A3A]');
+            });
+        }
+
+        async function seleccionarArchivoSkin() {
+            const msg = document.getElementById('imp-skin-msg');
+            const lbl = document.getElementById('imp-skin-path-lbl');
+            const btn = document.getElementById('btn-imp-aplicar');
+            try {
+                const r = await pywebview.api.seleccionar_skin_local();
+                if (!r || r.cancelled) return;
+                if (!r.ok) { if (msg) msg.textContent = '❌ ' + r.error; return; }
+                _impSkinPath = r.path;
+                if (lbl) lbl.textContent = r.path.split('/').pop();
+                if (btn) btn.disabled = false;
+                if (msg) msg.textContent = '';
+                const previewUrl = r.data_url;
+                const wrap = document.getElementById('imp-skin-preview-wrap');
+                const canvas = document.getElementById('imp-skin-canvas');
+                if (wrap && canvas && previewUrl) {
+                    wrap.style.display = 'flex';
+                    setTimeout(() => {
+                        if (typeof skinview3d !== 'undefined') {
+                            try {
+                                if (window._impViewer) { try { window._impViewer.dispose(); } catch(e){} window._impViewer = null; }
+                                window._impViewer = new skinview3d.SkinViewer({ canvas, width: 160, height: 290, skin: previewUrl });
+                                window._impViewer.autoRotate = true;
+                                window._impViewer.autoRotateSpeed = 1;
+                            } catch(e) {
+                                const ctx = canvas.getContext('2d');
+                                const img = new Image();
+                                img.onload = () => { ctx.clearRect(0,0,160,290); ctx.drawImage(img,0,0,160,290); };
+                                img.src = previewUrl;
+                            }
+                        } else {
+                            const ctx = canvas.getContext('2d');
+                            const img = new Image();
+                            img.onload = () => { ctx.clearRect(0,0,160,290); ctx.drawImage(img,0,0,160,290); };
+                            img.src = previewUrl;
+                        }
+                    }, 80);
+                }
+            } catch(e) { if (msg) msg.textContent = '❌ ' + e; }
+        }
+
+        async function aplicarSkinImportada() {
+            if (!_impSkinPath) return;
+            const msg = document.getElementById('imp-skin-msg');
+            const btn = document.getElementById('btn-imp-aplicar');
+            const variante = document.getElementById('imp-skin-variante')?.value || 'classic';
+            if (msg) msg.textContent = '⬆️ Subiendo skin...';
+            if (btn) btn.disabled = true;
+            try {
+                const user = await pywebview.api.get_usuario();
+                if (user && user.premium) {
+                    const r = await pywebview.api.subir_skin_premium(_impSkinPath, variante);
+                    if (msg) {
+                        if (r.ok) {
+                            msg.textContent = '✅ Skin subida a Mojang. ¡Reiniciá el juego para verla!';
+                            msg.className = 'text-xs text-[#2ECC71] min-h-[1rem]';
+                        } else if (r.error && r.error.includes('401')) {
+                            msg.textContent = '⚠️ Token expirado. Desconectá y volvé a conectar tu cuenta Premium.';
+                            msg.className = 'text-xs text-[#F39C12] min-h-[1rem]';
+                        } else {
+                            msg.textContent = '❌ ' + (r.error || 'Error desconocido');
+                            msg.className = 'text-xs text-[#E74C3C] min-h-[1rem]';
+                        }
+                    }
+                } else {
+                    if (msg) {
+                        msg.textContent = '⚠️ Solo cuentas Premium pueden subir skins a Mojang. El archivo está guardado en: ' + _impSkinPath;
+                        msg.className = 'text-xs text-[#F39C12] min-h-[1rem]';
+                    }
+                }
+            } catch(e) { if (msg) { msg.textContent = '❌ ' + e; msg.className = 'text-xs text-[#E74C3C] min-h-[1rem]'; } }
+            if (btn) btn.disabled = false;
         }
 
         // ══ 3D SKIN VIEWER ════════════════════════════════════════════════
@@ -2996,10 +3174,25 @@
 
         async function aplicarSkinDesdeNombre(nombre) {
             const url = `https://minotar.net/skin/${nombre}`;
+            const msg = document.getElementById('skin-aplicar-msg');
+            if (msg) msg.textContent = '⏳ Descargando skin...';
             try {
                 const r = await pywebview.api.guardar_skin(url, nombre);
                 if (r && r.ok === false) throw new Error(r.error || 'Error');
-                alert('✅ Skin de ' + nombre + ' descargada y guardada.');
+                if (msg) msg.textContent = '✅ Skin guardada.';
+                const user = await pywebview.api.get_usuario();
+                if (user && user.premium && r.path) {
+                    if (msg) msg.textContent = '⬆️ Subiendo skin a Mojang...';
+                    const variante = document.getElementById('skin-variante-sel')?.value || 'classic';
+                    const ru = await pywebview.api.subir_skin_premium(r.path, variante);
+                    if (msg) msg.textContent = ru.ok
+                        ? '✅ Skin subida a Mojang. ¡Abrí el juego para verla!'
+                        : '⚠️ Guardada localmente. Error al subir: ' + (ru.error || '');
+                } else if (msg) {
+                    msg.textContent = '✅ Skin guardada en ~/Paraguacraft_Skins/' + nombre + '.png';
+                }
+                document.getElementById('buscador-skin').value = nombre;
+                actualizarVistaSkin();
             } catch(e) {
                 alert('No se pudo aplicar la skin de ' + nombre + ': ' + String(e));
             }
@@ -3221,6 +3414,17 @@
             try { await pywebview.api.set_overlay_opacity(parseInt(val)); } catch(e) {}
         }
 
+        async function abrirIAOverlay() {
+            const msg = document.getElementById('overlay-msg');
+            const btn = document.getElementById('btn-ia-overlay');
+            if (msg) msg.textContent = 'Abriendo IA Overlay...';
+            try {
+                const r = await pywebview.api.abrir_ia_overlay();
+                if (msg) msg.textContent = r.ok ? '✅ IA Overlay abierto — usá F9 para ocultar/mostrar' : '❌ ' + r.error;
+                if (btn && r.ok) btn.textContent = '🤖 IA Overlay (activo)';
+            } catch(e) { if (msg) msg.textContent = '❌ ' + e; }
+        }
+
         // ══ SMART RAM ════════════════════════════════════════════════════
         let _smartRamRecomendada = 4;
         async function calcularSmartRAM() {
@@ -3345,7 +3549,7 @@
             res.textContent = 'Consultando IA...';
             try {
                 const r = await pywebview.api.gemini_generar_semilla(desc);
-                res.textContent = r.ok ? r.semillas : ('Error: ' + r.error);
+                res.textContent = r.ok ? r.respuesta : ('Error: ' + r.error);
             } catch(e) { res.textContent = 'Error: ' + e; }
             finally { btn.disabled = false; btn.textContent = '🌱 Generar'; }
         }
@@ -3940,40 +4144,51 @@
         // ══ FONDO ANIMADO ════════════════════════════════════════════════
         async function elegirFondo() {
             const r = await pywebview.api.elegir_fondo_animado();
-            if (r.ok && r.fondo) aplicarFondo(r.fondo);
+            if (!r || !r.ok) { alert('Error: ' + (r && r.error || 'desconocido')); return; }
+            if (!r.fondo) return;
+            const port = window._API_PORT || 9875;
+            if (r.tipo === 'video') {
+                const videoUrl = `http://127.0.0.1:${port}/api/bg_file?path=${encodeURIComponent(r.fondo)}`;
+                aplicarFondo(r.fondo, videoUrl, 'video', null);
+            } else {
+                aplicarFondo(r.fondo, r.data_url, 'imagen', r.data_url);
+            }
         }
 
         async function quitarFondo() {
             await pywebview.api.eliminar_fondo_animado();
-            aplicarFondo('');
+            aplicarFondo('', null, null, null);
         }
 
-        function aplicarFondo(ruta) {
-            const body = document.body;
-            const existing = document.getElementById('bg-video-el');
-            if (existing) existing.remove();
+        function aplicarFondo(ruta, srcUrl, tipo, previewUrl) {
             const prev = document.getElementById('fondo-preview');
+            const heroBg = document.getElementById('inicio-hero-bg');
+            const heroContainer = document.getElementById('inicio-hero-container');
+            const existingVid = document.getElementById('hero-video-el');
+            if (existingVid) existingVid.remove();
             if (!ruta) {
-                body.style.backgroundImage = '';
+                if (heroBg) { heroBg.src = '../assets/main_banner.png'; heroBg.style.display = ''; heroBg.className = 'w-full h-full object-cover opacity-20'; }
                 if (prev) prev.innerHTML = '<span class="text-gray-600 text-sm">Sin fondo personalizado</span>';
                 return;
             }
             const ext = ruta.split('.').pop().toLowerCase();
-            if (['mp4','webm'].includes(ext)) {
-                const vid = document.createElement('video');
-                vid.id = 'bg-video-el';
-                vid.src = ruta; vid.autoplay = true; vid.loop = true; vid.muted = true;
-                vid.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:-1;opacity:0.15;pointer-events:none';
-                document.body.prepend(vid);
-                if (prev) prev.innerHTML = `<video src="${ruta}" muted loop autoplay class="w-full h-full object-cover rounded-lg"></video>`;
+            const isVideo = tipo ? tipo === 'video' : ['mp4','webm'].includes(ext);
+            const port = window._API_PORT || 9875;
+            if (isVideo) {
+                const vsrc = srcUrl || `http://127.0.0.1:${port}/api/bg_file?path=${encodeURIComponent(ruta)}`;
+                if (heroBg) heroBg.style.display = 'none';
+                if (heroContainer) {
+                    const vid = document.createElement('video');
+                    vid.id = 'hero-video-el';
+                    vid.src = vsrc; vid.autoplay = true; vid.loop = true; vid.muted = true; vid.playsInline = true;
+                    vid.className = 'absolute inset-0 w-full h-full object-cover opacity-40';
+                    heroContainer.prepend(vid);
+                }
+                if (prev) prev.innerHTML = `<video src="${vsrc}" muted loop autoplay class="w-full h-full object-cover rounded-lg"></video>`;
             } else {
-                body.style.backgroundImage = `url('${ruta.replace(/\\/g,"/")}')`;
-                body.style.backgroundSize = 'cover';
-                body.style.backgroundAttachment = 'fixed';
-                body.style.backgroundPosition = 'center';
-                if (prev) prev.innerHTML = `<img src="${ruta.replace(/\\/g,"/")}" class="w-full h-full object-cover rounded-lg">`;
-                const overlay = document.getElementById('bg-overlay');
-                if (overlay) overlay.style.opacity = '0.85';
+                const imgSrc = previewUrl || srcUrl || `http://127.0.0.1:${port}/api/bg_file?path=${encodeURIComponent(ruta)}`;
+                if (heroBg) { heroBg.src = imgSrc; heroBg.style.display = ''; heroBg.className = 'w-full h-full object-cover opacity-40'; }
+                if (prev) prev.innerHTML = `<img src="${imgSrc}" class="w-full h-full object-cover rounded-lg">`;
             }
         }
 
@@ -4382,7 +4597,13 @@
         async function initExtras() {
             try {
                 const f = await pywebview.api.get_fondo_actual();
-                if (f.ok && f.fondo) aplicarFondo(f.fondo);
+                if (f.ok && f.fondo) {
+                    const _port = window._API_PORT || 9875;
+                    const _fext = f.fondo.split('.').pop().toLowerCase();
+                    const _src = `http://127.0.0.1:${_port}/api/bg_file?path=${encodeURIComponent(f.fondo)}`;
+                    const _tipo = ['mp4','webm'].includes(_fext) ? 'video' : 'imagen';
+                    aplicarFondo(f.fondo, _src, _tipo, _tipo === 'imagen' ? _src : null);
+                }
             } catch(e) {}
             // Pre-fill Spotify credentials from config
             try {

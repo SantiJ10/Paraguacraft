@@ -404,6 +404,93 @@ def instalar_mods_por_motor(game_dir, version, motor_elegido, progress_callback,
             _descargar_mods_fabric_slugs(mods_dir, version, ["e4mc"], progress_callback, headers)
         return
 
+def _java_exe_para_mc(minecraft_directory):
+    """Devuelve la ruta al ejecutable Java del runtime bundled de Minecraft, o 'java' como fallback."""
+    java_name = "java.exe" if platform.system() == "Windows" else "java"
+    runtime_root = os.path.join(minecraft_directory, "runtime")
+    if os.path.isdir(runtime_root):
+        plat_key = "windows" if platform.system() == "Windows" else ("mac-os" if platform.system() == "Darwin" else "linux")
+        for entry in sorted(os.listdir(runtime_root), reverse=True):
+            if not entry.startswith("java"):
+                continue
+            bin_path = os.path.join(runtime_root, entry, plat_key, entry, "bin", java_name)
+            if os.path.exists(bin_path):
+                return bin_path
+    return "java"
+
+def _instalar_optifine(version_base, minecraft_directory, progress_callback):
+    """Descarga e instala OptiFine para version_base. Devuelve el version ID instalado o None."""
+    import urllib.request as _ur
+    import json as _json
+    import tempfile
+    versions_dir = os.path.join(minecraft_directory, "versions")
+
+    if progress_callback: progress_callback(f"Descargando Minecraft {version_base} (base para OptiFine)...")
+    try:
+        minecraft_launcher_lib.install.install_minecraft_version(
+            version_base, minecraft_directory,
+            callback={"setStatus": lambda e: (progress_callback(e) if progress_callback else None)})
+    except Exception as e:
+        if progress_callback: progress_callback(f"Error instalando base vanilla: {e}")
+        return None
+
+    if progress_callback: progress_callback(f"Buscando OptiFine para {version_base}...")
+    try:
+        req = _ur.Request(
+            f"https://bmclapi2.bangbang93.com/optifine/{version_base}",
+            headers={"User-Agent": "ParaguacraftLauncher/2.7"})
+        with _ur.urlopen(req, timeout=12) as resp:
+            builds = _json.loads(resp.read())
+    except Exception as e:
+        if progress_callback: progress_callback(f"No se pudo obtener lista de OptiFine: {e}")
+        return None
+
+    if not builds:
+        if progress_callback: progress_callback(f"Sin OptiFine disponible para {version_base}")
+        return None
+
+    build = builds[0]
+    of_type  = build.get("type",  "HD_U")
+    of_patch = build.get("patch", "")
+    of_filename = build.get("filename", f"OptiFine_{version_base}_{of_type}_{of_patch}.jar")
+    dl_url = f"https://bmclapi2.bangbang93.com/optifine/{version_base}/{of_type}/{of_patch}"
+
+    if progress_callback: progress_callback(f"Descargando {of_filename}...")
+    tmpdir = tempfile.mkdtemp(prefix="paraguacraft_of_")
+    of_jar = os.path.join(tmpdir, of_filename)
+    try:
+        req = _ur.Request(dl_url, headers={"User-Agent": "ParaguacraftLauncher/2.7"})
+        with _ur.urlopen(req, timeout=90) as resp, open(of_jar, "wb") as f:
+            shutil.copyfileobj(resp, f)
+    except Exception as e:
+        if progress_callback: progress_callback(f"Error descargando OptiFine: {e}")
+        try: shutil.rmtree(tmpdir)
+        except Exception: pass
+        return None
+
+    if progress_callback: progress_callback("Instalando OptiFine...")
+    java_exe = _java_exe_para_mc(minecraft_directory)
+    try:
+        _flags = subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0
+        subprocess.run(
+            [java_exe, "-cp", of_jar, "optifine.Installer", minecraft_directory],
+            capture_output=True, timeout=120, creationflags=_flags)
+    except Exception as e:
+        if progress_callback: progress_callback(f"Error ejecutando instalador OptiFine: {e}")
+    finally:
+        try: shutil.rmtree(tmpdir)
+        except Exception: pass
+
+    if os.path.isdir(versions_dir):
+        for v in sorted(os.listdir(versions_dir), reverse=True):
+            if version_base in v and "OptiFine" in v:
+                if os.path.exists(os.path.join(versions_dir, v, v + ".json")):
+                    if progress_callback: progress_callback(f"OptiFine instalado: {v}")
+                    return v
+
+    if progress_callback: progress_callback("OptiFine no pudo instalarse correctamente.")
+    return None
+
 def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type="G1GC", optimizar=False, motor_elegido="Vanilla", papa_mode=False, usar_mesa=False, mostrar_consola=False, progress_callback=None, uuid_real=None, token_real=None, lan_distancia=False, fabric_loader_override=None, server_ip=""):
     minecraft_directory = minecraft_launcher_lib.utils.get_minecraft_directory()
     
@@ -412,12 +499,14 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
 
     version_base = version.strip()
     
-    # 1. Determinamos el Loader base (Fabric, Forge o Vanilla) leyendo el nombre del motor
+    # 1. Determinamos el Loader base (Fabric, Forge, OptiFine o Vanilla) leyendo el nombre del motor
     motor_lower = motor_elegido.lower()
     if "fabric" in motor_lower:
         tipo_cliente_base = "Fabric"
     elif "forge" in motor_lower:
         tipo_cliente_base = "Forge"
+    elif "optifine" in motor_lower:
+        tipo_cliente_base = "OptiFine"
     else:
         tipo_cliente_base = "Vanilla"
 
@@ -425,22 +514,37 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
 
     # --- BYPASS DE ARRANQUE RÁPIDO ---
     version_instalada = False
+    _versions_dir = os.path.join(minecraft_directory, "versions")
+    _versiones_locales = os.listdir(_versions_dir) if os.path.exists(_versions_dir) else []
     if tipo_cliente_base == "Fabric":
-        versiones_locales = os.listdir(os.path.join(minecraft_directory, "versions")) if os.path.exists(os.path.join(minecraft_directory, "versions")) else []
-        for v in versiones_locales:
+        for v in _versiones_locales:
             if v.startswith("fabric-loader-") and version_base in v:
-                _fjson = os.path.join(minecraft_directory, "versions", v, v + ".json")
+                _fjson = os.path.join(_versions_dir, v, v + ".json")
                 if os.path.exists(_fjson):
                     version_a_lanzar = v
                     version_instalada = True
                     break
                 else:
                     try:
-                        shutil.rmtree(os.path.join(minecraft_directory, "versions", v))
+                        shutil.rmtree(os.path.join(_versions_dir, v))
                     except Exception:
                         pass
+    elif tipo_cliente_base == "OptiFine":
+        for v in sorted(_versiones_locales, reverse=True):
+            if version_base in v and "OptiFine" in v:
+                if os.path.exists(os.path.join(_versions_dir, v, v + ".json")):
+                    version_a_lanzar = v
+                    version_instalada = True
+                    break
+    elif tipo_cliente_base == "Forge":
+        for v in sorted(_versiones_locales, reverse=True):
+            if version_base in v and "forge" in v.lower():
+                if os.path.exists(os.path.join(_versions_dir, v, v + ".json")):
+                    version_a_lanzar = v
+                    version_instalada = True
+                    break
     else:
-        ruta_version = os.path.join(minecraft_directory, "versions", version_base)
+        ruta_version = os.path.join(_versions_dir, version_base)
         version_json_path = os.path.join(ruta_version, version_base + ".json")
         if os.path.exists(ruta_version) and os.path.exists(version_json_path):
             version_instalada = True
@@ -457,13 +561,19 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
             loader_nuevo = fabric_loader_override or minecraft_launcher_lib.fabric.get_latest_loader_version()
             minecraft_launcher_lib.fabric.install_fabric(version_base, minecraft_directory, loader_nuevo, callback={"setStatus": on_progress})
             version_a_lanzar = f"fabric-loader-{loader_nuevo}-{version_base}"
-            
+
         elif tipo_cliente_base == "Forge":
             if progress_callback: progress_callback("Instalando Forge...")
             forge_version = minecraft_launcher_lib.forge.find_forge_version(version_base)
             if forge_version:
                 minecraft_launcher_lib.forge.install_forge_version(forge_version, minecraft_directory, callback={"setStatus": on_progress})
                 version_a_lanzar = forge_version
+
+        elif tipo_cliente_base == "OptiFine":
+            of_ver = _instalar_optifine(version_base, minecraft_directory, progress_callback)
+            if of_ver:
+                version_a_lanzar = of_ver
+
         else:
             if progress_callback: progress_callback(f"Descargando juego base {version_base}...")
             minecraft_launcher_lib.install.install_minecraft_version(version_base, minecraft_directory, callback={"setStatus": on_progress})
