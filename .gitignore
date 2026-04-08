@@ -14,4 +14,10 @@ credentials.py
 # Archivos temporales de desarrollo/debug
 _*.py
 check_*.py
+fix_*.py
+restore_*.py
+paragua_anterior.py
 paraguacraft_session.json
+paraguacraft_sessions.json
+paraguacraft_stats.json
+*_original.html

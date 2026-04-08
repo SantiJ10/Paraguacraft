@@ -20,6 +20,37 @@
     </style>
 </head>
 <body class="bg-[#121212] text-white h-screen flex flex-col relative" onclick="cerrarDropdowns(event)">
+    <!-- SPLASH SCREEN -->
+    <div id="splash-overlay" style="position:fixed;inset:0;z-index:9999;display:flex;align-items:flex-end;justify-content:center;padding-bottom:60px;background:url('assets/main_banner.png') center/cover no-repeat;">
+        <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.88) 0%,rgba(0,0,0,0.28) 55%,transparent 100%);"></div>
+        <div style="position:relative;display:flex;flex-direction:column;align-items:center;gap:10px;">
+            <h1 style="font-size:2.2rem;font-weight:900;color:white;letter-spacing:0.15em;text-shadow:2px 2px 10px rgba(0,0,0,0.9);">PARAGUACRAFT</h1>
+            <p style="font-size:0.78rem;font-weight:700;color:#2ECC71;letter-spacing:0.45em;">L A U N C H E R</p>
+            <div id="splash-dot-wrap" style="display:flex;gap:8px;margin-top:6px;">
+                <div class="sdot" style="width:10px;height:10px;border-radius:50%;background:#2ECC71;opacity:1;transition:opacity 0.3s;"></div>
+                <div class="sdot" style="width:10px;height:10px;border-radius:50%;background:#2ECC71;opacity:0.3;transition:opacity 0.3s;"></div>
+                <div class="sdot" style="width:10px;height:10px;border-radius:50%;background:#2ECC71;opacity:0.3;transition:opacity 0.3s;"></div>
+            </div>
+        </div>
+    </div>
+    <script>
+    (function(){
+        var sp=document.getElementById('splash-overlay');if(!sp)return;
+        var dots=sp.querySelectorAll('.sdot'),i=0;
+        var t=setInterval(function(){
+            dots.forEach(function(d,j){d.style.opacity=j===i?'1':'0.3';});
+            i=(i+1)%3;
+        },380);
+        setTimeout(function(){
+            clearInterval(t);
+            sp.style.transition='opacity 0.6s ease';
+            sp.style.opacity='0';
+            setTimeout(function(){sp.style.display='none';},650);
+        },2500);
+    })();
+    </script>
+    <!-- END SPLASH -->
+
 
     <div id="login-overlay" class="absolute inset-0 z-[200] bg-[#121212] flex flex-col items-center justify-center">
         <h1 class="text-6xl font-black tracking-widest text-white drop-shadow-md mb-2">PARAGUACRAFT</h1>
@@ -143,6 +174,7 @@
                     <button type="button" onclick="gestorTabPrincipal('contenido')" id="gestor-tab-contenido" class="text-left px-3 py-2.5 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white">📦 Contenido</button>
                     <button type="button" onclick="gestorTabPrincipal('java')" id="gestor-tab-java" class="text-left px-3 py-2.5 rounded-lg font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white">☕ Entorno Java</button>
                     <button type="button" onclick="gestorTabPrincipal('versiones')" id="gestor-tab-versiones" class="text-left px-3 py-2.5 rounded-lg font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white">🎮 Versiones</button>
+                    <button type="button" onclick="gestorTabPrincipal('screenshots')" id="gestor-tab-screenshots" class="text-left px-3 py-2.5 rounded-lg font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white">📸 Screenshots</button>
                 </div>
                 <div class="flex-1 flex flex-col min-w-0 min-h-0 bg-[#121212]">
                     <div id="gestor-panel-contenido" class="gestor-panel flex-1 flex flex-col p-4 min-h-0 overflow-hidden">
@@ -162,10 +194,19 @@
                     </div>
                     <div id="gestor-panel-java" class="gestor-panel hidden flex-1 flex-col p-6 overflow-y-auto space-y-6">
                         <div>
-                            <h3 class="font-bold mb-2">Memoria (RAM)</h3>
+                            <h3 class="font-bold mb-1">RAM para esta instancia</h3>
+                            <p class="text-xs text-gray-500 mb-2">Sobreescribe la RAM global solo para esta instancia. Valor 0 = usa la RAM global.</p>
                             <div class="flex items-center gap-4 bg-[#181818] p-4 rounded-lg border border-[#2A2A2A]">
-                                <span class="bg-[#1E1E1E] px-3 py-1 rounded font-bold text-sm" id="gestor-ram-lbl">4 GB</span>
-                                <input type="range" id="gestor-ram-slider" min="1" max="16" value="4" class="w-full h-2 bg-[#2A2A2A] rounded-lg appearance-none cursor-pointer" oninput="updateRamGestor(this.value)">
+                                <input type="range" id="gestor-inst-ram-slider" min="0" max="16" value="0" class="flex-1 h-2 bg-[#2A2A2A] rounded-lg appearance-none cursor-pointer accent-[#2ECC71]" oninput="gestorInstRamLabel(this.value)">
+                                <span class="bg-[#1E1E1E] px-3 py-1 rounded font-bold text-sm w-16 text-center" id="gestor-inst-ram-lbl">Global</span>
+                            </div>
+                            <button onclick="guardarInstanciaRam()" class="mt-2 bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black px-5 py-2 rounded transition text-sm">Guardar RAM</button>
+                        </div>
+                        <div>
+                            <h3 class="font-bold mb-2">Memoria (RAM) global</h3>
+                            <div class="flex items-center gap-4 bg-[#181818] p-4 rounded-lg border border-[#2A2A2A]">
+                                <span class="bg-[#1E1E1E] px-3 py-1 rounded font-bold text-sm w-12 text-center" id="gestor-ram-lbl">4 GB</span>
+                                <input type="range" id="gestor-ram-slider" min="1" max="16" value="4" class="flex-1 h-2 bg-[#2A2A2A] rounded-lg appearance-none cursor-pointer" oninput="updateRamGestor(this.value)">
                             </div>
                         </div>
                         <div>
@@ -176,6 +217,34 @@
                                 <option value="Shenandoah">Shenandoah</option>
                                 <option value="CMS">CMS</option>
                             </select>
+                        </div>
+                        <div>
+                            <h3 class="font-bold mb-2">Optimizaciones <span class="text-xs text-gray-500 font-normal">(solo Fabric)</span></h3>
+                            <div class="flex flex-wrap gap-2">
+                                <button onclick="instalarOptimizacionMod('sodium')" class="bg-[#F39C12] hover:bg-[#E67E22] text-black font-bold px-3 py-2 rounded text-sm transition">⚡ Sodium</button>
+                                <button onclick="instalarOptimizacionMod('iris')" class="bg-[#9B59B6] hover:bg-[#7D3C98] text-white font-bold px-3 py-2 rounded text-sm transition">🌈 Iris (Shaders)</button>
+                                <button onclick="instalarOptimizacionMod('lithium')" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-bold px-3 py-2 rounded text-sm transition">🔋 Lithium</button>
+                                <button onclick="instalarOptimizacionMod('optifine')" class="bg-[#3498DB] hover:bg-[#2980B9] text-white font-bold px-3 py-2 rounded text-sm transition">✨ OptiFine</button>
+                            </div>
+                        </div>
+                        <div class="flex gap-3">
+                            <button onclick="exportarInstancia()" class="flex-1 bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold py-2.5 rounded text-sm transition border border-[#333]">📤 Exportar instancia</button>
+                            <button onclick="backupMundosInstancia()" class="flex-1 bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold py-2.5 rounded text-sm transition border border-[#333]">💾 Backup mundos</button>
+                        </div>
+                        <div>
+                            <h3 class="font-bold mb-2">Drag &amp; Drop de mods</h3>
+                            <div id="drag-drop-mods" ondragover="event.preventDefault()" ondrop="gestorDropMods(event)" class="border-2 border-dashed border-[#333] rounded-xl p-6 text-center text-gray-500 text-sm hover:border-[#2ECC71] transition cursor-pointer">
+                                📦 Arrastrá archivos .jar / .zip acá para instalarlos como mods
+                            </div>
+                        </div>
+                    </div>
+                    <div id="gestor-panel-screenshots" class="gestor-panel hidden flex-1 flex-col p-6 overflow-y-auto gap-4">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-black">📸 Screenshots</h3>
+                            <button onclick="abrirCarpetaScreenshots()" class="text-xs bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold px-3 py-1.5 rounded border border-[#333] transition">📂 Abrir carpeta</button>
+                        </div>
+                        <div id="gestor-screenshots-grid" class="grid grid-cols-3 gap-3 overflow-y-auto flex-1 min-h-0">
+                            <div class="col-span-3 text-center text-gray-500 text-sm py-10">Sin screenshots todavía.</div>
                         </div>
                     </div>
                     <div id="gestor-panel-versiones" class="gestor-panel hidden flex-1 flex-col p-6 overflow-y-auto space-y-5">
@@ -595,9 +664,36 @@
                     <button onclick="cambiarCarpetaServidor()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white text-xs font-bold px-3 py-2 rounded transition border border-[#333] shrink-0">📂 Cambiar carpeta</button>
                 </div>
 
+                <!-- Servidores guardados -->
+                <div id="srv-lista-box" class="hidden bg-[#181818] border border-[#2A2A2A] rounded-xl p-4 shrink-0">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-black text-sm">📋 Servidores guardados</h3>
+                        <button onclick="cargarServidoresGuardados()" class="text-xs text-gray-500 hover:text-white transition">↻ Actualizar</button>
+                    </div>
+                    <div id="srv-lista-cards" class="flex flex-col gap-2 max-h-40 overflow-y-auto"></div>
+                </div>
+
+                <!-- Plugin Store -->
+                <div id="srv-plugins-box" class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-4 shrink-0">
+                    <h3 class="font-black text-sm mb-3">🔎 Plugin Store (Hangar)</h3>
+                    <div class="flex gap-2 mb-3">
+                        <input id="plugin-search" type="text" placeholder="Buscar plugin..." onkeypress="if(event.key==='Enter')buscarPlugins()" class="flex-1 bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none focus:border-[#2ECC71]">
+                        <button onclick="buscarPlugins()" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-bold px-4 py-2 rounded text-sm transition">🔍</button>
+                    </div>
+                    <div id="plugin-lista" class="space-y-2 max-h-48 overflow-y-auto text-xs text-gray-500">Buscá un plugin para empezar.</div>
+                </div>
+
                 <!-- Panel: crear nuevo servidor (visible solo si no hay uno creado) -->
                 <div id="srv-crear-box" class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-4 shrink-0">
-                    <h3 class="font-black text-lg mb-3"> Crear servidor</h3>
+                    <h3 class="font-black text-lg mb-2">🖥️ Crear Servidor Local</h3>
+                    <p class="text-xs text-gray-500 mb-3">Servidor con túnel playIt.gg. Compatible premium y no-premium.</p>
+                    <div class="flex flex-wrap gap-2 mb-4">
+                        <button id="srv-tipo-paper" onclick="selSrvTipo('paper')" class="srv-tipo-btn px-3 py-2 rounded-lg border-2 border-[#2ECC71] bg-[#0D2515] text-xs font-bold transition flex flex-col items-center gap-0.5 min-w-[90px]"><span class="text-base">📄</span><span class="text-[#2ECC71]">Paper</span><span class="text-gray-500 font-normal">Plugins · más estable</span></button>
+                        <button id="srv-tipo-paper-geyser" onclick="selSrvTipo('paper-geyser')" class="srv-tipo-btn px-3 py-2 rounded-lg border-2 border-[#2A2A2A] text-xs font-bold transition flex flex-col items-center gap-0.5 min-w-[90px] hover:border-[#3498DB]"><span class="text-base">🌐</span><span>Paper + Geyser</span><span class="text-gray-500 font-normal">Plugins + Bedrock</span></button>
+                        <button id="srv-tipo-fabric" onclick="selSrvTipo('fabric')" class="srv-tipo-btn px-3 py-2 rounded-lg border-2 border-[#2A2A2A] text-xs font-bold transition flex flex-col items-center gap-0.5 min-w-[90px] hover:border-[#9B59B6]"><span class="text-base">🧵</span><span>Fabric</span><span class="text-gray-500 font-normal">Mods · server side</span></button>
+                        <button id="srv-tipo-fabric-geyser" onclick="selSrvTipo('fabric-geyser')" class="srv-tipo-btn px-3 py-2 rounded-lg border-2 border-[#2A2A2A] text-xs font-bold transition flex flex-col items-center gap-0.5 min-w-[90px] hover:border-[#9B59B6]"><span class="text-base">🧵🌐</span><span>Fabric + Geyser</span><span class="text-gray-500 font-normal">Mods + Bedrock</span></button>
+                        <button id="srv-tipo-forge" onclick="selSrvTipo('forge')" class="srv-tipo-btn px-3 py-2 rounded-lg border-2 border-[#2A2A2A] text-xs font-bold transition flex flex-col items-center gap-0.5 min-w-[90px] hover:border-[#E74C3C]"><span class="text-base">🔧</span><span>Forge</span><span class="text-gray-500 font-normal">Modpacks CurseForge</span></button>
+                    </div>
                     <p class="text-xs text-gray-500 mb-3">El servidor se configurará con <span class="text-[#2ECC71] font-bold">online-mode=false</span> → entran <span class="text-[#2ECC71]">premium</span> y <span class="text-[#F39C12]">no-premium</span>.</p>
                     <div class="flex flex-wrap gap-3 items-end">
                         <div class="flex flex-col gap-1">
@@ -656,52 +752,65 @@
                     </div>
                     <div id="srv-console" class="flex-1 overflow-y-auto font-mono text-xs space-y-0.5 min-h-0"></div>
                 </div>
+                <!-- Whitelist / Bans / Reinicio -->
+                <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-4 shrink-0 flex flex-col gap-3">
+                    <div class="flex gap-2">
+                        <button onclick="mostrarWhitelist()" id="srv-whitelist" class="flex-1 bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold py-2 rounded text-sm transition border border-[#333]">📋 Whitelist</button>
+                        <button onclick="mostrarBans()" id="bans" class="flex-1 bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold py-2 rounded text-sm transition border border-[#333]">🚫 Bans</button>
+                        <button onclick="toggleReinicio()" id="reinicio-auto" class="flex-1 bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold py-2 rounded text-sm transition border border-[#333]">🔄 Reinicio auto</button>
+                    </div>
+                    <div id="srv-wl-panel" class="hidden">
+                        <div class="flex gap-2">
+                            <input type="text" id="srv-wl-input" placeholder="Nombre del jugador..." class="flex-1 bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none focus:border-[#2ECC71]">
+                            <button onclick="agregarWhitelist()" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-bold px-4 py-2 rounded text-sm transition">+ Agregar</button>
+                        </div>
+                        <div id="srv-wl-lista" class="mt-2 space-y-1 max-h-32 overflow-y-auto text-xs text-gray-400"></div>
+                    </div>
+                </div>
             </div>
         </div>
         <div id="vista-versiones" class="vista-seccion absolute inset-0 p-6 flex-row gap-6">
             <div class="w-3/4 flex flex-col h-full">
-                <h2 class="text-2xl font-black tracking-wide mb-4">VERSIONS &amp; PROFILES</h2>
                 <div class="overflow-y-auto pr-2 h-full pb-20">
                     <div class="grid grid-cols-2 gap-5" id="grid-versiones"></div>
                 </div>
             </div>
             
             <div class="w-1/4 bg-[#181818] rounded-xl border border-[#2A2A2A] flex flex-col h-full">
-                <div class="p-4 border-b border-[#2A2A2A]"><span class="text-xs font-black text-gray-400 tracking-wider">SELECTED PROFILE</span></div>
                 <div class="p-5 flex-1 flex flex-col">
-                    <div class="w-full h-32 bg-[#2A2A2A] rounded-lg mb-4 overflow-hidden relative shadow-inner">
-                        <img id="panel-img" src="../assets/main_banner.png" class="w-full h-full object-cover opacity-90" onerror="this.style.display='none'">
+                    <div class="w-full h-36 bg-[#2A2A2A] rounded-xl mb-5 overflow-hidden relative">
+                        <img id="panel-img" src="assets/1_21.png" class="w-full h-full object-cover" onerror="this.onerror=null;this.src='assets/26_1.png'">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent flex items-end p-3">
+                            <h3 id="panel-title" class="text-base font-black text-white leading-tight drop-shadow-md">Seleccioná una versión</h3>
+                        </div>
                     </div>
-                    <h3 id="panel-title" class="text-xl font-black mb-1 text-white">Seleccioná un perfil</h3>
-                    <p id="panel-desc" class="text-xs text-gray-400 mb-4 h-10">...</p>
+                    <p id="panel-desc" style="display:none"></p>
                     
                     <div class="space-y-3 mb-6">
                         <div class="flex flex-col gap-1">
-                            <span class="text-xs font-bold text-gray-400 uppercase tracking-wide">Sub-Version</span>
-                            <select id="panel-version-sel" class="bg-[#121212] border border-[#2A2A2A] text-white p-2 rounded outline-none w-full text-sm font-bold cursor-pointer"></select>
+                            <span class="text-xs font-bold text-gray-500 uppercase tracking-widest">Versión</span>
+                            <select id="panel-version-sel" class="bg-[#121212] border border-[#2A2A2A] text-white p-2 rounded outline-none w-full text-sm font-bold cursor-pointer"><option value="" disabled selected>Seleccioná una versión...</option></select>
                         </div>
                         <div class="flex flex-col gap-1">
-                            <span class="text-xs font-bold text-gray-400 uppercase tracking-wide">Loader / Addons</span>
-                            <select id="panel-loader-sel" class="bg-[#121212] border border-[#2A2A2A] text-white p-2 rounded outline-none w-full text-sm font-bold cursor-pointer"></select>
+                            <span class="text-xs font-bold text-gray-500 uppercase tracking-widest">Loader</span>
+                            <select id="panel-loader-sel" class="bg-[#121212] border border-[#2A2A2A] text-white p-2 rounded outline-none w-full text-sm font-bold cursor-pointer"><option value="Vanilla">Vanilla</option></select>
                         </div>
                     </div>
-                    
                     <p id="lbl-estado-juego" class="text-center text-xs text-[#3498DB] font-bold mb-2 min-h-[1.25rem] break-all"></p>
-                    
-                    <div class="flex gap-2 mt-auto pb-2">
-                        <button type="button" onclick="abrirGestorInstancia()" title="Gestor de mods, packs y versión" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] w-12 h-12 rounded flex items-center justify-center text-xl transition border border-[#333]">⚙️</button>
-                        <button id="btn-launch-game" onclick="dispararJuego()" class="flex-1 bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black text-lg rounded shadow-[0_0_15px_rgba(46,204,113,0.2)] transition transform hover:scale-[1.02]">INICIAR JUEGO</button>
+                    <div class="flex gap-2 mt-3 pb-2">
+                        <button id="btn-launch-game" onclick="dispararJuego()" class="flex-1 bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black py-3 rounded shadow-[0_0_15px_rgba(46,204,113,0.2)] transition transform hover:scale-[1.01]">▶ JUGAR</button>
+                        <button type="button" onclick="abrirGestorInstancia()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold px-4 py-3 rounded transition border border-[#333] text-sm">⚙ Gestionar</button>
                     </div>
                 </div>
             </div>
         </div>
-
         <div id="vista-skins" class="vista-seccion absolute inset-0 flex-col p-6">
             <h2 class="text-3xl font-black tracking-wide mb-4">SKINS</h2>
             <div class="flex gap-3 mb-5 shrink-0">
                 <button onclick="skinTab('catalogo')" id="skin-tab-cat" class="px-5 py-2 rounded-lg font-bold text-sm bg-[#2ECC71] text-black transition">🎨 Catálogo</button>
                 <button onclick="skinTab('jugador')" id="skin-tab-jug" class="px-5 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🔍 Buscar jugador</button>
                 <button onclick="skinTab('importar')" id="skin-tab-imp" class="px-5 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">📁 Importar archivo</button>
+                <button onclick="skinTab('historial')" id="skin-tab-his" class="px-5 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">📋 Historial</button>
             </div>
             <div id="skin-panel-catalogo" class="flex flex-col flex-1 min-h-0">
                 <div class="flex gap-3 mb-4 shrink-0">
@@ -716,6 +825,15 @@
                     <button onclick="skinCatPage(-1)" id="skin-cat-prev" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] px-4 py-2 rounded font-bold text-sm border border-[#333] transition">← Anterior</button>
                     <span id="skin-cat-lbl" class="text-xs text-gray-400 font-bold">Página 1</span>
                     <button onclick="skinCatPage(1)" id="skin-cat-next" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] px-4 py-2 rounded font-bold text-sm border border-[#333] transition">Siguiente →</button>
+                </div>
+            </div>
+            <div id="skin-panel-historial" class="hidden flex-col flex-1 gap-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-black">📋 Skins aplicadas recientemente</h3>
+                    <button onclick="limpiarHistorialSkins()" class="text-xs text-gray-500 hover:text-red-400 transition">🗑 Limpiar</button>
+                </div>
+                <div id="skin-historial-grid" class="grid grid-cols-5 gap-3 overflow-y-auto flex-1 min-h-0 pr-1">
+                    <div class="col-span-5 text-center text-gray-500 text-sm py-10">Sin historial todavía.</div>
                 </div>
             </div>
             <div id="skin-panel-importar" class="hidden flex-col flex-1">
@@ -819,39 +937,56 @@
                     </div>
                 </div>
             </div>
+            <div class="flex flex-wrap gap-2 shrink-0 mb-3" id="modrinth-cats">
+                <button onclick="filtrarCatModrinth('')" id="mcat-all" class="px-3 py-1 rounded-full text-xs font-bold bg-[#2ECC71] text-black transition">Todos</button>
+                <button onclick="filtrarCatModrinth('performance')" id="mcat-performance" class="px-3 py-1 rounded-full text-xs font-bold bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">⚡ Rendimiento</button>
+                <button onclick="filtrarCatModrinth('library')" id="mcat-library" class="px-3 py-1 rounded-full text-xs font-bold bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">📚 Librerías</button>
+                <button onclick="filtrarCatModrinth('decoration')" id="mcat-decoration" class="px-3 py-1 rounded-full text-xs font-bold bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🎨 Decoración</button>
+                <button onclick="filtrarCatModrinth('adventure')" id="mcat-adventure" class="px-3 py-1 rounded-full text-xs font-bold bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">⚔️ Aventura</button>
+                <button onclick="filtrarCatModrinth('magic')" id="mcat-magic" class="px-3 py-1 rounded-full text-xs font-bold bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🧪 Magia</button>
+                <button onclick="filtrarCatModrinth('technology')" id="mcat-technology" class="px-3 py-1 rounded-full text-xs font-bold bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🔧 Tecnología</button>
+            </div>
             <div id="grid-resultados-mods" class="grid grid-cols-2 gap-4 overflow-y-auto pr-2 pb-20 flex-1 min-h-0"></div>
         </div>
 
         <!-- VISTA HERRAMIENTAS -->
-        <div id="vista-herramientas" class="vista-seccion absolute inset-0 flex-col p-6" style="display:none">
-            <h2 class="text-3xl font-black tracking-wide mb-4">HERRAMIENTAS & EXTRAS</h2>
-            <div class="flex gap-2 mb-5 shrink-0 flex-wrap">
-                <button onclick="herTab('estadisticas')" id="htab-estadisticas" class="htab-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#2ECC71] text-black transition">📊 Estadísticas</button>
-                <button onclick="herTab('backup')" id="htab-backup" class="htab-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">💾 Backup</button>
-                <button onclick="herTab('perfiles')" id="htab-perfiles" class="htab-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">📦 Perfiles</button>
-                <button onclick="herTab('compartir')" id="htab-compartir" class="htab-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🔗 Compartir</button>
-                <button onclick="herTab('gamemode')" id="htab-gamemode" class="htab-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🚀 Game Mode</button>
-                <button onclick="herTab('hwperfil')" id="htab-hwperfil" class="htab-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">💻 HW Perfil</button>
-                <button onclick="herTab('crash')" id="htab-crash" class="htab-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🔴 Crash Log</button>
-                <button onclick="herTab('musica')" id="htab-musica" class="htab-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🎵 Música</button>
-                <button onclick="herTab('fondo')" id="htab-fondo" class="htab-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🖼️ Fondo</button>
-                <button onclick="herTab('java')" id="htab-java" class="htab-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">⚡ Java</button>
-                <button onclick="herTab('ia')" id="htab-ia" class="htab-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🤖 IA Gemini</button>
-                <button onclick="herTab('fotos')" id="htab-fotos" class="htab-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">📸 Fotos</button>
-                <button onclick="herTab('updates')" id="htab-updates" class="htab-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🔄 Actualizaciones</button>
-                <button onclick="herTab('turbo')" id="htab-turbo" class="htab-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🚀 Turbo</button>
-                <button onclick="herTab('overlay')" id="htab-overlay" class="htab-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🖥️ Overlay</button>
-                <button onclick="herTab('benchmark')" id="htab-benchmark" class="htab-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🏆 Benchmark</button>
-                <button onclick="herTab('skingen')" id="htab-skingen" class="htab-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🎨 Skin IA</button>
-                <button onclick="herTab('smartram')" id="htab-smartram" class="htab-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🧠 Smart RAM</button>
-                <button onclick="herTab('conflictos')" id="htab-conflictos" class="htab-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">⚠️ Conflictos</button>
-                <button onclick="herTab('optimizer')" id="htab-optimizer" class="htab-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🔧 Optimizar MC</button>
-                <button onclick="herTab('comparador')" id="htab-comparador" class="htab-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">📊 Comparador</button>
-                <button onclick="herTab('whitelist')" id="htab-whitelist" class="htab-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">👥 Whitelist</button>
+        <div id="vista-herramientas" class="vista-seccion absolute inset-0 flex" style="display:none">
+            <!-- SIDEBAR NAV -->
+            <div class="w-44 bg-[#121212] border-r border-[#2A2A2A] overflow-y-auto shrink-0 py-2 px-1.5">
+                    <p class="text-[10px] font-black text-gray-600 uppercase tracking-widest px-2 pt-3 pb-0.5 select-none">EXTRAS</p>
+                    <button onclick="herTab('estadisticas')" id="htab-estadisticas" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm bg-[#2ECC71] text-black transition">📊 Estadísticas</button>
+                    <p class="text-[10px] font-black text-gray-600 uppercase tracking-widest px-2 pt-3 pb-0.5 select-none">HERRAMIENTAS</p>
+                    <button onclick="herTab('backup')" id="htab-backup" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">💾 Backup</button>
+                    <button onclick="herTab('perfiles')" id="htab-perfiles" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">📦 Perfiles</button>
+                    <button onclick="herTab('compartir')" id="htab-compartir" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🔗 Compartir</button>
+                    <p class="text-[10px] font-black text-gray-600 uppercase tracking-widest px-2 pt-3 pb-0.5 select-none">RENDIMIENTO</p>
+                    <button onclick="herTab('gamemode')" id="htab-gamemode" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🚀 Game Mode</button>
+                    <button onclick="herTab('hwperfil')" id="htab-hwperfil" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">💻 HW Perfil</button>
+                    <button onclick="herTab('crash')" id="htab-crash" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🔴 Crash Log</button>
+                    <p class="text-[10px] font-black text-gray-600 uppercase tracking-widest px-2 pt-3 pb-0.5 select-none">PERSONALIZACIÓN</p>
+                    <button onclick="herTab('musica')" id="htab-musica" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🎵 Música</button>
+                    <button onclick="herTab('fondo')" id="htab-fondo" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🖼️ Fondo</button>
+                    <button onclick="herTab('shaders')" id="htab-shaders" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">✨ Shaders</button>
+                    <button onclick="herTab('java')" id="htab-java" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">⚡ Java</button>
+                    <button onclick="herTab('ia')" id="htab-ia" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🤖 IA Gemini</button>
+                    <button onclick="herTab('fotos')" id="htab-fotos" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">📸 Fotos</button>
+                    <button onclick="herTab('updates')" id="htab-updates" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🔄 Actualizaciones</button>
+                    <button onclick="herTab('turbo')" id="htab-turbo" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🚀 Turbo</button>
+                    <p class="text-[10px] font-black text-gray-600 uppercase tracking-widest px-2 pt-3 pb-0.5 select-none">AVANZADO</p>
+                    <button onclick="herTab('overlay')" id="htab-overlay" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🖥️ Overlay</button>
+                    <button onclick="herTab('benchmark')" id="htab-benchmark" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🏆 Benchmark</button>
+                    <button onclick="herTab('skingen')" id="htab-skingen" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🎨 Skin IA</button>
+                    <button onclick="herTab('smartram')" id="htab-smartram" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🧠 Smart RAM</button>
+                    <button onclick="herTab('conflictos')" id="htab-conflictos" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">⚠️ Conflictos</button>
+                    <button onclick="herTab('optimizer')" id="htab-optimizer" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🔧 Optimizar MC</button>
+                    <button onclick="herTab('comparador')" id="htab-comparador" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">📊 Comparador</button>
+                    <button onclick="herTab('whitelist')" id="htab-whitelist" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">👥 Whitelist</button>
             </div>
+            <!-- PANELS CONTENT -->
+            <div class="flex-1 min-h-0 relative">
 
             <!-- ESTADÍSTICAS -->
-            <div id="hpanel-estadisticas" class="flex-1 min-h-0 overflow-y-auto pr-1">
+            <div id="hpanel-estadisticas" class="absolute inset-0 overflow-y-auto p-5 pr-4">
                 <div class="grid grid-cols-3 gap-4 mb-6">
                     <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 text-center">
                         <p class="text-3xl font-black text-[#2ECC71]" id="stat-horas">–</p>
@@ -877,7 +1012,7 @@
             </div>
 
             <!-- BACKUP -->
-            <div id="hpanel-backup" class="hidden flex-1 min-h-0 overflow-y-auto pr-1">
+            <div id="hpanel-backup" class="absolute inset-0 overflow-y-auto p-5 pr-4" style="display:none">
                 <div class="grid grid-cols-2 gap-5">
                     <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5">
                         <h3 class="font-black mb-3">🌍 Mundos</h3>
@@ -895,18 +1030,59 @@
                         </div>
                     </div>
                 </div>
+                <!-- Backup auto-scheduler -->
+                <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 mt-4 flex flex-col gap-3">
+                    <h3 class="font-black">⏰ Backup automático</h3>
+                    <p class="text-xs text-gray-500">Se hace un backup automático antes de cada sesión de juego.</p>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs text-gray-400 font-bold shrink-0">Cada</span>
+                        <select id="backup-auto-horas" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none flex-1">
+                            <option value="0">Nunca</option>
+                            <option value="1">1 hora</option>
+                            <option value="3">3 horas</option>
+                            <option value="6">6 horas</option>
+                            <option value="24">24 horas</option>
+                        </select>
+                        <button onclick="guardarBackupAuto()" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-bold px-4 py-2 rounded text-sm transition shrink-0">Guardar</button>
+                    </div>
+                    <p id="backup-auto-ultimo" class="text-[10px] text-gray-600 min-h-[14px]"></p>
+                    <p id="backup-auto-msg" class="text-xs text-[#2ECC71] min-h-[16px]"></p>
+                </div>
             </div>
 
             <!-- PERFILES -->
-            <div id="hpanel-perfiles" class="hidden flex-1 min-h-0 overflow-y-auto pr-1">
+            <div id="hpanel-perfiles" class="absolute inset-0 overflow-y-auto p-5 pr-4" style="display:none">
                 <div class="grid grid-cols-2 gap-5">
                     <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col gap-4">
-                        <h3 class="font-black">📤 Exportar perfil</h3>
+                        <h3 class="font-black">👤 Nuevo perfil</h3>
+                        <div class="flex flex-col gap-1">
+                            <span class="text-xs font-bold text-gray-400 uppercase tracking-wide">Nombre</span>
+                            <input type="text" id="perfil-nombre" placeholder="Ej: PvP 1.8" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none focus:border-[#2ECC71]">
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <span class="text-xs font-bold text-gray-400 uppercase tracking-wide">Versión</span>
+                            <select id="perfil-version" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none focus:border-[#2ECC71]"><option value="">Selecioná...</option></select>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <span class="text-xs font-bold text-gray-400 uppercase tracking-wide">Loader</span>
+                            <select id="perfil-loader" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none focus:border-[#2ECC71]">
+                                <option value="Vanilla">Vanilla</option>
+                                <option value="Fabric">Fabric</option>
+                                <option value="Forge">Forge</option>
+                                <option value="Quilt">Quilt</option>
+                                <option value="OptiFine">OptiFine</option>
+                            </select>
+                        </div>
+                        <button onclick="guardarPerfil()" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black py-2.5 rounded transition">Guardar perfil</button>
+                        <p id="perfil-msg" class="text-xs text-gray-500 min-h-[14px]"></p>
+                        <div class="border-t border-[#2A2A2A] pt-3">
+                            <h4 class="font-bold text-sm mb-2">📤 Exportar perfil</h4>
                         <p class="text-xs text-gray-500">Exporta tu configuración (versión, mods, RAM, GC) para compartir con otros.</p>
                         <select id="perfil-ver-sel" class="bg-[#121212] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none"><option>Seleccioná una versión...</option></select>
                         <select id="perfil-motor-sel" class="bg-[#121212] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none"><option value="Vanilla">Vanilla</option><option value="Fabric">Fabric</option><option value="Forge">Forge</option><option value="Quilt">Quilt</option></select>
                         <button onclick="exportarPerfil()" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black py-2 rounded transition">⬇ Exportar</button>
                         <textarea id="perfil-export-out" class="hidden bg-[#0A0A0A] border border-[#333] text-green-400 font-mono text-xs p-3 rounded h-36 resize-none" readonly></textarea>
+                        </div>
                     </div>
                     <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col gap-4">
                         <h3 class="font-black">📥 Importar perfil</h3>
@@ -919,105 +1095,102 @@
             </div>
 
             <!-- MÚSICA -->
-            <div id="hpanel-musica" class="hidden flex-1 min-h-0 overflow-y-auto pr-1">
+            <div id="hpanel-musica" class="absolute inset-0 overflow-y-auto p-5 pr-4" style="display:none">
                 <div class="flex gap-2 mb-4">
                     <button onclick="musicaTab('mc')" id="mtab-mc" class="px-4 py-2 rounded-lg font-bold text-sm bg-[#2ECC71] text-black transition">🎮 Música MC</button>
-                <button onclick="musicaTab('radio')" id="mtab-radio" class="px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">📻 YouTube</button>
-                <button onclick="musicaTab('spotify')" id="mtab-spotify" class="px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🎵 Spotify</button>
-            </div>
-            <!-- MC -->
-            <div id="mpanel-mc" class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5">
-                <div class="flex justify-between items-center mb-3">
-                    <h3 class="font-black">🎮 Música de Minecraft</h3>
-                    <button onclick="cargarMusicaMC()" class="text-xs bg-[#2A2A2A] hover:bg-[#3A3A3A] px-3 py-1 rounded transition">↻ Cargar</button>
+                    <button onclick="musicaTab('radio')" id="mtab-radio" class="px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">📻 YouTube</button>
+                    <button onclick="musicaTab('spotify')" id="mtab-spotify" class="px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🎵 Spotify</button>
                 </div>
-                <div id="mc-tracks-lista" class="space-y-1 max-h-52 overflow-y-auto mb-3">
-                    <p class="text-gray-500 text-sm">Hacé clic en Cargar para escanear los assets de Minecraft.</p>
-                </div>
-                <div class="border-t border-[#2A2A2A] pt-3">
-                    <div class="flex items-center justify-between mb-2">
-                        <p id="mc-track-actual" class="text-xs text-gray-400 truncate flex-1 mr-2">Sin reproducción</p>
-                        <button onclick="detenerMusicaMC()" class="text-xs bg-[#E74C3C]/20 hover:bg-[#E74C3C]/40 text-[#E74C3C] px-2 py-1 rounded transition shrink-0">■ Stop</button>
+                <div id="mpanel-mc" class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-black">🎮 Música de Minecraft</h3>
+                        <button onclick="cargarMusicaMC()" class="text-xs bg-[#2A2A2A] hover:bg-[#3A3A3A] px-3 py-1 rounded transition">↻ Cargar</button>
                     </div>
-                    <div class="bg-[#2A2A2A] h-1 rounded-full mb-3">
-                        <div id="mc-progress-bar" class="bg-[#2ECC71] h-1 rounded-full transition-all" style="width:0%"></div>
+                    <div id="mc-tracks-lista" class="space-y-1 max-h-52 overflow-y-auto mb-3">
+                        <p class="text-gray-500 text-sm">Hacé clic en Cargar para escanear los assets de Minecraft.</p>
                     </div>
-                    <div class="flex items-center gap-3">
-                        <span class="text-xs text-gray-500 shrink-0">🔊</span>
-                        <input type="range" min="0" max="1" step="0.05" value="1" oninput="setVolumenMC(this.value); document.getElementById('mc-vol-lbl').textContent=Math.round(this.value*100)+'%'" class="flex-1 accent-[#2ECC71] cursor-pointer" style="height:4px">
-                        <span id="mc-vol-lbl" class="text-xs text-gray-500 shrink-0 w-8 text-right">100%</span>
-                    </div>
-                </div>
-            </div>
-            <!-- YOUTUBE RADIO -->
-            <div id="mpanel-radio" class="hidden bg-[#181818] border border-[#2A2A2A] rounded-xl p-5">
-                <h3 class="font-black mb-3">📻 YouTube Music</h3>
-                <div class="grid grid-cols-3 gap-2 mb-3">
-                    <button onclick="ponerRadio('PLAjPo5G_0NPpZxINdEj8e23EpRlpVU9o9')" class="bg-[#2A2A2A] hover:bg-[#C418C4]/30 hover:border-[#C418C4] border border-[#2A2A2A] rounded-lg p-2.5 text-xs font-bold transition text-left"><p class="text-white">🎹 C418</p><p class="text-gray-500 mt-0.5">Minecraft oficial</p></button>
-                    <button onclick="ponerRadio('PLuLHCNjC0u9RNbNcrmS56s3bqkWDTAJYZ')" class="bg-[#2A2A2A] hover:bg-[#1ABC9C]/30 hover:border-[#1ABC9C] border border-[#2A2A2A] rounded-lg p-2.5 text-xs font-bold transition text-left"><p class="text-white">🌿 Lena Raine</p><p class="text-gray-500 mt-0.5">Caves & Cliffs</p></button>
-                    <button onclick="ponerRadio('PL3GeP3YLZn5ixsnIOIx9tB4v6s-rsiqmj')" class="bg-[#2A2A2A] hover:bg-[#3498DB]/30 hover:border-[#3498DB] border border-[#2A2A2A] rounded-lg p-2.5 text-xs font-bold transition text-left"><p class="text-white">☁️ Lofi Gaming</p><p class="text-gray-500 mt-0.5">Ambiente relajado</p></button>
-                    <button onclick="ponerRadio('PLqEoYMKHoGMpV9aSlQi4J8N04iFpL1T0T')" class="bg-[#2A2A2A] hover:bg-[#F39C12]/30 hover:border-[#F39C12] border border-[#2A2A2A] rounded-lg p-2.5 text-xs font-bold transition text-left"><p class="text-white">⚔️ Epic Gaming</p><p class="text-gray-500 mt-0.5">Música épica</p></button>
-                    <button onclick="ponerRadio('PLbIZ6k-SE9SsNO9FGBiCrgFiBRGxEQzl5')" class="bg-[#2A2A2A] hover:bg-[#9B59B6]/30 hover:border-[#9B59B6] border border-[#2A2A2A] rounded-lg p-2.5 text-xs font-bold transition text-left"><p class="text-white">🌙 Synthwave</p><p class="text-gray-500 mt-0.5">Retro vibes</p></button>
-                    <button onclick="ponerRadio('PLqURaoO5FVSRrOfO0l5PFAT5r12OBqXhB')" class="bg-[#2A2A2A] hover:bg-[#E74C3C]/30 hover:border-[#E74C3C] border border-[#2A2A2A] rounded-lg p-2.5 text-xs font-bold transition text-left"><p class="text-white">🎮 Pixel Music</p><p class="text-gray-500 mt-0.5">Chiptune / 8bit</p></button>
-                </div>
-                <div class="flex gap-2 mb-2">
-                    <input id="yt-search-input" type="text" placeholder="🔍 Buscar en YouTube..." onkeypress="if(event.key==='Enter') buscarYouTube()" class="flex-1 bg-[#0A0A0A] border border-[#333] text-white text-xs px-3 py-2 rounded outline-none focus:border-[#FF0000] transition">
-                    <button onclick="buscarYouTube()" class="bg-[#FF0000] hover:bg-[#cc0000] text-white font-black px-3 py-2 rounded text-xs transition">Buscar</button>
-                </div>
-                <div id="yt-search-results" class="grid grid-cols-3 gap-2 mb-2 max-h-44 overflow-y-auto"></div>
-                <div class="flex gap-2 mb-2">
-                    <input id="yt-custom-url" type="text" placeholder="O pegá URL/ID de YouTube directo..." class="flex-1 bg-[#0A0A0A] border border-[#333] text-white text-xs px-3 py-2 rounded outline-none focus:border-[#FF0000] transition">
-                    <button onclick="ponerRadioCustom()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-black px-3 py-2 rounded text-xs transition border border-[#333]">▶ Abrir</button>
-                </div>
-                <div id="yt-radio-frame" class="rounded-xl overflow-hidden bg-black" style="display:none">
-                    <iframe id="yt-iframe" width="100%" height="220" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
-                </div>
-                <div class="flex items-center justify-between mt-2">
-                    <p class="text-xs text-gray-600">Requiere conexión a internet.</p>
-                    <button id="yt-open-btn" onclick="abrirYTEnNavegador()" style="display:none" class="text-xs bg-[#2A2A2A] hover:bg-[#FF0000] hover:text-white text-gray-400 px-2 py-1 rounded transition border border-[#333]">🌐 Abrir en navegador</button>
-                </div>
-            </div>
-            <!-- SPOTIFY -->
-            <div id="mpanel-spotify" class="hidden bg-[#181818] border border-[#2A2A2A] rounded-xl p-5">
-                <div id="spotify-noconectado">
-                    <h3 class="font-black mb-2">🎵 Conectar Spotify</h3>
-                    <p class="text-xs text-gray-500 mb-4">Necesitás una <strong class="text-white">Spotify Developer App</strong> (gratis). <a href="#" onclick="pywebview.api.notificar_windows && window.open('https://developer.spotify.com/dashboard')" class="text-[#1DB954] underline">Crear app →</a></p>
-                    <div class="flex flex-col gap-2">
-                        <input id="sp-client-id" type="text" placeholder="Client ID" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none focus:border-[#1DB954]">
-                        <input id="sp-client-secret" type="password" placeholder="Client Secret" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none focus:border-[#1DB954]">
-                        <button onclick="iniciarSpotifyAuth()" class="bg-[#1DB954] hover:bg-[#17a349] text-black font-black py-2 rounded transition">Autorizar en Spotify</button>
-                        <div id="sp-code-row" class="hidden flex gap-2">
-                            <input id="sp-code" type="text" placeholder="Pegá el code= de la URL de retorno" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm flex-1 outline-none">
-                            <button onclick="conectarSpotify()" class="bg-[#1DB954] hover:bg-[#17a349] text-black font-black px-4 py-2 rounded transition text-sm">Conectar</button>
+                    <div class="border-t border-[#2A2A2A] pt-3">
+                        <div class="flex items-center justify-between mb-2">
+                            <p id="mc-track-actual" class="text-xs text-gray-400 truncate flex-1 mr-2">Sin reproducción</p>
+                            <button onclick="detenerMusicaMC()" class="text-xs bg-[#E74C3C]/20 hover:bg-[#E74C3C]/40 text-[#E74C3C] px-2 py-1 rounded transition shrink-0">■ Stop</button>
+                        </div>
+                        <div class="bg-[#2A2A2A] h-1 rounded-full mb-3">
+                            <div id="mc-progress-bar" class="bg-[#2ECC71] h-1 rounded-full transition-all" style="width:0%"></div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs text-gray-500 shrink-0">🔊</span>
+                            <input type="range" min="0" max="1" step="0.05" value="1" oninput="setVolumenMC(this.value); document.getElementById('mc-vol-lbl').textContent=Math.round(this.value*100)+'%'" class="flex-1 accent-[#2ECC71] cursor-pointer" style="height:4px">
+                            <span id="mc-vol-lbl" class="text-xs text-gray-500 shrink-0 w-8 text-right">100%</span>
                         </div>
                     </div>
                 </div>
-                <div id="spotify-widget" class="hidden">
-                    <div class="flex items-center gap-4">
-                        <img id="sp-img" src="" class="w-20 h-20 rounded-lg object-cover shrink-0" onerror="this.src='https://via.placeholder.com/80/1DB954/000?text=♫'">
-                        <div class="flex-1 min-w-0">
-                            <p id="sp-titulo" class="font-black text-white truncate">Sin reproducción</p>
-                            <p id="sp-artista" class="text-xs text-gray-400 truncate"></p>
-                            <p id="sp-album" class="text-xs text-gray-600 truncate"></p>
+                <div id="mpanel-radio" class="hidden bg-[#181818] border border-[#2A2A2A] rounded-xl p-5">
+                    <h3 class="font-black mb-3">📻 YouTube Music</h3>
+                    <div class="grid grid-cols-3 gap-2 mb-3">
+                        <button onclick="ponerRadio('PLAjPo5G_0NPpZxINdEj8e23EpRlpVU9o9')" class="bg-[#2A2A2A] hover:bg-[#C418C4]/30 hover:border-[#C418C4] border border-[#2A2A2A] rounded-lg p-2.5 text-xs font-bold transition text-left"><p class="text-white">🎹 C418</p><p class="text-gray-500 mt-0.5">Minecraft oficial</p></button>
+                        <button onclick="ponerRadio('PLuLHCNjC0u9RNbNcrmS56s3bqkWDTAJYZ')" class="bg-[#2A2A2A] hover:bg-[#1ABC9C]/30 hover:border-[#1ABC9C] border border-[#2A2A2A] rounded-lg p-2.5 text-xs font-bold transition text-left"><p class="text-white">🌿 Lena Raine</p><p class="text-gray-500 mt-0.5">Caves &amp; Cliffs</p></button>
+                        <button onclick="ponerRadio('PL3GeP3YLZn5ixsnIOIx9tB4v6s-rsiqmj')" class="bg-[#2A2A2A] hover:bg-[#3498DB]/30 hover:border-[#3498DB] border border-[#2A2A2A] rounded-lg p-2.5 text-xs font-bold transition text-left"><p class="text-white">☁️ Lofi Gaming</p><p class="text-gray-500 mt-0.5">Ambiente relajado</p></button>
+                        <button onclick="ponerRadio('PLqEoYMKHoGMpV9aSlQi4J8N04iFpL1T0T')" class="bg-[#2A2A2A] hover:bg-[#F39C12]/30 hover:border-[#F39C12] border border-[#2A2A2A] rounded-lg p-2.5 text-xs font-bold transition text-left"><p class="text-white">⚔️ Epic Gaming</p><p class="text-gray-500 mt-0.5">Música épica</p></button>
+                        <button onclick="ponerRadio('PLbIZ6k-SE9SsNO9FGBiCrgFiBRGxEQzl5')" class="bg-[#2A2A2A] hover:bg-[#9B59B6]/30 hover:border-[#9B59B6] border border-[#2A2A2A] rounded-lg p-2.5 text-xs font-bold transition text-left"><p class="text-white">🌙 Synthwave</p><p class="text-gray-500 mt-0.5">Retro vibes</p></button>
+                        <button onclick="ponerRadio('PLqURaoO5FVSRrOfO0l5PFAT5r12OBqXhB')" class="bg-[#2A2A2A] hover:bg-[#E74C3C]/30 hover:border-[#E74C3C] border border-[#2A2A2A] rounded-lg p-2.5 text-xs font-bold transition text-left"><p class="text-white">🎮 Pixel Music</p><p class="text-gray-500 mt-0.5">Chiptune / 8bit</p></button>
+                    </div>
+                    <div class="flex gap-2 mb-2">
+                        <input id="yt-search-input" type="text" placeholder="🔍 Buscar en YouTube..." onkeypress="if(event.key==='Enter') buscarYouTube()" class="flex-1 bg-[#0A0A0A] border border-[#333] text-white text-xs px-3 py-2 rounded outline-none focus:border-[#FF0000] transition">
+                        <button onclick="buscarYouTube()" class="bg-[#FF0000] hover:bg-[#cc0000] text-white font-black px-3 py-2 rounded text-xs transition">Buscar</button>
+                    </div>
+                    <div id="yt-search-results" class="grid grid-cols-3 gap-2 mb-2 max-h-44 overflow-y-auto"></div>
+                    <div class="flex gap-2 mb-2">
+                        <input id="yt-custom-url" type="text" placeholder="O pegá URL/ID de YouTube directo..." class="flex-1 bg-[#0A0A0A] border border-[#333] text-white text-xs px-3 py-2 rounded outline-none focus:border-[#FF0000] transition">
+                        <button onclick="ponerRadioCustom()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-black px-3 py-2 rounded text-xs transition border border-[#333]">▶ Abrir</button>
+                    </div>
+                    <div id="yt-radio-frame" class="rounded-xl overflow-hidden bg-black" style="display:none">
+                        <iframe id="yt-iframe" width="100%" height="220" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+                    </div>
+                    <div class="flex items-center justify-between mt-2">
+                        <p class="text-xs text-gray-600">Requiere conexión a internet.</p>
+                        <button id="yt-open-btn" onclick="abrirYTEnNavegador()" style="display:none" class="text-xs bg-[#2A2A2A] hover:bg-[#FF0000] hover:text-white text-gray-400 px-2 py-1 rounded transition border border-[#333]">🌐 Abrir en navegador</button>
+                    </div>
+                </div>
+                <div id="mpanel-spotify" class="hidden bg-[#181818] border border-[#2A2A2A] rounded-xl p-5">
+                    <div id="spotify-noconectado">
+                        <h3 class="font-black mb-2">🎵 Conectar Spotify</h3>
+                        <p class="text-xs text-gray-500 mb-4">Necesitás una <strong class="text-white">Spotify Developer App</strong> (gratis).</p>
+                        <div class="flex flex-col gap-2">
+                            <input id="sp-client-id" type="text" placeholder="Client ID" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none focus:border-[#1DB954]">
+                            <input id="sp-client-secret" type="password" placeholder="Client Secret" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none focus:border-[#1DB954]">
+                            <button onclick="iniciarSpotifyAuth()" class="bg-[#1DB954] hover:bg-[#17a349] text-black font-black py-2 rounded transition">Autorizar en Spotify</button>
+                            <div id="sp-code-row" class="hidden flex gap-2">
+                                <input id="sp-code" type="text" placeholder="Pegá el code= de la URL de retorno" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm flex-1 outline-none">
+                                <button onclick="conectarSpotify()" class="bg-[#1DB954] hover:bg-[#17a349] text-black font-black px-4 py-2 rounded transition text-sm">Conectar</button>
+                            </div>
                         </div>
                     </div>
-                    <div class="flex items-center justify-center gap-4 mt-5">
-                        <button onclick="toggleShuffle()" id="sp-shuffle-btn" title="Shuffle" class="text-lg text-gray-500 hover:text-[#1DB954] transition">🔀</button>
-                        <button onclick="spotifyCtrl('prev')" class="text-2xl hover:text-[#1DB954] transition">⏮</button>
-                        <button onclick="spotifyCtrl('play')" id="sp-play-btn" class="w-12 h-12 bg-[#1DB954] rounded-full text-sm font-black text-black flex items-center justify-center hover:bg-[#17a349] transition">▶</button>
-                        <button onclick="spotifyCtrl('next')" class="text-2xl hover:text-[#1DB954] transition">⏭</button>
-                        <button onclick="toggleRepeat()" id="sp-repeat-btn" title="Repeat" class="text-lg text-gray-500 hover:text-[#1DB954] transition">🔁</button>
+                    <div id="spotify-widget" class="hidden">
+                        <div class="flex items-center gap-4">
+                            <img id="sp-img" src="" class="w-20 h-20 rounded-lg object-cover shrink-0" onerror="this.src='https://via.placeholder.com/80/1DB954/000?text=♫'">
+                            <div class="flex-1 min-w-0">
+                                <p id="sp-titulo" class="font-black text-white truncate">Sin reproducción</p>
+                                <p id="sp-artista" class="text-xs text-gray-400 truncate"></p>
+                                <p id="sp-album" class="text-xs text-gray-600 truncate"></p>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-center gap-4 mt-5">
+                            <button onclick="toggleShuffle()" id="sp-shuffle-btn" title="Shuffle" class="text-lg text-gray-500 hover:text-[#1DB954] transition">🔀</button>
+                            <button onclick="spotifyCtrl('prev')" class="text-2xl hover:text-[#1DB954] transition">⏮</button>
+                            <button onclick="spotifyCtrl('play')" id="sp-play-btn" class="w-12 h-12 bg-[#1DB954] rounded-full text-sm font-black text-black flex items-center justify-center hover:bg-[#17a349] transition">▶</button>
+                            <button onclick="spotifyCtrl('next')" class="text-2xl hover:text-[#1DB954] transition">⏭</button>
+                            <button onclick="toggleRepeat()" id="sp-repeat-btn" title="Repeat" class="text-lg text-gray-500 hover:text-[#1DB954] transition">🔁</button>
+                        </div>
+                        <div class="mt-3 bg-[#2A2A2A] h-1 rounded-full"><div id="sp-progress" class="bg-[#1DB954] h-1 rounded-full transition-all" style="width:0%"></div></div>
                     </div>
-                    <div class="mt-3 bg-[#2A2A2A] h-1 rounded-full"><div id="sp-progress" class="bg-[#1DB954] h-1 rounded-full transition-all" style="width:0%"></div></div>
                 </div>
-            </div>
             </div>
 
             <!-- FONDO ANIMADO -->
-            <div id="hpanel-fondo" class="hidden flex-1 min-h-0 overflow-y-auto pr-1">
+            <div id="hpanel-fondo" class="absolute inset-0 overflow-y-auto p-5 pr-4" style="display:none">
                 <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-6 max-w-xl">
                     <h3 class="font-black mb-2">🖼️ Fondo personalizado</h3>
-                    <p class="text-xs text-gray-500 mb-5">Elegí una imagen, GIF o video (MP4/WebM) para el fondo del launcher. Se aplica en todas las vistas.</p>
+                    <p class="text-xs text-gray-500 mb-5">Elegí una imagen, GIF o video (MP4/WebM) para el fondo del launcher.</p>
                     <div id="fondo-preview" class="w-full h-32 bg-[#0A0A0A] rounded-lg border border-[#2A2A2A] mb-4 overflow-hidden flex items-center justify-center">
                         <span class="text-gray-600 text-sm">Sin fondo personalizado</span>
                     </div>
@@ -1028,8 +1201,53 @@
                 </div>
             </div>
 
-            <!-- JAVA OPTIMIZER -->
-            <div id="hpanel-java" class="hidden flex-1 min-h-0 overflow-y-auto pr-1">
+            <!-- SHADERS -->
+            <div id="hpanel-shaders" class="absolute inset-0 overflow-y-auto p-5 pr-4" style="display:none">
+                <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5">
+                    <h3 class="font-black mb-1">✨ Shader Presets</h3>
+                    <p class="text-xs text-gray-500 mb-4">Instalá shaderpacks populares en un click para tu instancia activa.</p>
+                    <div class="flex gap-3 mb-5">
+                        <div class="flex flex-col gap-1 flex-1">
+                            <span class="text-xs font-bold text-gray-400">Versión MC</span>
+                            <input type="text" id="shader-ver" placeholder="ej: 1.20.1" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none focus:border-[#9B59B6]">
+                        </div>
+                        <div class="flex flex-col gap-1 w-32">
+                            <span class="text-xs font-bold text-gray-400">Motor</span>
+                            <select id="shader-motor" class="bg-[#0A0A0A] border border-[#333] text-white px-2 py-2 rounded text-sm outline-none">
+                                <option value="Fabric">Fabric</option>
+                                <option value="Forge">Forge</option>
+                                <option value="OptiFine">OptiFine</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="shader-presets" class="grid grid-cols-2 gap-4">
+                        <div class="bg-[#0A0A0A] border border-[#9B59B6]/40 rounded-xl p-4 flex flex-col gap-2">
+                            <div class="flex justify-between items-center"><h4 class="font-black text-[#9B59B6]">✨ BSL Shaders</h4><span class="text-[10px] bg-[#9B59B6]/20 text-[#9B59B6] px-2 py-0.5 rounded font-bold">Recomendado</span></div>
+                            <p class="text-xs text-gray-500">El más popular. Calidad y rendimiento equilibrados. Compatible con Iris y OptiFine.</p>
+                            <button onclick="instalarShaderPreset('bsl-shaders')" class="bg-[#9B59B6] hover:bg-[#7D3C98] text-white font-bold py-2 rounded transition text-sm mt-auto">Instalar BSL</button>
+                        </div>
+                        <div class="bg-[#0A0A0A] border border-[#2ECC71]/40 rounded-xl p-4 flex flex-col gap-2">
+                            <div class="flex justify-between items-center"><h4 class="font-black text-[#2ECC71]">🌟 Complementary</h4><span class="text-[10px] bg-[#2ECC71]/20 text-[#2ECC71] px-2 py-0.5 rounded font-bold">Alta calidad</span></div>
+                            <p class="text-xs text-gray-500">Complementary Reimagined. Fotorrealismo con colores vibrantes. Requiere buena GPU.</p>
+                            <button onclick="instalarShaderPreset('complementary-reimagined')" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-bold py-2 rounded transition text-sm mt-auto">Instalar Complementary</button>
+                        </div>
+                        <div class="bg-[#0A0A0A] border border-[#3498DB]/40 rounded-xl p-4 flex flex-col gap-2">
+                            <div class="flex justify-between items-center"><h4 class="font-black text-[#3498DB]">💧 Sildur's Vibrant</h4><span class="text-[10px] bg-[#3498DB]/20 text-[#3498DB] px-2 py-0.5 rounded font-bold">Ligero</span></div>
+                            <p class="text-xs text-gray-500">Sildur's Vibrant Shaders. Bonito y liviano, ideal para GPUs modestas.</p>
+                            <button onclick="instalarShaderPreset('sildurs-vibrant-shaders')" class="bg-[#3498DB] hover:bg-[#2980B9] text-white font-bold py-2 rounded transition text-sm mt-auto">Instalar Sildur's</button>
+                        </div>
+                        <div class="bg-[#0A0A0A] border border-[#F39C12]/40 rounded-xl p-4 flex flex-col gap-2">
+                            <div class="flex justify-between items-center"><h4 class="font-black text-[#F39C12]">⚡ MakeUp Ultra Fast</h4><span class="text-[10px] bg-[#F39C12]/20 text-[#F39C12] px-2 py-0.5 rounded font-bold">Ultra rápido</span></div>
+                            <p class="text-xs text-gray-500">Máximo rendimiento con shaders. Para PCs de gama baja que igual quieren efectos.</p>
+                            <button onclick="instalarShaderPreset('makeup-ultra-fast-shaders')" class="bg-[#F39C12] hover:bg-[#E67E22] text-black font-bold py-2 rounded transition text-sm mt-auto">Instalar MakeUp</button>
+                        </div>
+                    </div>
+                    <p id="shader-msg" class="text-xs text-center text-gray-500 mt-4 min-h-[16px]"></p>
+                </div>
+            </div>
+
+            <!-- JAVA -->
+            <div id="hpanel-java" class="absolute inset-0 overflow-y-auto p-5 pr-4" style="display:none">
                 <div class="grid grid-cols-2 gap-5">
                     <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col gap-3">
                         <h3 class="font-black">⚡ Análisis de tu PC</h3>
@@ -1053,7 +1271,7 @@
             </div>
 
             <!-- COMPARTIR INSTANCIA -->
-            <div id="hpanel-compartir" class="hidden flex-1 min-h-0 overflow-y-auto pr-1">
+            <div id="hpanel-compartir" class="absolute inset-0 overflow-y-auto p-5 pr-4" style="display:none">
                 <div class="grid grid-cols-2 gap-5">
                     <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col gap-4">
                         <h3 class="font-black">🔗 Generar código de instancia</h3>
@@ -1091,7 +1309,7 @@
             </div>
 
             <!-- GAME MODE -->
-            <div id="hpanel-gamemode" class="hidden flex-1 min-h-0 overflow-y-auto pr-1">
+            <div id="hpanel-gamemode" class="absolute inset-0 overflow-y-auto p-5 pr-4" style="display:none">
                 <div class="grid grid-cols-2 gap-5">
                     <div class="bg-[#181818] border border-[#2ECC71]/20 rounded-xl p-6 flex flex-col gap-4">
                         <div class="flex items-center gap-3">
@@ -1137,7 +1355,7 @@
             </div>
 
             <!-- HW PERFIL -->
-            <div id="hpanel-hwperfil" class="hidden flex-1 min-h-0 overflow-y-auto pr-1">
+            <div id="hpanel-hwperfil" class="absolute inset-0 overflow-y-auto p-5 pr-4" style="display:none">
                 <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 mb-5">
                     <div class="flex items-center justify-between mb-4">
                         <div>
@@ -1148,40 +1366,88 @@
                     </div>
                     <div id="hw-deteccion-info" class="hidden bg-[#0A0A0A] rounded-lg p-4 text-sm text-gray-400"></div>
                 </div>
+                <div class="mb-5">
+                    <h3 class="text-xs font-black text-gray-500 uppercase tracking-widest mb-3">⚡ Versiones recomendadas</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-[#181818] border border-[#E74C3C]/40 hover:border-[#E74C3C] rounded-xl p-4 flex flex-col gap-2 transition">
+                            <div class="flex items-center justify-between">
+                                <h4 class="font-black text-[#E74C3C]">⚔ PvP Solo</h4>
+                                <span class="text-[10px] bg-[#2A2A2A] text-gray-400 px-2 py-0.5 rounded font-mono">1.8.9 · Forge</span>
+                            </div>
+                            <p class="text-xs text-gray-500">Premium + No-Premium. Optifine, ToggleSneak, BetterFPS, Chunks 8, ZGC, FPS máximo.</p>
+                            <button onclick="prepararVersionPreset('pvp')" class="mt-auto bg-[#E74C3C] hover:bg-[#C0392B] text-white font-black py-2 rounded transition text-xs">Preparar versión</button>
+                        </div>
+                        <div class="bg-[#181818] border border-[#2ECC71]/40 hover:border-[#2ECC71] rounded-xl p-4 flex flex-col gap-2 transition">
+                            <div class="flex items-center justify-between">
+                                <h4 class="font-black text-[#2ECC71]">🌳 Survival con amigos</h4>
+                                <span class="text-[10px] bg-[#2A2A2A] text-gray-400 px-2 py-0.5 rounded font-mono">1.20.1 · Fabric</span>
+                            </div>
+                            <p class="text-xs text-gray-500">Sodium, Iris, Xaero's Maps, JEI, AppleSkin, Waystones. Shaders opcionales.</p>
+                            <button onclick="prepararVersionPreset('survival')" class="mt-auto bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black py-2 rounded transition text-xs">Preparar versión</button>
+                        </div>
+                        <div class="bg-[#181818] border border-[#3498DB]/40 hover:border-[#3498DB] rounded-xl p-4 flex flex-col gap-2 transition">
+                            <div class="flex items-center justify-between">
+                                <h4 class="font-black text-[#3498DB]">🌐 Servidores Survival</h4>
+                                <span class="text-[10px] bg-[#2A2A2A] text-gray-400 px-2 py-0.5 rounded font-mono">1.16.5 · Fabric</span>
+                            </div>
+                            <p class="text-xs text-gray-500">Sodium, Lithium, Phosphor, NoChatReports, BetterF3. Máx. compatibilidad con servers.</p>
+                            <button onclick="prepararVersionPreset('servidores')" class="mt-auto bg-[#3498DB] hover:bg-[#2980B9] text-white font-black py-2 rounded transition text-xs">Preparar versión</button>
+                        </div>
+                        <div class="bg-[#181818] border border-[#9B59B6]/40 hover:border-[#9B59B6] rounded-xl p-4 flex flex-col gap-2 transition">
+                            <div class="flex items-center justify-between">
+                                <h4 class="font-black text-[#9B59B6]">🪄 Modded Pesado</h4>
+                                <span class="text-[10px] bg-[#2A2A2A] text-gray-400 px-2 py-0.5 rounded font-mono">1.12.2 · Forge</span>
+                            </div>
+                            <p class="text-xs text-gray-500">Base Forge + JEI, FoamFix, OptiFine. Usá el importador de Modrinth para el modpack.</p>
+                            <button onclick="prepararVersionPreset('modded')" class="mt-auto bg-[#9B59B6] hover:bg-[#7D3C98] text-white font-black py-2 rounded transition text-xs">Preparar versión</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <h3 class="text-xs font-black text-gray-500 uppercase tracking-widest mb-3">Estilo de juego</h3>
+                    <div class="flex flex-wrap gap-2 mb-2" id="hw-estilo-tabs">
+                        <button onclick="hwEstiloTab('pvp')" id="hw-est-pvp" class="px-3 py-1.5 rounded-full text-xs font-bold bg-[#E74C3C] text-white transition">🎯 PvP</button>
+                        <button onclick="hwEstiloTab('survival')" id="hw-est-survival" class="px-3 py-1.5 rounded-full text-xs font-bold bg-[#2A2A2A] text-gray-400 hover:bg-[#3A3A3A] transition">🌳 Survival</button>
+                        <button onclick="hwEstiloTab('competitivo')" id="hw-est-competitivo" class="px-3 py-1.5 rounded-full text-xs font-bold bg-[#2A2A2A] text-gray-400 hover:bg-[#3A3A3A] transition">🎮 Competitivo</button>
+                        <button onclick="hwEstiloTab('streaming')" id="hw-est-streaming" class="px-3 py-1.5 rounded-full text-xs font-bold bg-[#2A2A2A] text-gray-400 hover:bg-[#3A3A3A] transition">📺 Streaming</button>
+                        <button onclick="hwEstiloTab('modded')" id="hw-est-modded" class="px-3 py-1.5 rounded-full text-xs font-bold bg-[#2A2A2A] text-gray-400 hover:bg-[#3A3A3A] transition">🧱 Modded</button>
+                    </div>
+                    <p id="hw-estilo-desc" class="text-xs text-gray-500">Máximo FPS, sin distracciones. Reducir chunks y visuales.</p>
+                </div>
                 <div class="grid grid-cols-3 gap-4">
                     <div class="bg-[#181818] border border-[#2A2A2A] hover:border-[#E74C3C] rounded-xl p-5 flex flex-col gap-3 transition">
                         <div class="flex items-center gap-2"><span class="text-2xl">🟢</span><h4 class="font-black text-[#2ECC71]">Gama Baja</h4></div>
                         <p class="text-xs text-gray-500">Máximo FPS, mínimos visuales. Para PCs de hasta 8GB RAM / 4 cores.</p>
-                        <ul class="text-xs text-gray-400 space-y-0.5">
+                        <ul id="hw-baja-mods" class="text-xs text-gray-400 space-y-0.5">
                             <li>• Sodium + Lithium</li><li>• FerriteCore + Starlight</li><li>• EntityCulling + MemoryLeakFix</li><li>• Chunks: 8 | GC: ZGC | RAM: 45%</li>
                         </ul>
                         <div class="flex gap-2 mt-auto">
                             <input id="hw-baja-ver" type="text" placeholder="Versión" class="bg-[#0A0A0A] border border-[#333] text-white px-2 py-1.5 rounded text-xs flex-1 outline-none">
-                            <select id="hw-baja-motor" class="bg-[#0A0A0A] border border-[#333] text-white px-2 py-1.5 rounded text-xs outline-none"><option>Fabric</option><option>Forge</option></select>
+                            <select id="hw-baja-motor" onchange="hwActualizarCards()" class="bg-[#0A0A0A] border border-[#333] text-white px-2 py-1.5 rounded text-xs outline-none"><option>Fabric</option><option>Forge</option></select>
                         </div>
                         <button onclick="aplicarHwPerfilManual('baja')" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black py-2 rounded transition text-sm">Aplicar</button>
                     </div>
                     <div class="bg-[#181818] border border-[#2A2A2A] hover:border-[#F39C12] rounded-xl p-5 flex flex-col gap-3 transition">
-                        <div class="flex items-center gap-2"><span class="text-2xl">🟡</span><h4 class="font-black text-[#F39C12]">Gama Media</h4></div>
+                        <div class="flex items-center justify-between"><div class="flex items-center gap-2"><span class="text-2xl">🟡</span><h4 class="font-black text-[#F39C12]">Gama Media</h4></div><span class="text-[10px] bg-[#F39C12]/20 text-[#F39C12] font-black px-2 py-0.5 rounded tracking-wide">RECOMENDADO</span></div>
                         <p class="text-xs text-gray-500">Balance visual / FPS. Iris + shaders livianos. 8-16GB RAM.</p>
-                        <ul class="text-xs text-gray-400 space-y-0.5">
+                        <ul id="hw-media-mods" class="text-xs text-gray-400 space-y-0.5">
                             <li>• Sodium + Lithium + Iris</li><li>• Ferrite + EntityCulling + Indium</li><li>• Shaders: Makeup Ultra Fast</li><li>• Chunks: 10 | GC: G1GC | RAM: 50%</li>
                         </ul>
                         <div class="flex gap-2 mt-auto">
                             <input id="hw-media-ver" type="text" placeholder="Versión" class="bg-[#0A0A0A] border border-[#333] text-white px-2 py-1.5 rounded text-xs flex-1 outline-none">
-                            <select id="hw-media-motor" class="bg-[#0A0A0A] border border-[#333] text-white px-2 py-1.5 rounded text-xs outline-none"><option>Fabric</option><option>Forge</option></select>
+                            <select id="hw-media-motor" onchange="hwActualizarCards()" class="bg-[#0A0A0A] border border-[#333] text-white px-2 py-1.5 rounded text-xs outline-none"><option>Fabric</option><option>Forge</option></select>
                         </div>
                         <button onclick="aplicarHwPerfilManual('media')" class="bg-[#F39C12] hover:bg-[#E67E22] text-black font-black py-2 rounded transition text-sm">Aplicar</button>
                     </div>
                     <div class="bg-[#181818] border border-[#2A2A2A] hover:border-[#3498DB] rounded-xl p-5 flex flex-col gap-3 transition">
                         <div class="flex items-center gap-2"><span class="text-2xl">🔵</span><h4 class="font-black text-[#3498DB]">Gama Alta</h4></div>
                         <p class="text-xs text-gray-500">Calidad visual máxima + optimizaciones. 16GB+ RAM.</p>
-                        <ul class="text-xs text-gray-400 space-y-0.5">
+                        <ul id="hw-alta-mods" class="text-xs text-gray-400 space-y-0.5">
                             <li>• Sodium + Lithium + Iris + Indium</li><li>• Shaders: Complementary Reimagined</li><li>• ReplayMod + ItemModel Fix</li><li>• Chunks: 14 | GC: G1GC | RAM: 60%</li>
                         </ul>
                         <div class="flex gap-2 mt-auto">
                             <input id="hw-alta-ver" type="text" placeholder="Versión" class="bg-[#0A0A0A] border border-[#333] text-white px-2 py-1.5 rounded text-xs flex-1 outline-none">
-                            <select id="hw-alta-motor" class="bg-[#0A0A0A] border border-[#333] text-white px-2 py-1.5 rounded text-xs outline-none"><option>Fabric</option><option>Forge</option></select>
+                            <select id="hw-alta-motor" onchange="hwActualizarCards()" class="bg-[#0A0A0A] border border-[#333] text-white px-2 py-1.5 rounded text-xs outline-none"><option>Fabric</option><option>Forge</option></select>
                         </div>
                         <button onclick="aplicarHwPerfilManual('alta')" class="bg-[#3498DB] hover:bg-[#2980B9] text-white font-black py-2 rounded transition text-sm">Aplicar</button>
                     </div>
@@ -1194,7 +1460,7 @@
             </div>
 
             <!-- CRASH LOG ANALYZER -->
-            <div id="hpanel-crash" class="hidden flex-1 min-h-0 overflow-y-auto pr-1">
+            <div id="hpanel-crash" class="absolute inset-0 overflow-y-auto p-5 pr-4" style="display:none">
                 <div class="grid grid-cols-2 gap-5">
                     <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col gap-4">
                         <h3 class="font-black">🔴 Analizador de crash logs</h3>
@@ -1222,7 +1488,7 @@
             </div>
 
             <!-- IA GEMINI -->
-            <div id="hpanel-ia" class="hidden flex-1 min-h-0 overflow-y-auto pr-1">
+            <div id="hpanel-ia" class="absolute inset-0 overflow-y-auto p-5 pr-4" style="display:none">
                 <div class="flex gap-2 mb-4">
                     <button onclick="iaTab('chat')" id="iatab-chat" class="px-4 py-2 rounded-lg font-bold text-sm bg-[#9B59B6] text-white transition">💬 Chat</button>
                     <button onclick="iaTab('comandos')" id="iatab-comandos" class="px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">⚡ Comandos</button>
@@ -1304,7 +1570,7 @@
             </div>
 
             <!-- FOTOS (SCREENSHOTS) -->
-            <div id="hpanel-fotos" class="hidden flex-1 min-h-0 overflow-y-auto pr-1">
+            <div id="hpanel-fotos" class="absolute inset-0 overflow-y-auto p-5 pr-4" style="display:none">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="font-black">📸 Galería de Screenshots</h3>
                     <button onclick="cargarScreenshots()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] px-4 py-2 rounded font-bold text-sm transition border border-[#333]">↻ Actualizar</button>
@@ -1315,7 +1581,7 @@
             </div>
 
             <!-- ACTUALIZACIONES DE MODS -->
-            <div id="hpanel-updates" class="hidden flex-1 min-h-0 overflow-y-auto pr-1">
+            <div id="hpanel-updates" class="absolute inset-0 overflow-y-auto p-5 pr-4" style="display:none">
                 <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 mb-4">
                     <h3 class="font-black mb-2">🔄 Detector de actualizaciones de mods</h3>
                     <p class="text-xs text-gray-500 mb-4">Escanea tu carpeta mods y compara con Modrinth para detectar versiones nuevas.</p>
@@ -1331,7 +1597,7 @@
             </div>
 
             <!-- TURBO MODE -->
-            <div id="hpanel-turbo" class="hidden flex-1 min-h-0 overflow-y-auto pr-1">
+            <div id="hpanel-turbo" class="absolute inset-0 overflow-y-auto p-5 pr-4" style="display:none">
                 <div class="grid grid-cols-2 gap-5">
                     <div class="bg-[#181818] border border-[#F39C12]/30 rounded-xl p-6 flex flex-col gap-4">
                         <div class="flex items-center gap-3">
@@ -1379,7 +1645,7 @@
             </div>
 
             <!-- OVERLAY -->
-            <div id="hpanel-overlay" class="hidden flex-1 min-h-0 overflow-y-auto pr-1">
+            <div id="hpanel-overlay" class="absolute inset-0 overflow-y-auto p-5 pr-4" style="display:none">
                 <div class="grid grid-cols-2 gap-5">
                     <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-6 flex flex-col gap-4">
                         <div class="flex items-center gap-3">
@@ -1398,6 +1664,8 @@
                         <button onclick="abrirOverlay()" class="bg-[#3498DB] hover:bg-[#2980B9] text-white font-black py-2.5 rounded transition">🖥️ Abrir Overlay</button>
                         <button onclick="abrirKeystrokeOverlay()" class="bg-[#9B59B6] hover:bg-[#7D3C98] text-white font-black py-2.5 rounded transition">⌨️ Overlay de Teclas</button>
                         <button onclick="abrirIAOverlay()" id="btn-ia-overlay" class="bg-[#27AE60] hover:bg-[#1E8449] text-white font-black py-2.5 rounded transition">🤖 IA Gemini Overlay</button>
+                        <button onclick="instalarModsPvp189()" class="bg-[#E74C3C] hover:bg-[#C0392B] text-white font-black py-2.5 rounded transition">⚔️ Mods PvP 1.8.9</button>
+                        <p id="pvp-mods-msg" class="text-xs text-center text-gray-500 min-h-[14px]"></p>
                         <div class="bg-[#0A0A0A] rounded-lg p-3 border border-[#2A2A2A]">
                             <p class="text-xs font-bold text-gray-400 mb-2">Elementos visibles</p>
                             <div class="grid grid-cols-2 gap-y-2 gap-x-3">
@@ -1432,7 +1700,7 @@
             </div>
 
             <!-- BENCHMARK DE PC -->
-            <div id="hpanel-benchmark" class="hidden flex-1 min-h-0 overflow-y-auto pr-1">
+            <div id="hpanel-benchmark" class="absolute inset-0 overflow-y-auto p-5 pr-4" style="display:none">
                 <div class="flex flex-col gap-4">
                     <!-- Header -->
                     <div class="bg-[#181818] border border-[#F39C12]/30 rounded-xl p-5 flex items-center justify-between gap-4">
@@ -1521,7 +1789,7 @@
             </div>
 
             <!-- SKIN IA -->
-            <div id="hpanel-skingen" class="hidden flex-1 min-h-0 overflow-y-auto pr-1">
+            <div id="hpanel-skingen" class="absolute inset-0 overflow-y-auto p-5 pr-4" style="display:none">
                 <div class="grid grid-cols-2 gap-5">
                     <div class="bg-[#181818] border border-[#9B59B6]/30 rounded-xl p-6 flex flex-col gap-4">
                         <div class="flex items-center gap-3">
@@ -1559,7 +1827,7 @@
             </div>
 
             <!-- SMART RAM -->
-            <div id="hpanel-smartram" class="hidden flex-1 min-h-0 overflow-y-auto pr-1">
+            <div id="hpanel-smartram" class="absolute inset-0 overflow-y-auto p-5 pr-4" style="display:none">
                 <div class="grid grid-cols-2 gap-5">
                     <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-6 flex flex-col gap-4">
                         <div class="flex items-center gap-3">
@@ -1587,7 +1855,7 @@
             </div>
 
             <!-- CONFLICTOS DE MODS -->
-            <div id="hpanel-conflictos" class="hidden flex-1 min-h-0 overflow-y-auto pr-1">
+            <div id="hpanel-conflictos" class="absolute inset-0 overflow-y-auto p-5 pr-4" style="display:none">
                 <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-6">
                     <div class="flex items-center justify-between mb-4">
                         <div>
@@ -1601,7 +1869,7 @@
             </div>
 
             <!-- OPTIMIZAR MC -->
-            <div id="hpanel-optimizer" class="hidden flex-1 min-h-0 overflow-y-auto pr-1">
+            <div id="hpanel-optimizer" class="absolute inset-0 overflow-y-auto p-5 pr-4" style="display:none">
                 <div class="grid grid-cols-2 gap-5">
                     <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-6 flex flex-col gap-4">
                         <div class="flex items-center gap-3">
@@ -1627,7 +1895,7 @@
             </div>
 
             <!-- COMPARADOR DE VERSIONES -->
-            <div id="hpanel-comparador" class="hidden flex-1 min-h-0 overflow-y-auto pr-1">
+            <div id="hpanel-comparador" class="absolute inset-0 overflow-y-auto p-5 pr-4" style="display:none">
                 <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-6">
                     <div class="flex items-center justify-between mb-4">
                         <div>
@@ -1641,7 +1909,7 @@
             </div>
 
             <!-- WHITELIST -->
-            <div id="hpanel-whitelist" class="hidden flex-1 min-h-0 overflow-y-auto pr-1">
+            <div id="hpanel-whitelist" class="absolute inset-0 overflow-y-auto p-5 pr-4" style="display:none">
                 <div class="grid grid-cols-2 gap-5">
                     <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-6 flex flex-col gap-4">
                         <h3 class="font-black text-lg">👥 Whitelist del servidor</h3>
@@ -1660,6 +1928,7 @@
                 </div>
             </div>
 
+            </div>
         </div>
         <!-- FIN VISTA HERRAMIENTAS -->
 
@@ -2012,6 +2281,7 @@
             if (panelImg) {
                 const imgF = (vM === 'otras' || vM === 'instaladas') ? 'Otra_Version' : vM.replace(/\./g, '_');
                 panelImg.src = `assets/${imgF}.png`;
+                panelImg.style.display = 'block';
                 panelImg.classList.remove('hidden');
             }
 
@@ -2344,7 +2614,7 @@
             document.querySelectorAll('.vista-seccion').forEach(el => el.style.display = 'none');
             document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('border-b-2', 'border-[#2ECC71]', 'pb-1', 'text-white'));
             const v = document.getElementById('vista-' + idVista);
-            if (v) { v.style.display = 'flex'; v.style.flexDirection = idVista === 'versiones' ? 'row' : 'column'; }
+            if (v) { v.style.display = 'flex'; v.style.flexDirection = (idVista === 'versiones' || idVista === 'herramientas') ? 'row' : 'column'; }
             const btn = document.getElementById('btn-' + idVista);
             if (btn) btn.classList.add('border-b-2', 'border-[#2ECC71]', 'pb-1', 'text-white');
             const bread = document.getElementById("breadcrumb");
@@ -2354,6 +2624,14 @@
             if (idVista === 'servidores') pingTodosServidores();
         }
 
+        let _modrinthCatActual = '';
+        function filtrarCatModrinth(cat) {
+            _modrinthCatActual = cat;
+            document.querySelectorAll('#modrinth-cats button').forEach(b => {
+                b.className = 'px-3 py-1 rounded-full text-xs font-bold transition ' + (b.id === 'mcat-' + (cat||'all') ? 'bg-[#2ECC71] text-black' : 'bg-[#2A2A2A] text-white hover:bg-[#3A3A3A]');
+            });
+            buscarModrinthAPI();
+        }
         async function buscarModrinthAPI() {
             const q = encodeURIComponent(document.getElementById('buscador-mods').value || '');
             const t = document.getElementById('filtro-tipo').value;
@@ -2361,7 +2639,8 @@
             if(!grid) return;
             grid.innerHTML = `<div class="col-span-2 text-center text-gray-500 mt-10">Buscando...</div>`;
             try {
-                const facets = encodeURIComponent(JSON.stringify([["project_type:" + t]]));
+                const catFacets = (typeof _modrinthCatActual !== 'undefined' && _modrinthCatActual) ? [["project_type:" + t], ["categories:" + _modrinthCatActual]] : [["project_type:" + t]];
+                const facets = encodeURIComponent(JSON.stringify(catFacets));
                 const res = await fetch(`https://api.modrinth.com/v2/search?query=${q}&limit=16&facets=${facets}`);
                 const data = await res.json();
                 grid.innerHTML = "";
@@ -2377,6 +2656,128 @@
             } catch(e) { grid.innerHTML = `<div class="col-span-2 text-center text-red-500 mt-10">Error de red.</div>`; }
         }
 
+        // ─── HW PERFIL / ESTILO DE JUEGO data ───
+        const _hwBaseMods = {
+            baja:  [["sodium","Sodium"],["lithium","Lithium"],["ferrite-core","FerriteCore"],["starlight","Starlight"],["entityculling","EntityCulling"],["memoryleakfix","MemoryLeakFix"],["no-chat-reports","NoChatReports"]],
+            media: [["sodium","Sodium"],["lithium","Lithium"],["iris","Iris"],["ferrite-core","FerriteCore"],["entityculling","EntityCulling"],["memoryleakfix","MemoryLeakFix"],["indium","Indium"]],
+            alta:  [["sodium","Sodium"],["lithium","Lithium"],["iris","Iris"],["indium","Indium"],["ferrite-core","FerriteCore"],["entityculling","EntityCulling"],["memoryleakfix","MemoryLeakFix"],["replaymod","ReplayMod"],["itemmodel-fix","ItemModel Fix"]],
+        };
+        const _hwBaseShaders = {
+            baja: [], media: [["Shaders: Makeup Ultra Fast"]], alta: [["Shaders: Complementary Reimagined"]]
+        };
+        const _hwBaseStats = {
+            baja:  {chunks:8,  gc:"ZGC",  ram:45},
+            media: {chunks:10, gc:"G1GC", ram:50},
+            alta:  {chunks:14, gc:"G1GC", ram:60},
+        };
+        const _hwEstiloModsExtra = {
+            pvp:        {baja:[["minihud","MiniHUD"],["no-chat-reports","NoChatReports"]],                     media:[["minihud","MiniHUD"],["no-chat-reports","NoChatReports"],["appleskin","AppleSkin"]],                alta:[["minihud","MiniHUD"],["no-chat-reports","NoChatReports"],["appleskin","AppleSkin"]]},
+            survival:   {baja:[["xaeros-minimap","Xaero's Minimap"],["jei","JEI"]],                          media:[["xaeros-minimap","Xaero's Minimap"],["xaeros-world-map","Xaero's World Map"],["jei","JEI"],["appleskin","AppleSkin"]], alta:[["xaeros-minimap","Xaero's Minimap"],["xaeros-world-map","Xaero's World Map"],["jei","JEI"],["appleskin","AppleSkin"],["waystones","Waystones"]]},
+            competitivo:{baja:[["minihud","MiniHUD"]],                                                       media:[["minihud","MiniHUD"],["no-chat-reports","NoChatReports"]],                                      alta:[["minihud","MiniHUD"],["no-chat-reports","NoChatReports"],["replaymod","ReplayMod"]]},
+            streaming:  {baja:[],                                                                             media:[["replaymod","ReplayMod"]],                                                                     alta:[["replaymod","ReplayMod"],["appleskin","AppleSkin"]]},
+            modded:     {baja:[["memoryleakfix","MemoryLeakFix"]],                                            media:[["memoryleakfix","MemoryLeakFix"],["jei","JEI"]],                                               alta:[["memoryleakfix","MemoryLeakFix"],["jei","JEI"],["appleskin","AppleSkin"]]},
+        };
+        const _hwEstiloOverrides = {
+            pvp:        {baja:{chunks:6,gc:"ZGC"},media:{chunks:8,gc:"ZGC"},alta:{chunks:10,gc:"ZGC"}},
+            survival:   {},
+            competitivo:{baja:{chunks:6,gc:"ZGC"},media:{chunks:8,gc:"ZGC"}},
+            streaming:  {media:{chunks:12},alta:{chunks:16,ram:65}},
+            modded:     {baja:{ram:55},media:{ram:60},alta:{ram:70,chunks:12}},
+        };
+        const _hwLoaderMap = {
+            Forge: {sodium:["embeddium","Embeddium"],lithium:["canary","Canary"],iris:["oculus","Oculus"],indium:null}
+        };
+        function hwBuildModList(perfil, estilo, loader) {
+            const loaderSubs = _hwLoaderMap[loader] || {};
+            const base = _hwBaseMods[perfil] || [];
+            const extra = (_hwEstiloModsExtra[estilo] || {})[perfil] || [];
+            const baseSlugs = new Set(base.map(([s])=>s));
+            const merged = [...base, ...extra.filter(([s])=>!baseSlugs.has(s))];
+            const names = [];
+            merged.forEach(([slug, nombre]) => {
+                if (slug in loaderSubs) {
+                    const sub = loaderSubs[slug];
+                    if (sub !== null) names.push(sub[1]);
+                } else {
+                    names.push(nombre);
+                }
+            });
+            const shaders = _hwBaseShaders[perfil] || [];
+            shaders.forEach(([s]) => names.push(s));
+            const ov = Object.assign({}, _hwBaseStats[perfil], (_hwEstiloOverrides[estilo]||{})[perfil]||{});
+            names.push(`Chunks: ${ov.chunks} | GC: ${ov.gc} | RAM: ${ov.ram}%`);
+            return names;
+        }
+        function hwActualizarCards() {
+            const estilo = window._hwEstiloActual || 'pvp';
+            ['baja','media','alta'].forEach(p => {
+                const motorEl = document.getElementById('hw-' + p + '-motor');
+                const loader = motorEl ? motorEl.value : 'Fabric';
+                const ul = document.getElementById('hw-' + p + '-mods');
+                if (!ul) return;
+                const mods = hwBuildModList(p, estilo, loader);
+                ul.innerHTML = mods.map(m => `<li>• ${m}</li>`).join('');
+            });
+        }
+        // ─── HW PERFIL / ESTILO DE JUEGO ───
+        const _hwEstiloDescs = {
+            pvp:        'Máximo FPS, sin distracciones. Reducir chunks y visuales.',
+            survival:   'Balance de rendimiento y calidad visual. Shaders opcionales.',
+            competitivo:'FPS estable, overlay de teclas, sin lag spikes.',
+            streaming:  'Calidad visual alta + ReplayMod. Más RAM recomendada.',
+            modded:     'Compatibilidad de mods + JEI + rendimiento. Requiere 8GB+ RAM.',
+        };
+        function hwEstiloTab(t) {
+            window._hwEstiloActual = t;
+            ['pvp','survival','competitivo','streaming','modded'].forEach(k => {
+                const b = document.getElementById('hw-est-' + k);
+                if (!b) return;
+                const colors = {pvp:'bg-[#E74C3C] text-white', survival:'bg-[#2ECC71] text-black', competitivo:'bg-[#3498DB] text-white', streaming:'bg-[#9B59B6] text-white', modded:'bg-[#F39C12] text-black'};
+                b.className = 'px-3 py-1.5 rounded-full text-xs font-bold transition ' + (k === t ? colors[k] : 'bg-[#2A2A2A] text-gray-400 hover:bg-[#3A3A3A]');
+            });
+            const d = document.getElementById('hw-estilo-desc');
+            if (d) d.textContent = _hwEstiloDescs[t] || '';
+            hwActualizarCards();
+        }
+        async function prepararVersionPreset(tipo) {
+            const cfg = {pvp:{ver:'1.8.9',motor:'Forge'},survival:{ver:'1.20.1',motor:'Fabric'},servidores:{ver:'1.16.5',motor:'Fabric'},modded:{ver:'1.12.2',motor:'Forge'}};
+            const c = cfg[tipo]; if (!c) return;
+            const lbl = document.getElementById('hw-perfil-progreso-lbl');
+            const prog = document.getElementById('hw-perfil-progreso');
+            if (prog) prog.classList.remove('hidden');
+            if (lbl) lbl.textContent = 'Preparando ' + c.ver + ' ' + c.motor + '...';
+            try {
+                const r = await pywebview.api.instalar_version(c.ver, c.motor);
+                if (prog) prog.classList.add('hidden');
+                if (r && r.ok) {
+                    const vs = document.getElementById('panel-version-sel');
+                    const ls = document.getElementById('panel-loader-sel');
+                    if (vs) vs.value = c.ver;
+                    if (ls) ls.value = c.motor;
+                    alert('✅ Versión ' + c.ver + ' (' + c.motor + ') preparada.');
+                } else { alert('❌ ' + ((r && r.error) || 'Error al preparar versión.')); }
+            } catch(e) { if (prog) prog.classList.add('hidden'); alert(String(e)); }
+        }
+        function gestorInstRamLabel(val) {
+            const lbl = document.getElementById('gestor-inst-ram-lbl');
+            if (lbl) lbl.textContent = val == 0 ? 'Global' : val + ' GB';
+        }
+        async function guardarInstanciaRam() {
+            const sl = document.getElementById('gestor-inst-ram-slider');
+            const sV = document.getElementById('panel-version-sel');
+            const sL = document.getElementById('panel-loader-sel');
+            if (!sl || !sV || !sL) return;
+            try {
+                await pywebview.api.save_instance_setting(sV.value, sL.value, 'ram_instancia', parseInt(sl.value));
+            } catch(e) {}
+        }
+        async function abrirCarpetaScreenshots() {
+            const sV = document.getElementById('panel-version-sel');
+            const sL = document.getElementById('panel-loader-sel');
+            if (!sV || !sL) return;
+            try { await pywebview.api.open_instance_folder(sV.value, sL.value, 'screenshots'); } catch(e) {}
+        }
+        // ─── FIN HW PERFIL ───
         // --- AUTO-UPDATE ---
         let _updUrl = null;
 
@@ -2777,7 +3178,7 @@
         }
         function resetLaunchButton() {
             const btn = document.getElementById('btn-launch-game');
-            if(btn) { btn.innerText = "INICIAR JUEGO"; btn.classList.replace('bg-gray-600', 'bg-[#2ECC71]'); btn.disabled = false; }
+            if(btn) { btn.innerText = "▶ JUGAR"; btn.classList.replace('bg-gray-600', 'bg-[#2ECC71]'); btn.disabled = false; }
         }
 
         // --- ACERCA DEL LAUNCHER ---
@@ -3015,8 +3416,9 @@
         let _impSkinPath = null;
 
         function skinTab(cual) {
-            const panels = { catalogo: 'skin-panel-catalogo', jugador: 'skin-panel-jugador', importar: 'skin-panel-importar' };
-            const tabs   = { catalogo: 'skin-tab-cat',       jugador: 'skin-tab-jug',      importar: 'skin-tab-imp' };
+            if (cual === 'historial') cargarHistorialSkins();
+            const panels = { catalogo: 'skin-panel-catalogo', jugador: 'skin-panel-jugador', importar: 'skin-panel-importar', historial: 'skin-panel-historial' };
+            const tabs   = { catalogo: 'skin-tab-cat',       jugador: 'skin-tab-jug',      importar: 'skin-tab-imp',       historial: 'skin-tab-his' };
             const activeBase = 'px-5 py-2 rounded-lg font-bold text-sm transition';
             Object.keys(panels).forEach(k => {
                 const p = document.getElementById(panels[k]);
@@ -3216,28 +3618,57 @@
                 alert('No se pudo aplicar la skin de ' + nombre + ': ' + String(e));
             }
         }
+        async function cargarHistorialSkins() {
+            const grid = document.getElementById('skin-historial-grid');
+            if (!grid) return;
+            try {
+                const r = await pywebview.api.get_skin_historial();
+                const skins = (r && r.historial) || [];
+                if (!skins.length) { grid.innerHTML = '<div class="col-span-5 text-center text-gray-500 text-sm py-10">Sin historial todav\u00eda.</div>'; return; }
+                grid.innerHTML = skins.map(s => `
+                    <div class="flex flex-col items-center gap-1 cursor-pointer group" onclick="aplicarSkinHistorial('${s.url||''}','${s.tipo||'classic'}')">
+                        <img src="https://minotar.net/helm/${s.nombre||'Steve'}/64.png" class="w-14 h-14 rounded-lg border border-[#2A2A2A] group-hover:border-[#2ECC71] transition" onerror="this.src='https://minotar.net/helm/Steve/64.png'">
+                        <p class="text-xs text-gray-400 truncate w-full text-center">${s.nombre||s.url||'Skin'}</p>
+                    </div>`).join('');
+            } catch(e) { grid.innerHTML = '<div class="col-span-5 text-center text-gray-500 text-sm py-10">Error al cargar historial.</div>'; }
+        }
+        async function limpiarHistorialSkins() {
+            if (!confirm('\u00bfLimpiar el historial de skins?')) return;
+            try { await pywebview.api.limpiar_skin_historial(); cargarHistorialSkins(); } catch(e) {}
+        }
+        async function aplicarSkinHistorial(url, tipo) {
+            if (!url) return;
+            try {
+                const r = await pywebview.api.aplicar_skin_url(url, tipo);
+                alert(r.ok ? '\u2705 Skin aplicada.' : '\u274c ' + r.error);
+            } catch(e) { alert(String(e)); }
+        }
         // --- FIN SKINS ---
 
         // ══ HERRAMIENTAS: TAB SWITCHER ══════════════════════════════════
         function herTab(cual) {
-            const allTabs = ['estadisticas','backup','perfiles','compartir','gamemode','hwperfil','crash','musica','fondo','java','ia','fotos','updates','turbo','overlay','benchmark','skingen','smartram','conflictos','optimizer','comparador','whitelist'];
+            const allTabs = ['estadisticas','backup','perfiles','compartir','gamemode','hwperfil','crash','musica','fondo','shaders','java','ia','fotos','updates','turbo','overlay','benchmark','skingen','smartram','conflictos','optimizer','comparador','whitelist'];
             allTabs.forEach(t => {
                 const panel = document.getElementById('hpanel-' + t);
-                if (panel) panel.classList.toggle('hidden', t !== cual);
+                if (panel) {
+                    if (t === cual) { panel.classList.remove('hidden'); panel.style.display = 'block'; }
+                    else { panel.style.display = 'none'; }
+                }
                 const btn = document.getElementById('htab-' + t);
                 if (!btn) return;
+                const BASE = 'htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm transition ';
                 if (t === cual) {
-                    const activeClass = t === 'ia' || t === 'skingen' ? 'bg-[#9B59B6] text-white'
+                    const col = t === 'ia' || t === 'skingen' ? 'bg-[#9B59B6] text-white'
                         : t === 'turbo' || t === 'benchmark' ? 'bg-[#F39C12] text-black'
                         : t === 'overlay' ? 'bg-[#3498DB] text-white'
                         : 'bg-[#2ECC71] text-black';
-                    btn.className = `htab-btn px-4 py-2 rounded-lg font-bold text-sm transition ${activeClass}`;
+                    btn.className = BASE + col;
                 } else {
-                    btn.className = 'htab-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition';
+                    btn.className = BASE + 'text-gray-400 hover:bg-[#2A2A2A] hover:text-white';
                 }
             });
             if (cual === 'estadisticas') cargarEstadisticas();
-            if (cual === 'backup') { cargarMundos(); cargarBackups(); }
+            if (cual === 'backup') { cargarMundos(); cargarBackups(); cargarBackupConfig(); }
             if (cual === 'perfiles') poblarPerfilesVersiones();
             if (cual === 'whitelist') cargarWhitelist();
         }
@@ -3402,6 +3833,264 @@
                     lbl.textContent = 'Error: ' + r.error;
                 }
             } catch(e) { lbl.textContent = 'Error: ' + e; }
+        }
+
+        // ══ SERVIDOR TIPO ══════════════════════════════════════════════════
+        let _srvTipoActual = 'paper';
+        function selSrvTipo(tipo) {
+            _srvTipoActual = tipo;
+            document.querySelectorAll('.srv-tipo-btn').forEach(b => {
+                b.classList.remove('border-[#2ECC71]','border-[#3498DB]','border-[#9B59B6]','border-[#E74C3C]','bg-[#0D2515]','bg-[#0D1535]','bg-[#2A0D35]','bg-[#2A0D0D]');
+                b.classList.add('border-[#2A2A2A]');
+            });
+            const btn = document.getElementById('srv-tipo-' + tipo);
+            if (btn) {
+                btn.classList.remove('border-[#2A2A2A]');
+                const colorMap = {paper:'border-[#2ECC71] bg-[#0D2515]','paper-geyser':'border-[#3498DB] bg-[#0D1535]',fabric:'border-[#9B59B6] bg-[#2A0D35]','fabric-geyser':'border-[#9B59B6] bg-[#2A0D35]',forge:'border-[#E74C3C] bg-[#2A0D0D]'};
+                (colorMap[tipo]||'').split(' ').forEach(c => btn.classList.add(c));
+            }
+        }
+
+        // ══ SHADERS ══════════════════════════════════════════════════════════
+        async function instalarShaderPreset(slug) {
+            const msg = document.getElementById('shader-msg');
+            const ver = (document.getElementById('shader-ver').value||'').trim();
+            const motor = document.getElementById('shader-motor').value;
+            if (!ver) { msg.textContent = '\u26a0\ufe0f Ingres\u00e1 la versi\u00f3n MC.'; return; }
+            msg.textContent = '\u23f3 Instalando ' + slug + '...';
+            try {
+                const r = await pywebview.api.instalar_mod_modrinth(slug, ver, motor, '');
+                msg.textContent = r.ok ? `\u2705 ${slug} instalado (${r.size_kb||'?'} KB)` : '\u274c ' + r.error;
+            } catch(e) { msg.textContent = '\u274c ' + e; }
+        }
+
+        // ══ PERFILES GUARDADOS ═══════════════════════════════════════════════
+        async function poblarPerfilesVersiones() {
+            try {
+                const sel = document.getElementById('perfil-version');
+                if (!sel || sel.options.length > 1) return;
+                const r = await pywebview.api.get_versiones_instaladas();
+                if (r && r.versiones) r.versiones.forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; sel.appendChild(o); });
+            } catch(e) {}
+        }
+        async function guardarPerfil() {
+            const nombre = (document.getElementById('perfil-nombre').value||'').trim();
+            const version = document.getElementById('perfil-version').value;
+            const loader = document.getElementById('perfil-loader').value;
+            const msg = document.getElementById('perfil-msg');
+            if (!nombre) { msg.textContent = '\u26a0\ufe0f Ingres\u00e1 un nombre.'; return; }
+            try {
+                const r = await pywebview.api.guardar_perfil_personalizado({nombre, version, loader});
+                if (r && r.ok) {
+                    msg.textContent = '\u2705 Perfil guardado.';
+                    msg.className = 'text-xs text-[#2ECC71] min-h-[14px]';
+                    cargarPerfilesGuardados && cargarPerfilesGuardados();
+                } else {
+                    msg.textContent = '\u274c ' + (r && r.error || 'Error');
+                    msg.className = 'text-xs text-red-400 min-h-[14px]';
+                }
+            } catch(e) { msg.textContent = '\u274c ' + e; msg.className = 'text-xs text-red-400 min-h-[14px]'; }
+        }
+
+        // ══ WHITELIST / BANS / REINICIO ═════════════════════════════════════
+        function mostrarWhitelist() {
+            const p = document.getElementById('srv-wl-panel');
+            if (p) { p.classList.toggle('hidden'); cargarWhitelistServidor(); }
+        }
+        async function cargarWhitelistServidor() {
+            const lista = document.getElementById('srv-wl-lista');
+            if (!lista) return;
+            try {
+                const r = await pywebview.api.get_whitelist();
+                if (!r || !r.ok) return;
+                lista.innerHTML = (r.jugadores||[]).map(j => {
+                    const n = j.name||j;
+                    return `<div class="flex justify-between items-center bg-[#0A0A0A] rounded px-2 py-1"><span>${n}</span><button onclick="eliminarWL('${n}')" class="text-red-400 hover:text-red-300 text-xs">\u2715</button></div>`;
+                }).join('') || '<p class="text-gray-600">Sin jugadores.</p>';
+            } catch(e) {}
+        }
+        async function agregarWhitelist() {
+            const inp = document.getElementById('srv-wl-input');
+            const nombre = (inp && inp.value||'').trim();
+            if (!nombre) return;
+            inp.value = '';
+            try { const r = await pywebview.api.agregar_whitelist(nombre); if (r&&r.ok) cargarWhitelistServidor(); } catch(e) {}
+        }
+        async function eliminarWL(nombre) {
+            try { const r = await pywebview.api.eliminar_whitelist(nombre); if (r&&r.ok) cargarWhitelistServidor(); } catch(e) {}
+        }
+        function mostrarBans() { alert('Gesti\u00f3n de bans: us\u00e1 la consola del servidor con /ban <jugador>'); }
+        function toggleReinicio() { alert('Reinicio autom\u00e1tico: configur\u00e1 un cron o script externo.'); }
+
+        // ══ GESTOR OPTIMIZACIONES + DRAG-DROP ═════════════════════════════════
+        async function instalarOptimizacionMod(slug) {
+            const ver = window._gestorVer || '';
+            const motor = window._gestorMotor || 'Fabric';
+            if (!ver) { alert('Abr\u00ed el gestor desde un perfil activo.'); return; }
+            try {
+                const r = await pywebview.api.instalar_mod_modrinth(slug, ver, motor, '');
+                alert(r.ok ? `\u2705 ${slug} instalado.` : '\u274c ' + r.error);
+                if (r.ok) gestorSubTab('mods');
+            } catch(e) { alert(String(e)); }
+        }
+        async function exportarInstancia() {
+            try { const r = await pywebview.api.exportar_instancia(); if (!r.ok) alert('\u274c ' + r.error); else alert('\u2705 Exportado: ' + r.archivo); } catch(e) { alert(String(e)); }
+        }
+        async function backupMundosInstancia() {
+            try { const r = await pywebview.api.backup_todos_mundos(); alert(r.ok ? '\u2705 Backup completado.' : '\u274c ' + r.error); } catch(e) { alert(String(e)); }
+        }
+        async function gestorDropMods(event) {
+            event.preventDefault();
+            const files = event.dataTransfer.files;
+            if (!files.length) return;
+            const ver = window._gestorVer || '';
+            const motor = window._gestorMotor || 'Fabric';
+            for (const f of files) {
+                if (f.name.endsWith('.jar') || f.name.endsWith('.zip')) {
+                    try { await pywebview.api.instalar_mod_archivo(f.path || f.name, ver, motor); } catch(e) {}
+                }
+            }
+            gestorSubTab('mods');
+        }
+
+        // ══ MULTI-SERVIDOR ═════════════════════════════════════════════════
+        async function cargarServidoresGuardados() {
+            try {
+                const r = await pywebview.api.get_servidores_guardados();
+                if (!r || !r.ok) return;
+                const box   = document.getElementById('srv-lista-box');
+                const cards = document.getElementById('srv-lista-cards');
+                if (!r.servidores || !r.servidores.length) { if (box) box.classList.add('hidden'); return; }
+                if (box) { box.classList.remove('hidden'); box.style.display = 'flex'; box.style.flexDirection = 'column'; }
+                const tipoIcon = {paper:'📄','paper-geyser':'🌐',fabric:'🧵','fabric-geyser':'🧵',forge:'🔧'};
+                cards.innerHTML = r.servidores.map(s => {
+                    const c = s.carpeta.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+                    const dot = s.corriendo ? 'bg-[#2ECC71]' : s.activo ? 'bg-[#F39C12]' : 'bg-gray-600';
+                    const brd = s.activo ? 'border-[#2ECC71]/60' : 'border-[#2A2A2A]';
+                    const badge = s.activo
+                        ? '<span class="text-[10px] text-[#2ECC71] font-bold shrink-0">Activo</span>'
+                        : `<button onclick="activarServidorCard('${c}')" class="text-[10px] text-[#3498DB] hover:underline shrink-0">Seleccionar</button>`;
+                    const ver = s.version && s.version !== '?' ? ` · ${s.version}` : '';
+                    return `<div class="flex items-center gap-2 bg-[#0A0A0A] border ${brd} rounded-lg px-3 py-2 transition group">
+                        <div class="w-2 h-2 rounded-full shrink-0 ${dot}"></div>
+                        <div class="flex-1 min-w-0">
+                            <p class="font-bold text-xs truncate">${tipoIcon[s.tipo]||'🖥'} ${s.nombre}<span class="text-gray-500 font-normal">${ver}</span></p>
+                            <p class="text-[10px] text-gray-600 truncate">${s.carpeta}</p>
+                        </div>
+                        ${badge}
+                        <button onclick="eliminarServidor('${c}')" class="text-gray-600 hover:text-red-400 text-xs shrink-0 opacity-0 group-hover:opacity-100 transition" title="Quitar">🗑</button>
+                    </div>`;
+                }).join('');
+            } catch(e) { console.error('[Servidores]', e); }
+        }
+        async function activarServidorCard(carpeta) {
+            const r = await pywebview.api.activar_servidor(carpeta);
+            if (r && r.ok) {
+                document.getElementById('srv-activo-carpeta').textContent = carpeta;
+                const crearBox  = document.getElementById('srv-crear-box');
+                const activoBox = document.getElementById('srv-activo-box');
+                if (crearBox)  crearBox.classList.add('hidden');
+                if (activoBox) { activoBox.classList.remove('hidden'); activoBox.style.display = 'flex'; }
+                await cargarServidoresGuardados();
+                actualizarEstadoServidor && actualizarEstadoServidor();
+            }
+        }
+        async function eliminarServidor(carpeta) {
+            if (!confirm('\u00bfQuitar "' + carpeta.split(/[\\/]/).pop() + '" de la lista?')) return;
+            const r = await pywebview.api.eliminar_servidor_guardado(carpeta);
+            if (r && r.ok) await cargarServidoresGuardados();
+        }
+
+        // ══ PLUGIN STORE ═══════════════════════════════════════════════════════
+        async function buscarPlugins() {
+            const q     = (document.getElementById('plugin-search').value || '').trim();
+            const lista = document.getElementById('plugin-lista');
+            if (!q) { lista.innerHTML = '<p class="text-xs text-gray-500">Ingres\u00e1 el nombre del plugin.</p>'; return; }
+            lista.innerHTML = '<div class="flex items-center gap-2 text-xs text-gray-400 animate-pulse"><div class="w-3 h-3 border-2 border-[#2ECC71] border-t-transparent rounded-full animate-spin"></div>Buscando en Hangar...</div>';
+            try {
+                const r = await pywebview.api.buscar_plugins(q);
+                if (!r.ok) { lista.innerHTML = `<p class="text-xs text-red-400">${r.error}</p>`; return; }
+                if (!r.plugins.length) { lista.innerHTML = `<p class="text-xs text-gray-500">Sin resultados para "${q}".</p>`; return; }
+                lista.innerHTML = r.plugins.map(p => `
+                    <div class="flex items-center gap-2 bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg px-3 py-2 hover:border-[#2ECC71]/40 transition">
+                        <div class="flex-1 min-w-0">
+                            <p class="font-bold text-xs truncate">${p.name} <span class="text-gray-500 font-normal text-[10px]">by ${p.owner}</span></p>
+                            <p class="text-[10px] text-gray-500 truncate">${p.description}</p>
+                        </div>
+                        <button id="btn-plugin-${p.owner}-${p.slug}" onclick="instalarPlugin('${p.owner}','${p.slug}')"
+                            class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-bold px-2.5 py-1 rounded text-[10px] shrink-0 transition">Instalar</button>
+                    </div>`).join('');
+            } catch(e) { lista.innerHTML = `<p class="text-xs text-red-400">${e}</p>`; }
+        }
+        async function instalarPlugin(owner, slug) {
+            const btn = document.getElementById(`btn-plugin-${owner}-${slug}`);
+            if (btn) { btn.disabled = true; btn.textContent = '\u23f3'; }
+            try {
+                const r = await pywebview.api.instalar_plugin(owner, slug);
+                if (r && r.ok) {
+                    if (btn) { btn.textContent = '\u2705 Listo'; }
+                } else {
+                    if (btn) { btn.disabled = false; btn.textContent = 'Instalar'; }
+                }
+            } catch(e) {
+                if (btn) { btn.disabled = false; btn.textContent = 'Instalar'; }
+            }
+        }
+
+        // ══ BACKUP AUTO ═════════════════════════════════════════════════════
+        async function cargarBackupConfig() {
+            try {
+                const r = await pywebview.api.get_backup_config();
+                if (!r || !r.ok) return;
+                const sel = document.getElementById('backup-auto-horas');
+                if (sel) sel.value = String(r.horas || 0);
+                const ult = document.getElementById('backup-auto-ultimo');
+                if (ult && r.ultimo) {
+                    const d = new Date(r.ultimo);
+                    ult.textContent = '\u00daltimo: ' + d.toLocaleDateString() + ' ' + d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+                }
+            } catch(e) {}
+        }
+        async function guardarBackupAuto() {
+            const horas = parseInt(document.getElementById('backup-auto-horas').value) || 0;
+            const msg   = document.getElementById('backup-auto-msg');
+            try {
+                const r = await pywebview.api.set_backup_auto(horas);
+                if (r && r.ok) {
+                    msg.textContent = horas === 0 ? '\U0001F515 Backup autom\u00e1tico desactivado.' : `\u2705 Se har\u00e1 backup cada ${horas}h antes de jugar.`;
+                    msg.className = 'text-xs text-[#2ECC71] min-h-[16px]';
+                } else {
+                    msg.textContent = '\u274c ' + (r && r.error || 'Error');
+                    msg.className = 'text-xs text-red-400 min-h-[16px]';
+                }
+            } catch(e) { msg.textContent = '\u274c ' + e; msg.className = 'text-xs text-red-400 min-h-[16px]'; }
+        }
+
+        // ══ PVP MODS 1.8.9 ═══════════════════════════════════════════════
+        async function instalarModsPvp189() {
+            const msg = document.getElementById('pvp-mods-msg');
+            msg.textContent = '\u23f3 Buscando e instalando mods...';
+            msg.className = 'text-xs text-center text-[#F39C12] min-h-[14px]';
+            try {
+                const ver = '1.8.9', motor = 'forge';
+                const cr = await pywebview.api.get_carpeta_mods(ver, motor);
+                const carpeta = (typeof cr === 'string') ? cr : (cr && cr.carpeta) || '';
+                const r = await pywebview.api.instalar_mods_pvp_189(carpeta);
+                if (r && r.ok) {
+                    const lines = r.results.map(x =>
+                        x.ok ? `\u2705 ${x.mod}${x.ya_existia ? ' (ya inst.)' : ` (${x.size_kb||'?'} KB)`}`
+                             : `\u26a0\uFE0F ${x.mod}: ${x.error}`
+                    ).join('  ');
+                    msg.textContent = lines;
+                    msg.className = 'text-xs text-center text-[#2ECC71] min-h-[14px]';
+                } else {
+                    msg.textContent = '\u274c ' + (r && r.results ? r.results.map(x=>x.error||x.mod).join(', ') : 'Error');
+                    msg.className = 'text-xs text-center text-red-400 min-h-[14px]';
+                }
+            } catch(e) {
+                msg.textContent = '\u274c ' + e;
+                msg.className = 'text-xs text-center text-red-400 min-h-[14px]';
+            }
         }
 
         // ══ OVERLAY ═══════════════════════════════════════════════════════
@@ -4547,9 +5236,10 @@
             const res = document.getElementById('hw-perfil-resultado');
             if (prog) { prog.classList.remove('hidden'); }
             if (res) res.classList.add('hidden');
-            if (lbl) lbl.textContent = 'Instalando mods del perfil ' + perfilId + ' para ' + ver + '...';
+            const estilo = window._hwEstiloActual || 'pvp';
+            if (lbl) lbl.textContent = 'Instalando mods (' + estilo + ' · ' + perfilId + ') para ' + ver + ' ' + motor + '...';
             try {
-                const r = await pywebview.api.aplicar_perfil_hardware(perfilId, ver, motor);
+                const r = await pywebview.api.aplicar_perfil_hardware(perfilId, ver, motor, estilo);
                 if (prog) prog.classList.add('hidden');
                 if (res) {
                     res.classList.remove('hidden');

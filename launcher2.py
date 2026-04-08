@@ -648,7 +648,7 @@ class NuevoParaguacraft(ctk.CTk):
                     def _hilo_dl():
                         import requests, shutil, os
                         try:
-                            loader = "fabric" if "Fabric" in motor_obj or "Paraguacraft" in motor_obj else "forge"
+                            loader = "neoforge" if "NeoForge" in motor_obj else ("fabric" if "Fabric" in motor_obj or "Paraguacraft" in motor_obj else "forge")
                             if tipo_proy in ["shader", "resourcepack", "datapack"]: params = {"game_versions": f'["{version_obj}"]'}
                             else: params = {"loaders": f'["{loader}"]', "game_versions": f'["{version_obj}"]'}
 

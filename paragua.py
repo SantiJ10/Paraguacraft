@@ -30,7 +30,7 @@ try:
 except Exception:
     _lanzar_minecraft_ref = None
 
-VERSION = "3.1.0"  # Actualizar en cada release
+VERSION = "3.6.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 
 try:
@@ -83,11 +83,15 @@ class Api:
         self._servidor_log = []
         self._servidor_lock = threading.Lock()
         self._servidor_creando = False
+        self._jugadores_online = set()
         self._playit_proc = None
         self._playit_address = ""
         self._musica_proc = None
         self._stats_file = "paraguacraft_stats.json"
+        self._cache_dir = os.path.join(os.path.expanduser("~"), ".paraguacraft_cache")
+        os.makedirs(self._cache_dir, exist_ok=True)
         self._game_status = {"running": False, "status": "idle"}
+        self._mod_dl_progress = {"pct": 0, "nombre": ""}
         self._spotify_token = None
         self._spotify_refresh = None
 
@@ -101,6 +105,8 @@ class Api:
             "cerrar_al_jugar": True,
             "mostrar_consola": False,
             "backup_var": True,
+            "backup_auto_horas": 0,
+            "ultimo_backup_auto": "",
             "limpiador_deep_var": False,
             "lan_distancia": False,
             "fabric_loader_version": "",
@@ -235,6 +241,15 @@ class Api:
                 self.config_actual["is_premium"] = True
                 with open(self.ruta_sesion, "w") as f:
                     json.dump(self.ms_data, f)
+                try:
+                    _ss = []
+                    if os.path.exists(self._SESIONES_PATH):
+                        with open(self._SESIONES_PATH, "r") as _f: _ss = json.load(_f)
+                    _idx = next((i for i,s in enumerate(_ss) if s.get("id")==self.ms_data.get("id")), None)
+                    if _idx is not None: _ss[_idx] = self.ms_data
+                    else: _ss.append(self.ms_data)
+                    with open(self._SESIONES_PATH, "w") as _f: json.dump(_ss, _f)
+                except Exception: pass
                 self._guardar()
                 return {"ok": True, "nombre": nombre_premium}
             return {"ok": False, "error": "URL inválida."}
@@ -253,8 +268,18 @@ class Api:
         self.config_actual["is_premium"] = False
         if os.path.exists(self.ruta_sesion):
             os.remove(self.ruta_sesion)
+        # _SESIONES_PATH se conserva intencionalmente para multi-cuenta
         self._guardar()
         return True
+
+    def modo_invitado(self, nombre):
+        """Cambia al modo invitado SIN cerrar ni eliminar sesiones premium guardadas."""
+        self.ms_data = None
+        nombre = nombre.strip() or "Invitado"
+        self.config_actual["usuario"] = nombre
+        self.config_actual["is_premium"] = False
+        self._guardar()
+        return {"ok": True, "nombre": nombre}
 
     def _guardar(self):
         with open(self.ruta_config, "w") as f:
@@ -305,29 +330,32 @@ class Api:
             return loaders
 
         if v.startswith("26"):
-            loaders.extend(["Fabric", "Fabric + Iris"])
+            loaders.extend(["OptiFine", "Forge", "NeoForge", "Fabric", "Fabric + Iris"])
             return loaders
 
         parts = v.split(".")
         try:
             major = int(parts[0])
             minor = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
+            patch = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
         except (ValueError, IndexError):
             return loaders
 
         if major != 1:
             return loaders
 
-        if minor in (7, 8, 12) or 16 <= minor <= 20:
+        if minor >= 7:
             loaders.append("OptiFine")
-        if minor in (8, 12):
             loaders.append("Forge")
-        if 16 <= minor <= 21:
+        if minor > 20 or (minor == 20 and patch >= 2):
+            loaders.append("NeoForge")
+        if minor >= 14:
             loaders.append("Fabric")
+        if minor >= 16:
             loaders.append("Fabric + Iris")
 
         # orden estable: Vanilla, OptiFine, Forge, Fabric, Fabric + Iris
-        orden = ["Vanilla", "OptiFine", "Forge", "Fabric", "Fabric + Iris"]
+        orden = ["Vanilla", "OptiFine", "Forge", "NeoForge", "Fabric", "Fabric + Iris"]
         vistos = set()
         out = []
         for o in orden:
@@ -378,6 +406,25 @@ class Api:
         folder = carpeta_instancia_paraguacraft(version.strip(), motor)
         return os.path.join(mine_dir, "instancias", folder)
 
+    def instalar_mod_archivo(self, ruta, tipo='mods'):
+        """Copia un JAR/ZIP suelto al directorio de la instancia activa."""
+        import shutil
+        try:
+            if not ruta or not os.path.isfile(ruta):
+                return {'ok': False, 'error': 'Archivo no encontrado: ' + str(ruta)}
+            v = self.config_actual.get('ultima_version', '')
+            m = self.config_actual.get('ultimo_motor', '')
+            if not v or not m:
+                return {'ok': False, 'error': 'No hay versi\u00f3n activa seleccionada'}
+            sub_map = {'mods': 'mods', 'resourcepacks': 'resourcepacks', 'shaders': 'shaderpacks', 'datapacks': 'datapacks'}
+            carpeta = os.path.join(self._dir_instancia(v, m), sub_map.get(tipo, 'mods'))
+            os.makedirs(carpeta, exist_ok=True)
+            dest = os.path.join(carpeta, os.path.basename(ruta))
+            shutil.copy2(ruta, dest)
+            return {'ok': True, 'nombre': os.path.basename(ruta)}
+        except Exception as e:
+            return {'ok': False, 'error': str(e)}
+
     def get_instance_content(self, version, motor, categoria):
         try:
             from src.modelo import GestorContenidoInstancia, GestorLocalMods
@@ -388,7 +435,15 @@ class Api:
                 mods_dir = os.path.join(base, "mods")
                 lista = GestorLocalMods.obtener_lista_mods(mods_dir)
                 return [
-                    {"archivo": m["archivo"], "nombre_visible": m["archivo"], "estado": m["estado"], "mundo": ""}
+                    {
+                        "archivo": m["archivo"],
+                        "nombre_visible": m.get("nombre_visible") or m["archivo"],
+                        "estado": m["estado"],
+                        "mundo": "",
+                        "version_mod": m.get("version_mod", ""),
+                        "autor": m.get("autor", ""),
+                        "icono_b64": m.get("icono_b64", ""),
+                    }
                     for m in lista
                 ]
             if cat == "resourcepacks":
@@ -663,6 +718,9 @@ class Api:
             print("Error RPC dinámico:", e)
 
     def lanzar_juego(self, version, motor, server_ip=""):
+        if self.hilo_juego_activo:
+            print(f"[GUARD] Ya hay un juego activo, ignorando lanzamiento de {version}")
+            return "ya_activo"
         print(f"Lanzando {version} con {motor}. AutoJoin: {server_ip}")
         self.hilo_juego_activo = True
         self.config_actual["ultima_version"] = version
@@ -723,10 +781,46 @@ class Api:
                 fabric_override = fl_raw if fl_raw and "fabric" in motor.lower() else None
 
                 _t0 = time.time()
+                try:
+                    from core import carpeta_instancia_paraguacraft as _cia
+                    import minecraft_launcher_lib as _mcl2
+                    _icp = os.path.join(_mcl2.utils.get_minecraft_directory(), "instancias", _cia(version, motor), "_paragua_instance.json")
+                    with open(_icp) as _f2:
+                        _ram_gb = json.load(_f2).get("ram_gb") or self.config_actual.get("ram_asignada", 4)
+                except Exception:
+                    _ram_gb = self.config_actual.get("ram_asignada", 4)
+                # Auto-backup de mundos si corresponde
+                try:
+                    import datetime as _dt
+                    _bk_h = self.config_actual.get("backup_auto_horas", 0)
+                    if _bk_h and _bk_h > 0:
+                        _ult = self.config_actual.get("ultimo_backup_auto", "")
+                        _now = _dt.datetime.now()
+                        _do_bk = True
+                        if _ult:
+                            _do_bk = (_now - _dt.datetime.fromisoformat(_ult)).total_seconds() / 3600 >= _bk_h
+                        if _do_bk:
+                            _set_status("Realizando backup autom\u00e1tico...")
+                            from core import carpeta_instancia_paraguacraft as _cia_bk
+                            import minecraft_launcher_lib as _mcl_bk
+                            _bk_dir = os.path.join(_mcl_bk.utils.get_minecraft_directory(), "instancias", _cia_bk(version, motor))
+                            threading.Thread(target=self.backup_mundos, args=(_bk_dir,), daemon=True).start()
+                            self.config_actual["ultimo_backup_auto"] = _now.isoformat()
+                            self._guardar()
+                except Exception as _bk_e:
+                    print(f"[BackupAuto] {_bk_e}")
+                # Dynamic RAM: +1 GB si >20 mods, +2 GB si >50 mods
+                try:
+                    import minecraft_launcher_lib as _mcl3
+                    _mdir = os.path.join(_mcl3.utils.get_minecraft_directory(), "instancias", _cia(version, motor), "mods")
+                    _mc = len([x for x in os.listdir(_mdir) if x.endswith('.jar')]) if os.path.isdir(_mdir) else 0
+                    if _mc > 50: _ram_gb = min(int(_ram_gb) + 2, 16)
+                    elif _mc > 20: _ram_gb = min(int(_ram_gb) + 1, 16)
+                except Exception: pass
                 lanzar_minecraft(
                     version=version,
                     username=username_limpio,
-                    max_ram=f"{self.config_actual.get('ram_asignada', 4)}G",
+                    max_ram=f"{_ram_gb}G",
                     gc_type=self.config_actual.get("gc_type", "G1GC"),
                     optimizar=self.config_actual.get("opt_minimos", False),
                     motor_elegido=motor,
@@ -742,7 +836,12 @@ class Api:
                 )
                 _seg = int(time.time() - _t0)
                 if _seg > 10:
-                    threading.Thread(target=lambda: self.guardar_sesion_estadistica(version, motor, _seg), daemon=True).start()
+                    try:
+                        from core import carpeta_instancia_paraguacraft as _cia2
+                        _inst_key = _cia2(version, motor)
+                    except Exception:
+                        _inst_key = f"{version}_{motor}"
+                    threading.Thread(target=lambda s=_seg, k=_inst_key: self.guardar_sesion_estadistica(version, motor, s, instancia=k), daemon=True).start()
 
                 _log_launch("DONE - juego cerrado")
                 self._game_status = {"running": False, "status": "Juego cerrado."}
@@ -780,16 +879,372 @@ class Api:
         except Exception:
             return ""
 
-    def crear_servidor(self, version, carpeta):
+    # ── Server properties editor ──────────────────────────────────────────────
+    def leer_server_properties(self, carpeta):
+        try:
+            path = os.path.join(carpeta, "server.properties")
+            if not os.path.exists(path):
+                return {"ok": False, "error": "server.properties no existe. Iniciá el servidor al menos una vez."}
+            props = {}
+            with open(path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k, _, v = line.partition("=")
+                        props[k.strip()] = v.strip()
+            return {"ok": True, "props": props}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def guardar_server_properties(self, carpeta, props):
+        try:
+            path = os.path.join(carpeta, "server.properties")
+            if not os.path.exists(path):
+                return {"ok": False, "error": "server.properties no existe. Iniciá el servidor al menos una vez."}
+            with open(path, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+            updated = set()
+            new_lines = []
+            for line in lines:
+                stripped = line.strip()
+                if stripped.startswith("#") or "=" not in stripped:
+                    new_lines.append(line)
+                    continue
+                k = stripped.split("=", 1)[0].strip()
+                if k in props:
+                    new_lines.append(f"{k}={props[k]}\n")
+                    updated.add(k)
+                else:
+                    new_lines.append(line)
+            for k, v in props.items():
+                if k not in updated:
+                    new_lines.append(f"{k}={v}\n")
+            with open(path, "w", encoding="utf-8") as f:
+                f.writelines(new_lines)
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── RAM per instance ──────────────────────────────────────────────────────
+    def get_instancia_config(self, folder):
+        try:
+            import minecraft_launcher_lib as _mcl
+            mine_dir = _mcl.utils.get_minecraft_directory()
+            cfg_path = os.path.join(mine_dir, "instancias", folder, "_paragua_instance.json")
+            if os.path.exists(cfg_path):
+                with open(cfg_path, "r") as f:
+                    return {"ok": True, "config": json.load(f)}
+            return {"ok": True, "config": {}}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def set_instancia_config(self, folder, config):
+        try:
+            import minecraft_launcher_lib as _mcl
+            mine_dir = _mcl.utils.get_minecraft_directory()
+            inst_dir = os.path.join(mine_dir, "instancias", folder)
+            os.makedirs(inst_dir, exist_ok=True)
+            cfg_path = os.path.join(inst_dir, "_paragua_instance.json")
+            existing = {}
+            if os.path.exists(cfg_path):
+                with open(cfg_path, "r") as f:
+                    existing = json.load(f)
+            existing.update(config)
+            with open(cfg_path, "w") as f:
+                json.dump(existing, f)
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── Modpack importer (Modrinth) ───────────────────────────────────────────
+    def importar_modpack_modrinth(self, slug_o_url, mc_version_filter=""):
+        import re, zipfile, shutil, tempfile
+        try:
+            slug = slug_o_url.strip()
+            m = re.search(r'modrinth\.com/modpack/([^/?#]+)', slug)
+            if m:
+                slug = m.group(1)
+            proj_r = requests.get(f"https://api.modrinth.com/v2/project/{slug}", timeout=10)
+            if proj_r.status_code != 200:
+                return {"ok": False, "error": f"Modpack '{slug}' no encontrado en Modrinth"}
+            proj = proj_r.json()
+            vers_r = requests.get(f"https://api.modrinth.com/v2/project/{slug}/version", timeout=10)
+            vers_r.raise_for_status()
+            versions = vers_r.json()
+            if not versions:
+                return {"ok": False, "error": "No hay versiones disponibles"}
+            ver = next((v for v in versions if mc_version_filter in v.get("game_versions", [])), versions[0]) if mc_version_filter else versions[0]
+            mrpack = next((f for f in ver.get("files", []) if f["filename"].endswith(".mrpack")), None)
+            if not mrpack:
+                return {"ok": False, "error": "No se encontró archivo .mrpack"}
+            with tempfile.NamedTemporaryFile(suffix=".mrpack", delete=False) as tmp:
+                tmp_path = tmp.name
+            r = requests.get(mrpack["url"], stream=True, timeout=(15, 300))
+            r.raise_for_status()
+            with open(tmp_path, "wb") as f:
+                shutil.copyfileobj(r.raw, f, length=65536)
+            import minecraft_launcher_lib as _mcl
+            mine_dir = _mcl.utils.get_minecraft_directory()
+            with zipfile.ZipFile(tmp_path, "r") as z:
+                with z.open("modrinth.index.json") as f:
+                    index = json.load(f)
+            deps = index.get("dependencies", {})
+            mc_ver = deps.get("minecraft", ver.get("game_versions", ["1.20.1"])[0])
+            loader = "fabric" if "fabric-loader" in deps else "forge" if "forge" in deps else "vanilla"
+            inst_name = re.sub(r'[^\w\-]', '_', proj.get("title", slug))[:28]
+            inst_dir = os.path.join(mine_dir, "instancias", inst_name)
+            os.makedirs(inst_dir, exist_ok=True)
+            files = index.get("files", [])
+            for mod_file in files:
+                dest = os.path.join(inst_dir, mod_file["path"].lstrip("/").replace("/", os.sep))
+                os.makedirs(os.path.dirname(dest), exist_ok=True)
+                if os.path.exists(dest):
+                    continue
+                for dl_url in mod_file.get("downloads", []):
+                    try:
+                        r2 = requests.get(dl_url, stream=True, timeout=(10, 120))
+                        if r2.status_code == 200:
+                            with open(dest, "wb") as f:
+                                shutil.copyfileobj(r2.raw, f, length=65536)
+                            break
+                    except Exception:
+                        continue
+            with zipfile.ZipFile(tmp_path, "r") as z:
+                for zname in z.namelist():
+                    for prefix in ("overrides/", "client-overrides/"):
+                        if zname.startswith(prefix) and not zname.endswith("/"):
+                            rel = zname[len(prefix):]
+                            dest = os.path.join(inst_dir, rel.replace("/", os.sep))
+                            os.makedirs(os.path.dirname(dest), exist_ok=True)
+                            with z.open(zname) as src, open(dest, "wb") as dst:
+                                shutil.copyfileobj(src, dst)
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
+            with open(os.path.join(inst_dir, "_paragua_instance.json"), "w") as f:
+                json.dump({"mc_version": mc_ver, "loader": loader, "name": inst_name, "modpack_slug": slug}, f)
+            return {"ok": True, "nombre": inst_name, "version": mc_ver, "loader": loader, "mods": len(files)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── Multi-cuenta ──────────────────────────────────────────────────────────
+    _SESIONES_PATH = "paraguacraft_sessions.json"
+
+    def get_cuentas(self):
+        try:
+            cuentas = []
+            if os.path.exists(self._SESIONES_PATH):
+                with open(self._SESIONES_PATH, "r") as f:
+                    sessions = json.load(f)
+                cuentas = [{"name": s.get("name", "?"), "idx": i} for i, s in enumerate(sessions)]
+            elif os.path.exists(self.ruta_sesion):
+                with open(self.ruta_sesion, "r") as f:
+                    s = json.load(f)
+                cuentas = [{"name": s.get("name", "?"), "idx": 0}]
+            activo = self.config_actual.get("usuario", "Invitado")
+            es_premium = self.config_actual.get("is_premium", False)
+            return {"ok": True, "cuentas": cuentas, "activo": activo, "es_premium": es_premium}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def cambiar_cuenta(self, idx):
+        try:
+            with open(self._SESIONES_PATH, "r") as f:
+                sessions = json.load(f)
+            if not (0 <= idx < len(sessions)):
+                return {"ok": False, "error": "Índice inválido"}
+            self.ms_data = sessions[idx]
+            nombre = f"{self.ms_data['name']} [PREMIUM]"
+            self.config_actual["usuario"] = nombre
+            self.config_actual["is_premium"] = True
+            with open(self.ruta_sesion, "w") as f:
+                json.dump(self.ms_data, f)
+            self._guardar()
+            return {"ok": True, "usuario": nombre}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── Optimizaciones (Sodium / Iris / OptiFine / Lithium) ───────────────────
+    def instalar_optimizacion(self, tipo, carpeta):
+        try:
+            cfg_path = os.path.join(carpeta, "_paragua_instance.json")
+            version_mc, loader = "1.20.1", "fabric"
+            if os.path.exists(cfg_path):
+                with open(cfg_path) as f:
+                    cfg = json.load(f)
+                version_mc = cfg.get("mc_version") or cfg.get("version", "1.20.1")
+                loader = cfg.get("loader", "fabric")
+            mods_dir = os.path.join(carpeta, "mods")
+            os.makedirs(mods_dir, exist_ok=True)
+            slug_map = {"sodium": "sodium", "iris": "iris", "lithium": "lithium"}
+            if tipo in slug_map:
+                slug = slug_map[tipo]
+                params = f"?game_versions=%5B%22{version_mc}%22%5D&loaders=%5B%22{loader}%22%5D"
+                r = requests.get(f"https://api.modrinth.com/v2/project/{slug}/version{params}", timeout=10)
+                versions = r.json()
+                if not versions:
+                    return {"ok": False, "error": f"No hay versión de {tipo} para {version_mc} ({loader})"}
+                file_info = versions[0]["files"][0]
+                r2 = requests.get(file_info["url"], timeout=30)
+                dest = os.path.join(mods_dir, file_info["filename"])
+                data_bytes = r2.content
+                sha1_exp = (file_info.get("hashes") or {}).get("sha1", "")
+                if sha1_exp:
+                    import hashlib as _hl
+                    if _hl.sha1(data_bytes).hexdigest() != sha1_exp:
+                        return {"ok": False, "error": f"{tipo}: checksum SHA1 inválido (archivo corrupto)"}
+                with open(dest, "wb") as f:
+                    f.write(data_bytes)
+                return {"ok": True, "archivo": file_info["filename"]}
+            elif tipo == "optifine":
+                r = requests.get(f"https://bmclapi2.bangbang93.com/optifine/{version_mc}", timeout=10)
+                builds = r.json()
+                if not builds:
+                    return {"ok": False, "error": f"No hay OptiFine disponible para {version_mc}"}
+                latest = next((b for b in builds if "HD_U" in b.get("patch", "")), builds[0])
+                dl_url = f"https://bmclapi2.bangbang93.com/optifine/{version_mc}/{latest['type']}/{latest['patch']}"
+                fname = f"OptiFine_{version_mc}_{latest['type']}_{latest['patch']}.jar"
+                r2 = requests.get(dl_url, timeout=60)
+                with open(os.path.join(mods_dir, fname), "wb") as f:
+                    f.write(r2.content)
+                return {"ok": True, "archivo": fname}
+            return {"ok": False, "error": f"Tipo desconocido: {tipo}"}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── Exportar instancia ────────────────────────────────────────────────────
+    def exportar_instancia(self, carpeta):
+        import zipfile, datetime
+        try:
+            if not os.path.exists(carpeta):
+                return {"ok": False, "error": "Carpeta no encontrada"}
+            nombre = os.path.basename(carpeta)
+            ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            out_dir = os.path.join(os.path.expanduser("~"), "Desktop")
+            os.makedirs(out_dir, exist_ok=True)
+            out_path = os.path.join(out_dir, f"{nombre}_{ts}.zip")
+            skip = {"saves", "logs", "crash-reports", "crash_reports", ".git", "shaderpacks"}
+            with zipfile.ZipFile(out_path, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
+                for root, dirs, files in os.walk(carpeta):
+                    dirs[:] = [d for d in dirs if d not in skip]
+                    for file in files:
+                        fp = os.path.join(root, file)
+                        zf.write(fp, os.path.relpath(fp, carpeta))
+            size_mb = round(os.path.getsize(out_path) / (1024 * 1024), 1)
+            return {"ok": True, "ruta": out_path, "size_mb": size_mb}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── Importar instancia Prism/MultiMC ──────────────────────────────────────
+    def importar_instancia_prism(self, ruta_zip):
+        import zipfile
+        try:
+            import minecraft_launcher_lib as _mcl3
+            inst_base = os.path.join(_mcl3.utils.get_minecraft_directory(), "instancias")
+            os.makedirs(inst_base, exist_ok=True)
+            with zipfile.ZipFile(ruta_zip, "r") as zf:
+                names = zf.namelist()
+                cfg_file = next((n for n in names if n.endswith("instance.cfg") or n.endswith("mmc-pack.json")), None)
+                if not cfg_file:
+                    return {"ok": False, "error": "No es una instancia válida de Prism/MultiMC"}
+                base = cfg_file.split("/")[0]
+                dest_dir = os.path.join(inst_base, base)
+                for prefix in (f"{base}/.minecraft/", f"{base}/minecraft/"):
+                    if any(n.startswith(prefix) for n in names):
+                        for member in names:
+                            if member.startswith(prefix) and not member.endswith("/"):
+                                rel = member[len(prefix):]
+                                target = os.path.join(dest_dir, rel.replace("/", os.sep))
+                                os.makedirs(os.path.dirname(target), exist_ok=True)
+                                with zf.open(member) as src, open(target, "wb") as dst:
+                                    dst.write(src.read())
+                        break
+            return {"ok": True, "nombre": base, "carpeta": dest_dir}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── Backup de mundos ──────────────────────────────────────────────────────
+    def backup_mundos(self, carpeta):
+        import zipfile, datetime
+        try:
+            saves_dir = os.path.join(carpeta, "saves")
+            if not os.path.exists(saves_dir) or not os.listdir(saves_dir):
+                return {"ok": False, "error": "No hay mundos en esta instancia (saves vacía o inexistente)"}
+            ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            nombre = os.path.basename(carpeta)
+            out_dir = os.path.join(os.path.expanduser("~"), "Desktop", "paraguacraft_backups")
+            os.makedirs(out_dir, exist_ok=True)
+            out = os.path.join(out_dir, f"{nombre}_backup_{ts}.zip")
+            with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
+                for root, dirs, files in os.walk(saves_dir):
+                    for file in files:
+                        fp = os.path.join(root, file)
+                        zf.write(fp, os.path.relpath(fp, saves_dir))
+            size_mb = round(os.path.getsize(out) / (1024 * 1024), 1)
+            return {"ok": True, "ruta": out, "size_mb": size_mb}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def set_backup_auto(self, horas):
+        try:
+            self.config_actual["backup_auto_horas"] = int(horas)
+            self._guardar()
+            return {"ok": True, "horas": int(horas)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def get_backup_config(self):
+        return {
+            "ok": True,
+            "horas": self.config_actual.get("backup_auto_horas", 0),
+            "ultimo": self.config_actual.get("ultimo_backup_auto", ""),
+        }
+
+    # ── Screenshots viewer ────────────────────────────────────────────────────
+    def get_screenshots(self, carpeta):
+        try:
+            ss_dir = os.path.join(carpeta, "screenshots")
+            if not os.path.exists(ss_dir):
+                return {"ok": True, "screenshots": []}
+            files = []
+            for fname in sorted(os.listdir(ss_dir), reverse=True):
+                if fname.lower().endswith((".png", ".jpg", ".jpeg")):
+                    fp = os.path.join(ss_dir, fname)
+                    files.append({"nombre": fname, "ruta": fp, "size": os.path.getsize(fp)})
+            return {"ok": True, "screenshots": files[:60]}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── Favoritos servidores ──────────────────────────────────────────────────
+    def get_favoritos_srv(self):
+        return {"ok": True, "favoritos": self.config_actual.get("srv_favoritos", [])}
+
+    def toggle_favorito_srv(self, ip):
+        favs = list(self.config_actual.get("srv_favoritos", []))
+        if ip in favs:
+            favs.remove(ip)
+            added = False
+        else:
+            favs.append(ip)
+            added = True
+        self.config_actual["srv_favoritos"] = favs
+        self._guardar()
+        return {"ok": True, "favorito": added, "favoritos": favs}
+
+    def crear_servidor(self, version, carpeta, tipo='paper'):
         try:
             from src.modelo import CreadorServidor
             os.makedirs(carpeta, exist_ok=True)
             self._servidor_carpeta = carpeta
             self._servidor_creando = True
+            tipo = tipo or 'paper'
+            _nombre_tipo = {'paper': 'PaperMC', 'paper-geyser': 'PaperMC + Geyser', 'fabric': 'Fabric'}.get(tipo, tipo)
             with self._servidor_lock:
                 self._servidor_log.clear()
-                self._servidor_log.append(f"[SETUP] Creando servidor {version} en {carpeta}...")
-                self._servidor_log.append(f"[SETUP] Conectando a Mojang para obtener el servidor...")
+                self._servidor_log.append(f"[SETUP] Creando servidor {_nombre_tipo} {version} en {carpeta}...")
+                self._servidor_log.append(f"[SETUP] Servidor multi-versión: compatible con clientes 1.8 → última versión")
+                self._servidor_log.append(f"[SETUP] Conectando a API...")
 
             def cb(msg):
                 with self._servidor_lock:
@@ -798,7 +1253,7 @@ class Api:
                         self._servidor_log = self._servidor_log[-200:]
 
             try:
-                exito, msg_result = CreadorServidor.descargar_y_preparar(carpeta, version, cb)
+                exito, msg_result = CreadorServidor.descargar_y_preparar(carpeta, version, cb, tipo)
             finally:
                 self._servidor_creando = False
 
@@ -814,6 +1269,10 @@ class Api:
                     with open(props_path, "w") as f:
                         f.write("online-mode=false\nserver-port=25565\nmax-players=20\n")
                 self.config_actual["srv_carpeta"] = carpeta
+                _lista = self.config_actual.get("srv_lista", [])
+                if not any(s.get("carpeta") == carpeta for s in _lista):
+                    _lista.append({"carpeta": carpeta, "tipo": tipo, "version": version})
+                    self.config_actual["srv_lista"] = _lista
                 threading.Thread(target=self._guardar, daemon=True).start()
                 cb("online-mode=false → premium y no-premium pueden conectarse")
                 cb("✔️ Servidor listo. ¡Ya puedes iniciarlo desde el launcher!")
@@ -828,6 +1287,41 @@ class Api:
         except Exception as e:
             self._servidor_creando = False
             return {"ok": False, "error": str(e)}
+
+    def get_servidores_guardados(self):
+        srv_lista = list(self.config_actual.get("srv_lista", []))
+        if self._servidor_carpeta and not any(s.get("carpeta") == self._servidor_carpeta for s in srv_lista):
+            srv_lista.insert(0, {"carpeta": self._servidor_carpeta, "tipo": "paper", "version": "?"})
+        result = []
+        for s in srv_lista:
+            carpeta = s.get("carpeta", "")
+            corriendo = (carpeta == self._servidor_carpeta and
+                         self._servidor_proc is not None and self._servidor_proc.poll() is None)
+            result.append({
+                **s,
+                "nombre": os.path.basename(carpeta.rstrip("/\\")) or carpeta,
+                "existe": os.path.exists(os.path.join(carpeta, "server.jar")),
+                "activo": carpeta == self._servidor_carpeta,
+                "corriendo": corriendo,
+            })
+        return {"ok": True, "servidores": result}
+
+    def activar_servidor(self, carpeta):
+        if not os.path.exists(os.path.join(carpeta, "server.jar")):
+            return {"ok": False, "error": "No se encontr\u00f3 server.jar en esa carpeta"}
+        self._servidor_carpeta = carpeta
+        self.config_actual["srv_carpeta"] = carpeta
+        threading.Thread(target=self._guardar, daemon=True).start()
+        return {"ok": True, "carpeta": carpeta}
+
+    def eliminar_servidor_guardado(self, carpeta):
+        srv_lista = [s for s in self.config_actual.get("srv_lista", []) if s.get("carpeta") != carpeta]
+        self.config_actual["srv_lista"] = srv_lista
+        if self._servidor_carpeta == carpeta:
+            self._servidor_carpeta = srv_lista[0]["carpeta"] if srv_lista else ""
+            self.config_actual["srv_carpeta"] = self._servidor_carpeta
+        threading.Thread(target=self._guardar, daemon=True).start()
+        return {"ok": True}
 
     def iniciar_servidor(self, carpeta=None):
         if self._servidor_proc and self._servidor_proc.poll() is None:
@@ -856,7 +1350,12 @@ class Api:
             if os.path.exists(runtime_dir):
                 javas = [os.path.join(r, "java.exe") for r, _, fs in os.walk(runtime_dir) if "java.exe" in fs]
                 if javas:
-                    java_ideal = next((j for j in javas if "21" in j or "delta" in j.lower() or "gamma" in j.lower()), javas[0])
+                    # Prefer: delta/lts (Java 21) > gamma/beta (Java 17) > alpha (Java 16) > skip jre-legacy
+                    _prio = ["delta", "lts", "gamma", "beta", "alpha"]
+                    java_ideal = next(
+                        (j for p in _prio for j in javas if p in j.lower()),
+                        next((j for j in javas if "legacy" not in j.lower()), javas[0])
+                    )
                     java_cmd = java_ideal
             self._servidor_carpeta = carpeta
             with self._servidor_lock:
@@ -882,8 +1381,16 @@ class Api:
             with self._servidor_lock:
                 self._servidor_log.append(f"[SERVER] RAM asignada: {xms_flag} min / {xmx_flag} max (sistema: {total_gb:.1f} GB)")
             flags = subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0
+            self._jugadores_online.clear()
+            run_bat = os.path.join(carpeta, "run.bat")
+            if os.path.exists(run_bat):
+                startup_cmd = ["cmd", "/c", "run.bat", "nogui"]
+                with self._servidor_lock:
+                    self._servidor_log.append("[SERVER] Servidor Forge detectado, usando run.bat")
+            else:
+                startup_cmd = [java_cmd, xmx_flag, xms_flag, "-jar", "server.jar", "nogui"]
             self._servidor_proc = subprocess.Popen(
-                [java_cmd, xmx_flag, xms_flag, "-jar", "server.jar", "nogui"],
+                startup_cmd,
                 cwd=carpeta, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT, text=True, encoding="utf-8",
                 errors="replace", bufsize=1, creationflags=flags,
@@ -893,8 +1400,8 @@ class Api:
 
             def _drain_stdout():
                 try:
-                    while _proc_ref.poll() is None:
-                        _proc_ref.stdout.read(4096)
+                    for _ in iter(_proc_ref.stdout.readline, ''):
+                        pass
                 except Exception:
                     pass
 
@@ -924,6 +1431,7 @@ class Api:
                                 _f.seek(pos)
                                 chunk = _f.read()
                                 if chunk:
+                                    import re as _re
                                     for line in chunk.splitlines():
                                         line = line.strip()
                                         if line:
@@ -931,15 +1439,26 @@ class Api:
                                                 self._servidor_log.append(line)
                                                 if len(self._servidor_log) > 300:
                                                     self._servidor_log = self._servidor_log[-300:]
+                                            _join = _re.search(r': (\w+) joined the game', line)
+                                            _left = _re.search(r': (\w+) (?:left the game|lost connection)', line)
+                                            if _join:
+                                                self._jugadores_online.add(_join.group(1))
+                                            elif _left:
+                                                self._jugadores_online.discard(_left.group(1))
                                     pos = _f.tell()
                     except Exception:
                         pass
                     _time.sleep(0.5)
                 with self._servidor_lock:
                     self._servidor_log.append("[SERVER] Servidor detenido.")
+                self._jugadores_online.clear()
 
             threading.Thread(target=_drain_stdout, daemon=True).start()
             threading.Thread(target=_stream, daemon=True).start()
+            try:
+                self.actualizar_rpc("Servidor activo", f"🖥 {os.path.basename(carpeta)}")
+            except Exception:
+                pass
             return {"ok": True}
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -957,7 +1476,63 @@ class Api:
                 except Exception:
                     self._servidor_proc.kill()
             self._servidor_proc = None
+            try:
+                self._rpc_menu()
+            except Exception:
+                pass
             return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def buscar_plugins(self, query):
+        try:
+            url = "https://hangar.papermc.io/api/v1/projects"
+            params = {"q": query, "limit": 12, "sort": "-stars"}
+            r = requests.get(url, params=params, timeout=10,
+                             headers={"User-Agent": "ParaguacraftLauncher/2.0"})
+            r.raise_for_status()
+            data = r.json()
+            plugins = []
+            for p in data.get("result", []):
+                ns = p.get("namespace", {})
+                plugins.append({
+                    "slug": ns.get("slug", ""),
+                    "owner": ns.get("owner", ""),
+                    "name": p.get("name", ""),
+                    "description": (p.get("description") or "")[:120],
+                    "downloads": p.get("stats", {}).get("downloads", 0),
+                    "stars": p.get("stats", {}).get("stars", 0),
+                })
+            return {"ok": True, "plugins": plugins}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "plugins": []}
+
+    def instalar_plugin(self, owner, slug, carpeta_server=None):
+        try:
+            carpeta = carpeta_server or self._servidor_carpeta
+            if not carpeta:
+                return {"ok": False, "error": "No hay servidor activo seleccionado"}
+            plugins_dir = os.path.join(carpeta, "plugins")
+            os.makedirs(plugins_dir, exist_ok=True)
+            url = f"https://hangar.papermc.io/api/v1/projects/{owner}/{slug}/latestrelease"
+            r = requests.get(url, timeout=10, headers={"User-Agent": "ParaguacraftLauncher/2.0"})
+            r.raise_for_status()
+            ver_name = r.text.strip().strip('"')
+            dl_url = f"https://hangar.papermc.io/api/v1/projects/{owner}/{slug}/versions/{ver_name}/PAPER/download"
+            r2 = requests.get(dl_url, timeout=90, headers={"User-Agent": "ParaguacraftLauncher/2.0"}, stream=True)
+            r2.raise_for_status()
+            fname = f"{slug}.jar"
+            cd = r2.headers.get("Content-Disposition", "")
+            m = re.search(r'filename[^;=\n]*=([\'"]?)([^\'"\;\n]+)\1', cd)
+            if m:
+                fname = m.group(2).strip()
+            out_path = os.path.join(plugins_dir, fname)
+            with open(out_path, "wb") as f:
+                for chunk in r2.iter_content(65536):
+                    if chunk:
+                        f.write(chunk)
+            size_kb = round(os.path.getsize(out_path) / 1024)
+            return {"ok": True, "nombre": fname, "size_kb": size_kb}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
@@ -970,6 +1545,140 @@ class Api:
             return False
         except Exception:
             return False
+
+    # ── Whitelist y ban manager ───────────────────────────────────────────────
+    def _srv_json_list(self, filename):
+        if not self._servidor_carpeta:
+            return []
+        path = os.path.join(self._servidor_carpeta, filename)
+        if not os.path.exists(path):
+            return []
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return []
+
+    def _srv_json_write(self, filename, data):
+        if not self._servidor_carpeta:
+            return
+        path = os.path.join(self._servidor_carpeta, filename)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+
+    def whitelist_list(self):
+        entries = self._srv_json_list("whitelist.json")
+        return {"ok": True, "lista": [e.get("name", "") for e in entries]}
+
+    def whitelist_add(self, nombre):
+        nombre = nombre.strip()
+        if not nombre:
+            return {"ok": False, "error": "Nombre vacío"}
+        if self._servidor_proc and self._servidor_proc.poll() is None:
+            self.enviar_comando_servidor(f"whitelist add {nombre}")
+            self.enviar_comando_servidor("whitelist reload")
+        else:
+            if not self._servidor_carpeta:
+                return {"ok": False, "error": "No hay servidor configurado"}
+            entries = self._srv_json_list("whitelist.json")
+            if not any(e.get("name", "").lower() == nombre.lower() for e in entries):
+                import uuid as _uuid
+                entries.append({"uuid": str(_uuid.uuid4()), "name": nombre})
+                self._srv_json_write("whitelist.json", entries)
+        return {"ok": True}
+
+    def whitelist_remove(self, nombre):
+        nombre = nombre.strip()
+        if self._servidor_proc and self._servidor_proc.poll() is None:
+            self.enviar_comando_servidor(f"whitelist remove {nombre}")
+            self.enviar_comando_servidor("whitelist reload")
+        else:
+            if not self._servidor_carpeta:
+                return {"ok": False, "error": "No hay servidor configurado"}
+            entries = [e for e in self._srv_json_list("whitelist.json") if e.get("name", "").lower() != nombre.lower()]
+            self._srv_json_write("whitelist.json", entries)
+        return {"ok": True}
+
+    def ban_list(self):
+        entries = self._srv_json_list("banned-players.json")
+        return {"ok": True, "lista": [{"name": e.get("name", ""), "razon": e.get("reason", "")} for e in entries]}
+
+    def ban_add(self, nombre, razon=""):
+        nombre = nombre.strip()
+        if not nombre:
+            return {"ok": False, "error": "Nombre vacío"}
+        if self._servidor_proc and self._servidor_proc.poll() is None:
+            cmd = f"ban {nombre}" + (f" {razon.strip()}" if razon.strip() else "")
+            self.enviar_comando_servidor(cmd)
+        else:
+            if not self._servidor_carpeta:
+                return {"ok": False, "error": "No hay servidor configurado"}
+            import datetime as _dt, uuid as _uuid3
+            entries = self._srv_json_list("banned-players.json")
+            if not any(e.get("name", "").lower() == nombre.lower() for e in entries):
+                entries.append({"uuid": str(_uuid3.uuid4()), "name": nombre,
+                                "reason": razon.strip() or "Banned by admin",
+                                "created": _dt.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S +0000"),
+                                "expires": "forever", "source": "Server"})
+                self._srv_json_write("banned-players.json", entries)
+        return {"ok": True}
+
+    def ban_remove(self, nombre):
+        nombre = nombre.strip()
+        if self._servidor_proc and self._servidor_proc.poll() is None:
+            self.enviar_comando_servidor(f"pardon {nombre}")
+        else:
+            if not self._servidor_carpeta:
+                return {"ok": False, "error": "No hay servidor configurado"}
+            entries = [e for e in self._srv_json_list("banned-players.json") if e.get("name", "").lower() != nombre.lower()]
+            self._srv_json_write("banned-players.json", entries)
+        return {"ok": True}
+
+    # ── Reinicio programado del servidor ──────────────────────────────────────
+    _reinicio_timers = []
+    _reinicio_horas = 0
+
+    def set_reinicio_programado(self, horas):
+        for t in self._reinicio_timers:
+            t.cancel()
+        self._reinicio_timers = []
+        self._reinicio_horas = int(horas)
+        if self._reinicio_horas <= 0:
+            return {"ok": True, "msg": "Reinicio automático desactivado"}
+        self._programar_reinicio_ciclo()
+        return {"ok": True, "horas": self._reinicio_horas}
+
+    def _programar_reinicio_ciclo(self):
+        secs = self._reinicio_horas * 3600
+        avisos = []
+        if secs > 600:
+            avisos.append((secs - 600, "say §c[SERVIDOR] Reinicio automatico en 10 minutos"))
+        if secs > 300:
+            avisos.append((secs - 300, "say §c[SERVIDOR] Reinicio automatico en 5 minutos"))
+        if secs > 60:
+            avisos.append((secs - 60,  "say §4[SERVIDOR] REINICIO EN 1 MINUTO"))
+        avisos.append((secs, None))
+        def _accion(cmd):
+            if cmd:
+                self.enviar_comando_servidor(cmd)
+            else:
+                self._reiniciar_servidor_auto()
+        self._reinicio_timers = []
+        for delay, cmd in avisos:
+            t = threading.Timer(delay, _accion, args=[cmd])
+            t.daemon = True
+            t.start()
+            self._reinicio_timers.append(t)
+
+    def _reiniciar_servidor_auto(self):
+        carpeta = self._servidor_carpeta
+        self.detener_servidor()
+        import time as _t2
+        _t2.sleep(8)
+        if carpeta:
+            self.iniciar_servidor(carpeta)
+        if self._reinicio_horas > 0:
+            self._programar_reinicio_ciclo()
 
     def iniciar_playitgg(self, carpeta=None):
         if self._playit_proc and self._playit_proc.poll() is None:
@@ -1109,6 +1818,22 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    def seleccionar_archivo_generico(self, extension='*.jar;*.zip', titulo='Seleccionar archivo'):
+        try:
+            import tkinter as tk
+            from tkinter import filedialog
+            _root = tk.Tk()
+            _root.withdraw()
+            _root.attributes('-topmost', True)
+            path = filedialog.askopenfilename(
+                title=titulo,
+                filetypes=[("JAR/ZIP", extension), ("Todos los archivos", "*.*")]
+            )
+            _root.destroy()
+            return path or ''
+        except Exception as e:
+            return ''
+
     def seleccionar_skin_local(self):
         try:
             import tkinter as tk
@@ -1151,7 +1876,7 @@ class Api:
                              headers={"User-Agent": "Paraguacraft-Launcher"})
             data = r.json()
             versions = []
-            for v in (data if isinstance(data, list) else [])[:25]:
+            for v in (data if isinstance(data, list) else [])[:50]:
                 f0 = v.get("files", [{}])[0]
                 versions.append({
                     "id": v["id"],
@@ -1166,6 +1891,31 @@ class Api:
             return {"ok": True, "versions": versions}
         except Exception as e:
             return {"ok": False, "error": str(e), "versions": []}
+
+    def get_mod_details(self, project_id):
+        try:
+            r = requests.get(
+                f"https://api.modrinth.com/v2/project/{project_id}",
+                timeout=10, headers={"User-Agent": "Paraguacraft-Launcher"})
+            d = r.json()
+            return {
+                "ok": True,
+                "title": d.get("title", ""),
+                "description": d.get("description", ""),
+                "icon_url": d.get("icon_url", ""),
+                "gallery": [g.get("url", "") for g in d.get("gallery", [])[:6]],
+                "categories": d.get("categories", []),
+                "loaders": d.get("loaders", []),
+                "game_versions": d.get("game_versions", []),
+                "downloads": d.get("downloads", 0),
+                "followers": d.get("followers", 0),
+                "project_type": d.get("project_type", "mod"),
+                "client_side": d.get("client_side", ""),
+                "server_side": d.get("server_side", ""),
+                "slug": d.get("slug", project_id),
+            }
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
 
     def instalar_mod_desde_modrinth(self, project_id, version_id, tipo, version_mc, motor):
         try:
@@ -1189,16 +1939,26 @@ class Api:
             dest_dir = os.path.join(base, tipo_mapa.get(tipo, "mods"))
             os.makedirs(dest_dir, exist_ok=True)
             dest_path = os.path.join(dest_dir, filename)
+            self._mod_dl_progress = {"pct": 0, "nombre": filename}
             r2 = requests.get(download_url, stream=True, timeout=120,
                               headers={"User-Agent": "Paraguacraft-Launcher"})
             r2.raise_for_status()
+            total = int(r2.headers.get("content-length", 0))
+            downloaded = 0
             with open(dest_path, "wb") as f:
                 for chunk in r2.iter_content(65536):
                     if chunk:
                         f.write(chunk)
+                        downloaded += len(chunk)
+                        if total > 0:
+                            self._mod_dl_progress["pct"] = int(downloaded * 100 / total)
+            self._mod_dl_progress = {"pct": 100, "nombre": filename}
             return {"ok": True, "nombre": filename}
         except Exception as e:
             return {"ok": False, "error": str(e)}
+
+    def get_mod_dl_progress(self):
+        return dict(self._mod_dl_progress)
 
     def instalar_mod_modrinth(self, slug, version, motor, extra=""):
         try:
@@ -1216,10 +1976,10 @@ class Api:
                 f"https://api.modrinth.com/v2/project/{pid}/version",
                 params=params, headers={"User-Agent": "Paraguacraft-Launcher"}, timeout=8).json()
             if not vr or not isinstance(vr, list):
-                params.pop("loaders", None)
+                params_retry = {k: v for k, v in params.items() if k != "loaders"}
                 vr = requests.get(
                     f"https://api.modrinth.com/v2/project/{pid}/version",
-                    params=params, headers={"User-Agent": "Paraguacraft-Launcher"}, timeout=8).json()
+                    params=params_retry, headers={"User-Agent": "Paraguacraft-Launcher"}, timeout=8).json()
             if not vr or not isinstance(vr, list):
                 return {"ok": False, "error": f"Sin versiones compatibles para '{slug}'"}
             return self.instalar_mod_desde_modrinth(pid, vr[0]["id"], "mod", version, motor)
@@ -1300,14 +2060,17 @@ class Api:
             if _ver_tuple(tag) > _ver_tuple(VERSION):
                 exe_url = None
                 for asset in data.get("assets", []):
-                    if asset.get("name", "").lower().endswith(".exe"):
+                    name = asset.get("name", "").lower()
+                    if name.endswith(".exe") and not any(kw in name for kw in ("setup", "install", "instalar")):
                         exe_url = asset.get("browser_download_url")
                         break
+                html_url = data.get("html_url", f"https://github.com/{GITHUB_REPO}/releases/latest")
                 return {
                     "actualizar": True,
                     "version_actual": VERSION,
                     "version_nueva": tag,
                     "url": exe_url,
+                    "html_url": html_url,
                     "notas": data.get("body", "")[:600],
                 }
             return {"actualizar": False, "version_actual": VERSION}
@@ -1319,13 +2082,21 @@ class Api:
         if not getattr(sys, "frozen", False):
             return {"ok": False, "error": "Solo funciona en el ejecutable compilado (.exe)."}
         if not download_url:
-            return {"ok": False, "error": "URL de descarga no disponible."}
+            return {"ok": False, "error": "Sin URL de descarga directa. Us\u00e1 el bot\u00f3n Abrir en GitHub para descargar manualmente."}
+        def _notify_err(msg):
+            try:
+                webview.windows[0].evaluate_js(f"_updateFailed({json.dumps(str(msg))})")
+            except Exception: pass
         def _hilo():
             try:
                 tmp = os.path.join(tempfile.gettempdir(), "Paraguacraft_update.exe")
                 exe_actual = sys.executable
                 marker = os.path.join(tempfile.gettempdir(), "paraguacraft_updated.flag")
-                r = requests.get(download_url, stream=True, timeout=180)
+                r = requests.get(download_url, stream=True, timeout=180,
+                                 headers={"User-Agent": "Paraguacraft-Launcher"})
+                if r.status_code == 404:
+                    _notify_err(f"Archivo no encontrado en GitHub (404). Verific\u00e1 que el release '{VERSION}' tenga el .exe adjunto como asset.")
+                    return
                 r.raise_for_status()
                 with open(tmp, "wb") as f:
                     for chunk in r.iter_content(65536):
@@ -1357,6 +2128,7 @@ class Api:
                 os._exit(0)
             except Exception as e:
                 print(f"[Updater] Error: {e}")
+                _notify_err(str(e)[:300])
         threading.Thread(target=_hilo, daemon=True).start()
         return {"ok": True}
 
@@ -1661,20 +2433,111 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
-    def guardar_sesion_estadistica(self, version, motor, segundos):
+    def guardar_sesion_estadistica(self, version, motor, segundos, instancia=""):
         try:
             data = {"sesiones": [], "total_segundos": 0, "total_dias": 0}
             if os.path.exists(self._stats_file):
                 with open(self._stats_file, "r") as f:
                     data = json.load(f)
             sesion = {"fecha": datetime.date.today().isoformat(), "version": version,
-                      "motor": motor, "segundos": int(segundos)}
+                      "motor": motor, "segundos": int(segundos), "instancia": instancia}
             data.setdefault("sesiones", []).append(sesion)
             data["total_segundos"] = data.get("total_segundos", 0) + int(segundos)
             data["total_dias"] = len(set(s["fecha"] for s in data["sesiones"]))
             with open(self._stats_file, "w") as f:
                 json.dump(data, f, indent=2)
             return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def get_stats_instancia(self, carpeta):
+        try:
+            inst_key = os.path.basename(carpeta.rstrip("/\\"))
+            data = {"sesiones": [], "total_segundos": 0, "total_dias": 0}
+            if os.path.exists(self._stats_file):
+                with open(self._stats_file, "r") as f:
+                    all_data = json.load(f)
+                seses = [s for s in all_data.get("sesiones", [])
+                         if inst_key and (s.get("instancia", "") == inst_key
+                         or inst_key in s.get("version", ""))]
+                data["sesiones"] = seses
+                data["total_segundos"] = sum(s.get("segundos", 0) for s in seses)
+                data["total_dias"] = len(set(s.get("fecha", "") for s in seses))
+            return {"ok": True, **data}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def _cached_get(self, url, cache_key, ttl=3600):
+        """GET con fallback a caché local para modo offline."""
+        cache_file = os.path.join(self._cache_dir, cache_key + ".json")
+        try:
+            r = requests.get(url, timeout=8)
+            r.raise_for_status()
+            data = r.json()
+            with open(cache_file, "w", encoding="utf-8") as f:
+                json.dump({"ts": time.time(), "data": data}, f)
+            return data
+        except Exception:
+            if os.path.exists(cache_file):
+                with open(cache_file, "r", encoding="utf-8") as f:
+                    return json.load(f)["data"]
+            raise
+
+
+    def instalar_shader_preset(self, shader_id, version, motor):
+        SHADERS = {
+            'bsl':           {'slug': 'bsl-shaders',               'nombre': 'BSL Shaders'},
+            'complementary': {'slug': 'complementary-reimagined',  'nombre': 'Complementary Reimagined'},
+            'sildurs':       {'slug': 'sildurs-vibrant-shaders',   'nombre': "Sildur's Vibrant Shaders"},
+            'makeup':        {'slug': 'makeup-ultra-fast-shaders', 'nombre': 'MakeUp Ultra Fast'},
+        }
+        if shader_id not in SHADERS:
+            return {'ok': False, 'error': 'Shader desconocido.'}
+        info = SHADERS[shader_id]
+        try:
+            import minecraft_launcher_lib as _mcl
+            from core import carpeta_instancia_paraguacraft as _cia
+            mc_dir   = _mcl.utils.get_minecraft_directory()
+            shdr_dir = os.path.join(mc_dir, 'instancias', _cia(version, motor), 'shaderpacks')
+            os.makedirs(shdr_dir, exist_ok=True)
+            headers = {'User-Agent': 'ParaguacraftLauncher/2.0'}
+            r = requests.get(f'https://api.modrinth.com/v2/project/{info["slug"]}/version', headers=headers, timeout=10)
+            if r.status_code != 200:
+                return {'ok': False, 'error': f'{info["nombre"]} no encontrado en Modrinth.'}
+            versions = r.json()
+            if not versions:
+                return {'ok': False, 'error': f'{info["nombre"]} sin versiones disponibles.'}
+            files = versions[0].get('files', [])
+            if not files:
+                return {'ok': False, 'error': 'Sin archivos de descarga.'}
+            archivo = files[0]
+            fn   = archivo['filename']
+            dest = os.path.join(shdr_dir, fn)
+            if os.path.exists(dest):
+                return {'ok': True, 'nombre': info['nombre'], 'tamano_mb': round(os.path.getsize(dest)/1048576, 1)}
+            dl = requests.get(archivo['url'], stream=True, headers=headers, timeout=60)
+            if dl.status_code != 200:
+                return {'ok': False, 'error': 'Error al descargar el shader.'}
+            with open(dest, 'wb') as f:
+                shutil.copyfileobj(dl.raw, f)
+            return {'ok': True, 'nombre': info['nombre'], 'tamano_mb': round(os.path.getsize(dest)/1048576, 1)}
+        except Exception as e:
+            return {'ok': False, 'error': str(e)}
+
+    def instalar_mod_b64(self, nombre, carpeta, b64, tipo="mods"):
+        import base64, hashlib
+        try:
+            ext = os.path.splitext(nombre)[1].lower()
+            if ext not in (".jar", ".zip"):
+                return {"ok": False, "error": "Solo se permiten .jar y .zip"}
+            dest_dir = os.path.join(carpeta, tipo)
+            os.makedirs(dest_dir, exist_ok=True)
+            data_bytes = base64.b64decode(b64)
+            dest = os.path.join(dest_dir, nombre)
+            with open(dest, "wb") as f:
+                f.write(data_bytes)
+            size_kb = round(len(data_bytes) / 1024, 1)
+            return {"ok": True, "archivo": nombre, "size_kb": size_kb}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
@@ -2373,6 +3236,82 @@ class Api:
             return {"ok": False, "error": str(e)}
 
     # ── PERFILES DE HARDWARE ──────────────────────────────────────────────
+    ESTILOS_JUEGO = {
+        "pvp": {
+            "nombre": "PvP", "icono": "\u2694\ufe0f",
+            "descripcion": "M\u00e1ximo FPS, sin distracciones. Reducir chunks y visuales.",
+            "mods_extra": {
+                "baja":  [("minihud","MiniHUD"),("no-chat-reports","NoChatReports")],
+                "media": [("minihud","MiniHUD"),("no-chat-reports","NoChatReports"),("appleskin","AppleSkin")],
+                "alta":  [("minihud","MiniHUD"),("no-chat-reports","NoChatReports"),("appleskin","AppleSkin")],
+            },
+            "config_override": {
+                "baja":  {"chunks": 6,  "gc": "ZGC"},
+                "media": {"chunks": 8,  "gc": "ZGC"},
+                "alta":  {"chunks": 10, "gc": "ZGC"},
+            },
+        },
+        "survival": {
+            "nombre": "Survival", "icono": "\U0001f332",
+            "descripcion": "Mapas, crafting, exploraci\u00f3n c\u00f3moda.",
+            "mods_extra": {
+                "baja":  [("xaeros-minimap","Xaero's Minimap"),("jei","JEI")],
+                "media": [("xaeros-minimap","Xaero's Minimap"),("xaeros-world-map","Xaero's World Map"),("jei","JEI"),("appleskin","AppleSkin")],
+                "alta":  [("xaeros-minimap","Xaero's Minimap"),("xaeros-world-map","Xaero's World Map"),("jei","JEI"),("appleskin","AppleSkin"),("waystones","Waystones")],
+            },
+            "config_override": {},
+        },
+        "competitivo": {
+            "nombre": "Competitivo", "icono": "\U0001f3c6",
+            "descripcion": "Speedrun / ranked. M\u00e1xima precisi\u00f3n y estabilidad.",
+            "mods_extra": {
+                "baja":  [("minihud","MiniHUD")],
+                "media": [("minihud","MiniHUD"),("no-chat-reports","NoChatReports")],
+                "alta":  [("minihud","MiniHUD"),("no-chat-reports","NoChatReports"),("replaymod","ReplayMod")],
+            },
+            "config_override": {
+                "baja":  {"chunks": 6, "gc": "ZGC"},
+                "media": {"chunks": 8, "gc": "ZGC"},
+            },
+        },
+        "streaming": {
+            "nombre": "Streaming", "icono": "\U0001f4fa",
+            "descripcion": "Calidad visual alta, replay y screenshots.",
+            "mods_extra": {
+                "baja":  [],
+                "media": [("replaymod","ReplayMod")],
+                "alta":  [("replaymod","ReplayMod"),("appleskin","AppleSkin")],
+            },
+            "config_override": {
+                "media": {"chunks": 12},
+                "alta":  {"chunks": 16, "ram_fraction": 0.65},
+            },
+        },
+        "modded": {
+            "nombre": "Modded", "icono": "\U0001f9e9",
+            "descripcion": "M\u00e1xima compatibilidad para packs de mods.",
+            "mods_extra": {
+                "baja":  [("memoryleakfix","MemoryLeakFix")],
+                "media": [("memoryleakfix","MemoryLeakFix"),("jei","JEI")],
+                "alta":  [("memoryleakfix","MemoryLeakFix"),("jei","JEI"),("appleskin","AppleSkin")],
+            },
+            "config_override": {
+                "baja":  {"ram_fraction": 0.55},
+                "media": {"ram_fraction": 0.60},
+                "alta":  {"ram_fraction": 0.70, "chunks": 12},
+            },
+        },
+    }
+
+    MODS_LOADER_MAP = {
+        "forge": {
+            "sodium":    ("embeddium",    "Embeddium"),
+            "lithium":   ("canary",       "Canary"),
+            "iris":      ("oculus",       "Oculus"),
+            "indium":    None,
+        }
+    }
+
     PERFILES_HARDWARE = {
         "baja": {
             "nombre": "Gama Baja",
@@ -2452,21 +3391,42 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
-    def aplicar_perfil_hardware(self, perfil_id, version, motor):
+    def aplicar_perfil_hardware(self, perfil_id, version, motor, estilo="pvp"):
         try:
             if perfil_id not in self.PERFILES_HARDWARE:
                 return {"ok": False, "error": "Perfil desconocido."}
-            key = f"perfil_hw_{version}_{motor}"
-            if self.config_actual.get(key):
-                return {"ok": True, "ya_aplicado": True, "mensaje": "Perfil ya fue aplicado para esta instancia."}
-            perfil = self.PERFILES_HARDWARE[perfil_id]
+            perfil = dict(self.PERFILES_HARDWARE[perfil_id])
+            # Merge estilo overrides
+            estilo_data = self.ESTILOS_JUEGO.get(estilo, self.ESTILOS_JUEGO.get("pvp", {}))
+            cfg_ov = estilo_data.get("config_override", {}).get(perfil_id, {})
+            if "chunks" in cfg_ov:
+                perfil["chunks"] = cfg_ov["chunks"]
+            if "gc" in cfg_ov:
+                perfil["gc"] = cfg_ov["gc"]
+            if "ram_fraction" in cfg_ov:
+                perfil["ram_fraction"] = cfg_ov["ram_fraction"]
+            mods_extra = estilo_data.get("mods_extra", {}).get(perfil_id, [])
+            # Merge without duplicates
+            base_slugs = {s for s, _ in perfil["mods_modrinth"]}
+            mods_merged = list(perfil["mods_modrinth"]) + [(s, n) for s, n in mods_extra if s not in base_slugs]
+            # Apply loader-specific substitutions (e.g. Forge: Embeddium instead of Sodium)
+            loader_key = motor.lower().split()[0]
+            loader_subs = self.MODS_LOADER_MAP.get(loader_key, {})
+            mods_final = []
+            for slug, nombre in mods_merged:
+                if slug in loader_subs:
+                    sub = loader_subs[slug]
+                    if sub is None:
+                        continue  # skip Fabric-only mod (e.g. Indium on Forge)
+                    slug, nombre = sub
+                mods_final.append((slug, nombre))
             ram_gb = round(psutil.virtual_memory().total / 1073741824, 1)
             ram_rec = min(int(ram_gb * perfil["ram_fraction"]), perfil["ram_max_gb"])
             self.config_actual["ram_asignada"] = ram_rec
             self.config_actual["gc_type"] = perfil["gc"]
             self._guardar()
             instalados, errores = [], []
-            for slug, nombre in perfil["mods_modrinth"]:
+            for slug, nombre in mods_final:
                 try:
                     sr = requests.get(f"https://api.modrinth.com/v2/search?query={requests.utils.quote(slug)}&limit=1",
                                       timeout=8).json()
@@ -2798,10 +3758,14 @@ class Api:
                     r = requests.get(url, params=params, headers={"User-Agent": "ParaguacraftLauncher/2.0"}, timeout=5)
                     if r.status_code == 200 and r.json():
                         latest = r.json()[0]
+                        latest_files = latest.get("files", [])
+                        latest_fn = latest_files[0]["filename"] if latest_files else ""
+                        update_disp = bool(latest_fn) and latest_fn != jar
                         resultados.append({"archivo": jar, "slug": slug_guess,
                                            "version_nueva": latest.get("version_number","?"),
+                                           "filename_nuevo": latest_fn,
                                            "fecha": latest.get("date_published","")[:10],
-                                           "update_disponible": True})
+                                           "update_disponible": update_disp})
                     else:
                         resultados.append({"archivo": jar, "slug": slug_guess,
                                            "update_disponible": False})
@@ -3124,149 +4088,133 @@ class Api:
                 _pynput_listener = None
                 try:
                     import math as _math
-                    C_BG      = '#141414'
-                    C_KEY     = '#1E1E1E'
-                    C_OFF     = '#3A3A3A'
+                    C_TRANS   = '#010203'
+                    C_KEY_BG  = '#151515'
+                    C_KEY_OFF = '#2A2A2A'
                     C_TEAL    = '#00CCAA'
-                    C_BLUE    = '#5577FF'
+                    C_BLUE    = '#5599FF'
                     C_RED     = '#FF4466'
-                    C_BORDER  = '#9B59B6'
-                    C_WASD_ON = '#0D3530'
-                    C_MB_L_ON = '#0D2520'
-                    C_MB_R_ON = '#0D1535'
+                    C_WASD_ON = '#003D30'
+                    C_MB_L_ON = '#002F28'
+                    C_MB_R_ON = '#001235'
+
+                    KS = 52
+                    PAD = 3
+                    CW = 260
+                    WASD_H  = 120 if _show_wasd else 0
+                    EXTRA_H = 32  if _show_extra else 0
+                    MB_H    = 80  if _show_mouse else 0
+                    COMP_H  = 110 if _show_compass else 0
+                    H = 8 + WASD_H + EXTRA_H + MB_H + COMP_H + 8
 
                     root = tk.Tk()
                     root.overrideredirect(True)
                     root.attributes('-topmost', True)
-                    root.attributes('-alpha', 0.88)
-                    root.configure(bg=C_BG)
+                    root.configure(bg=C_TRANS)
+                    try:
+                        root.wm_attributes('-transparentcolor', C_TRANS)
+                    except Exception:
+                        pass
                     sw = root.winfo_screenwidth()
                     sh = root.winfo_screenheight()
-                    root.geometry(f'260x390+{sw//2 - 130}+{sh - 440}')
+                    root.geometry(f'{CW}x{H}+{sw//2 - CW//2}+{sh - H - 50}')
+
+                    cv = tk.Canvas(root, width=CW, height=H, bg=C_TRANS,
+                                   highlightthickness=0)
+                    cv.pack()
 
                     def _drag_start(e):
                         root._ox = root.winfo_x(); root._oy = root.winfo_y()
                         root._mx = e.x_root; root._my = e.y_root
                     def _drag_move(e):
                         root.geometry(f'+{root._ox+e.x_root-root._mx}+{root._oy+e.y_root-root._my}')
+                    cv.bind('<Button-1>', _drag_start)
+                    cv.bind('<B1-Motion>', _drag_move)
 
-                    outer = tk.Frame(root, bg=C_BG,
-                                     highlightbackground=C_BORDER, highlightthickness=1)
-                    outer.pack(fill='both', expand=True)
+                    def _key_rect(x, y, w, h, text, fsz=13):
+                        rid = cv.create_rectangle(x, y, x+w, y+h,
+                                                   fill=C_KEY_BG, outline=C_KEY_OFF,
+                                                   width=1)
+                        cv.create_line(x+4, y+1, x+w-4, y+1, fill='#222')
+                        tid = cv.create_text(x+w//2, y+h//2, text=text,
+                                             fill=C_KEY_OFF,
+                                             font=('Consolas', fsz, 'bold'))
+                        return [rid, tid]
 
-                    hdr = tk.Frame(outer, bg=C_BG)
-                    hdr.pack(fill='x', padx=6, pady=(4, 2))
-                    tk.Label(hdr, text='Teclas + Mouse', bg=C_BG, fg=C_BORDER,
-                             font=('Segoe UI', 8, 'bold')).pack(side='left')
-                    tk.Button(hdr, text='✕', bg=C_BG, fg='#555', relief='flat',
-                              cursor='hand2', font=('Segoe UI', 8),
-                              command=root.destroy).pack(side='right')
+                    yy = 8
+                    _key_ids   = {}
+                    _extra_ids = {}
 
-                    wasd_outer = tk.Frame(outer, bg=C_BG)
-                    wasd_outer.pack(pady=(6, 2))
-                    if not _show_wasd: wasd_outer.pack_forget()
+                    if _show_wasd:
+                        cx_w = CW // 2
+                        _key_ids['w'] = _key_rect(cx_w - KS//2, yy, KS, KS, 'W')
+                        row_y = yy + KS + PAD
+                        _key_ids['a'] = _key_rect(cx_w - KS//2 - KS - PAD, row_y, KS, KS, 'A')
+                        _key_ids['s'] = _key_rect(cx_w - KS//2,             row_y, KS, KS, 'S')
+                        _key_ids['d'] = _key_rect(cx_w - KS//2 + KS + PAD, row_y, KS, KS, 'D')
+                        yy += WASD_H
 
-                    def _make_key(parent, text, r, c):
-                        f = tk.Frame(parent, bg=C_OFF, highlightthickness=0)
-                        f.grid(row=r, column=c, padx=3, pady=3)
-                        lbl = tk.Label(f, text=text, bg=C_KEY, fg=C_OFF,
-                                       font=('Consolas', 14, 'bold'),
-                                       width=3, height=2, padx=6)
-                        lbl.pack(padx=1, pady=1)
-                        return lbl, f
+                    if _show_extra:
+                        ex = (CW - (4*(38+PAD)-PAD)) // 2
+                        for kid, ktxt in [('space','SPC'),('shift_l','SHF'),
+                                          ('control_l','CTL'),('e','INV')]:
+                            _extra_ids[kid] = _key_rect(ex, yy, 38, 22, ktxt, fsz=7)
+                            ex += 38 + PAD
+                        yy += EXTRA_H
 
-                    tk.Frame(wasd_outer, bg=C_BG, width=62, height=1).grid(row=0, column=0)
-                    tk.Frame(wasd_outer, bg=C_BG, width=62, height=1).grid(row=0, column=2)
-                    w_lbl, w_fr = _make_key(wasd_outer, 'W', 0, 1)
-                    a_lbl, a_fr = _make_key(wasd_outer, 'A', 1, 0)
-                    s_lbl, s_fr = _make_key(wasd_outer, 'S', 1, 1)
-                    d_lbl, d_fr = _make_key(wasd_outer, 'D', 1, 2)
+                    _lmb_ids = _rmb_ids = None
+                    _lmb_cps_id = _rmb_cps_id = None
+                    MBW, MBH = 80, 50
+                    if _show_mouse:
+                        mx_l = CW//2 - MBW - 6
+                        mx_r = CW//2 + 6
+                        _lmb_ids = _key_rect(mx_l, yy, MBW, MBH, 'LMB', fsz=11)
+                        _lmb_cps_id = cv.create_text(mx_l+MBW//2, yy+MBH+10,
+                                                      text='0 CPS', fill='#555',
+                                                      font=('Consolas', 7))
+                        _rmb_ids = _key_rect(mx_r, yy, MBW, MBH, 'RMB', fsz=11)
+                        _rmb_cps_id = cv.create_text(mx_r+MBW//2, yy+MBH+10,
+                                                      text='0 CPS', fill='#555',
+                                                      font=('Consolas', 7))
+                        yy += MB_H
 
-                    extra_fr = tk.Frame(outer, bg=C_BG)
-                    extra_fr.pack(pady=(0, 6))
-                    if not _show_extra: extra_fr.pack_forget()
-                    _extra_labels = {}
-                    for kid, ktxt in [('space','SPC'),('shift_l','SHF'),
-                                      ('control_l','CTL'),('e','INV')]:
-                        lbl = tk.Label(extra_fr, text=ktxt, bg=C_KEY, fg=C_OFF,
-                                       font=('Consolas', 8, 'bold'), width=4, height=1,
-                                       highlightbackground=C_OFF, highlightthickness=1)
-                        lbl.pack(side='left', padx=2)
-                        _extra_labels[kid] = lbl
-
-                    _key_frames = {'w': w_fr, 'a': a_fr, 's': s_fr, 'd': d_fr}
-                    _key_labels = {'w': w_lbl, 'a': a_lbl, 's': s_lbl, 'd': d_lbl}
-                    _key_labels.update(_extra_labels)
-
-                    mb_outer = tk.Frame(outer, bg=C_BG)
-                    mb_outer.pack(pady=(0, 6))
-                    if not _show_mouse: mb_outer.pack_forget()
-
-                    def _make_mouse_btn(parent, text):
-                        f = tk.Frame(parent, bg=C_OFF, highlightthickness=0)
-                        f.pack(side='left', padx=5)
-                        lbl = tk.Label(f, text=text, bg=C_KEY, fg=C_OFF,
-                                       font=('Consolas', 13, 'bold'),
-                                       width=5, height=2, padx=4)
-                        lbl.pack(padx=1, pady=(1, 0))
-                        cps = tk.Label(f, text='0 CPS', bg=C_KEY, fg='#555',
-                                       font=('Consolas', 8), width=5)
-                        cps.pack(pady=(0, 2))
-                        return lbl, cps, f
-
-                    lmb_lbl, lmb_cps, lmb_fr = _make_mouse_btn(mb_outer, 'IZQ')
-                    rmb_lbl, rmb_cps, rmb_fr = _make_mouse_btn(mb_outer, 'DER')
-
-                    comp_outer = tk.Frame(outer, bg=C_BG)
-                    comp_outer.pack(pady=(2, 8), fill='x')
-                    if not _show_compass: comp_outer.pack_forget()
-                    tk.Label(comp_outer, text='BRÚJULA', bg=C_BG, fg=C_BORDER,
-                             font=('Consolas', 7, 'bold')).pack()
-
-                    CW, CH = 240, 90
-                    canvas = tk.Canvas(comp_outer, width=CW, height=CH,
-                                       bg=C_BG, highlightthickness=0)
-                    canvas.pack()
-
-                    cx, cy, R = CW // 2, CH // 2, 32
-                    canvas.create_oval(cx-R, cy-R, cx+R, cy+R,
-                                       fill='#1A1A1A', outline='#2D2D2D', width=1)
+                    canvas = cv
+                    _arrow = None
+                    _dir_dots = {}
+                    _spd_txt = None
+                    cx_comp = CW // 2
+                    cy_comp = yy + COMP_H // 2 - 4
+                    R = 36
+                    if _show_compass:
+                        cv.create_oval(cx_comp-R, cy_comp-R, cx_comp+R, cy_comp+R,
+                                       fill='#0D0D0D', outline='#2A2A2A', width=1)
 
                     _dir_angles = {
                         'N': -90, 'NE': -45, 'E': 0,  'SE': 45,
                         'S':  90, 'SW': 135, 'W': 180, 'NW': -135
                     }
-                    _dir_dots = {}
-                    for dname, ang in _dir_angles.items():
-                        rad = _math.radians(ang)
-                        px = cx + int(_math.cos(rad) * (R - 7))
-                        py = cy + int(_math.sin(rad) * (R - 7))
-                        _dir_dots[dname] = canvas.create_oval(
-                            px-4, py-4, px+4, py+4,
-                            fill='#252525', outline='#353535')
-                        if dname in ('N', 'S', 'E', 'W'):
-                            lx = cx + int(_math.cos(rad) * (R + 12))
-                            ly = cy + int(_math.sin(rad) * (R + 12))
-                            canvas.create_text(lx, ly, text=dname,
-                                               fill='#444', font=('Consolas', 7, 'bold'))
-
-                    _arrow = canvas.create_line(cx, cy, cx, cy - 1, fill=C_TEAL,
-                                                width=2, arrow=tk.LAST,
+                    if _show_compass:
+                        for dname, ang in _dir_angles.items():
+                            rad = _math.radians(ang)
+                            px = cx_comp + int(_math.cos(rad) * (R - 8))
+                            py = cy_comp + int(_math.sin(rad) * (R - 8))
+                            _dir_dots[dname] = cv.create_oval(
+                                px-3, py-3, px+3, py+3,
+                                fill='#1E1E1E', outline='#303030')
+                            if dname in ('N', 'S', 'E', 'W'):
+                                lx = cx_comp + int(_math.cos(rad) * (R + 13))
+                                ly = cy_comp + int(_math.sin(rad) * (R + 13))
+                                c_lbl = '#E74C3C' if dname == 'N' else '#555'
+                                cv.create_text(lx, ly, text=dname, fill=c_lbl,
+                                               font=('Consolas', 7, 'bold'))
+                        _arrow = cv.create_line(cx_comp, cy_comp, cx_comp, cy_comp-1,
+                                                fill=C_TEAL, width=2, arrow=tk.LAST,
                                                 arrowshape=(8, 10, 4))
-                    canvas.create_oval(cx-3, cy-3, cx+3, cy+3, fill='#555', outline='')
-                    _spd_txt = canvas.create_text(CW - 30, cy, text='0\npx/s',
-                                                  fill='#555', font=('Consolas', 7),
-                                                  justify='center')
-
-                    def _bind_drag_all(w):
-                        if not isinstance(w, tk.Button):
-                            w.bind('<Button-1>', _drag_start)
-                            w.bind('<B1-Motion>', _drag_move)
-                        for c in w.winfo_children():
-                            _bind_drag_all(c)
-                    _bind_drag_all(outer)
-                    canvas.bind('<Button-1>', _drag_start)
-                    canvas.bind('<B1-Motion>', _drag_move)
+                        cv.create_oval(cx_comp-3, cy_comp-3, cx_comp+3, cy_comp+3,
+                                       fill='#444', outline='')
+                        _spd_txt = cv.create_text(CW-24, cy_comp, text='0\npx/s',
+                                                   fill='#555', font=('Consolas', 7),
+                                                   justify='center')
 
                     _lmb_ts   = deque()
                     _rmb_ts   = deque()
@@ -3293,8 +4241,14 @@ class Api:
                             return
                         lc = _calc_cps(_lmb_ts)
                         rc = _calc_cps(_rmb_ts)
-                        lmb_cps.config(text=f'{lc} CPS', fg=C_TEAL if lc > 0 else '#555')
-                        rmb_cps.config(text=f'{rc} CPS', fg=C_BLUE if rc > 0 else '#555')
+                        if _lmb_cps_id:
+                            cv.itemconfig(_lmb_cps_id,
+                                          text=f'{lc} CPS',
+                                          fill=C_TEAL if lc > 0 else '#555')
+                        if _rmb_cps_id:
+                            cv.itemconfig(_rmb_cps_id,
+                                          text=f'{rc} CPS',
+                                          fill=C_BLUE if rc > 0 else '#555')
                         now = time.time()
                         dt = max(now - _last_tick[0], 0.001)
                         _last_tick[0] = now
@@ -3303,41 +4257,47 @@ class Api:
                         _mlast[0] = _mpos[0]; _mlast[1] = _mpos[1]
                         spd = int(((dx*dx + dy*dy) ** 0.5) / dt)
                         new_dir = _get_dir8(dx, dy)
-                        if new_dir != _cur_dir[0]:
-                            if _cur_dir[0]:
-                                canvas.itemconfig(_dir_dots[_cur_dir[0]],
-                                                  fill='#252525', outline='#353535')
-                            if new_dir:
-                                canvas.itemconfig(_dir_dots[new_dir],
+                        if _show_compass and _arrow is not None:
+                            if new_dir != _cur_dir[0]:
+                                if _cur_dir[0] and _cur_dir[0] in _dir_dots:
+                                    cv.itemconfig(_dir_dots[_cur_dir[0]],
+                                                  fill='#1E1E1E', outline='#303030')
+                                if new_dir and new_dir in _dir_dots:
+                                    cv.itemconfig(_dir_dots[new_dir],
                                                   fill=C_TEAL, outline=C_TEAL)
-                            _cur_dir[0] = new_dir
-                        if new_dir:
-                            ang_r = _math.radians(_dir_angles[new_dir])
-                            ax = cx + int(_math.cos(ang_r) * 22)
-                            ay = cy + int(_math.sin(ang_r) * 22)
-                            sc = C_RED if spd > 800 else C_TEAL if spd > 100 else '#666'
-                            canvas.coords(_arrow, cx, cy, ax, ay)
-                            canvas.itemconfig(_arrow, fill=sc)
-                        else:
-                            canvas.coords(_arrow, cx, cy, cx, cy)
-                        sc = C_RED if spd > 800 else C_TEAL if spd > 100 else '#555'
-                        canvas.itemconfig(_spd_txt, text=f'{spd}\npx/s', fill=sc)
+                                _cur_dir[0] = new_dir
+                            if new_dir:
+                                ang_r = _math.radians(_dir_angles[new_dir])
+                                ax = cx_comp + int(_math.cos(ang_r) * 24)
+                                ay = cy_comp + int(_math.sin(ang_r) * 24)
+                                sc = C_RED if spd > 800 else C_TEAL if spd > 100 else '#666'
+                                cv.coords(_arrow, cx_comp, cy_comp, ax, ay)
+                                cv.itemconfig(_arrow, fill=sc)
+                            else:
+                                cv.coords(_arrow, cx_comp, cy_comp, cx_comp, cy_comp)
+                            sc = C_RED if spd > 800 else C_TEAL if spd > 100 else '#555'
+                            if _spd_txt:
+                                cv.itemconfig(_spd_txt, text=f'{spd}\npx/s', fill=sc)
                         root.after(80, _tick)
 
                     root.after(80, _tick)
 
                     def _on_key(event, pressed):
                         name = event.keysym.lower()
-                        if name in ('w', 'a', 's', 'd'):
-                            fr = _key_frames[name]
-                            lbl = _key_labels[name]
-                            fr.config(bg=C_TEAL if pressed else C_OFF)
-                            lbl.config(bg=C_WASD_ON if pressed else C_KEY,
-                                       fg=C_TEAL if pressed else C_OFF)
-                        elif name in _key_labels:
-                            _key_labels[name].config(
-                                bg='#2A2A2A' if pressed else C_KEY,
-                                fg=C_TEAL if pressed else C_OFF)
+                        if name in _key_ids:
+                            rid, tid = _key_ids[name]
+                            cv.itemconfig(rid,
+                                          fill=C_WASD_ON if pressed else C_KEY_BG,
+                                          outline=C_TEAL if pressed else C_KEY_OFF)
+                            cv.itemconfig(tid,
+                                          fill=C_TEAL if pressed else C_KEY_OFF)
+                        elif name in _extra_ids:
+                            rid, tid = _extra_ids[name]
+                            cv.itemconfig(rid,
+                                          fill='#1E1E1E' if pressed else C_KEY_BG,
+                                          outline=C_TEAL if pressed else C_KEY_OFF)
+                            cv.itemconfig(tid,
+                                          fill=C_TEAL if pressed else C_KEY_OFF)
 
                     root.bind_all('<KeyPress>', lambda e: _on_key(e, True))
                     root.bind_all('<KeyRelease>', lambda e: _on_key(e, False))
@@ -3356,8 +4316,8 @@ class Api:
                         except Exception:
                             pass
 
-                    if _pm is None:
-                        canvas.itemconfig(_spd_txt, text='instala\npynput', fill='#F39C12')
+                    if _pm is None and _spd_txt:
+                        cv.itemconfig(_spd_txt, text='sin\npynput', fill='#F39C12')
                     else:
                         def _on_click(x, y, button, pressed_):
                             if not root.winfo_exists():
@@ -3365,18 +4325,24 @@ class Api:
                             try:
                                 if button == _pm.Button.left:
                                     if pressed_: _lmb_ts.append(time.time())
-                                    def _upd_lmb(p=pressed_):
-                                        lmb_fr.config(bg=C_TEAL if p else C_OFF)
-                                        lmb_lbl.config(bg=C_MB_L_ON if p else C_KEY,
-                                                       fg=C_TEAL if p else C_OFF)
-                                    root.after(0, _upd_lmb)
+                                    if _lmb_ids:
+                                        def _upd_lmb(p=pressed_):
+                                            cv.itemconfig(_lmb_ids[0],
+                                                          fill=C_MB_L_ON if p else C_KEY_BG,
+                                                          outline=C_TEAL if p else C_KEY_OFF)
+                                            cv.itemconfig(_lmb_ids[1],
+                                                          fill=C_TEAL if p else C_KEY_OFF)
+                                        root.after(0, _upd_lmb)
                                 elif button == _pm.Button.right:
                                     if pressed_: _rmb_ts.append(time.time())
-                                    def _upd_rmb(p=pressed_):
-                                        rmb_fr.config(bg=C_BLUE if p else C_OFF)
-                                        rmb_lbl.config(bg=C_MB_R_ON if p else C_KEY,
-                                                       fg=C_BLUE if p else C_OFF)
-                                    root.after(0, _upd_rmb)
+                                    if _rmb_ids:
+                                        def _upd_rmb(p=pressed_):
+                                            cv.itemconfig(_rmb_ids[0],
+                                                          fill=C_MB_R_ON if p else C_KEY_BG,
+                                                          outline=C_BLUE if p else C_KEY_OFF)
+                                            cv.itemconfig(_rmb_ids[1],
+                                                          fill=C_BLUE if p else C_KEY_OFF)
+                                        root.after(0, _upd_rmb)
                             except Exception:
                                 pass
 
@@ -3401,6 +4367,61 @@ class Api:
             return {"ok": True}
         except Exception as e:
             return {"ok": False, "error": str(e)}
+
+    def get_carpeta_mods(self, version, motor):
+        try:
+            import minecraft_launcher_lib
+            mc_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+            from core import carpeta_instancia_paraguacraft
+            mods_dir = os.path.join(mc_dir, "instancias",
+                                    carpeta_instancia_paraguacraft(version.strip(), motor), "mods")
+            return mods_dir
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def instalar_mods_pvp_189(self, carpeta_mods):
+        import urllib.request, json as _json
+        os.makedirs(carpeta_mods, exist_ok=True)
+        results = []
+        MODS = [
+            {"slug": "keystrokes",   "name": "Keystrokes"},
+            {"slug": "evergreenhud", "name": "EvergreenHUD"},
+        ]
+        for mod in MODS:
+            try:
+                url = (f"https://api.modrinth.com/v2/project/{mod['slug']}/version"
+                       f"?game_versions=[%221.8.9%22]&loaders=[%22forge%22]")
+                req = urllib.request.Request(
+                    url, headers={"User-Agent": "ParaguacraftLauncher/2.0"})
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    versions = _json.loads(resp.read())
+                if not versions:
+                    results.append({"mod": mod["name"], "ok": False,
+                                    "error": "No hay versi\u00f3n para 1.8.9 Forge en Modrinth"})
+                    continue
+                files = versions[0].get("files", [])
+                jar = next((f for f in files if f.get("primary")), files[0] if files else None)
+                if not jar:
+                    results.append({"mod": mod["name"], "ok": False, "error": "Sin JAR"})
+                    continue
+                out = os.path.join(carpeta_mods, jar["filename"])
+                if os.path.exists(out):
+                    results.append({"mod": mod["name"], "ok": True, "ya_existia": True,
+                                    "nombre": jar["filename"]})
+                    continue
+                req2 = urllib.request.Request(
+                    jar["url"], headers={"User-Agent": "ParaguacraftLauncher/2.0"})
+                with urllib.request.urlopen(req2, timeout=60) as r2:
+                    data = r2.read()
+                with open(out, "wb") as f:
+                    f.write(data)
+                results.append({"mod": mod["name"], "ok": True, "ya_existia": False,
+                                "nombre": jar["filename"],
+                                "size_kb": round(len(data) / 1024)})
+            except Exception as e:
+                results.append({"mod": mod["name"], "ok": False, "error": str(e)})
+        ok_count = sum(1 for r in results if r.get("ok"))
+        return {"ok": ok_count > 0, "results": results}
 
     def set_overlay_opacity(self, valor):
         try:
@@ -4112,6 +5133,19 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    def elegir_archivo_zip(self):
+        try:
+            import tkinter as tk
+            from tkinter import filedialog
+            root = tk.Tk(); root.withdraw(); root.attributes("-topmost", True)
+            ruta = filedialog.askopenfilename(title="Seleccionar archivo .zip", filetypes=[("ZIP files", "*.zip"), ("All files", "*.*")])
+            root.destroy()
+            if ruta:
+                return {"ok": True, "ruta": ruta}
+            return {"ok": False, "error": "Cancelado"}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
     def elegir_carpeta_servidor(self):
         try:
             import tkinter as tk
@@ -4203,6 +5237,34 @@ class _LocalAPIHandler(BaseHTTPRequestHandler):
             accion = qs.get('accion', [''])[0]
             self._json(_api_http_ref.spotify_control(accion))
 
+        elif parsed.path == '/api/get_cuentas':
+            self._json(_api_http_ref.get_cuentas() if _api_http_ref else {'ok': False})
+
+        elif parsed.path == '/api/instancia_config':
+            folder = qs.get('folder', [''])[0]
+            self._json(_api_http_ref.get_instancia_config(folder) if _api_http_ref and folder else {'ok': False})
+
+        elif parsed.path == '/api/leer_server_properties':
+            carpeta = qs.get('carpeta', [''])[0]
+            self._json(_api_http_ref.leer_server_properties(carpeta) if _api_http_ref and carpeta else {'ok': False})
+
+        elif parsed.path == '/api/whitelist':
+            self._json(_api_http_ref.whitelist_list() if _api_http_ref else {'ok': False})
+
+        elif parsed.path == '/api/banlist':
+            self._json(_api_http_ref.ban_list() if _api_http_ref else {'ok': False})
+
+        elif parsed.path == '/api/favoritos_srv':
+            self._json(_api_http_ref.get_favoritos_srv() if _api_http_ref else {'ok': False})
+
+        elif parsed.path == '/api/screenshots':
+            carpeta = qs.get('carpeta', [''])[0]
+            self._json(_api_http_ref.get_screenshots(carpeta) if _api_http_ref and carpeta else {'ok': False})
+
+        elif parsed.path == '/api/stats_instancia':
+            carpeta = qs.get('carpeta', [''])[0]
+            self._json(_api_http_ref.get_stats_instancia(carpeta) if _api_http_ref and carpeta else {'ok': False})
+
         elif parsed.path == '/api/get_usuario':
             self._json(_api_http_ref.get_usuario())
 
@@ -4221,8 +5283,13 @@ class _LocalAPIHandler(BaseHTTPRequestHandler):
                 self._json({
                     "log": _log,
                     "creando": _api._servidor_creando,
-                    "servidor_existe": bool(_carpeta and os.path.exists(os.path.join(_carpeta, "server.jar"))),
+                    "servidor_existe": bool(_carpeta and (
+                        os.path.exists(os.path.join(_carpeta, "server.jar")) or
+                        os.path.exists(os.path.join(_carpeta, "run.bat"))
+                    )),
                     "carpeta": _carpeta,
+                    "jugadores": list(_api._jugadores_online),
+                    "corriendo": bool(_api._servidor_proc and _api._servidor_proc.poll() is None),
                 })
             else:
                 self._json({"log": [], "creando": False, "servidor_existe": False, "carpeta": ""})
@@ -4333,7 +5400,17 @@ class _LocalAPIHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         length = int(self.headers.get('Content-Length', 0))
         body = json.loads(self.rfile.read(length) or b'{}')
-        if self.path == '/api/ms_complete':
+        if self.path == '/api/cambiar_cuenta':
+            self._json(_api_http_ref.cambiar_cuenta(int(body.get('idx', 0))) if _api_http_ref else {'ok': False})
+        elif self.path == '/api/set_instancia_config':
+            self._json(_api_http_ref.set_instancia_config(body.get('folder', ''), body.get('config', {})) if _api_http_ref else {'ok': False})
+        elif self.path == '/api/guardar_server_properties':
+            self._json(_api_http_ref.guardar_server_properties(body.get('carpeta', ''), body.get('props', {})) if _api_http_ref else {'ok': False})
+        elif self.path == '/api/importar_modpack':
+            self._json(_api_http_ref.importar_modpack_modrinth(body.get('slug', ''), body.get('version', '')) if _api_http_ref else {'ok': False})
+        elif self.path == '/api/modo_invitado':
+            self._json(_api_http_ref.modo_invitado(body.get('nombre', '')) if _api_http_ref else {'ok': False})
+        elif self.path == '/api/ms_complete':
             self._json(_api_http_ref.login_microsoft_paso2(body.get('url', '')))
         elif self.path == '/api/login_invitado':
             nombre = _api_http_ref.login_invitado(body.get('nombre', ''))
@@ -4353,14 +5430,41 @@ class _LocalAPIHandler(BaseHTTPRequestHandler):
         elif self.path == '/api/crear_servidor':
             version = body.get('version', '')
             carpeta = body.get('carpeta', '')
+            tipo    = body.get('tipo', 'paper')
             if not _api_http_ref or not version or not carpeta:
                 self._json({'ok': False, 'error': 'version y carpeta son requeridas'})
             else:
                 try:
-                    result = _api_http_ref.crear_servidor(version, carpeta)
+                    result = _api_http_ref.crear_servidor(version, carpeta, tipo)
                     self._json(result)
                 except Exception as _e:
                     self._json({'ok': False, 'error': str(_e)})
+        elif self.path == '/api/whitelist_add':
+            self._json(_api_http_ref.whitelist_add(body.get('nombre', '')) if _api_http_ref else {'ok': False})
+        elif self.path == '/api/whitelist_remove':
+            self._json(_api_http_ref.whitelist_remove(body.get('nombre', '')) if _api_http_ref else {'ok': False})
+        elif self.path == '/api/ban_add':
+            self._json(_api_http_ref.ban_add(body.get('nombre', ''), body.get('razon', '')) if _api_http_ref else {'ok': False})
+        elif self.path == '/api/ban_remove':
+            self._json(_api_http_ref.ban_remove(body.get('nombre', '')) if _api_http_ref else {'ok': False})
+        elif self.path == '/api/toggle_favorito_srv':
+            self._json(_api_http_ref.toggle_favorito_srv(body.get('ip', '')) if _api_http_ref else {'ok': False})
+        elif self.path == '/api/exportar_instancia':
+            self._json(_api_http_ref.exportar_instancia(body.get('carpeta', '')) if _api_http_ref else {'ok': False})
+        elif self.path == '/api/importar_instancia_prism':
+            self._json(_api_http_ref.importar_instancia_prism(body.get('ruta', '')) if _api_http_ref else {'ok': False})
+        elif self.path == '/api/instalar_optimizacion':
+            self._json(_api_http_ref.instalar_optimizacion(body.get('tipo', ''), body.get('carpeta', '')) if _api_http_ref else {'ok': False})
+        elif self.path == '/api/backup_mundos':
+            self._json(_api_http_ref.backup_mundos(body.get('carpeta', '')) if _api_http_ref else {'ok': False})
+        elif self.path == '/api/set_reinicio_srv':
+            self._json(_api_http_ref.set_reinicio_programado(int(body.get('horas', 0))) if _api_http_ref else {'ok': False})
+        elif self.path == '/api/instalar_mod_b64':
+            self._json(_api_http_ref.instalar_mod_b64(body.get('nombre', ''), body.get('carpeta', ''), body.get('b64', ''), body.get('tipo', 'mods')) if _api_http_ref else {'ok': False})
+        elif self.path == '/api/instalar_shader_preset':
+            self._json(_api_http_ref.instalar_shader_preset(body.get('shader_id',''), body.get('version',''), body.get('motor','Fabric')) if _api_http_ref else {'ok':False})
+        elif self.path == '/api/aplicar_perfil_hardware':
+            self._json(_api_http_ref.aplicar_perfil_hardware(body.get('perfil_id', ''), body.get('version', ''), body.get('motor', 'Fabric'), body.get('estilo', 'base')) if _api_http_ref else {'ok': False})
         elif self.path == '/api/call':
             method = body.get('method', '')
             args = body.get('args', [])
@@ -4406,6 +5510,7 @@ def _start_local_api(api):
             continue
     raise RuntimeError("No se pudo iniciar el servidor de API local (puertos 9875-9884 ocupados)")
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 if __name__ == "__main__":
     api = Api()

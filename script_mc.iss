@@ -1,6 +1,6 @@
 [Setup]
 AppName=Paraguacraft
-AppVersion=3.1.0
+AppVersion=3.5.0
 AppPublisher=Jaful
 DefaultDirName={userappdata}\Paraguacraft
 DefaultGroupName=Paraguacraft
@@ -10,7 +10,7 @@ SetupIconFile=C:\Users\Amin\Documents\Amin\Proyectos\Paraguacraft\iconomc.ico
 Compression=lzma2/ultra
 SolidCompression=yes
 OutputDir=C:\Users\Amin\Documents\Amin\Proyectos\Paraguacraft
-OutputBaseFilename=Instalar_Paraguacraft_v3.1.0
+OutputBaseFilename=Instalar_Paraguacraft_v3.5.0
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
@@ -20,7 +20,6 @@ Source: "C:\Users\Amin\Documents\Amin\Proyectos\Paraguacraft\dist\Paraguacraft.e
 
 [Icons]
 Name: "{group}\Paraguacraft"; Filename: "{app}\Paraguacraft.exe"
-; Cambiamos autodesktop por userdesktop para que no pida permisos al crear el acceso directo
 Name: "{userdesktop}\Paraguacraft"; Filename: "{app}\Paraguacraft.exe"; Tasks: desktopicon
 
 [Run]
