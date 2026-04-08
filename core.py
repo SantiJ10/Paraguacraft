@@ -433,6 +433,31 @@ def _java_exe_para_mc(minecraft_directory):
                 return bin_path
     return "java"
 
+def _java_exe_para_version(minecraft_directory, version_base):
+    """Picks the correct bundled Java runtime for a given MC version.
+    <1.17 → jre-legacy (Java 8) | 1.17-1.20 → gamma/beta (Java 17) | 1.21+/26.x → delta/loom (Java 21)"""
+    java_name = "java.exe" if platform.system() == "Windows" else "java"
+    plat_key = "windows" if platform.system() == "Windows" else ("mac-os" if platform.system() == "Darwin" else "linux")
+    runtime_root = os.path.join(minecraft_directory, "runtime")
+    try:
+        parts = version_base.split(".")
+        is_new = parts[0] == "26"
+        minor = 0 if is_new else (int(parts[1]) if len(parts) >= 2 else 20)
+    except Exception:
+        minor, is_new = 20, False
+    if is_new or minor >= 21:
+        candidates = ["java-runtime-delta", "java-runtime-loom", "java-runtime-gamma"]
+    elif minor >= 17:
+        candidates = ["java-runtime-gamma", "java-runtime-beta", "java-runtime-delta"]
+    else:
+        candidates = ["jre-legacy", "java-runtime-gamma", "java-runtime-beta"]
+    for entry in candidates:
+        bin_path = os.path.join(runtime_root, entry, plat_key, entry, "bin", java_name)
+        if os.path.exists(bin_path):
+            return bin_path
+    return "java"
+
+
 def _asegurar_java_runtime(version_id, minecraft_directory, progress_callback):
     """Lee el JSON de la version, sigue la cadena inheritsFrom, y descarga el runtime Java
     correcto (jre-legacy, java-runtime-gamma, java-runtime-delta, etc.) si no esta instalado."""
@@ -830,6 +855,9 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
 
     # 4.5 JAVA RUNTIME: asegurar que el Java correcto esta instalado
     _asegurar_java_runtime(version_a_lanzar, minecraft_directory, progress_callback)
+    _java_for_launch = _java_exe_para_version(minecraft_directory, version_base)
+    if _java_for_launch != "java":
+        options["executablePath"] = _java_for_launch
 
     command = minecraft_launcher_lib.command.get_minecraft_command(version_a_lanzar, minecraft_directory, options)
 

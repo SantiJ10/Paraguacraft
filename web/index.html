@@ -792,11 +792,13 @@
                             <select id="panel-version-sel" class="bg-[#121212] border border-[#2A2A2A] text-white p-2 rounded outline-none w-full text-sm font-bold cursor-pointer"><option value="" disabled selected>Seleccioná una versión...</option></select>
                         </div>
                         <div class="flex flex-col gap-1">
-                            <span class="text-xs font-bold text-gray-500 uppercase tracking-widest">Loader</span>
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-gray-500 uppercase tracking-widest">Loader</span>
+                                <span id="lbl-java-ver" class="text-[10px] text-[#3498DB] font-bold"></span>
+                            </div>
                             <select id="panel-loader-sel" class="bg-[#121212] border border-[#2A2A2A] text-white p-2 rounded outline-none w-full text-sm font-bold cursor-pointer"><option value="Vanilla">Vanilla</option></select>
                         </div>
                     </div>
-                    <p id="lbl-estado-juego" class="text-center text-xs text-[#3498DB] font-bold mb-2 min-h-[1.25rem] break-all"></p>
                     <div class="flex gap-2 mt-3 pb-2">
                         <button id="btn-launch-game" onclick="dispararJuego()" class="flex-1 bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black py-3 rounded shadow-[0_0_15px_rgba(46,204,113,0.2)] transition transform hover:scale-[1.01]">▶ JUGAR</button>
                         <button type="button" onclick="abrirGestorInstancia()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold px-4 py-3 rounded transition border border-[#333] text-sm">⚙ Gestionar</button>
@@ -827,41 +829,6 @@
                     <button onclick="skinCatPage(1)" id="skin-cat-next" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] px-4 py-2 rounded font-bold text-sm border border-[#333] transition">Siguiente →</button>
                 </div>
             </div>
-            <div id="skin-panel-historial" class="hidden flex-col flex-1 gap-4">
-                <div class="flex items-center justify-between">
-                    <h3 class="font-black">📋 Skins aplicadas recientemente</h3>
-                    <button onclick="limpiarHistorialSkins()" class="text-xs text-gray-500 hover:text-red-400 transition">🗑 Limpiar</button>
-                </div>
-                <div id="skin-historial-grid" class="grid grid-cols-5 gap-3 overflow-y-auto flex-1 min-h-0 pr-1">
-                    <div class="col-span-5 text-center text-gray-500 text-sm py-10">Sin historial todavía.</div>
-                </div>
-            </div>
-            <div id="skin-panel-importar" class="hidden flex-col flex-1">
-                <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-6 max-w-xl flex flex-col gap-5">
-                    <div>
-                        <h3 class="font-black text-lg mb-1">📁 Importar skin desde archivo</h3>
-                        <p class="text-xs text-gray-400">Elegí un PNG de 64×64 o 64×32 descargado desde <span class="text-[#2ECC71]">NameMC</span>, <span class="text-[#2ECC71]">The Skindex</span> u otro sitio.</p>
-                    </div>
-                    <div class="flex flex-col gap-3">
-                        <div class="flex gap-3 items-center">
-                            <div class="flex-1 bg-[#0A0A0A] border border-[#333] rounded px-4 py-2 text-sm text-gray-400 truncate" id="imp-skin-path-lbl">Ningún archivo seleccionado</div>
-                            <button onclick="seleccionarArchivoSkin()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] border border-[#333] text-white font-bold px-4 py-2 rounded transition text-sm shrink-0">📂 Elegir .png</button>
-                        </div>
-                        <div class="flex gap-3 items-center">
-                            <select id="imp-skin-variante" class="bg-[#121212] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none">
-                                <option value="classic">Steve (Classic)</option>
-                                <option value="slim">Alex (Slim)</option>
-                            </select>
-                            <button onclick="aplicarSkinImportada()" id="btn-imp-aplicar" disabled class="flex-1 bg-[#3498DB] hover:bg-[#2980B9] disabled:bg-[#2A2A2A] disabled:text-gray-600 text-white font-black py-2 rounded transition text-sm">⬆ Aplicar skin</button>
-                        </div>
-                        <p id="imp-skin-msg" class="text-xs text-gray-400 min-h-[1rem]"></p>
-                    </div>
-                    <div id="imp-skin-preview-wrap" class="hidden flex-col items-center gap-3">
-                        <canvas id="imp-skin-canvas" width="160" height="290" class="rounded-lg" style="background:linear-gradient(135deg,#0a0a0a,#1a1a1a)"></canvas>
-                        <p class="text-xs text-gray-500">Vista previa</p>
-                    </div>
-                </div>
-            </div>
             <div id="skin-panel-jugador" class="hidden flex-col flex-1">
                 <div class="flex flex-wrap gap-3 mb-5 bg-[#181818] p-4 rounded-lg border border-[#2A2A2A] max-w-2xl items-center">
                     <input type="text" id="buscador-skin" placeholder="Ej: SantiJ10" onkeypress="if(event.key==='Enter') actualizarVistaSkin()" class="bg-[#121212] border border-[#333] text-white px-4 py-2 rounded outline-none focus:border-[#2ECC71] flex-1 min-w-0">
@@ -884,7 +851,7 @@
                     </div>
                     <div class="flex flex-col gap-4 flex-1">
                         <div class="flex items-center gap-4">
-                            <img id="skin-head-render" src="https://minotar.net/helm/Steve/128.png" class="w-20 h-20 rounded-lg border border-[#2A2A2A]">
+                            <img id="skin-head-render" src="https://minotar.net/helm/Steve/128.png" class="w-20 h-20 rounded-lg border border-[#2A2A2A]" onerror="this.style.display='none'">
                             <div>
                                 <p id="skin-jugador-nombre" class="font-black text-xl text-white">Steve</p>
                                 <p class="text-xs text-gray-500 mt-1">Renderizado 3D en tiempo real</p>
@@ -899,6 +866,46 @@
                             <button onclick="skin3DToggleSlim()" id="btn-skin-slim" class="bg-[#2A2A2A] hover:bg-[#2A2A2A] border border-[#333] text-white font-bold px-4 py-2 rounded transition text-sm flex-1">👕 Alex/Steve</button>
                         </div>
                     </div>
+                </div>
+            </div>
+            <div id="skin-panel-importar" class="hidden flex-col flex-1">
+                <div class="grid grid-cols-2 gap-5">
+                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-6 flex flex-col gap-4">
+                        <div class="flex items-center gap-2">
+                            <span class="text-2xl">📁</span>
+                            <h3 class="font-black text-base">Importar skin local</h3>
+                        </div>
+                        <button onclick="seleccionarArchivoSkin()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] border border-[#333] text-white font-bold px-4 py-3 rounded transition text-sm">📁 Elegir archivo .png</button>
+                        <p id="imp-skin-path-lbl" class="text-xs text-gray-400 truncate">Sin archivo seleccionado</p>
+                        <select id="imp-skin-variante" class="bg-[#121212] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none">
+                            <option value="classic">Classic (Steve)</option>
+                            <option value="slim">Alex (Slim)</option>
+                        </select>
+                        <button onclick="aplicarSkinImportada()" id="btn-imp-aplicar" disabled class="bg-[#2ECC71] hover:bg-[#27AE60] disabled:bg-[#2A2A2A] disabled:text-gray-600 text-black font-black py-3 rounded transition text-sm">↑ Aplicar</button>
+                        <p id="imp-skin-msg" class="text-xs text-gray-400 min-h-[1rem]"></p>
+                        <p class="text-xs text-gray-500 mt-auto">Cuentas Premium: la skin se sube a Mojang automáticamente.</p>
+                        <div id="imp-skin-preview-wrap" class="hidden flex-col items-center gap-3 mt-2">
+                            <canvas id="imp-skin-canvas" width="160" height="290" class="rounded-lg" style="background:linear-gradient(135deg,#0a0a0a,#1a1a1a)"></canvas>
+                            <p class="text-xs text-gray-500">Vista previa</p>
+                        </div>
+                    </div>
+                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-6 flex flex-col gap-4">
+                        <div class="flex items-center gap-2">
+                            <span class="text-2xl">🎨</span>
+                            <h3 class="font-black text-base">Skin IA</h3>
+                        </div>
+                        <p class="text-sm text-gray-400">Generá una skin única con inteligencia artificial desde <span class="text-[#9B59B6] font-bold">Extras → Skin IA</span>.</p>
+                        <button onclick="cambiarPestaña('herramientas','Extras');setTimeout(()=>herTab('skingen'),150)" class="bg-[#9B59B6] hover:bg-[#7D3C98] text-white font-black py-3 rounded transition text-sm">🎮 Generar con IA</button>
+                    </div>
+                </div>
+            </div>
+            <div id="skin-panel-historial" class="hidden flex-col flex-1 gap-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-black">📋 Skins aplicadas recientemente</h3>
+                    <button onclick="limpiarHistorialSkins()" class="text-xs text-gray-500 hover:text-red-400 transition">🗑 Limpiar</button>
+                </div>
+                <div id="skin-historial-grid" class="grid grid-cols-5 gap-3 overflow-y-auto flex-1 min-h-0 pr-1">
+                    <div class="col-span-5 text-center text-gray-500 text-sm py-10">Sin historial todavía.</div>
                 </div>
             </div>
         </div>
@@ -2269,6 +2276,13 @@
                 const dm = selOpt.dataset.motor;
                 if (sL.querySelector(`option[value="${dm}"]`)) sL.value = dm;
             }
+            const ver = sV.value;
+            if (ver) {
+                pywebview.api.detectar_java_para_version(ver).then(r => {
+                    const lbl = document.getElementById('lbl-java-ver');
+                    if (lbl) lbl.textContent = r.ok ? ('☕ ' + r.label) : '';
+                }).catch(() => {});
+            }
         }
 
         function seleccionarVersion(vM) {
@@ -2744,19 +2758,30 @@
             const c = cfg[tipo]; if (!c) return;
             const lbl = document.getElementById('hw-perfil-progreso-lbl');
             const prog = document.getElementById('hw-perfil-progreso');
+            const res = document.getElementById('hw-perfil-resultado');
             if (prog) prog.classList.remove('hidden');
-            if (lbl) lbl.textContent = 'Preparando ' + c.ver + ' ' + c.motor + '...';
+            if (res) res.classList.add('hidden');
+            if (lbl) lbl.textContent = '⏳ Instalando ' + c.ver + ' ' + c.motor + ' + mods...';
             try {
-                const r = await pywebview.api.instalar_version(c.ver, c.motor);
+                const r = await pywebview.api.preparar_version_preset_completo(tipo);
                 if (prog) prog.classList.add('hidden');
                 if (r && r.ok) {
                     const vs = document.getElementById('panel-version-sel');
                     const ls = document.getElementById('panel-loader-sel');
                     if (vs) vs.value = c.ver;
                     if (ls) ls.value = c.motor;
-                    alert('✅ Versión ' + c.ver + ' (' + c.motor + ') preparada.');
-                } else { alert('❌ ' + ((r && r.error) || 'Error al preparar versión.')); }
-            } catch(e) { if (prog) prog.classList.add('hidden'); alert(String(e)); }
+                    if (res) {
+                        res.classList.remove('hidden');
+                        res.innerHTML = `<p class="font-black text-[#2ECC71] text-xs mb-1">✅ ${c.ver} (${c.motor}) listo · Tier: ${r.tier||'?'}</p>` +
+                            (r.resultados||[]).map(l => `<p class="text-xs text-gray-400 leading-snug">▸ ${l}</p>`).join('');
+                    }
+                } else {
+                    if (res) { res.classList.remove('hidden'); res.innerHTML = `<p class="text-xs text-red-400">❌ ${(r&&r.error)||'Error al preparar'}</p>`; }
+                }
+            } catch(e) {
+                if (prog) prog.classList.add('hidden');
+                if (res) { res.classList.remove('hidden'); res.innerHTML = `<p class="text-xs text-red-400">❌ ${e}</p>`; }
+            }
         }
         function gestorInstRamLabel(val) {
             const lbl = document.getElementById('gestor-inst-ram-lbl');
@@ -3671,21 +3696,13 @@
             if (cual === 'backup') { cargarMundos(); cargarBackups(); cargarBackupConfig(); }
             if (cual === 'perfiles') poblarPerfilesVersiones();
             if (cual === 'whitelist') cargarWhitelist();
-        }
-
-        // ══ IA GEMINI ════════════════════════════════════════════════════
-        function iaTab(cual) {
-            ['chat','comandos','modpack','semillas','survival'].forEach(t => {
-                const p = document.getElementById('iapanel-' + t);
-                if (p) p.classList.toggle('hidden', t !== cual);
-                const b = document.getElementById('iatab-' + t);
-                if (b) b.className = `px-4 py-2 rounded-lg font-bold text-sm transition ${t === cual ? 'bg-[#9B59B6] text-white' : 'bg-[#2A2A2A] text-white hover:bg-[#3A3A3A]'}`;
-            });
+            if (cual === 'hwperfil') hwEstiloTab(window._hwEstiloActual || 'pvp');
         }
 
         let _iaChatHistorial = [];
         async function enviarChatIA() {
             const input = document.getElementById('ia-chat-input');
+            // ... (rest of the code remains the same)
             const msgs = document.getElementById('ia-chat-msgs');
             const btn = document.getElementById('btn-ia-chat');
             const msg = (input.value || '').trim();

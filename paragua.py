@@ -30,7 +30,7 @@ try:
 except Exception:
     _lanzar_minecraft_ref = None
 
-VERSION = "3.6.0"  # Actualizar en cada release
+VERSION = "3.7.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 
 try:
@@ -1112,6 +1112,93 @@ class Api:
             return {"ok": False, "error": f"Tipo desconocido: {tipo}"}
         except Exception as e:
             return {"ok": False, "error": str(e)}
+
+    # ── Java auto-selector ────────────────────────────────────────────────────
+    def detectar_java_para_version(self, version):
+        try:
+            import minecraft_launcher_lib as _mcl
+            from core import _java_exe_para_version
+            mc_dir = _mcl.utils.get_minecraft_directory()
+            java_exe = _java_exe_para_version(mc_dir, version)
+            if "jre-legacy" in java_exe:
+                label = "Java 8 (bundled · jre-legacy)"
+            elif "java-runtime-delta" in java_exe or "java-runtime-loom" in java_exe:
+                label = "Java 21 (bundled)"
+            elif "java-runtime-gamma" in java_exe or "java-runtime-beta" in java_exe:
+                label = "Java 17 (bundled)"
+            elif java_exe == "java":
+                label = "Java (sistema)"
+            else:
+                label = "Java (bundled)"
+            return {"ok": True, "java_exe": java_exe, "label": label, "bundled": java_exe != "java"}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── OptiFine automation + version preset completo ─────────────────────────
+    def preparar_version_preset_completo(self, tipo):
+        import minecraft_launcher_lib as _mcl
+        from core import carpeta_instancia_paraguacraft as _cia, _asegurar_java_runtime, _java_exe_para_mc
+        presets = {
+            "pvp":        {"ver": "1.8.9",  "motor": "Forge",  "estilo": "pvp",      "optifine": True},
+            "survival":   {"ver": "1.20.1", "motor": "Fabric", "estilo": "survival", "optifine": False},
+            "servidores": {"ver": "1.16.5", "motor": "Fabric", "estilo": "pvp",      "optifine": False},
+            "modded":     {"ver": "1.12.2", "motor": "Forge",  "estilo": "modded",   "optifine": False},
+        }
+        if tipo not in presets:
+            return {"ok": False, "error": f"Preset desconocido: {tipo}"}
+        p = presets[tipo]
+        ver, motor, estilo = p["ver"], p["motor"], p["estilo"]
+        mc_dir = _mcl.utils.get_minecraft_directory()
+        resultados = []
+        tier = "media"
+        try:
+            motor_lower = motor.lower()
+            if "fabric" in motor_lower:
+                loader_ver = _mcl.fabric.get_latest_loader_version()
+                _mcl.fabric.install_fabric(ver, mc_dir, loader_ver, callback={"setStatus": lambda s: None})
+                resultados.append(f"✅ Fabric {ver} instalado")
+            elif "forge" in motor_lower:
+                _mcl.install.install_minecraft_version(ver, mc_dir, callback={"setStatus": lambda s: None})
+                _asegurar_java_runtime(ver, mc_dir, None)
+                java_exe = _java_exe_para_mc(mc_dir)
+                java_bin = os.path.dirname(java_exe) if java_exe != "java" else ""
+                orig_path = os.environ.get("PATH", "")
+                if java_bin and java_bin not in orig_path:
+                    os.environ["PATH"] = java_bin + os.pathsep + orig_path
+                try:
+                    forge_ver = _mcl.forge.find_forge_version(ver)
+                    if forge_ver:
+                        try:
+                            _mcl.forge.install_forge_version(forge_ver, mc_dir, java=java_exe, callback={"setStatus": lambda s: None})
+                        except TypeError:
+                            _mcl.forge.install_forge_version(forge_ver, mc_dir, callback={"setStatus": lambda s: None})
+                        resultados.append(f"✅ Forge {ver} instalado")
+                    else:
+                        resultados.append(f"⚠️ Forge no disponible para {ver}")
+                finally:
+                    os.environ["PATH"] = orig_path
+            hw = self.detectar_perfil_hardware_sugerido()
+            tier = hw.get("perfil_id", "media")
+            r_mods = self.aplicar_perfil_hardware(tier, ver, motor, estilo)
+            if r_mods.get("ok"):
+                resultados.append(f"✅ {len(r_mods.get('mods_instalados', []))} mods instalados (tier: {tier})")
+            else:
+                resultados.append(f"⚠️ Mods: {r_mods.get('error', 'sin mods')}")
+            if p.get("optifine"):
+                carpeta = os.path.join(mc_dir, "instancias", _cia(ver, motor))
+                os.makedirs(os.path.join(carpeta, "mods"), exist_ok=True)
+                cfg_path = os.path.join(carpeta, "_paragua_instance.json")
+                if not os.path.exists(cfg_path):
+                    with open(cfg_path, "w") as _f:
+                        json.dump({"mc_version": ver, "loader": motor.lower()}, _f)
+                r_of = self.instalar_optimizacion("optifine", carpeta)
+                if r_of.get("ok"):
+                    resultados.append(f"✅ OptiFine instalado ({r_of.get('archivo', '')})")
+                else:
+                    resultados.append(f"⚠️ OptiFine: {r_of.get('error', '')}")
+            return {"ok": True, "version": ver, "motor": motor, "tier": tier, "resultados": resultados}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "resultados": resultados}
 
     # ── Exportar instancia ────────────────────────────────────────────────────
     def exportar_instancia(self, carpeta):
@@ -5543,23 +5630,32 @@ if __name__ == "__main__":
             ventana.evaluate_js(f'window._API_PORT = {port};')
         except Exception:
             pass
-        try:
-            import win32gui as _w32g, win32con as _w32c, time as _t
-            _t.sleep(0.5)
-            maximized = [False]
-            def _cb_max(hwnd, _):
-                if maximized[0]:
-                    return
-                try:
-                    t = _w32g.GetWindowText(hwnd)
-                    if "Paraguacraft" in t and _w32g.IsWindowVisible(hwnd):
-                        _w32g.ShowWindow(hwnd, _w32c.SW_MAXIMIZE)
-                        maximized[0] = True
-                except Exception:
-                    pass
-            _w32g.EnumWindows(_cb_max, None)
-        except Exception:
-            pass
+        # Auto-maximize: pywebview native first, then win32gui fallback in a thread
+        import threading as _th
+        def _do_maximize():
+            try:
+                ventana.maximize()
+                return
+            except Exception:
+                pass
+            try:
+                import win32gui as _w32g, win32con as _w32c, time as _t
+                _t.sleep(0.4)
+                maximized = [False]
+                def _cb_max(hwnd, _):
+                    if maximized[0]:
+                        return
+                    try:
+                        t = _w32g.GetWindowText(hwnd)
+                        if "Paraguacraft" in t and _w32g.IsWindowVisible(hwnd):
+                            _w32g.ShowWindow(hwnd, _w32c.SW_MAXIMIZE)
+                            maximized[0] = True
+                    except Exception:
+                        pass
+                _w32g.EnumWindows(_cb_max, None)
+            except Exception:
+                pass
+        _th.Thread(target=_do_maximize, daemon=True).start()
 
     ventana.events.loaded += _on_loaded
     webview.start(debug=False, http_server=True,
