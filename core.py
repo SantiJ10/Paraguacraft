@@ -96,6 +96,9 @@ def inyectar_logos_paraguacraft(game_dir, version, graficos_minimos, progress_ca
                 HALF_W = 155
                 RENDER_H = 44
                 ROW2_Y = 45
+                bbox = im.getbbox()
+                if bbox: im = im.crop(bbox)
+                w, h = im.size
                 scale = min((HALF_W * 2) / w, RENDER_H / h)
                 new_w = max(1, int(round(w * scale)))
                 new_h = max(1, int(round(h * scale)))
@@ -136,8 +139,16 @@ def inyectar_logos_paraguacraft(game_dir, version, graficos_minimos, progress_ca
             pack_block = {"description": "Marca Oficial Paraguacraft", "min_format": 70, "max_format": 99999}
         else:
             pack_block = {"pack_format": 9999, "description": "Marca Oficial Paraguacraft", "supported_formats": [6, 9999]}
-    elif version_mayor >= 6:
-        pack_block = {"pack_format": 9999, "description": "Marca Oficial Paraguacraft", "supported_formats": [1, 9999]}
+    elif version_mayor >= 15:  # 1.15.x
+        pack_block = {"pack_format": 5, "description": "Marca Oficial Paraguacraft"}
+    elif version_mayor >= 13:  # 1.13 - 1.14.x
+        pack_block = {"pack_format": 4, "description": "Marca Oficial Paraguacraft"}
+    elif version_mayor >= 11:  # 1.11 - 1.12.2
+        pack_block = {"pack_format": 3, "description": "Marca Oficial Paraguacraft"}
+    elif version_mayor >= 9:   # 1.9 - 1.10.2
+        pack_block = {"pack_format": 2, "description": "Marca Oficial Paraguacraft"}
+    elif version_mayor >= 6:   # 1.6.1 - 1.8.9
+        pack_block = {"pack_format": 1, "description": "Marca Oficial Paraguacraft"}
     else:
         pack_block = {"pack_format": 1, "description": "Marca Oficial Paraguacraft"}
     mcmeta_str = json.dumps({"pack": pack_block})
@@ -152,7 +163,7 @@ def inyectar_logos_paraguacraft(game_dir, version, graficos_minimos, progress_ca
         import hashlib as _hashlib
         stamp_file = os.path.join(pack_dir, ".logo_stamp_v2")
         main_src = os.path.join(base_path, "paraguacraft_main_menu.png")
-        _LOGO_VER = ":r6"
+        _LOGO_VER = ":r9"
         try:
             with open(main_src, "rb") as _sf:
                 current_stamp = _hashlib.md5(_sf.read()).hexdigest() + _LOGO_VER
@@ -168,8 +179,7 @@ def inyectar_logos_paraguacraft(game_dir, version, graficos_minimos, progress_ca
         if current_stamp and current_stamp == cached_stamp and os.path.exists(logo_dest_mc):
             _cb("[Logo] Sin cambios, saltando.")
         else:
-            _legacy = os.path.join(base_path, "paraguacraft_legacy.png")
-            _main = "paraguacraft_legacy.png" if (version_mayor < 16 and os.path.exists(_legacy)) else "paraguacraft_main_menu.png"
+            _main = "paraguacraft_main_menu.png"
             activos = {
                 _main: "minecraft.png",
                 "paraguacraft_startup.png": "mojangstudios.png",
@@ -389,7 +399,7 @@ def instalar_mods_por_motor(game_dir, version, motor_elegido, progress_callback,
     motor_lower = motor_elegido.lower()
     headers = {"User-Agent": "ParaguacraftLauncher/2.1"}
 
-    if motor_lower == "vanilla" or motor_lower.startswith("optifine"):
+    if motor_lower == "vanilla" or motor_lower.startswith("optifine") or "neoforge" in motor_lower or ("forge" in motor_lower and "neo" not in motor_lower and "fabric" not in motor_lower and "iris" not in motor_lower and "optifine" not in motor_lower):
         return
 
     if "fabric" in motor_lower and "iris" in motor_lower:
@@ -541,6 +551,71 @@ def _instalar_optifine(version_base, minecraft_directory, progress_callback):
     return None
 
 
+def _instalar_neoforge(version_base, minecraft_directory, progress_callback, on_progress):
+    """Instala NeoForge para version_base usando minecraft_launcher_lib.neoforge. Devuelve el version ID o None."""
+    versions_dir = os.path.join(minecraft_directory, "versions")
+
+    # 1) Base vanilla primero
+    if progress_callback: progress_callback(f"Descargando Minecraft {version_base} (base para NeoForge)...")
+    try:
+        minecraft_launcher_lib.install.install_minecraft_version(
+            version_base, minecraft_directory, callback={"setStatus": on_progress})
+    except Exception as _be:
+        if progress_callback: progress_callback(f"Advertencia descargando base: {_be}")
+
+    # 2) Java runtime bundled
+    _asegurar_java_runtime(version_base, minecraft_directory, progress_callback)
+    _java_exe = _java_exe_para_mc(minecraft_directory)
+    _java_bin = os.path.dirname(_java_exe) if _java_exe != "java" else ""
+    _orig_path = os.environ.get("PATH", "")
+    if _java_bin and _java_bin not in _orig_path:
+        os.environ["PATH"] = _java_bin + os.pathsep + _orig_path
+
+    try:
+        if progress_callback: progress_callback(f"Buscando NeoForge para {version_base}...")
+        nf_versions = []
+        try:
+            nf_versions = minecraft_launcher_lib.neoforge.get_neoforge_versions(version_base)
+        except AttributeError:
+            if progress_callback: progress_callback("NeoForge no está soportado en esta versión de la librería.")
+            return None
+        except Exception as _e:
+            if progress_callback: progress_callback(f"Error buscando NeoForge: {_e}")
+            return None
+
+        if not nf_versions:
+            if progress_callback: progress_callback(f"NeoForge no está disponible aún para {version_base}.")
+            return None
+
+        nf_latest = nf_versions[0]
+        if progress_callback: progress_callback(f"Instalando NeoForge {nf_latest}...")
+        try:
+            minecraft_launcher_lib.neoforge.install_neoforge_version(
+                nf_latest, minecraft_directory, java=_java_exe, callback={"setStatus": on_progress})
+        except TypeError:
+            minecraft_launcher_lib.neoforge.install_neoforge_version(
+                nf_latest, minecraft_directory, callback={"setStatus": on_progress})
+
+        # Buscar la versión real creada (el prefijo MC sin el "1." inicial, ej: "21.1" para "1.21.1")
+        _vp = version_base.split(".")
+        _nf_prefix = ".".join(_vp[1:]) if len(_vp) >= 2 else version_base
+        if os.path.isdir(versions_dir):
+            for _nfv in sorted(os.listdir(versions_dir), reverse=True):
+                if "neoforge" in _nfv.lower() and _nf_prefix in _nfv:
+                    if os.path.exists(os.path.join(versions_dir, _nfv, _nfv + ".json")):
+                        if progress_callback: progress_callback(f"NeoForge instalado: {_nfv}")
+                        return _nfv
+            # Fallback: ID canónico
+            _fallback = f"neoforge-{nf_latest}"
+            if os.path.exists(os.path.join(versions_dir, _fallback, _fallback + ".json")):
+                return _fallback
+
+        if progress_callback: progress_callback("NeoForge no pudo instalarse correctamente.")
+        return None
+    finally:
+        os.environ["PATH"] = _orig_path
+
+
 def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type="G1GC", optimizar=False, motor_elegido="Vanilla", papa_mode=False, usar_mesa=False, mostrar_consola=False, progress_callback=None, uuid_real=None, token_real=None, lan_distancia=False, fabric_loader_override=None, server_ip=""):
     minecraft_directory = minecraft_launcher_lib.utils.get_minecraft_directory()
 
@@ -549,9 +624,11 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
 
     version_base = version.strip()
 
-    # 1. Determinamos el Loader base (Fabric, Forge, OptiFine o Vanilla) leyendo el nombre del motor
+    # 1. Determinamos el Loader base leyendo el nombre del motor (NeoForge antes que Forge)
     motor_lower = motor_elegido.lower()
-    if "fabric" in motor_lower:
+    if "neoforge" in motor_lower:
+        tipo_cliente_base = "NeoForge"
+    elif "fabric" in motor_lower:
         tipo_cliente_base = "Fabric"
     elif "forge" in motor_lower:
         tipo_cliente_base = "Forge"
@@ -588,7 +665,16 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
                     break
     elif tipo_cliente_base == "Forge":
         for v in sorted(_versiones_locales, reverse=True):
-            if version_base in v and "forge" in v.lower():
+            if version_base in v and "forge" in v.lower() and "neoforge" not in v.lower():
+                if os.path.exists(os.path.join(_versions_dir, v, v + ".json")):
+                    version_a_lanzar = v
+                    version_instalada = True
+                    break
+    elif tipo_cliente_base == "NeoForge":
+        _vp_nf = version_base.split(".")
+        _nf_prefix = ".".join(_vp_nf[1:]) if len(_vp_nf) >= 2 else version_base
+        for v in sorted(_versiones_locales, reverse=True):
+            if "neoforge" in v.lower() and _nf_prefix in v:
                 if os.path.exists(os.path.join(_versions_dir, v, v + ".json")):
                     version_a_lanzar = v
                     version_instalada = True
@@ -613,16 +699,51 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
             version_a_lanzar = f"fabric-loader-{loader_nuevo}-{version_base}"
 
         elif tipo_cliente_base == "Forge":
-            if progress_callback: progress_callback("Instalando Forge...")
-            forge_version = minecraft_launcher_lib.forge.find_forge_version(version_base)
-            if forge_version:
-                minecraft_launcher_lib.forge.install_forge_version(forge_version, minecraft_directory, callback={"setStatus": on_progress})
-                version_a_lanzar = forge_version
+            # 1) Instalar base vanilla primero (el installer de Forge la necesita)
+            if progress_callback: progress_callback(f"Descargando Minecraft {version_base} base (requerido por Forge)...")
+            try:
+                minecraft_launcher_lib.install.install_minecraft_version(version_base, minecraft_directory, callback={"setStatus": on_progress})
+            except Exception as _be:
+                if progress_callback: progress_callback(f"Advertencia descargando base: {_be}")
+            # 2) Asegurar Java runtime bundled antes de correr el installer
+            _asegurar_java_runtime(version_base, minecraft_directory, progress_callback)
+            # 3) Agregar Java bundled al PATH para que el Forge installer lo encuentre
+            _java_exe_forge = _java_exe_para_mc(minecraft_directory)
+            _java_bin_dir = os.path.dirname(_java_exe_forge) if _java_exe_forge != "java" else ""
+            _orig_path = os.environ.get("PATH", "")
+            if _java_bin_dir and _java_bin_dir not in _orig_path:
+                os.environ["PATH"] = _java_bin_dir + os.pathsep + _orig_path
+            try:
+                if progress_callback: progress_callback("Instalando Forge...")
+                forge_version = minecraft_launcher_lib.forge.find_forge_version(version_base)
+                if not forge_version:
+                    if progress_callback: progress_callback(f"Forge no está disponible aún para {version_base}.")
+                else:
+                    try:
+                        minecraft_launcher_lib.forge.install_forge_version(forge_version, minecraft_directory, java=_java_exe_forge, callback={"setStatus": on_progress})
+                    except TypeError:
+                        minecraft_launcher_lib.forge.install_forge_version(forge_version, minecraft_directory, callback={"setStatus": on_progress})
+                    # Buscar la version real creada (el nombre puede diferir de forge_version)
+                    _vdir = os.path.join(minecraft_directory, "versions")
+                    _found_forge = None
+                    for _fv in sorted(os.listdir(_vdir), reverse=True):
+                        if version_base in _fv and "forge" in _fv.lower() and "neoforge" not in _fv.lower():
+                            if os.path.exists(os.path.join(_vdir, _fv, _fv + ".json")):
+                                _found_forge = _fv
+                                break
+                    version_a_lanzar = _found_forge if _found_forge else forge_version
+            finally:
+                os.environ["PATH"] = _orig_path
 
         elif tipo_cliente_base == "OptiFine":
             of_ver = _instalar_optifine(version_base, minecraft_directory, progress_callback)
             if of_ver:
                 version_a_lanzar = of_ver
+
+        elif tipo_cliente_base == "NeoForge":
+            nf_ver = _instalar_neoforge(version_base, minecraft_directory, progress_callback, on_progress)
+            if nf_ver:
+                version_a_lanzar = nf_ver
 
         else:
             if progress_callback: progress_callback(f"Descargando juego base {version_base}...")
@@ -631,7 +752,7 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
     # 1.5 DEPENDENCIAS: para OptiFine y Forge, asegurar que todos los JARs estén
     # descargados (launchwrapper, etc.) ya que get_minecraft_command los necesita
     # en disco. install_minecraft_version es idempotente: no re-descarga lo que ya existe.
-    if tipo_cliente_base in ("OptiFine", "Forge") and version_a_lanzar != version_base:
+    if tipo_cliente_base in ("OptiFine", "Forge", "NeoForge") and version_a_lanzar != version_base:
         try:
             if progress_callback: progress_callback("Verificando dependencias del loader...")
             minecraft_launcher_lib.install.install_minecraft_version(
