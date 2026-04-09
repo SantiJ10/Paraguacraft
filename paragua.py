@@ -2255,26 +2255,30 @@ class Api:
                     for chunk in r.iter_content(65536):
                         if chunk:
                             f.write(chunk)
-                bat = os.path.join(tempfile.gettempdir(), "paragua_updater.bat")
-                with open(bat, "w") as f:
-                    f.write("@echo off\n")
-                    f.write("timeout /t 5 /nobreak > nul\n")
-                    f.write("set cnt=0\n")
-                    f.write(":retry\n")
-                    f.write(f'move /y "{tmp}" "{exe_actual}" >nul 2>&1\n')
-                    f.write("if errorlevel 1 (\n")
-                    f.write("  set /a cnt+=1\n")
-                    f.write("  if %cnt% lss 6 (\n")
-                    f.write("    timeout /t 2 /nobreak > nul\n")
-                    f.write("    goto retry\n")
-                    f.write("  )\n")
-                    f.write("  exit /b 1\n")
-                    f.write(")\n")
-                    f.write(f'echo updated > "{marker}"\n')
-                    f.write(f'start "" "{exe_actual}"\n')
-                    f.write('del "%~f0"\n')
+                ps_path = os.path.join(tempfile.gettempdir(), "paragua_updater.ps1")
+                tmp_esc     = tmp.replace("'", "''")
+                exe_esc     = exe_actual.replace("'", "''")
+                marker_esc  = marker.replace("'", "''")
+                with open(ps_path, "w", encoding="utf-8-sig") as f:
+                    f.write("Start-Sleep -Seconds 5\n")
+                    f.write("$attempts = 0\n")
+                    f.write("while ($attempts -lt 8) {\n")
+                    f.write("    try {\n")
+                    f.write(f"        Copy-Item -Force -Path '{tmp_esc}' -Destination '{exe_esc}' -ErrorAction Stop\n")
+                    f.write(f"        Remove-Item -Force -Path '{tmp_esc}' -ErrorAction SilentlyContinue\n")
+                    f.write("        break\n")
+                    f.write("    } catch {\n")
+                    f.write("        $attempts++\n")
+                    f.write("        Start-Sleep -Seconds 2\n")
+                    f.write("    }\n")
+                    f.write("}\n")
+                    f.write(f"Set-Content -Path '{marker_esc}' -Value 'updated' -ErrorAction SilentlyContinue\n")
+                    f.write(f"Start-Process -FilePath '{exe_esc}'\n")
+                    f.write("Remove-Item -Force -Path $PSCommandPath -ErrorAction SilentlyContinue\n")
                 subprocess.Popen(
-                    ["cmd", "/c", bat],
+                    ["powershell", "-NonInteractive", "-NoProfile",
+                     "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden",
+                     "-File", ps_path],
                     creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
                     close_fds=True,
                 )

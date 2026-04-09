@@ -770,10 +770,11 @@
                 </div>
                 <!-- Whitelist / Bans / Reinicio -->
                 <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-4 shrink-0 flex flex-col gap-3">
-                    <div class="flex gap-2">
+                    <div class="flex gap-2 flex-wrap">
                         <button onclick="mostrarWhitelist()" id="srv-whitelist" class="flex-1 bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold py-2 rounded text-sm transition border border-[#333]">📋 Whitelist</button>
                         <button onclick="mostrarBans()" id="bans" class="flex-1 bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold py-2 rounded text-sm transition border border-[#333]">🚫 Bans</button>
                         <button onclick="toggleReinicio()" id="reinicio-auto" class="flex-1 bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold py-2 rounded text-sm transition border border-[#333]">🔄 Reinicio auto</button>
+                        <button onclick="toggleServerPropsPanel()" class="flex-1 bg-[#2A2A2A] hover:bg-[#F39C12]/20 hover:text-[#F39C12] text-white font-bold py-2 rounded text-sm transition border border-[#333]">⚙️ server.properties</button>
                     </div>
                     <div id="srv-wl-panel" class="hidden">
                         <div class="flex gap-2">
@@ -783,15 +784,20 @@
                         <div id="srv-wl-lista" class="mt-2 space-y-1 max-h-32 overflow-y-auto text-xs text-gray-400"></div>
                     </div>
                 </div>
-            </div>
 
-            <div id="srv-panel-guardados" class="flex-1 hidden flex-col gap-4 min-h-0">
-                <div class="flex items-center justify-between shrink-0">
-                    <p class="text-xs text-gray-500 font-bold uppercase tracking-widest">Tus servidores locales guardados</p>
-                    <button onclick="cargarServidoresGuardados()" class="text-xs text-gray-500 hover:text-white transition">↻ Actualizar</button>
-                </div>
-                <div id="srv-guardados-grid" class="grid grid-cols-2 gap-4 overflow-y-auto flex-1 min-h-0 pb-4">
-                    <div class="col-span-2 text-center text-gray-600 text-sm py-10">Sin servidores guardados todavía.</div>
+                <!-- server.properties editor -->
+                <div id="srv-props-panel" class="hidden bg-[#181818] border border-[#F39C12]/30 rounded-xl p-4 shrink-0">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-black text-sm">⚙️ server.properties</h3>
+                        <button onclick="cargarServerProperties()" class="text-xs text-gray-500 hover:text-[#F39C12] transition">↻ Recargar</button>
+                    </div>
+                    <div id="srv-props-content" class="grid grid-cols-2 gap-3">
+                        <p class="col-span-2 text-xs text-gray-500 text-center py-3">Abriendo propiedades...</p>
+                    </div>
+                    <div class="flex justify-end mt-4 gap-2">
+                        <button onclick="document.getElementById('srv-props-panel').classList.add('hidden')" class="text-xs bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold px-3 py-2 rounded border border-[#333] transition">Cerrar</button>
+                        <button onclick="guardarServerProperties()" class="text-xs bg-[#F39C12] hover:bg-[#D68910] text-black font-bold px-5 py-2 rounded transition">💾 Guardar</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2945,6 +2951,13 @@
                 alert('Error: ' + r.error + '\n\nDescargá el .exe manualmente desde GitHub Releases.');
             }
         }
+        function _updateFailed(msg) {
+            const prog = document.getElementById('upd-progress');
+            const actions = document.getElementById('upd-actions');
+            if (prog) prog.classList.add('hidden');
+            if (actions) actions.classList.remove('hidden');
+            alert('Error al actualizar: ' + msg + '\n\nDescargá el .exe manualmente desde GitHub Releases.');
+        }
         // --- FIN AUTO-UPDATE ---
 
         async function autoJoinServer(ip) {
@@ -3259,6 +3272,94 @@
             const c = document.getElementById('srv-console');
             if (c) c.innerHTML = '';
         }
+        function toggleServerPropsPanel() {
+            const p = document.getElementById('srv-props-panel');
+            if (!p) return;
+            if (p.classList.contains('hidden')) {
+                p.classList.remove('hidden');
+                cargarServerProperties();
+                p.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } else {
+                p.classList.add('hidden');
+            }
+        }
+
+        let _srvPropsCache = {};
+
+        async function cargarServerProperties() {
+            const carpetaEl = document.getElementById('srv-carpeta');
+            const carpeta = (carpetaEl && carpetaEl.value) ? carpetaEl.value.trim() : '';
+            const content = document.getElementById('srv-props-content');
+            if (!content) return;
+            if (!carpeta) {
+                content.innerHTML = '<p class="col-span-2 text-xs text-yellow-400 text-center py-3">Primero elegí la carpeta del servidor.</p>';
+                return;
+            }
+            content.innerHTML = '<p class="col-span-2 text-xs text-gray-500 text-center py-3 animate-pulse">Leyendo server.properties...</p>';
+            try {
+                const r = await pywebview.api.leer_server_properties(carpeta);
+                if (!r || !r.ok) {
+                    content.innerHTML = '<p class="col-span-2 text-xs text-red-400 text-center py-3">' + (r && r.error || 'Error al leer') + '</p>';
+                    return;
+                }
+                _srvPropsCache = r.props || {};
+                const campos = [
+                    {k:'server-port',         label:'Puerto',              tipo:'number', min:1,    max:65535},
+                    {k:'online-mode',         label:'Online Mode',         tipo:'bool'},
+                    {k:'max-players',         label:'Max Jugadores',       tipo:'number', min:1,    max:999},
+                    {k:'motd',                label:'MOTD',                tipo:'text'},
+                    {k:'difficulty',          label:'Dificultad',          tipo:'select', opts:['peaceful','easy','normal','hard']},
+                    {k:'gamemode',            label:'Gamemode',            tipo:'select', opts:['survival','creative','adventure','spectator']},
+                    {k:'pvp',                 label:'PvP',                 tipo:'bool'},
+                    {k:'white-list',          label:'Whitelist',           tipo:'bool'},
+                    {k:'view-distance',       label:'View Distance',       tipo:'number', min:2,    max:32},
+                    {k:'simulation-distance', label:'Sim Distance',        tipo:'number', min:2,    max:32},
+                    {k:'spawn-protection',    label:'Spawn Protection',    tipo:'number', min:0,    max:100},
+                    {k:'allow-flight',        label:'Permitir Vuelo',      tipo:'bool'},
+                ];
+                content.innerHTML = campos.map(c => {
+                    const val = (_srvPropsCache[c.k] !== undefined) ? _srvPropsCache[c.k] : '';
+                    let input = '';
+                    if (c.tipo === 'bool') {
+                        const checked = (val === 'true') ? 'checked' : '';
+                        input = '<label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="sprop-' + c.k + '" ' + checked + ' class="w-4 h-4 accent-[#F39C12]"><span class="text-xs text-gray-400">' + (val || 'false') + '</span></label>';
+                    } else if (c.tipo === 'select') {
+                        const opts = c.opts.map(o => '<option value="' + o + '"' + (val === o ? ' selected' : '') + '>' + o + '</option>').join('');
+                        input = '<select id="sprop-' + c.k + '" class="bg-[#0A0A0A] border border-[#333] text-white px-2 py-1.5 rounded text-xs outline-none focus:border-[#F39C12] w-full">' + opts + '</select>';
+                    } else {
+                        const minAttr = (c.min !== undefined) ? ' min="' + c.min + '"' : '';
+                        const maxAttr = (c.max !== undefined) ? ' max="' + c.max + '"' : '';
+                        input = '<input id="sprop-' + c.k + '" type="' + (c.tipo === 'number' ? 'number' : 'text') + '" value="' + val + '"' + minAttr + maxAttr + ' class="bg-[#0A0A0A] border border-[#333] text-white px-2 py-1.5 rounded text-xs outline-none focus:border-[#F39C12] w-full">';
+                    }
+                    return '<div class="flex flex-col gap-1"><span class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">' + c.label + '</span>' + input + '</div>';
+                }).join('');
+            } catch(e) {
+                content.innerHTML = '<p class="col-span-2 text-xs text-red-400 text-center py-3">' + String(e) + '</p>';
+            }
+        }
+
+        async function guardarServerProperties() {
+            const carpetaEl = document.getElementById('srv-carpeta');
+            const carpeta = (carpetaEl && carpetaEl.value) ? carpetaEl.value.trim() : '';
+            if (!carpeta) { alert('Elegí la carpeta del servidor primero.'); return; }
+            const keys = ['server-port','online-mode','max-players','motd','difficulty','gamemode','pvp','white-list','view-distance','simulation-distance','spawn-protection','allow-flight'];
+            const props = {};
+            keys.forEach(k => {
+                const el = document.getElementById('sprop-' + k);
+                if (!el) return;
+                props[k] = (el.type === 'checkbox') ? (el.checked ? 'true' : 'false') : el.value;
+            });
+            try {
+                const r = await pywebview.api.guardar_server_properties(carpeta, props);
+                if (r && r.ok) {
+                    if (typeof showToast === 'function') showToast('✅ server.properties guardado.');
+                    else alert('✅ server.properties guardado correctamente.');
+                } else {
+                    alert('Error al guardar: ' + (r && r.error || 'Desconocido'));
+                }
+            } catch(e) { alert('Error: ' + String(e)); }
+        }
+
         // --- FIN SERVIDOR LOCAL ---
 
         async function dispararJuego() {
