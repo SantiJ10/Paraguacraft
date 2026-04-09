@@ -30,7 +30,7 @@ try:
 except Exception:
     _lanzar_minecraft_ref = None
 
-VERSION = "3.7.0"  # Actualizar en cada release
+VERSION = "3.8.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 
 try:
@@ -257,8 +257,13 @@ class Api:
             return {"ok": False, "error": str(e)}
 
     def login_invitado(self, nombre):
+        nombre = (nombre or "").strip()
         self.config_actual["usuario"] = nombre
         self.config_actual["is_premium"] = False
+        invitados = self.config_actual.get("cuentas_invitado", [])
+        if nombre and not any(g["nombre"] == nombre for g in invitados):
+            invitados.append({"nombre": nombre})
+            self.config_actual["cuentas_invitado"] = invitados
         self._guardar()
         return nombre
 
@@ -1034,34 +1039,104 @@ class Api:
     def get_cuentas(self):
         try:
             cuentas = []
+            # Premium accounts
             if os.path.exists(self._SESIONES_PATH):
                 with open(self._SESIONES_PATH, "r") as f:
                     sessions = json.load(f)
-                cuentas = [{"name": s.get("name", "?"), "idx": i} for i, s in enumerate(sessions)]
+                for i, s in enumerate(sessions):
+                    cuentas.append({"nombre": s.get("name", "?"), "tipo": "premium", "idx": i})
             elif os.path.exists(self.ruta_sesion):
                 with open(self.ruta_sesion, "r") as f:
                     s = json.load(f)
-                cuentas = [{"name": s.get("name", "?"), "idx": 0}]
+                cuentas.append({"nombre": s.get("name", "?"), "tipo": "premium", "idx": 0})
+            # Guest accounts
+            for i, g in enumerate(self.config_actual.get("cuentas_invitado", [])):
+                cuentas.append({"nombre": g.get("nombre", "?"), "tipo": "invitado", "idx": i})
             activo = self.config_actual.get("usuario", "Invitado")
             es_premium = self.config_actual.get("is_premium", False)
             return {"ok": True, "cuentas": cuentas, "activo": activo, "es_premium": es_premium}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
-    def cambiar_cuenta(self, idx):
+    def cambiar_cuenta(self, tipo, idx):
         try:
-            with open(self._SESIONES_PATH, "r") as f:
-                sessions = json.load(f)
-            if not (0 <= idx < len(sessions)):
-                return {"ok": False, "error": "Índice inválido"}
-            self.ms_data = sessions[idx]
-            nombre = f"{self.ms_data['name']} [PREMIUM]"
-            self.config_actual["usuario"] = nombre
-            self.config_actual["is_premium"] = True
-            with open(self.ruta_sesion, "w") as f:
-                json.dump(self.ms_data, f)
-            self._guardar()
-            return {"ok": True, "usuario": nombre}
+            if tipo == "premium":
+                with open(self._SESIONES_PATH, "r") as f:
+                    sessions = json.load(f)
+                if not (0 <= idx < len(sessions)):
+                    return {"ok": False, "error": "Índice inválido"}
+                self.ms_data = sessions[idx]
+                nombre = f"{self.ms_data['name']} [PREMIUM]"
+                self.config_actual["usuario"] = nombre
+                self.config_actual["is_premium"] = True
+                with open(self.ruta_sesion, "w") as f:
+                    json.dump(self.ms_data, f)
+                self._guardar()
+                return {"ok": True, "usuario": nombre, "es_premium": True}
+            elif tipo == "invitado":
+                invitados = self.config_actual.get("cuentas_invitado", [])
+                if not (0 <= idx < len(invitados)):
+                    return {"ok": False, "error": "Índice inválido"}
+                nombre = invitados[idx]["nombre"]
+                self.ms_data = None
+                self.config_actual["usuario"] = nombre
+                self.config_actual["is_premium"] = False
+                self._guardar()
+                return {"ok": True, "usuario": nombre, "es_premium": False}
+            return {"ok": False, "error": "Tipo desconocido"}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def agregar_cuenta_invitado(self, nombre):
+        nombre = (nombre or "").strip()
+        if not nombre:
+            return {"ok": False, "error": "Nombre vacío"}
+        invitados = self.config_actual.get("cuentas_invitado", [])
+        if any(g["nombre"] == nombre for g in invitados):
+            return {"ok": False, "error": "Ya existe una cuenta con ese nombre"}
+        invitados.append({"nombre": nombre})
+        self.config_actual["cuentas_invitado"] = invitados
+        self._guardar()
+        return {"ok": True}
+
+    def eliminar_cuenta(self, tipo, idx):
+        try:
+            if tipo == "premium":
+                if not os.path.exists(self._SESIONES_PATH):
+                    return {"ok": False, "error": "Sin sesiones guardadas"}
+                with open(self._SESIONES_PATH, "r") as f:
+                    sessions = json.load(f)
+                if not (0 <= idx < len(sessions)):
+                    return {"ok": False, "error": "Índice inválido"}
+                sessions.pop(idx)
+                with open(self._SESIONES_PATH, "w") as f:
+                    json.dump(sessions, f)
+                # If active account was this one, reset to first available or guest
+                activo = self.config_actual.get("usuario", "")
+                if activo.endswith("[PREMIUM]"):
+                    if sessions:
+                        self.ms_data = sessions[0]
+                        self.config_actual["usuario"] = f"{sessions[0]['name']} [PREMIUM]"
+                        with open(self.ruta_sesion, "w") as f:
+                            json.dump(self.ms_data, f)
+                    else:
+                        self.ms_data = None
+                        self.config_actual["usuario"] = "Invitado"
+                        self.config_actual["is_premium"] = False
+                self._guardar()
+                return {"ok": True}
+            elif tipo == "invitado":
+                invitados = self.config_actual.get("cuentas_invitado", [])
+                if not (0 <= idx < len(invitados)):
+                    return {"ok": False, "error": "Índice inválido"}
+                nombre_eliminado = invitados[idx]["nombre"]
+                invitados.pop(idx)
+                self.config_actual["cuentas_invitado"] = invitados
+                if self.config_actual.get("usuario") == nombre_eliminado:
+                    self.config_actual["usuario"] = "Invitado"
+                self._guardar()
+                return {"ok": True}
+            return {"ok": False, "error": "Tipo desconocido"}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
@@ -3392,11 +3467,25 @@ class Api:
 
     MODS_LOADER_MAP = {
         "forge": {
-            "sodium":    ("embeddium",    "Embeddium"),
-            "lithium":   ("canary",       "Canary"),
-            "iris":      ("oculus",       "Oculus"),
-            "indium":    None,
-        }
+            "sodium":        ("embeddium",    "Embeddium"),
+            "lithium":       ("canary",       "Canary"),
+            "iris":          ("oculus",       "Oculus"),
+            "indium":        None,            # Fabric-only Sodium addon
+            "entityculling": None,            # Port uses SpongeMixin, crashes Forge LaunchWrapper
+            "starlight":     None,            # Discontinued, no Forge build exists
+            "itemmodel-fix": None,            # Fabric only
+            "minihud":       None,            # Fabric only (masa mod)
+        },
+        "neoforge": {
+            "sodium":        ("embeddium",    "Embeddium"),
+            "lithium":       ("canary",       "Canary"),
+            "iris":          ("oculus",       "Oculus"),
+            "indium":        None,
+            "entityculling": None,
+            "starlight":     None,
+            "itemmodel-fix": None,
+            "minihud":       None,
+        },
     }
 
     PERFILES_HARDWARE = {
@@ -3554,8 +3643,6 @@ class Api:
                                 errores.append(nombre)
                 except Exception:
                     errores.append(nombre)
-            # Marcar como aplicado (no volver a instalar)
-            self.config_actual[key] = perfil_id
             self._guardar()
             return {"ok": True, "ya_aplicado": False, "mods_instalados": instalados,
                     "errores": errores, "ram_asignada": ram_rec, "gc": perfil["gc"],
@@ -5488,7 +5575,7 @@ class _LocalAPIHandler(BaseHTTPRequestHandler):
         length = int(self.headers.get('Content-Length', 0))
         body = json.loads(self.rfile.read(length) or b'{}')
         if self.path == '/api/cambiar_cuenta':
-            self._json(_api_http_ref.cambiar_cuenta(int(body.get('idx', 0))) if _api_http_ref else {'ok': False})
+            self._json(_api_http_ref.cambiar_cuenta(body.get('tipo', 'premium'), int(body.get('idx', 0))) if _api_http_ref else {'ok': False})
         elif self.path == '/api/set_instancia_config':
             self._json(_api_http_ref.set_instancia_config(body.get('folder', ''), body.get('config', {})) if _api_http_ref else {'ok': False})
         elif self.path == '/api/guardar_server_properties':
@@ -5635,12 +5722,20 @@ if __name__ == "__main__":
         def _do_maximize():
             try:
                 ventana.maximize()
-                return
+            except Exception:
+                pass
+            import time as _t
+            _t.sleep(0.5)
+            try:
+                import ctypes as _ct
+                hwnd = _ct.windll.user32.FindWindowW(None, "Paraguacraft Launcher")
+                if hwnd:
+                    _ct.windll.user32.ShowWindow(hwnd, 3)
+                    return
             except Exception:
                 pass
             try:
-                import win32gui as _w32g, win32con as _w32c, time as _t
-                _t.sleep(0.4)
+                import win32gui as _w32g, win32con as _w32c
                 maximized = [False]
                 def _cb_max(hwnd, _):
                     if maximized[0]:
