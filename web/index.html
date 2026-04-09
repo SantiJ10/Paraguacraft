@@ -307,8 +307,22 @@
                 <img id="nav-skin-head" src="" class="w-5 h-5 mr-2 rounded-sm hidden">
                 <span id="nav-username">Invitado</span> <span class="ml-2 text-[10px] text-gray-500">▼</span>
             </button>
-            <div id="user-dropdown" class="absolute top-[45px] right-0 w-48 bg-[#181818] border border-[#2A2A2A] rounded-lg shadow-2xl hidden flex-col py-2 z-[200]">
-                <button onclick="cerrarSesion()" class="text-left px-4 py-2 text-sm font-bold text-[#E74C3C] hover:bg-[#2A2A2A] transition w-full">↪ Cerrar sesión</button>
+            <div id="user-dropdown" class="absolute top-[45px] right-0 w-64 bg-[#181818] border border-[#2A2A2A] rounded-xl shadow-2xl hidden flex-col z-[200] overflow-hidden">
+                <div class="px-4 pt-3 pb-2 border-b border-[#2A2A2A]">
+                    <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Cuentas</p>
+                </div>
+                <div id="accounts-list" class="flex flex-col max-h-56 overflow-y-auto py-1"></div>
+                <div class="border-t border-[#2A2A2A] px-2 py-2 flex flex-col gap-1">
+                    <button onclick="agregarCuentaMicrosoft()" class="flex items-center gap-2 px-3 py-1.5 rounded text-xs font-bold text-[#0078D4] hover:bg-[#0078D4]/10 transition w-full">
+                        <span>🪟</span> Agregar cuenta Microsoft
+                    </button>
+                    <button onclick="agregarCuentaInvitado()" class="flex items-center gap-2 px-3 py-1.5 rounded text-xs font-bold text-gray-400 hover:bg-[#2A2A2A] transition w-full">
+                        <span>👤</span> Agregar cuenta offline
+                    </button>
+                </div>
+                <div class="border-t border-[#2A2A2A] py-1">
+                    <button onclick="cerrarSesion()" class="text-left px-4 py-2 text-xs font-bold text-[#E74C3C] hover:bg-[#2A2A2A] transition w-full">↪ Cerrar sesión actual</button>
+                </div>
             </div>
         </div>
     </nav>
@@ -506,6 +520,7 @@
             <div class="flex gap-3 mb-5 shrink-0">
                 <button onclick="svTab('publicos')" id="srv-tab-pub" class="px-5 py-2 rounded-lg font-bold text-sm bg-[#2ECC71] text-black transition"> Servidores Públicos</button>
                 <button onclick="svTab('local')" id="srv-tab-local" class="px-5 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition"> Mi Servidor Local</button>
+                <button onclick="svTab('guardados')" id="srv-tab-guardados" class="px-5 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">📋 Servidores Guardados</button>
             </div>
 
             <div id="srv-panel-publicos" class="flex-1 flex flex-col min-h-0 overflow-hidden">
@@ -661,6 +676,7 @@
                         <p class="font-black text-sm text-[#2ECC71]">Servidor configurado</p>
                         <p id="srv-activo-carpeta" class="text-xs text-gray-400 truncate mt-0.5"></p>
                     </div>
+                    <button onclick="mostrarCrearNuevoServidor()" class="bg-[#9B59B6] hover:bg-[#7D3C98] text-white text-xs font-bold px-3 py-2 rounded transition shrink-0">+ Nuevo</button>
                     <button onclick="cambiarCarpetaServidor()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white text-xs font-bold px-3 py-2 rounded transition border border-[#333] shrink-0">📂 Cambiar carpeta</button>
                 </div>
 
@@ -768,6 +784,16 @@
                     </div>
                 </div>
             </div>
+
+            <div id="srv-panel-guardados" class="flex-1 hidden flex-col gap-4 min-h-0">
+                <div class="flex items-center justify-between shrink-0">
+                    <p class="text-xs text-gray-500 font-bold uppercase tracking-widest">Tus servidores locales guardados</p>
+                    <button onclick="cargarServidoresGuardados()" class="text-xs text-gray-500 hover:text-white transition">↻ Actualizar</button>
+                </div>
+                <div id="srv-guardados-grid" class="grid grid-cols-2 gap-4 overflow-y-auto flex-1 min-h-0 pb-4">
+                    <div class="col-span-2 text-center text-gray-600 text-sm py-10">Sin servidores guardados todavía.</div>
+                </div>
+            </div>
         </div>
         <div id="vista-versiones" class="vista-seccion absolute inset-0 p-6 flex-row gap-6">
             <div class="w-3/4 flex flex-col h-full">
@@ -803,6 +829,7 @@
                         <button id="btn-launch-game" onclick="dispararJuego()" class="flex-1 bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black py-3 rounded shadow-[0_0_15px_rgba(46,204,113,0.2)] transition transform hover:scale-[1.01]">▶ JUGAR</button>
                         <button type="button" onclick="abrirGestorInstancia()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold px-4 py-3 rounded transition border border-[#333] text-sm">⚙ Gestionar</button>
                     </div>
+                    <p id="lbl-estado-juego" class="text-center text-xs font-bold mt-2 min-h-[1.5rem] break-all text-[#3498DB]"></p>
                 </div>
             </div>
         </div>
@@ -2614,7 +2641,13 @@
 
         // --- MENÚS ---
         function toggleLogoMenu(e) { e.stopPropagation(); document.getElementById("logo-dropdown").classList.toggle("hidden"); }
-        function toggleUserMenu(e) { e.stopPropagation(); document.getElementById("user-dropdown").classList.toggle("hidden"); }
+        function toggleUserMenu(e) {
+            e.stopPropagation();
+            const ud = document.getElementById("user-dropdown");
+            ud.classList.toggle("hidden");
+            if (!ud.classList.contains("hidden")) cargarCuentas();
+        }
+
         function cerrarDropdowns(e) {
             if(!e.target.closest('.dropdown-container') && !e.target.closest('#nav-username') && !e.target.closest('.text-2xl')) {
                 const ud = document.getElementById("user-dropdown");
@@ -2857,20 +2890,26 @@
 
         // --- SERVIDOR LOCAL ---
         function svTab(cual) {
-            const pub = document.getElementById('srv-panel-publicos');
-            const loc = document.getElementById('srv-panel-local');
+            const pub  = document.getElementById('srv-panel-publicos');
+            const loc  = document.getElementById('srv-panel-local');
+            const grd  = document.getElementById('srv-panel-guardados');
             const tPub = document.getElementById('srv-tab-pub');
             const tLoc = document.getElementById('srv-tab-local');
+            const tGrd = document.getElementById('srv-tab-guardados');
+            const OFF  = 'px-5 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition';
+            const ON   = 'px-5 py-2 rounded-lg font-bold text-sm bg-[#2ECC71] text-black transition';
+            [pub, loc, grd].forEach(p => { if (p) { p.classList.add('hidden'); p.style.display = ''; } });
+            [tPub, tLoc, tGrd].forEach(t => { if (t) t.className = OFF; });
             if (cual === 'publicos') {
-                pub.style.display = ''; pub.classList.remove('hidden');
-                loc.classList.add('hidden'); loc.style.display = '';
-                tPub.className = 'px-5 py-2 rounded-lg font-bold text-sm bg-[#2ECC71] text-black transition';
-                tLoc.className = 'px-5 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition';
+                pub.style.display = 'flex'; pub.style.flexDirection = 'column'; pub.classList.remove('hidden');
+                tPub.className = ON;
+            } else if (cual === 'guardados') {
+                grd.style.display = 'flex'; grd.style.flexDirection = 'column'; grd.classList.remove('hidden');
+                tGrd.className = ON;
+                cargarServidoresGuardados();
             } else {
-                pub.classList.add('hidden');
-                loc.classList.remove('hidden'); loc.style.display = 'flex'; loc.style.flexDirection = 'column';
-                tLoc.className = 'px-5 py-2 rounded-lg font-bold text-sm bg-[#2ECC71] text-black transition';
-                tPub.className = 'px-5 py-2 rounded-lg font-bold text-sm bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition';
+                loc.style.display = 'flex'; loc.style.flexDirection = 'column'; loc.classList.remove('hidden');
+                tLoc.className = ON;
                 verificarServidorExistente();
             }
         }
@@ -2902,13 +2941,25 @@
             if (btn) { btn.disabled = false; btn.textContent = 'Crear'; }
         }
 
+        function mostrarCrearNuevoServidor() {
+            const crearBox = document.getElementById('srv-crear-box');
+            if (crearBox) {
+                crearBox.classList.remove('hidden');
+                crearBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                const inp = document.getElementById('srv-carpeta');
+                if (inp) { inp.value = ''; inp.focus(); }
+            }
+        }
+
         async function cambiarCarpetaServidor() {
             const carpeta = await pywebview.api.seleccionar_carpeta_servidor();
             if (!carpeta) return;
             const crearBox  = document.getElementById('srv-crear-box');
             const activoBox = document.getElementById('srv-activo-box');
+            const carpetaLbl = document.getElementById('srv-activo-carpeta');
             if (crearBox)  crearBox.classList.remove('hidden');
-            if (activoBox) activoBox.classList.add('hidden');
+            if (activoBox) { activoBox.classList.add('hidden'); activoBox.style.display = ''; }
+            if (carpetaLbl) carpetaLbl.textContent = carpeta;
             const inp = document.getElementById('srv-carpeta');
             if (inp) inp.value = carpeta;
         }
@@ -3970,35 +4021,112 @@
             gestorSubTab('mods');
         }
 
-        // ══ MULTI-SERVIDOR ═════════════════════════════════════════════════
+        // ══ MULTI-SERVIDOR ═══════════════════════════════════════════════════
         async function cargarServidoresGuardados() {
             try {
                 const r = await pywebview.api.get_servidores_guardados();
                 if (!r || !r.ok) return;
+                const tipoIcon  = {paper:'📄','paper-geyser':'🌐',fabric:'🧵','fabric-geyser':'🧵🌐',forge:'🔧'};
+                const tipoLabel = {paper:'Paper',  'paper-geyser':'Paper + Geyser', fabric:'Fabric', 'fabric-geyser':'Fabric + Geyser', forge:'Forge'};
+                const tipoColor = {paper:'#2ECC71','paper-geyser':'#3498DB',fabric:'#9B59B6','fabric-geyser':'#9B59B6',forge:'#E74C3C'};
+
+                // ── Compact list in "Mi Servidor Local" sidebar ──────────────
                 const box   = document.getElementById('srv-lista-box');
                 const cards = document.getElementById('srv-lista-cards');
-                if (!r.servidores || !r.servidores.length) { if (box) box.classList.add('hidden'); return; }
-                if (box) { box.classList.remove('hidden'); box.style.display = 'flex'; box.style.flexDirection = 'column'; }
-                const tipoIcon = {paper:'📄','paper-geyser':'🌐',fabric:'🧵','fabric-geyser':'🧵',forge:'🔧'};
-                cards.innerHTML = r.servidores.map(s => {
-                    const c = s.carpeta.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-                    const dot = s.corriendo ? 'bg-[#2ECC71]' : s.activo ? 'bg-[#F39C12]' : 'bg-gray-600';
-                    const brd = s.activo ? 'border-[#2ECC71]/60' : 'border-[#2A2A2A]';
-                    const badge = s.activo
-                        ? '<span class="text-[10px] text-[#2ECC71] font-bold shrink-0">Activo</span>'
-                        : `<button onclick="activarServidorCard('${c}')" class="text-[10px] text-[#3498DB] hover:underline shrink-0">Seleccionar</button>`;
-                    const ver = s.version && s.version !== '?' ? ` · ${s.version}` : '';
-                    return `<div class="flex items-center gap-2 bg-[#0A0A0A] border ${brd} rounded-lg px-3 py-2 transition group">
-                        <div class="w-2 h-2 rounded-full shrink-0 ${dot}"></div>
-                        <div class="flex-1 min-w-0">
-                            <p class="font-bold text-xs truncate">${tipoIcon[s.tipo]||'🖥'} ${s.nombre}<span class="text-gray-500 font-normal">${ver}</span></p>
-                            <p class="text-[10px] text-gray-600 truncate">${s.carpeta}</p>
+                if (!r.servidores || !r.servidores.length) {
+                    if (box) box.classList.add('hidden');
+                } else {
+                    if (box) { box.classList.remove('hidden'); box.style.display = 'flex'; box.style.flexDirection = 'column'; }
+                    if (cards) cards.innerHTML = r.servidores.map(s => {
+                        const c = s.carpeta.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+                        const dot = s.corriendo ? 'bg-[#2ECC71] animate-pulse' : s.activo ? 'bg-[#F39C12]' : 'bg-gray-600';
+                        const brd = s.corriendo ? 'border-[#2ECC71]/60' : s.activo ? 'border-[#F39C12]/40' : 'border-[#2A2A2A]';
+                        const ver = s.version && s.version !== '?' ? ` · ${s.version}` : '';
+                        const btnAction = s.corriendo
+                            ? `<button onclick="detenerServidorCard()" class="text-[10px] font-bold px-2 py-1 rounded bg-[#E74C3C]/20 text-[#E74C3C] hover:bg-[#E74C3C] hover:text-white transition shrink-0">⏹ Detener</button>`
+                            : `<button onclick="iniciarServidorCard('${c}')" class="text-[10px] font-bold px-2 py-1 rounded bg-[#2ECC71]/20 text-[#2ECC71] hover:bg-[#2ECC71] hover:text-black transition shrink-0">▶ Iniciar</button>`;
+                        const statusBadge = s.corriendo
+                            ? '<span class="text-[9px] text-[#2ECC71] font-black shrink-0">● ON</span>'
+                            : s.activo ? '<span class="text-[9px] text-[#F39C12] font-bold shrink-0">Activo</span>' : '';
+                        return `<div class="flex items-center gap-2 bg-[#0A0A0A] border ${brd} rounded-lg px-3 py-2 transition group">
+                            <div class="w-2 h-2 rounded-full shrink-0 ${dot}"></div>
+                            <div class="flex-1 min-w-0">
+                                <p class="font-bold text-xs truncate">${tipoIcon[s.tipo]||'🖥'} ${s.nombre} <span class="text-gray-500 font-normal">${ver}</span></p>
+                                <p class="text-[10px] text-gray-600 truncate">${s.carpeta}</p>
+                            </div>
+                            ${statusBadge}
+                            ${btnAction}
+                            <button onclick="eliminarServidor('${c}')" class="text-gray-600 hover:text-red-400 text-xs shrink-0 opacity-0 group-hover:opacity-100 transition" title="Quitar">🗑</button>
+                        </div>`;
+                    }).join('');
+                }
+
+                // ── Full cards in "Servidores Guardados" tab ─────────────────
+                const grid = document.getElementById('srv-guardados-grid');
+                if (!grid) return;
+                if (!r.servidores || !r.servidores.length) {
+                    grid.innerHTML = '<div class="col-span-2 text-center text-gray-600 text-sm py-10">Sin servidores guardados todavía.</div>';
+                    return;
+                }
+                grid.innerHTML = r.servidores.map(s => {
+                    const c     = s.carpeta.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+                    const color = tipoColor[s.tipo] || '#888';
+                    const label = tipoLabel[s.tipo] || s.tipo || 'Servidor';
+                    const icon  = tipoIcon[s.tipo] || '🖥';
+                    const ver   = s.version && s.version !== '?' ? s.version : '—';
+                    const brd   = s.corriendo ? 'border-[#2ECC71]/50' : s.activo ? 'border-[#F39C12]/40' : 'border-[#2A2A2A]';
+                    const statusHtml = s.corriendo
+                        ? `<span class="flex items-center gap-1 text-[10px] font-black text-[#2ECC71]"><span class="w-2 h-2 rounded-full bg-[#2ECC71] animate-pulse inline-block"></span> Corriendo</span>`
+                        : s.activo
+                            ? `<span class="flex items-center gap-1 text-[10px] font-bold text-[#F39C12]"><span class="w-2 h-2 rounded-full bg-[#F39C12] inline-block"></span> Activo</span>`
+                            : `<span class="flex items-center gap-1 text-[10px] text-gray-600"><span class="w-2 h-2 rounded-full bg-gray-600 inline-block"></span> Inactivo</span>`;
+                    const actionBtn = s.corriendo
+                        ? `<button onclick="detenerServidorCard()" class="flex-1 bg-[#E74C3C]/10 hover:bg-[#E74C3C] border border-[#E74C3C]/40 hover:border-[#E74C3C] text-[#E74C3C] hover:text-white font-black text-xs py-2 rounded-lg transition">⏹ Detener</button>`
+                        : `<button onclick="iniciarServidorCard('${c}')" class="flex-1 bg-[#2ECC71]/10 hover:bg-[#2ECC71] border border-[#2ECC71]/40 hover:border-[#2ECC71] text-[#2ECC71] hover:text-black font-black text-xs py-2 rounded-lg transition">▶ Iniciar</button>`;
+                    const selectBtn = s.activo
+                        ? `<button disabled class="flex-1 bg-[#2A2A2A] text-gray-600 font-bold text-xs py-2 rounded-lg cursor-default">✓ Seleccionado</button>`
+                        : `<button onclick="activarServidorCard('${c}')" class="flex-1 bg-[#2A2A2A] hover:bg-[#3498DB]/20 hover:border-[#3498DB] border border-[#2A2A2A] text-gray-300 hover:text-[#3498DB] font-bold text-xs py-2 rounded-lg transition">Seleccionar</button>`;
+                    return `<div class="bg-[#181818] border ${brd} rounded-xl p-5 flex flex-col gap-3 hover:border-[${color}]/40 transition group">
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="flex items-center gap-3">
+                                <span class="text-2xl">${icon}</span>
+                                <div>
+                                    <h3 class="font-black text-sm text-white leading-tight">${s.nombre}</h3>
+                                    <p class="text-[10px] text-gray-500 truncate max-w-[160px]">${s.carpeta}</p>
+                                </div>
+                            </div>
+                            <button onclick="eliminarServidor('${c}')" class="text-gray-700 hover:text-red-400 text-sm opacity-0 group-hover:opacity-100 transition shrink-0" title="Quitar">🗑</button>
                         </div>
-                        ${badge}
-                        <button onclick="eliminarServidor('${c}')" class="text-gray-600 hover:text-red-400 text-xs shrink-0 opacity-0 group-hover:opacity-100 transition" title="Quitar">🗑</button>
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div class="bg-[#0A0A0A] rounded-lg px-3 py-2">
+                                <p class="text-gray-500 text-[10px] uppercase tracking-wider font-bold mb-0.5">Versión</p>
+                                <p class="font-black text-white">${ver}</p>
+                            </div>
+                            <div class="bg-[#0A0A0A] rounded-lg px-3 py-2">
+                                <p class="text-gray-500 text-[10px] uppercase tracking-wider font-bold mb-0.5">Loader</p>
+                                <p class="font-black" style="color:${color}">${label}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            ${statusHtml}
+                        </div>
+                        <div class="flex gap-2">
+                            ${actionBtn}
+                            ${selectBtn}
+                        </div>
                     </div>`;
                 }).join('');
             } catch(e) { console.error('[Servidores]', e); }
+        }
+        async function iniciarServidorCard(carpeta) {
+            await pywebview.api.activar_servidor(carpeta);
+            const r = await pywebview.api.iniciar_servidor(carpeta);
+            if (r && !r.ok) alert('❌ ' + r.error);
+            setTimeout(async () => { await cargarServidoresGuardados(); verificarServidorExistente(); }, 1200);
+        }
+        async function detenerServidorCard() {
+            await pywebview.api.detener_servidor();
+            setTimeout(cargarServidoresGuardados, 800);
         }
         async function activarServidorCard(carpeta) {
             const r = await pywebview.api.activar_servidor(carpeta);
