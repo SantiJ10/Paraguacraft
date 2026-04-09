@@ -78,7 +78,7 @@
             </ol>
             <input type="text" id="ms-redirect-url" placeholder="https://login.live.com/oauth20_desktop.srf?code=..." class="w-full bg-[#121212] text-white px-4 py-3 rounded-md outline-none border border-[#2A2A2A] focus:border-[#2ECC71] text-xs mb-3">
             <div class="flex gap-2">
-                <button onclick="completarLoginMs()" class="flex-1 bg-[#0078D4] hover:bg-[#106EBE] text-white font-bold py-2 rounded-md transition text-sm">✓ Verificar</button>
+                <button onclick="completarLoginMs()" class="flex-1 bg-[#0078D4] hover:bg-[#106EBE] text-white font-bold py-2 rounded-md transition text-sm"> Verificar</button>
                 <button onclick="document.getElementById('ms-url-modal').classList.add('hidden'); resetBtnMS();" class="px-5 bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold py-2 rounded-md transition text-sm">Cancelar</button>
             </div>
         </div>
@@ -86,76 +86,160 @@
 
     <div id="settings-modal" class="absolute inset-0 z-[150] bg-black/80 hidden flex items-center justify-center backdrop-blur-sm">
         <div class="bg-[#121212] w-5/6 max-w-5xl h-5/6 rounded-xl border border-[#2A2A2A] flex overflow-hidden shadow-2xl">
-            <div class="w-1/4 bg-[#181818] border-r border-[#2A2A2A] p-4 flex flex-col gap-2">
-                <button type="button" onclick="mostrarPanelAjustes('juego')" id="tab-aj-juego" class="text-left px-4 py-3 rounded-lg font-bold text-white bg-[#2A2A2A] flex items-center gap-3 transition">🎮 Juego & Rendimiento</button>
-                <button type="button" onclick="mostrarPanelAjustes('telemetria')" id="tab-aj-tele" class="text-left px-4 py-3 rounded-lg font-bold text-gray-400 hover:bg-[#2A2A2A] hover:text-white flex items-center gap-3 transition">📊 Telemetría en vivo</button>
-                <div class="mt-auto text-xs text-gray-600 px-4"><p>© Paraguacraft</p></div>
+            <!-- SIDEBAR -->
+            <div class="w-52 bg-[#181818] border-r border-[#2A2A2A] p-3 flex flex-col gap-1 shrink-0">
+                <p class="text-[10px] font-black text-gray-600 uppercase tracking-widest px-2 pt-2 pb-1">CONFIGURACIÓN</p>
+                <button type="button" onclick="mostrarPanelAjustes('juego')" id="tab-aj-juego" class="text-left px-3 py-2.5 rounded-lg font-bold text-sm text-white bg-[#2A2A2A] flex items-center gap-2 transition"> Juego & Rendimiento</button>
+                <button type="button" onclick="mostrarPanelAjustes('launcher')" id="tab-aj-launcher" class="text-left px-3 py-2.5 rounded-lg font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white flex items-center gap-2 transition"> Launcher</button>
+                <button type="button" onclick="mostrarPanelAjustes('telemetria')" id="tab-aj-tele" class="text-left px-3 py-2.5 rounded-lg font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white flex items-center gap-2 transition"> Telemetría en vivo</button>
+                <button type="button" onclick="mostrarPanelAjustes('almacenamiento')" id="tab-aj-storage" class="text-left px-3 py-2.5 rounded-lg font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white flex items-center gap-2 transition"> Almacenamiento</button>
+                <div class="mt-auto text-xs text-gray-600 px-2 pb-1"><p> Paraguacraft</p></div>
             </div>
-            <div class="w-3/4 bg-[#121212] flex flex-col">
-                <div class="p-6 border-b border-[#2A2A2A] flex justify-between items-center">
-                    <h2 id="settings-panel-title" class="text-2xl font-black">Juego & Rendimiento</h2>
-                    <button onclick="cerrarAjustes()" class="text-gray-400 hover:text-white text-2xl">✕</button>
-                </div>
-                
-                <div id="panel-ajuste-juego" class="p-8 overflow-y-auto flex-1 space-y-6">
-                    <p class="text-sm text-gray-500 mb-2">RAM y Java del perfil activo están en <span class="text-[#2ECC71]">Versiones → gestor (engranaje junto a Iniciar juego)</span>.</p>
-
-                    <div class="mb-6">
-                        <h3 class="font-bold mb-1">Ajustes de Lanzamiento</h3>
-                        <div class="bg-[#181818] p-4 rounded-lg border border-[#2A2A2A] space-y-4">
-                            <label class="flex items-center justify-between cursor-pointer">
-                                <span class="text-sm font-bold">📉 Gráficos al Mínimo (Mejora FPS)</span>
-                                <div class="relative"><input type="checkbox" id="tgl-opt_minimos" onchange="pywebview.api.save_setting('opt_minimos', this.checked)" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-[#2A2A2A] appearance-none cursor-pointer"/><div class="toggle-label block overflow-hidden h-5 w-10 rounded-full bg-[#2A2A2A]"></div></div>
-                            </label>
-                            <label class="flex items-center justify-between cursor-pointer">
-                                <div><span class="text-sm font-bold">🥔 Modo 'PC Papa'</span><p class="text-xs text-gray-500">Resolución 800x600</p></div>
-                                <div class="relative"><input type="checkbox" id="tgl-papa_mode" onchange="pywebview.api.save_setting('papa_mode', this.checked)" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-[#2A2A2A] appearance-none cursor-pointer"/><div class="toggle-label block overflow-hidden h-5 w-10 rounded-full bg-[#2A2A2A]"></div></div>
-                            </label>
-                            <label class="flex items-center justify-between cursor-pointer">
-                                <span class="text-sm font-bold">🌐 Multijugador LAN a distancia (e4mc)</span>
-                                <div class="relative"><input type="checkbox" id="tgl-lan_distancia" onchange="pywebview.api.save_setting('lan_distancia', this.checked)" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-[#2A2A2A] appearance-none cursor-pointer"/><div class="toggle-label block overflow-hidden h-5 w-10 rounded-full bg-[#2A2A2A]"></div></div>
-                            </label>
-                            <label class="flex items-center justify-between cursor-pointer">
-                                <span class="text-sm font-bold">📜 Mostrar Consola de Depuración</span>
-                                <div class="relative"><input type="checkbox" id="tgl-mostrar_consola" onchange="pywebview.api.save_setting('mostrar_consola', this.checked)" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-[#2A2A2A] appearance-none cursor-pointer"/><div class="toggle-label block overflow-hidden h-5 w-10 rounded-full bg-[#2A2A2A]"></div></div>
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="mb-6">
-                        <h3 class="font-bold mb-1">Mantenimiento Automático</h3>
-                        <div class="bg-[#181818] p-4 rounded-lg border border-[#2A2A2A] space-y-4">
-                            <label class="flex items-center justify-between cursor-pointer">
-                                <div><span class="text-sm font-bold">💾 Auto-Backup Salvavidas</span><p class="text-xs text-gray-500">Guarda un .zip de tus mundos al iniciar</p></div>
-                                <div class="relative"><input type="checkbox" id="tgl-backup_var" onchange="pywebview.api.save_setting('backup_var', this.checked)" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-[#2A2A2A] appearance-none cursor-pointer"/><div class="toggle-label block overflow-hidden h-5 w-10 rounded-full bg-[#2A2A2A]"></div></div>
-                            </label>
-                            <label class="flex items-center justify-between cursor-pointer">
-                                <div><span class="text-sm font-bold">🧹 Limpieza Profunda</span><p class="text-xs text-gray-500">Borra logs y crash reports viejos</p></div>
-                                <div class="relative"><input type="checkbox" id="tgl-limpiador_deep_var" onchange="pywebview.api.save_setting('limpiador_deep_var', this.checked)" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-[#2A2A2A] appearance-none cursor-pointer"/><div class="toggle-label block overflow-hidden h-5 w-10 rounded-full bg-[#2A2A2A]"></div></div>
-                            </label>
-                        </div>
-                    </div>
+            <!-- CONTENT -->
+            <div class="flex-1 bg-[#121212] flex flex-col min-w-0">
+                <div class="p-5 border-b border-[#2A2A2A] flex justify-between items-center shrink-0">
+                    <h2 id="settings-panel-title" class="text-xl font-black">Juego & Rendimiento</h2>
+                    <button onclick="cerrarAjustes()" class="text-gray-400 hover:text-white text-2xl leading-none">✕</button>
                 </div>
 
-                <div id="panel-ajuste-telemetria" class="hidden p-8 overflow-y-auto flex-1 space-y-6">
-                    <p class="text-sm text-gray-400 mb-4">Uso en tiempo real del sistema y tamaño aproximado de la carpeta de Minecraft (como en launchers modernos).</p>
-                    <div class="grid grid-cols-2 gap-4">
+                <!-- ── PANEL: JUEGO & RENDIMIENTO ── -->
+                <div id="panel-ajuste-juego" class="p-5 overflow-y-auto flex-1 space-y-4">
+                    <div>
+                        <h3 class="font-bold text-sm mb-2"> RAM Global</h3>
+                        <div class="bg-[#181818] p-4 rounded-lg border border-[#2A2A2A]">
+                            <div class="flex items-center gap-4">
+                                <input type="range" id="aj-ram-slider" min="1" max="32" value="4" class="flex-1 h-2 bg-[#2A2A2A] rounded-lg appearance-none cursor-pointer accent-[#2ECC71]" oninput="ajRamUpdate(this.value)">
+                                <span class="bg-[#0A0A0A] px-3 py-1.5 rounded font-black text-sm w-20 text-center text-[#2ECC71]" id="aj-ram-lbl">4 GB</span>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2">RAM asignada por defecto a Minecraft. Sobreescribible por instancia en Versiones ⚙ Gestionar.</p>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm mb-2"> Al iniciar Minecraft</h3>
+                        <div class="bg-[#181818] p-4 rounded-lg border border-[#2A2A2A] space-y-3">
+                            <label class="flex items-center justify-between cursor-pointer"><span class="text-sm font-bold">Minimizar el launcher</span><p class="text-xs text-gray-500">Se minimiza a la barra de tareas mientras jugás</p><div class="relative"><input type="radio" name="launch_behavior" value="minimize" id="lb-minimize" class="accent-[#2ECC71] w-4 h-4 shrink-0" onchange="pywebview.api.save_setting('launch_behavior','minimize')"></div></label>
+                            <label class="flex items-center justify-between cursor-pointer"><span class="text-sm font-bold">Mantener abierto</span><p class="text-xs text-gray-500">El launcher permanece visible mientras jugás</p><div class="relative"><input type="radio" name="launch_behavior" value="keep" id="lb-keep" class="accent-[#2ECC71] w-4 h-4 shrink-0" onchange="pywebview.api.save_setting('launch_behavior','keep')"></div></label>
+                            <label class="flex items-center justify-between cursor-pointer"><span class="text-sm font-bold">Cerrar el launcher</span><p class="text-xs text-gray-500">Se cierra completamente al iniciar el juego</p><div class="relative"><input type="radio" name="launch_behavior" value="close" id="lb-close" class="accent-[#2ECC71] w-4 h-4 shrink-0" onchange="pywebview.api.save_setting('launch_behavior','close')"></div></label>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm mb-2"> Carpeta de Minecraft</h3>
+                        <div class="bg-[#181818] p-3 rounded-lg border border-[#2A2A2A] flex items-center gap-3">
+                            <span id="aj-mc-path" class="text-xs text-gray-400 font-mono flex-1 truncate">Cargando...</span>
+                            <button onclick="pywebview.api.abrir_minecraft_folder()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold px-3 py-1.5 rounded text-xs transition border border-[#333] shrink-0"> Abrir</button>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm mb-2">Ajustes de Lanzamiento</h3>
+                        <div class="bg-[#181818] p-4 rounded-lg border border-[#2A2A2A] space-y-4">
+                            <label class="flex items-center justify-between cursor-pointer"><span class="text-sm font-bold"> Gráficos al Mínimo (Mejora FPS)</span><div class="relative"><input type="checkbox" id="tgl-opt_minimos" onchange="pywebview.api.save_setting('opt_minimos', this.checked)" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-[#2A2A2A] appearance-none cursor-pointer"/><div class="toggle-label block overflow-hidden h-5 w-10 rounded-full bg-[#2A2A2A]"></div></div></label>
+                            <label class="flex items-center justify-between cursor-pointer"><div><span class="text-sm font-bold"> Modo 'PC Papa'</span><p class="text-xs text-gray-500">Resolución 800x600</p></div><div class="relative"><input type="checkbox" id="tgl-papa_mode" onchange="pywebview.api.save_setting('papa_mode', this.checked)" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-[#2A2A2A] appearance-none cursor-pointer"/><div class="toggle-label block overflow-hidden h-5 w-10 rounded-full bg-[#2A2A2A]"></div></div></label>
+                            <label class="flex items-center justify-between cursor-pointer"><span class="text-sm font-bold"> Multijugador LAN a distancia (e4mc)</span><div class="relative"><input type="checkbox" id="tgl-lan_distancia" onchange="pywebview.api.save_setting('lan_distancia', this.checked)" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-[#2A2A2A] appearance-none cursor-pointer"/><div class="toggle-label block overflow-hidden h-5 w-10 rounded-full bg-[#2A2A2A]"></div></div></label>
+                            <label class="flex items-center justify-between cursor-pointer"><span class="text-sm font-bold"> Mostrar Consola de Depuración</span><div class="relative"><input type="checkbox" id="tgl-mostrar_consola" onchange="pywebview.api.save_setting('mostrar_consola', this.checked)" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-[#2A2A2A] appearance-none cursor-pointer"/><div class="toggle-label block overflow-hidden h-5 w-10 rounded-full bg-[#2A2A2A]"></div></div></label>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm mb-2">Mantenimiento Automático</h3>
+                        <div class="bg-[#181818] p-4 rounded-lg border border-[#2A2A2A] space-y-4">
+                            <label class="flex items-center justify-between cursor-pointer"><div><span class="text-sm font-bold"> Auto-Backup Salvavidas</span><p class="text-xs text-gray-500">Guarda un .zip de tus mundos al iniciar</p></div><div class="relative"><input type="checkbox" id="tgl-backup_var" onchange="pywebview.api.save_setting('backup_var', this.checked)" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-[#2A2A2A] appearance-none cursor-pointer"/><div class="toggle-label block overflow-hidden h-5 w-10 rounded-full bg-[#2A2A2A]"></div></div></label>
+                            <label class="flex items-center justify-between cursor-pointer"><div><span class="text-sm font-bold"> Limpieza Profunda</span><p class="text-xs text-gray-500">Borra logs y crash reports viejos</p></div><div class="relative"><input type="checkbox" id="tgl-limpiador_deep_var" onchange="pywebview.api.save_setting('limpiador_deep_var', this.checked)" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-[#2A2A2A] appearance-none cursor-pointer"/><div class="toggle-label block overflow-hidden h-5 w-10 rounded-full bg-[#2A2A2A]"></div></div></label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── PANEL: LAUNCHER ── -->
+                <div id="panel-ajuste-launcher" class="hidden p-5 overflow-y-auto flex-1 space-y-4">
+                    <div>
+                        <h3 class="font-bold text-sm mb-2"> Discord Rich Presence</h3>
+                        <div class="bg-[#181818] p-4 rounded-lg border border-[#2A2A2A] space-y-4">
+                            <label class="flex items-center justify-between cursor-pointer"><div><span class="text-sm font-bold">Activar Discord RPC</span><p class="text-xs text-gray-500">Muestra "Jugando Minecraft" en tu perfil de Discord</p></div><div class="relative"><input type="checkbox" id="tgl-discord_rpc" onchange="pywebview.api.save_setting('discord_rpc', this.checked)" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-[#2A2A2A] appearance-none cursor-pointer"/><div class="toggle-label block overflow-hidden h-5 w-10 rounded-full bg-[#2A2A2A]"></div></div></label>
+                            <label class="flex items-center justify-between cursor-pointer"><div><span class="text-sm font-bold">Mostrar versión y loader</span><p class="text-xs text-gray-500">Ej: "Jugando 1.21.1 · Fabric"</p></div><div class="relative"><input type="checkbox" id="tgl-discord_rpc_version" onchange="pywebview.api.save_setting('discord_rpc_version', this.checked)" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-[#2A2A2A] appearance-none cursor-pointer"/><div class="toggle-label block overflow-hidden h-5 w-10 rounded-full bg-[#2A2A2A]"></div></div></label>
+                            <label class="flex items-center justify-between cursor-pointer"><div><span class="text-sm font-bold">Mostrar tiempo de sesión</span><p class="text-xs text-gray-500">Muestra hace cuánto empezaste la partida</p></div><div class="relative"><input type="checkbox" id="tgl-discord_rpc_time" onchange="pywebview.api.save_setting('discord_rpc_time', this.checked)" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-[#2A2A2A] appearance-none cursor-pointer"/><div class="toggle-label block overflow-hidden h-5 w-10 rounded-full bg-[#2A2A2A]"></div></div></label>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm mb-2"> Actualizaciones</h3>
+                        <div class="bg-[#181818] p-4 rounded-lg border border-[#2A2A2A]">
+                            <label class="flex items-center justify-between cursor-pointer"><div><span class="text-sm font-bold">Buscar actualizaciones al iniciar</span><p class="text-xs text-gray-500">Comprueba GitHub Releases automáticamente</p></div><div class="relative"><input type="checkbox" id="tgl-auto_update_check" onchange="pywebview.api.save_setting('auto_update_check', this.checked)" checked class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-[#2A2A2A] appearance-none cursor-pointer"/><div class="toggle-label block overflow-hidden h-5 w-10 rounded-full bg-[#2A2A2A]"></div></div></label>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm mb-2"> Personalización</h3>
+                        <div class="bg-[#181818] p-3 rounded-lg border border-[#2A2A2A] divide-y divide-[#2A2A2A]">
+                            <button onclick="cerrarAjustes();cambiarPestaña('herramientas','Extras');setTimeout(()=>herTab('fondo'),150)" class="w-full flex items-center justify-between py-2.5 text-sm font-bold hover:text-[#2ECC71] transition"><span> Cambiar fondo del launcher</span><span class="text-gray-600 text-xs">Extras → Fondo →</span></button>
+                            <button onclick="cerrarAjustes();cambiarPestaña('herramientas','Extras');setTimeout(()=>herTab('musica'),150)" class="w-full flex items-center justify-between py-2.5 text-sm font-bold hover:text-[#2ECC71] transition"><span> Música del launcher</span><span class="text-gray-600 text-xs">Extras → Música →</span></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── PANEL: TELEMETRÍA ── -->
+                <div id="panel-ajuste-telemetria" class="hidden p-5 overflow-y-auto flex-1 space-y-4">
+                    <p class="text-sm text-gray-400">Hardware en tiempo real. Actualización cada 1.5 s.</p>
+                    <div class="grid grid-cols-2 gap-3">
                         <div class="bg-[#181818] p-4 rounded-lg border border-[#2A2A2A]">
                             <span class="text-xs font-bold text-gray-500 uppercase">CPU</span>
                             <p id="tel-cpu" class="text-3xl font-black text-[#2ECC71]">—</p>
+                            <div class="w-full h-1.5 bg-[#2A2A2A] rounded mt-2"><div id="tel-cpu-bar" class="h-1.5 bg-[#2ECC71] rounded transition-all" style="width:0%"></div></div>
                         </div>
                         <div class="bg-[#181818] p-4 rounded-lg border border-[#2A2A2A]">
                             <span class="text-xs font-bold text-gray-500 uppercase">RAM sistema</span>
                             <p id="tel-ram" class="text-2xl font-black text-white">—</p>
-                            <div class="w-full h-2 bg-[#2A2A2A] rounded mt-2"><div id="tel-ram-bar" class="h-2 bg-[#3498DB] rounded" style="width:0%"></div></div>
+                            <div class="w-full h-1.5 bg-[#2A2A2A] rounded mt-2"><div id="tel-ram-bar" class="h-1.5 bg-[#3498DB] rounded transition-all" style="width:0%"></div></div>
+                        </div>
+                        <div class="bg-[#181818] p-4 rounded-lg border border-[#F39C12]/20 col-span-2">
+                            <span class="text-xs font-bold text-gray-500 uppercase">GPU</span>
+                            <div class="flex items-center justify-between mt-1">
+                                <p id="tel-gpu-name" class="text-sm font-bold text-[#F39C12] truncate flex-1 mr-4">Detectando...</p>
+                                <p id="tel-gpu-usage" class="text-2xl font-black text-[#F39C12] shrink-0">—</p>
+                            </div>
+                            <div class="w-full h-1.5 bg-[#2A2A2A] rounded mt-2"><div id="tel-gpu-bar" class="h-1.5 bg-[#F39C12] rounded transition-all" style="width:0%"></div></div>
+                            <p id="tel-gpu-vram" class="text-xs text-gray-500 mt-1">VRAM: —</p>
                         </div>
                         <div class="bg-[#181818] p-4 rounded-lg border border-[#2A2A2A] col-span-2">
-                            <span class="text-xs font-bold text-gray-500 uppercase">Almacenamiento (disco usuario)</span>
-                            <p id="tel-disk" class="text-xl font-bold text-white mt-1">—</p>
+                            <span class="text-xs font-bold text-gray-500 uppercase">Disco (usuario)</span>
+                            <p id="tel-disk" class="text-lg font-bold text-white mt-1">—</p>
+                            <div class="w-full h-1.5 bg-[#2A2A2A] rounded mt-2"><div id="tel-disk-bar" class="h-1.5 bg-[#E74C3C] rounded transition-all" style="width:0%"></div></div>
                         </div>
                         <div class="bg-[#181818] p-4 rounded-lg border border-[#2A2A2A] col-span-2">
                             <span class="text-xs font-bold text-gray-500 uppercase">Carpeta .minecraft (aprox.)</span>
                             <p id="tel-mc" class="text-2xl font-black text-[#9B59B6] mt-1">—</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── PANEL: ALMACENAMIENTO ── -->
+                <div id="panel-ajuste-storage" class="hidden p-5 overflow-y-auto flex-1 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <p class="text-sm text-gray-400">Espacio usado por cada carpeta de Minecraft.</p>
+                        <button onclick="cargarAlmacenamiento()" class="text-xs text-gray-500 hover:text-white transition">↻ Actualizar</button>
+                    </div>
+                    <div class="bg-[#181818] p-4 rounded-lg border border-[#2A2A2A]">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-gray-500 uppercase">Resumen de Directorio</span>
+                            <span id="storage-total-lbl" class="text-xs font-bold text-white">Calculando...</span>
+                        </div>
+                        <div class="w-full h-4 rounded-full overflow-hidden flex" id="storage-bar"><div class="h-full bg-[#2A2A2A] w-full rounded-full"></div></div>
+                        <div class="flex flex-wrap gap-3 mt-3" id="storage-legend"></div>
+                    </div>
+                    <div class="bg-[#181818] p-3 rounded-lg border border-[#2A2A2A] flex items-center gap-3">
+                        <span class="text-[10px] font-black text-gray-500 uppercase shrink-0">Directorio</span>
+                        <span id="storage-mc-path" class="text-xs text-gray-400 font-mono flex-1 truncate">—</span>
+                        <button onclick="pywebview.api.abrir_minecraft_folder()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold px-3 py-1.5 rounded text-xs transition border border-[#333] shrink-0"> Abrir</button>
+                    </div>
+                    <div id="storage-breakdown" class="grid grid-cols-3 gap-2"></div>
+                    <div>
+                        <h3 class="font-bold text-sm mb-2"> Limpieza</h3>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-[#181818] p-4 rounded-lg border border-[#2A2A2A]">
+                                <p class="text-sm font-bold mb-1"> Logs</p>
+                                <p class="text-xs text-gray-500 mb-3">Archivos .log en la carpeta logs/</p>
+                                <button onclick="limpiarLogsMinecraft()" class="w-full bg-[#E74C3C]/20 hover:bg-[#E74C3C]/40 border border-[#E74C3C]/40 text-[#E74C3C] font-bold py-2 rounded text-sm transition"> Limpiar Logs</button>
+                            </div>
+                            <div class="bg-[#181818] p-4 rounded-lg border border-[#2A2A2A]">
+                                <p class="text-sm font-bold mb-1"> Crash Reports</p>
+                                <p class="text-xs text-gray-500 mb-3">Reportes de crasheos anteriores</p>
+                                <button onclick="limpiarCrashReports()" class="w-full bg-[#E74C3C]/20 hover:bg-[#E74C3C]/40 border border-[#E74C3C]/40 text-[#E74C3C] font-bold py-2 rounded text-sm transition"> Limpiar Crasheos</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2135,7 +2219,7 @@
                     if (gl) gl.innerText = (data.config.ram_asignada || 4) + " GB";
                 }
 
-                const switches = ['opt_minimos', 'papa_mode', 'lan_distancia', 'mostrar_consola', 'backup_var', 'limpiador_deep_var'];
+                const switches = ['opt_minimos', 'papa_mode', 'lan_distancia', 'mostrar_consola', 'backup_var', 'limpiador_deep_var', 'discord_rpc', 'discord_rpc_version', 'discord_rpc_time', 'auto_update_check'];
                 switches.forEach(s => {
                     const el = document.getElementById('tgl-' + s);
                     if (el) el.checked = data.config[s] === true;
@@ -2144,6 +2228,16 @@
                     const gcSel = document.getElementById("gestor-sel-gc");
                     if (gcSel) gcSel.value = data.config.gc_type;
                 }
+                // aj-ram-slider (global RAM panel)
+                const ajRs = document.getElementById('aj-ram-slider');
+                const ajRl = document.getElementById('aj-ram-lbl');
+                const ramVal = data.config.ram_asignada || 4;
+                if (ajRs) { ajRs.max = data.ram_max; ajRs.value = ramVal; }
+                if (ajRl) ajRl.innerText = ramVal + ' GB';
+                // launch_behavior radio
+                const lbKey = data.config.launch_behavior || 'minimize';
+                const lbEl = document.getElementById('lb-' + lbKey);
+                if (lbEl) lbEl.checked = true;
             } catch (e) { console.error(e); }
 
             buscarTiendaActual();
@@ -2179,30 +2273,33 @@
         }
 
         function mostrarPanelAjustes(cual) {
-            const pj = document.getElementById('panel-ajuste-juego');
-            const pt = document.getElementById('panel-ajuste-telemetria');
-            const tj = document.getElementById('tab-aj-juego');
-            const tt = document.getElementById('tab-aj-tele');
-            const title = document.getElementById('settings-panel-title');
-            if (cual === 'juego') {
-                pj.classList.remove('hidden');
-                pt.classList.add('hidden');
-                tj.classList.add('bg-[#2A2A2A]', 'text-white');
-                tj.classList.remove('text-gray-400');
-                tt.classList.remove('bg-[#2A2A2A]', 'text-white');
-                tt.classList.add('text-gray-400');
-                title.innerText = 'Juego & Rendimiento';
-                detenerTelemetriaModal();
-            } else {
-                pj.classList.add('hidden');
-                pt.classList.remove('hidden');
-                tt.classList.add('bg-[#2A2A2A]', 'text-white');
-                tt.classList.remove('text-gray-400');
-                tj.classList.remove('bg-[#2A2A2A]', 'text-white');
-                tj.classList.add('text-gray-400');
-                title.innerText = 'Telemetría en vivo';
+            const _map = {
+                'juego':          ['panel-ajuste-juego',     'tab-aj-juego',    'Juego & Rendimiento'],
+                'launcher':       ['panel-ajuste-launcher',  'tab-aj-launcher', 'Launcher'],
+                'telemetria':     ['panel-ajuste-telemetria','tab-aj-tele',     'Telemetría en vivo'],
+                'almacenamiento': ['panel-ajuste-storage',   'tab-aj-storage',  'Almacenamiento'],
+            };
+            Object.keys(_map).forEach(k => {
+                const p = document.getElementById(_map[k][0]);
+                const t = document.getElementById(_map[k][1]);
+                if (p) p.classList.add('hidden');
+                if (t) { t.classList.remove('bg-[#2A2A2A]', 'text-white'); t.classList.add('text-gray-400'); }
+            });
+            const entry = _map[cual] || _map['juego'];
+            const ap = document.getElementById(entry[0]);
+            const at = document.getElementById(entry[1]);
+            if (ap) ap.classList.remove('hidden');
+            if (at) { at.classList.add('bg-[#2A2A2A]', 'text-white'); at.classList.remove('text-gray-400'); }
+            const titleEl = document.getElementById('settings-panel-title');
+            if (titleEl) titleEl.innerText = entry[2];
+            detenerTelemetriaModal();
+            if (cual === 'telemetria') {
                 tickTelemetria();
                 telemetryInterval = setInterval(tickTelemetria, 1500);
+            } else if (cual === 'almacenamiento') {
+                cargarAlmacenamiento();
+            } else if (cual === 'juego') {
+                cargarMcPathAjustes();
             }
         }
 
@@ -2221,17 +2318,87 @@
         async function tickTelemetria() {
             try {
                 const t = await pywebview.api.get_telemetry();
-                const cpu = document.getElementById('tel-cpu');
-                const ram = document.getElementById('tel-ram');
-                const ramBar = document.getElementById('tel-ram-bar');
-                const disk = document.getElementById('tel-disk');
-                const mc = document.getElementById('tel-mc');
-                if (cpu) cpu.innerText = t.cpu_percent + '%';
-                if (ram) ram.innerText = t.ram_used_gb + ' / ' + t.ram_total_gb + ' GB';
-                if (ramBar) ramBar.style.width = t.ram_percent + '%';
-                if (disk) disk.innerText = 'Libre: ' + t.disk_free_gb + ' GB de ' + t.disk_total_gb + ' GB (' + Math.round(t.disk_percent) + '% usado)';
-                if (mc) mc.innerText = t.minecraft_folder_mb + ' MB';
-            } catch (e) { console.error(e); }
+                const _s  = (id, v) => { const e = document.getElementById(id); if (e) e.innerText = v; };
+                const _sw = (id, p) => { const e = document.getElementById(id); if (e) e.style.width = Math.min(100, Math.max(0, p)) + '%'; };
+                _s('tel-cpu',  t.cpu_percent + '%');    _sw('tel-cpu-bar',  t.cpu_percent);
+                _s('tel-ram',  t.ram_used_gb + ' / ' + t.ram_total_gb + ' GB');  _sw('tel-ram-bar', t.ram_percent);
+                _s('tel-disk', 'Libre: ' + t.disk_free_gb + ' GB de ' + t.disk_total_gb + ' GB (' + Math.round(t.disk_percent) + '% usado)');
+                _sw('tel-disk-bar', t.disk_percent);
+                _s('tel-mc',   t.minecraft_folder_mb + ' MB');
+                if (t.gpu_name)  _s('tel-gpu-name',  t.gpu_name);
+                if (t.gpu_usage !== undefined) { _s('tel-gpu-usage', t.gpu_usage + '%'); _sw('tel-gpu-bar', t.gpu_usage); }
+                else _s('tel-gpu-usage', '—');
+                if (t.gpu_vram_used !== undefined) _s('tel-gpu-vram', 'VRAM: ' + t.gpu_vram_used + ' / ' + t.gpu_vram_total + ' MB');
+            } catch(e) { console.error(e); }
+        }
+
+        async function cargarMcPathAjustes() {
+            try {
+                const t = await pywebview.api.get_telemetry();
+                const el = document.getElementById('aj-mc-path');
+                if (el && t.mc_dir) el.innerText = t.mc_dir;
+            } catch(e) {}
+        }
+
+        function ajRamUpdate(val) {
+            const lbl = document.getElementById('aj-ram-lbl');
+            if (lbl) lbl.innerText = val + ' GB';
+            pywebview.api.save_setting('ram_asignada', parseInt(val, 10));
+            const grs = document.getElementById('gestor-ram-slider');
+            const grl = document.getElementById('gestor-ram-lbl');
+            if (grs) grs.value = val;
+            if (grl) grl.innerText = val + ' GB';
+        }
+
+        function _fmtBytes(b) {
+            if (!b || b < 1024) return (b || 0) + ' B';
+            if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+            if (b < 1073741824) return (b / 1048576).toFixed(1) + ' MB';
+            return (b / 1073741824).toFixed(2) + ' GB';
+        }
+
+        async function cargarAlmacenamiento() {
+            const totalLbl = document.getElementById('storage-total-lbl');
+            if (totalLbl) totalLbl.innerText = 'Calculando...';
+            try {
+                const r = await pywebview.api.get_storage_info();
+                if (!r || !r.ok) { if (totalLbl) totalLbl.innerText = 'Error'; return; }
+                const s = r.storage;
+                const total = s.total || 1;
+                if (totalLbl) totalLbl.innerText = _fmtBytes(total);
+                const pathEl = document.getElementById('storage-mc-path');
+                if (pathEl && s.mc_dir) pathEl.innerText = s.mc_dir;
+                const colors = {versions:'#3498DB',assets:'#9B59B6',mods:'#2ECC71',resourcepacks:'#F39C12',logs:'#E74C3C','crash-reports':'#E67E22',screenshots:'#1ABC9C'};
+                const labels = {versions:'Versiones',assets:'Assets',mods:'Mods',resourcepacks:'Rec. Packs',logs:'Logs','crash-reports':'Crash Reports',screenshots:'Screenshots'};
+                const keys = Object.keys(colors);
+                const barEl = document.getElementById('storage-bar');
+                if (barEl) barEl.innerHTML = keys.map(k => {
+                    const pct = Math.round((s[k]||0) / total * 100);
+                    return pct >= 1 ? '<div class="h-full" style="width:' + pct + '%;background:' + colors[k] + ';min-width:3px"></div>' : '';
+                }).join('');
+                const legEl = document.getElementById('storage-legend');
+                if (legEl) legEl.innerHTML = keys.filter(k => s[k] > 0).map(k =>
+                    '<div class="flex items-center gap-1.5"><div class="w-3 h-3 rounded-sm shrink-0" style="background:' + colors[k] + '"></div><span class="text-xs text-gray-400">' + labels[k] + ' — <span class="font-bold text-white">' + _fmtBytes(s[k]) + '</span></span></div>'
+                ).join('');
+                const grid = document.getElementById('storage-breakdown');
+                if (grid) grid.innerHTML = keys.map(k =>
+                    '<div class="bg-[#181818] border border-[#2A2A2A] rounded-lg p-3"><span class="text-[10px] font-black uppercase" style="color:' + colors[k] + '">' + labels[k] + '</span><p class="text-lg font-black text-white mt-1">' + _fmtBytes(s[k]||0) + '</p></div>'
+                ).join('');
+            } catch(e) { console.error(e); if (totalLbl) totalLbl.innerText = 'Error'; }
+        }
+
+        async function limpiarLogsMinecraft() {
+            if (!confirm('¿Eliminar todos los archivos de logs de Minecraft?')) return;
+            const r = await pywebview.api.limpiar_logs_minecraft();
+            if (r && r.ok) { alert('✅ ' + r.count + ' archivo(s) eliminado(s) · ' + r.freed_mb + ' MB liberados.'); cargarAlmacenamiento(); }
+            else alert('Error: ' + (r && r.error || 'Desconocido'));
+        }
+
+        async function limpiarCrashReports() {
+            if (!confirm('¿Eliminar todos los crash reports de Minecraft?')) return;
+            const r = await pywebview.api.limpiar_crash_reports();
+            if (r && r.ok) { alert('✅ ' + r.count + ' archivo(s) eliminado(s) · ' + r.freed_mb + ' MB liberados.'); cargarAlmacenamiento(); }
+            else alert('Error: ' + (r && r.error || 'Desconocido'));
         }
 
         function dibujarGrillaVersiones() {
