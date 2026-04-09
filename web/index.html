@@ -973,7 +973,7 @@
             </div>
             <div class="flex flex-wrap gap-2 shrink-0 mb-3" id="modrinth-cats">
                 <button onclick="filtrarCatModrinth('')" id="mcat-all" class="px-3 py-1 rounded-full text-xs font-bold bg-[#2ECC71] text-black transition">Todos</button>
-                <button onclick="filtrarCatModrinth('performance')" id="mcat-performance" class="px-3 py-1 rounded-full text-xs font-bold bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">⚡ Rendimiento</button>
+                <button onclick="filtrarCatModrinth('optimization')" id="mcat-performance" class="px-3 py-1 rounded-full text-xs font-bold bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">⚡ Rendimiento</button>
                 <button onclick="filtrarCatModrinth('library')" id="mcat-library" class="px-3 py-1 rounded-full text-xs font-bold bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">📚 Librerías</button>
                 <button onclick="filtrarCatModrinth('decoration')" id="mcat-decoration" class="px-3 py-1 rounded-full text-xs font-bold bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🎨 Decoración</button>
                 <button onclick="filtrarCatModrinth('adventure')" id="mcat-adventure" class="px-3 py-1 rounded-full text-xs font-bold bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">⚔️ Aventura</button>
@@ -2656,6 +2656,74 @@
                 const ld = document.getElementById("logo-dropdown");
                 if(ld) ld.classList.add("hidden");
             }
+        }
+
+        async function cargarCuentas() {
+            const list = document.getElementById('accounts-list');
+            if (!list) return;
+            try {
+                const r = await pywebview.api.get_cuentas();
+                if (!r || !r.ok) { list.innerHTML = '<p class="text-xs text-gray-500 px-4 py-2">Error al cargar.</p>'; return; }
+                if (!r.cuentas || !r.cuentas.length) { list.innerHTML = '<p class="text-xs text-gray-500 px-4 py-2">Sin cuentas guardadas.</p>'; return; }
+                list.innerHTML = r.cuentas.map(c => {
+                    const isActive = r.activo && (r.activo === c.nombre || r.activo.startsWith(c.nombre + ' '));
+                    const badge = c.tipo === 'premium'
+                        ? '<span class="text-[9px] font-black bg-[#F39C12]/20 text-[#F39C12] px-1.5 py-0.5 rounded">PREMIUM</span>'
+                        : '<span class="text-[9px] font-black bg-[#2A2A2A] text-gray-500 px-1.5 py-0.5 rounded">OFFLINE</span>';
+                    const dot = isActive ? 'bg-[#2ECC71]' : 'bg-transparent border border-gray-600';
+                    return `<div class="flex items-center gap-2 px-3 py-2 hover:bg-[#2A2A2A] cursor-pointer transition group" onclick="seleccionarCuenta('${c.tipo}',${c.idx})">
+                        <span class="w-2 h-2 rounded-full shrink-0 ${dot}"></span>
+                        <span class="text-xs font-bold flex-1 truncate">${c.nombre}</span>
+                        ${badge}
+                        <button onclick="event.stopPropagation();eliminarCuenta('${c.tipo}',${c.idx})" class="text-gray-600 hover:text-red-400 text-xs opacity-0 group-hover:opacity-100 transition ml-1">✕</button>
+                    </div>`;
+                }).join('');
+            } catch(e) { list.innerHTML = '<p class="text-xs text-gray-500 px-4 py-2">Error.</p>'; }
+        }
+
+        async function seleccionarCuenta(tipo, idx) {
+            const r = await pywebview.api.cambiar_cuenta(tipo, idx);
+            if (r && r.ok) {
+                actualizarUiUsuario(r.usuario, r.es_premium);
+                document.getElementById('user-dropdown').classList.add('hidden');
+            } else if (r) { alert('Error: ' + r.error); }
+        }
+
+        async function eliminarCuenta(tipo, idx) {
+            if (!confirm('¿Eliminar esta cuenta de la lista?')) return;
+            const r = await pywebview.api.eliminar_cuenta(tipo, idx);
+            if (r && r.ok) cargarCuentas();
+        }
+
+        function agregarCuentaMicrosoft() {
+            document.getElementById('user-dropdown').classList.add('hidden');
+            loginMicrosoft();
+        }
+
+        async function agregarCuentaInvitado() {
+            const nombre = prompt('Nombre de usuario offline:');
+            if (!nombre || !nombre.trim()) return;
+            const r = await pywebview.api.agregar_cuenta_invitado(nombre.trim());
+            if (r && r.ok) { await cargarCuentas(); }
+            else if (r) alert('Error: ' + r.error);
+        }
+
+        async function cargarScreenshotsGestor() {
+            const grid = document.getElementById('gestor-screenshots-grid');
+            if (!grid) return;
+            grid.innerHTML = '<div class="col-span-3 text-center text-gray-500 text-sm py-6 animate-pulse">Cargando...</div>';
+            try {
+                const r = await pywebview.api.get_screenshots();
+                if (!r || !r.screenshots || !r.screenshots.length) {
+                    grid.innerHTML = '<div class="col-span-3 text-center text-gray-500 text-sm py-10">Sin screenshots todavía.</div>';
+                    return;
+                }
+                grid.innerHTML = r.screenshots.map(s => `
+                    <div class="group relative bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg overflow-hidden hover:border-[#2ECC71]/40 transition cursor-pointer" onclick="verScreenshot('${s.ruta.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">
+                        <img src="file:///${s.ruta}" class="w-full h-28 object-cover" onerror="this.src='https://via.placeholder.com/200x112/0A0A0A/333?text=IMG'">
+                        <div class="p-1.5"><p class="text-[10px] text-gray-500 truncate">${s.nombre}</p><p class="text-[9px] text-gray-700">${s.fecha||''}</p></div>
+                    </div>`).join('');
+            } catch(e) { grid.innerHTML = `<div class="col-span-3 text-red-400 text-sm">${e}</div>`; }
         }
 
         function cambiarPestaña(idVista, ruta) {

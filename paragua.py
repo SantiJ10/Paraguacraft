@@ -30,7 +30,7 @@ try:
 except Exception:
     _lanzar_minecraft_ref = None
 
-VERSION = "3.8.0"  # Actualizar en cada release
+VERSION = "3.9.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 
 try:
@@ -1364,7 +1364,7 @@ class Api:
         }
 
     # ── Screenshots viewer ────────────────────────────────────────────────────
-    def get_screenshots(self, carpeta):
+    def get_screenshots_instancia(self, carpeta):
         try:
             ss_dir = os.path.join(carpeta, "screenshots")
             if not os.path.exists(ss_dir):
@@ -1982,33 +1982,24 @@ class Api:
 
     def seleccionar_archivo_generico(self, extension='*.jar;*.zip', titulo='Seleccionar archivo'):
         try:
-            import tkinter as tk
-            from tkinter import filedialog
-            _root = tk.Tk()
-            _root.withdraw()
-            _root.attributes('-topmost', True)
-            path = filedialog.askopenfilename(
-                title=titulo,
-                filetypes=[("JAR/ZIP", extension), ("Todos los archivos", "*.*")]
+            result = webview.windows[0].create_file_dialog(
+                webview.OPEN_DIALOG,
+                allow_multiple=False,
+                file_types=(f'Archivos ({extension})', 'Todos los archivos (*.*)')
             )
-            _root.destroy()
-            return path or ''
-        except Exception as e:
+            return result[0] if result else ''
+        except Exception:
             return ''
 
     def seleccionar_skin_local(self):
         try:
-            import tkinter as tk
-            from tkinter import filedialog
             import base64
-            _root = tk.Tk()
-            _root.withdraw()
-            _root.attributes('-topmost', True)
-            path = filedialog.askopenfilename(
-                title="Seleccionar skin de Minecraft (.png)",
-                filetypes=[("PNG", "*.png"), ("Todos los archivos", "*.*")]
+            result = webview.windows[0].create_file_dialog(
+                webview.OPEN_DIALOG,
+                allow_multiple=False,
+                file_types=('Imágenes PNG (*.png)', 'Todos los archivos (*.*)')
             )
-            _root.destroy()
+            path = result[0] if result else None
             if not path:
                 return {"ok": False, "cancelled": True}
             with open(path, "rb") as f:
@@ -2930,24 +2921,18 @@ class Api:
 
     def elegir_fondo_animado(self):
         try:
-            import tkinter as tk
-            from tkinter import filedialog
-            import base64, mimetypes
-            _root = tk.Tk()
-            _root.withdraw()
-            _root.attributes('-topmost', True)
-            path = filedialog.askopenfilename(
-                title="Elegir fondo del launcher",
-                filetypes=[
-                    ("Imágenes y videos", "*.png *.jpg *.jpeg *.gif *.mp4 *.webm"),
-                    ("Imágenes", "*.png *.jpg *.jpeg *.gif"),
-                    ("Videos", "*.mp4 *.webm"),
-                    ("Todos los archivos", "*.*")
-                ]
+            import base64
+            result = webview.windows[0].create_file_dialog(
+                webview.OPEN_DIALOG,
+                allow_multiple=False,
+                file_types=(
+                    'Imágenes y videos (*.png;*.jpg;*.jpeg;*.gif;*.mp4;*.webm)',
+                    'Todos los archivos (*.*)',
+                )
             )
-            _root.destroy()
-            if not path:
+            if not result:
                 return {"ok": True, "fondo": None}
+            path = result[0]
             norm = path.replace("\\", "/")
             ext = path.rsplit('.', 1)[-1].lower()
             self.config_actual["fondo_animado"] = norm
@@ -2956,8 +2941,8 @@ class Api:
                 return {"ok": True, "fondo": norm, "tipo": "video"}
             with open(path, "rb") as f:
                 raw = f.read()
-            mime = {"png":"image/png","jpg":"image/jpeg","jpeg":"image/jpeg",
-                    "gif":"image/gif"}.get(ext, "image/png")
+            mime = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg",
+                    "gif": "image/gif"}.get(ext, "image/png")
             b64 = base64.b64encode(raw).decode()
             return {"ok": True, "fondo": norm, "tipo": "imagen",
                     "data_url": f"data:{mime};base64,{b64}"}
@@ -5309,24 +5294,21 @@ class Api:
 
     def elegir_archivo_zip(self):
         try:
-            import tkinter as tk
-            from tkinter import filedialog
-            root = tk.Tk(); root.withdraw(); root.attributes("-topmost", True)
-            ruta = filedialog.askopenfilename(title="Seleccionar archivo .zip", filetypes=[("ZIP files", "*.zip"), ("All files", "*.*")])
-            root.destroy()
-            if ruta:
-                return {"ok": True, "ruta": ruta}
+            result = webview.windows[0].create_file_dialog(
+                webview.OPEN_DIALOG,
+                allow_multiple=False,
+                file_types=('ZIP files (*.zip)', 'All files (*.*)')
+            )
+            if result:
+                return {"ok": True, "ruta": result[0]}
             return {"ok": False, "error": "Cancelado"}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
     def elegir_carpeta_servidor(self):
         try:
-            import tkinter as tk
-            from tkinter import filedialog
-            root = tk.Tk(); root.withdraw(); root.attributes("-topmost", True)
-            carpeta = filedialog.askdirectory(title="Elegir carpeta del servidor")
-            root.destroy()
+            result = webview.windows[0].create_file_dialog(webview.FOLDER_DIALOG)
+            carpeta = result[0] if result else None
             if carpeta:
                 self.config_actual["srv_carpeta"] = carpeta
                 self._guardar()
@@ -5433,7 +5415,7 @@ class _LocalAPIHandler(BaseHTTPRequestHandler):
 
         elif parsed.path == '/api/screenshots':
             carpeta = qs.get('carpeta', [''])[0]
-            self._json(_api_http_ref.get_screenshots(carpeta) if _api_http_ref and carpeta else {'ok': False})
+            self._json(_api_http_ref.get_screenshots_instancia(carpeta) if _api_http_ref and carpeta else {'ok': False})
 
         elif parsed.path == '/api/stats_instancia':
             carpeta = qs.get('carpeta', [''])[0]
