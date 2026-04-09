@@ -30,7 +30,7 @@ try:
 except Exception:
     _lanzar_minecraft_ref = None
 
-VERSION = "3.9.0"  # Actualizar en cada release
+VERSION = "4.0.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 
 try:
@@ -77,6 +77,9 @@ class Api:
         self.hilo_juego_activo = False
         self._telemetry_mc_bytes = None
         self._telemetry_mc_ts = 0
+        self._gpu_name = None
+        self._gpu_cache = {}
+        self._gpu_cache_ts = 0
 
         self._servidor_proc = None
         self._servidor_carpeta = None
@@ -299,23 +302,58 @@ class Api:
         self._guardar()
         return True
 
+    def _get_gpu_info(self):
+        """Returns cached GPU name + utilisation. Refresh every 2 s."""
+        now = time.time()
+        _NO_WIN = 0x08000000
+        if self._gpu_name is None:
+            try:
+                r = subprocess.run(
+                    ["powershell", "-Command",
+                     "(Get-WmiObject Win32_VideoController | Select-Object -First 1).Name"],
+                    capture_output=True, text=True, timeout=4, creationflags=_NO_WIN
+                )
+                self._gpu_name = r.stdout.strip() or "GPU"
+            except Exception:
+                self._gpu_name = "GPU"
+        if now - self._gpu_cache_ts > 2:
+            try:
+                r = subprocess.run(
+                    ["nvidia-smi",
+                     "--query-gpu=utilization.gpu,memory.used,memory.total",
+                     "--format=csv,noheader,nounits"],
+                    capture_output=True, text=True, timeout=3, creationflags=_NO_WIN
+                )
+                parts = r.stdout.strip().split(",")
+                if len(parts) >= 3:
+                    self._gpu_cache = {
+                        "gpu_usage": int(parts[0].strip()),
+                        "gpu_vram_used": int(parts[1].strip()),
+                        "gpu_vram_total": int(parts[2].strip()),
+                    }
+            except Exception:
+                pass
+            self._gpu_cache_ts = now
+        return {"gpu_name": self._gpu_name, **self._gpu_cache}
+
     def get_telemetry(self):
-        """CPU, RAM y disco (como panel de rendimiento / almacenamiento)."""
+        """CPU, RAM, GPU y disco."""
         ram = psutil.virtual_memory()
         disk = psutil.disk_usage(os.path.expanduser("~"))
         cpu = psutil.cpu_percent(interval=None)
         now = time.time()
         mc_bytes = self._telemetry_mc_bytes
+        mc_dir = ""
         if now - self._telemetry_mc_ts > 8:
             try:
                 import minecraft_launcher_lib
-
-                mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
-                mc_bytes = _tamano_carpeta(mine_dir)
+                mc_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+                mc_bytes = _tamano_carpeta(mc_dir)
             except Exception:
                 mc_bytes = 0
             self._telemetry_mc_bytes = mc_bytes
             self._telemetry_mc_ts = now
+        gpu = self._get_gpu_info()
         return {
             "cpu_percent": round(cpu, 1),
             "ram_used_gb": round(ram.used / (1024**3), 2),
@@ -325,7 +363,77 @@ class Api:
             "disk_total_gb": round(disk.total / (1024**3), 2),
             "disk_percent": disk.percent,
             "minecraft_folder_mb": round((mc_bytes or 0) / (1024**2), 1),
+            "mc_dir": mc_dir,
+            **gpu,
         }
+
+    def get_storage_info(self):
+        """Tamaño de subcarpetas de .minecraft para el panel de Almacenamiento."""
+        try:
+            import minecraft_launcher_lib
+            mc_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+            keys = ["versions", "assets", "mods", "resourcepacks",
+                    "logs", "crash-reports", "screenshots"]
+            result = {"mc_dir": mc_dir}
+            total = 0
+            for key in keys:
+                p = os.path.join(mc_dir, key)
+                size = _tamano_carpeta(p) if os.path.exists(p) else 0
+                result[key] = size
+                total += size
+            result["total"] = total
+            return {"ok": True, "storage": result}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def abrir_minecraft_folder(self):
+        try:
+            import minecraft_launcher_lib
+            mc_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+            subprocess.Popen(["explorer", mc_dir])
+            return {"ok": True, "path": mc_dir}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def limpiar_logs_minecraft(self):
+        try:
+            import minecraft_launcher_lib
+            mc_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+            logs_dir = os.path.join(mc_dir, "logs")
+            count, freed = 0, 0
+            if os.path.exists(logs_dir):
+                for fname in os.listdir(logs_dir):
+                    fp = os.path.join(logs_dir, fname)
+                    try:
+                        if os.path.isfile(fp):
+                            freed += os.path.getsize(fp)
+                            os.remove(fp)
+                            count += 1
+                    except Exception:
+                        pass
+            return {"ok": True, "count": count, "freed_mb": round(freed / (1024 * 1024), 2)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def limpiar_crash_reports(self):
+        try:
+            import minecraft_launcher_lib
+            mc_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+            crash_dir = os.path.join(mc_dir, "crash-reports")
+            count, freed = 0, 0
+            if os.path.exists(crash_dir):
+                for fname in os.listdir(crash_dir):
+                    fp = os.path.join(crash_dir, fname)
+                    try:
+                        if os.path.isfile(fp):
+                            freed += os.path.getsize(fp)
+                            os.remove(fp)
+                            count += 1
+                    except Exception:
+                        pass
+            return {"ok": True, "count": count, "freed_mb": round(freed / (1024 * 1024), 2)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
 
     def get_loaders_for_version(self, version_id):
         """Add-ons permitidos según la versión concreta (parche)."""
