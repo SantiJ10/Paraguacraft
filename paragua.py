@@ -5753,5 +5753,7 @@ if __name__ == "__main__":
         _th.Thread(target=_do_maximize, daemon=True).start()
 
     ventana.events.loaded += _on_loaded
+    _icon_path = os.path.join(_base, "iconomc.ico")
     webview.start(debug=False, http_server=True,
+                  icon=_icon_path if os.path.exists(_icon_path) else None,
                   user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")

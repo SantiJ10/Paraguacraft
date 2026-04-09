@@ -2281,8 +2281,8 @@
                 out = ['Vanilla'];
             } else {
                 out = ['Vanilla'];
-                if (minor === 7 || minor === 8 || minor === 12 || (minor >= 16 && minor <= 20)) out.push('OptiFine');
-                if (minor === 8 || minor === 12) out.push('Forge');
+                if (minor === 7 || minor === 8 || minor === 12 || (minor >= 16 && minor <= 21)) out.push('OptiFine');
+                if (minor >= 8 && (minor === 8 || minor === 12 || minor >= 16)) out.push('Forge');
                 if (minor >= 16 && minor <= 21) { out.push('Fabric'); out.push('Fabric + Iris'); }
             }
             if (window._extraLoaders && window._extraLoaders[v]) {
@@ -2433,7 +2433,7 @@
         }
 
         function gestorTabPrincipal(cual) {
-            const tabs = ['contenido', 'java', 'versiones'];
+            const tabs = ['contenido', 'java', 'versiones', 'screenshots'];
             tabs.forEach(t => {
                 const btn = document.getElementById('gestor-tab-' + t);
                 const panel = document.getElementById('gestor-panel-' + t);
@@ -2446,6 +2446,7 @@
             });
             if (cual === 'contenido') refrescarListaGestor();
             if (cual === 'versiones') { syncModalDesdePanel(); cargarFabricLoaderSelect(); }
+            if (cual === 'screenshots') cargarScreenshotsGestor && cargarScreenshotsGestor();
         }
 
         function gestorSubTab(sub) {
