@@ -30,7 +30,7 @@ try:
 except Exception:
     _lanzar_minecraft_ref = None
 
-VERSION = "4.0.0"  # Actualizar en cada release
+VERSION = "4.2.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 
 try:
@@ -94,6 +94,7 @@ class Api:
         self._cache_dir = os.path.join(os.path.expanduser("~"), ".paraguacraft_cache")
         os.makedirs(self._cache_dir, exist_ok=True)
         self._game_status = {"running": False, "status": "idle"}
+        self._modo_offline = False
         self._mod_dl_progress = {"pct": 0, "nombre": ""}
         self._spotify_token = None
         self._spotify_refresh = None
@@ -113,6 +114,12 @@ class Api:
             "limpiador_deep_var": False,
             "lan_distancia": False,
             "fabric_loader_version": "",
+            "java_custom_path": "",
+            "launch_behavior": "minimize",
+            "auto_update_check": True,
+            "discord_rpc": True,
+            "discord_rpc_version": True,
+            "discord_rpc_time": True,
             "fondo_animado": "",
             "spotify_client_id": _SP_CLIENT_ID,
             "spotify_client_secret": _SP_CLIENT_SECRET,
@@ -138,8 +145,11 @@ class Api:
                 pass
 
         threading.Thread(target=self.iniciar_discord_rpc, daemon=True).start()
+        threading.Thread(target=self._iniciar_check_internet, daemon=True).start()
 
     def iniciar_discord_rpc(self):
+        if not self.config_actual.get('discord_rpc', True):
+            return
         try:
             from pypresence import Presence
             self.rpc = Presence(DISCORD_APP_ID)
@@ -172,20 +182,158 @@ class Api:
                 pass
 
     def _rpc_jugando(self, version, motor):
-        if self.rpc:
+        if not self.rpc or not self.config_actual.get('discord_rpc', True):
+            return
+        try:
+            usuario = self.config_actual.get("usuario", "Invitado")
+            show_ver = self.config_actual.get('discord_rpc_version', True)
+            show_time = self.config_actual.get('discord_rpc_time', True)
+            state = f"{version} · {motor}" if show_ver else "Jugando Minecraft"
+            self.rpc.update(
+                state=state,
+                details=f"Jugando como {usuario}",
+                large_image="logo",
+                large_text=f"Paraguacraft {version}",
+                small_image="logo",
+                small_text=motor,
+                start=int(time.time()) if show_time else None,
+            )
+        except Exception:
+            pass
+
+    # ── MODO OFFLINE ────────────────────────────────────────────────────────
+    def _check_internet(self):
+        import socket as _sock
+        try:
+            s = _sock.socket(_sock.AF_INET, _sock.SOCK_STREAM)
+            s.settimeout(3)
+            s.connect(("8.8.8.8", 53))
+            s.close()
+            return True
+        except Exception:
+            return False
+
+    def _iniciar_check_internet(self):
+        import time as _t
+        while True:
+            online = self._check_internet()
+            was_offline = self._modo_offline
+            self._modo_offline = not online
+            if was_offline != self._modo_offline:
+                try:
+                    estado = 'false' if online else 'true'
+                    webview.windows[0].evaluate_js(f'actualizarBadgeOffline({estado})')
+                except Exception:
+                    pass
+            _t.sleep(30)
+
+    def get_modo_offline(self):
+        return {"offline": self._modo_offline}
+
+    # ── NOTIFICACIONES WINDOWS ───────────────────────────────────────────────
+    def _mostrar_notificacion(self, titulo, mensaje):
+        try:
+            import subprocess as _sp
+            t = titulo.replace("'", "''").replace('"', '')
+            m = mensaje.replace("'", "''").replace('"', '')
+            ps = (
+                "Add-Type -AssemblyName System.Windows.Forms;"
+                "$n=New-Object System.Windows.Forms.NotifyIcon;"
+                "$n.Icon=[System.Drawing.SystemIcons]::Information;"
+                "$n.Visible=$true;"
+                f"$n.ShowBalloonTip(4000,'{t}','{m}',"
+                "[System.Windows.Forms.ToolTipIcon]::None);"
+                "Start-Sleep -Seconds 5;$n.Dispose()"
+            )
+            _sp.Popen(
+                ['powershell', '-WindowStyle', 'Hidden', '-ExecutionPolicy', 'Bypass', '-Command', ps],
+                creationflags=0x08000000
+            )
+        except Exception:
+            pass
+
+    # ── ANÁLISIS DE CRASH ────────────────────────────────────────────────────
+    def _analizar_crash_report(self, version, motor, since_ts=0):
+        try:
+            import minecraft_launcher_lib as _mcl
+            import re as _re
+            mc_dir = _mcl.utils.get_minecraft_directory()
+            dirs_a_revisar = []
             try:
-                usuario = self.config_actual.get("usuario", "Invitado")
-                self.rpc.update(
-                    state=f"{version} · {motor}",
-                    details=f"Jugando como {usuario}",
-                    large_image="logo",
-                    large_text=f"Paraguacraft {version}",
-                    small_image="logo",
-                    small_text=motor,
-                    start=int(time.time()),
-                )
+                from core import carpeta_instancia_paraguacraft as _cia
+                dirs_a_revisar.append(os.path.join(mc_dir, "instancias", _cia(version, motor), "crash-reports"))
             except Exception:
                 pass
+            dirs_a_revisar.append(os.path.join(mc_dir, "crash-reports"))
+            crash_path = None
+            for d in dirs_a_revisar:
+                if not os.path.isdir(d):
+                    continue
+                archivos = [
+                    os.path.join(d, f) for f in os.listdir(d)
+                    if f.endswith('.txt') and os.path.getmtime(os.path.join(d, f)) >= since_ts
+                ]
+                if archivos:
+                    crash_path = max(archivos, key=os.path.getmtime)
+                    break
+            if not crash_path:
+                return None
+            with open(crash_path, 'r', encoding='utf-8', errors='ignore') as _f:
+                content = _f.read()
+            result = {
+                "archivo": os.path.basename(crash_path),
+                "descripcion": "",
+                "causa": "Error desconocido",
+                "mods_sospechosos": [],
+                "java": "",
+                "sugerencia": "Revisá el crash report completo en crash-reports/."
+            }
+            for line in content.splitlines():
+                l = line.strip()
+                if l.startswith("Description:") and not result["descripcion"]:
+                    result["descripcion"] = l.replace("Description:", "").strip()
+                elif "Java Version:" in l and not result["java"]:
+                    result["java"] = l.split(":", 1)[-1].strip()
+            if "OutOfMemoryError" in content:
+                result["causa"] = "OutOfMemoryError — Memoria insuficiente"
+                result["sugerencia"] = "Subí la RAM asignada en Ajustes → Juego & Rendimiento."
+            elif "StackOverflowError" in content:
+                result["causa"] = "StackOverflowError"
+                result["sugerencia"] = "Posible mod con bucle infinito. Deshabilitalos uno a uno."
+            elif "ClassNotFoundException" in content or "NoClassDefFoundError" in content:
+                result["causa"] = "Clase Java no encontrada — mod incompatible"
+                result["sugerencia"] = "Actualizá los mods a versiones compatibles con este loader."
+            elif "Pixel format not accelerated" in content or "EXCEPTION_ACCESS_VIOLATION" in content:
+                result["causa"] = "Fallo de GPU / OpenGL"
+                result["sugerencia"] = "Actualizá los drivers de tu GPU o desactivá shaders."
+            elif "Failed to launch" in content or "Could not find" in content:
+                result["causa"] = "Archivos de juego faltantes o corruptos"
+                result["sugerencia"] = "Reinstalá esta versión desde el gestor de instancias."
+            elif "Login failed" in content or "Invalid session" in content:
+                result["causa"] = "Sesión inválida"
+                result["sugerencia"] = "Cerrá sesión y volvé a iniciar en el launcher."
+            jars = list(dict.fromkeys(_re.findall(r'[\w\-\.]+\.jar', content)))[:6]
+            result["mods_sospechosos"] = jars
+            return result
+        except Exception:
+            return None
+
+    # ── PERFIL DE JAVA ───────────────────────────────────────────────────────
+    def elegir_java_path(self):
+        try:
+            result = webview.windows[0].create_file_dialog(
+                webview.OPEN_DIALOG,
+                allow_multiple=False,
+                file_types=("Ejecutable Java (*.exe)", "*.exe")
+            )
+            if result and len(result) > 0:
+                path = result[0]
+                self.config_actual["java_custom_path"] = path
+                threading.Thread(target=self._guardar, daemon=True).start()
+                return {"ok": True, "path": path}
+            return {"ok": False, "path": ""}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
 
     def actualizar_rpc(self, estado, detalle=""):
         if self.rpc:
@@ -843,11 +991,12 @@ class Api:
         username_limpio = self.config_actual.get("usuario", "Invitado").replace(" [PREMIUM]", "")
 
         threading.Thread(target=self._hilo_ninja_renombrar, args=(version,), daemon=True).start()
-        threading.Thread(
-            target=self._hilo_discord_rpc_dinamico,
-            args=(version, motor, username_limpio),
-            daemon=True,
-        ).start()
+        if self.config_actual.get('discord_rpc', True):
+            threading.Thread(
+                target=self._hilo_discord_rpc_dinamico,
+                args=(version, motor, username_limpio),
+                daemon=True,
+            ).start()
 
         self._game_status = {"running": True, "status": "Iniciando..."}
         _last_ui_update = [0.0]
@@ -885,7 +1034,8 @@ class Api:
                 _set_status("Iniciando motor...")
 
                 threading.Thread(target=self._refresh_ms_token, daemon=True).start()
-                threading.Thread(target=self._rpc_jugando, args=(version, motor), daemon=True).start()
+                if self.config_actual.get('discord_rpc', True):
+                    threading.Thread(target=self._rpc_jugando, args=(version, motor), daemon=True).start()
 
                 uuid_real = self.ms_data["id"] if self.ms_data else None
                 token_real = self.ms_data["access_token"] if self.ms_data else None
@@ -930,6 +1080,28 @@ class Api:
                     if _mc > 50: _ram_gb = min(int(_ram_gb) + 2, 16)
                     elif _mc > 20: _ram_gb = min(int(_ram_gb) + 1, 16)
                 except Exception: pass
+                # limpieza profunda antes de lanzar
+                if self.config_actual.get('limpiador_deep_var', False):
+                    try:
+                        self.limpiar_logs_minecraft()
+                        self.limpiar_crash_reports()
+                    except Exception:
+                        pass
+                # comportamiento del launcher al lanzar
+                _lb = self.config_actual.get('launch_behavior', 'minimize')
+                try:
+                    if _lb == 'minimize':
+                        webview.windows[0].minimize()
+                    elif _lb == 'close':
+                        webview.windows[0].hide()
+                except Exception:
+                    pass
+                # notificación: juego iniciando
+                threading.Thread(
+                    target=lambda: self._mostrar_notificacion(
+                        "Paraguacraft", f"Iniciando Minecraft {version} · {motor}"
+                    ), daemon=True
+                ).start()
                 lanzar_minecraft(
                     version=version,
                     username=username_limpio,
@@ -946,7 +1118,33 @@ class Api:
                     fabric_loader_override=fabric_override,
                     progress_callback=_set_status,
                     server_ip=server_ip or "",
+                    java_path=self.config_actual.get("java_custom_path") or None,
                 )
+                # restaurar ventana si se minimizó o ocultó
+                try:
+                    if _lb == 'minimize':
+                        webview.windows[0].restore()
+                    elif _lb == 'close':
+                        webview.windows[0].show()
+                except Exception:
+                    pass
+                # análisis de crash + notificación de cierre
+                _crash = self._analizar_crash_report(version, motor, since_ts=_t0)
+                if _crash:
+                    threading.Thread(
+                        target=lambda c=_crash: self._mostrar_notificacion(
+                            "💥 Minecraft Crasheó", c.get("causa", "Error desconocido")
+                        ), daemon=True
+                    ).start()
+                    try:
+                        webview.windows[0].evaluate_js(f"mostrarCrashAnalisis({json.dumps(_crash)})")
+                    except Exception:
+                        pass
+                else:
+                    threading.Thread(
+                        target=lambda: self._mostrar_notificacion("Paraguacraft", "Minecraft cerrado."),
+                        daemon=True
+                    ).start()
                 _seg = int(time.time() - _t0)
                 if _seg > 10:
                     try:
@@ -957,6 +1155,7 @@ class Api:
                     threading.Thread(target=lambda s=_seg, k=_inst_key: self.guardar_sesion_estadistica(version, motor, s, instancia=k), daemon=True).start()
 
                 _log_launch("DONE - juego cerrado")
+                self.hilo_juego_activo = False
                 self._game_status = {"running": False, "status": "Juego cerrado."}
                 try:
                     webview.windows[0].evaluate_js("resetLaunchButton()")
@@ -968,7 +1167,20 @@ class Api:
                 err = f"Error: {str(e)[:120]}"
                 _log_launch(f"ERROR: {tb}")
                 print(f"Error critico lanzar: {tb}")
+                self.hilo_juego_activo = False
                 self._game_status = {"running": False, "status": err}
+                _crash_err = self._analizar_crash_report(version, motor, since_ts=time.time() - 300)
+                threading.Thread(
+                    target=lambda c=_crash_err, e2=str(e): self._mostrar_notificacion(
+                        "💥 Error en Minecraft",
+                        (c.get("causa") if c else None) or e2[:80]
+                    ), daemon=True
+                ).start()
+                if _crash_err:
+                    try:
+                        webview.windows[0].evaluate_js(f"mostrarCrashAnalisis({json.dumps(_crash_err)})")
+                    except Exception:
+                        pass
                 try:
                     webview.windows[0].evaluate_js(f"actualizarEstadoPanel({json.dumps(err)})")
                     webview.windows[0].evaluate_js("resetLaunchButton()")
@@ -2339,50 +2551,95 @@ class Api:
             return {"actualizar": False, "version_actual": VERSION, "error": str(e)}
 
     def aplicar_actualizacion(self, download_url):
-        import tempfile
+        import tempfile, shutil as _sh
         if not getattr(sys, "frozen", False):
             return {"ok": False, "error": "Solo funciona en el ejecutable compilado (.exe)."}
         if not download_url:
-            return {"ok": False, "error": "Sin URL de descarga directa. Us\u00e1 el bot\u00f3n Abrir en GitHub para descargar manualmente."}
+            return {"ok": False, "error": "Sin URL de descarga directa."}
         def _notify_err(msg):
             try:
                 webview.windows[0].evaluate_js(f"_updateFailed({json.dumps(str(msg))})")
             except Exception: pass
         def _hilo():
+            tmp = os.path.join(tempfile.gettempdir(), "Paraguacraft_update.exe")
+            exe_actual = sys.executable
+            old_exe = exe_actual + ".old"
+            marker = os.path.join(tempfile.gettempdir(), "paraguacraft_updated.flag")
             try:
-                tmp = os.path.join(tempfile.gettempdir(), "Paraguacraft_update.exe")
-                exe_actual = sys.executable
-                marker = os.path.join(tempfile.gettempdir(), "paraguacraft_updated.flag")
+                # ── Descarga ─────────────────────────────────────────────────
                 r = requests.get(download_url, stream=True, timeout=180,
                                  headers={"User-Agent": "Paraguacraft-Launcher"})
                 if r.status_code == 404:
-                    _notify_err(f"Archivo no encontrado en GitHub (404). Verific\u00e1 que el release '{VERSION}' tenga el .exe adjunto como asset.")
+                    _notify_err(f"Archivo no encontrado en GitHub (404). Verific\u00e1 que el release '{VERSION}' tenga Paraguacraft.exe adjunto como asset.")
                     return
                 r.raise_for_status()
                 with open(tmp, "wb") as f:
                     for chunk in r.iter_content(65536):
-                        if chunk:
-                            f.write(chunk)
+                        if chunk: f.write(chunk)
+
+                # ── Verificar descarga ────────────────────────────────────────
+                dl_size = os.path.getsize(tmp) if os.path.exists(tmp) else 0
+                if dl_size < 500_000:
+                    _notify_err(f"Descarga incompleta o corrupta ({dl_size} bytes). Intent\u00e1 de nuevo.")
+                    try: os.remove(tmp)
+                    except Exception: pass
+                    return
+
+                # ── Estrategia 1: rename en proceso (sin PowerShell) ──────────
+                # Windows permite renombrar un .exe en ejecuci\u00f3n. Al renombrar
+                # el ejecutable actual, su path queda libre y podemos copiar el
+                # nuevo sin que ning\u00fan antivirus lo vea como overwrite de proceso.
+                try:
+                    if os.path.exists(old_exe):
+                        os.remove(old_exe)
+                    os.rename(exe_actual, old_exe)   # renombrar exe en uso ✓
+                    try:
+                        _sh.copy2(tmp, exe_actual)   # copiar nuevo al path libre
+                        try: os.remove(tmp)
+                        except Exception: pass
+                    except Exception:
+                        # rollback: restaurar exe original si la copia fall\u00f3
+                        try: os.rename(old_exe, exe_actual)
+                        except Exception: pass
+                        raise
+                    try: open(marker, "w").write("updated")
+                    except Exception: pass
+                    subprocess.Popen(
+                        [exe_actual],
+                        creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
+                    )
+                    os._exit(0)
+                except OSError as _oe:
+                    print(f"[Updater] Rename in-process fall\u00f3 ({_oe}), usando PowerShell...")
+
+                # ── Estrategia 2: PowerShell (fallback para carpetas UAC) ─────
                 ps_path = os.path.join(tempfile.gettempdir(), "paragua_updater.ps1")
-                tmp_esc     = tmp.replace("'", "''")
-                exe_esc     = exe_actual.replace("'", "''")
-                marker_esc  = marker.replace("'", "''")
+                tmp_esc    = tmp.replace("'", "''")
+                exe_esc    = exe_actual.replace("'", "''")
+                old_esc    = old_exe.replace("'", "''")
+                marker_esc = marker.replace("'", "''")
+                ps = [
+                    "Start-Sleep -Seconds 4",
+                    "$ok = $false",
+                    "for ($i = 0; $i -lt 10; $i++) {",
+                    "    try {",
+                    f"        if (Test-Path '{old_esc}') {{ Remove-Item -Force '{old_esc}' -EA Stop }}",
+                    f"        Rename-Item '{exe_esc}' '{old_esc}' -EA Stop",
+                    f"        Copy-Item -Force '{tmp_esc}' '{exe_esc}' -EA Stop",
+                    f"        Remove-Item -Force '{tmp_esc}' -EA SilentlyContinue",
+                    "        $ok = $true; break",
+                    "    } catch { Start-Sleep -Seconds 2 }",
+                    "}",
+                    "if ($ok) {",
+                    f"    Set-Content '{marker_esc}' 'updated' -EA SilentlyContinue",
+                    f"    Start-Process '{exe_esc}'",
+                    f"    Start-Sleep -Seconds 2",
+                    f"    Remove-Item -Force '{old_esc}' -EA SilentlyContinue",
+                    "}",
+                    "Remove-Item -Force $PSCommandPath -EA SilentlyContinue",
+                ]
                 with open(ps_path, "w", encoding="utf-8-sig") as f:
-                    f.write("Start-Sleep -Seconds 5\n")
-                    f.write("$attempts = 0\n")
-                    f.write("while ($attempts -lt 8) {\n")
-                    f.write("    try {\n")
-                    f.write(f"        Copy-Item -Force -Path '{tmp_esc}' -Destination '{exe_esc}' -ErrorAction Stop\n")
-                    f.write(f"        Remove-Item -Force -Path '{tmp_esc}' -ErrorAction SilentlyContinue\n")
-                    f.write("        break\n")
-                    f.write("    } catch {\n")
-                    f.write("        $attempts++\n")
-                    f.write("        Start-Sleep -Seconds 2\n")
-                    f.write("    }\n")
-                    f.write("}\n")
-                    f.write(f"Set-Content -Path '{marker_esc}' -Value 'updated' -ErrorAction SilentlyContinue\n")
-                    f.write(f"Start-Process -FilePath '{exe_esc}'\n")
-                    f.write("Remove-Item -Force -Path $PSCommandPath -ErrorAction SilentlyContinue\n")
+                    f.write("\n".join(ps))
                 subprocess.Popen(
                     ["powershell", "-NonInteractive", "-NoProfile",
                      "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden",
@@ -3016,6 +3273,14 @@ class Api:
     # ── FONDO ANIMADO ────────────────────────────────────────────────────
     def check_post_update(self):
         import tempfile
+        # Limpiar el .old que dejó la actualización anterior
+        if getattr(sys, "frozen", False):
+            try:
+                old_exe = sys.executable + ".old"
+                if os.path.exists(old_exe):
+                    os.remove(old_exe)
+            except Exception:
+                pass
         marker = os.path.join(tempfile.gettempdir(), "paraguacraft_updated.flag")
         if os.path.isfile(marker):
             try: os.remove(marker)
@@ -5689,8 +5954,11 @@ class _LocalAPIHandler(BaseHTTPRequestHandler):
             server_ip = body.get('server_ip', '')
             if _api_http_ref and version:
                 try:
-                    _api_http_ref.lanzar_juego(version, motor, server_ip)
-                    self._json({'ok': True})
+                    result = _api_http_ref.lanzar_juego(version, motor, server_ip)
+                    if result == 'ya_activo':
+                        self._json({'ok': False, 'error': 'ya_activo'})
+                    else:
+                        self._json({'ok': True})
                 except Exception as _e:
                     self._json({'ok': False, 'error': str(_e)})
             else:

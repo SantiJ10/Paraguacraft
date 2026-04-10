@@ -123,6 +123,17 @@
                         </div>
                     </div>
                     <div>
+                        <h3 class="font-bold text-sm mb-2">☕ Perfil de Java</h3>
+                        <div class="bg-[#181818] p-3 rounded-lg border border-[#2A2A2A] space-y-2">
+                            <div class="flex items-center gap-2">
+                                <span id="aj-java-path" class="text-xs text-gray-400 font-mono flex-1 truncate">Automático (recomendado)</span>
+                                <button onclick="seleccionarJavaPath()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold px-3 py-1.5 rounded text-xs transition border border-[#333] shrink-0">📂 Elegir</button>
+                                <button onclick="limpiarJavaPath()" class="bg-[#E74C3C]/10 hover:bg-[#E74C3C]/20 border border-[#E74C3C]/40 text-[#E74C3C] font-bold px-3 py-1.5 rounded text-xs transition shrink-0">Reset</button>
+                            </div>
+                            <p class="text-xs text-gray-500">Apuntá a un <code class="bg-[#0A0A0A] px-1 rounded">javaw.exe</code> específico. Por defecto usa el Java descargado automáticamente por el launcher.</p>
+                        </div>
+                    </div>
+                    <div>
                         <h3 class="font-bold text-sm mb-2"> Carpeta de Minecraft</h3>
                         <div class="bg-[#181818] p-3 rounded-lg border border-[#2A2A2A] flex items-center gap-3">
                             <span id="aj-mc-path" class="text-xs text-gray-400 font-mono flex-1 truncate">Cargando...</span>
@@ -247,6 +258,46 @@
         </div>
     </div>
 
+    <!-- CRASH ANALYSIS MODAL -->
+    <div id="crash-modal" class="hidden absolute inset-0 z-[300] bg-black/85 flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-[#121212] border border-[#E74C3C]/40 rounded-xl p-6 w-[480px] max-w-[92vw] shadow-2xl">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="text-3xl">💥</span>
+                <div class="flex-1 min-w-0">
+                    <h3 class="font-black text-lg text-[#E74C3C]">Minecraft Crasheó</h3>
+                    <p id="crash-archivo" class="text-xs text-gray-500 truncate"></p>
+                </div>
+                <button onclick="document.getElementById('crash-modal').classList.add('hidden')" class="text-gray-500 hover:text-white text-xl leading-none shrink-0">✕</button>
+            </div>
+            <div class="space-y-2">
+                <div class="bg-[#181818] rounded-lg p-3">
+                    <span class="text-[10px] font-black text-gray-600 uppercase">Descripción</span>
+                    <p id="crash-descripcion" class="text-sm font-bold text-white mt-1">—</p>
+                </div>
+                <div class="bg-[#E74C3C]/10 border border-[#E74C3C]/30 rounded-lg p-3">
+                    <span class="text-[10px] font-black text-[#E74C3C] uppercase">Causa detectada</span>
+                    <p id="crash-causa" class="text-sm font-bold text-white mt-1">—</p>
+                </div>
+                <div class="bg-[#2ECC71]/10 border border-[#2ECC71]/30 rounded-lg p-3">
+                    <span class="text-[10px] font-black text-[#2ECC71] uppercase">Sugerencia</span>
+                    <p id="crash-sugerencia" class="text-sm text-white mt-1">—</p>
+                </div>
+                <div id="crash-mods-wrap" class="hidden bg-[#181818] rounded-lg p-3">
+                    <span class="text-[10px] font-black text-gray-600 uppercase">Mods mencionados en el crash</span>
+                    <p id="crash-mods" class="text-xs text-gray-400 mt-1 font-mono break-all">—</p>
+                </div>
+                <div id="crash-java-wrap" class="hidden bg-[#181818] rounded-lg p-3">
+                    <span class="text-[10px] font-black text-gray-600 uppercase">Java detectado</span>
+                    <p id="crash-java" class="text-xs text-gray-400 mt-1 font-mono">—</p>
+                </div>
+            </div>
+            <div class="flex gap-2 mt-4">
+                <button onclick="document.getElementById('crash-modal').classList.add('hidden')" class="flex-1 bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold py-2 rounded transition text-sm">Cerrar</button>
+                <button onclick="pywebview.api.abrir_minecraft_folder();document.getElementById('crash-modal').classList.add('hidden')" class="bg-[#E74C3C]/20 hover:bg-[#E74C3C]/30 border border-[#E74C3C]/40 text-[#E74C3C] font-bold py-2 px-4 rounded transition text-sm">📂 crash-reports</button>
+            </div>
+        </div>
+    </div>
+
     <div id="gestor-instancia-modal" class="absolute inset-0 z-[155] bg-black/85 hidden flex items-center justify-center backdrop-blur-sm">
         <div class="bg-[#121212] w-[92%] max-w-5xl h-[86%] rounded-xl border border-[#2A2A2A] flex flex-col overflow-hidden shadow-2xl">
             <div class="p-4 border-b border-[#2A2A2A] flex justify-between items-center shrink-0">
@@ -296,11 +347,13 @@
                         <div>
                             <h3 class="font-bold mb-2">Garbage Collector</h3>
                             <select id="gestor-sel-gc" onchange="pywebview.api.save_setting('gc_type', this.value)" class="bg-[#121212] border border-[#333] text-white p-2 rounded outline-none text-sm font-bold w-full max-w-md cursor-pointer">
-                                <option value="G1GC">G1GC (Equilibrado)</option>
-                                <option value="ZGC">ZGC</option>
-                                <option value="Shenandoah">Shenandoah</option>
-                                <option value="CMS">CMS</option>
+                                <option value="Auto" selected>⚡ Auto (Recomendado)</option>
+                                <option value="G1GC">G1GC — Equilibrado (RAM &lt;8 GB)</option>
+                                <option value="ZGC">ZGC — Ultra-bajo lag (RAM ≥8 GB, Java 17+)</option>
+                                <option value="Shenandoah">Shenandoah — Concurrente (OpenJDK)</option>
+                                <option value="CMS" disabled>CMS — Removido en Java 14+</option>
                             </select>
+                            <p class="text-xs text-gray-500 mt-1">Auto elige entre G1GC y ZGC según tu RAM y versión de Minecraft.</p>
                         </div>
                         <div>
                             <h3 class="font-bold mb-2">Optimizaciones <span class="text-xs text-gray-500 font-normal">(solo Fabric)</span></h3>
@@ -365,6 +418,10 @@
                 <button onclick="abrirLimpieza()" class="text-left px-4 py-2 text-sm font-bold text-white hover:bg-[#2A2A2A] transition w-full">🧹  Memoria y limpieza</button>
                 <div class="border-t border-[#2A2A2A] my-1"></div>
                 <button onclick="cerrarSesion()" class="text-left px-4 py-2 text-sm font-bold text-[#E74C3C] hover:bg-[#2A2A2A] transition w-full">↪  Cerrar sesión</button>
+            </div>
+            <div id="nav-offline-badge" class="hidden items-center gap-1.5 bg-[#E74C3C]/10 border border-[#E74C3C]/40 px-3 py-1 rounded-full cursor-default select-none" title="Sin conexión a internet">
+                <div class="w-2 h-2 rounded-full bg-[#E74C3C]"></div>
+                <span class="text-[11px] font-bold text-[#E74C3C]">Sin conexión</span>
             </div>
             <div id="nav-players-badge" class="flex items-center gap-2 bg-[#121212] px-3 py-1 rounded-full border border-[#1E1E1E] cursor-default select-none" title="Jugadores online en los principales servidores">
                 <div id="nav-players-dot" class="w-2.5 h-2.5 bg-gray-600 rounded-full"></div>
@@ -2238,13 +2295,19 @@
                 const lbKey = data.config.launch_behavior || 'minimize';
                 const lbEl = document.getElementById('lb-' + lbKey);
                 if (lbEl) lbEl.checked = true;
+                // java custom path
+                const jcp = data.config.java_custom_path || '';
+                const jcpEl = document.getElementById('aj-java-path');
+                if (jcpEl) jcpEl.textContent = jcp || 'Automático (recomendado)';
             } catch (e) { console.error(e); }
 
             buscarTiendaActual();
             iniciarTelemetriaSiModal();
-            setTimeout(verificarActualizaciones, 3000);
+            try { if ((await pywebview.api.get_settings()).config.auto_update_check !== false) setTimeout(verificarActualizaciones, 3000); } catch(e) { setTimeout(verificarActualizaciones, 3000); }
             setTimeout(cargarDatosInicio, 500);
             setTimeout(initExtras, 800);
+            verificarModoOffline();
+            setInterval(verificarModoOffline, 60000);
         }
 
         window.addEventListener('pywebviewready', _runPywebviewInit);
@@ -3553,6 +3616,9 @@
                 const d = await resp.json();
                 if (d.ok) {
                     _startGamePoller();
+                } else if (d.error === 'ya_activo') {
+                    actualizarEstadoPanel('Ya hay un juego activo.');
+                    resetLaunchButton();
                 } else {
                     actualizarEstadoPanel('Error: ' + (d.error || 'desconocido'));
                     resetLaunchButton();
@@ -3573,7 +3639,7 @@
                     if (d.status && d.status !== 'idle') actualizarEstadoPanel(d.status);
                     if (d.running) {
                         _wasRunning = true;
-                    } else if (_wasRunning || (d.status && d.status !== 'idle' && d.status !== 'Iniciando...')) {
+                    } else if (_wasRunning || (d.status && d.status !== 'idle')) {
                         clearInterval(_gamePoller); _gamePoller = null;
                         resetLaunchButton();
                     }
@@ -5788,6 +5854,80 @@
         buscarTiendaActual();
 
         // ══ INIT HOOKS ════════════════════════════════════════════════════
+        // ── MODO OFFLINE ─────────────────────────────────────────────────
+        async function verificarModoOffline() {
+            try {
+                const r = await fetch(`http://127.0.0.1:${window._API_PORT}/api/call`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({method: 'get_modo_offline', args: [], kwargs: {}})
+                });
+                const d = await r.json();
+                actualizarBadgeOffline(d && d.offline === true);
+            } catch(e) { actualizarBadgeOffline(true); }
+        }
+
+        function actualizarBadgeOffline(offline) {
+            const badge = document.getElementById('nav-offline-badge');
+            if (!badge) return;
+            if (offline) {
+                badge.classList.remove('hidden');
+                badge.classList.add('flex');
+            } else {
+                badge.classList.add('hidden');
+                badge.classList.remove('flex');
+            }
+        }
+
+        // ── CRASH ANALYSIS ───────────────────────────────────────────────
+        function mostrarCrashAnalisis(data) {
+            if (!data) return;
+            const m = document.getElementById('crash-modal');
+            if (!m) return;
+            const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val || '—'; };
+            set('crash-archivo', data.archivo);
+            set('crash-descripcion', data.descripcion || '(Sin descripción en el reporte)');
+            set('crash-causa', data.causa);
+            set('crash-sugerencia', data.sugerencia);
+            const modsWrap = document.getElementById('crash-mods-wrap');
+            const modsEl = document.getElementById('crash-mods');
+            if (data.mods_sospechosos && data.mods_sospechosos.length > 0) {
+                if (modsEl) modsEl.textContent = data.mods_sospechosos.join(', ');
+                if (modsWrap) modsWrap.classList.remove('hidden');
+            } else {
+                if (modsWrap) modsWrap.classList.add('hidden');
+            }
+            const javaWrap = document.getElementById('crash-java-wrap');
+            const javaEl = document.getElementById('crash-java');
+            if (data.java) {
+                if (javaEl) javaEl.textContent = data.java;
+                if (javaWrap) javaWrap.classList.remove('hidden');
+            } else {
+                if (javaWrap) javaWrap.classList.add('hidden');
+            }
+            m.classList.remove('hidden');
+        }
+
+        // ── PERFIL DE JAVA ───────────────────────────────────────────────
+        async function seleccionarJavaPath() {
+            try {
+                const r = await pywebview.api.elegir_java_path();
+                const el = document.getElementById('aj-java-path');
+                if (r && r.ok) {
+                    if (el) el.textContent = r.path;
+                    showToast('☕ Java personalizado guardado', '#2ECC71');
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        async function limpiarJavaPath() {
+            try {
+                await pywebview.api.save_setting('java_custom_path', '');
+                const el = document.getElementById('aj-java-path');
+                if (el) el.textContent = 'Automático (recomendado)';
+                showToast('☕ Java reseteado a automático', '#3498DB');
+            } catch(e) { console.error(e); }
+        }
+
         function showToast(msg, color) {
             const t = document.createElement('div');
             t.textContent = msg;

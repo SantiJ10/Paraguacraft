@@ -324,12 +324,23 @@ def instalar_extras_graficos(game_dir, version, progress_callback, graficos_mini
                         with open(ruta_archivo, "wb") as f: shutil.copyfileobj(r_dl.raw, f)
     except Exception: pass
 
+def _offline_uuid(username):
+    """Deterministic offline UUID — same algorithm as vanilla Minecraft servers.
+    Guarantees the same UUID for the same username across sessions."""
+    import hashlib
+    data = ("OfflinePlayer:" + username).encode("utf-8")
+    md5 = bytearray(hashlib.md5(data).digest())
+    md5[6] = (md5[6] & 0x0f) | 0x30  # version 3
+    md5[8] = (md5[8] & 0x3f) | 0x80  # variant bits
+    return str(uuid.UUID(bytes=bytes(md5)))
+
 def _descargar_mods_fabric_slugs(mods_dir, version, slugs, progress_callback, headers):
     os.makedirs(mods_dir, exist_ok=True)
-    existing = [f for f in os.listdir(mods_dir) if f.endswith(".jar") or f.endswith(".jar.disabled")]
-    if len(existing) >= len(slugs):
-        return
+    _existing_lower = {f.lower() for f in os.listdir(mods_dir) if f.endswith(".jar") or f.endswith(".jar.disabled")}
     for slug in slugs:
+        # Skip API call if a file matching this slug name already exists locally
+        if any(slug.lower() in f for f in _existing_lower):
+            continue
         url_api = f"https://api.modrinth.com/v2/project/{slug}/version"
         params = {"loaders": '["fabric"]', "game_versions": f'["{version}"]'}
         try:
@@ -353,11 +364,14 @@ def _descargar_mods_fabric_slugs(mods_dir, version, slugs, progress_callback, he
         except Exception:
             pass
 
+_BUNDLE_CACHE_DAYS = 30  # invalidate mod cache after this many days
+
 def instalar_bundle_fabric_iris_cache(minecraft_directory, game_dir, version, progress_callback, lan_distancia=False):
     """
     Caché global por versión de MC: los .jar se descargan una sola vez y se copian a la instancia.
-    Así no se re-descargan al cambiar de perfil y se evitan mezclas raras con otras descargas.
+    El caché expira cada 30 días para recibir actualizaciones de mods desde Modrinth.
     """
+    import datetime as _dt2
     cache_root = os.path.join(minecraft_directory, "Paraguacraft_cache", "fabric_iris", version.replace(os.sep, "_"))
     os.makedirs(cache_root, exist_ok=True)
     mods_dir = os.path.join(game_dir, "mods")
@@ -368,19 +382,44 @@ def instalar_bundle_fabric_iris_cache(minecraft_directory, game_dir, version, pr
         slugs.append("e4mc")
 
     marker = os.path.join(cache_root, ".cache_ok")
-    cache_jars = [f for f in os.listdir(cache_root) if f.endswith(".jar")]
 
-    if not os.path.exists(marker):
+    cache_valid = False
+    cache_expired = False
+    if os.path.exists(marker):
+        try:
+            age_days = (_dt2.datetime.now() - _dt2.datetime.fromtimestamp(os.path.getmtime(marker))).days
+            cache_valid = age_days < _BUNDLE_CACHE_DAYS
+            cache_expired = not cache_valid
+        except Exception:
+            cache_valid = True
+
+    if not cache_valid:
         headers = {"User-Agent": "ParaguacraftLauncher/2.1"}
-        if progress_callback:
-            progress_callback("Descargando mods Fabric + Iris...")
+        if cache_expired:
+            if progress_callback:
+                progress_callback("Actualizando mods Fabric + Iris (cache expirado)...")
+            for _old in [f for f in os.listdir(cache_root) if f.endswith(".jar")]:
+                try: os.remove(os.path.join(cache_root, _old))
+                except Exception: pass
+            _inst_files = [f for f in os.listdir(mods_dir) if f.endswith(".jar") or f.endswith(".jar.disabled")]
+            for slug in slugs:
+                slug_l = slug.lower()
+                for _if in _inst_files:
+                    if slug_l in _if.lower():
+                        try: os.remove(os.path.join(mods_dir, _if))
+                        except Exception: pass
+            try: os.remove(marker)
+            except Exception: pass
+        else:
+            if progress_callback:
+                progress_callback("Descargando mods Fabric + Iris...")
         _descargar_mods_fabric_slugs(cache_root, version, slugs, progress_callback, headers)
         try:
             with open(marker, "w") as _m: _m.write("ok")
         except Exception:
             pass
-        cache_jars = [f for f in os.listdir(cache_root) if f.endswith(".jar")]
 
+    cache_jars = [f for f in os.listdir(cache_root) if f.endswith(".jar")]
     for f in cache_jars:
         dest = os.path.join(mods_dir, f)
         if not os.path.exists(dest) and not os.path.exists(dest + ".disabled"):
@@ -641,7 +680,7 @@ def _instalar_neoforge(version_base, minecraft_directory, progress_callback, on_
         os.environ["PATH"] = _orig_path
 
 
-def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type="G1GC", optimizar=False, motor_elegido="Vanilla", papa_mode=False, usar_mesa=False, mostrar_consola=False, progress_callback=None, uuid_real=None, token_real=None, lan_distancia=False, fabric_loader_override=None, server_ip=""):
+def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type="G1GC", optimizar=False, motor_elegido="Vanilla", papa_mode=False, usar_mesa=False, mostrar_consola=False, progress_callback=None, uuid_real=None, token_real=None, lan_distancia=False, fabric_loader_override=None, server_ip="", java_path=None):
     minecraft_directory = minecraft_launcher_lib.utils.get_minecraft_directory()
 
     def on_progress(event):
@@ -812,6 +851,21 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
             _vm = int(_vp[1]) if len(_vp) >= 2 else 20
     except Exception:
         _vm = 20
+
+    # Auto GC: elige el GC óptimo según versión de Java y RAM disponible
+    if gc_type in ("Auto", "CMS", ""):
+        try:
+            _ram_num = int(str(max_ram).replace("G", "").replace("M", "").strip())
+            _ram_gb = _ram_num if "M" not in str(max_ram) else _ram_num / 1024
+        except Exception:
+            _ram_gb = 4
+        if _vm < 17:
+            gc_type = "G1GC"          # Java 8: solo G1GC seguro
+        elif _vm >= 17 and _ram_gb >= 8:
+            gc_type = "ZGC"           # Java 17/21 + RAM alta: ZGC óptimo
+        else:
+            gc_type = "G1GC"          # caso general: G1GC con Aikars flags
+
     if _vm < 17 and gc_type in ("ZGC", "Shenandoah"):
         gc_type = "G1GC"
 
@@ -837,12 +891,11 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
             jvm_arguments.extend(["-XX:+UseG1GC", "-XX:G1NewSizePercent=30", "-XX:G1MaxNewSizePercent=40", "-XX:G1HeapRegionSize=8M", "-XX:G1ReservePercent=20", "-XX:G1HeapWastePercent=5", "-XX:G1MixedGCCountTarget=4", "-XX:InitiatingHeapOccupancyPercent=15", "-XX:G1MixedGCLiveThresholdPercent=90", "-XX:G1RSetUpdatingPauseTimePercent=5", "-XX:SurvivorRatio=32", "-XX:+PerfDisableSharedMem", "-XX:MaxTenuringThreshold=1", "-Dusing.aikars.flags=https://mcflags.emc.gs", "-Daikars.new.flags=true"])
         elif gc_type == "ZGC": jvm_arguments.append("-XX:+UseZGC")
         elif gc_type == "Shenandoah": jvm_arguments.append("-XX:+UseShenandoahGC")
-        elif gc_type == "CMS": jvm_arguments.append("-XX:+UseConcMarkSweepGC")
 
     # 5. CONFIGURACIÓN FINAL DEL JUEGO
     options = {
         "username": username,
-        "uuid": uuid_real if uuid_real else str(uuid.uuid4()),
+        "uuid": uuid_real if uuid_real else _offline_uuid(username),
         "token": token_real if token_real else "",
         "jvmArguments": jvm_arguments,
         "gameDirectory": game_dir # <- Acá está la magia de los perfiles aislados
@@ -858,6 +911,8 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
     _java_for_launch = _java_exe_para_version(minecraft_directory, version_base)
     if _java_for_launch != "java":
         options["executablePath"] = _java_for_launch
+    if java_path and os.path.isfile(java_path):
+        options["executablePath"] = java_path
 
     command = minecraft_launcher_lib.command.get_minecraft_command(version_a_lanzar, minecraft_directory, options)
 
