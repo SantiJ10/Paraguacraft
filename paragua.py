@@ -30,7 +30,7 @@ try:
 except Exception:
     _lanzar_minecraft_ref = None
 
-VERSION = "4.2.0"  # Actualizar en cada release
+VERSION = "4.4.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 
 try:
@@ -1040,8 +1040,21 @@ class Api:
                 uuid_real = self.ms_data["id"] if self.ms_data else None
                 token_real = self.ms_data["access_token"] if self.ms_data else None
 
-                fl_raw = (self.config_actual.get("fabric_loader_version") or "").strip()
-                fabric_override = fl_raw if fl_raw and "fabric" in motor.lower() else None
+                fl_raw = ""
+                if "fabric" in motor.lower():
+                    try:
+                        from core import carpeta_instancia_paraguacraft as _cia_fl
+                        import minecraft_launcher_lib as _mcl_fl
+                        _icp_fl = os.path.join(_mcl_fl.utils.get_minecraft_directory(), "instancias",
+                                               _cia_fl(version, motor), "_paragua_instance.json")
+                        if os.path.exists(_icp_fl):
+                            with open(_icp_fl) as _ffl:
+                                fl_raw = json.load(_ffl).get("fabric_loader_version", "") or ""
+                    except Exception:
+                        pass
+                    if not fl_raw:
+                        fl_raw = (self.config_actual.get("fabric_loader_version") or "").strip()
+                fabric_override = fl_raw.strip() or None
 
                 _t0 = time.time()
                 try:
@@ -2278,7 +2291,88 @@ class Api:
             out_path = os.path.join(skins_dir, safe_name + ".png")
             with open(out_path, "wb") as f:
                 f.write(r.content)
+            self._guardar_historial_skin(nombre, skin_url)
             return {"ok": True, "path": out_path}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def aplicar_skin_offline(self, skin_path):
+        """Copia la skin a todas las instancias Paraguacraft para usuarios offline."""
+        try:
+            if not os.path.isfile(skin_path):
+                return {"ok": False, "error": "Archivo no encontrado"}
+            import minecraft_launcher_lib as _mcl_sk
+            mc_dir = _mcl_sk.utils.get_minecraft_directory()
+            pack_name = "ParaguacraftBrandPack"
+            applied = 0
+            instancias_root = os.path.join(mc_dir, "instancias")
+            if os.path.isdir(instancias_root):
+                for inst in os.listdir(instancias_root):
+                    pack_path = os.path.join(instancias_root, inst, "resourcepacks", pack_name)
+                    if not os.path.isdir(pack_path):
+                        continue
+                    wide = os.path.join(pack_path, "assets", "minecraft", "textures", "entity", "player", "wide")
+                    slim = os.path.join(pack_path, "assets", "minecraft", "textures", "entity", "player", "slim")
+                    old  = os.path.join(pack_path, "assets", "minecraft", "textures", "entity")
+                    for d in [wide, slim, old]:
+                        os.makedirs(d, exist_ok=True)
+                    shutil.copy2(skin_path, os.path.join(wide, "steve.png"))
+                    shutil.copy2(skin_path, os.path.join(slim, "alex.png"))
+                    shutil.copy2(skin_path, os.path.join(old,  "steve.png"))
+                    applied += 1
+            skin_store = os.path.join(mc_dir, "paraguacraft_offline_skin.png")
+            shutil.copy2(skin_path, skin_store)
+            msg = f"Skin aplicada a {applied} instancia(s)." if applied else "Skin guardada. Se aplicará al iniciar el juego."
+            return {"ok": True, "msg": msg}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def aplicar_skin_url(self, url, variante="classic"):
+        """Descarga una skin desde URL y la aplica para el usuario actual."""
+        try:
+            import re, tempfile
+            r = requests.get(url, timeout=10)
+            r.raise_for_status()
+            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+                tmp.write(r.content)
+                tmp_path = tmp.name
+            if self.ms_data:
+                result = self.subir_skin_premium(tmp_path, variante)
+            else:
+                result = self.aplicar_skin_offline(tmp_path)
+            try: os.remove(tmp_path)
+            except Exception: pass
+            return result
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    _HISTORIAL_FILE = os.path.join(os.path.expanduser("~"), "Paraguacraft_Skins", "historial.json")
+
+    def get_skin_historial(self):
+        try:
+            if os.path.exists(self._HISTORIAL_FILE):
+                with open(self._HISTORIAL_FILE, "r", encoding="utf-8") as f:
+                    return {"historial": json.load(f)}
+        except Exception:
+            pass
+        return {"historial": []}
+
+    def _guardar_historial_skin(self, nombre, url, tipo="classic"):
+        try:
+            os.makedirs(os.path.dirname(self._HISTORIAL_FILE), exist_ok=True)
+            hist = self.get_skin_historial().get("historial", [])
+            hist = [h for h in hist if h.get("url") != url]
+            hist.insert(0, {"nombre": nombre, "url": url, "tipo": tipo})
+            with open(self._HISTORIAL_FILE, "w", encoding="utf-8") as f:
+                json.dump(hist[:50], f, ensure_ascii=False)
+        except Exception:
+            pass
+
+    def limpiar_skin_historial(self):
+        try:
+            if os.path.exists(self._HISTORIAL_FILE):
+                os.remove(self._HISTORIAL_FILE)
+            return {"ok": True}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
