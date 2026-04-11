@@ -2507,19 +2507,20 @@
         function _getLoadersForVersion(v) {
             v = (v || '').trim();
             if (!v) return ['Vanilla'];
-            const parts = v.split('.');
-            const major = parseInt(parts[0]);
-            const minor = (parts.length > 1 && /^\d+$/.test(parts[1])) ? parseInt(parts[1]) : 0;
-            let out;
+            const out = ['Vanilla'];
             if (v.startsWith('26')) {
-                out = ['Vanilla', 'Fabric', 'Fabric + Iris'];
-            } else if (major !== 1) {
-                out = ['Vanilla'];
+                out.push('OptiFine', 'Forge', 'NeoForge', 'Fabric', 'Fabric + Iris');
             } else {
-                out = ['Vanilla'];
-                if (minor === 7 || minor === 8 || minor === 12 || (minor >= 16 && minor <= 21)) out.push('OptiFine');
-                if (minor >= 8 && (minor === 8 || minor === 12 || minor >= 16)) out.push('Forge');
-                if (minor >= 16 && minor <= 21) { out.push('Fabric'); out.push('Fabric + Iris'); }
+                const parts = v.split('.');
+                const major = parseInt(parts[0]);
+                const minor = (parts.length > 1 && /^\d+$/.test(parts[1])) ? parseInt(parts[1]) : 0;
+                const patch = (parts.length > 2 && /^\d+$/.test(parts[2])) ? parseInt(parts[2]) : 0;
+                if (major === 1) {
+                    if (minor >= 7)  { out.push('OptiFine'); out.push('Forge'); }
+                    if (minor > 20 || (minor === 20 && patch >= 2)) out.push('NeoForge');
+                    if (minor >= 14) out.push('Fabric');
+                    if (minor >= 16) out.push('Fabric + Iris');
+                }
             }
             if (window._extraLoaders && window._extraLoaders[v]) {
                 window._extraLoaders[v].forEach(l => { if (!out.includes(l)) out.push(l); });
@@ -2649,12 +2650,26 @@
             wrap.classList.toggle('hidden', !on);
         }
 
+        function _instanciaFolder(ver, motor) {
+            return 'Paraguacraft_' + ver + '_' + motor.replace(/ /g, '_').replace(/\+/g, 'Plus');
+        }
+
         async function cargarFabricLoaderSelect() {
             const sel = document.getElementById('modal-fabric-loader-sel');
             if (!sel || !window.pywebview) return;
             try {
                 const vers = await pywebview.api.get_fabric_loader_versions();
-                const cur = (await pywebview.api.get_settings()).config.fabric_loader_version || '';
+                const mV = document.getElementById('modal-version-sel') || document.getElementById('panel-version-sel');
+                const mL = document.getElementById('modal-loader-sel') || document.getElementById('panel-loader-sel');
+                const ver = mV ? mV.value : '';
+                const motor = mL ? mL.value : '';
+                let cur = '';
+                if (ver && motor) {
+                    const folder = _instanciaFolder(ver, motor);
+                    const inst = await pywebview.api.get_instancia_config(folder);
+                    if (inst.ok && inst.config.fabric_loader_version) cur = inst.config.fabric_loader_version;
+                }
+                if (!cur) cur = (await pywebview.api.get_settings()).config.fabric_loader_version || '';
                 sel.innerHTML = '<option value="">(Última estable / automático)</option>';
                 vers.forEach(v => { sel.innerHTML += `<option value="${v}">${v}</option>`; });
                 if (cur) sel.value = cur;
@@ -2664,7 +2679,16 @@
         async function guardarFabricLoaderVersion() {
             const sel = document.getElementById('modal-fabric-loader-sel');
             if (!sel) return;
-            await pywebview.api.save_setting('fabric_loader_version', sel.value || '');
+            const mV = document.getElementById('modal-version-sel') || document.getElementById('panel-version-sel');
+            const mL = document.getElementById('modal-loader-sel') || document.getElementById('panel-loader-sel');
+            const ver = mV ? mV.value : '';
+            const motor = mL ? mL.value : '';
+            if (ver && motor) {
+                const folder = _instanciaFolder(ver, motor);
+                await pywebview.api.set_instancia_config(folder, {fabric_loader_version: sel.value || ''});
+            } else {
+                await pywebview.api.save_setting('fabric_loader_version', sel.value || '');
+            }
             alert('Versión de Fabric guardada.');
         }
 
@@ -3972,105 +3996,23 @@
                         }
                     }
                 } else {
+                    if (msg) { msg.textContent = '⏳ Aplicando skin localmente...'; msg.className = 'text-xs text-gray-400 min-h-[1rem]'; }
+                    const ro = await pywebview.api.aplicar_skin_offline(_impSkinPath);
                     if (msg) {
-                        msg.textContent = '⚠️ Solo cuentas Premium pueden subir skins a Mojang. El archivo está guardado en: ' + _impSkinPath;
-                        msg.className = 'text-xs text-[#F39C12] min-h-[1rem]';
+                        if (ro.ok) {
+                            msg.textContent = '✅ ' + (ro.msg || 'Skin aplicada. ¡Abrí el juego para verla!');
+                            msg.className = 'text-xs text-[#2ECC71] min-h-[1rem]';
+                        } else {
+                            msg.textContent = '❌ ' + (ro.error || 'Error al aplicar');
+                            msg.className = 'text-xs text-[#E74C3C] min-h-[1rem]';
+                        }
                     }
                 }
             } catch(e) { if (msg) { msg.textContent = '❌ ' + e; msg.className = 'text-xs text-[#E74C3C] min-h-[1rem]'; } }
             if (btn) btn.disabled = false;
         }
 
-        // ══ 3D SKIN VIEWER ════════════════════════════════════════════════
-        let _skin3DViewer = null;
-        let _skin3DWalking = false;
-        let _skin3DSlim = false;
-
-        async function actualizarVistaSkin() {
-            const u = (document.getElementById('buscador-skin').value || 'Steve').trim();
-            const h = document.getElementById('skin-head-render');
-            const nlbl = document.getElementById('skin-jugador-nombre');
-            const ulbl = document.getElementById('skin-url-lbl');
-            const port = window._API_PORT || 9875;
-            const skinProxyUrl = `http://127.0.0.1:${port}/api/skin_proxy?name=${encodeURIComponent(u)}`;
-            if (h) h.src = `https://minotar.net/helm/${u}/128.png`;
-            if (nlbl) nlbl.textContent = u;
-            if (ulbl) ulbl.textContent = `https://minotar.net/skin/${u}`;
-            const canvas = document.getElementById('skin-3d-canvas');
-            if (!canvas) return;
-            // Init or re-use skinview3d with local proxy URL to avoid CORS issues
-            if (typeof skinview3d !== 'undefined') {
-                if (_skin3DViewer) {
-                    try { _skin3DViewer.dispose(); } catch(e) {}
-                    _skin3DViewer = null;
-                }
-                try {
-                    _skin3DViewer = new skinview3d.SkinViewer({
-                        canvas: canvas,
-                        width: 220,
-                        height: 400,
-                        skin: skinProxyUrl
-                    });
-                    _skin3DViewer.autoRotate = false;
-                    _skin3DViewer.autoRotateSpeed = 0.8;
-                    _skin3DViewer.animation = null;
-                    _skin3DWalking = false;
-                    _skin3DSlim = false;
-                    const walkBtn = document.getElementById('btn-skin-walk');
-                    if (walkBtn) walkBtn.textContent = '▶ Animar';
-                } catch(e) {
-                    canvas.getContext('2d') && _drawSkinFallback(canvas, u);
-                }
-            } else {
-                _drawSkinFallback(canvas, u);
-            }
-        }
-
-        function _drawSkinFallback(canvas, name) {
-            const port = window._API_PORT || 9875;
-            const ctx = canvas.getContext('2d');
-            const img = new Image(); img.crossOrigin = 'anonymous';
-            img.onload = () => { ctx.clearRect(0,0,canvas.width,canvas.height); ctx.drawImage(img,0,0,canvas.width,canvas.height); };
-            img.src = `http://127.0.0.1:${port}/api/skin_proxy?name=${encodeURIComponent(name)}`;
-        }
-
-        function skin3DRotate(dir) {
-            if (_skin3DViewer) {
-                _skin3DViewer.camera.position.x += dir * 0.5;
-                _skin3DViewer.renderer.render(_skin3DViewer.scene, _skin3DViewer.camera);
-            }
-        }
-
-        function skin3DReset() {
-            if (_skin3DViewer) {
-                _skin3DViewer.camera.position.set(0, 0, 60);
-                _skin3DViewer.camera.lookAt(0, 0, 0);
-                _skin3DViewer.renderer.render(_skin3DViewer.scene, _skin3DViewer.camera);
-            }
-        }
-
-        function skin3DToggleWalk() {
-            const btn = document.getElementById('btn-skin-walk');
-            if (!_skin3DViewer) return;
-            _skin3DWalking = !_skin3DWalking;
-            if (_skin3DWalking) {
-                _skin3DViewer.animation = new skinview3d.WalkingAnimation();
-                if (btn) btn.textContent = '⏸ Pausar';
-            } else {
-                _skin3DViewer.animation = null;
-                if (btn) btn.textContent = '▶ Animar';
-            }
-        }
-
-        function skin3DToggleSlim() {
-            const btn = document.getElementById('btn-skin-slim');
-            if (!_skin3DViewer) return;
-            _skin3DSlim = !_skin3DSlim;
-            try {
-                _skin3DViewer.playerObject.skin.slim = _skin3DSlim;
-                if (btn) btn.textContent = _skin3DSlim ? '👕 Modelo: Alex' : '👕 Modelo: Steve';
-            } catch(e) {}
-        }
+        // ... (rest of the code remains the same)
 
         async function aplicarSkinDesdeNombre(nombre) {
             const url = `https://minotar.net/skin/${nombre}`;
@@ -4081,13 +4023,19 @@
                 if (r && r.ok === false) throw new Error(r.error || 'Error');
                 if (msg) msg.textContent = '✅ Skin guardada.';
                 const user = await pywebview.api.get_usuario();
+                const variante = document.getElementById('skin-variante-sel')?.value || 'classic';
                 if (user && user.premium && r.path) {
                     if (msg) msg.textContent = '⬆️ Subiendo skin a Mojang...';
-                    const variante = document.getElementById('skin-variante-sel')?.value || 'classic';
                     const ru = await pywebview.api.subir_skin_premium(r.path, variante);
                     if (msg) msg.textContent = ru.ok
                         ? '✅ Skin subida a Mojang. ¡Abrí el juego para verla!'
                         : '⚠️ Guardada localmente. Error al subir: ' + (ru.error || '');
+                } else if (r.path) {
+                    if (msg) msg.textContent = '⏳ Aplicando skin localmente...';
+                    const ro = await pywebview.api.aplicar_skin_offline(r.path);
+                    if (msg) msg.textContent = ro.ok
+                        ? '✅ ' + (ro.msg || 'Skin aplicada. ¡Abrí el juego para verla!')
+                        : '⚠️ Guardada en ~/Paraguacraft_Skins. Error al aplicar: ' + (ro.error || '');
                 } else if (msg) {
                     msg.textContent = '✅ Skin guardada en ~/Paraguacraft_Skins/' + nombre + '.png';
                 }

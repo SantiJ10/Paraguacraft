@@ -71,6 +71,9 @@ def inyectar_logos_paraguacraft(game_dir, version, graficos_minimos, progress_ca
                             target_w, target_h = van.size
             except Exception:
                 pass
+            if version_mayor_local < 16:
+                target_w = max(target_w, 256)
+                target_h = max(target_h, 256)
 
             w, h = im.size
             if w <= 0 or h <= 0:
@@ -79,10 +82,12 @@ def inyectar_logos_paraguacraft(game_dir, version, graficos_minimos, progress_ca
             out = Image.new("RGBA", (target_w, target_h), (0, 0, 0, 0))
 
             if target_w >= 512:
-                # NEW style (1.21.4+, 26.1.1): single full-res piece 1024x176
-                # Vanilla stores logo as one high-res image; Minecraft scales it down
+                # 1.21.4+: large single-piece texture (1024x176+), center logo in canvas
                 LOGO_W = target_w
-                LOGO_H = 176
+                LOGO_H = target_h
+                bbox = im.getbbox()
+                if bbox: im = im.crop(bbox)
+                w, h = im.size
                 scale = min(LOGO_W / w, LOGO_H / h)
                 new_w = max(1, int(round(w * scale)))
                 new_h = max(1, int(round(h * scale)))
@@ -90,9 +95,11 @@ def inyectar_logos_paraguacraft(game_dir, version, graficos_minimos, progress_ca
                 px = (LOGO_W - new_w) // 2
                 py = (LOGO_H - new_h) // 2
                 out.paste(logo_scaled, (px, py), logo_scaled)
-            else:
-                # OLD style (1.16.5, 1.18.2): two-row split in 256x256
-                # blit LEFT (0,0)-(155,44) + blit RIGHT (0,45)-(155,89)
+            elif version_mayor_local >= 16:
+                # 1.16 - 1.21.3: vanilla texture is 256x256, MC still uses two-row
+                # side-by-side blitting. main_menu.png is a single horizontal logo,
+                # so LEFT/RIGHT split -> ROW1(left on screen) + ROW2(right on screen)
+                # = full logo displayed as one piece, centered.
                 HALF_W = 155
                 RENDER_H = 44
                 ROW2_Y = 45
@@ -107,6 +114,58 @@ def inyectar_logos_paraguacraft(game_dir, version, graficos_minimos, progress_ca
                 px = (HALF_W * 2 - new_w) // 2
                 py = (RENDER_H - new_h) // 2
                 canvas.paste(logo_scaled, (px, py), logo_scaled)
+                out.paste(canvas.crop((0, 0, HALF_W, RENDER_H)), (0, 0))
+                out.paste(canvas.crop((HALF_W, 0, HALF_W * 2, RENDER_H)), (0, ROW2_Y))
+            else:
+                # 1.0-1.15.2: legacy.png has PARAGUA and CRAFT stacked vertically.
+                # Both words may reside entirely in the top portion (bottom can be
+                # fully transparent). Crop to bbox first, then find the gap between
+                # the two words by scanning row alpha, composite side-by-side, and
+                # LEFT/RIGHT split -> ROW1 (screen left) + ROW2 (screen right).
+                HALF_W = 155
+                RENDER_H = 44
+                ROW2_Y = 45
+                GAP = 2
+                bbox = im.getbbox()
+                if bbox:
+                    im = im.crop(bbox)
+                w, h = im.size
+                pix = im.load()
+                row_alpha = [sum(1 for x in range(w) if pix[x, y][3] > 10) for y in range(h)]
+                s0, s1 = h // 4, 3 * h // 4
+                min_val = min(row_alpha[s0:s1]) if s0 < s1 else 0
+                gap_rows = [i for i in range(s0, s1) if row_alpha[i] == min_val]
+                split_y = gap_rows[len(gap_rows) // 2] if gap_rows else h // 2
+                top_half = im.crop((0, 0, w, split_y))
+                bot_half = im.crop((0, split_y, w, h))
+                bbox_top = top_half.getbbox()
+                bbox_bot = bot_half.getbbox()
+                if bbox_top: top_half = top_half.crop(bbox_top)
+                if bbox_bot: bot_half = bot_half.crop(bbox_bot)
+                tw, th = top_half.size
+                bw, bh = bot_half.size
+                # Scale each word to fill RENDER_H independently (same visual height),
+                # then shrink both uniformly if combined width overflows the canvas.
+                new_tw = max(1, int(round(tw * RENDER_H / th)))
+                new_bw = max(1, int(round(bw * RENDER_H / bh)))
+                if new_tw + GAP + new_bw > HALF_W * 2:
+                    fit = (HALF_W * 2 - GAP) / (new_tw + new_bw)
+                    new_tw = max(1, int(round(new_tw * fit)))
+                    new_bw = max(1, int(round(new_bw * fit)))
+                    new_th = max(1, int(round(RENDER_H * fit)))
+                    new_bh = new_th
+                else:
+                    new_th = RENDER_H
+                    new_bh = RENDER_H
+                top_scaled = top_half.resize((new_tw, new_th), Image.LANCZOS)
+                bot_scaled = bot_half.resize((new_bw, new_bh), Image.LANCZOS)
+                combined_w = new_tw + GAP + new_bw
+                canvas = Image.new("RGBA", (HALF_W * 2, RENDER_H), (0, 0, 0, 0))
+                start_x = (HALF_W * 2 - combined_w) // 2
+                py_top = (RENDER_H - new_th) // 2
+                py_bot = (RENDER_H - new_bh) // 2
+                canvas.paste(top_scaled, (start_x, py_top), top_scaled)
+                canvas.paste(bot_scaled, (start_x + new_tw + GAP, py_bot), bot_scaled)
                 out.paste(canvas.crop((0, 0, HALF_W, RENDER_H)), (0, 0))
                 out.paste(canvas.crop((HALF_W, 0, HALF_W * 2, RENDER_H)), (0, ROW2_Y))
 
@@ -134,11 +193,34 @@ def inyectar_logos_paraguacraft(game_dir, version, graficos_minimos, progress_ca
 
     usa_nuevo_schema = version_mayor >= 26 or (version_mayor == 21 and version_minor >= 5)
 
+    def _pf():
+        if version_mayor == 21:
+            if version_minor >= 4: return 46
+            if version_minor >= 2: return 42
+            return 34
+        if version_mayor == 20:
+            if version_minor >= 5: return 32
+            if version_minor >= 3: return 22
+            if version_minor >= 2: return 18
+            return 15   # 1.20, 1.20.1
+        if version_mayor == 19:
+            if version_minor >= 4: return 13
+            if version_minor >= 3: return 12
+            return 9
+        if version_mayor == 18: return 8
+        if version_mayor == 17: return 7
+        return 6 if version_minor >= 2 else 5  # 1.16.x
+
     if version_mayor >= 16:
         if usa_nuevo_schema:
             pack_block = {"description": "Marca Oficial Paraguacraft", "min_format": 70, "max_format": 99999}
         else:
-            pack_block = {"pack_format": 9999, "description": "Marca Oficial Paraguacraft", "supported_formats": [6, 9999]}
+            pf = _pf()
+            soporta_range = version_mayor > 20 or (version_mayor == 20 and version_minor >= 2)
+            if soporta_range:
+                pack_block = {"pack_format": pf, "description": "Marca Oficial Paraguacraft", "supported_formats": [pf, 9999]}
+            else:
+                pack_block = {"pack_format": pf, "description": "Marca Oficial Paraguacraft"}
     elif version_mayor >= 15:  # 1.15.x
         pack_block = {"pack_format": 5, "description": "Marca Oficial Paraguacraft"}
     elif version_mayor >= 13:  # 1.13 - 1.14.x
@@ -157,13 +239,14 @@ def inyectar_logos_paraguacraft(game_dir, version, graficos_minimos, progress_ca
     if getattr(sys, 'frozen', False): base_path = sys._MEIPASS
     else: base_path = os.path.dirname(os.path.abspath(__file__))
 
-    # Marca en menú: 1.6.1 en adelante (incluye 26.x por versión_mayor=26)
-    aplica_marca_menu = version_mayor >= 6
+    # Marca en menú: todas las versiones (1.0-1.5.x usan textura pack clásico)
+    aplica_marca_menu = True
     if aplica_marca_menu:
         import hashlib as _hashlib
         stamp_file = os.path.join(pack_dir, ".logo_stamp_v2")
-        main_src = os.path.join(base_path, "paraguacraft_main_menu.png")
-        _LOGO_VER = ":r9"
+        _main = "paraguacraft_main_menu.png" if version_mayor >= 16 else "paraguacraft_legacy.png"
+        main_src = os.path.join(base_path, _main)
+        _LOGO_VER = ":r25"
         try:
             with open(main_src, "rb") as _sf:
                 current_stamp = _hashlib.md5(_sf.read()).hexdigest() + _LOGO_VER
@@ -179,7 +262,6 @@ def inyectar_logos_paraguacraft(game_dir, version, graficos_minimos, progress_ca
         if current_stamp and current_stamp == cached_stamp and os.path.exists(logo_dest_mc):
             _cb("[Logo] Sin cambios, saltando.")
         else:
-            _main = "paraguacraft_main_menu.png"
             activos = {
                 _main: "minecraft.png",
                 "paraguacraft_startup.png": "mojangstudios.png",
@@ -196,12 +278,45 @@ def inyectar_logos_paraguacraft(game_dir, version, graficos_minimos, progress_ca
             edicion_dst = os.path.join(textures_gui_title_dir, "edition.png")
             if os.path.exists(edicion_src):
                 shutil.copyfile(edicion_src, edicion_dst)
+            elif version_mayor >= 12:
+                try:
+                    from PIL import Image as _PilImgEd
+                    _PilImgEd.new("RGBA", (128, 16), (0, 0, 0, 0)).save(edicion_dst)
+                except Exception:
+                    pass
+            if version_mayor < 6 and os.path.exists(logo_dest_mc):
+                import zipfile as _zf_tp
+                _tp_dir = os.path.join(game_dir, "texturepacks")
+                os.makedirs(_tp_dir, exist_ok=True)
+                _tp_zip = os.path.join(_tp_dir, pack_name + ".zip")
+                try:
+                    with _zf_tp.ZipFile(_tp_zip, 'w', _zf_tp.ZIP_DEFLATED) as _ztp:
+                        _ztp.write(logo_dest_mc, "gui/title/minecraft.png")
+                    _cb("[Logo] Textura pack clásico creado.")
+                except Exception as _e:
+                    _cb(f"[Logo] Error textura pack: {_e}")
             if current_stamp:
                 try:
                     with open(stamp_file, "w") as _sf:
                         _sf.write(current_stamp)
                 except Exception:
                     pass
+
+    mc_dir_global = minecraft_launcher_lib.utils.get_minecraft_directory()
+    _offline_skin = os.path.join(mc_dir_global, "paraguacraft_offline_skin.png")
+    if os.path.isfile(_offline_skin):
+        _sk_pack = os.path.join(game_dir, "resourcepacks", pack_name)
+        _sk_wide = os.path.join(_sk_pack, "assets", "minecraft", "textures", "entity", "player", "wide")
+        _sk_slim = os.path.join(_sk_pack, "assets", "minecraft", "textures", "entity", "player", "slim")
+        _sk_old  = os.path.join(_sk_pack, "assets", "minecraft", "textures", "entity")
+        try:
+            for _d in [_sk_wide, _sk_slim, _sk_old]:
+                os.makedirs(_d, exist_ok=True)
+            shutil.copy2(_offline_skin, os.path.join(_sk_wide, "steve.png"))
+            shutil.copy2(_offline_skin, os.path.join(_sk_slim, "alex.png"))
+            shutil.copy2(_offline_skin, os.path.join(_sk_old,  "steve.png"))
+        except Exception:
+            pass
 
     if usa_nuevo_schema and aplica_marca_menu:
         import zipfile as _zf_pack
@@ -224,8 +339,12 @@ def inyectar_logos_paraguacraft(game_dir, version, graficos_minimos, progress_ca
     
     lineas = [l for l in lineas if not l.startswith("resourcePacks:")]
     lineas = [l for l in lineas if not l.startswith("incompatibleResourcePacks:")]
+    lineas = [l for l in lineas if not l.startswith("texturepack:")]
     
-    if version_mayor < 13:
+    if version_mayor < 6:
+        if aplica_marca_menu:
+            lineas.append(f'texturepack:{pack_name}.zip\n')
+    elif version_mayor < 13:
         packs = []
         if graficos_minimos: packs.append('"Pack_Graficos_Minimos.zip"')
         if aplica_marca_menu: packs.append(f'"{pack_name}"')
@@ -401,7 +520,8 @@ def instalar_bundle_fabric_iris_cache(minecraft_directory, game_dir, version, pr
             for _old in [f for f in os.listdir(cache_root) if f.endswith(".jar")]:
                 try: os.remove(os.path.join(cache_root, _old))
                 except Exception: pass
-            _inst_files = [f for f in os.listdir(mods_dir) if f.endswith(".jar") or f.endswith(".jar.disabled")]
+            # Only remove enabled .jar files — leave .jar.disabled so user preferences are kept
+            _inst_files = [f for f in os.listdir(mods_dir) if f.endswith(".jar")]
             for slug in slugs:
                 slug_l = slug.lower()
                 for _if in _inst_files:
@@ -419,14 +539,21 @@ def instalar_bundle_fabric_iris_cache(minecraft_directory, game_dir, version, pr
         except Exception:
             pass
 
+    # Build slug-aware lookup of what's already in the instance (enabled OR disabled)
+    _inst_lower = {ff.lower() for ff in os.listdir(mods_dir)} if os.path.isdir(mods_dir) else set()
     cache_jars = [f for f in os.listdir(cache_root) if f.endswith(".jar")]
     for f in cache_jars:
         dest = os.path.join(mods_dir, f)
-        if not os.path.exists(dest) and not os.path.exists(dest + ".disabled"):
-            try:
-                shutil.copy2(os.path.join(cache_root, f), dest)
-            except Exception:
-                pass
+        if os.path.exists(dest) or os.path.exists(dest + ".disabled"):
+            continue
+        # Skip if any version of this mod (by slug) is already present — respects disable/delete
+        _slug = next((s for s in slugs if s.lower() in f.lower()), None)
+        if _slug and any(_slug.lower() in ff for ff in _inst_lower):
+            continue
+        try:
+            shutil.copy2(os.path.join(cache_root, f), dest)
+        except Exception:
+            pass
 
 def instalar_mods_por_motor(game_dir, version, motor_elegido, progress_callback, lan_distancia=False, minecraft_directory=None):
     """Mods según add-on: Fabric solo = API; Fabric+Iris = caché global; Vanilla/Forge/OptiFine no usan Modrinth aquí."""
@@ -550,9 +677,9 @@ def _instalar_optifine(version_base, minecraft_directory, progress_callback):
 
     if progress_callback: progress_callback(f"Descargando Minecraft {version_base} (base para OptiFine)...")
     try:
-        minecraft_launcher_lib.install.install_minecraft_version(
-            version_base, minecraft_directory,
-            callback={"setStatus": lambda e: (progress_callback(e) if progress_callback else None)})
+        _install_mc_with_retry(version_base, minecraft_directory,
+            {"setStatus": lambda e: (progress_callback(e) if progress_callback else None)},
+            progress_callback)
     except Exception as e:
         if progress_callback: progress_callback(f"Error instalando base vanilla: {e}")
         return None
@@ -622,8 +749,7 @@ def _instalar_neoforge(version_base, minecraft_directory, progress_callback, on_
     # 1) Base vanilla primero
     if progress_callback: progress_callback(f"Descargando Minecraft {version_base} (base para NeoForge)...")
     try:
-        minecraft_launcher_lib.install.install_minecraft_version(
-            version_base, minecraft_directory, callback={"setStatus": on_progress})
+        _install_mc_with_retry(version_base, minecraft_directory, {"setStatus": on_progress}, progress_callback)
     except Exception as _be:
         if progress_callback: progress_callback(f"Advertencia descargando base: {_be}")
 
@@ -673,11 +799,29 @@ def _instalar_neoforge(version_base, minecraft_directory, progress_callback, on_
             _fallback = f"neoforge-{nf_latest}"
             if os.path.exists(os.path.join(versions_dir, _fallback, _fallback + ".json")):
                 return _fallback
-
-        if progress_callback: progress_callback("NeoForge no pudo instalarse correctamente.")
-        return None
     finally:
         os.environ["PATH"] = _orig_path
+
+
+def _install_mc_with_retry(version, mc_dir, cb_dict, progress_cb=None):
+    """install_minecraft_version con reintento automático (hasta 3 intentos).
+    Detecta archivos con hash corrupto, los elimina y reintenta la descarga."""
+    import re as _re_r
+    for _attempt in range(3):
+        try:
+            minecraft_launcher_lib.install.install_minecraft_version(version, mc_dir, callback=cb_dict)
+            return
+        except Exception as _ie:
+            _m = _re_r.match(r'^(.*?) has the wrong', str(_ie))
+            if _m and _attempt < 2:
+                _bad = _m.group(1).strip()
+                if progress_cb:
+                    progress_cb(f"Archivo corrupto, limpiando y reintentando ({_attempt + 2}/3)...")
+                if os.path.exists(_bad):
+                    try: os.remove(_bad)
+                    except Exception: pass
+            else:
+                raise
 
 
 def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type="G1GC", optimizar=False, motor_elegido="Vanilla", papa_mode=False, usar_mesa=False, mostrar_consola=False, progress_callback=None, uuid_real=None, token_real=None, lan_distancia=False, fabric_loader_override=None, server_ip="", java_path=None):
@@ -712,6 +856,13 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
             if v.startswith("fabric-loader-") and version_base in v:
                 _fjson = os.path.join(_versions_dir, v, v + ".json")
                 if os.path.exists(_fjson):
+                    _base_jar = os.path.join(_versions_dir, version_base, version_base + ".jar")
+                    if not (os.path.exists(_base_jar) and os.path.getsize(_base_jar) > 4096):
+                        continue
+                    if fabric_loader_override:
+                        _installed_loader = v[len("fabric-loader-"):-(len(version_base) + 1)]
+                        if _installed_loader != fabric_loader_override:
+                            continue
                     version_a_lanzar = v
                     version_instalada = True
                     break
@@ -746,9 +897,11 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
     else:
         ruta_version = os.path.join(_versions_dir, version_base)
         version_json_path = os.path.join(ruta_version, version_base + ".json")
-        if os.path.exists(ruta_version) and os.path.exists(version_json_path):
+        version_jar_path = os.path.join(ruta_version, version_base + ".jar")
+        _jar_ok = os.path.exists(version_jar_path) and os.path.getsize(version_jar_path) > 4096
+        if os.path.exists(ruta_version) and os.path.exists(version_json_path) and _jar_ok:
             version_instalada = True
-        elif os.path.exists(ruta_version) and not os.path.exists(version_json_path):
+        elif os.path.exists(ruta_version):
             try:
                 shutil.rmtree(ruta_version)
             except Exception:
@@ -766,7 +919,7 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
             # 1) Instalar base vanilla primero (el installer de Forge la necesita)
             if progress_callback: progress_callback(f"Descargando Minecraft {version_base} base (requerido por Forge)...")
             try:
-                minecraft_launcher_lib.install.install_minecraft_version(version_base, minecraft_directory, callback={"setStatus": on_progress})
+                _install_mc_with_retry(version_base, minecraft_directory, {"setStatus": on_progress}, progress_callback)
             except Exception as _be:
                 if progress_callback: progress_callback(f"Advertencia descargando base: {_be}")
             # 2) Asegurar Java runtime bundled antes de correr el installer
@@ -811,7 +964,7 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
 
         else:
             if progress_callback: progress_callback(f"Descargando juego base {version_base}...")
-            minecraft_launcher_lib.install.install_minecraft_version(version_base, minecraft_directory, callback={"setStatus": on_progress})
+            _install_mc_with_retry(version_base, minecraft_directory, {"setStatus": on_progress}, progress_callback)
 
     # 1.5 DEPENDENCIAS: para OptiFine y Forge, asegurar que todos los JARs estén
     # descargados (launchwrapper, etc.) ya que get_minecraft_command los necesita
@@ -819,11 +972,12 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
     if tipo_cliente_base in ("OptiFine", "Forge", "NeoForge") and version_a_lanzar != version_base:
         try:
             if progress_callback: progress_callback("Verificando dependencias del loader...")
-            minecraft_launcher_lib.install.install_minecraft_version(
+            _install_mc_with_retry(
                 version_a_lanzar, minecraft_directory,
-                callback={"setStatus": lambda e: (progress_callback(e) if progress_callback else None)})
+                {"setStatus": lambda e: (progress_callback(e) if progress_callback else None)},
+                progress_callback)
         except Exception as _dep_e:
-            print(f"[Deps] Advertencia verificando dependencias: {_dep_e}")
+            if progress_callback: progress_callback(f"Advertencia verificando dependencias: {_dep_e}")
 
     # 2. AISLAMIENTO DE INSTANCIAS DINÁMICO
     folder_name = carpeta_instancia_paraguacraft(version_base, motor_elegido)
