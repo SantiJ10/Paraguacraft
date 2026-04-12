@@ -1,16 +1,16 @@
 [Setup]
 AppName=Paraguacraft
-AppVersion=4.4.0
+AppVersion=4.7.0
 AppPublisher=Jaful
-DefaultDirName={userappdata}\Paraguacraft
+DefaultDirName={autopf}\Paraguacraft
 DefaultGroupName=Paraguacraft
-PrivilegesRequired=lowest
+PrivilegesRequired=admin
 UninstallDisplayIcon={app}\Paraguacraft.exe
 SetupIconFile=C:\Users\Amin\Documents\Amin\Proyectos\Paraguacraft\iconomc.ico
 Compression=lzma2/ultra
 SolidCompression=yes
 OutputDir=C:\Users\Amin\Documents\Amin\Proyectos\Paraguacraft
-OutputBaseFilename=Instalar_Paraguacraft_v4.4.0
+OutputBaseFilename=Instalar_Paraguacraft_v4.7.0
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
@@ -20,7 +20,7 @@ Source: "C:\Users\Amin\Documents\Amin\Proyectos\Paraguacraft\dist\Paraguacraft.e
 
 [Icons]
 Name: "{group}\Paraguacraft"; Filename: "{app}\Paraguacraft.exe"
-Name: "{userdesktop}\Paraguacraft"; Filename: "{app}\Paraguacraft.exe"; Tasks: desktopicon
+Name: "{commondesktop}\Paraguacraft"; Filename: "{app}\Paraguacraft.exe"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\Paraguacraft.exe"; Description: "{cm:LaunchProgram,Paraguacraft}"; Flags: nowait postinstall skipifsilent

@@ -30,7 +30,7 @@ try:
 except Exception:
     _lanzar_minecraft_ref = None
 
-VERSION = "4.5.0"  # Actualizar en cada release
+VERSION = "4.7.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 
 try:
@@ -876,7 +876,7 @@ class Api:
         if sys.platform != "win32":
             return
         try:
-            import win32gui
+            import win32gui, win32process
         except ImportError:
             return
         nuevo_titulo = f"Paraguacraft {version_jugada}"
@@ -887,9 +887,12 @@ class Api:
                 if not win32gui.IsWindowVisible(hwnd):
                     return
                 titulo = win32gui.GetWindowText(hwnd)
-                if "Minecraft" in titulo and "Paraguacraft Launcher" not in titulo and titulo != nuevo_titulo:
+                if "Minecraft" in titulo and "Paraguacraft" not in titulo and titulo != nuevo_titulo:
                     try:
-                        win32gui.SetWindowText(hwnd, nuevo_titulo)
+                        _, pid = win32process.GetWindowThreadProcessId(hwnd)
+                        pname = psutil.Process(pid).name().lower()
+                        if pname in ('javaw.exe', 'java.exe'):
+                            win32gui.SetWindowText(hwnd, nuevo_titulo)
                     except Exception:
                         pass
 
@@ -1490,7 +1493,7 @@ class Api:
         if sys.platform != "win32":
             return
         try:
-            import win32gui
+            import win32gui, win32process
         except ImportError:
             return
 
@@ -1511,9 +1514,12 @@ class Api:
             if not win32gui.IsWindowVisible(hwnd):
                 return
             titulo = win32gui.GetWindowText(hwnd)
-            if "Minecraft" in titulo and "Paraguacraft Launcher" not in titulo and titulo != nuevo_titulo:
+            if "Minecraft" in titulo and "Paraguacraft" not in titulo and titulo != nuevo_titulo:
                 try:
-                    win32gui.SetWindowText(hwnd, nuevo_titulo)
+                    _, pid = win32process.GetWindowThreadProcessId(hwnd)
+                    pname = psutil.Process(pid).name().lower()
+                    if pname in PROC_NAMES:
+                        win32gui.SetWindowText(hwnd, nuevo_titulo)
                 except Exception:
                     pass
 
@@ -1616,10 +1622,123 @@ class Api:
             pass
         return paths
 
+    def _bedrock_mojang_dir(self):
+        import glob
+        localappdata = os.environ.get("LOCALAPPDATA", "")
+        if not localappdata:
+            return None
+        pattern = os.path.join(
+            localappdata, "Packages", "Microsoft.MinecraftUWP_*",
+            "LocalState", "games", "com.mojang"
+        )
+        matches = glob.glob(pattern)
+        if not matches:
+            pattern2 = os.path.join(
+                localappdata, "Packages", "Microsoft.MinecraftWindowsBeta_*",
+                "LocalState", "games", "com.mojang"
+            )
+            matches = glob.glob(pattern2)
+        return matches[0] if matches else None
+
+    def instalar_pack_paraguacraft(self):
+        PACK_UUID   = "a1b2c3d4-e5f6-7890-abcd-ef1234567891"
+        MODULE_UUID = "b2c3d4e5-f6a7-8901-bcde-f12345678902"
+        PACK_VER    = [1, 0, 0]
+        try:
+            mojang_dir = self._bedrock_mojang_dir()
+            if not mojang_dir:
+                return {"ok": False, "error": "Bedrock no encontrado"}
+
+            pack_dir = os.path.join(mojang_dir, "resource_packs", "ParaguacraftBranding")
+            tex_dir  = os.path.join(pack_dir, "textures", "ui")
+            os.makedirs(tex_dir, exist_ok=True)
+
+            logo_src = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web", "assets", "paraguacraft_logo.png")
+
+            # Resize logo → 512×128 with transparent padding
+            try:
+                from PIL import Image
+                img = Image.open(logo_src).convert("RGBA")
+                tw, th = 512, 128
+                ir = img.width / img.height
+                tr = tw / th
+                if ir > tr:
+                    nw, nh = tw, int(tw / ir)
+                else:
+                    nw, nh = int(th * ir), th
+                img = img.resize((nw, nh), Image.LANCZOS)
+                canvas = Image.new("RGBA", (tw, th), (0, 0, 0, 0))
+                canvas.paste(img, ((tw - nw) // 2, (th - nh) // 2))
+                canvas.save(os.path.join(tex_dir, "title.png"))
+                # Algunas versiones de Bedrock usan rutas adicionales
+                for _extra in ["title2.png", "mojanglogo.png"]:
+                    try:
+                        canvas.save(os.path.join(tex_dir, _extra))
+                    except Exception:
+                        pass
+            except ImportError:
+                import shutil
+                for _fn in ["title.png", "title2.png", "mojanglogo.png"]:
+                    shutil.copy2(logo_src, os.path.join(tex_dir, _fn))
+
+            # Pack icon
+            try:
+                import shutil
+                shutil.copy2(logo_src, os.path.join(pack_dir, "pack_icon.png"))
+            except Exception:
+                pass
+
+            # manifest.json
+            manifest = {
+                "format_version": 2,
+                "header": {
+                    "name": "Paraguacraft Branding",
+                    "description": "Logo personalizado — Paraguacraft Launcher",
+                    "uuid": PACK_UUID,
+                    "version": PACK_VER,
+                    "min_engine_version": [1, 16, 0]
+                },
+                "modules": [{"type": "resources", "uuid": MODULE_UUID, "version": PACK_VER}]
+            }
+            with open(os.path.join(pack_dir, "manifest.json"), "w") as f:
+                json.dump(manifest, f, indent=2)
+
+            # global_resource_packs.json — activar globalmente
+            minecraftpe_dir = os.path.join(mojang_dir, "minecraftpe")
+            os.makedirs(minecraftpe_dir, exist_ok=True)
+            grp_path = os.path.join(minecraftpe_dir, "global_resource_packs.json")
+            existing = []
+            if os.path.exists(grp_path):
+                try:
+                    with open(grp_path) as f:
+                        existing = json.load(f)
+                except Exception:
+                    existing = []
+            if not any(p.get("pack_id") == PACK_UUID for p in existing):
+                existing.insert(0, {"pack_id": PACK_UUID, "version": PACK_VER})
+                with open(grp_path, "w") as f:
+                    json.dump(existing, f, indent=2)
+
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
     def lanzar_bedrock(self):
         try:
             if not self.config_actual.get("is_premium", False):
                 return {"ok": False, "error": "Se necesita cuenta Premium para jugar Minecraft: Bedrock Edition"}
+            try:
+                _pack_r = self.instalar_pack_paraguacraft()
+                print("[PACK]", _pack_r)
+                with open(os.path.join(os.path.expanduser("~"), "paraguacraft_pack_debug.txt"), "w") as _dbg:
+                    _dbg.write(str(_pack_r))
+            except Exception as _pe:
+                print("[PACK] error:", _pe)
+                try:
+                    with open(os.path.join(os.path.expanduser("~"), "paraguacraft_pack_debug.txt"), "w") as _dbg:
+                        _dbg.write("ERROR: " + str(_pe))
+                except Exception:
+                    pass
             import ctypes
             _NO_WIN = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
 
@@ -2582,6 +2701,15 @@ class Api:
         try:
             self._playit_address = ""
             self._playit_bedrock_address = ""
+            if not self._playit_bedrock_custom and carpeta:
+                _srv_info = os.path.join(carpeta, '_paragua_srv.json')
+                if os.path.exists(_srv_info):
+                    try:
+                        with open(_srv_info) as _f:
+                            _d = json.load(_f)
+                            self._playit_bedrock_custom = _d.get('bedrock_address', '')
+                    except Exception:
+                        pass
             import tempfile as _tmp
             _log_fd, _log_path = _tmp.mkstemp(prefix="playit_", suffix=".log", text=True)
             os.close(_log_fd)
@@ -2595,6 +2723,7 @@ class Api:
             self._playit_proc = subprocess.Popen(
                 [playit_exe], cwd=carpeta,
                 stdout=_log_fh, stderr=_log_fh,
+                stdin=subprocess.PIPE,
                 creationflags=flags,
             )
             _log_fh.close()  # close our write handle; process keeps its own
@@ -2610,15 +2739,18 @@ class Api:
                             _f.seek(pos)
                             chunk = _f.read()
                             if chunk:
-                                # split on both \n and \r, take last segment per \r group
+                                # Process every \r-separated segment (spinner may hide addresses in earlier parts)
+                                _all_lines = []
                                 for raw in chunk.split('\n'):
-                                    # handle \r spinner: only last non-empty segment matters
-                                    parts = [p for p in raw.split('\r') if p.strip()]
-                                    line = _ansi.sub('', parts[-1]).strip() if parts else ''
+                                    for part in raw.split('\r'):
+                                        _l = _ansi.sub('', part).strip()
+                                        if _l:
+                                            _all_lines.append(_l)
+                                for line in _all_lines:
                                     if not line or line in _seen:
                                         continue
                                     _seen.add(line)
-                                    if len(_seen) > 200:
+                                    if len(_seen) > 400:
                                         _seen.clear()
                                     with self._servidor_lock:
                                         self._servidor_log.append("[PLAYIT] " + line)
@@ -2638,13 +2770,46 @@ class Api:
                                             r"address[=:\s]+([\w\-.]+(?::\d+)?)", line, _re.IGNORECASE)
                                     if _addr_m:
                                         _addr = _addr_m.group(1)
-                                        # UDP/Bedrock: has non-default port OR line mentions udp/bedrock
-                                        _is_udp = (bool(_re.search(r':\d+', _addr) and not _addr.endswith(':25565'))
-                                                   or bool(_re.search(r'(?i)\budp\b|\bbedrock\b', line)))
-                                        if _is_udp and not self._playit_bedrock_address:
+                                        _port_in_addr = _re.search(r':(\d+)$', _addr)
+                                        _addr_port    = int(_port_in_addr.group(1)) if _port_in_addr else None
+                                        # Domain-based classification (highest priority)
+                                        # joinmc.link → always Java regardless of keywords
+                                        _domain_java    = bool(_re.search(r'joinmc\.link', _addr))
+                                        # ply.gg with non-25565 port → always Bedrock
+                                        _domain_bedrock = (bool(_re.search(r'ply\.gg', _addr))
+                                                           and _addr_port is not None and _addr_port != 25565)
+                                        if _domain_java:
+                                            _is_udp = False
+                                        elif _domain_bedrock:
+                                            _is_udp = True
+                                        else:
+                                            # Fallback: port/keyword heuristics
+                                            _line_lo = line.lower()
+                                            _has_tcp = bool(_re.search(r'\btcp\b', _line_lo))
+                                            _has_udp = bool(_re.search(r'\budp\b|\bbedrock\b', _line_lo))
+                                            _port_bedrock = bool(_re.search(r'\b19132\b', line))
+                                            _port_java    = bool(_re.search(r'\b25565\b', line))
+                                            _force_java    = _port_java or _addr_port == 25565
+                                            _force_bedrock = _port_bedrock or _addr_port == 19132
+                                            _proto_udp     = _has_udp and not _has_tcp and not _force_java
+                                            _fallback_udp  = (_addr_port is not None and _addr_port != 25565
+                                                              and not _force_java and not _has_tcp)
+                                            _is_udp = _force_bedrock or (_proto_udp and not _force_java) or _fallback_udp
+                                        _es_geyser = self._servidor_tipo in ('paper-geyser', 'fabric-geyser')
+                                        if _is_udp and not self._playit_bedrock_address and _es_geyser:
                                             self._playit_bedrock_address = _addr
+                                            with self._servidor_lock:
+                                                self._servidor_log.append(
+                                                    f"[PLAYIT] 🎮 Bedrock (Geyser) detectado: {_addr} — compartí esta dirección y puerto con tus jugadores Bedrock")
                                         elif not _is_udp and not self._playit_address:
                                             self._playit_address = _addr
+                                            with self._servidor_lock:
+                                                self._servidor_log.append(
+                                                    f"[PLAYIT] ☕ Java detectado: {_addr} — compartí esta IP con tus jugadores Java")
+                                            if _es_geyser and self._playit_bedrock_address:
+                                                with self._servidor_lock:
+                                                    self._servidor_log.append(
+                                                        f"[PLAYIT] ✅ Ambos túneles activos → Java: {self._playit_address} | Bedrock: {self._playit_bedrock_address}")
                                 pos = _f.tell()
                     except Exception:
                         pass
@@ -2655,6 +2820,11 @@ class Api:
                     pass
 
             threading.Thread(target=_tail_log, daemon=True).start()
+
+            def _probe_tuneles():
+                pass  # log-based detection handled in _tail_log
+
+            threading.Thread(target=_probe_tuneles, daemon=True).start()
             return {"ok": True}
         except Exception as e:
             return {"ok": False, "error": str(e)}
