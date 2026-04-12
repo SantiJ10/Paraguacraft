@@ -268,21 +268,56 @@ class CreadorServidor:
 
             # 3b. Geyser + Floodgate (soporte Bedrock)
             if tipo == 'paper-geyser':
-                for plugin_name, slug in [("Geyser-Spigot", "geyser"), ("Floodgate-Spigot", "floodgate")]:
+                for plugin_name, slug, hangar_owner, hangar_slug in [
+                    ("Geyser-Spigot",    "geyser",    "GeyserMC", "Geyser-Spigot"),
+                    ("Floodgate-Spigot", "floodgate", "GeyserMC", "Floodgate"),
+                ]:
                     plugin_path = os.path.join(plugins_dir, f"{plugin_name}.jar")
-                    if os.path.exists(plugin_path):
+                    if os.path.exists(plugin_path) and os.path.getsize(plugin_path) > 100_000:
                         callback_progreso(f"[3b/7] {plugin_name}.jar ya existe.")
                         continue
                     callback_progreso(f"[3b/7] Descargando {plugin_name} (soporte Bedrock)...")
-                    try:
-                        dl_url = f"https://download.geysermc.org/v2/projects/{slug}/versions/latest/builds/latest/downloads/spigot"
-                        r_g = requests.get(dl_url, stream=True, timeout=(15, 120), allow_redirects=True)
-                        r_g.raise_for_status()
-                        with open(plugin_path, "wb") as f:
-                            shutil.copyfileobj(r_g.raw, f, length=65536)
-                        callback_progreso(f"[3b/7] {plugin_name} instalado en plugins/.")
-                    except Exception as e:
-                        callback_progreso(f"⚠️ Error descargando {plugin_name}: {e}")
+                    downloaded = False
+                    # Intento 1: download.geysermc.org
+                    for platform in ("spigot", "paper"):
+                        if downloaded:
+                            break
+                        try:
+                            dl_url = f"https://download.geysermc.org/v2/projects/{slug}/versions/latest/builds/latest/downloads/{platform}"
+                            r_g = requests.get(dl_url, stream=True, timeout=(20, 180), allow_redirects=True)
+                            r_g.raise_for_status()
+                            with open(plugin_path, "wb") as f:
+                                shutil.copyfileobj(r_g.raw, f, length=65536)
+                            if os.path.getsize(plugin_path) > 100_000:
+                                downloaded = True
+                                callback_progreso(f"[3b/7] {plugin_name} instalado (geysermc.org).")
+                            else:
+                                os.remove(plugin_path)
+                        except Exception:
+                            pass
+                    # Intento 2: Hangar API (papermc.io)
+                    if not downloaded:
+                        try:
+                            callback_progreso(f"[3b/7] Fallback Hangar para {plugin_name}...")
+                            ver_r = requests.get(
+                                f"https://hangar.papermc.io/api/v1/projects/{hangar_owner}/{hangar_slug}/latestrelease",
+                                timeout=15, headers={"User-Agent": "ParaguacraftLauncher/2.0"})
+                            ver_name = ver_r.text.strip().strip('"')
+                            dl_url2 = f"https://hangar.papermc.io/api/v1/projects/{hangar_owner}/{hangar_slug}/versions/{ver_name}/PAPER/download"
+                            r_h = requests.get(dl_url2, stream=True, timeout=(20, 180),
+                                               allow_redirects=True, headers={"User-Agent": "ParaguacraftLauncher/2.0"})
+                            r_h.raise_for_status()
+                            with open(plugin_path, "wb") as f:
+                                shutil.copyfileobj(r_h.raw, f, length=65536)
+                            if os.path.getsize(plugin_path) > 100_000:
+                                downloaded = True
+                                callback_progreso(f"[3b/7] {plugin_name} instalado (Hangar).")
+                            else:
+                                os.remove(plugin_path)
+                        except Exception as e2:
+                            callback_progreso(f"[3b/7] Fallback Hangar falló: {e2}")
+                    if not downloaded:
+                        callback_progreso(f"⚠️ No se pudo descargar {plugin_name}. Instalalo manualmente desde geysermc.org")
 
             # 4. EULA
             callback_progreso("[4/7] Aceptando EULA...")
@@ -485,23 +520,58 @@ class CreadorServidor:
         mods_dir = os.path.join(carpeta_server, "mods")
         os.makedirs(mods_dir, exist_ok=True)
         geyser_mods = [
-            ("Geyser-Fabric",    "https://download.geysermc.org/v2/projects/geyser/versions/latest/builds/latest/downloads/fabric"),
-            ("Floodgate-Fabric", "https://download.geysermc.org/v2/projects/floodgate/versions/latest/builds/latest/downloads/fabric"),
+            ("Geyser-Fabric",    "geyser",    "fabric"),
+            ("Floodgate-Fabric", "floodgate", "fabric"),
         ]
-        for mod_name, url in geyser_mods:
+        for mod_name, slug, platform in geyser_mods:
             dest = os.path.join(mods_dir, mod_name + ".jar")
-            if os.path.exists(dest):
+            if os.path.exists(dest) and os.path.getsize(dest) > 100_000:
                 callback_progreso(f"{mod_name} ya existe.")
                 continue
             callback_progreso(f"Descargando {mod_name}...")
-            try:
-                r = requests.get(url, stream=True, timeout=(15, 180))
-                r.raise_for_status()
-                with open(dest, "wb") as f:
-                    shutil.copyfileobj(r.raw, f, length=65536)
-                callback_progreso(f"✅ {mod_name} instalado en mods/.")
-            except Exception as e:
-                callback_progreso(f"⚠️ Error descargando {mod_name}: {e}")
+            downloaded = False
+            for attempt_platform in (platform, "fabric-api"):
+                if downloaded:
+                    break
+                try:
+                    url = f"https://download.geysermc.org/v2/projects/{slug}/versions/latest/builds/latest/downloads/{attempt_platform}"
+                    r = requests.get(url, stream=True, timeout=(20, 180), allow_redirects=True)
+                    r.raise_for_status()
+                    with open(dest, "wb") as f:
+                        shutil.copyfileobj(r.raw, f, length=65536)
+                    if os.path.getsize(dest) > 100_000:
+                        downloaded = True
+                        callback_progreso(f"✅ {mod_name} instalado en mods/.")
+                    else:
+                        os.remove(dest)
+                except Exception:
+                    pass
+            if not downloaded:
+                try:
+                    url = f"https://api.modrinth.com/v2/project/{slug}/version"
+                    r = requests.get(url, timeout=15)
+                    r.raise_for_status()
+                    versions = r.json()
+                    if versions:
+                        version = versions[0]
+                        files = version.get("files", [])
+                        if files:
+                            file = files[0]
+                            file_url = file.get("url")
+                            if file_url:
+                                r = requests.get(file_url, stream=True, timeout=(20, 180), allow_redirects=True)
+                                r.raise_for_status()
+                                with open(dest, "wb") as f:
+                                    shutil.copyfileobj(r.raw, f, length=65536)
+                                if os.path.getsize(dest) > 100_000:
+                                    downloaded = True
+                                    callback_progreso(f"✅ {mod_name} instalado en mods/.")
+                                else:
+                                    os.remove(dest)
+                except Exception:
+                    pass
+            if not downloaded:
+                callback_progreso(f"⚠️ No se pudo descargar {mod_name}. Instalalo manualmente desde geysermc.org")
         callback_progreso("✅ Geyser + Floodgate para Fabric instalados. Jugadores Bedrock pueden conectarse.")
         callback_progreso("ℹ️ Bedrock: En playit.gg creá un túnel UDP en puerto 19132 para jugadores Bedrock.")
         return True, f"¡Fabric + Geyser listo en {carpeta_server}!"
@@ -509,7 +579,6 @@ class CreadorServidor:
 class GestorLocalMods:
     @staticmethod
     def _extraer_metadata_jar(ruta_jar):
-        # ... (rest of the code remains the same)
         """Extrae nombre, version, autor e icono (base64) de un .jar de mod."""
         import zipfile, json as _json, base64
         nombre = version = autor = icono_b64 = None
