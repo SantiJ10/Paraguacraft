@@ -30,7 +30,7 @@ try:
 except Exception:
     _lanzar_minecraft_ref = None
 
-VERSION = "4.4.0"  # Actualizar en cada release
+VERSION = "4.5.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 
 try:
@@ -83,12 +83,15 @@ class Api:
 
         self._servidor_proc = None
         self._servidor_carpeta = None
+        self._servidor_tipo = 'paper'
         self._servidor_log = []
         self._servidor_lock = threading.Lock()
         self._servidor_creando = False
         self._jugadores_online = set()
         self._playit_proc = None
         self._playit_address = ""
+        self._playit_bedrock_address = ""
+        self._playit_bedrock_custom = ""
         self._musica_proc = None
         self._stats_file = "paraguacraft_stats.json"
         self._cache_dir = os.path.join(os.path.expanduser("~"), ".paraguacraft_cache")
@@ -150,27 +153,37 @@ class Api:
     def iniciar_discord_rpc(self):
         if not self.config_actual.get('discord_rpc', True):
             return
-        try:
+        def _intentar_conectar():
             from pypresence import Presence
-            self.rpc = Presence(DISCORD_APP_ID)
-            self.rpc.connect()
-            usuario = self.config_actual.get("usuario", "Invitado")
-            self.rpc.update(
-                state=f"Conectado como {usuario}",
-                details="En el launcher",
-                large_image="logo",
-                large_text="Paraguacraft",
-                small_image="logo",
-                small_text="Launcher Paraguacraft",
-                start=int(time.time()),
-            )
-        except Exception:
-            self.rpc = None
+            delays = [2, 4, 8, 15, 30]  # reintentos con backoff si Discord tarda en abrir
+            for i, delay in enumerate([0] + delays):
+                if delay:
+                    time.sleep(delay)
+                if not self.config_actual.get('discord_rpc', True):
+                    return
+                try:
+                    rpc = Presence(DISCORD_APP_ID)
+                    rpc.connect()
+                    self.rpc = rpc
+                    usuario = self.config_actual.get("usuario", "Invitado").replace(" [PREMIUM]", "")
+                    self.rpc.update(
+                        state=f"Conectado como {usuario}",
+                        details="En el launcher",
+                        large_image="logo",
+                        large_text="Paraguacraft",
+                        small_image="logo",
+                        small_text="Launcher Paraguacraft",
+                        start=int(time.time()),
+                    )
+                    return  # conexión exitosa
+                except Exception:
+                    self.rpc = None
+        threading.Thread(target=_intentar_conectar, daemon=True).start()
 
     def _rpc_menu(self):
         if self.rpc:
             try:
-                usuario = self.config_actual.get("usuario", "Invitado")
+                usuario = self.config_actual.get("usuario", "Invitado").replace(" [PREMIUM]", "")
                 self.rpc.update(
                     state=f"Conectado como {usuario}",
                     details="Explorando el launcher",
@@ -185,7 +198,7 @@ class Api:
         if not self.rpc or not self.config_actual.get('discord_rpc', True):
             return
         try:
-            usuario = self.config_actual.get("usuario", "Invitado")
+            usuario = self.config_actual.get("usuario", "Invitado").replace(" [PREMIUM]", "")
             show_ver = self.config_actual.get('discord_rpc_version', True)
             show_time = self.config_actual.get('discord_rpc_time', True)
             state = f"{version} · {motor}" if show_ver else "Jugando Minecraft"
@@ -1473,6 +1486,182 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    def _hilo_bedrock_renombrar(self):
+        if sys.platform != "win32":
+            return
+        try:
+            import win32gui
+        except ImportError:
+            return
+
+        nuevo_titulo = "Paraguacraft Bedrock"
+        PROC_NAMES = {"minecraft.windows.exe", "minecraftuwp.exe", "minecraftpe.exe"}
+        usuario = self.config_actual.get("usuario", "Jugador").replace(" [PREMIUM]", "")
+
+        def _js(code):
+            try:
+                webview.windows[0].evaluate_js(code)
+            except Exception:
+                pass
+
+        def _set_estado(msg):
+            _js(f"actualizarEstadoBedrock({json.dumps(msg)})")
+
+        def _renombrar(hwnd, _):
+            if not win32gui.IsWindowVisible(hwnd):
+                return
+            titulo = win32gui.GetWindowText(hwnd)
+            if "Minecraft" in titulo and "Paraguacraft Launcher" not in titulo and titulo != nuevo_titulo:
+                try:
+                    win32gui.SetWindowText(hwnd, nuevo_titulo)
+                except Exception:
+                    pass
+
+        # ── Fase 1: esperar a que arranque el proceso (hasta 2 min) ──────────
+        _set_estado("Detectando Bedrock...")
+        MAX_WAIT = 120
+        elapsed = 0
+        found = False
+        while elapsed < MAX_WAIT:
+            time.sleep(0.5)
+            elapsed += 0.5
+            try:
+                procs = [p.info["name"].lower() for p in psutil.process_iter(["name"])]
+                if any(n in PROC_NAMES for n in procs):
+                    found = True
+                    break
+            except Exception:
+                pass
+
+        if not found:
+            _set_estado("")
+            return
+
+        # ── Fase 2: Bedrock corriendo — esperar ventana visible antes de minimizar ──
+        _set_estado("🎮 Bedrock activo")
+        try:
+            if self.rpc and self.config_actual.get("discord_rpc", True):
+                show_time = self.config_actual.get("discord_rpc_time", True)
+                self.rpc.update(
+                    state="Paraguacraft Bedrock",
+                    details=f"Jugando como {usuario}",
+                    large_image="logo",
+                    large_text="Paraguacraft Bedrock",
+                    start=int(time.time()) if show_time else None,
+                )
+        except Exception:
+            pass
+
+        # Minimizar el launcher ANTES de que Bedrock renderice su ventana.
+        # Si minimizamos después, Bedrock calcula su fullscreen con el launcher
+        # visible y deja un borde negro al quedarse solo.
+        _lb = self.config_actual.get("launch_behavior", "minimize")
+        try:
+            if _lb == "minimize":
+                webview.windows[0].minimize()
+            elif _lb == "close":
+                webview.windows[0].hide()
+        except Exception:
+            pass
+
+        MAX_RUN = 600
+        ran = 0
+        while ran < MAX_RUN:
+            time.sleep(0.15)
+            ran += 0.15
+            try:
+                win32gui.EnumWindows(_renombrar, None)
+            except Exception:
+                pass
+            try:
+                procs = [p.info["name"].lower() for p in psutil.process_iter(["name"])]
+                if not any(n in PROC_NAMES for n in procs):
+                    break
+            except Exception:
+                pass
+
+        # ── Fase 3: Bedrock cerrado — restaurar launcher + RPC ───────────────
+        try:
+            if _lb == "minimize":
+                webview.windows[0].restore()
+            elif _lb == "close":
+                webview.windows[0].show()
+        except Exception:
+            pass
+        self._rpc_menu()
+        _set_estado("Bedrock cerrado")
+
+    def _bedrock_exe_paths(self):
+        paths = [
+            r"C:\XboxGames\Minecraft for Windows\Content\Minecraft.Windows.exe",
+            r"C:\XboxGames\Minecraft for Windows\Content\gamelaunchhelper.exe",
+        ]
+        try:
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,
+                                r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall") as k:
+                pass
+        except Exception:
+            pass
+        try:
+            prog = os.environ.get("PROGRAMFILES", r"C:\Program Files")
+            base = os.path.join(prog, "WindowsApps")
+            if os.path.isdir(base):
+                for entry in os.listdir(base):
+                    if "Minecraft" in entry and "Windows" in entry:
+                        candidate = os.path.join(base, entry, "Minecraft.Windows.exe")
+                        if os.path.exists(candidate):
+                            paths.insert(0, candidate)
+        except Exception:
+            pass
+        return paths
+
+    def lanzar_bedrock(self):
+        try:
+            if not self.config_actual.get("is_premium", False):
+                return {"ok": False, "error": "Se necesita cuenta Premium para jugar Minecraft: Bedrock Edition"}
+            import ctypes
+            _NO_WIN = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+
+            # --- 1. Descubrir AUMID dinámicamente via PowerShell ---
+            aumids = [
+                r"shell:AppsFolder\Microsoft.MinecraftUWP_8wekyb3d8bbwe!App",
+                r"shell:AppsFolder\Microsoft.MinecraftWindowsBeta_8wekyb3d8bbwe!App",
+            ]
+            try:
+                r = subprocess.run(
+                    ["powershell", "-NoProfile", "-Command",
+                     "Get-AppxPackage *Minecraft* | Select-Object -ExpandProperty PackageFamilyName"],
+                    capture_output=True, text=True, timeout=8, creationflags=_NO_WIN
+                )
+                for line in r.stdout.splitlines():
+                    pfn = line.strip()
+                    if pfn:
+                        dyn = fr"shell:AppsFolder\{pfn}!App"
+                        if dyn not in aumids:
+                            aumids.insert(0, dyn)
+            except Exception:
+                pass
+
+            # --- 2. Intentar AUMIDs conocidos via ShellExecuteW ---
+            for aumid in aumids:
+                ret = ctypes.windll.shell32.ShellExecuteW(None, "open", aumid, None, None, 1)
+                if ret > 32:
+                    threading.Thread(target=self._hilo_bedrock_renombrar, daemon=True).start()
+                    return {"ok": True}
+
+            # --- 3. Fallback: lanzar el .exe directo (Xbox Game Pass path) ---
+            for path in self._bedrock_exe_paths():
+                if os.path.exists(path):
+                    subprocess.Popen([path], cwd=os.path.dirname(path),
+                                     creationflags=_NO_WIN)
+                    threading.Thread(target=self._hilo_bedrock_renombrar, daemon=True).start()
+                    return {"ok": True}
+
+            return {"ok": False, "error": "No se encontró Minecraft: Bedrock Edition. Instalalo desde Xbox / Microsoft Store."}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
     # ── Optimizaciones (Sodium / Iris / OptiFine / Lithium) ───────────────────
     def instalar_optimizacion(self, tipo, carpeta):
         try:
@@ -1732,8 +1921,14 @@ class Api:
             from src.modelo import CreadorServidor
             os.makedirs(carpeta, exist_ok=True)
             self._servidor_carpeta = carpeta
+            self._servidor_tipo = tipo or 'paper'
             self._servidor_creando = True
             tipo = tipo or 'paper'
+            try:
+                with open(os.path.join(carpeta, '_paragua_srv.json'), 'w') as _f:
+                    json.dump({'tipo': self._servidor_tipo}, _f)
+            except Exception:
+                pass
             _nombre_tipo = {'paper': 'PaperMC', 'paper-geyser': 'PaperMC + Geyser', 'fabric': 'Fabric'}.get(tipo, tipo)
             with self._servidor_lock:
                 self._servidor_log.clear()
@@ -1818,10 +2013,43 @@ class Api:
         threading.Thread(target=self._guardar, daemon=True).start()
         return {"ok": True}
 
+    def _detectar_tipo_servidor(self, carpeta):
+        """Detecta el tipo de servidor inspeccionando la carpeta (fallback sin _paragua_srv.json)."""
+        if not carpeta:
+            return 'paper'
+        has_geyser = False
+        plugins_dir = os.path.join(carpeta, 'plugins')
+        if os.path.isdir(plugins_dir):
+            for entry in os.listdir(plugins_dir):
+                if 'geyser' in entry.lower():
+                    has_geyser = True
+                    break
+        has_fabric = os.path.exists(os.path.join(carpeta, 'fabric-server-launch.jar'))
+        if has_fabric and has_geyser:
+            return 'fabric-geyser'
+        if has_fabric:
+            return 'fabric'
+        if has_geyser:
+            return 'paper-geyser'
+        return 'paper'
+
     def iniciar_servidor(self, carpeta=None):
         if self._servidor_proc and self._servidor_proc.poll() is None:
             return {"ok": False, "error": "El servidor ya está corriendo."}
         carpeta = carpeta or self._servidor_carpeta
+        try:
+            _srv_info = os.path.join(carpeta or '', '_paragua_srv.json')
+            if os.path.exists(_srv_info):
+                with open(_srv_info) as _f:
+                    _d = json.load(_f)
+                    self._servidor_tipo = _d.get('tipo', 'paper')
+                    self._playit_bedrock_custom = _d.get('bedrock_address', '')
+            else:
+                self._servidor_tipo = self._detectar_tipo_servidor(carpeta)
+                self._playit_bedrock_custom = ''
+        except Exception:
+            self._servidor_tipo = self._detectar_tipo_servidor(carpeta)
+            self._playit_bedrock_custom = ''
         if not carpeta or not os.path.exists(os.path.join(carpeta, "server.jar")):
             return {"ok": False, "error": "No se encontró server.jar. Priméro creá el servidor."}
         # Kill any stale Java process running in this folder (releases session.lock)
@@ -2002,6 +2230,99 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e), "plugins": []}
 
+    def guardar_bedrock_address(self, address, carpeta=None):
+        """Guarda la dirección Bedrock personalizada (ej: mailing-theories.gl.at.ply.gg:4698)."""
+        carpeta = carpeta or self._servidor_carpeta
+        self._playit_bedrock_custom = address or ''
+        if carpeta:
+            _srv_info = os.path.join(carpeta, '_paragua_srv.json')
+            try:
+                _d = {}
+                if os.path.exists(_srv_info):
+                    with open(_srv_info) as _f:
+                        _d = json.load(_f)
+                _d['bedrock_address'] = address or ''
+                with open(_srv_info, 'w') as _f:
+                    json.dump(_d, _f)
+            except Exception:
+                pass
+        return {'ok': True}
+
+    def instalar_geyser_servidor(self, carpeta=None):
+        carpeta = carpeta or self._servidor_carpeta
+        if not carpeta:
+            return {"ok": False, "error": "No hay carpeta de servidor seleccionada"}
+        try:
+            is_fabric = os.path.exists(os.path.join(carpeta, "fabric-server-launch.jar"))
+            dest_dir  = os.path.join(carpeta, "mods" if is_fabric else "plugins")
+            os.makedirs(dest_dir, exist_ok=True)
+            if is_fabric:
+                targets = [
+                    ("Geyser-Fabric",    "geyser",    "fabric"),
+                    ("Floodgate-Fabric", "floodgate", "fabric"),
+                ]
+            else:
+                targets = [
+                    ("Geyser-Spigot",    "geyser",    "spigot"),
+                    ("Floodgate-Spigot", "floodgate", "spigot"),
+                ]
+            resultados = []
+            for name, slug, platform in targets:
+                dest = os.path.join(dest_dir, name + ".jar")
+                if os.path.exists(dest) and os.path.getsize(dest) > 100_000:
+                    resultados.append(f"✅ {name} ya estaba instalado")
+                    continue
+                ok_dl = False
+                for plat in (platform, "spigot", "paper"):
+                    if ok_dl:
+                        break
+                    try:
+                        url = f"https://download.geysermc.org/v2/projects/{slug}/versions/latest/builds/latest/downloads/{plat}"
+                        r = requests.get(url, stream=True, timeout=(20, 180), allow_redirects=True)
+                        r.raise_for_status()
+                        import shutil as _sh
+                        with open(dest, "wb") as f:
+                            _sh.copyfileobj(r.raw, f, length=65536)
+                        if os.path.getsize(dest) > 100_000:
+                            ok_dl = True
+                        else:
+                            os.remove(dest)
+                    except Exception:
+                        pass
+                # Fallback Hangar
+                if not ok_dl:
+                    try:
+                        hangar_slug = "Geyser-Spigot" if slug == "geyser" else "Floodgate"
+                        ver_r = requests.get(
+                            f"https://hangar.papermc.io/api/v1/projects/GeyserMC/{hangar_slug}/latestrelease",
+                            timeout=15, headers={"User-Agent": "ParaguacraftLauncher/2.0"})
+                        ver_name = ver_r.text.strip().strip('"')
+                        dl_url = f"https://hangar.papermc.io/api/v1/projects/GeyserMC/{hangar_slug}/versions/{ver_name}/PAPER/download"
+                        r2 = requests.get(dl_url, stream=True, timeout=(20, 180),
+                                          allow_redirects=True, headers={"User-Agent": "ParaguacraftLauncher/2.0"})
+                        r2.raise_for_status()
+                        import shutil as _sh2
+                        with open(dest, "wb") as f:
+                            _sh2.copyfileobj(r2.raw, f, length=65536)
+                        if os.path.getsize(dest) > 100_000:
+                            ok_dl = True
+                        else:
+                            os.remove(dest)
+                    except Exception:
+                        pass
+                resultados.append(f"✅ {name} instalado" if ok_dl else f"⚠️ {name}: descarga fallida")
+            # Guardar tipo en _paragua_srv.json
+            tipo_guardado = "fabric-geyser" if is_fabric else "paper-geyser"
+            self._servidor_tipo = tipo_guardado
+            try:
+                with open(os.path.join(carpeta, "_paragua_srv.json"), "w") as f:
+                    json.dump({"tipo": tipo_guardado}, f)
+            except Exception:
+                pass
+            return {"ok": True, "msg": " | ".join(resultados)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
     def instalar_plugin(self, owner, slug, carpeta_server=None):
         try:
             carpeta = carpeta_server or self._servidor_carpeta
@@ -2028,6 +2349,82 @@ class Api:
                         f.write(chunk)
             size_kb = round(os.path.getsize(out_path) / 1024)
             return {"ok": True, "nombre": fname, "size_kb": size_kb}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def get_local_plugins_servidor(self, carpeta=None):
+        carpeta = carpeta or self._servidor_carpeta
+        if not carpeta:
+            return {"ok": True, "plugins": [], "dir_tipo": "plugins"}
+        is_fabric = os.path.exists(os.path.join(carpeta, "fabric-server-launch.jar"))
+        dir_tipo = "mods" if is_fabric else "plugins"
+        target_dir = os.path.join(carpeta, dir_tipo)
+        if not os.path.isdir(target_dir):
+            return {"ok": True, "plugins": [], "dir_tipo": dir_tipo}
+        plugins = []
+        for f in os.listdir(target_dir):
+            if not (f.endswith(".jar") or f.endswith(".jar.disabled")):
+                continue
+            estado = "Activo" if f.endswith(".jar") else "Desactivado"
+            nombre = f.replace(".jar.disabled", "").replace(".jar", "")
+            size_kb = 0
+            try:
+                size_kb = round(os.path.getsize(os.path.join(target_dir, f)) / 1024)
+            except Exception:
+                pass
+            plugins.append({"archivo": f, "nombre": nombre, "estado": estado, "size_kb": size_kb})
+        plugins.sort(key=lambda x: x["nombre"].lower())
+        return {"ok": True, "plugins": plugins, "dir_tipo": dir_tipo}
+
+    def toggle_local_plugin_servidor(self, archivo, carpeta=None):
+        carpeta = carpeta or self._servidor_carpeta
+        if not carpeta:
+            return False
+        is_fabric = os.path.exists(os.path.join(carpeta, "fabric-server-launch.jar"))
+        target_dir = os.path.join(carpeta, "mods" if is_fabric else "plugins")
+        ruta = os.path.join(target_dir, archivo)
+        if not os.path.exists(ruta):
+            return False
+        try:
+            if archivo.endswith(".jar"):
+                os.rename(ruta, ruta + ".disabled")
+            elif archivo.endswith(".jar.disabled"):
+                os.rename(ruta, ruta[:-9])
+            return True
+        except Exception:
+            return False
+
+    def eliminar_plugin_servidor(self, archivo, carpeta=None):
+        carpeta = carpeta or self._servidor_carpeta
+        if not carpeta:
+            return False
+        is_fabric = os.path.exists(os.path.join(carpeta, "fabric-server-launch.jar"))
+        target_dir = os.path.join(carpeta, "mods" if is_fabric else "plugins")
+        ruta = os.path.join(target_dir, archivo)
+        try:
+            if os.path.exists(ruta):
+                os.remove(ruta)
+                return True
+        except Exception:
+            pass
+        return False
+
+    def instalar_plugin_b64_servidor(self, nombre, b64, carpeta=None):
+        import base64 as _b64
+        carpeta = carpeta or self._servidor_carpeta
+        if not carpeta:
+            return {"ok": False, "error": "No hay servidor seleccionado"}
+        if not nombre.lower().endswith(".jar"):
+            return {"ok": False, "error": "Solo se aceptan archivos .jar"}
+        is_fabric = os.path.exists(os.path.join(carpeta, "fabric-server-launch.jar"))
+        target_dir = os.path.join(carpeta, "mods" if is_fabric else "plugins")
+        os.makedirs(target_dir, exist_ok=True)
+        try:
+            data = _b64.b64decode(b64)
+            dest = os.path.join(target_dir, nombre)
+            with open(dest, "wb") as f:
+                f.write(data)
+            return {"ok": True, "nombre": nombre, "size_kb": round(len(data) / 1024)}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
@@ -2184,6 +2581,7 @@ class Api:
             return {"ok": False, "error": "No se encontró playit.exe. Priméro creá el servidor."}
         try:
             self._playit_address = ""
+            self._playit_bedrock_address = ""
             import tempfile as _tmp
             _log_fd, _log_path = _tmp.mkstemp(prefix="playit_", suffix=".log", text=True)
             os.close(_log_fd)
@@ -2231,11 +2629,22 @@ class Api:
                                     if claim:
                                         import webbrowser as _wb
                                         _wb.open(claim.group(1))
-                                    if not self._playit_address:
-                                        m = (_re.search(r"((?:[\w\-]+\.)+(?:ply\.gg|joinmc\.link|auto\.playit\.gg|playit\.gg)(?::\d+)?)", line)
-                                             or _re.search(r"address[=:\s]+([\w\-.]+(?::\d+)?)", line, _re.IGNORECASE))
-                                        if m:
-                                            self._playit_address = m.group(1)
+                                    # Detect both Java (TCP) and Bedrock (UDP) addresses
+                                    _addr_m = _re.search(
+                                        r"((?:[\w\-]+\.)+(?:ply\.gg|joinmc\.link|auto\.playit\.gg|playit\.gg)(?::\d+)?)",
+                                        line)
+                                    if not _addr_m:
+                                        _addr_m = _re.search(
+                                            r"address[=:\s]+([\w\-.]+(?::\d+)?)", line, _re.IGNORECASE)
+                                    if _addr_m:
+                                        _addr = _addr_m.group(1)
+                                        # UDP/Bedrock: has non-default port OR line mentions udp/bedrock
+                                        _is_udp = (bool(_re.search(r':\d+', _addr) and not _addr.endswith(':25565'))
+                                                   or bool(_re.search(r'(?i)\budp\b|\bbedrock\b', line)))
+                                        if _is_udp and not self._playit_bedrock_address:
+                                            self._playit_bedrock_address = _addr
+                                        elif not _is_udp and not self._playit_address:
+                                            self._playit_address = _addr
                                 pos = _f.tell()
                     except Exception:
                         pass
@@ -2256,6 +2665,7 @@ class Api:
                 self._playit_proc.kill()
             self._playit_proc = None
             self._playit_address = ""
+            self._playit_bedrock_address = ""
             return {"ok": True}
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -2273,6 +2683,8 @@ class Api:
             "servidor_existe": servidor_existe,
             "playit_corriendo": playit_corriendo,
             "playit_address": self._playit_address,
+            "playit_bedrock_address": self._playit_bedrock_custom or self._playit_bedrock_address,
+            "servidor_tipo": self._servidor_tipo if self._servidor_tipo != 'paper' else self._detectar_tipo_servidor(self._servidor_carpeta or ''),
             "log": log_reciente,
             "creando": self._servidor_creando,
         }

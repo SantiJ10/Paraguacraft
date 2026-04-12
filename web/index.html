@@ -830,14 +830,36 @@
                     <div id="srv-lista-cards" class="flex flex-col gap-2 max-h-40 overflow-y-auto"></div>
                 </div>
 
-                <!-- Plugin Store -->
+                <!-- Plugin Store + Gestor -->
                 <div id="srv-plugins-box" class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-4 shrink-0">
-                    <h3 class="font-black text-sm mb-3">🔎 Plugin Store (Hangar)</h3>
-                    <div class="flex gap-2 mb-3">
-                        <input id="plugin-search" type="text" placeholder="Buscar plugin..." onkeypress="if(event.key==='Enter')buscarPlugins()" class="flex-1 bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none focus:border-[#2ECC71]">
-                        <button onclick="buscarPlugins()" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-bold px-4 py-2 rounded text-sm transition">🔍</button>
+                    <!-- Tabs -->
+                    <div class="flex gap-1 mb-3 border-b border-[#2A2A2A] pb-2">
+                        <button id="srv-plug-tab-store" onclick="srvPlugTab('store')" class="px-3 py-1 rounded-t text-xs font-black text-[#2ECC71] border-b-2 border-[#2ECC71]">🔎 Store (Hangar)</button>
+                        <button id="srv-plug-tab-local" onclick="srvPlugTab('local')" class="px-3 py-1 rounded-t text-xs font-bold text-gray-500 hover:text-white border-b-2 border-transparent transition">📦 Instalados</button>
                     </div>
-                    <div id="plugin-lista" class="space-y-2 max-h-48 overflow-y-auto text-xs text-gray-500">Buscá un plugin para empezar.</div>
+                    <!-- Store tab -->
+                    <div id="srv-plug-panel-store">
+                        <div class="flex gap-2 mb-3">
+                            <input id="plugin-search" type="text" placeholder="Buscar plugin..." onkeypress="if(event.key==='Enter')buscarPlugins()" class="flex-1 bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none focus:border-[#2ECC71]">
+                            <button onclick="buscarPlugins()" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-bold px-4 py-2 rounded text-sm transition">🔍</button>
+                        </div>
+                        <div id="plugin-lista" class="space-y-2 max-h-48 overflow-y-auto text-xs text-gray-500">Buscá un plugin para empezar.</div>
+                    </div>
+                    <!-- Instalados tab -->
+                    <div id="srv-plug-panel-local" class="hidden">
+                        <div class="flex items-center justify-between mb-2">
+                            <span id="srv-plug-dir-lbl" class="text-[10px] text-gray-500">Carpeta: plugins/</span>
+                            <button onclick="cargarPluginsLocales()" class="text-[10px] text-gray-500 hover:text-white transition">↺ Actualizar</button>
+                        </div>
+                        <div id="srv-plug-local-list" class="space-y-1.5 max-h-44 overflow-y-auto text-xs text-gray-500">
+                            <p class="text-center py-4">Hacé clic en "↺ Actualizar" para ver los plugins instalados.</p>
+                        </div>
+                        <!-- Drag & drop -->
+                        <div id="srv-plug-drop" ondragover="event.preventDefault();this.classList.add('border-[#2ECC71]')" ondragleave="this.classList.remove('border-[#2ECC71]')" ondrop="srvDropPlugin(event)" class="mt-2 border-2 border-dashed border-[#333] rounded-lg p-3 text-center text-[10px] text-gray-600 hover:border-[#2ECC71] transition cursor-pointer">
+                            📁 Arrastrá un .jar acá para instalarlo
+                        </div>
+                        <p id="srv-plug-drop-msg" class="text-[10px] text-center mt-1 min-h-[14px]"></p>
+                    </div>
                 </div>
 
                 <!-- Panel: crear nuevo servidor (visible solo si no hay uno creado) -->
@@ -895,9 +917,34 @@
                             <button onclick="iniciarPlayitgg()" class="bg-[#3498DB] hover:bg-[#2980B9] text-white font-black px-4 py-2 rounded transition text-sm flex-1">▶ Iniciar Túnel</button>
                             <button onclick="detenerPlayitgg()" class="bg-[#E74C3C] hover:bg-[#C0392B] text-white font-black px-4 py-2 rounded transition text-sm flex-1">■ Detener</button>
                         </div>
-                        <div class="bg-[#121212] border border-[#333] rounded p-3 flex items-center justify-between gap-2">
-                            <span id="playit-ip-lbl" class="text-[#2ECC71] font-black font-mono text-sm flex-1 truncate">Esperando túnel...</span>
-                            <button onclick="copiarIP()" class="text-gray-400 hover:text-white transition text-xs font-bold shrink-0">📋 Copiar</button>
+                        <div class="flex flex-col gap-1.5">
+                            <div class="bg-[#121212] border border-[#333] rounded p-2.5 flex items-center gap-2">
+                                <span class="text-[10px] font-black text-[#2ECC71] shrink-0 w-12">☕ Java</span>
+                                <span id="playit-ip-lbl" class="text-[#2ECC71] font-black font-mono text-xs flex-1 truncate">Esperando túnel...</span>
+                                <button onclick="copiarIP()" class="text-gray-400 hover:text-[#2ECC71] transition text-xs font-bold shrink-0" title="Copiar IP Java">📋</button>
+                            </div>
+                            <div id="playit-bedrock-row" class="hidden bg-[#121212] border border-[#1A4A7A] rounded p-2 flex flex-col gap-1">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[10px] font-black text-[#3498DB]">🎮 Bedrock (Geyser)</span>
+                                    <button onclick="mostrarEditarBedrockAddr()" class="text-[9px] text-gray-500 hover:text-[#3498DB] transition" title="Editar dirección Bedrock">✏️ editar</button>
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    <span class="text-[9px] text-gray-500 w-10 shrink-0">Host</span>
+                                    <span id="playit-bedrock-host" class="text-[#3498DB] font-black font-mono text-xs flex-1 truncate">–</span>
+                                    <button onclick="copiarBedrockHost()" class="text-gray-400 hover:text-[#3498DB] transition text-xs font-bold shrink-0" title="Copiar Host">📋</button>
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    <span class="text-[9px] text-gray-500 w-10 shrink-0">Puerto</span>
+                                    <span id="playit-bedrock-port" class="text-[#3498DB] font-black font-mono text-xs flex-1">19132</span>
+                                    <button onclick="copiarBedrockPort()" class="text-gray-400 hover:text-[#3498DB] transition text-xs font-bold shrink-0" title="Copiar Puerto">📋</button>
+                                </div>
+                                <div id="bedrock-addr-edit" class="hidden flex gap-1 mt-1">
+                                    <input id="bedrock-addr-input" type="text" placeholder="mailing-theories.gl.at.ply.gg:4698" class="flex-1 bg-[#0A0A0A] border border-[#1A4A7A] text-white px-2 py-1 rounded text-xs outline-none focus:border-[#3498DB]">
+                                    <button onclick="guardarBedrockAddr()" class="bg-[#3498DB] hover:bg-[#2980B9] text-white font-bold px-2 py-1 rounded text-xs">✓</button>
+                                    <button onclick="document.getElementById('bedrock-addr-edit').classList.add('hidden')" class="text-gray-500 hover:text-white px-1 text-xs">✕</button>
+                                </div>
+                                <span id="playit-bedrock-lbl" class="hidden"></span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -916,7 +963,9 @@
                         <button onclick="mostrarBans()" id="bans" class="flex-1 bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold py-2 rounded text-sm transition border border-[#333]">🚫 Bans</button>
                         <button onclick="toggleReinicio()" id="reinicio-auto" class="flex-1 bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold py-2 rounded text-sm transition border border-[#333]">🔄 Reinicio auto</button>
                         <button onclick="toggleServerPropsPanel()" class="flex-1 bg-[#2A2A2A] hover:bg-[#F39C12]/20 hover:text-[#F39C12] text-white font-bold py-2 rounded text-sm transition border border-[#333]">⚙️ server.properties</button>
+                        <button id="btn-instalar-geyser" onclick="instalarGeyserServidor()" class="hidden flex-1 bg-[#0D1A2A] hover:bg-[#1A3A6A] text-[#3498DB] font-bold py-2 rounded text-sm transition border border-[#1A4A7A]">🌐 Instalar Geyser</button>
                     </div>
+                    <p id="lbl-geyser-install" class="text-xs font-bold text-[#2ECC71] min-h-[1rem] hidden"></p>
                     <div id="srv-wl-panel" class="hidden">
                         <div class="flex gap-2">
                             <input type="text" id="srv-wl-input" placeholder="Nombre del jugador..." class="flex-1 bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none focus:border-[#2ECC71]">
@@ -959,7 +1008,7 @@
                     </div>
                     <p id="panel-desc" style="display:none"></p>
                     
-                    <div class="space-y-3 mb-6">
+                    <div id="panel-java-controls" class="space-y-3 mb-6">
                         <div class="flex flex-col gap-1">
                             <span class="text-xs font-bold text-gray-500 uppercase tracking-widest">Versión</span>
                             <select id="panel-version-sel" class="bg-[#121212] border border-[#2A2A2A] text-white p-2 rounded outline-none w-full text-sm font-bold cursor-pointer"><option value="" disabled selected>Seleccioná una versión...</option></select>
@@ -972,11 +1021,31 @@
                             <select id="panel-loader-sel" class="bg-[#121212] border border-[#2A2A2A] text-white p-2 rounded outline-none w-full text-sm font-bold cursor-pointer"><option value="Vanilla">Vanilla</option></select>
                         </div>
                     </div>
-                    <div class="flex gap-2 mt-3 pb-2">
+                    <div id="panel-launch-row" class="flex gap-2 mt-3 pb-2">
                         <button id="btn-launch-game" onclick="dispararJuego()" class="flex-1 bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black py-3 rounded shadow-[0_0_15px_rgba(46,204,113,0.2)] transition transform hover:scale-[1.01]">▶ JUGAR</button>
                         <button type="button" onclick="abrirGestorInstancia()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold px-4 py-3 rounded transition border border-[#333] text-sm">⚙ Gestionar</button>
                     </div>
                     <p id="lbl-estado-juego" class="text-center text-xs font-bold mt-2 min-h-[1.5rem] break-all text-[#3498DB]"></p>
+                    <div id="panel-bedrock-controls" class="hidden mt-3 flex flex-col gap-3">
+                        <div class="bg-[#0D1A2A] border border-[#1A4A7A] rounded-xl p-4 flex flex-col gap-3">
+                            <div class="flex items-center gap-3">
+                                <span class="text-2xl">🎮</span>
+                                <div>
+                                    <p class="font-black text-sm text-[#3498DB]">Minecraft: Bedrock Edition</p>
+                                    <p class="text-xs text-gray-500">Requiere instalación vía Xbox / Microsoft Store</p>
+                                </div>
+                            </div>
+                            <button id="btn-launch-bedrock" onclick="lanzarBedrock()" class="w-full bg-[#0078D4] hover:bg-[#106EBE] text-white font-black py-3 rounded transition text-sm">🎮 Abrir Bedrock</button>
+                            <p id="lbl-bedrock-estado" class="text-center text-xs font-bold min-h-[1.2rem] text-[#3498DB]"></p>
+                            <div id="bedrock-locked" class="hidden bg-[#1A1A1A] border border-[#F39C12]/30 rounded-lg p-3 flex items-center gap-2">
+                                <span class="text-lg">🔒</span>
+                                <div>
+                                    <p class="text-[#F39C12] font-black text-xs">Solo para cuentas Premium</p>
+                                    <p class="text-gray-500 text-[11px] mt-0.5">Iniciá sesión con Microsoft para jugar Bedrock.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -997,6 +1066,7 @@
                 <div id="skin-cat-grid" class="grid grid-cols-5 gap-3 overflow-y-auto flex-1 min-h-0 pr-1 pb-2">
                     <div class="col-span-5 flex items-center justify-center h-32 text-gray-500 text-sm">Cargando catálogo...</div>
                 </div>
+                <p id="skin-cat-msg" class="text-xs font-bold text-center text-[#2ECC71] min-h-[1.2rem] shrink-0 pt-1"></p>
                 <div class="flex items-center justify-center gap-4 pt-4 shrink-0">
                     <button onclick="skinCatPage(-1)" id="skin-cat-prev" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] px-4 py-2 rounded font-bold text-sm border border-[#333] transition">← Anterior</button>
                     <span id="skin-cat-lbl" class="text-xs text-gray-400 font-bold">Página 1</span>
@@ -2502,6 +2572,72 @@
                     <div class="absolute inset-0 p-5 flex flex-col justify-between"><h3 class="text-2xl font-black drop-shadow-md text-white leading-tight">${tituloTarjeta}</h3></div>
                 </div>`;
             }
+            const premiumBadge = window._esPremium
+                ? ''
+                : '<span class="text-[10px] font-black bg-[#F39C12]/20 text-[#F39C12] px-2 py-0.5 rounded">PREMIUM</span>';
+            grid.innerHTML += `
+            <div onclick="seleccionarBedrock()" class="lunar-card relative h-[180px] rounded-xl overflow-hidden cursor-pointer bg-[#0A1628] group border-2 border-[#1A3A6A] hover:border-[#3498DB]" style="transition:all 0.2s ease-in-out;">
+                <img src="assets/minecraft_bedrock.png" class="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:scale-105 transition duration-500" onerror="this.style.display='none'">
+                <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
+                <div class="absolute inset-0 p-5 flex flex-col justify-between">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="text-2xl">🎮</span>
+                            <h3 class="text-xl font-black drop-shadow-md text-[#3498DB] leading-tight">Paraguacraft Bedrock</h3>
+                        </div>
+                        ${premiumBadge}
+                    </div>
+                    <p class="text-xs text-gray-400">Minecraft: Bedrock Edition · Xbox / Windows Store</p>
+                </div>
+            </div>`;
+        }
+
+        function seleccionarBedrock() {
+            const jCtrl = document.getElementById('panel-java-controls');
+            const lRow  = document.getElementById('panel-launch-row');
+            const bCtrl = document.getElementById('panel-bedrock-controls');
+            const btnLaunch = document.getElementById('btn-launch-bedrock');
+            const locked    = document.getElementById('bedrock-locked');
+            if (jCtrl) jCtrl.style.display = 'none';
+            if (lRow)  lRow.style.display  = 'none';
+            if (bCtrl) bCtrl.classList.remove('hidden');
+            const panelTitle = document.getElementById('panel-title');
+            if (panelTitle) panelTitle.innerText = 'Paraguacraft Bedrock';
+            const panelImg = document.getElementById('panel-img');
+            if (panelImg) {
+                panelImg.src = 'assets/minecraft_bedrock.png';
+                panelImg.onerror = function() { this.onerror=null; this.src=''; };
+            }
+            if (window._esPremium) {
+                if (btnLaunch) btnLaunch.classList.remove('hidden');
+                if (locked)    locked.classList.add('hidden');
+            } else {
+                if (btnLaunch) btnLaunch.classList.add('hidden');
+                if (locked)    locked.classList.remove('hidden');
+            }
+        }
+
+        function actualizarEstadoBedrock(msg) {
+            const lbl = document.getElementById('lbl-bedrock-estado');
+            if (lbl) lbl.innerText = msg || '';
+        }
+
+        async function lanzarBedrock() {
+            const btn = document.getElementById('btn-launch-bedrock');
+            if (btn) { btn.innerText = '🎮 Abriendo...'; btn.disabled = true; }
+            try {
+                const r = await pywebview.api.lanzar_bedrock();
+                if (r && r.ok) {
+                    if (btn) { btn.innerText = '✅ Bedrock abierto'; }
+                    setTimeout(() => { if (btn) { btn.innerText = '🎮 Abrir Bedrock'; btn.disabled = false; } }, 3000);
+                } else {
+                    alert('Error: ' + ((r && r.error) || 'No se pudo abrir Bedrock'));
+                    if (btn) { btn.innerText = '🎮 Abrir Bedrock'; btn.disabled = false; }
+                }
+            } catch(e) {
+                alert('Error: ' + e);
+                if (btn) { btn.innerText = '🎮 Abrir Bedrock'; btn.disabled = false; }
+            }
         }
 
         function _getLoadersForVersion(v) {
@@ -2550,6 +2686,12 @@
         }
 
         function seleccionarVersion(vM) {
+            const jCtrl = document.getElementById('panel-java-controls');
+            const lRow  = document.getElementById('panel-launch-row');
+            const bCtrl = document.getElementById('panel-bedrock-controls');
+            if (jCtrl) jCtrl.style.display = '';
+            if (lRow)  lRow.style.display  = '';
+            if (bCtrl) bCtrl.classList.add('hidden');
             const d = dataVersionesBase[vM];
             const etiqueta = vM === 'otras' ? 'Otras versiones' : vM === 'instaladas' ? 'Versiones Instaladas' : ('Paraguacraft ' + vM);
             document.getElementById('panel-title').innerText = etiqueta;
@@ -2801,6 +2943,7 @@
         function actualizarUiUsuario(n, esPremium) {
             try {
                 window._cachedUsuario = n;
+                window._esPremium = !!esPremium;
                 const lblNombre = document.getElementById("nav-username");
                 if(lblNombre) lblNombre.innerText = n;
                 const welcomeLbl = document.getElementById('inicio-welcome-name');
@@ -3452,6 +3595,10 @@
         async function detenerPlayitgg() {
             await pywebview.api.detener_playitgg();
             document.getElementById('playit-ip-lbl').innerText = 'Esperando túnel...';
+            const bLbl = document.getElementById('playit-bedrock-lbl');
+            if (bLbl) bLbl.innerText = '';
+            const bHostEl = document.getElementById('playit-bedrock-host');
+            if (bHostEl) bHostEl.innerText = '–';
             document.getElementById('playit-dot').className = 'w-3 h-3 rounded-full bg-red-500';
             document.getElementById('playit-status-lbl').innerText = 'Inactivo';
             document.getElementById('playit-status-lbl').className = 'font-bold text-gray-400 text-sm';
@@ -3480,14 +3627,98 @@
                     pdot.className = 'w-3 h-3 rounded-full bg-red-500';
                     plbl.innerText = 'Inactivo'; plbl.className = 'font-bold text-gray-400 text-sm';
                 }
-                if (s.playit_address) actualizarDireccionPlayit(s.playit_address);
+                if (s.playit_address || s.playit_bedrock_address)
+                    actualizarDireccionPlayit(s.playit_address, s.playit_bedrock_address);
                 if (s.carpeta) document.getElementById('srv-carpeta').value = s.carpeta;
+                const bRow = document.getElementById('playit-bedrock-row');
+                const esGeyser = s.servidor_tipo === 'paper-geyser' || s.servidor_tipo === 'fabric-geyser';
+                if (bRow) bRow.classList.toggle('hidden', !esGeyser);
+                const btnGeyser = document.getElementById('btn-instalar-geyser');
+                if (btnGeyser) btnGeyser.classList.toggle('hidden', esGeyser);
             } catch(e) { console.error(e); }
         }
 
-        function actualizarDireccionPlayit(ip) {
+        function actualizarDireccionPlayit(ip, bedrockAddr) {
             const lbl = document.getElementById('playit-ip-lbl');
             if (lbl && ip) lbl.innerText = ip;
+            // Bedrock address: prefer the real UDP tunnel address from playit, fallback to host:19132
+            if (bedrockAddr && bedrockAddr.includes(':')) {
+                const parts = bedrockAddr.split(':');
+                const hostEl = document.getElementById('playit-bedrock-host');
+                if (hostEl) hostEl.innerText = parts[0];
+                const portEl = document.getElementById('playit-bedrock-port');
+                if (portEl) portEl.innerText = parts[1];
+                const bLbl = document.getElementById('playit-bedrock-lbl');
+                if (bLbl) bLbl.innerText = bedrockAddr;
+            } else if (ip) {
+                const host = ip.includes(':') ? ip.split(':')[0] : ip;
+                const hostEl = document.getElementById('playit-bedrock-host');
+                if (hostEl) hostEl.innerText = host;
+                const portEl = document.getElementById('playit-bedrock-port');
+                if (portEl) portEl.innerText = '19132';
+                const bLbl = document.getElementById('playit-bedrock-lbl');
+                if (bLbl) bLbl.innerText = host + ':19132';
+            }
+        }
+
+        async function instalarGeyserServidor() {
+            const btn = document.getElementById('btn-instalar-geyser');
+            const lbl = document.getElementById('lbl-geyser-install');
+            if (btn) { btn.disabled = true; btn.innerText = '⏳ Instalando...'; }
+            if (lbl) { lbl.innerText = '⏳ Descargando Geyser + Floodgate...'; lbl.classList.remove('hidden'); }
+            try {
+                const carpeta = document.getElementById('srv-carpeta')?.value || null;
+                const r = await pywebview.api.instalar_geyser_servidor(carpeta);
+                if (r && r.ok) {
+                    if (lbl) lbl.innerText = r.msg || '✅ Geyser instalado. Reiniciá el servidor.';
+                    if (btn) { btn.innerText = '✅ Geyser instalado'; btn.classList.add('hidden'); }
+                    actualizarEstadoServidor();
+                } else {
+                    if (lbl) { lbl.innerText = '❌ ' + (r.error || 'Error'); lbl.className = 'text-xs font-bold text-[#E74C3C] min-h-[1rem]'; }
+                    if (btn) { btn.disabled = false; btn.innerText = '🌐 Instalar Geyser'; }
+                }
+            } catch(e) {
+                if (lbl) lbl.innerText = '❌ ' + e;
+                if (btn) { btn.disabled = false; btn.innerText = '🌐 Instalar Geyser'; }
+            }
+        }
+
+        function mostrarEditarBedrockAddr() {
+            const edit = document.getElementById('bedrock-addr-edit');
+            const inp  = document.getElementById('bedrock-addr-input');
+            const host = (document.getElementById('playit-bedrock-host') || {}).innerText || '';
+            const port = (document.getElementById('playit-bedrock-port') || {}).innerText || '';
+            if (inp && host && host !== '–') inp.value = host + (port && port !== '19132' ? ':' + port : '');
+            edit.classList.toggle('hidden');
+        }
+        async function guardarBedrockAddr() {
+            const val = (document.getElementById('bedrock-addr-input') || {}).value.trim();
+            if (!val || !val.includes(':')) { alert('Pegá la dirección completa con puerto, ej: mailing-theories.gl.at.ply.gg:4698'); return; }
+            const [host, port] = val.split(':');
+            const hostEl = document.getElementById('playit-bedrock-host');
+            const portEl = document.getElementById('playit-bedrock-port');
+            const bLbl   = document.getElementById('playit-bedrock-lbl');
+            if (hostEl) hostEl.innerText = host;
+            if (portEl) portEl.innerText = port;
+            if (bLbl)   bLbl.innerText   = val;
+            document.getElementById('bedrock-addr-edit').classList.add('hidden');
+            try { await pywebview.api.guardar_bedrock_address(val); } catch(e) {}
+        }
+        function copiarBedrockHost() {
+            const val = (document.getElementById('playit-bedrock-host') || {}).innerText || '';
+            if (!val || val === '–') return;
+            navigator.clipboard.writeText(val).catch(() => {
+                const ta = document.createElement('textarea');
+                ta.value = val; document.body.appendChild(ta);
+                ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+            });
+        }
+        function copiarBedrockPort() {
+            navigator.clipboard.writeText('19132').catch(() => {
+                const ta = document.createElement('textarea');
+                ta.value = '19132'; document.body.appendChild(ta);
+                ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+            });
         }
 
         function copiarIP() {
@@ -4012,7 +4243,56 @@
             if (btn) btn.disabled = false;
         }
 
-        // ... (rest of the code remains the same)
+        window._skinSlim   = false;
+        window._skinWalking = false;
+        window._skinViewer  = null;
+
+        async function actualizarVistaSkin() {
+            const nombre  = ((document.getElementById('buscador-skin') || {}).value || '').trim() || 'Steve';
+            const skinUrl = `https://minotar.net/skin/${nombre}`;
+            const headImg = document.getElementById('skin-head-render');
+            const nomLbl  = document.getElementById('skin-jugador-nombre');
+            const urlLbl  = document.getElementById('skin-url-lbl');
+            const canvas  = document.getElementById('skin-3d-canvas');
+            if (headImg) { headImg.style.display = 'block'; headImg.src = `https://minotar.net/helm/${nombre}/128.png`; }
+            if (nomLbl)  nomLbl.innerText = nombre;
+            if (urlLbl)  urlLbl.innerText = skinUrl;
+            if (!canvas || typeof skinview3d === 'undefined') return;
+            try {
+                if (window._skinViewer) { try { window._skinViewer.dispose(); } catch(e){} window._skinViewer = null; }
+                window._skinWalking = false;
+                const walkBtn = document.getElementById('btn-skin-walk');
+                if (walkBtn) walkBtn.innerText = '▶ Animar';
+                window._skinViewer = new skinview3d.SkinViewer({ canvas, width: 220, height: 400, skin: skinUrl });
+                window._skinViewer.autoRotate = true;
+                window._skinViewer.autoRotateSpeed = 0.8;
+                if (window._skinSlim) {
+                    try { window._skinViewer.playerObject.slim = true; } catch(e) {}
+                }
+            } catch(e) { console.error('Skin 3D error:', e); }
+        }
+
+        function skin3DRotate(dir) {
+            if (!window._skinViewer) return;
+            try { window._skinViewer.playerObject.rotation.y += dir * (Math.PI / 6); } catch(e) {}
+        }
+        function skin3DReset() {
+            if (!window._skinViewer) return;
+            try { window._skinViewer.playerObject.rotation.y = 0; } catch(e) {}
+        }
+        function skin3DToggleWalk() {
+            if (!window._skinViewer) return;
+            const btn = document.getElementById('btn-skin-walk');
+            window._skinWalking = !window._skinWalking;
+            try { window._skinViewer.animation = window._skinWalking ? new skinview3d.WalkingAnimation() : null; } catch(e) {}
+            if (btn) btn.innerText = window._skinWalking ? '⏸ Detener' : '▶ Animar';
+        }
+        function skin3DToggleSlim() {
+            window._skinSlim = !window._skinSlim;
+            const btn = document.getElementById('btn-skin-slim');
+            if (btn) btn.innerText = window._skinSlim ? '👕 Alex (Slim) ✓' : '👕 Alex/Steve';
+            actualizarVistaSkin();
+        }
 
         async function aplicarSkinDesdeNombre(nombre) {
             const url = `https://minotar.net/skin/${nombre}`;
@@ -4039,8 +4319,12 @@
                 } else if (msg) {
                     msg.textContent = '✅ Skin guardada en ~/Paraguacraft_Skins/' + nombre + '.png';
                 }
-                document.getElementById('buscador-skin').value = nombre;
-                actualizarVistaSkin();
+                const buscEl = document.getElementById('buscador-skin');
+                if (buscEl) buscEl.value = nombre;
+                const jugPanel = document.getElementById('skin-panel-jugador');
+                if (jugPanel && jugPanel.style.display !== 'none') actualizarVistaSkin();
+                const catMsg = document.getElementById('skin-cat-msg');
+                if (catMsg) { catMsg.innerText = '\u2705 Skin aplicada: ' + nombre; setTimeout(() => { catMsg.innerText = ''; }, 3000); }
             } catch(e) {
                 alert('No se pudo aplicar la skin de ' + nombre + ': ' + String(e));
             }
@@ -4530,6 +4814,93 @@
                 }
             } catch(e) {
                 if (btn) { btn.disabled = false; btn.textContent = 'Instalar'; }
+            }
+        }
+
+        // ══ GESTOR LOCAL DE PLUGINS/MODS DE SERVIDOR ════════════════════════
+        function srvPlugTab(tab) {
+            document.getElementById('srv-plug-panel-store').classList.toggle('hidden', tab !== 'store');
+            document.getElementById('srv-plug-panel-local').classList.toggle('hidden', tab !== 'local');
+            const tStore = document.getElementById('srv-plug-tab-store');
+            const tLocal = document.getElementById('srv-plug-tab-local');
+            if (tab === 'store') {
+                tStore.className = 'px-3 py-1 rounded-t text-xs font-black text-[#2ECC71] border-b-2 border-[#2ECC71]';
+                tLocal.className = 'px-3 py-1 rounded-t text-xs font-bold text-gray-500 hover:text-white border-b-2 border-transparent transition';
+            } else {
+                tLocal.className = 'px-3 py-1 rounded-t text-xs font-black text-[#2ECC71] border-b-2 border-[#2ECC71]';
+                tStore.className = 'px-3 py-1 rounded-t text-xs font-bold text-gray-500 hover:text-white border-b-2 border-transparent transition';
+                cargarPluginsLocales();
+            }
+        }
+
+        async function cargarPluginsLocales() {
+            const lista = document.getElementById('srv-plug-local-list');
+            lista.innerHTML = '<div class="flex items-center gap-2 animate-pulse text-gray-500 py-2"><div class="w-3 h-3 border-2 border-[#2ECC71] border-t-transparent rounded-full animate-spin"></div>Cargando...</div>';
+            try {
+                const r = await pywebview.api.get_local_plugins_servidor();
+                const dirLbl = document.getElementById('srv-plug-dir-lbl');
+                if (dirLbl) dirLbl.textContent = `Carpeta: ${r.dir_tipo}/  (${r.plugins.length} archivos)`;
+                if (!r.plugins || !r.plugins.length) {
+                    lista.innerHTML = '<p class="text-center text-gray-600 py-4">No hay plugins instalados. Buscá en la tienda o arrastrá un .jar.</p>';
+                    return;
+                }
+                lista.innerHTML = r.plugins.map(p => {
+                    const activo = p.estado === 'Activo';
+                    const toggleColor = activo ? 'bg-[#2ECC71] text-black' : 'bg-[#333] text-gray-400';
+                    const toggleLabel = activo ? 'ON' : 'OFF';
+                    const sizeStr = p.size_kb > 0 ? `${p.size_kb} KB` : '';
+                    return `
+                    <div class="flex items-center gap-2 bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg px-2.5 py-1.5 hover:border-[#333] transition">
+                        <div class="flex-1 min-w-0">
+                            <p class="font-bold text-[11px] truncate ${activo ? 'text-white' : 'text-gray-500'}">${p.nombre}</p>
+                            <p class="text-[9px] text-gray-600">${sizeStr}</p>
+                        </div>
+                        <button onclick="togglePluginLocal('${p.archivo.replace(/'/g,'\\\'')}')" class="shrink-0 px-2 py-0.5 rounded text-[9px] font-black ${toggleColor} transition">${toggleLabel}</button>
+                        <button onclick="eliminarPluginLocal('${p.archivo.replace(/'/g,'\\\'')}')" class="shrink-0 text-gray-600 hover:text-[#E74C3C] transition text-xs" title="Eliminar">🗑</button>
+                    </div>`;
+                }).join('');
+            } catch(e) {
+                lista.innerHTML = `<p class="text-center text-red-400 py-2 text-[10px]">${e}</p>`;
+            }
+        }
+
+        async function togglePluginLocal(archivo) {
+            try {
+                await pywebview.api.toggle_local_plugin_servidor(archivo);
+                await cargarPluginsLocales();
+            } catch(e) {}
+        }
+
+        async function eliminarPluginLocal(archivo) {
+            if (!confirm(`¿Eliminar ${archivo}?`)) return;
+            try {
+                await pywebview.api.eliminar_plugin_servidor(archivo);
+                await cargarPluginsLocales();
+            } catch(e) {}
+        }
+
+        async function srvDropPlugin(event) {
+            event.preventDefault();
+            const dropEl = document.getElementById('srv-plug-drop');
+            if (dropEl) dropEl.classList.remove('border-[#2ECC71]');
+            const msgEl = document.getElementById('srv-plug-drop-msg');
+            const files = event.dataTransfer.files;
+            if (!files || !files.length) return;
+            for (const file of files) {
+                if (!file.name.toLowerCase().endsWith('.jar')) {
+                    if (msgEl) msgEl.textContent = `❌ Solo .jar: ${file.name}`;
+                    continue;
+                }
+                if (msgEl) msgEl.textContent = `⏳ Instalando ${file.name}...`;
+                try {
+                    const ab = await file.arrayBuffer();
+                    const b64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
+                    const r = await pywebview.api.instalar_plugin_b64_servidor(file.name, b64);
+                    if (msgEl) msgEl.textContent = r.ok ? `✅ ${r.nombre} (${r.size_kb} KB)` : `❌ ${r.error}`;
+                    if (r.ok) cargarPluginsLocales();
+                } catch(e) {
+                    if (msgEl) msgEl.textContent = `❌ ${e}`;
+                }
             }
         }
 
