@@ -324,6 +324,7 @@
                             <input type="text" id="gestor-filtro-mc" placeholder="Filtrar texto (ej. 1.21)" class="w-40 bg-[#1E1E1E] border border-[#333] rounded px-3 py-2 text-sm outline-none focus:border-[#2ECC71]" oninput="refrescarListaGestorFiltrado()">
                             <button type="button" onclick="gestorUsarVersionPerfil()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] px-3 py-2 rounded text-xs font-bold border border-[#333]" title="Pone en el filtro la versión MC del perfil">Versión del perfil</button>
                             <button type="button" onclick="gestorAbrirCarpetaActual()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] px-3 py-2 rounded text-xs font-bold border border-[#333]">Abrir carpeta</button>
+                            <button type="button" onclick="cerrarGestorInstanciaEIrMods()" class="bg-[#2ECC71]/10 hover:bg-[#2ECC71]/20 text-[#2ECC71] px-3 py-2 rounded text-xs font-black border border-[#2ECC71]/30 transition">🔍 Buscar en tienda</button>
                         </div>
                         <div id="gestor-lista" class="flex-1 overflow-y-auto space-y-2 min-h-0 pr-1"></div>
                     </div>
@@ -573,12 +574,36 @@
     </div>
 
     <div id="instalar-mod-modal" class="absolute inset-0 z-[310] bg-black/80 hidden flex items-center justify-center backdrop-blur-sm">
-        <div class="bg-[#121212] w-[540px] max-h-[80vh] rounded-xl border border-[#2A2A2A] shadow-2xl flex flex-col overflow-hidden">
-            <div class="p-4 border-b border-[#2A2A2A] flex justify-between items-center shrink-0">
-                <div><h2 class="text-lg font-black" id="imod-titulo">Instalar mod</h2><p class="text-xs text-gray-500" id="imod-subtitulo"></p></div>
-                <button onclick="cerrarInstalarMod()" class="text-gray-500 hover:text-white text-xl leading-none">✕</button>
+        <div class="bg-[#121212] w-[420px] rounded-xl border border-[#2A2A2A] shadow-2xl flex flex-col overflow-hidden">
+            <div class="p-4 border-b border-[#2A2A2A] flex items-center gap-3 shrink-0">
+                <img id="imod-icon" src="" class="w-10 h-10 rounded-lg object-cover bg-[#1E1E1E] shrink-0" onerror="this.style.display='none'" style="display:none">
+                <div class="flex-1 min-w-0"><h2 class="font-black text-white truncate" id="imod-titulo">Instalar mod</h2><p class="text-xs text-gray-500" id="imod-subtitulo"></p></div>
+                <button onclick="cerrarInstalarMod()" class="text-gray-500 hover:text-white text-xl leading-none shrink-0">✕</button>
             </div>
-            <div class="p-4 border-b border-[#2A2A2A] shrink-0 flex gap-3 flex-wrap">
+            <!-- MODRINTH: version + platform dropdowns -->
+            <div id="imod-mr-section" class="p-4 flex flex-col gap-3">
+                <div>
+                    <label class="text-xs font-bold text-gray-400 mb-1 block">VERSIÓN DE MINECRAFT</label>
+                    <select id="imod-ver-select" onchange="imodCambiarVersion()" class="w-full bg-[#1E1E1E] border border-[#333] text-white px-3 py-2.5 rounded-lg outline-none text-sm focus:border-[#2ECC71]">
+                        <option value="">Cargando versiones...</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-400 mb-1 block">PLATAFORMA</label>
+                    <select id="imod-platform-select" onchange="imodCambiarPlatform()" class="w-full bg-[#1E1E1E] border border-[#333] text-white px-3 py-2.5 rounded-lg outline-none text-sm focus:border-[#2ECC71]" disabled>
+                        <option value="">Seleccionar plataforma...</option>
+                    </select>
+                </div>
+                <div id="imod-file-info" class="hidden bg-[#1E1E1E] border border-[#2A2A2A] rounded-lg p-3 flex items-center gap-3">
+                    <div class="flex-1 min-w-0">
+                        <p class="font-bold text-sm text-white truncate" id="imod-fname"></p>
+                        <p class="text-xs text-gray-500" id="imod-fmeta"></p>
+                    </div>
+                    <button onclick="imodInstalar()" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black px-3 py-2 rounded-lg transition text-sm shrink-0">⬇ Instalar</button>
+                </div>
+            </div>
+            <!-- CURSEFORGE: manual input -->
+            <div id="imod-cf-section" class="hidden p-4 border-b border-[#2A2A2A] flex gap-3 flex-wrap shrink-0">
                 <div class="flex flex-col gap-1 flex-1 min-w-[140px]">
                     <label class="text-xs font-bold text-gray-400 uppercase">Versión MC</label>
                     <input id="imod-ver-mc" type="text" placeholder="ej. 1.21.1" class="bg-[#1E1E1E] border border-[#333] text-white px-3 py-2 rounded outline-none text-sm focus:border-[#2ECC71]">
@@ -589,12 +614,13 @@
                         <option value="Fabric">Fabric</option>
                         <option value="Fabric + Iris">Fabric + Iris</option>
                         <option value="Forge">Forge</option>
+                        <option value="NeoForge">NeoForge</option>
                         <option value="Vanilla">Vanilla</option>
                     </select>
                 </div>
                 <div class="flex items-end"><button onclick="cargarVersionesMod()" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black px-4 py-2 rounded text-sm transition">Buscar</button></div>
             </div>
-            <div id="imod-lista" class="flex-1 overflow-y-auto p-3 space-y-2 min-h-0"></div>
+            <div id="imod-lista" class="flex-1 overflow-y-auto p-3 space-y-2 min-h-0 max-h-64"></div>
             <div id="imod-instalando" class="hidden p-4 flex items-center gap-3 border-t border-[#2A2A2A] shrink-0">
                 <div class="w-4 h-4 border-2 border-[#2ECC71] border-t-transparent rounded-full animate-spin shrink-0"></div>
                 <span class="text-sm font-bold text-[#2ECC71]">Descargando e instalando...</span>
@@ -1033,7 +1059,8 @@
                     </div>
                     <div id="panel-launch-row" class="flex gap-2 mt-3 pb-2">
                         <button id="btn-launch-game" onclick="dispararJuego()" class="flex-1 bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black py-3 rounded shadow-[0_0_15px_rgba(46,204,113,0.2)] transition transform hover:scale-[1.01]">▶ JUGAR</button>
-                        <button type="button" onclick="abrirGestorInstancia()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold px-4 py-3 rounded transition border border-[#333] text-sm">⚙ Gestionar</button>
+                        <button type="button" onclick="irATiendaMods()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold px-3 py-3 rounded transition border border-[#333] text-sm" title="Agregar mods a esta instancia">🧩</button>
+                        <button type="button" onclick="abrirGestorInstancia()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold px-4 py-3 rounded transition border border-[#333] text-sm">⚙</button>
                     </div>
                     <p id="lbl-estado-juego" class="text-center text-xs font-bold mt-2 min-h-[1.5rem] break-all text-[#3498DB]"></p>
                     <div id="panel-bedrock-controls" class="hidden mt-3 flex flex-col gap-3">
@@ -1164,50 +1191,87 @@
             </div>
         </div>
 
-        <div id="vista-mods" class="vista-seccion absolute inset-0 flex-col p-6">
-            <div class="flex flex-col gap-3 mb-4 shrink-0">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-3xl font-black tracking-wide" id="mods-titulo">TIENDA DE MODS</h2>
-                    <div class="flex items-center gap-2 bg-[#0D0D0D] border border-[#2A2A2A] rounded-lg px-3 py-1.5">
-                        <button onclick="setTiendaFuente('curseforge')" id="btn-src-cf" class="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-bold transition text-gray-500 hover:text-white">
-                            <span class="text-orange-400">⚡</span> CurseForge
-                        </button>
-                        <div class="w-px h-4 bg-[#2A2A2A]"></div>
-                        <button onclick="setTiendaFuente('modrinth')" id="btn-src-mr" class="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-bold transition bg-[#2ECC71]/20 text-[#2ECC71]">
-                            <span>🟢</span> Modrinth
-                        </button>
+        <div id="vista-mods" class="vista-seccion absolute inset-0 flex-row overflow-hidden">
+            <!-- SIDEBAR FILTROS -->
+            <div class="w-48 bg-[#0D0D0D] border-r border-[#2A2A2A] overflow-y-auto shrink-0 flex flex-col gap-0">
+                <!-- Source toggle -->
+                <div class="p-2.5 border-b border-[#2A2A2A] flex gap-1">
+                    <button onclick="setTiendaFuente('modrinth')" id="btn-src-mr" class="flex-1 py-1.5 rounded text-[11px] font-black transition bg-[#2ECC71]/20 text-[#2ECC71] border border-[#2ECC71]/30">🟢 Modrinth</button>
+                    <button onclick="setTiendaFuente('curseforge')" id="btn-src-cf" class="flex-1 py-1.5 rounded text-[11px] font-black transition text-gray-500 hover:text-white border border-transparent">⚡ CF</button>
+                </div>
+                <!-- Game version -->
+                <div class="p-3 border-b border-[#2A2A2A]">
+                    <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Game version</p>
+                    <input id="filtro-version" type="text" placeholder="Ej: 1.21.1" onkeypress="if(event.key==='Enter')buscarTiendaActual()" onchange="buscarTiendaActual()" class="w-full bg-[#121212] border border-[#333] text-white px-2 py-1.5 rounded text-xs outline-none focus:border-[#2ECC71] transition">
+                </div>
+                <!-- Loader -->
+                <div class="p-3 border-b border-[#2A2A2A]" id="sidebar-loader-section">
+                    <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Loader</p>
+                    <div class="flex flex-col gap-2" id="loader-checks">
+                        <label class="flex items-center gap-2 cursor-pointer text-xs text-gray-300 hover:text-white transition"><input type="checkbox" value="fabric" onchange="buscarTiendaActual()" class="accent-[#DBB479] rounded"> <span style="color:#DBB479">&#9670;</span> Fabric</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-xs text-gray-300 hover:text-white transition"><input type="checkbox" value="forge" onchange="buscarTiendaActual()" class="accent-[#7BA0CC] rounded"> <span style="color:#7BA0CC">&#9670;</span> Forge</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-xs text-gray-300 hover:text-white transition"><input type="checkbox" value="neoforge" onchange="buscarTiendaActual()" class="accent-[#E8894A] rounded"> <span style="color:#E8894A">&#9670;</span> NeoForge</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-xs text-gray-300 hover:text-white transition"><input type="checkbox" value="quilt" onchange="buscarTiendaActual()" class="accent-[#C39BD3] rounded"> <span style="color:#C39BD3">&#9670;</span> Quilt</label>
                     </div>
                 </div>
-                <div class="flex flex-wrap justify-between items-end gap-3">
-                    <div class="flex flex-wrap gap-3 bg-[#181818] p-3 rounded-lg border border-[#2A2A2A] flex-1">
-                        <select id="filtro-tipo" onchange="buscarTiendaActual()" class="bg-[#121212] text-white px-3 py-2 rounded outline-none border border-[#333] text-sm font-bold">
-                            <option value="mod">Mods</option>
-                            <option value="resourcepack">Resource packs</option>
-                            <option value="shader">Shaders</option>
-                            <option value="datapack">Data packs</option>
-                            <option value="modpack">Modpacks</option>
-                        </select>
-                        <input type="text" id="buscador-mods" onkeypress="if(event.key==='Enter') buscarTiendaActual()" placeholder="Buscar..." class="bg-[#121212] border border-[#333] text-white px-4 py-2 rounded outline-none flex-1 min-w-[180px] text-sm focus:border-[#2ECC71]">
-                        <select id="filtro-sort" onchange="buscarTiendaActual()" class="bg-[#121212] text-white px-3 py-2 rounded outline-none border border-[#333] text-sm">
-                            <option value="relevance">Sort by: Relevance</option>
-                            <option value="downloads">Sort by: Downloads</option>
-                            <option value="newest">Sort by: Newest</option>
-                            <option value="updated">Sort by: Updated</option>
-                        </select>
-                        <button type="button" onclick="buscarTiendaActual()" class="bg-[#2ECC71] text-black px-5 py-2 rounded font-bold text-sm">Buscar</button>
+                <!-- Category -->
+                <div class="p-3">
+                    <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Category</p>
+                    <div class="flex flex-col gap-0.5" id="modrinth-cats">
+                        <button onclick="filtrarCatModrinth('')" id="mcat-all" class="text-left px-2 py-1.5 rounded text-xs font-bold transition bg-[#2ECC71] text-black">All</button>
+                        <button onclick="filtrarCatModrinth('optimization')" id="mcat-optimization" class="text-left px-2 py-1.5 rounded text-xs text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">⚡ Optimization</button>
+                        <button onclick="filtrarCatModrinth('library')" id="mcat-library" class="text-left px-2 py-1.5 rounded text-xs text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">📚 Library</button>
+                        <button onclick="filtrarCatModrinth('decoration')" id="mcat-decoration" class="text-left px-2 py-1.5 rounded text-xs text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🎨 Decoration</button>
+                        <button onclick="filtrarCatModrinth('adventure')" id="mcat-adventure" class="text-left px-2 py-1.5 rounded text-xs text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">⚔️ Adventure</button>
+                        <button onclick="filtrarCatModrinth('magic')" id="mcat-magic" class="text-left px-2 py-1.5 rounded text-xs text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🧪 Magic</button>
+                        <button onclick="filtrarCatModrinth('technology')" id="mcat-technology" class="text-left px-2 py-1.5 rounded text-xs text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🔧 Technology</button>
+                        <button onclick="filtrarCatModrinth('food')" id="mcat-food" class="text-left px-2 py-1.5 rounded text-xs text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🍎 Food</button>
+                        <button onclick="filtrarCatModrinth('game-mechanics')" id="mcat-mechanics" class="text-left px-2 py-1.5 rounded text-xs text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🎮 Game Mechanics</button>
+                        <button onclick="filtrarCatModrinth('cursed')" id="mcat-cursed" class="text-left px-2 py-1.5 rounded text-xs text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🟣 Cursed</button>
+                        <button onclick="filtrarCatModrinth('economy')" id="mcat-economy" class="text-left px-2 py-1.5 rounded text-xs text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">💰 Economy</button>
+                        <button onclick="filtrarCatModrinth('equipment')" id="mcat-equipment" class="text-left px-2 py-1.5 rounded text-xs text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🛡️ Equipment</button>
+                        <button onclick="filtrarCatModrinth('world-generation')" id="mcat-worldgen" class="text-left px-2 py-1.5 rounded text-xs text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🌍 World Gen</button>
+                        <button onclick="filtrarCatModrinth('storage')" id="mcat-storage" class="text-left px-2 py-1.5 rounded text-xs text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">📦 Storage</button>
+                        <button onclick="filtrarCatModrinth('utility')" id="mcat-utility" class="text-left px-2 py-1.5 rounded text-xs text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🔧 Utility</button>
                     </div>
                 </div>
             </div>
-            <div class="flex flex-wrap gap-2 shrink-0 mb-3" id="modrinth-cats">
-                <button onclick="filtrarCatModrinth('')" id="mcat-all" class="px-3 py-1 rounded-full text-xs font-bold bg-[#2ECC71] text-black transition">Todos</button>
-                <button onclick="filtrarCatModrinth('optimization')" id="mcat-performance" class="px-3 py-1 rounded-full text-xs font-bold bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">⚡ Rendimiento</button>
-                <button onclick="filtrarCatModrinth('library')" id="mcat-library" class="px-3 py-1 rounded-full text-xs font-bold bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">📚 Librerías</button>
-                <button onclick="filtrarCatModrinth('decoration')" id="mcat-decoration" class="px-3 py-1 rounded-full text-xs font-bold bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🎨 Decoración</button>
-                <button onclick="filtrarCatModrinth('adventure')" id="mcat-adventure" class="px-3 py-1 rounded-full text-xs font-bold bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">⚔️ Aventura</button>
-                <button onclick="filtrarCatModrinth('magic')" id="mcat-magic" class="px-3 py-1 rounded-full text-xs font-bold bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🧪 Magia</button>
-                <button onclick="filtrarCatModrinth('technology')" id="mcat-technology" class="px-3 py-1 rounded-full text-xs font-bold bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🔧 Tecnología</button>
+            <!-- MAIN CONTENT -->
+            <div class="flex-1 flex flex-col overflow-hidden">
+                <!-- Type tabs -->
+                <div class="flex items-center border-b border-[#2A2A2A] shrink-0 px-4 gap-0 overflow-x-auto">
+                    <button onclick="setModTipo('mod')" id="mtab-mod" class="px-4 py-3 text-xs font-black border-b-2 border-[#2ECC71] text-white shrink-0">Mods</button>
+                    <button onclick="setModTipo('resourcepack')" id="mtab-resourcepack" class="px-4 py-3 text-xs font-black border-b-2 border-transparent text-gray-500 hover:text-white shrink-0 transition">Resource Packs</button>
+                    <button onclick="setModTipo('datapack')" id="mtab-datapack" class="px-4 py-3 text-xs font-black border-b-2 border-transparent text-gray-500 hover:text-white shrink-0 transition">Data Packs</button>
+                    <button onclick="setModTipo('shader')" id="mtab-shader" class="px-4 py-3 text-xs font-black border-b-2 border-transparent text-gray-500 hover:text-white shrink-0 transition">Shaders</button>
+                    <button onclick="setModTipo('modpack')" id="mtab-modpack" class="px-4 py-3 text-xs font-black border-b-2 border-transparent text-gray-500 hover:text-white shrink-0 transition">Modpacks</button>
+                </div>
+                <!-- Search + sort bar -->
+                <div class="flex items-center gap-2 p-3 border-b border-[#2A2A2A] shrink-0">
+                    <input type="text" id="buscador-mods" onkeypress="if(event.key==='Enter')buscarTiendaActual()" placeholder="Search mods..." class="flex-1 bg-[#1E1E1E] border border-[#333] text-white px-3 py-2 rounded-lg outline-none text-sm focus:border-[#2ECC71] transition">
+                    <select id="filtro-sort" onchange="buscarTiendaActual()" class="bg-[#1E1E1E] text-white px-3 py-2 rounded-lg outline-none border border-[#333] text-sm shrink-0">
+                        <option value="relevance">Relevance</option>
+                        <option value="downloads" selected>Downloads</option>
+                        <option value="follows">Follows</option>
+                        <option value="newest">Newest</option>
+                        <option value="updated">Updated</option>
+                    </select>
+                    <button onclick="buscarTiendaActual()" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black px-4 py-2 rounded-lg font-black text-sm transition shrink-0">Search</button>
+                </div>
+                <!-- Results count + list -->
+                <div class="flex items-center justify-between px-4 py-2 shrink-0">
+                    <p class="text-xs text-gray-500" id="mods-result-count"></p>
+                </div>
+                <!-- Update banner -->
+                <div id="mods-update-banner" class="hidden mx-4 mb-2 shrink-0">
+                    <div class="bg-[#F39C12]/10 border border-[#F39C12]/30 rounded-lg px-4 py-2 flex items-center justify-between gap-3">
+                        <p id="mods-update-text" class="text-xs text-[#F39C12] font-bold flex-1"></p>
+                        <button onclick="herTab('updates');cambiarPestaña('herramientas','Extras')" class="text-xs text-[#F39C12] font-black hover:underline shrink-0">Ver actualizaciones →</button>
+                        <button onclick="document.getElementById('mods-update-banner').classList.add('hidden')" class="text-gray-600 hover:text-white text-sm shrink-0">✕</button>
+                    </div>
+                </div>
+                <div id="grid-resultados-mods" class="flex-1 overflow-y-auto px-4 pb-6 flex flex-col gap-2"></div>
             </div>
-            <div id="grid-resultados-mods" class="grid grid-cols-2 gap-4 overflow-y-auto pr-2 pb-20 flex-1 min-h-0"></div>
         </div>
 
         <!-- VISTA HERRAMIENTAS -->
@@ -1721,31 +1785,40 @@
             </div>
 
             <!-- CRASH LOG ANALYZER -->
-            <div id="hpanel-crash" class="absolute inset-0 overflow-y-auto p-5 pr-4" style="display:none">
-                <div class="grid grid-cols-2 gap-5">
-                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col gap-4">
-                        <h3 class="font-black">🔴 Analizador de crash logs</h3>
-                        <p class="text-xs text-gray-500">Lee el <code class="text-red-400">latest.log</code> y los crash reports de Minecraft y detecta problemas conocidos.</p>
-                        <button onclick="analizarCrashLog()" class="bg-[#E74C3C] hover:bg-[#C0392B] text-white font-black py-2 rounded transition">🔍 Analizar logs</button>
-                        <div id="crash-diagnosticos" class="space-y-2 max-h-64 overflow-y-auto"></div>
-                        <div class="border-t border-[#2A2A2A] pt-3">
-                            <div class="flex items-center justify-between mb-2">
-                                <h4 class="font-black text-sm">🤖 Análisis con Gemini AI</h4>
-                                <span class="text-[10px] bg-[#9B59B6]/20 text-[#9B59B6] font-bold px-2 py-0.5 rounded">✨ Incluido</span>
-                            </div>
-                            <p class="text-xs text-gray-600 mb-2">Primero analizá los logs, luego pedile a Gemini una explicación detallada.</p>
-                            <button onclick="analizarCrashIA()" class="w-full bg-[#9B59B6] hover:bg-[#7D3C98] text-white font-black py-2 rounded transition text-sm">🤖 Analizar con Gemini</button>
-                            <p id="crash-ai-resultado" class="hidden mt-3 text-xs text-gray-300 bg-[#0A0A0A] p-3 rounded-lg border border-[#2A2A2A] leading-relaxed whitespace-pre-wrap"></p>
-                        </div>
+            <div id="hpanel-crash" class="absolute inset-0 overflow-y-auto p-5 pr-4 flex flex-col gap-4" style="display:none">
+                <!-- Header + scan button -->
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="font-black text-lg">🔴 Centro de Diagnóstico</h3>
+                        <p class="text-xs text-gray-500">Detecta y resuelve problemas automáticamente — <span id="crash-fuente" class="text-gray-600 font-mono"></span></p>
                     </div>
-                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col gap-3">
-                        <div class="flex justify-between items-center">
-                            <h3 class="font-black">📋 Fragmento del log</h3>
-                            <span id="crash-fuente" class="text-xs text-gray-600 font-mono"></span>
-                        </div>
-                        <pre id="crash-fragmento" class="text-[10px] text-gray-500 font-mono bg-[#0A0A0A] p-3 rounded-lg overflow-auto flex-1 max-h-96 leading-relaxed whitespace-pre-wrap">Hacé clic en Analizar para leer los logs.</pre>
+                    <div class="flex gap-2 flex-wrap">
+                        <button onclick="analizarCrashLog()" id="btn-analizar-crash" class="bg-[#E74C3C] hover:bg-[#C0392B] text-white font-black py-2 px-5 rounded-lg transition text-sm flex items-center gap-2"><span id="crash-scan-icon">🔍</span> Escanear logs</button>
+                        <button onclick="verLaunchDebug()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-gray-300 font-bold py-2 px-4 rounded-lg transition text-sm border border-[#333]">📄 Log inicio</button>
+                        <button onclick="analizarCrashIA()" class="bg-[#9B59B6] hover:bg-[#7D3C98] text-white font-bold py-2 px-4 rounded-lg transition text-sm">🤖 IA</button>
                     </div>
                 </div>
+                <!-- Error principal detectado -->
+                <div id="crash-error-banner" class="hidden bg-red-950/40 border border-red-500/40 rounded-xl p-3">
+                    <p class="text-[10px] font-black text-red-400 uppercase tracking-widest mb-1">Error principal detectado</p>
+                    <p id="crash-error-line" class="text-xs text-red-200 font-mono break-all"></p>
+                </div>
+                <!-- Issues -->
+                <div id="crash-diagnosticos" class="flex flex-col gap-3">
+                    <div class="text-center text-gray-600 text-sm py-10">Hacé clic en <strong>Escanear logs</strong> para analizar los logs de tu instancia activa.</div>
+                </div>
+                <!-- JARs mencionados -->
+                <div id="crash-jars-wrap" class="hidden bg-[#181818] border border-[#2A2A2A] rounded-xl p-4">
+                    <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">JARs mencionados en el log</p>
+                    <div id="crash-jars" class="flex flex-wrap gap-1.5"></div>
+                </div>
+                <!-- Gemini AI resultado -->
+                <div id="crash-ai-resultado" class="hidden bg-[#0A0A0A] border border-[#9B59B6]/30 rounded-xl p-4 text-xs text-gray-300 leading-relaxed whitespace-pre-wrap"></div>
+                <!-- Raw log collapsible -->
+                <details class="bg-[#181818] border border-[#2A2A2A] rounded-xl overflow-hidden">
+                    <summary class="px-4 py-3 cursor-pointer text-xs font-black text-gray-500 hover:text-white transition select-none">📋 Ver log raw (últimas 4000 chars)</summary>
+                    <pre id="crash-fragmento" class="text-[10px] text-gray-500 font-mono p-4 overflow-auto max-h-72 leading-relaxed whitespace-pre-wrap">—</pre>
+                </details>
             </div>
 
             <!-- IA GEMINI -->
@@ -3143,7 +3216,8 @@
             document.querySelectorAll('.vista-seccion').forEach(el => el.style.display = 'none');
             document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('border-b-2', 'border-[#2ECC71]', 'pb-1', 'text-white'));
             const v = document.getElementById('vista-' + idVista);
-            if (v) { v.style.display = 'flex'; v.style.flexDirection = (idVista === 'versiones' || idVista === 'herramientas') ? 'row' : 'column'; }
+            const _rowVistas = ['versiones', 'herramientas', 'mods'];
+            if (v) { v.style.display = 'flex'; v.style.flexDirection = _rowVistas.includes(idVista) ? 'row' : 'column'; }
             const btn = document.getElementById('btn-' + idVista);
             if (btn) btn.classList.add('border-b-2', 'border-[#2ECC71]', 'pb-1', 'text-white');
             const bread = document.getElementById("breadcrumb");
@@ -3151,38 +3225,104 @@
             if (idVista === 'skins' && !_skinCatLoaded) buscarCatalogoSkins();
             if (idVista === 'herramientas') { herTab('estadisticas'); pingTodosServidores(); }
             if (idVista === 'servidores') pingTodosServidores();
+            if (idVista === 'mods') { buscarTiendaActual(); setTimeout(autoCheckModUpdates, 2500); }
         }
 
         let _modrinthCatActual = '';
         function filtrarCatModrinth(cat) {
             _modrinthCatActual = cat;
             document.querySelectorAll('#modrinth-cats button').forEach(b => {
-                b.className = 'px-3 py-1 rounded-full text-xs font-bold transition ' + (b.id === 'mcat-' + (cat||'all') ? 'bg-[#2ECC71] text-black' : 'bg-[#2A2A2A] text-white hover:bg-[#3A3A3A]');
+                const isActive = b.id === 'mcat-' + (cat || 'all');
+                b.className = 'text-left px-2 py-1.5 rounded text-xs font-bold transition ' +
+                    (isActive ? 'bg-[#2ECC71] text-black' : 'text-gray-400 hover:bg-[#2A2A2A] hover:text-white');
             });
             buscarModrinthAPI();
         }
+
+        let _modTipoActual = 'mod';
+        function setModTipo(tipo) {
+            _modTipoActual = tipo;
+            document.querySelectorAll('[id^="mtab-"]').forEach(b => {
+                const active = b.id === 'mtab-' + tipo;
+                b.className = 'px-4 py-3 text-xs font-black border-b-2 shrink-0 transition ' +
+                    (active ? 'border-[#2ECC71] text-white' : 'border-transparent text-gray-500 hover:text-white');
+            });
+            // Mostrar/ocultar el sidebar de loader (solo relevante para mods y modpacks)
+            const loaderSec = document.getElementById('sidebar-loader-section');
+            if (loaderSec) loaderSec.style.display = ['mod','modpack'].includes(tipo) ? '' : 'none';
+            buscarTiendaActual();
+        }
+        function _timeAgo(dateStr) {
+            const diff = Math.floor((Date.now() - new Date(dateStr)) / 1000);
+            if (diff < 3600) return Math.floor(diff/60) + 'm ago';
+            if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
+            if (diff < 2592000) return Math.floor(diff/86400) + ' days ago';
+            if (diff < 31536000) return Math.floor(diff/2592000) + ' months ago';
+            return Math.floor(diff/31536000) + ' years ago';
+        }
+        function _fmtNum(n) {
+            if (!n) return '0';
+            if (n >= 1e6) return (n/1e6).toFixed(1) + 'M';
+            if (n >= 1e3) return (n/1e3).toFixed(0) + 'K';
+            return n;
+        }
+        const _LOADER_COLORS = {fabric:'#DBB479',forge:'#7BA0CC',neoforge:'#E8894A',quilt:'#C39BD3',liteloader:'#AAD9FF'};
         async function buscarModrinthAPI() {
             const q = encodeURIComponent(document.getElementById('buscador-mods').value || '');
-            const t = document.getElementById('filtro-tipo').value;
+            const t = _modTipoActual || 'mod';
+            const sort = (document.getElementById('filtro-sort')||{}).value || 'downloads';
+            const ver = (document.getElementById('filtro-version')||{}).value || '';
+            const loaderChecks = [...(document.querySelectorAll('#loader-checks input:checked')||[])].map(c=>c.value);
             const grid = document.getElementById('grid-resultados-mods');
-            if(!grid) return;
-            grid.innerHTML = `<div class="col-span-2 text-center text-gray-500 mt-10">Buscando...</div>`;
+            if (!grid) return;
+            grid.innerHTML = `<div class="text-center text-gray-500 mt-10 py-10 flex flex-col items-center gap-2"><div class="w-5 h-5 border-2 border-[#2ECC71] border-t-transparent rounded-full animate-spin"></div><span class="text-xs">Buscando en Modrinth...</span></div>`;
             try {
-                const catFacets = (typeof _modrinthCatActual !== 'undefined' && _modrinthCatActual) ? [["project_type:" + t], ["categories:" + _modrinthCatActual]] : [["project_type:" + t]];
-                const facets = encodeURIComponent(JSON.stringify(catFacets));
-                const res = await fetch(`https://api.modrinth.com/v2/search?query=${q}&limit=16&facets=${facets}`);
+                const facets = [["project_type:"+t]];
+                if (ver.trim()) facets.push(["versions:"+ver.trim()]);
+                if (_modrinthCatActual) facets.push(["categories:"+_modrinthCatActual]);
+                if (loaderChecks.length > 0) facets.push(loaderChecks.map(l=>"categories:"+l));
+                const res = await fetch(
+                    `https://api.modrinth.com/v2/search?query=${q}&limit=20&index=${sort}&facets=${encodeURIComponent(JSON.stringify(facets))}`,
+                    {headers:{'User-Agent':'ParaguacraftLauncher/1.0'}});
                 const data = await res.json();
-                grid.innerHTML = "";
-                if(!data.hits || data.hits.length === 0) { grid.innerHTML = `<div class="col-span-2 text-center text-gray-500 mt-10">No hay resultados.</div>`; return; }
+                const countEl = document.getElementById('mods-result-count');
+                if (countEl) countEl.textContent = data.total_hits ? `${data.total_hits.toLocaleString()} results` : '';
+                grid.innerHTML = '';
+                if (!data.hits || !data.hits.length) {
+                    grid.innerHTML = `<div class="text-center text-gray-500 mt-10 py-10"><p class="text-2xl mb-2">🔍</p><p>No results found</p></div>`;
+                    return;
+                }
                 data.hits.forEach(m => {
+                    const icon = m.icon_url || '';
+                    const updated = m.date_modified ? _timeAgo(m.date_modified) : '';
+                    const loaders = (m.categories||[]).filter(c=>['fabric','forge','neoforge','quilt','liteloader'].includes(c));
+                    const cats = (m.display_categories||m.categories||[]).filter(c=>!['fabric','forge','neoforge','quilt','liteloader'].includes(c)).slice(0,3);
+                    const loaderBadges = loaders.map(l=>`<span style="color:${_LOADER_COLORS[l]||'#aaa'}" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#1A1A1A] border border-[#2A2A2A]">${l.charAt(0).toUpperCase()+l.slice(1)}</span>`).join('');
+                    const catBadges = cats.map(c=>`<span class="px-1.5 py-0.5 rounded text-[10px] bg-[#1A1A1A] border border-[#2A2A2A] text-gray-400">${c}</span>`).join('');
+                    const safeTitle = (m.title||'').replace(/'/g,"&apos;").replace(/"/g,'&quot;');
+                    const safeIcon = (icon||'').replace(/'/g,"&apos;");
                     grid.innerHTML += `
-                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-4 flex items-center gap-5 hover:border-[#2ECC71] transition group">
-                        <img src="${m.icon_url || 'https://via.placeholder.com/64/2A2A2A/FFFFFF?text=M'}" class="w-16 h-16 rounded-lg object-cover" alt="">
-                        <div class="flex-1 min-w-0"><h4 class="font-black text-white group-hover:text-[#2ECC71] transition truncate">${m.title}</h4><p class="text-xs text-gray-400 line-clamp-2">${m.description || ''}</p></div>
-                        <button onclick="abrirInstalarMod('${m.project_id}','${(m.title||'').replace(/'/g,'')}','${t}')" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black py-2 px-4 rounded-lg transition text-sm shrink-0">⬇ Instalar</button>
+                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-3.5 flex items-start gap-3.5 hover:border-[#2ECC71]/50 transition group">
+                        ${icon ? `<img src="${icon}" class="w-12 h-12 rounded-lg object-cover shrink-0 bg-[#1A1A1A]" onerror="this.style.display='none'" alt="">` : `<div class="w-12 h-12 rounded-lg bg-[#1A1A1A] shrink-0 flex items-center justify-center text-xl">📦</div>`}
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-baseline gap-1.5 flex-wrap">
+                                <span class="font-black text-white group-hover:text-[#2ECC71] transition text-sm">${m.title}</span>
+                                <span class="text-[11px] text-gray-500">by ${m.author||''}</span>
+                            </div>
+                            <p class="text-[11px] text-gray-400 mt-0.5 line-clamp-1">${m.description||''}</p>
+                            <div class="flex flex-wrap gap-1 mt-1.5">${loaderBadges}${catBadges}</div>
+                        </div>
+                        <div class="flex flex-col items-end gap-1 shrink-0 ml-2">
+                            <span class="text-[11px] text-gray-500">⬇ ${_fmtNum(m.downloads)}</span>
+                            <span class="text-[11px] text-gray-500">♥ ${_fmtNum(m.follows)}</span>
+                            <span class="text-[10px] text-gray-600">${updated}</span>
+                            <button onclick="abrirInstalarMod('${m.project_id}','${safeTitle}','${t}','${safeIcon}')" class="mt-1 bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black py-1 px-2.5 rounded-lg transition text-[11px]">⬇ Instalar</button>
+                        </div>
                     </div>`;
                 });
-            } catch(e) { grid.innerHTML = `<div class="col-span-2 text-center text-red-500 mt-10">Error de red.</div>`; }
+            } catch(e) {
+                grid.innerHTML = `<div class="text-center text-red-500 mt-10 py-10">Error de red: ${e.message}</div>`;
+            }
         }
 
         // ─── HW PERFIL / ESTILO DE JUEGO data ───
@@ -4016,16 +4156,109 @@
             }
         }
 
-        function abrirInstalarMod(projectId, titulo, tipo) {
+        let _imodVersionsData = null;
+        let _imodSelectedVersionId = null;
+
+        async function abrirInstalarMod(projectId, titulo, tipo, iconUrl) {
             _imodProjectId = projectId;
             _imodTipo = tipo;
             _imodSource = 'modrinth';
-            _syncImodMotor();
-            document.getElementById('imod-titulo').textContent = 'Instalar: ' + titulo;
-            document.getElementById('imod-subtitulo').textContent = 'Tipo: ' + tipo;
-            document.getElementById('imod-lista').innerHTML = '<p class="text-xs text-gray-500 text-center mt-4">Escribí la versión MC y hacé clic en Buscar.</p>';
+            _imodVersionsData = null;
+            _imodSelectedVersionId = null;
+            const el = id => document.getElementById(id);
+            el('imod-titulo').textContent = titulo;
+            el('imod-subtitulo').textContent = tipo + ' · Modrinth';
+            const icon = el('imod-icon');
+            if (iconUrl) { icon.src = iconUrl; icon.style.display = ''; } else { icon.style.display = 'none'; }
+            el('imod-mr-section').classList.remove('hidden');
+            el('imod-cf-section').classList.add('hidden');
+            el('imod-lista').innerHTML = '';
+            el('imod-file-info').classList.add('hidden');
+            el('imod-instalando').classList.add('hidden');
+            el('imod-ver-select').innerHTML = '<option value="">Cargando versiones...</option>';
+            el('imod-platform-select').innerHTML = '<option value="">Seleccionar plataforma...</option>';
+            el('imod-platform-select').disabled = true;
+            el('instalar-mod-modal').classList.remove('hidden');
+            try {
+                const r = await fetch(`https://api.modrinth.com/v2/project/${projectId}/version`,
+                    {headers:{'User-Agent':'ParaguacraftLauncher/1.0'}});
+                _imodVersionsData = await r.json();
+                // Solo versiones release (X.Y o X.Y.Z, sin snapshots/pre/rc)
+                const _isRelease = v => /^\d+\.\d+(\.\d+)?$/.test(v);
+                const gameVersions = [...new Set(_imodVersionsData.flatMap(v => v.game_versions))]
+                    .filter(_isRelease);
+                gameVersions.sort((a,b) => {
+                    const pa = a.split('.').map(Number), pb = b.split('.').map(Number);
+                    for (let i=0;i<Math.max(pa.length,pb.length);i++) {
+                        if ((pa[i]||0) !== (pb[i]||0)) return (pb[i]||0)-(pa[i]||0);
+                    }
+                    return 0;
+                });
+                el('imod-ver-select').innerHTML = '<option value="">Seleccionar versión...</option>' +
+                    gameVersions.map(v=>`<option value="${v}">${v}</option>`).join('');
+                // Pre-seleccionar versión y loader de la instancia activa
+                const activaVer = (document.getElementById('panel-version-sel')||{}).value || '';
+                const activaLoader = (document.getElementById('panel-loader-sel')||{}).value || '';
+                if (activaVer && gameVersions.includes(activaVer)) {
+                    el('imod-ver-select').value = activaVer;
+                    imodCambiarVersion();
+                    // Después de poblar loaders, pre-seleccionar loader activo
+                    setTimeout(() => {
+                        const platSel = document.getElementById('imod-platform-select');
+                        if (platSel && activaLoader) {
+                            const loaderLower = activaLoader.toLowerCase();
+                            const opt = Array.from(platSel.options).find(o => o.value.toLowerCase() === loaderLower);
+                            if (opt) { platSel.value = opt.value; imodCambiarPlatform(); }
+                        }
+                    }, 50);
+                }
+            } catch(e) {
+                el('imod-ver-select').innerHTML = '<option value="">Error cargando versiones</option>';
+            }
+        }
+
+        function imodCambiarVersion() {
+            const ver = document.getElementById('imod-ver-select').value;
+            const platSel = document.getElementById('imod-platform-select');
+            document.getElementById('imod-file-info').classList.add('hidden');
+            if (!ver || !_imodVersionsData) { platSel.innerHTML = '<option value="">Seleccionar plataforma...</option>'; platSel.disabled = true; return; }
+            const compatible = _imodVersionsData.filter(v => v.game_versions.includes(ver));
+            const loaders = [...new Set(compatible.flatMap(v => v.loaders))];
+            platSel.innerHTML = '<option value="">Seleccionar plataforma...</option>' +
+                loaders.map(l=>`<option value="${l}">${l.charAt(0).toUpperCase()+l.slice(1)}</option>`).join('');
+            platSel.disabled = false;
+            if (loaders.length === 1) { platSel.value = loaders[0]; imodCambiarPlatform(); }
+        }
+
+        function imodCambiarPlatform() {
+            const ver = document.getElementById('imod-ver-select').value;
+            const platform = document.getElementById('imod-platform-select').value;
+            const fileInfo = document.getElementById('imod-file-info');
+            if (!ver || !platform || !_imodVersionsData) { fileInfo.classList.add('hidden'); return; }
+            const match = _imodVersionsData.find(v => v.game_versions.includes(ver) && v.loaders.includes(platform));
+            if (!match || !match.files || !match.files.length) { fileInfo.classList.add('hidden'); return; }
+            const file = match.files.find(f=>f.primary) || match.files[0];
+            _imodSelectedVersionId = match.id;
+            document.getElementById('imod-fname').textContent = file.filename;
+            document.getElementById('imod-fmeta').textContent = `${match.version_number} · ${(file.size/1048576).toFixed(2)} MB`;
+            fileInfo.classList.remove('hidden');
+        }
+
+        async function imodInstalar() {
+            if (!_imodSelectedVersionId || !_imodProjectId) return;
+            const ver = document.getElementById('imod-ver-select').value;
+            const motor = document.getElementById('imod-platform-select').value;
+            document.getElementById('imod-instalando').classList.remove('hidden');
+            document.getElementById('imod-file-info').classList.add('hidden');
+            const result = await pywebview.api.instalar_mod_desde_modrinth(_imodProjectId, _imodSelectedVersionId, _imodTipo, ver, motor);
             document.getElementById('imod-instalando').classList.add('hidden');
-            document.getElementById('instalar-mod-modal').classList.remove('hidden');
+            if (result.ok) {
+                document.getElementById('imod-file-info').innerHTML = `<div class="flex flex-col items-center justify-center gap-2 py-4 w-full text-center"><p class="text-3xl">✅</p><p class="text-[#2ECC71] font-black">¡Instalado!</p><p class="text-xs text-gray-500">${result.nombre}</p><button onclick="cerrarInstalarMod()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] px-4 py-2 rounded font-bold text-sm transition mt-1">Cerrar</button></div>`;
+                document.getElementById('imod-file-info').classList.remove('hidden');
+            } else {
+                alert('Error: ' + (result.error||'desconocido'));
+                document.getElementById('imod-file-info').classList.remove('hidden');
+            }
         }
 
         function cerrarInstalarMod() {
@@ -4039,43 +4272,34 @@
             const motor = document.getElementById('imod-motor').value;
             const lista = document.getElementById('imod-lista');
             lista.innerHTML = '<p class="text-xs text-gray-500 text-center mt-4">Buscando versiones...</p>';
-            const res = _imodSource === 'curseforge'
-                ? await pywebview.api.get_versiones_curseforge(_imodProjectId, verMc)
-                : await pywebview.api.get_versiones_mod(_imodProjectId, verMc, _imodTipo);
+            const res = await pywebview.api.get_versiones_curseforge(_imodProjectId, verMc);
             if (!res.ok || !res.versions || res.versions.length === 0) {
                 lista.innerHTML = '<p class="text-xs text-gray-500 text-center mt-4">No se encontraron versiones compatibles.</p>';
                 return;
             }
             lista.innerHTML = '';
             res.versions.forEach(v => {
-                const gv = (v.game_versions || []).slice(0,3).join(', ') + ((v.game_versions||[]).length > 3 ? '…' : '');
-                const loaders = (v.loaders || []).join(', ') || '—';
+                const gv = (v.game_versions||[]).filter(x=>!['Forge','Fabric','NeoForge','Quilt'].includes(x)).slice(0,3).join(', ');
+                const loaders = (v.loaders||[]).join(', ')||'—';
                 lista.innerHTML += `
-                <div class="bg-[#181818] border border-[#2A2A2A] rounded-lg p-3 flex items-center justify-between gap-3 hover:border-[#2ECC71] transition">
+                <div class="bg-[#181818] border border-[#2A2A2A] rounded-lg p-3 flex items-center justify-between gap-3 hover:border-orange-500/50 transition">
                     <div class="flex-1 min-w-0">
                         <p class="font-bold text-sm text-white truncate">${v.name}</p>
                         <p class="text-xs text-gray-500">${gv} · ${loaders} · ${v.size_mb} MB · ${v.date_published}</p>
                     </div>
-                    <button onclick="instalarModVersion('${_imodProjectId}','${v.id}','${_imodTipo}','${verMc}','${motor}')" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black px-3 py-1.5 rounded transition shrink-0">⬇ Instalar</button>
+                    <button onclick="instalarModVersion('${_imodProjectId}','${v.id}','${_imodTipo}','${verMc}','${motor}')" class="bg-orange-500 hover:bg-orange-400 text-black font-black px-3 py-1.5 rounded transition shrink-0">⬇ Instalar</button>
                 </div>`;
             });
         }
 
         async function instalarModVersion(projectId, versionId, tipo, verMc, motor) {
             document.getElementById('imod-instalando').classList.remove('hidden');
-            const result = _imodSource === 'curseforge'
-                ? await pywebview.api.instalar_mod_curseforge(projectId, versionId, tipo, verMc, motor)
-                : await pywebview.api.instalar_mod_desde_modrinth(projectId, versionId, tipo, verMc, motor);
-            onModInstalado(result);
-        }
-
-        function onModInstalado(result) {
+            const result = await pywebview.api.instalar_mod_curseforge(projectId, versionId, tipo, verMc, motor);
             document.getElementById('imod-instalando').classList.add('hidden');
             if (result.ok) {
-                const lista = document.getElementById('imod-lista');
-                lista.innerHTML = `<div class="flex flex-col items-center justify-center gap-3 py-8"><p class="text-3xl">✅</p><p class="text-[#2ECC71] font-black">¡Instalado exitosamente!</p><p class="text-xs text-gray-500">${result.nombre}</p><button onclick="cerrarInstalarMod()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] px-4 py-2 rounded font-bold text-sm transition mt-2">Cerrar</button></div>`;
+                document.getElementById('imod-lista').innerHTML = `<div class="flex flex-col items-center justify-center gap-3 py-6"><p class="text-3xl">✅</p><p class="text-orange-400 font-black">¡Instalado!</p><p class="text-xs text-gray-500">${result.nombre}</p><button onclick="cerrarInstalarMod()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] px-4 py-2 rounded font-bold text-sm transition mt-2">Cerrar</button></div>`;
             } else {
-                alert('Error al instalar: ' + (result.error || 'desconocido'));
+                alert('Error al instalar: ' + (result.error||'desconocido'));
             }
         }
 
@@ -5894,15 +6118,16 @@
             _tiendaFuente = fuente;
             const cfBtn = document.getElementById('btn-src-cf');
             const mrBtn = document.getElementById('btn-src-mr');
-            const titulo = document.getElementById('mods-titulo');
             if (fuente === 'curseforge') {
-                cfBtn.className = 'flex items-center gap-1.5 px-3 py-1 rounded text-xs font-bold transition bg-orange-500/20 text-orange-400';
-                mrBtn.className = 'flex items-center gap-1.5 px-3 py-1 rounded text-xs font-bold transition text-gray-500 hover:text-white';
-                if (titulo) titulo.textContent = 'TIENDA CURSEFORGE';
+                cfBtn.className = 'flex-1 py-1.5 rounded text-[11px] font-black transition bg-orange-500/20 text-orange-400 border border-orange-500/30';
+                mrBtn.className = 'flex-1 py-1.5 rounded text-[11px] font-black transition text-gray-500 hover:text-white border border-transparent';
+                const srch = document.getElementById('buscador-mods');
+                if (srch) srch.placeholder = 'Search CurseForge...';
             } else {
-                mrBtn.className = 'flex items-center gap-1.5 px-3 py-1 rounded text-xs font-bold transition bg-[#2ECC71]/20 text-[#2ECC71]';
-                cfBtn.className = 'flex items-center gap-1.5 px-3 py-1 rounded text-xs font-bold transition text-gray-500 hover:text-white';
-                if (titulo) titulo.textContent = 'TIENDA MODRINTH';
+                mrBtn.className = 'flex-1 py-1.5 rounded text-[11px] font-black transition bg-[#2ECC71]/20 text-[#2ECC71] border border-[#2ECC71]/30';
+                cfBtn.className = 'flex-1 py-1.5 rounded text-[11px] font-black transition text-gray-500 hover:text-white border border-transparent';
+                const srch = document.getElementById('buscador-mods');
+                if (srch) srch.placeholder = 'Search mods...';
             }
             buscarTiendaActual();
         }
@@ -5917,31 +6142,83 @@
 
         async function buscarCurseForgeAPI() {
             const q = document.getElementById('buscador-mods').value || '';
-            const t = document.getElementById('filtro-tipo').value;
+            const _cfTipoMap = {mod:'mods',resourcepack:'resourcepacks',shader:'shaders',modpack:'modpacks',datapack:'mods'};
+            const t = _cfTipoMap[_modTipoActual] || 'mods';
+            const ver = (document.getElementById('filtro-version')||{}).value || '';
+            const sort = (document.getElementById('filtro-sort')||{}).value || 'relevance';
+            const loaderChecks = [...(document.querySelectorAll('#loader-checks input:checked')||[])].map(c=>c.value);
+            const loader = loaderChecks.length === 1 ? loaderChecks[0] : '';
             const grid = document.getElementById('grid-resultados-mods');
-            grid.innerHTML = `<div class="col-span-2 text-center text-gray-500 mt-10 flex items-center justify-center gap-2"><div class="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin"></div> Buscando en CurseForge...</div>`;
+            if (!grid) return;
+            grid.innerHTML = `<div class="text-center text-gray-500 mt-10 py-10 flex flex-col items-center gap-2"><div class="w-5 h-5 border-2 border-orange-400 border-t-transparent rounded-full animate-spin"></div><span class="text-xs">Buscando en CurseForge...</span></div>`;
             try {
-                const res = await pywebview.api.buscar_curseforge(q, t, '');
+                const res = await pywebview.api.buscar_curseforge(q, t, ver, sort, loader);
                 grid.innerHTML = '';
-                if (res.error) { grid.innerHTML = `<div class="col-span-2 text-center text-red-400 mt-10 text-sm">${res.error}</div>`; return; }
+                if (res.error) {
+                    const is403 = res.error.includes('403') || res.error.includes('Unauthorized') || res.error.includes('API key');
+                    if (is403) {
+                        grid.innerHTML = `<div class="max-w-md mx-auto mt-8 bg-[#1A1A1A] border border-orange-500/30 rounded-xl p-6 flex flex-col gap-4">
+                            <div class="flex items-center gap-3">
+                                <span class="text-3xl">🔑</span>
+                                <div>
+                                    <p class="font-black text-orange-400">API Key de CurseForge requerida</p>
+                                    <p class="text-xs text-gray-500 mt-0.5">CurseForge requiere una API key gratuita para usar su buscador.</p>
+                                </div>
+                            </div>
+                            <ol class="text-xs text-gray-400 space-y-1 pl-4 list-decimal">
+                                <li>Andá a <span class="text-orange-400 font-bold">console.curseforge.com</span></li>
+                                <li>Creá una cuenta o iniciá sesión</li>
+                                <li>Hacé clic en <strong>Create API Key</strong></li>
+                                <li>Copiá la key y pegala abajo:</li>
+                            </ol>
+                            <div class="flex gap-2">
+                                <input id="cf-key-input" type="password" placeholder="\$2a\$10\$..." class="flex-1 bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-xs outline-none focus:border-orange-400">
+                                <button onclick="guardarCFKey()" class="bg-orange-500 hover:bg-orange-600 text-white font-black px-4 py-2 rounded text-xs transition">Guardar</button>
+                            </div>
+                            <button onclick="window.open('https://console.curseforge.com','_blank')" class="text-xs text-orange-400 hover:text-orange-300 underline text-center">Abrir console.curseforge.com →</button>
+                        </div>`;
+                    } else {
+                        grid.innerHTML = `<div class="text-center py-10"><p class="text-red-400 text-sm mb-2">${res.error}</p></div>`;
+                    }
+                    return;
+                }
                 const hits = res.data || [];
-                if (!hits.length) { grid.innerHTML = `<div class="col-span-2 text-center text-gray-500 mt-10">No se encontraron resultados.</div>`; return; }
+                const countEl = document.getElementById('mods-result-count');
+                if (countEl) countEl.textContent = hits.length ? `${hits.length} results` : '';
+                if (!hits.length) {
+                    grid.innerHTML = `<div class="text-center text-gray-500 mt-10 py-10"><p class="text-2xl mb-2">🔥</p><p>No results found</p></div>`;
+                    return;
+                }
                 hits.forEach(m => {
-                    const icon = (m.logo && m.logo.thumbnailUrl) ? m.logo.thumbnailUrl : 'https://via.placeholder.com/64/2A2A2A/FF6600?text=CF';
-                    const desc = (m.summary || '').slice(0, 120);
-                    const dls = m.downloadCount ? (m.downloadCount > 1e6 ? (m.downloadCount/1e6).toFixed(1)+'M' : (m.downloadCount/1e3).toFixed(0)+'K') : '?';
+                    const icon = (m.logo && m.logo.thumbnailUrl) ? m.logo.thumbnailUrl : '';
+                    const author = (m.authors && m.authors[0]) ? m.authors[0].name : '';
+                    const desc = (m.summary || '').slice(0, 140);
+                    const dls = _fmtNum(m.downloadCount || 0);
+                    const updated = m.dateModified ? _timeAgo(m.dateModified) : '';
+                    const cats = (m.categories || []).slice(0, 3).map(c => c.name || '').filter(Boolean);
+                    const catBadges = cats.map(c => `<span class="px-1.5 py-0.5 rounded text-[10px] bg-[#1A1A1A] border border-orange-900/30 text-orange-400/70">${c}</span>`).join('');
+                    const safeTitle = (m.name || '').replace(/'/g, "&apos;").replace(/"/g, '&quot;');
                     grid.innerHTML += `
-                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-4 flex items-center gap-4 hover:border-orange-500/50 transition group">
-                        <img src="${icon}" class="w-14 h-14 rounded-lg object-cover shrink-0" onerror="this.src='https://via.placeholder.com/56/2A2A2A/FF6600?text=CF'" alt="">
+                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-3.5 flex items-start gap-3.5 hover:border-orange-500/40 transition group">
+                        ${icon ? `<img src="${icon}" class="w-12 h-12 rounded-lg object-cover shrink-0 bg-[#1A1A1A]" onerror="this.style.display='none'" alt="">` : `<div class="w-12 h-12 rounded-lg bg-[#1A1A1A] shrink-0 flex items-center justify-center text-xl">🔥</div>`}
                         <div class="flex-1 min-w-0">
-                            <h4 class="font-black text-white group-hover:text-orange-400 transition truncate">${m.name}</h4>
-                            <p class="text-xs text-gray-500 line-clamp-2 mt-0.5">${desc}</p>
-                            <p class="text-[10px] text-gray-600 mt-1">⬇ ${dls} descargas</p>
+                            <div class="flex items-baseline gap-1.5 flex-wrap">
+                                <span class="font-black text-white group-hover:text-orange-400 transition text-sm">${m.name}</span>
+                                ${author ? `<span class="text-[11px] text-gray-500">by ${author}</span>` : ''}
+                            </div>
+                            <p class="text-[11px] text-gray-400 mt-0.5 line-clamp-1">${desc}</p>
+                            <div class="flex flex-wrap gap-1 mt-1.5">${catBadges}</div>
                         </div>
-                        <button onclick="abrirInstalarModCF('${m.id}','${(m.name||'').replace(/'/g,'')}','${t}')" class="bg-[#2A2A2A] hover:bg-orange-500 hover:text-black text-orange-400 font-bold py-2 px-4 rounded-lg transition text-sm shrink-0">⬇ Instalar</button>
+                        <div class="flex flex-col items-end gap-1 shrink-0 ml-2">
+                            <span class="text-[11px] text-gray-500">⬇ ${dls}</span>
+                            <span class="text-[10px] text-gray-600">${updated}</span>
+                            <button onclick="abrirInstalarModCF('${m.id}','${safeTitle}','${t}')" class="mt-2 bg-orange-500 hover:bg-orange-400 text-black font-black py-1 px-2.5 rounded-lg transition text-[11px]">⬇ Instalar</button>
+                        </div>
                     </div>`;
                 });
-            } catch(e) { grid.innerHTML = `<div class="col-span-2 text-center text-red-500 mt-10">Error de red.</div>`; }
+            } catch(e) {
+                grid.innerHTML = `<div class="text-center text-red-500 mt-10 py-10">Error: ${e.message}</div>`;
+            }
         }
 
         let _cfProjectId = null, _cfTipo = 'mod';
@@ -5952,11 +6229,15 @@
             _imodTipo = tipo;
             _imodSource = 'curseforge';
             _syncImodMotor();
-            document.getElementById('imod-titulo').textContent = 'Instalar (CF): ' + titulo;
-            document.getElementById('imod-subtitulo').textContent = 'Tipo: ' + tipo + ' · CurseForge';
-            document.getElementById('imod-lista').innerHTML = '<p class="text-xs text-gray-500 text-center mt-4">Escribí la versión MC y hacé clic en Buscar.</p>';
-            document.getElementById('imod-instalando').classList.add('hidden');
-            document.getElementById('instalar-mod-modal').classList.remove('hidden');
+            const el = id => document.getElementById(id);
+            el('imod-titulo').textContent = titulo;
+            el('imod-subtitulo').textContent = tipo + ' · CurseForge';
+            el('imod-icon').style.display = 'none';
+            el('imod-mr-section').classList.add('hidden');
+            el('imod-cf-section').classList.remove('hidden');
+            el('imod-lista').innerHTML = '<p class="text-xs text-gray-500 text-center mt-4">Escribí la versión MC y hacé clic en Buscar.</p>';
+            el('imod-instalando').classList.add('hidden');
+            el('instalar-mod-modal').classList.remove('hidden');
         }
 
         // ══ COMPARTIR INSTANCIA ════════════════════════════════════════════
@@ -6124,33 +6405,190 @@
         }
 
         // ══ CRASH LOG ANALYZER ════════════════════════════════════════════
+        const _FIX_LABELS = {
+            ram: '⚡ Aumentar RAM +2GB',
+            del_dupes: '🗑 Eliminar duplicados',
+            del_optifine: '🗑 Desactivar OptiFine',
+            del_shaders: '🎨 Desactivar shaders',
+            del_corrupt: '🔧 Eliminar JARs corruptos',
+            fix_java_flags: '☕ Agregar flags JVM',
+            check_updates: '🔄 Ver actualizaciones',
+            reinstall: 'ℹ Ver cómo reinstalar',
+        };
+
         async function analizarCrashLog() {
-            const ver = document.getElementById('panel-version-sel') ? document.getElementById('panel-version-sel').value : '';
-            const motor = document.getElementById('panel-loader-sel') ? document.getElementById('panel-loader-sel').value : 'Fabric';
+            const ver = (document.getElementById('panel-version-sel')||{}).value || '';
+            const motor = (document.getElementById('panel-loader-sel')||{}).value || 'Fabric';
             const diag = document.getElementById('crash-diagnosticos');
-            const fragmento = document.getElementById('crash-fragmento');
-            const fuente = document.getElementById('crash-fuente');
-            diag.innerHTML = '<div class="flex items-center gap-2 text-sm text-gray-500"><div class="w-3 h-3 border-2 border-red-400 border-t-transparent rounded-full animate-spin shrink-0"></div> Leyendo logs...</div>';
+            const icon = document.getElementById('crash-scan-icon');
+            if (icon) icon.textContent = '⏳';
+            diag.innerHTML = '<div class="flex items-center gap-3 text-sm text-gray-500 py-6 justify-center"><div class="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin shrink-0"></div> Leyendo logs de la instancia activa...</div>';
             try {
                 const r = await pywebview.api.analizar_crash_log(ver || 'latest', motor || 'Fabric');
+                if (icon) icon.textContent = '🔍';
+                const fuente = document.getElementById('crash-fuente');
                 if (fuente) fuente.textContent = r.fuente || '';
-                if (fragmento) fragmento.textContent = r.fragmento || 'Sin contenido relevante encontrado.';
+                const frag = document.getElementById('crash-fragmento');
+                if (frag) frag.textContent = r.fragmento || '—';
+                if (!r.ok) { diag.innerHTML = `<div class="bg-red-900/20 border border-red-500/30 rounded-xl p-4 text-red-400 text-sm">${r.error || 'Error al leer logs'}</div>`; return; }
+
+                // Banner error principal
+                const banner = document.getElementById('crash-error-banner');
+                const errLine = document.getElementById('crash-error-line');
+                if (r.error_principal) {
+                    errLine.textContent = r.error_principal;
+                    banner.classList.remove('hidden');
+                } else { banner.classList.add('hidden'); }
+
+                // JARs mencionados
+                const jarsWrap = document.getElementById('crash-jars-wrap');
+                const jarsDiv = document.getElementById('crash-jars');
+                if (r.jars_mencionados && r.jars_mencionados.length) {
+                    jarsDiv.innerHTML = r.jars_mencionados.map(j =>
+                        `<span class="px-2 py-0.5 bg-[#1A1A1A] border border-[#2A2A2A] rounded text-[10px] text-gray-400 font-mono">${j}</span>`).join('');
+                    jarsWrap.classList.remove('hidden');
+                } else { jarsWrap.classList.add('hidden'); }
+
                 diag.innerHTML = '';
-                if (!r.ok) { diag.innerHTML = `<p class="text-red-400 text-sm">${r.error || 'Error al leer logs'}</p>`; return; }
                 const issues = r.issues || [];
                 if (!issues.length) {
-                    diag.innerHTML = '<p class="text-[#2ECC71] text-sm font-bold">✅ No se detectaron problemas conocidos en los logs.</p>';
+                    diag.innerHTML = `<div class="bg-[#2ECC71]/10 border border-[#2ECC71]/30 rounded-xl p-5 text-center">
+                        <p class="text-2xl mb-2">✅</p>
+                        <p class="text-[#2ECC71] font-black">No se detectaron problemas conocidos</p>
+                        <p class="text-xs text-gray-500 mt-1">Los logs no muestran errores reconocibles. Si el juego igual crasheó, usá el análisis con IA.</p>
+                    </div>`;
                 } else {
-                    issues.forEach(issue => {
-                        const sev = issue.severidad === 'error' ? 'bg-red-900/30 border-red-500/50 text-red-300' : 'bg-yellow-900/30 border-yellow-500/50 text-yellow-300';
-                        diag.innerHTML += `<div class="border ${sev} rounded-lg p-3">
-                            <p class="font-black text-sm">${issue.severidad === 'error' ? '🔴' : '🟡'} ${issue.titulo}</p>
-                            <p class="text-xs mt-1 opacity-90">${issue.descripcion}</p>
-                            ${issue.sugerencia ? `<p class="text-xs mt-1 font-bold opacity-75">💡 ${issue.sugerencia}</p>` : ''}
+                    const errorCount = issues.filter(i => i.severidad === 'error').length;
+                    const warnCount = issues.filter(i => i.severidad !== 'error').length;
+                    diag.innerHTML += `<div class="flex gap-2 items-center mb-1">
+                        ${errorCount ? `<span class="px-2 py-0.5 bg-red-900/40 text-red-400 text-xs font-bold rounded">${errorCount} error${errorCount>1?'es':''}</span>` : ''}
+                        ${warnCount ? `<span class="px-2 py-0.5 bg-yellow-900/40 text-yellow-400 text-xs font-bold rounded">${warnCount} advertencia${warnCount>1?'s':''}</span>` : ''}
+                    </div>`;
+                    issues.forEach((issue, idx) => {
+                        const isErr = issue.severidad === 'error';
+                        const border = isErr ? 'border-red-500/40 bg-red-950/20' : 'border-yellow-500/30 bg-yellow-950/15';
+                        const badge = isErr ? '<span class="px-1.5 py-0.5 bg-red-500/20 text-red-400 text-[10px] font-black rounded uppercase">Error</span>' : '<span class="px-1.5 py-0.5 bg-yellow-500/20 text-yellow-400 text-[10px] font-black rounded uppercase">Aviso</span>';
+                        const fixBtn = issue.fix_action && _FIX_LABELS[issue.fix_action]
+                            ? `<button onclick="aplicarFix('${issue.fix_action}')" class="mt-2 text-[11px] font-black px-3 py-1 rounded-lg transition ${isErr ? 'bg-red-500/20 hover:bg-red-500/40 text-red-300' : 'bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-300'}">${_FIX_LABELS[issue.fix_action]}</button>`
+                            : '';
+                        diag.innerHTML += `<div class="border ${border} rounded-xl p-4">
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2 mb-1">${badge}<span class="font-black text-sm text-white">${issue.titulo}</span></div>
+                                    <p class="text-xs text-gray-400 leading-relaxed">${issue.descripcion}</p>
+                                    ${issue.sugerencia ? `<p class="text-xs text-gray-500 mt-1">💡 ${issue.sugerencia}</p>` : ''}
+                                    ${fixBtn}
+                                </div>
+                            </div>
                         </div>`;
                     });
                 }
-            } catch(e) { diag.innerHTML = `<p class="text-red-400 text-sm">Error: ${e}</p>`; }
+            } catch(e) {
+                if (icon) icon.textContent = '🔍';
+                diag.innerHTML = `<div class="bg-red-900/20 border border-red-500/30 rounded-xl p-4 text-red-400 text-sm">Error: ${e}</div>`;
+            }
+        }
+
+        // ── CF API KEY SETUP ──────────────────────────────────────────────
+        async function guardarCFKey() {
+            const inp = document.getElementById('cf-key-input');
+            if (!inp || !inp.value.trim()) { showToast('Ingresá una API key válida', '#E74C3C'); return; }
+            const key = inp.value.trim();
+            try {
+                const r = await pywebview.api.guardar_cf_key(key);
+                if (r.ok) {
+                    showToast('✅ API Key de CurseForge guardada. Buscando...', '#2ECC71');
+                    await buscarCurseForgeAPI();
+                } else {
+                    showToast('❌ Error guardando key: ' + (r.error || ''), '#E74C3C');
+                }
+            } catch(e) { showToast('Error: ' + e, '#E74C3C'); }
+        }
+
+        // ── IR A TIENDA DE MODS ───────────────────────────────────────────
+        function irATiendaMods() {
+            cambiarPestaña('mods', 'Mods');
+        }
+
+        function cerrarGestorInstanciaEIrMods() {
+            const modal = document.getElementById('gestor-instancia-modal');
+            if (modal) modal.classList.add('hidden');
+            cambiarPestaña('mods', 'Mods');
+        }
+
+        // ── AUTO-CHECK MOD UPDATES ────────────────────────────────────────
+        let _lastUpdateCheck = 0;
+        async function autoCheckModUpdates() {
+            const now = Date.now();
+            if (now - _lastUpdateCheck < 60000) return; // max 1 vez por minuto
+            _lastUpdateCheck = now;
+            const ver = (document.getElementById('panel-version-sel')||{}).value || '';
+            const loader = (document.getElementById('panel-loader-sel')||{}).value || '';
+            if (!ver || !loader || loader === 'Vanilla') return;
+            try {
+                const r = await pywebview.api.get_mod_updates(ver, loader);
+                if (!r.ok || !r.mods || !r.mods.length) return;
+                const updates = r.mods.filter(m => m.update_disponible);
+                const banner = document.getElementById('mods-update-banner');
+                const txt = document.getElementById('mods-update-text');
+                if (updates.length > 0 && banner && txt) {
+                    txt.textContent = `🔄 ${updates.length} mod${updates.length > 1 ? 's tienen' : ' tiene'} actualización disponible para ${ver}`;
+                    banner.classList.remove('hidden');
+                }
+            } catch(e) {}
+        }
+
+        async function verLaunchDebug() {
+            const frag = document.getElementById('crash-fragmento');
+            const fuente = document.getElementById('crash-fuente');
+            if (frag) frag.textContent = '⏳ Leyendo launch_debug.log...';
+            const details = frag ? frag.closest('details') : null;
+            if (details) details.open = true;
+            try {
+                const r = await pywebview.api.get_launch_debug_log();
+                if (r.ok) {
+                    if (frag) frag.textContent = r.contenido;
+                    if (fuente) fuente.textContent = 'launch_debug.log';
+                    // también analizar con los patrones
+                    const diag = document.getElementById('crash-diagnosticos');
+                    if (diag) {
+                        // Buscar errores comunes en el texto del log de inicio
+                        const lines = r.contenido.split('\n');
+                        const errLines = lines.filter(l => /ERROR|FATAL|Exception|Traceback|exit code [^0]/.test(l));
+                        if (errLines.length) {
+                            diag.innerHTML = `<div class="bg-orange-950/30 border border-orange-500/30 rounded-xl p-4">
+                                <p class="text-[10px] font-black text-orange-400 uppercase mb-2">Líneas de error en launch_debug.log</p>
+                                ${errLines.slice(0,8).map(l=>`<p class="text-xs text-orange-200 font-mono break-all">${l}</p>`).join('')}
+                            </div>`;
+                        }
+                    }
+                } else {
+                    if (frag) frag.textContent = r.error || 'No se encontró el log.';
+                }
+            } catch(e) { if (frag) frag.textContent = 'Error: ' + e; }
+        }
+
+        async function aplicarFix(fix_action) {
+            const ver = (document.getElementById('panel-version-sel')||{}).value || '';
+            const motor = (document.getElementById('panel-loader-sel')||{}).value || '';
+            const btn = event.target;
+            const orig = btn.textContent;
+            btn.textContent = '⏳ Aplicando...';
+            btn.disabled = true;
+            try {
+                const r = await pywebview.api.aplicar_fix(fix_action, ver, motor);
+                btn.textContent = r.ok ? '✅ Listo' : '❌ Error';
+                btn.disabled = false;
+                if (r.ok) {
+                    const msgEl = document.createElement('p');
+                    msgEl.className = 'text-xs text-[#2ECC71] mt-1 font-bold';
+                    msgEl.textContent = r.mensaje || 'Fix aplicado correctamente.';
+                    btn.parentNode.appendChild(msgEl);
+                } else {
+                    alert('Error: ' + (r.error || 'desconocido'));
+                    btn.textContent = orig;
+                }
+            } catch(e) { btn.textContent = orig; btn.disabled = false; alert('Error: ' + e); }
         }
 
         async function analizarCrashIA() {
@@ -6199,30 +6637,13 @@
         // ── CRASH ANALYSIS ───────────────────────────────────────────────
         function mostrarCrashAnalisis(data) {
             if (!data) return;
-            const m = document.getElementById('crash-modal');
-            if (!m) return;
-            const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val || '—'; };
-            set('crash-archivo', data.archivo);
-            set('crash-descripcion', data.descripcion || '(Sin descripción en el reporte)');
-            set('crash-causa', data.causa);
-            set('crash-sugerencia', data.sugerencia);
-            const modsWrap = document.getElementById('crash-mods-wrap');
-            const modsEl = document.getElementById('crash-mods');
-            if (data.mods_sospechosos && data.mods_sospechosos.length > 0) {
-                if (modsEl) modsEl.textContent = data.mods_sospechosos.join(', ');
-                if (modsWrap) modsWrap.classList.remove('hidden');
-            } else {
-                if (modsWrap) modsWrap.classList.add('hidden');
-            }
-            const javaWrap = document.getElementById('crash-java-wrap');
-            const javaEl = document.getElementById('crash-java');
-            if (data.java) {
-                if (javaEl) javaEl.textContent = data.java;
-                if (javaWrap) javaWrap.classList.remove('hidden');
-            } else {
-                if (javaWrap) javaWrap.classList.add('hidden');
-            }
-            m.classList.remove('hidden');
+            // Navegar a Extras → Crash Log y auto-escanear
+            showToast('💥 Minecraft crasheó — abriendo diagnóstico automático...', '#E74C3C', 5000);
+            cambiarPestaña('herramientas', 'Extras');
+            setTimeout(() => {
+                herTab('crash');
+                setTimeout(() => analizarCrashLog(), 400);
+            }, 250);
         }
 
         // ── PERFIL DE JAVA ───────────────────────────────────────────────

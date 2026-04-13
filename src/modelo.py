@@ -71,19 +71,45 @@ class GestorMods:
         return actualizados, corruptos_reparados
     
 class TiendaAPI:
+    # Mapeo de nombres de motor del launcher → categoría Modrinth
+    _LOADER_MODRINTH = {
+        "fabric + iris": "fabric", "fabric+iris": "fabric",
+        "fabric": "fabric", "forge": "forge", "neoforge": "neoforge",
+        "quilt": "quilt", "optifine": "forge", "vanilla": "",
+    }
+
+    @staticmethod
+    def _normalizar_loader(tipo_motor):
+        _key = tipo_motor.lower().replace(" ", "").replace("+", "+")
+        for k, v in TiendaAPI._LOADER_MODRINTH.items():
+            if k.replace(" ", "") == _key.replace(" ", ""):
+                return v
+        return tipo_motor.lower().split(" ")[0]
+
     @staticmethod
     def buscar_mods(query, version_actual, tipo_motor, tipo_proyecto):
         """Se conecta a Modrinth, hace la búsqueda y devuelve los resultados crudos."""
-        facets = f'[["versions:{version_actual}"],["project_type:{tipo_proyecto}"]'
-        # Shaders y Texturas no dependen de Fabric/Forge en Modrinth
-        if tipo_proyecto in ["mod", "modpack"]:
-            facets += f',["categories:{tipo_motor}"]'
-        facets += ']'
-        
-        url = f'https://api.modrinth.com/v2/search?query={query}&limit=8&facets={facets}'
-        
+        import json as _json
+        _loader = TiendaAPI._normalizar_loader(tipo_motor)
+        facets = [
+            [f"versions:{version_actual}"],
+            [f"project_type:{tipo_proyecto}"],
+        ]
+        if tipo_proyecto in ["mod", "modpack"] and _loader:
+            facets.append([f"categories:{_loader}"])
+
         try:
-            r = requests.get(url, headers={"User-Agent": "ParaguacraftLauncher/1.0"}, timeout=10)
+            r = requests.get(
+                "https://api.modrinth.com/v2/search",
+                params={
+                    "query": query,
+                    "limit": 20,
+                    "index": "downloads",
+                    "facets": _json.dumps(facets),
+                },
+                headers={"User-Agent": "ParaguacraftLauncher/1.0"},
+                timeout=10,
+            )
             if r.status_code == 200:
                 return True, r.json().get("hits", [])
             else:

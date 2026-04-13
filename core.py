@@ -31,12 +31,34 @@ def inyectar_splash_paraguacraft(game_dir, version_base, motor_elegido, progress
     _PC_ACCENT = "#1A7A40"
 
     # ── Fabric: custom-splash-screen (Modrinth) ───────────────────────────
+    # Versiones soportadas según Modrinth: 1.16.x, 1.17.x, 1.18.x,
+    # 1.19/1.19.1/1.19.2/1.19.4, 1.20/1.20.1, 1.21/1.21.1/1.21.3
+    def _splash_compatible(ver):
+        _p = ver.strip().split(".")
+        try:
+            _maj = int(_p[0])
+            _min = int(_p[1]) if len(_p) > 1 else 0
+            _pat = int(_p[2]) if len(_p) > 2 else 0
+        except (ValueError, IndexError):
+            return False
+        if _maj != 1:
+            return False
+        if _min in (16, 17, 18):
+            return True
+        if _min == 19:
+            return _pat in (0, 1, 2, 4)
+        if _min == 20:
+            return _pat in (0, 1)
+        if _min == 21:
+            return _pat in (0, 1, 3)
+        return False
+
     if "fabric" in motor_lower:
         mods_dir = os.path.join(game_dir, "mods")
         os.makedirs(mods_dir, exist_ok=True)
         existing = [f for f in os.listdir(mods_dir)
                     if "splash" in f.lower() and f.endswith(".jar")]
-        if not existing:
+        if not existing and _splash_compatible(version_base):
             try:
                 _h = {"User-Agent": "ParaguacraftLauncher/1.0"}
                 _versions = []
@@ -59,14 +81,7 @@ def inyectar_splash_paraguacraft(game_dir, version_base, motor_elegido, progress
                         headers=_h, timeout=6)
                     if _r2.status_code == 200:
                         _versions = _r2.json()
-                # 3rd attempt: latest available for fabric (no version filter)
-                if not _versions:
-                    _r3 = requests.get(
-                        "https://api.modrinth.com/v2/project/custom-splash-screen/version",
-                        params={"loaders": '["fabric"]'},
-                        headers=_h, timeout=6)
-                    if _r3.status_code == 200:
-                        _versions = _r3.json()
+                # Si no hay versión compatible con este MC, no instalar el mod
                 if _versions:
                     _file = _versions[0]["files"][0]
                     _dest = os.path.join(mods_dir, _file["filename"])
@@ -1222,7 +1237,7 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
         log_file = open(game_log_path, "w", encoding="utf-8", errors="replace")
         salida = log_file
 
-    proceso = subprocess.Popen(command, env=entorno, creationflags=flags_creacion, stdout=salida, stderr=salida, stdin=subprocess.DEVNULL)
+    proceso = subprocess.Popen(command, env=entorno, creationflags=flags_creacion, stdout=salida, stderr=salida, stdin=subprocess.DEVNULL, cwd=game_dir)
 
     try:
         import psutil
