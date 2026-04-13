@@ -19,8 +19,8 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Source: "C:\Users\Amin\Documents\Amin\Proyectos\Paraguacraft\dist\Paraguacraft.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\Paraguacraft"; Filename: "{app}\Paraguacraft.exe"
-Name: "{commondesktop}\Paraguacraft"; Filename: "{app}\Paraguacraft.exe"; Tasks: desktopicon
+Name: "{group}\Paraguacraft"; Filename: "{app}\Paraguacraft.exe"; WorkingDir: "{userappdata}"
+Name: "{commondesktop}\Paraguacraft"; Filename: "{app}\Paraguacraft.exe"; WorkingDir: "{userappdata}"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\Paraguacraft.exe"; Description: "{cm:LaunchProgram,Paraguacraft}"; Flags: nowait postinstall skipifsilent
