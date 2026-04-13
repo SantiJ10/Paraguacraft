@@ -13,6 +13,116 @@ try:
 except Exception:
     GestorNube = None
 
+def inyectar_splash_paraguacraft(game_dir, version_base, motor_elegido, progress_callback=None):
+    """
+    Instala splash de carga personalizado de Paraguacraft según el loader.
+    - Fabric: descarga 'custom-splash-screen' de Modrinth + config
+    - Forge / NeoForge: escribe forge.cfg / neoforge.toml con colores Paraguacraft
+    - Vanilla / OptiFine: no es posible (sin mod loader)
+    """
+    def _cb(msg):
+        if progress_callback:
+            try: progress_callback(msg)
+            except Exception: pass
+
+    motor_lower = motor_elegido.lower()
+    _PC_GREEN  = "#2ECC71"
+    _PC_BG     = "#0A0A0A"
+    _PC_ACCENT = "#1A7A40"
+
+    # ── Fabric: custom-splash-screen (Modrinth) ───────────────────────────
+    if "fabric" in motor_lower:
+        mods_dir = os.path.join(game_dir, "mods")
+        os.makedirs(mods_dir, exist_ok=True)
+        existing = [f for f in os.listdir(mods_dir)
+                    if "splash" in f.lower() and f.endswith(".jar")]
+        if not existing:
+            try:
+                _h = {"User-Agent": "ParaguacraftLauncher/1.0"}
+                _versions = []
+                # 1st attempt: exact version
+                _r = requests.get(
+                    "https://api.modrinth.com/v2/project/custom-splash-screen/version",
+                    params={"game_versions": f'["{version_base}"]',
+                            "loaders": '["fabric"]'},
+                    headers=_h, timeout=6)
+                if _r.status_code == 200:
+                    _versions = _r.json()
+                # 2nd attempt: major.minor only (e.g. "26.1" for "26.1.2")
+                if not _versions:
+                    _parts = version_base.split(".")
+                    _minor = ".".join(_parts[:2]) if len(_parts) >= 2 else version_base
+                    _r2 = requests.get(
+                        "https://api.modrinth.com/v2/project/custom-splash-screen/version",
+                        params={"game_versions": f'["{_minor}"]',
+                                "loaders": '["fabric"]'},
+                        headers=_h, timeout=6)
+                    if _r2.status_code == 200:
+                        _versions = _r2.json()
+                # 3rd attempt: latest available for fabric (no version filter)
+                if not _versions:
+                    _r3 = requests.get(
+                        "https://api.modrinth.com/v2/project/custom-splash-screen/version",
+                        params={"loaders": '["fabric"]'},
+                        headers=_h, timeout=6)
+                    if _r3.status_code == 200:
+                        _versions = _r3.json()
+                if _versions:
+                    _file = _versions[0]["files"][0]
+                    _dest = os.path.join(mods_dir, _file["filename"])
+                    if not os.path.exists(_dest):
+                        _cb("[Splash] Instalando custom-splash-screen...")
+                        _dl = requests.get(_file["url"], headers=_h, timeout=20)
+                        if _dl.status_code == 200:
+                            with open(_dest, "wb") as _f:
+                                _f.write(_dl.content)
+                            _cb("[Splash] custom-splash-screen instalado.")
+            except Exception as _e:
+                _cb(f"[Splash] No se pudo instalar: {_e}")
+        # Configuración: fondo oscuro + acento verde Paraguacraft
+        _cfg_dir    = os.path.join(game_dir, "config")
+        _img_dir    = os.path.join(_cfg_dir, "customsplashscreen")
+        _cfg_path   = os.path.join(_cfg_dir, "customsplashscreen.json")
+        os.makedirs(_img_dir, exist_ok=True)
+        # Copy Paraguacraft logos into the mod's image folder
+        if getattr(sys, 'frozen', False):
+            _base = sys._MEIPASS
+        else:
+            _base = os.path.dirname(os.path.abspath(__file__))
+        _wide_src   = os.path.join(_base, "web", "assets", "LOGO_SPLASH.png")
+        _icon_src   = os.path.join(_base, "web", "assets", "iconomc.png")
+        for _src, _dst_name in [(_wide_src, "wide_logo.png"),
+                                 (_icon_src, "square_logo.png")]:
+            _dst = os.path.join(_img_dir, _dst_name)
+            if os.path.exists(_src):
+                try:
+                    shutil.copyfile(_src, _dst)
+                except Exception:
+                    pass
+        try:
+            _cfg = {
+                    "progressBarType": "Vanilla",
+                    "logoStyle": "Mojang",
+                    "backgroundImage": False,
+                    "logoBlend": True,
+                    "splashBackgroundColor": _PC_BG,
+                    "splashProgressBarColor": _PC_GREEN,
+                    "splashProgressFrameColor": _PC_ACCENT,
+                    "splashProgressBackgroundColor": "#000000",
+                    "progressBarBackground": False,
+                    "customProgressBarMode": "Linear",
+                    "spinningCircleSize": 2,
+                    "spinningCircleSpeed": 4,
+                    "spinningCircleTrail": 5,
+                }
+            with open(_cfg_path, "w") as _f:
+                json.dump(_cfg, _f, indent=2)
+        except Exception:
+            pass
+
+    # ── Forge / NeoForge: no se inyecta nada (Forge no soporta config de splash vía TOML) ──
+
+
 def carpeta_instancia_paraguacraft(version_base, motor_elegido):
     """Mismo criterio en todo el launcher (logs, mods, RPC)."""
     nombre_limpio_motor = motor_elegido.replace(" ", "_").replace("+", "Plus")
@@ -991,6 +1101,7 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
         
     instalar_extras_graficos(game_dir, version_base, progress_callback, optimizar)
     inyectar_logos_paraguacraft(game_dir, version_base, optimizar, progress_callback)
+    inyectar_splash_paraguacraft(game_dir, version_base, motor_elegido, progress_callback)
 
     if optimizar: 
         optimizar_graficos(game_dir, optimizar, version_base)
