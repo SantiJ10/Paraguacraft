@@ -69,9 +69,16 @@ def _tamano_carpeta(ruta):
 
 
 class Api:
+    # Carpeta de datos en AppData (escribible incluso desde Program Files)
+    _DATA_DIR = os.path.join(
+        os.environ.get("APPDATA", os.path.expanduser("~")),
+        "ParaguacraftLauncher"
+    )
+
     def __init__(self):
-        self.ruta_config = "paraguacraft_config.json"
-        self.ruta_sesion = "paraguacraft_session.json"
+        os.makedirs(self._DATA_DIR, exist_ok=True)
+        self.ruta_config = os.path.join(self._DATA_DIR, "paraguacraft_config.json")
+        self.ruta_sesion = os.path.join(self._DATA_DIR, "paraguacraft_session.json")
         self.ms_data = None
         self.rpc = None
         self.hilo_juego_activo = False
@@ -93,7 +100,7 @@ class Api:
         self._playit_bedrock_address = ""
         self._playit_bedrock_custom = ""
         self._musica_proc = None
-        self._stats_file = "paraguacraft_stats.json"
+        self._stats_file = os.path.join(self._DATA_DIR, "paraguacraft_stats.json")
         self._cache_dir = os.path.join(os.path.expanduser("~"), ".paraguacraft_cache")
         os.makedirs(self._cache_dir, exist_ok=True)
         self._game_status = {"running": False, "status": "idle"}
@@ -127,6 +134,22 @@ class Api:
             "spotify_client_id": _SP_CLIENT_ID,
             "spotify_client_secret": _SP_CLIENT_SECRET,
         }
+
+        # Migrar archivos de config del directorio viejo (junto al .exe) al nuevo AppData
+        _exe_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+        for _old_name, _new_path in [
+            ("paraguacraft_config.json",   self.ruta_config),
+            ("paraguacraft_session.json",  self.ruta_sesion),
+            ("paraguacraft_sessions.json", self._SESIONES_PATH),
+            ("paraguacraft_stats.json",    self._stats_file),
+        ]:
+            _old = os.path.join(_exe_dir, _old_name)
+            if os.path.isfile(_old) and not os.path.isfile(_new_path):
+                try:
+                    import shutil as _sh
+                    _sh.copy2(_old, _new_path)
+                except Exception:
+                    pass
 
         if os.path.exists(self.ruta_config):
             with open(self.ruta_config, "r") as f:
@@ -415,6 +438,7 @@ class Api:
                     _idx = next((i for i,s in enumerate(_ss) if s.get("id")==self.ms_data.get("id")), None)
                     if _idx is not None: _ss[_idx] = self.ms_data
                     else: _ss.append(self.ms_data)
+                    os.makedirs(os.path.dirname(self._SESIONES_PATH), exist_ok=True)
                     with open(self._SESIONES_PATH, "w") as _f: json.dump(_ss, _f)
                 except Exception: pass
                 self._guardar()
@@ -454,6 +478,7 @@ class Api:
         return {"ok": True, "nombre": nombre}
 
     def _guardar(self):
+        os.makedirs(os.path.dirname(self.ruta_config), exist_ok=True)
         with open(self.ruta_config, "w") as f:
             json.dump(self.config_actual, f)
 
@@ -1416,7 +1441,10 @@ class Api:
             return {"ok": False, "error": str(e)}
 
     # ── Multi-cuenta ──────────────────────────────────────────────────────────
-    _SESIONES_PATH = "paraguacraft_sessions.json"
+    _SESIONES_PATH = os.path.join(
+        os.environ.get("APPDATA", os.path.expanduser("~")),
+        "ParaguacraftLauncher", "paraguacraft_sessions.json"
+    )
 
     def get_cuentas(self):
         try:
@@ -3274,6 +3302,65 @@ class Api:
             return {"ok": False, "error": "Solo funciona en el ejecutable compilado (.exe)."}
         if not download_url:
             return {"ok": False, "error": "Sin URL de descarga directa."}
+
+        # Detectar si el exe está en un directorio protegido (Program Files)
+        exe_actual = sys.executable
+        exe_dir = os.path.dirname(exe_actual)
+        _can_write = False
+        try:
+            _test = os.path.join(exe_dir, "_pgcraft_write_test_")
+            with open(_test, "w") as _f: _f.write("test")
+            os.remove(_test)
+            _can_write = True
+        except Exception:
+            pass
+
+        if not _can_write:
+            # No se puede escribir en el directorio del exe (Program Files).
+            # Buscar el instalador en el release de GitHub y lanzarlo con elevación UAC.
+            def _hilo_installer():
+                try:
+                    url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+                    r = requests.get(url, timeout=10, headers={"User-Agent": "Paraguacraft-Launcher"})
+                    assets = r.json().get("assets", [])
+                    html_url = r.json().get("html_url", f"https://github.com/{GITHUB_REPO}/releases/latest")
+                    installer_url = None
+                    for asset in assets:
+                        name = asset.get("name", "").lower()
+                        if name.endswith(".exe") and any(kw in name for kw in ("instalar", "setup", "install")):
+                            installer_url = asset.get("browser_download_url")
+                            break
+                    if installer_url:
+                        tmp_installer = os.path.join(tempfile.gettempdir(), "Paraguacraft_Setup.exe")
+                        dl = requests.get(installer_url, stream=True, timeout=180,
+                                          headers={"User-Agent": "Paraguacraft-Launcher"})
+                        dl.raise_for_status()
+                        with open(tmp_installer, "wb") as _f:
+                            for chunk in dl.iter_content(65536):
+                                if chunk: _f.write(chunk)
+                        # Lanzar instalador con UAC (runas)
+                        import ctypes as _ct
+                        _ct.windll.shell32.ShellExecuteW(None, "runas", tmp_installer, None, None, 1)
+                        time.sleep(1)
+                        os._exit(0)
+                    else:
+                        # Sin instalador en el release → abrir browser
+                        import webbrowser
+                        webbrowser.open(html_url)
+                        try:
+                            webview.windows[0].evaluate_js(
+                                f"_updateFailed('Descargá el instalador manualmente desde GitHub Releases.')"
+                            )
+                        except Exception: pass
+                except Exception as _e:
+                    import webbrowser
+                    webbrowser.open(f"https://github.com/{GITHUB_REPO}/releases/latest")
+                    try:
+                        webview.windows[0].evaluate_js(f"_updateFailed({json.dumps(str(_e))})")
+                    except Exception: pass
+            threading.Thread(target=_hilo_installer, daemon=True).start()
+            return {"ok": True}
+
         def _notify_err(msg):
             try:
                 webview.windows[0].evaluate_js(f"_updateFailed({json.dumps(str(msg))})")

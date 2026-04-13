@@ -4,7 +4,7 @@
 
 **Launcher completo de Minecraft, desarrollado en Python con interfaz web moderna.**
 
-[![Version](https://img.shields.io/badge/versión-4.7.0-2ECC71?style=flat-square)](https://github.com/SantiJ10/Paraguacraft/releases)
+[![Version](https://img.shields.io/badge/versión-5.0.0-2ECC71?style=flat-square)](https://github.com/SantiJ10/Paraguacraft/releases)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![License](https://img.shields.io/badge/licencia-MIT-blue?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/plataforma-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)](https://github.com/SantiJ10/Paraguacraft/releases)
@@ -29,13 +29,17 @@ Paraguacraft es un launcher de Minecraft completamente personalizado, desarrolla
 - Quick Play: conectar directamente a un servidor al iniciar
 - Discord Rich Presence (RPC) en tiempo real
 - Cuentas **Premium (Microsoft/Mojang)** y modo **Offline**
+- Ventana **maximizada al iniciar** automáticamente
+- Restauración del estado de ventana correcto al cerrar Minecraft
 
 ### 🛒 Tienda de Mods
 - Búsqueda e instalación desde **Modrinth** y **CurseForge**
 - Mods, shaders, resource packs, datapacks y modpacks
 - Filtrado por loader y versión de Minecraft
 - Detección de mods conflictivos en la instancia activa
-- Verificación de actualizaciones disponibles
+- **Auto-check de actualizaciones** al abrir la sección (vía hash SHA-512 contra Modrinth)
+- **Configuración de API Key de CurseForge** integrada en la UI (sin editar archivos)
+- Acceso directo desde el botón 🧩 del panel de juego
 
 ### 🖼️ Skins
 - Visor 3D con animaciones (caminar, rotar, modelos Alex/Steve)
@@ -50,13 +54,13 @@ Paraguacraft es un launcher de Minecraft completamente personalizado, desarrolla
 - **Smart RAM**: ajuste dinámico de memoria asignada a Minecraft
 - **Benchmark integrado** con métricas en tiempo real
 - **Overlay en juego**: estadísticas de rendimiento sin salir de MC
+- **Centro de Diagnóstico**: 45+ patrones de error, lectura de 5 archivos de log, auto-fixes con un clic
+- **Auto-diagnóstico**: al crashear Minecraft, el launcher navega y escanea automáticamente
 
 ### 🤖 Inteligencia Artificial (Gemini)
 - Asistente de chat sobre Minecraft
 - Generador de comandos por descripción en lenguaje natural
 - Generador de modpacks inteligente (sugiere e instala mods automáticamente)
-- Generador de semillas
-- **Analizador de crash logs**: detecta la causa y propone soluciones
 
 ### 🎵 Música
 - **Spotify integrado**: controles, portada, progreso de reproducción
@@ -157,6 +161,25 @@ Paraguacraft/
 ---
 
 ## 📝 Changelog
+
+### v5.0.0
+- **Auto-maximize**: la ventana del launcher inicia maximizada via parámetro nativo de pywebview
+- **Restaurar estado de ventana**: al cerrar Minecraft, la ventana vuelve al estado previo (maximizada si lo estaba)
+- **Auto-diagnóstico de crashes**: al detectar un crash, navega automáticamente a Extras → Crash Log y escanea
+- **CF API Key UI**: configuración de API Key de CurseForge desde dentro del launcher con guía paso a paso
+- **Auto-check de actualizaciones de mods**: escanea los JARs por SHA-512 contra Modrinth al abrir la tienda
+- **Botón 🧩 Mods** en la fila de lanzamiento para acceso rápido a la tienda
+- **Botón "Buscar en tienda"** dentro del Gestor de Instancia → Contenido
+- Corrección de bugs: `_cargar_config`/`_guardar_config` inexistentes en `aplicar_fix`
+- Corrección: `inst_path` indefinido cuando `motor` era vacío en `analizar_crash_log`
+- CF 403 devuelve mensaje explícito para detección correcta en el frontend
+
+### v4.8.0
+- **Centro de Diagnóstico** expandido: 45+ patrones de error de inicio y en juego
+- Lectura de 5 fuentes de log: `latest.log`, `debug.log`, crash reports, `launch_debug.log`, `hs_err_pid*.log`
+- Auto-fixes: aumentar RAM, eliminar duplicados/OptiFine/shaders/JARs corruptos, flags JVM
+- Botón 📄 Log inicio para leer `launch_debug.log` directamente
+- Patrones nuevos: `UnsupportedClassVersionError`, JVM crash, sesión expirada, OpenGL, exit codes
 
 ### v4.7.0
 - Instalador Inno Setup configurado para instalación **global** (todos los usuarios, `Program Files`)
