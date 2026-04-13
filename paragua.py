@@ -30,7 +30,7 @@ try:
 except Exception:
     _lanzar_minecraft_ref = None
 
-VERSION = "4.8.0"  # Actualizar en cada release
+VERSION = "5.0.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 
 try:
@@ -137,6 +137,9 @@ class Api:
         saved_srv = self.config_actual.get("srv_carpeta", "")
         if saved_srv and os.path.exists(saved_srv):
             self._servidor_carpeta = saved_srv
+        saved_cf_key = self.config_actual.get("cf_api_key", "")
+        if saved_cf_key:
+            self._CF_API_KEY = saved_cf_key
 
         if os.path.exists(self.ruta_sesion):
             try:
@@ -1118,6 +1121,15 @@ class Api:
                         pass
                 # comportamiento del launcher al lanzar
                 _lb = self.config_actual.get('launch_behavior', 'minimize')
+                # Guardar estado maximizado ANTES de minimizar
+                _was_maximized = False
+                try:
+                    import ctypes as _ctx
+                    _hwnd = _ctx.windll.user32.FindWindowW(None, "Paraguacraft Launcher")
+                    if _hwnd:
+                        _was_maximized = bool(_ctx.windll.user32.IsZoomed(_hwnd))
+                except Exception:
+                    pass
                 try:
                     if _lb == 'minimize':
                         webview.windows[0].minimize()
@@ -1149,12 +1161,33 @@ class Api:
                     server_ip=server_ip or "",
                     java_path=self.config_actual.get("java_custom_path") or None,
                 )
-                # restaurar ventana si se minimizó o ocultó
+                # Restaurar ventana al estado previo (maximizado si lo estaba)
                 try:
                     if _lb == 'minimize':
                         webview.windows[0].restore()
+                        if _was_maximized:
+                            time.sleep(0.15)
+                            try:
+                                import ctypes as _ctx2
+                                _hwnd2 = _ctx2.windll.user32.FindWindowW(None, "Paraguacraft Launcher")
+                                if _hwnd2:
+                                    _ctx2.windll.user32.ShowWindow(_hwnd2, 3)  # SW_MAXIMIZE
+                            except Exception:
+                                try:
+                                    webview.windows[0].maximize()
+                                except Exception:
+                                    pass
                     elif _lb == 'close':
                         webview.windows[0].show()
+                        if _was_maximized:
+                            time.sleep(0.15)
+                            try:
+                                import ctypes as _ctx3
+                                _hwnd3 = _ctx3.windll.user32.FindWindowW(None, "Paraguacraft Launcher")
+                                if _hwnd3:
+                                    _ctx3.windll.user32.ShowWindow(_hwnd3, 3)
+                            except Exception:
+                                pass
                 except Exception:
                     pass
                 # análisis de crash + notificación de cierre
@@ -3111,26 +3144,35 @@ class Api:
 
     def instalar_mod_modrinth(self, slug, version, motor, extra=""):
         try:
-            loader = motor.lower().replace(" + iris", "").replace("optifine", "").strip().replace(" ", "-") or "fabric"
+            import json as _j
+            _m = motor.lower()
+            if "neoforge" in _m:
+                loader = "neoforge"
+            elif "forge" in _m:
+                loader = "forge"
+            elif "fabric" in _m:
+                loader = "fabric"
+            elif "quilt" in _m:
+                loader = "quilt"
+            else:
+                loader = None  # vanilla / optifine: sin filtro de loader
             sr = requests.get(
-                f"https://api.modrinth.com/v2/search?query={requests.utils.quote(slug)}&limit=1",
+                "https://api.modrinth.com/v2/search",
+                params={"query": slug, "limit": 1},
                 headers={"User-Agent": "Paraguacraft-Launcher"}, timeout=8).json()
             if not sr.get("hits"):
                 return {"ok": False, "error": f"No se encontró '{slug}' en Modrinth"}
             pid = sr["hits"][0]["project_id"]
-            params = {"loaders": f'["{loader}"]'}
+            params = {}
+            if loader:
+                params["loaders"] = _j.dumps([loader])
             if version:
-                params["game_versions"] = f'["{version}"]'
+                params["game_versions"] = _j.dumps([version])
             vr = requests.get(
                 f"https://api.modrinth.com/v2/project/{pid}/version",
                 params=params, headers={"User-Agent": "Paraguacraft-Launcher"}, timeout=8).json()
-            if not vr or not isinstance(vr, list):
-                params_retry = {k: v for k, v in params.items() if k != "loaders"}
-                vr = requests.get(
-                    f"https://api.modrinth.com/v2/project/{pid}/version",
-                    params=params_retry, headers={"User-Agent": "Paraguacraft-Launcher"}, timeout=8).json()
-            if not vr or not isinstance(vr, list):
-                return {"ok": False, "error": f"Sin versiones compatibles para '{slug}'"}
+            if not vr or not isinstance(vr, list) or len(vr) == 0:
+                return {"ok": False, "error": f"Sin versiones compatibles para '{slug}' en {motor} {version}"}
             return self.instalar_mod_desde_modrinth(pid, vr[0]["id"], "mod", version, motor)
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -4182,18 +4224,29 @@ class Api:
     _SP_CLIENT_ID = _SP_CLIENT_ID
     _SP_CLIENT_SECRET = _SP_CLIENT_SECRET
 
-    def buscar_curseforge(self, query, tipo="mods", mc_version=""):
+    def buscar_curseforge(self, query, tipo="mods", mc_version="", sort_by="relevance", loader=""):
         try:
             game_id = 432  # Minecraft
-            class_map = {"mods": 6, "resourcepacks": 12, "shaders": 6552, "modpacks": 4471}
+            class_map = {"mods": 6, "mod": 6, "resourcepacks": 12, "resourcepack": 12,
+                         "shaders": 6552, "shader": 6552, "modpacks": 4471, "modpack": 4471,
+                         "datapack": 6, "datapacks": 6}
             class_id = class_map.get(tipo, 6)
+            # CF sortField: 1=Featured, 2=Popularity, 3=LastUpdated, 4=Name, 6=TotalDownloads
+            sort_map = {"relevance": 2, "downloads": 6, "newest": 4, "updated": 3, "follows": 2}
+            sort_field = sort_map.get(sort_by, 2)
+            # CF modLoaderType: 1=Forge, 4=Fabric, 5=Quilt, 6=NeoForge
+            loader_map = {"forge": 1, "fabric": 4, "quilt": 5, "neoforge": 6}
             params = {"gameId": game_id, "classId": class_id, "searchFilter": query,
-                      "sortField": 2, "sortOrder": "desc", "pageSize": 16}
+                      "sortField": sort_field, "sortOrder": "desc", "pageSize": 16}
             if mc_version:
                 params["gameVersion"] = mc_version
+            if loader and loader.lower() in loader_map:
+                params["modLoaderType"] = loader_map[loader.lower()]
             r = requests.get("https://api.curseforge.com/v1/mods/search",
                              headers={"x-api-key": self._CF_API_KEY, "Accept": "application/json"},
                              params=params, timeout=10)
+            if r.status_code == 403:
+                return {"error": "403 Unauthorized — API key de CurseForge inválida o no configurada.", "data": []}
             if r.status_code != 200:
                 return {"error": f"HTTP {r.status_code} — API CurseForge no disponible", "data": []}
             data = r.json().get("data", [])
@@ -4201,11 +4254,88 @@ class Api:
         except Exception as e:
             return {"error": str(e), "data": []}
 
+    def guardar_cf_key(self, key):
+        """Guarda la API key de CurseForge en el config y actualiza la instancia."""
+        try:
+            key = (key or "").strip()
+            if not key:
+                return {"ok": False, "error": "Key vacía."}
+            self.config_actual["cf_api_key"] = key
+            self._CF_API_KEY = key
+            self._guardar()
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def get_mod_updates(self, version, motor):
+        """Verifica actualizaciones de mods en la instancia usando la API de hashes de Modrinth."""
+        try:
+            import hashlib
+            import minecraft_launcher_lib
+            from core import carpeta_instancia_paraguacraft
+            mc_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+            inst_path = os.path.join(mc_dir, "instancias", carpeta_instancia_paraguacraft(version, motor))
+            mods_dir = os.path.join(inst_path, "mods")
+            if not os.path.isdir(mods_dir):
+                return {"ok": False, "mods": [], "error": "Sin carpeta mods."}
+            jars = [f for f in os.listdir(mods_dir) if f.endswith(".jar")]
+            if not jars:
+                return {"ok": True, "mods": []}
+            # Calcular SHA-512 de cada JAR
+            hashes = {}
+            for jar in jars:
+                try:
+                    path = os.path.join(mods_dir, jar)
+                    with open(path, "rb") as _f:
+                        h = hashlib.sha512(_f.read()).hexdigest()
+                    hashes[h] = jar
+                except Exception:
+                    pass
+            if not hashes:
+                return {"ok": True, "mods": []}
+            loader_map = {"fabric": "fabric", "forge": "forge", "neoforge": "neoforge",
+                          "quilt": "quilt", "vanilla": "fabric"}
+            loader_mr = loader_map.get(motor.lower(), motor.lower())
+            payload = {"hashes": list(hashes.keys()), "algorithm": "sha512",
+                       "loaders": [loader_mr], "game_versions": [version]}
+            r = requests.post(
+                "https://api.modrinth.com/v2/version_files/update",
+                json=payload,
+                headers={"User-Agent": "ParaguacraftLauncher/1.0"},
+                timeout=15
+            )
+            mods_result = []
+            if r.status_code == 200:
+                updates_data = r.json()
+                for h, jar in hashes.items():
+                    if h in updates_data:
+                        update_info = updates_data[h]
+                        update_hash = ""
+                        for uf in update_info.get("files", []):
+                            if uf.get("primary", False):
+                                update_hash = uf.get("hashes", {}).get("sha512", "")
+                                break
+                        has_update = bool(update_hash and update_hash != h)
+                        mods_result.append({
+                            "nombre": jar,
+                            "version_nueva": update_info.get("version_number", "") if has_update else "",
+                            "update_disponible": has_update,
+                            "project_id": update_info.get("project_id", ""),
+                        })
+                    else:
+                        mods_result.append({"nombre": jar, "update_disponible": False})
+            else:
+                for jar in jars:
+                    mods_result.append({"nombre": jar, "update_disponible": False})
+            return {"ok": True, "mods": mods_result}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "mods": []}
+
     def get_versiones_curseforge(self, project_id, mc_version=""):
         try:
+            _hdr = {"x-api-key": self._CF_API_KEY, "Accept": "application/json"}
             r = requests.get(f"https://api.curseforge.com/v1/mods/{project_id}/files",
-                             headers={"x-api-key": self._CF_API_KEY, "Accept": "application/json"},
-                             params={"gameVersion": mc_version, "pageSize": 10}, timeout=10)
+                             headers=_hdr, params={"gameVersion": mc_version, "pageSize": 10}, timeout=10)
             if r.status_code != 200:
                 return {"ok": False, "error": f"HTTP {r.status_code}", "versions": []}
             data = r.json().get("data", [])
@@ -4227,13 +4357,19 @@ class Api:
 
     def instalar_mod_curseforge(self, project_id, file_id, tipo, version, motor):
         try:
-            r = requests.get(f"https://api.curseforge.com/v1/mods/{project_id}/files/{file_id}/download-url",
-                             headers={"x-api-key": self._CF_API_KEY}, timeout=10)
+            _hdr = {"x-api-key": self._CF_API_KEY, "Accept": "application/json"}
+            r = requests.get(f"https://api.curseforge.com/v1/mods/{project_id}/files/{file_id}",
+                             headers=_hdr, timeout=10)
             if r.status_code != 200:
-                return {"ok": False, "error": "No se pudo obtener URL de descarga"}
-            url = r.json().get("data", "")
+                return {"ok": False, "error": f"CurseForge API error {r.status_code}"}
+            file_data = r.json().get("data", {})
+            url = file_data.get("downloadUrl") or ""
+            filename = file_data.get("fileName") or f"cf_{file_id}.jar"
+            # Algunos autores deshabilitan el download directo en CF;
+            # en ese caso construimos la URL del CDN manualmente.
             if not url:
-                return {"ok": False, "error": "URL vacía"}
+                _fid = int(file_id)
+                url = f"https://edge.forgecdn.net/files/{_fid // 1000}/{_fid % 1000}/{filename}"
             import minecraft_launcher_lib as _mcl
             from core import carpeta_instancia_paraguacraft
             carpeta_tipo = {"mod": "mods", "resourcepack": "resourcepacks",
@@ -4241,13 +4377,15 @@ class Api:
             dest = os.path.join(_mcl.utils.get_minecraft_directory(), "instancias",
                                 carpeta_instancia_paraguacraft(version, motor), carpeta_tipo)
             os.makedirs(dest, exist_ok=True)
-            nombre = url.split("/")[-1].split("?")[0] or f"cf_{file_id}.jar"
-            ruta = os.path.join(dest, nombre)
-            with requests.get(url, stream=True, timeout=60) as dl:
+            ruta = os.path.join(dest, filename)
+            with requests.get(url, stream=True, timeout=120,
+                              headers={"User-Agent": "Paraguacraft-Launcher"}) as dl:
+                dl.raise_for_status()
                 with open(ruta, "wb") as f:
                     for chunk in dl.iter_content(65536):
-                        f.write(chunk)
-            return {"ok": True, "nombre": nombre}
+                        if chunk:
+                            f.write(chunk)
+            return {"ok": True, "nombre": filename}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
@@ -4689,25 +4827,252 @@ class Api:
             return {"ok": False, "error": str(e)}
 
     # ── ANALIZADOR CRASH LOG ──────────────────────────────────────────────
+    # Formato: (regex, titulo, descripcion, sugerencia, severidad, fix_action)
+    # fix_action: None | "ram" | "del_dupes" | "reinstall" | "del_shaders" | "fix_java_flags" | "check_updates"
     _CRASH_PATTERNS = [
-        (r"net\.fabricmc\.loader.*incompatible", "Incompatibilidad de mods Fabric detectada."),
-        (r"optifine.*sodium|sodium.*optifine", "OptiFine y Sodium son incompatibles. Desactivá OptiFine o usá Iris+Sodium."),
-        (r"java\.lang\.OutOfMemoryError", "Sin memoria RAM suficiente. Aumentá la RAM asignada al juego."),
-        (r"java\.lang\.OutOfMemoryError.*PermGen", "PermGen agotado. Actualizá a Java 8+ o aumentá PermGen."),
-        (r"StackOverflowError", "Stack overflow. Puede ser un mod buggy o recursión infinita."),
-        (r"UnsatisfiedLinkError.*lwjgl", "Error de LWJGL nativo. Reinstalá el juego o actualizá drivers gráficos."),
-        (r"GLFW error.*65543|GLFWException", "Error de ventana GLFW. Actualizá drivers de GPU."),
-        (r"class.*has been loaded from.*different.*loader", "Conflicto de classloader entre mods. Revisá versiones duplicadas."),
-        (r"Duplicate mod.*same mod ID", "Mods duplicados detectados. Eliminá uno de los JARs conflictivos."),
-        (r"mixin.*failed|MixinException", "Un mod con Mixin falló. Actualizá los mods a versiones compatibles."),
-        (r"forge.*requires.*minecraft.*but", "Versión de Forge incompatible con esta versión de Minecraft."),
-        (r"fabric.*requires.*minecraft.*but", "Versión de Fabric incompatible con esta versión de Minecraft."),
-        (r"id_of_mod.*already registered|Registry.*already.*registered", "Dos mods registran el mismo item/bloque ID. Incompatibilidad de contenido."),
-        (r"Driver crashed.*shutting down|GL_OUT_OF_MEMORY", "La GPU se quedó sin VRAM. Bajá la calidad gráfica o los chunks renderizados."),
-        (r"Unable to make.*accessible|InaccessibleObjectException", "Error de reflexión Java. Actualizá Java 17+ o verificá los flags JVM."),
-        (r"CrashReport.*caused by.*incompatible.*receiving channel", "Incompatibilidad de protocolo de red con el servidor."),
-        (r"Missing required.*dependency.*mod", "Falta una dependencia de mod. Revisá el README de los mods instalados."),
+        # ── ERRORES DE INICIO / STARTUP ───────────────────────────────────
+        (r"Unsupported class file major version|UnsupportedClassVersionError",
+         "Java demasiado viejo para esta versión de MC",
+         "La versión de Java instalada es muy antigua. MC 1.17+ requiere Java 17+, MC 1.20.5+ requiere Java 21.",
+         "Instalá Java 21 desde adoptium.net y configurá la ruta en Extras → Java.",
+         "error", "fix_java_flags"),
+        (r"Could not create the Java Virtual Machine|Error: Could not create",
+         "Java no pudo iniciarse (JVM error)",
+         "La Máquina Virtual de Java no pudo crearse. Puede ser RAM insuficiente o flags JVM inválidos.",
+         "Reducí la RAM asignada o reseteá los flags JVM personalizados.",
+         "error", "ram"),
+        (r"Error: Could not find or load main class|Unable to access jarfile",
+         "Instalación de Minecraft corrupta",
+         "Los archivos principales de Minecraft no se encontraron o están dañados.",
+         "Reinstalá la versión desde el launcher. Borrar y reinstalar corrige archivos corruptos.",
+         "error", "reinstall"),
+        (r"Invalid session|Failed to verify username|Authentication servers are down",
+         "Error de autenticación / sesión inválida",
+         "La sesión de Minecraft expiró o los servidores de autenticación no responden.",
+         "Cerrá sesión y volvé a iniciarla en el launcher. Si usás cuenta premium, verificá tu internet.",
+         "advertencia", None),
+        (r"No OpenGL context found|No usable OpenGL|OpenGL.*not supported|requires OpenGL 3\.2|OpenGL error",
+         "OpenGL no soportado por la GPU",
+         "La tarjeta gráfica no soporta OpenGL 3.2+, que Minecraft moderno requiere.",
+         "Actualizá los drivers de video. Si la GPU es muy antigua, intentá con el cliente OptiFine o usá MESA (software render).",
+         "error", None),
+        (r"Failed to download.*client|Unable to download.*jar|download.*failed.*minecraft",
+         "Descarga de Minecraft falló",
+         "Los archivos del juego no pudieron descargarse. Falló la conexión durante la instalación.",
+         "Verificá tu internet. Desactivá temporalmente el antivirus. Reintentá instalar la versión.",
+         "advertencia", "reinstall"),
+        (r"Fabric loader.*not found|fabric-loader.*missing|No fabric loader",
+         "Fabric Loader no instalado",
+         "Seleccionaste Fabric pero el loader no está instalado para esta versión de Minecraft.",
+         "Instalá Fabric Loader desde la pestaña Versiones seleccionando tu versión + Fabric.",
+         "error", "reinstall"),
+        (r"forge.*not.*installed|forge.*missing|net\.minecraftforge.*not found",
+         "Forge no instalado",
+         "Seleccionaste Forge pero no está instalado para esta versión de Minecraft.",
+         "Instalá Forge desde la pestaña Versiones seleccionando tu versión + Forge.",
+         "error", "reinstall"),
+        (r"exit code.*\-805306369|STATUS_STACK_BUFFER_OVERRUN|0xCFFFFFFF",
+         "Crash nativo de Windows (JVM crash)",
+         "Java crasheó a nivel del sistema operativo. Puede ser driver de video, antivirus o RAM defectuosa.",
+         "Actualizá los drivers de GPU. Agregá java.exe como excepción en el antivirus.",
+         "error", None),
+        (r"exit code.*\-1073741819|0xC0000005|ACCESS_VIOLATION",
+         "Violación de acceso de memoria (Access Violation)",
+         "El proceso de Java accedió a una zona de memoria inválida. Puede ser mod incompatible o driver.",
+         "Deshabilitar shaders y mods uno por uno. Actualizá drivers de GPU y Windows.",
+         "error", None),
+        (r"exit code 1(?!\d)|process.*exited.*with code 1",
+         "Minecraft cerró con error (exit code 1)",
+         "Minecraft terminó con un error genérico. El log puede contener más detalles.",
+         "Revisá el latest.log completo. Suele ser un mod incompatible o falta de recursos.",
+         "advertencia", None),
+        (r"exit code 255|exit.*-255",
+         "Minecraft cerró sin memoria (exit code 255)",
+         "Minecraft fue terminado por el sistema por falta de RAM disponible.",
+         "Aumentá la RAM asignada o cerrá otras aplicaciones antes de iniciar Minecraft.",
+         "error", "ram"),
+        (r"java\.exe.*not found|No JVM.*found|JAVA_HOME.*not set|java.*not recognized",
+         "Java no encontrado en el sistema",
+         "Java no está instalado o no se encuentra en el PATH del sistema.",
+         "Instalá Java 21 (Temurin) desde adoptium.net y configurá la ruta en Extras → Java.",
+         "error", None),
+        (r"PermissionError|Access is denied.*java|WinError 5",
+         "Permiso denegado (antivirus o UAC)",
+         "Windows o el antivirus bloqueó la ejecución de Java/Minecraft.",
+         "Ejecutá el launcher como administrador. Agregá la carpeta .minecraft como excepción en el antivirus.",
+         "advertencia", None),
+        (r"FileNotFoundError.*\.json|version.*json.*not found|version.*not.*found",
+         "Archivo de versión no encontrado",
+         "El archivo de configuración de la versión de Minecraft no existe. Versión no instalada.",
+         "Instalá la versión de Minecraft primero desde la pestaña Versiones.",
+         "error", "reinstall"),
+        (r"no space left|disk.*full|not enough.*disk|IOError.*28",
+         "Sin espacio en disco",
+         "El disco duro está lleno. Minecraft no puede escribir archivos.",
+         "Liberá espacio en disco. Borrá crash reports y logs viejos desde Herramientas → Limpieza.",
+         "error", None),
+        (r"connection.*refused.*mojang|connect.*timed.*out.*mojang|Failed to connect.*auth",
+         "Sin conexión a servidores de Mojang",
+         "El launcher no pudo conectarse a los servidores de autenticación de Mojang.",
+         "Verificá tu conexión a internet. Revisá el estado de los servidores en status.minecraft.net.",
+         "advertencia", None),
+        (r"DXGI_ERROR|DirectX.*error|d3d.*error|dx.*crash",
+         "Error de DirectX",
+         "El renderizado DirectX falló. Puede ser driver de video desactualizado.",
+         "Actualizá los drivers de GPU y DirectX desde Windows Update.",
+         "error", None),
+        (r"VK_ERROR|Vulkan.*not.*supported|vulkan.*error",
+         "Vulkan no soportado",
+         "El modo Vulkan no es compatible con tu GPU o driver.",
+         "Desactivá el renderizado Vulkan en las opciones de video de Minecraft.",
+         "advertencia", None),
+        (r"OutOfMemoryError.*Metaspace|PermGen space",
+         "Metaspace / PermGen agotado",
+         "El área de metadatos de la JVM se llenó. Demasiados mods o mod loader con leaks.",
+         "Aumentá el MaxMetaspaceSize: agregá -XX:MaxMetaspaceSize=512m en flags JVM extra.",
+         "error", "fix_java_flags"),
+        (r"java\.lang\.OutOfMemoryError",
+         "Sin memoria RAM (OutOfMemoryError)",
+         "Minecraft se quedó sin RAM. El proceso Java no tiene suficiente memoria para continuar.",
+         "Aumentá la RAM asignada a ≥4 GB en Configuración. Para modpacks pesados usá 6-8 GB.",
+         "error", "ram"),
+        (r"optifine.*sodium|sodium.*optifine",
+         "Conflicto crítico: OptiFine + Sodium",
+         "OptiFine y Sodium modifican el motor de renderizado y son totalmente incompatibles.",
+         "Eliminá OptiFine de la carpeta mods. Usá Iris Shaders como reemplazo compatible con Sodium.",
+         "error", "del_optifine"),
+        (r"Duplicate mod.*same mod ID|duplicate.*modid|already.*present.*mods",
+         "Mod duplicado detectado",
+         "Hay dos archivos JAR del mismo mod en la carpeta mods. Solo puede existir uno.",
+         "El launcher puede detectar y eliminar automáticamente los JARs duplicados.",
+         "error", "del_dupes"),
+        (r"mixin.*failed|MixinException|mixin.*apply.*error|mixin.*inject",
+         "Error de Mixin en mod",
+         "Un mod usa Mixin (parcheo profundo de clases) y falló. Suele ser incompatibilidad de versiones de mods.",
+         "Actualizá todos los mods a la versión más reciente compatible con tu versión de MC.",
+         "error", "check_updates"),
+        (r"Missing required.*dependency|Requires.*mod.*to.*load|missing.*dependency|depends on.*which is missing",
+         "Dependencia de mod faltante",
+         "Un mod requiere otro mod como dependencia que no está instalado en la carpeta mods.",
+         "Revisá en Modrinth/CurseForge la página del mod para ver qué dependencias necesita e instalarlas.",
+         "error", None),
+        (r"GLFW error|GLFWException|glfw.*error.*65",
+         "Error de ventana GLFW",
+         "El sistema de ventanas de Java (GLFW) falló al inicializar. Generalmente por drivers de GPU desactualizados.",
+         "Actualizá los drivers de tu GPU (NVIDIA GeForce Experience / AMD Software / Intel Arc) desde el sitio oficial.",
+         "error", None),
+        (r"UnsatisfiedLinkError.*lwjgl|lwjgl.*native|Failed to locate library",
+         "Error de bibliotecas nativas LWJGL",
+         "Las bibliotecas nativas de gráficos/audio (LWJGL) no pudieron cargarse. Instalación corrupta.",
+         "Reinstalá la versión de Minecraft. Si persiste, borrá la carpeta .minecraft/libraries/.",
+         "error", "reinstall"),
+        (r"Driver crashed.*shutting|GL_OUT_OF_MEMORY|ran out of.*vram",
+         "GPU sin VRAM (Out of GPU Memory)",
+         "La tarjeta gráfica se quedó sin memoria de video (VRAM).",
+         "Bajá los chunks de renderizado a 8-12, reducí la resolución o desactivá shaders.",
+         "error", None),
+        (r"StackOverflowError",
+         "StackOverflow (bucle infinito en mod)",
+         "Un mod entró en una recursión infinita que agotó el stack de la JVM.",
+         "Desactivá los mods de uno en uno para encontrar el culpable. Suele ser un mod de automatización o magia.",
+         "error", None),
+        (r"class.*has been loaded from.*different.*loader|ClassLoader.*conflict|class.*loader.*mismatch",
+         "Conflicto de ClassLoader entre mods",
+         "Dos mods cargan la misma clase desde lugares distintos, creando conflicto de versiones en la JVM.",
+         "Verificá que todos tus mods sean para la misma versión de MC y el mismo loader (Fabric/Forge).",
+         "error", None),
+        (r"forge.*requires.*minecraft|neoforge.*requires.*minecraft|This version of forge requires",
+         "Forge/NeoForge incompatible con versión de MC",
+         "La versión de Forge/NeoForge instalada no es compatible con esta versión de Minecraft.",
+         "Reinstalá Forge con la versión exacta para tu MC. Verificá en files.minecraftforge.net.",
+         "error", "reinstall"),
+        (r"fabric.*requires.*minecraft|This version of fabric|fabric.*loader.*incompatible",
+         "Fabric Loader incompatible con versión de MC",
+         "La versión de Fabric Loader instalada no es compatible con esta versión de Minecraft.",
+         "Reinstalá Fabric Loader con la versión correcta desde fabricmc.net.",
+         "error", "reinstall"),
+        (r"id_of_mod.*already registered|Registry.*already.*registered|duplicate.*registry.*key",
+         "IDs de items o bloques duplicados",
+         "Dos mods intentan registrar el mismo item, bloque o entidad con el mismo ID de registro.",
+         "Revisá los mods instalados para incompatibilidades conocidas. Eliminá uno de los mods en conflicto.",
+         "error", None),
+        (r"Unable to make.*accessible|InaccessibleObjectException|module.*does not.*export",
+         "Error de módulos Java (reflexión bloqueada)",
+         "Java 17+ bloquea el acceso por reflexión sin los flags --add-opens apropiados.",
+         "El launcher puede agregar automáticamente los flags JVM necesarios.",
+         "advertencia", "fix_java_flags"),
+        (r"shader.*compile.*error|fragment.*shader.*error|vertex.*shader.*error|glsl.*error|GLSL.*ERROR",
+         "Error de compilación de shader",
+         "Un shader personalizado tiene código GLSL incompatible con tu GPU o driver.",
+         "Desactivá el shader pack en Opciones de Video → Shaders. Actualizá Iris/OptiFine.",
+         "advertencia", "del_shaders"),
+        (r"Entity.*being.*ticked|ticking entity.*crash|entity.*tick.*exception",
+         "Entidad del juego causando crash",
+         "Una entidad (mob, item, tile entity) en el mundo está generando un error al procesarse.",
+         "Usá el comando '/kill @e[type=!player]' en un mundo de prueba o NBTExplorer para eliminar la entidad.",
+         "error", None),
+        (r"chunk.*loading.*error|failed.*load.*chunk|region.*corrupt|corrupted.*chunk",
+         "Chunk del mundo corrupto",
+         "Un chunk del mapa está dañado y Minecraft no puede cargarlo.",
+         "Usá Chunk Base o Amulet Map Editor para identificar y eliminar el chunk problemático.",
+         "error", None),
+        (r"ConcurrentModificationException",
+         "Modificación concurrente (bug de mod)",
+         "Un mod modificó una colección de datos mientras se estaba leyendo. Típico bug de threading en mods.",
+         "Actualizá el mod implicado. Si el stack trace menciona un mod específico, reportalo al autor.",
+         "advertencia", None),
+        (r"Failed to start the minecraft server|server.*failed.*bind|address.*already.*in.*use",
+         "Puerto de servidor en uso",
+         "El puerto 25565 ya está siendo usado por otro proceso o servidor.",
+         "Cerrá otros servidores de Minecraft o cambiá el puerto en server.properties.",
+         "advertencia", None),
+        (r"java\.lang\.NullPointerException.*at net\.minecraft|NPE.*minecraft",
+         "NullPointerException en Minecraft/mod",
+         "Se intentó acceder a un objeto que no existe (null). Puede ser un mod o bug del juego.",
+         "Revisá el stack trace para identificar el mod. Actualizá mods y Minecraft a la última versión.",
+         "advertencia", None),
+        (r"out of date.*minecraft|requires.*newer.*minecraft|outdated.*client",
+         "Versión de Minecraft desactualizada",
+         "El servidor o un mod requiere una versión más nueva de Minecraft.",
+         "Actualizá Minecraft a la versión requerida desde el launcher.",
+         "advertencia", None),
+        (r"Failed to download|download.*failed|Unable to download.*asset",
+         "Error al descargar assets de Minecraft",
+         "Falló la descarga de archivos necesarios (sonidos, texturas, etc.) durante el inicio.",
+         "Verificá tu conexión a internet. El launcher puede reparar los archivos faltantes.",
+         "advertencia", "reinstall"),
+        (r"Invalid or corrupt jarfile|corrupt.*jar|jar.*corrupt",
+         "Archivo JAR corrupto",
+         "Un archivo JAR de mod o del juego está dañado (descarga incompleta o corrupta).",
+         "Eliminá y volvé a descargar los JARs afectados. Evitá interrumpir descargas.",
+         "error", "del_corrupt"),
+        (r"permission.*denied|access.*denied.*minecraft",
+         "Permiso denegado al acceder a archivos",
+         "El sistema operativo bloqueó el acceso a archivos de Minecraft. Problema de permisos.",
+         "Ejecutá el launcher como administrador o verificá los permisos de la carpeta .minecraft.",
+         "advertencia", None),
+        (r"Caused by.*RuntimeException.*forge.*FML|FML.*error|ForgeModLoader.*error",
+         "Error del Forge Mod Loader (FML)",
+         "Forge ModLoader encontró un error al cargar uno o más mods.",
+         "Revisá la lista de mods con errores en la pantalla de inicio de Forge.",
+         "error", None),
     ]
+
+    def get_launch_debug_log(self):
+        """Devuelve el contenido del launch_debug.log del launcher."""
+        try:
+            for _ld in [
+                os.path.join(os.environ.get("APPDATA", ""), "ParaguacraftLauncher"),
+                os.path.join(os.path.expanduser("~"), "AppData", "Roaming", "ParaguacraftLauncher"),
+            ]:
+                log_path = os.path.join(_ld, "launch_debug.log")
+                if os.path.isfile(log_path):
+                    with open(log_path, "r", encoding="utf-8", errors="replace") as f:
+                        content = f.read()[-20000:]
+                    return {"ok": True, "contenido": content, "ruta": log_path}
+            return {"ok": False, "error": "launch_debug.log no encontrado."}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
 
     def analizar_crash_log(self, version="", motor=""):
         try:
@@ -4720,15 +5085,27 @@ class Api:
                 logs_dir = os.path.join(inst_path, "logs")
                 crash_dir = os.path.join(inst_path, "crash-reports")
             else:
+                inst_path = mc_dir
                 logs_dir = os.path.join(mc_dir, "logs")
                 crash_dir = os.path.join(mc_dir, "crash-reports")
             contenido = ""
-            fuente = ""
+            fuentes = []
+
+            # 1. latest.log de la instancia
             latest = os.path.join(logs_dir, "latest.log")
             if os.path.isfile(latest):
                 with open(latest, "r", encoding="utf-8", errors="replace") as f:
-                    contenido = f.read()[-60000:]
-                fuente = "latest.log"
+                    contenido += f.read()[-80000:]
+                fuentes.append("latest.log")
+
+            # 2. debug.log (Forge/NeoForge genera este)
+            debug_log = os.path.join(logs_dir, "debug.log")
+            if os.path.isfile(debug_log):
+                with open(debug_log, "r", encoding="utf-8", errors="replace") as f:
+                    contenido += "\n" + f.read()[-20000:]
+                fuentes.append("debug.log")
+
+            # 3. Crash reports más reciente
             if os.path.isdir(crash_dir):
                 crashfiles = sorted(
                     [os.path.join(crash_dir, x) for x in os.listdir(crash_dir)
@@ -4737,47 +5114,192 @@ class Api:
                 )
                 if crashfiles:
                     with open(crashfiles[0], "r", encoding="utf-8", errors="replace") as f:
-                        contenido += "\n" + f.read()[-30000:]
-                    fuente += (" + " if fuente else "") + os.path.basename(crashfiles[0])
+                        contenido += "\n" + f.read()[-40000:]
+                    fuentes.append(os.path.basename(crashfiles[0]))
+
+            # 4. launch_debug.log del launcher (startup errors)
+            for _ld in [
+                os.path.join(os.environ.get("APPDATA", ""), "ParaguacraftLauncher"),
+                os.path.join(os.path.expanduser("~"), "AppData", "Roaming", "ParaguacraftLauncher"),
+            ]:
+                log_path = os.path.join(_ld, "launch_debug.log")
+                if os.path.isfile(log_path):
+                    with open(log_path, "r", encoding="utf-8", errors="replace") as f:
+                        contenido += "\n" + f.read()[-15000:]
+                    fuentes.append("launch_debug.log")
+                    break
+
+            # 5. JVM hotspot crash files (hs_err_pid*.log)
+            for search_dir in [inst_path if _v else mc_dir, mc_dir,
+                               os.path.expanduser("~"), os.getcwd()]:
+                try:
+                    hs_files = sorted(
+                        [os.path.join(search_dir, f) for f in os.listdir(search_dir)
+                         if f.startswith("hs_err_pid") and f.endswith(".log")],
+                        key=os.path.getmtime, reverse=True
+                    )
+                    if hs_files:
+                        with open(hs_files[0], "r", encoding="utf-8", errors="replace") as f:
+                            contenido += "\n" + f.read()[-10000:]
+                        fuentes.append(os.path.basename(hs_files[0]))
+                        break
+                except Exception:
+                    pass
+
+            fuente = " + ".join(fuentes) if fuentes else ""
             if not contenido:
-                return {"ok": False, "error": "No se encontraron logs de Minecraft."}
-            diagnosticos = []
-            lower = contenido.lower()
-            for pat, msg in self._CRASH_PATTERNS:
-                if re.search(pat, contenido, re.IGNORECASE):
-                    diagnosticos.append(msg)
-            mod_match = re.findall(r'Loaded mods:\s*(.*?)(?:\n\n|\Z)', contenido, re.DOTALL)
-            mods_cargados = []
-            if mod_match:
-                mods_cargados = [m.strip() for m in mod_match[0].split(",") if m.strip()][:20]
-            # Map diagnostics strings → structured issues for frontend
-            _sev_map = [
-                ("OutOfMemory", "error"), ("StackOverflow", "error"), ("Driver crashed", "error"),
-                ("GL_OUT_OF_MEMORY", "error"), ("UnsatisfiedLink", "error"), ("GLFW", "error"),
-            ]
+                return {"ok": False, "error": "No se encontraron logs de Minecraft para esta instancia."}
+
             issues = []
-            for msg in (diagnosticos if diagnosticos else ["No se detectaron patrones conocidos. Revisá el log manualmente."]):
-                sev = "advertencia"
-                for kw, s in _sev_map:
-                    if kw.lower() in msg.lower():
-                        sev = s; break
-                if any(w in msg.lower() for w in ["incompatible", "conflicto", "falta", "duplicad", "mixin", "driver", "memory", "overflow", "glfw", "vram"]):
-                    sev = "error"
-                titulo = msg.split(".")[0].strip()[:60]
-                desc = msg
-                sug = ""
-                if "RAM" in msg or "memoria" in msg.lower():
-                    sug = "Aumentá la RAM en Configuración → RAM asignada."
-                elif "Sodium" in msg and "OptiFine" in msg:
-                    sug = "Desactivá OptiFine y usá Iris en su lugar."
-                elif "duplicad" in msg.lower():
-                    sug = "Borrá el JAR duplicado de la carpeta mods."
-                elif "driver" in msg.lower() or "VRAM" in msg:
-                    sug = "Actualizá los drivers de tu GPU desde el sitio del fabricante."
-                issues.append({"severidad": sev, "titulo": titulo, "descripcion": desc, "sugerencia": sug})
-            return {"ok": True, "fuente": fuente, "issues": issues,
-                    "mods_cargados": mods_cargados,
-                    "fragmento": contenido[-3000:]}
+            seen_pats = set()
+            for pat, titulo, desc, sug, sev, fix in self._CRASH_PATTERNS:
+                if re.search(pat, contenido, re.IGNORECASE):
+                    k = titulo[:30]
+                    if k not in seen_pats:
+                        seen_pats.add(k)
+                        issues.append({"severidad": sev, "titulo": titulo,
+                                       "descripcion": desc, "sugerencia": sug,
+                                       "fix_action": fix})
+
+            # Detectar mods mencionados en el crash
+            mod_names = []
+            for pat in [r'at (.+?\.mod\..+?)\(', r'Loading\s+\[(.+?)\]',
+                        r'Caused by.*?\.(.+?)\.', r'-- Mod List --\n(.*?)\n\n']:
+                found = re.findall(pat, contenido, re.IGNORECASE | re.DOTALL)
+                mod_names.extend(found[:5])
+            # Detectar JARs mencionados
+            jar_matches = re.findall(r'([A-Za-z0-9_\-\.]+\.jar)', contenido)
+            jar_unique = list(dict.fromkeys(jar_matches))[:10]
+
+            # Detectar línea de error principal
+            error_line = ""
+            for pat in [r'(java\.lang\.\w+Error[^\n]*)', r'(java\.lang\.\w+Exception[^\n]*)',
+                        r'(Caused by:[^\n]+)', r'(FATAL[^\n]+)', r'(ERROR[^\n]+)']:
+                m = re.search(pat, contenido, re.IGNORECASE)
+                if m:
+                    error_line = m.group(1).strip()[:200]
+                    break
+
+            return {
+                "ok": True,
+                "fuente": fuente,
+                "issues": issues,
+                "jars_mencionados": jar_unique,
+                "error_principal": error_line,
+                "fragmento": contenido[-4000:],
+                "total_issues": len(issues),
+            }
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def aplicar_fix(self, fix_action, version="", motor=""):
+        """Auto-arregla problemas detectados en el crash log."""
+        try:
+            import minecraft_launcher_lib
+            mc_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+            _v = (version or "").strip()
+            if _v and _v != "latest" and motor:
+                from core import carpeta_instancia_paraguacraft
+                inst_path = os.path.join(mc_dir, "instancias", carpeta_instancia_paraguacraft(_v, motor))
+            else:
+                inst_path = mc_dir
+
+            if fix_action == "ram":
+                ram_actual = int(self.config_actual.get("ram_asignada", 4))
+                ram_nueva = min(ram_actual + 2, 16)
+                self.config_actual["ram_asignada"] = ram_nueva
+                self._guardar()
+                return {"ok": True, "mensaje": f"RAM aumentada a {ram_nueva} GB. Reiniciá Minecraft."}
+
+            elif fix_action == "del_dupes":
+                mods_dir = os.path.join(inst_path, "mods")
+                if not os.path.isdir(mods_dir):
+                    return {"ok": False, "error": "Carpeta mods no encontrada."}
+                from collections import defaultdict
+                mod_base = defaultdict(list)
+                for f in os.listdir(mods_dir):
+                    if f.endswith(".jar"):
+                        base = re.sub(r'[-_](\d+[\.\d]*).*\.jar$', '', f)
+                        mod_base[base.lower()].append(f)
+                eliminados = []
+                for base, jars in mod_base.items():
+                    if len(jars) > 1:
+                        jars_sorted = sorted(jars)
+                        for dup in jars_sorted[:-1]:
+                            dup_path = os.path.join(mods_dir, dup)
+                            disabled_dir = os.path.join(mods_dir, "disabled_dupes")
+                            os.makedirs(disabled_dir, exist_ok=True)
+                            import shutil
+                            shutil.move(dup_path, os.path.join(disabled_dir, dup))
+                            eliminados.append(dup)
+                if eliminados:
+                    return {"ok": True, "mensaje": f"Movidos {len(eliminados)} duplicados a mods/disabled_dupes: {', '.join(eliminados[:5])}"}
+                return {"ok": True, "mensaje": "No se encontraron mods duplicados."}
+
+            elif fix_action == "del_optifine":
+                mods_dir = os.path.join(inst_path, "mods")
+                if not os.path.isdir(mods_dir):
+                    return {"ok": False, "error": "Carpeta mods no encontrada."}
+                eliminados = []
+                for f in os.listdir(mods_dir):
+                    if "optifine" in f.lower() and f.endswith(".jar"):
+                        disabled_dir = os.path.join(mods_dir, "disabled")
+                        os.makedirs(disabled_dir, exist_ok=True)
+                        import shutil
+                        shutil.move(os.path.join(mods_dir, f), os.path.join(disabled_dir, f))
+                        eliminados.append(f)
+                if eliminados:
+                    return {"ok": True, "mensaje": f"OptiFine movido a mods/disabled: {', '.join(eliminados)}. Reiniciá Minecraft."}
+                return {"ok": True, "mensaje": "OptiFine no encontrado en la carpeta mods."}
+
+            elif fix_action == "del_shaders":
+                shaders_dir = os.path.join(inst_path, "shaderpacks")
+                if not os.path.isdir(shaders_dir):
+                    return {"ok": True, "mensaje": "No hay shaderpacks instalados."}
+                import shutil
+                backup = shaders_dir + "_backup"
+                shutil.move(shaders_dir, backup)
+                return {"ok": True, "mensaje": f"Shaderpacks movidos a backup ({backup}). Reiniciá Minecraft sin shaders."}
+
+            elif fix_action == "del_corrupt":
+                mods_dir = os.path.join(inst_path, "mods")
+                if not os.path.isdir(mods_dir):
+                    return {"ok": False, "error": "Carpeta mods no encontrada."}
+                import zipfile
+                corruptos = []
+                for f in os.listdir(mods_dir):
+                    if f.endswith(".jar"):
+                        fp = os.path.join(mods_dir, f)
+                        try:
+                            with zipfile.ZipFile(fp, 'r') as z:
+                                z.testzip()
+                        except Exception:
+                            disabled_dir = os.path.join(mods_dir, "disabled_corrupt")
+                            os.makedirs(disabled_dir, exist_ok=True)
+                            import shutil
+                            shutil.move(fp, os.path.join(disabled_dir, f))
+                            corruptos.append(f)
+                if corruptos:
+                    return {"ok": True, "mensaje": f"JARs corruptos movidos: {', '.join(corruptos[:5])}. Volvé a descargarlos."}
+                return {"ok": True, "mensaje": "No se encontraron JARs corruptos."}
+
+            elif fix_action == "fix_java_flags":
+                flags_extra = "--add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED"
+                existing = self.config_actual.get("jvm_flags_extra", "")
+                if "--add-opens" not in existing:
+                    self.config_actual["jvm_flags_extra"] = (existing + " " + flags_extra).strip()
+                    self._guardar()
+                    return {"ok": True, "mensaje": "Flags --add-opens agregados. Reiniciá Minecraft."}
+                return {"ok": True, "mensaje": "Los flags --add-opens ya estaban configurados."}
+
+            elif fix_action == "check_updates":
+                return {"ok": True, "mensaje": "Andá a Extras → Actualizaciones de Mods para actualizar todos los mods automáticamente."}
+
+            elif fix_action == "reinstall":
+                return {"ok": True, "mensaje": "Para reinstalar: andá a Versiones, seleccioná la versión y hacé clic en Reinstalar. Esto corregirá archivos corruptos."}
+
+            else:
+                return {"ok": False, "error": f"Fix '{fix_action}' no reconocido."}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
@@ -6748,49 +7270,42 @@ if __name__ == "__main__":
         height=700,
         min_size=(950, 600),
         background_color="#101010",
+        maximized=True,
     )
+
+    def _win32_maximize_hwnd():
+        """Maximiza la ventana via ctypes buscando por título."""
+        try:
+            import ctypes as _ct
+            hwnd = _ct.windll.user32.FindWindowW(None, "Paraguacraft Launcher")
+            if hwnd:
+                _ct.windll.user32.ShowWindow(hwnd, 3)  # SW_MAXIMIZE
+                return True
+        except Exception:
+            pass
+        return False
+
+    def _win32_is_maximized():
+        """Devuelve True si la ventana del launcher está maximizada."""
+        try:
+            import ctypes as _ct
+            hwnd = _ct.windll.user32.FindWindowW(None, "Paraguacraft Launcher")
+            if hwnd:
+                return bool(_ct.windll.user32.IsZoomed(hwnd))
+        except Exception:
+            pass
+        return False
 
     def _on_loaded():
         try:
             ventana.evaluate_js(f'window._API_PORT = {port};')
         except Exception:
             pass
-        # Auto-maximize: pywebview native first, then win32gui fallback in a thread
-        import threading as _th
-        def _do_maximize():
-            try:
-                ventana.maximize()
-            except Exception:
-                pass
-            import time as _t
-            _t.sleep(0.5)
-            try:
-                import ctypes as _ct
-                hwnd = _ct.windll.user32.FindWindowW(None, "Paraguacraft Launcher")
-                if hwnd:
-                    _ct.windll.user32.ShowWindow(hwnd, 3)
-                    return
-            except Exception:
-                pass
-            try:
-                import win32gui as _w32g, win32con as _w32c
-                maximized = [False]
-                def _cb_max(hwnd, _):
-                    if maximized[0]:
-                        return
-                    try:
-                        t = _w32g.GetWindowText(hwnd)
-                        if "Paraguacraft" in t and _w32g.IsWindowVisible(hwnd):
-                            _w32g.ShowWindow(hwnd, _w32c.SW_MAXIMIZE)
-                            maximized[0] = True
-                    except Exception:
-                        pass
-                _w32g.EnumWindows(_cb_max, None)
-            except Exception:
-                pass
-        _th.Thread(target=_do_maximize, daemon=True).start()
+        # Fallback por si maximized=True no alcanza en alguna versión de pywebview
+        _win32_maximize_hwnd()
 
     ventana.events.loaded += _on_loaded
+
     _icon_path = os.path.join(_base, "iconomc.ico")
     webview.start(debug=False, http_server=True,
                   icon=_icon_path if os.path.exists(_icon_path) else None,
