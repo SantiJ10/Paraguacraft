@@ -30,7 +30,7 @@ try:
 except Exception:
     _lanzar_minecraft_ref = None
 
-VERSION = "5.0.0"  # Actualizar en cada release
+VERSION = "5.1.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 
 try:
@@ -1931,6 +1931,10 @@ class Api:
         try:
             motor_lower = motor.lower()
             if "fabric" in motor_lower:
+                try:
+                    _mcl.install.install_minecraft_version(ver, mc_dir, callback={"setStatus": lambda s: None})
+                except Exception as _be:
+                    pass
                 loader_ver = _mcl.fabric.get_latest_loader_version()
                 _mcl.fabric.install_fabric(ver, mc_dir, loader_ver, callback={"setStatus": lambda s: None})
                 resultados.append(f"✅ Fabric {ver} instalado")
@@ -2132,7 +2136,7 @@ class Api:
                 if os.path.exists(props_path):
                     with open(props_path, "r") as f:
                         content = f.read()
-                    content = re.sub(r"online-mode=.*", "online-mode=false", content)
+                    content = re.sub(r"^online-mode=.*", "online-mode=false", content, flags=re.MULTILINE)
                     with open(props_path, "w") as f:
                         f.write(content)
                 else:
@@ -2669,6 +2673,42 @@ class Api:
                 return {"ok": False, "error": "No hay servidor configurado"}
             entries = [e for e in self._srv_json_list("whitelist.json") if e.get("name", "").lower() != nombre.lower()]
             self._srv_json_write("whitelist.json", entries)
+        return {"ok": True}
+
+    def get_jugadores_servidor(self):
+        return {"ok": True, "jugadores": sorted(self._jugadores_online)}
+
+    def op_list(self):
+        entries = self._srv_json_list("ops.json")
+        return {"ok": True, "lista": [e.get("name", "") for e in entries if e.get("name")]}
+
+    def op_add(self, nombre):
+        nombre = nombre.strip()
+        if not nombre:
+            return {"ok": False, "error": "Nombre vacío"}
+        if self._servidor_proc and self._servidor_proc.poll() is None:
+            self.enviar_comando_servidor(f"op {nombre}")
+        else:
+            if not self._servidor_carpeta:
+                return {"ok": False, "error": "No hay servidor configurado"}
+            import uuid as _uuid_op
+            entries = self._srv_json_list("ops.json")
+            if not any(e.get("name", "").lower() == nombre.lower() for e in entries):
+                entries.append({"uuid": str(_uuid_op.uuid4()), "name": nombre,
+                                "level": 4, "bypassesPlayerLimit": False})
+                self._srv_json_write("ops.json", entries)
+        return {"ok": True}
+
+    def op_remove(self, nombre):
+        nombre = nombre.strip()
+        if self._servidor_proc and self._servidor_proc.poll() is None:
+            self.enviar_comando_servidor(f"deop {nombre}")
+        else:
+            if not self._servidor_carpeta:
+                return {"ok": False, "error": "No hay servidor configurado"}
+            entries = [e for e in self._srv_json_list("ops.json")
+                       if e.get("name", "").lower() != nombre.lower()]
+            self._srv_json_write("ops.json", entries)
         return {"ok": True}
 
     def ban_list(self):
