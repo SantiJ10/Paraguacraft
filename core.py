@@ -447,8 +447,11 @@ def inyectar_logos_paraguacraft(game_dir, version, graficos_minimos, progress_ca
         import zipfile as _zf_pack
         zip_path = os.path.join(game_dir, "resourcepacks", pack_name + ".zip")
         try:
+            if os.path.exists(zip_path): os.remove(zip_path)
+        except Exception: pass
+        try:
             with _zf_pack.ZipFile(zip_path, 'w', _zf_pack.ZIP_DEFLATED) as _zf:
-                _zf.writestr("pack.mcmeta", mcmeta_str)
+                _zf.writestr("pack.mcmeta", mcmeta_str.encode("utf-8"))
                 for _fname in ["minecraft.png", "mojangstudios.png", "edition.png"]:
                     _src = os.path.join(textures_gui_title_dir, _fname)
                     if os.path.exists(_src):
@@ -1035,10 +1038,26 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
     # Si NO está instalada, ejecutamos el motor de descarga
     if not version_instalada:
         if tipo_cliente_base == "Fabric":
-            if progress_callback: progress_callback("Instalando Fabric (Motor base)...")
-            loader_nuevo = fabric_loader_override or minecraft_launcher_lib.fabric.get_latest_loader_version()
-            minecraft_launcher_lib.fabric.install_fabric(version_base, minecraft_directory, loader_nuevo, callback={"setStatus": on_progress})
-            version_a_lanzar = f"fabric-loader-{loader_nuevo}-{version_base}"
+            # 1) Descargar base vanilla primero (Fabric la necesita para el classpath)
+            if progress_callback: progress_callback(f"Descargando Minecraft {version_base} base...")
+            try:
+                _install_mc_with_retry(version_base, minecraft_directory, {"setStatus": on_progress}, progress_callback)
+            except Exception as _be:
+                if progress_callback: progress_callback(f"Advertencia descargando base: {_be}")
+            # 2) Instalar Fabric loader
+            if progress_callback: progress_callback("Instalando Fabric loader...")
+            try:
+                loader_nuevo = fabric_loader_override or minecraft_launcher_lib.fabric.get_latest_loader_version()
+                minecraft_launcher_lib.fabric.install_fabric(version_base, minecraft_directory, loader_nuevo, callback={"setStatus": on_progress})
+                version_a_lanzar = f"fabric-loader-{loader_nuevo}-{version_base}"
+            except Exception as _fe:
+                if progress_callback: progress_callback(f"Advertencia Fabric ({_fe}), reintentando con último loader...")
+                try:
+                    _fallback_loader = minecraft_launcher_lib.fabric.get_latest_loader_version()
+                    minecraft_launcher_lib.fabric.install_fabric(version_base, minecraft_directory, _fallback_loader, callback={"setStatus": on_progress})
+                    version_a_lanzar = f"fabric-loader-{_fallback_loader}-{version_base}"
+                except Exception as _fe2:
+                    if progress_callback: progress_callback(f"Error instalando Fabric: {_fe2}")
 
         elif tipo_cliente_base == "Forge":
             # 1) Instalar base vanilla primero (el installer de Forge la necesita)
@@ -1091,10 +1110,9 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
             if progress_callback: progress_callback(f"Descargando juego base {version_base}...")
             _install_mc_with_retry(version_base, minecraft_directory, {"setStatus": on_progress}, progress_callback)
 
-    # 1.5 DEPENDENCIAS: para OptiFine y Forge, asegurar que todos los JARs estén
-    # descargados (launchwrapper, etc.) ya que get_minecraft_command los necesita
-    # en disco. install_minecraft_version es idempotente: no re-descarga lo que ya existe.
-    if tipo_cliente_base in ("OptiFine", "Forge", "NeoForge") and version_a_lanzar != version_base:
+    # 1.5 DEPENDENCIAS: asegurar que todos los JARs de librería estén en disco.
+    # install_minecraft_version es idempotente: no re-descarga lo que ya existe.
+    if tipo_cliente_base in ("OptiFine", "Forge", "NeoForge", "Fabric") and version_a_lanzar != version_base:
         try:
             if progress_callback: progress_callback("Verificando dependencias del loader...")
             _install_mc_with_retry(

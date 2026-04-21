@@ -982,11 +982,23 @@
                     </div>
                     <div id="srv-console" class="flex-1 overflow-y-auto font-mono text-xs space-y-0.5 min-h-0"></div>
                 </div>
-                <!-- Whitelist / Bans / Reinicio -->
+                <!-- Jugadores online en el servidor -->
+                <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-4 shrink-0">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="font-black text-xs text-gray-400 tracking-wider uppercase">👥 Jugadores en el servidor</h3>
+                        <button onclick="actualizarJugadoresServidor()" class="text-xs text-gray-600 hover:text-[#2ECC71] transition">↻ Actualizar</button>
+                    </div>
+                    <div id="srv-jugadores-lista" class="flex flex-wrap gap-1.5 min-h-[28px]">
+                        <span class="text-xs text-gray-600">Inicia el servidor para ver jugadores online.</span>
+                    </div>
+                </div>
+
+                <!-- Whitelist / Bans / OPs / Reinicio -->
                 <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-4 shrink-0 flex flex-col gap-3">
                     <div class="flex gap-2 flex-wrap">
                         <button onclick="mostrarWhitelist()" id="srv-whitelist" class="flex-1 bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold py-2 rounded text-sm transition border border-[#333]">📋 Whitelist</button>
                         <button onclick="mostrarBans()" id="bans" class="flex-1 bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold py-2 rounded text-sm transition border border-[#333]">🚫 Bans</button>
+                        <button onclick="mostrarOps()" class="flex-1 bg-[#2A2A2A] hover:bg-[#2A2A4A] hover:text-[#9B59B6] text-white font-bold py-2 rounded text-sm transition border border-[#333]">⭐ OPs</button>
                         <button onclick="toggleReinicio()" id="reinicio-auto" class="flex-1 bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold py-2 rounded text-sm transition border border-[#333]">🔄 Reinicio auto</button>
                         <button onclick="toggleServerPropsPanel()" class="flex-1 bg-[#2A2A2A] hover:bg-[#F39C12]/20 hover:text-[#F39C12] text-white font-bold py-2 rounded text-sm transition border border-[#333]">⚙️ server.properties</button>
                         <button id="btn-instalar-geyser" onclick="instalarGeyserServidor()" class="hidden flex-1 bg-[#0D1A2A] hover:bg-[#1A3A6A] text-[#3498DB] font-bold py-2 rounded text-sm transition border border-[#1A4A7A]">🌐 Instalar Geyser</button>
@@ -998,6 +1010,14 @@
                             <button onclick="agregarWhitelist()" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-bold px-4 py-2 rounded text-sm transition">+ Agregar</button>
                         </div>
                         <div id="srv-wl-lista" class="mt-2 space-y-1 max-h-32 overflow-y-auto text-xs text-gray-400"></div>
+                    </div>
+                    <div id="srv-ops-panel" class="hidden">
+                        <p class="text-xs text-gray-500 mb-2">Los OPs tienen permisos de administrador en el servidor.</p>
+                        <div class="flex gap-2">
+                            <input type="text" id="srv-op-input" placeholder="Nombre del jugador..." onkeypress="if(event.key==='Enter') agregarOp()" class="flex-1 bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none focus:border-[#9B59B6]">
+                            <button onclick="agregarOp()" class="bg-[#9B59B6] hover:bg-[#7D3C98] text-white font-bold px-4 py-2 rounded text-sm transition">⭐ Dar OP</button>
+                        </div>
+                        <div id="srv-ops-lista" class="mt-2 space-y-1 max-h-32 overflow-y-auto text-xs text-gray-400"></div>
                     </div>
                 </div>
 
@@ -3299,8 +3319,8 @@
                     const cats = (m.display_categories||m.categories||[]).filter(c=>!['fabric','forge','neoforge','quilt','liteloader'].includes(c)).slice(0,3);
                     const loaderBadges = loaders.map(l=>`<span style="color:${_LOADER_COLORS[l]||'#aaa'}" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#1A1A1A] border border-[#2A2A2A]">${l.charAt(0).toUpperCase()+l.slice(1)}</span>`).join('');
                     const catBadges = cats.map(c=>`<span class="px-1.5 py-0.5 rounded text-[10px] bg-[#1A1A1A] border border-[#2A2A2A] text-gray-400">${c}</span>`).join('');
-                    const safeTitle = (m.title||'').replace(/'/g,"&apos;").replace(/"/g,'&quot;');
-                    const safeIcon = (icon||'').replace(/'/g,"&apos;");
+                    const safeTitle = (m.title||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+                    const safeIcon = (icon||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
                     grid.innerHTML += `
                     <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-3.5 flex items-start gap-3.5 hover:border-[#2ECC71]/50 transition group">
                         ${icon ? `<img src="${icon}" class="w-12 h-12 rounded-lg object-cover shrink-0 bg-[#1A1A1A]" onerror="this.style.display='none'" alt="">` : `<div class="w-12 h-12 rounded-lg bg-[#1A1A1A] shrink-0 flex items-center justify-center text-xl">📦</div>`}
@@ -3927,26 +3947,59 @@
                     return;
                 }
                 _srvPropsCache = r.props || {};
+                // Defaults de Minecraft Java Edition para cada campo
+                const _MC_DEF = {
+                    'server-port':'25565','max-players':'20','online-mode':'false',
+                    'white-list':'false','motd':'A Minecraft Server','level-name':'world',
+                    'level-seed':'','difficulty':'easy','gamemode':'survival',
+                    'force-gamemode':'false','hardcore':'false','pvp':'true',
+                    'spawn-monsters':'true','spawn-animals':'true','spawn-npcs':'true',
+                    'allow-flight':'false','enable-command-block':'false',
+                    'view-distance':'10','simulation-distance':'10',
+                    'spawn-protection':'16','max-world-size':'29999984','player-idle-timeout':'0',
+                    'op-permission-level':'4'
+                };
+                // Normalizar gamemode y difficulty: número → nombre
+                const _normDiff = {'0':'peaceful','1':'easy','2':'normal','3':'hard'};
+                const _normGame = {'0':'survival','1':'creative','2':'adventure','3':'spectator'};
+                const _normVal = (k, v) => {
+                    if (k === 'difficulty') return _normDiff[v] || v;
+                    if (k === 'gamemode') return _normGame[v] || v;
+                    return v;
+                };
                 const campos = [
-                    {k:'server-port',         label:'Puerto',              tipo:'number', min:1,    max:65535},
-                    {k:'online-mode',         label:'Online Mode',         tipo:'bool'},
-                    {k:'max-players',         label:'Max Jugadores',       tipo:'number', min:1,    max:999},
-                    {k:'motd',                label:'MOTD',                tipo:'text'},
-                    {k:'difficulty',          label:'Dificultad',          tipo:'select', opts:['peaceful','easy','normal','hard']},
-                    {k:'gamemode',            label:'Gamemode',            tipo:'select', opts:['survival','creative','adventure','spectator']},
-                    {k:'pvp',                 label:'PvP',                 tipo:'bool'},
-                    {k:'white-list',          label:'Whitelist',           tipo:'bool'},
-                    {k:'view-distance',       label:'View Distance',       tipo:'number', min:2,    max:32},
-                    {k:'simulation-distance', label:'Sim Distance',        tipo:'number', min:2,    max:32},
-                    {k:'spawn-protection',    label:'Spawn Protection',    tipo:'number', min:0,    max:100},
-                    {k:'allow-flight',        label:'Permitir Vuelo',      tipo:'bool'},
+                    {k:'server-port',          label:'Puerto',             tipo:'number', min:1,    max:65535},
+                    {k:'max-players',          label:'Max Jugadores',      tipo:'number', min:1,    max:999},
+                    {k:'online-mode',          label:'Online Mode',        tipo:'bool'},
+                    {k:'white-list',           label:'Whitelist',          tipo:'bool'},
+                    {k:'motd',                 label:'MOTD (descripción)', tipo:'text'},
+                    {k:'level-name',           label:'Nombre del mundo',   tipo:'text'},
+                    {k:'level-seed',           label:'Seed del mundo',     tipo:'text'},
+                    {k:'difficulty',           label:'Dificultad',         tipo:'select', opts:['peaceful','easy','normal','hard']},
+                    {k:'gamemode',             label:'Gamemode',           tipo:'select', opts:['survival','creative','adventure','spectator']},
+                    {k:'force-gamemode',       label:'Forzar Gamemode',    tipo:'bool'},
+                    {k:'hardcore',             label:'Modo Hardcore',      tipo:'bool'},
+                    {k:'pvp',                  label:'PvP',                tipo:'bool'},
+                    {k:'spawn-monsters',       label:'Mobs hostiles',      tipo:'bool'},
+                    {k:'spawn-animals',        label:'Animales',           tipo:'bool'},
+                    {k:'spawn-npcs',           label:'NPCs/Aldeanos',      tipo:'bool'},
+                    {k:'allow-flight',         label:'Permitir Vuelo',     tipo:'bool'},
+                    {k:'enable-command-block', label:'Command Blocks',     tipo:'bool'},
+                    {k:'op-permission-level',  label:'Nivel OP (1-4)',     tipo:'number', min:1, max:4},
+                    {k:'view-distance',        label:'View Distance',      tipo:'number', min:2,    max:32},
+                    {k:'simulation-distance',  label:'Sim Distance',       tipo:'number', min:2,    max:32},
+                    {k:'spawn-protection',     label:'Spawn Protection',   tipo:'number', min:0,    max:100},
+                    {k:'max-world-size',       label:'Tamaño max mundo',   tipo:'number', min:1,    max:29999984},
+                    {k:'player-idle-timeout',  label:'Kick AFK (min)',     tipo:'number', min:0,    max:999},
                 ];
                 content.innerHTML = campos.map(c => {
-                    const val = (_srvPropsCache[c.k] !== undefined) ? _srvPropsCache[c.k] : '';
+                    const raw = (_srvPropsCache[c.k] !== undefined) ? _srvPropsCache[c.k] : (_MC_DEF[c.k] !== undefined ? _MC_DEF[c.k] : '');
+                    const val = _normVal(c.k, raw);
                     let input = '';
                     if (c.tipo === 'bool') {
                         const checked = (val === 'true') ? 'checked' : '';
-                        input = '<label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="sprop-' + c.k + '" ' + checked + ' class="w-4 h-4 accent-[#F39C12]"><span class="text-xs text-gray-400">' + (val || 'false') + '</span></label>';
+                        const labelTxt = val === 'true' ? 'true' : 'false';
+                        input = '<label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="sprop-' + c.k + '" ' + checked + ' onchange="this.nextElementSibling.textContent=this.checked?\'true\':\'false\'" class="w-4 h-4 accent-[#F39C12]"><span class="text-xs text-gray-400">' + labelTxt + '</span></label>';
                     } else if (c.tipo === 'select') {
                         const opts = c.opts.map(o => '<option value="' + o + '"' + (val === o ? ' selected' : '') + '>' + o + '</option>').join('');
                         input = '<select id="sprop-' + c.k + '" class="bg-[#0A0A0A] border border-[#333] text-white px-2 py-1.5 rounded text-xs outline-none focus:border-[#F39C12] w-full">' + opts + '</select>';
@@ -3966,7 +4019,7 @@
             const carpetaEl = document.getElementById('srv-carpeta');
             const carpeta = (carpetaEl && carpetaEl.value) ? carpetaEl.value.trim() : '';
             if (!carpeta) { alert('Elegí la carpeta del servidor primero.'); return; }
-            const keys = ['server-port','online-mode','max-players','motd','difficulty','gamemode','pvp','white-list','view-distance','simulation-distance','spawn-protection','allow-flight'];
+            const keys = ['server-port','max-players','online-mode','white-list','motd','level-name','level-seed','difficulty','gamemode','force-gamemode','hardcore','pvp','spawn-monsters','spawn-animals','spawn-npcs','allow-flight','enable-command-block','op-permission-level','view-distance','simulation-distance','spawn-protection','max-world-size','player-idle-timeout'];
             const props = {};
             keys.forEach(k => {
                 const el = document.getElementById('sprop-' + k);
@@ -4818,21 +4871,22 @@
             } catch(e) { msg.textContent = '\u274c ' + e; msg.className = 'text-xs text-red-400 min-h-[14px]'; }
         }
 
-        // ══ WHITELIST / BANS / REINICIO ═════════════════════════════════════
+        // ══ WHITELIST / BANS / OPs / JUGADORES ══════════════════════════════
         function mostrarWhitelist() {
             const p = document.getElementById('srv-wl-panel');
-            if (p) { p.classList.toggle('hidden'); cargarWhitelistServidor(); }
+            const o = document.getElementById('srv-ops-panel');
+            if (o) o.classList.add('hidden');
+            if (p) { p.classList.toggle('hidden'); if (!p.classList.contains('hidden')) cargarWhitelistServidor(); }
         }
         async function cargarWhitelistServidor() {
             const lista = document.getElementById('srv-wl-lista');
             if (!lista) return;
             try {
-                const r = await pywebview.api.get_whitelist();
+                const r = await pywebview.api.whitelist_list();
                 if (!r || !r.ok) return;
-                lista.innerHTML = (r.jugadores||[]).map(j => {
-                    const n = j.name||j;
-                    return `<div class="flex justify-between items-center bg-[#0A0A0A] rounded px-2 py-1"><span>${n}</span><button onclick="eliminarWL('${n}')" class="text-red-400 hover:text-red-300 text-xs">\u2715</button></div>`;
-                }).join('') || '<p class="text-gray-600">Sin jugadores.</p>';
+                lista.innerHTML = (r.lista||[]).map(n =>
+                    `<div class="flex justify-between items-center bg-[#0A0A0A] rounded px-2 py-1"><span>${n}</span><button onclick="eliminarWL('${n}')" class="text-red-400 hover:text-red-300 text-xs">\u2715</button></div>`
+                ).join('') || '<p class="text-gray-600">Sin jugadores en whitelist.</p>';
             } catch(e) {}
         }
         async function agregarWhitelist() {
@@ -4840,13 +4894,61 @@
             const nombre = (inp && inp.value||'').trim();
             if (!nombre) return;
             inp.value = '';
-            try { const r = await pywebview.api.agregar_whitelist(nombre); if (r&&r.ok) cargarWhitelistServidor(); } catch(e) {}
+            try { const r = await pywebview.api.whitelist_add(nombre); if (r&&r.ok) cargarWhitelistServidor(); } catch(e) {}
         }
         async function eliminarWL(nombre) {
-            try { const r = await pywebview.api.eliminar_whitelist(nombre); if (r&&r.ok) cargarWhitelistServidor(); } catch(e) {}
+            try { const r = await pywebview.api.whitelist_remove(nombre); if (r&&r.ok) cargarWhitelistServidor(); } catch(e) {}
         }
-        function mostrarBans() { alert('Gesti\u00f3n de bans: us\u00e1 la consola del servidor con /ban <jugador>'); }
-        function toggleReinicio() { alert('Reinicio autom\u00e1tico: configur\u00e1 un cron o script externo.'); }
+
+        function mostrarOps() {
+            const p = document.getElementById('srv-ops-panel');
+            const w = document.getElementById('srv-wl-panel');
+            if (w) w.classList.add('hidden');
+            if (p) { p.classList.toggle('hidden'); if (!p.classList.contains('hidden')) cargarOps(); }
+        }
+        async function cargarOps() {
+            const lista = document.getElementById('srv-ops-lista');
+            if (!lista) return;
+            try {
+                const r = await pywebview.api.op_list();
+                if (!r || !r.ok) return;
+                lista.innerHTML = (r.lista||[]).map(n =>
+                    `<div class="flex justify-between items-center bg-[#0A0A0A] rounded px-2 py-1"><span>\u2b50 ${n}</span><button onclick="quitarOp('${n}')" class="text-red-400 hover:text-red-300 text-xs">\u2715 Quitar</button></div>`
+                ).join('') || '<p class="text-gray-600">Sin OPs configurados.</p>';
+            } catch(e) {}
+        }
+        async function agregarOp() {
+            const inp = document.getElementById('srv-op-input');
+            const nombre = (inp && inp.value||'').trim();
+            if (!nombre) return;
+            inp.value = '';
+            try { const r = await pywebview.api.op_add(nombre); if (r&&r.ok) cargarOps(); } catch(e) {}
+        }
+        async function quitarOp(nombre) {
+            try { const r = await pywebview.api.op_remove(nombre); if (r&&r.ok) cargarOps(); } catch(e) {}
+        }
+
+        async function actualizarJugadoresServidor() {
+            const el = document.getElementById('srv-jugadores-lista');
+            if (!el) return;
+            try {
+                const r = await pywebview.api.get_jugadores_servidor();
+                const jugadores = (r && r.jugadores) || [];
+                if (jugadores.length === 0) {
+                    el.innerHTML = '<span class="text-xs text-gray-600">Sin jugadores conectados.</span>';
+                } else {
+                    el.innerHTML = jugadores.map(j =>
+                        `<span class="text-xs bg-[#2ECC71]/10 border border-[#2ECC71]/30 text-[#2ECC71] px-2 py-0.5 rounded-full font-bold">\ud83d\udc64 ${j}</span>`
+                    ).join('');
+                }
+            } catch(e) {
+                el.innerHTML = '<span class="text-xs text-gray-600">No disponible.</span>';
+            }
+        }
+        setInterval(actualizarJugadoresServidor, 5000);
+
+        function mostrarBans() { alert('Gestión de bans: usá la consola del servidor con /ban <jugador> o /pardon <jugador>'); }
+        function toggleReinicio() { alert('Reinicio automático: configurá un cron o script externo.'); }
 
         // ══ GESTOR OPTIMIZACIONES + DRAG-DROP ═════════════════════════════════
         async function instalarOptimizacionMod(slug) {

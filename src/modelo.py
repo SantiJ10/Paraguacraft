@@ -292,7 +292,36 @@ class CreadorServidor:
                 except Exception as e:
                     callback_progreso(f"⚠️ Error descargando {plugin_name}: {e}")
 
-            # 3b. Geyser + Floodgate (soporte Bedrock)
+            # 3b. SkinsRestorer plugin (para todos los tipos de server Paper)
+            sr_plugin_path = os.path.join(plugins_dir, "SkinsRestorer.jar")
+            if not (os.path.exists(sr_plugin_path) and os.path.getsize(sr_plugin_path) > 100_000):
+                callback_progreso("[3b/7] Descargando SkinsRestorer...")
+                try:
+                    sr_r = requests.get(
+                        "https://api.modrinth.com/v2/project/skinsrestorer/version",
+                        params={"loaders": '["paper","spigot","bukkit"]',
+                                "game_versions": f'["{ver_server}"]'},
+                        timeout=10, headers={"User-Agent": "ParaguacraftLauncher/2.0"})
+                    sr_vers = sr_r.json() if sr_r.status_code == 200 else []
+                    if not sr_vers:  # sin filtro de versión si no hay match exacto
+                        sr_r2 = requests.get(
+                            "https://api.modrinth.com/v2/project/skinsrestorer/version",
+                            params={"loaders": '["paper","spigot","bukkit"]'},
+                            timeout=10, headers={"User-Agent": "ParaguacraftLauncher/2.0"})
+                        sr_vers = sr_r2.json() if sr_r2.status_code == 200 else []
+                    if sr_vers:
+                        sr_file = next((f for f in sr_vers[0]["files"] if f.get("primary")), sr_vers[0]["files"][0])
+                        r_sr = requests.get(sr_file["url"], stream=True, timeout=(15, 120), allow_redirects=True)
+                        r_sr.raise_for_status()
+                        with open(sr_plugin_path, "wb") as f:
+                            shutil.copyfileobj(r_sr.raw, f, length=65536)
+                        callback_progreso("✅ SkinsRestorer instalado en plugins/")
+                    else:
+                        callback_progreso("⚠️ SkinsRestorer no disponible para esta versión en Modrinth.")
+                except Exception as e_sr:
+                    callback_progreso(f"⚠️ SkinsRestorer no descargado: {e_sr}")
+
+            # 3c. Geyser + Floodgate (soporte Bedrock)
             if tipo == 'paper-geyser':
                 for plugin_name, slug, hangar_owner, hangar_slug in [
                     ("Geyser-Spigot",    "geyser",    "GeyserMC", "Geyser-Spigot"),
@@ -300,9 +329,9 @@ class CreadorServidor:
                 ]:
                     plugin_path = os.path.join(plugins_dir, f"{plugin_name}.jar")
                     if os.path.exists(plugin_path) and os.path.getsize(plugin_path) > 100_000:
-                        callback_progreso(f"[3b/7] {plugin_name}.jar ya existe.")
+                        callback_progreso(f"[3c/7] {plugin_name}.jar ya existe.")
                         continue
-                    callback_progreso(f"[3b/7] Descargando {plugin_name} (soporte Bedrock)...")
+                    callback_progreso(f"[3c/7] Descargando {plugin_name} (soporte Bedrock)...")
                     downloaded = False
                     # Intento 1: download.geysermc.org
                     for platform in ("spigot", "paper"):
@@ -432,18 +461,32 @@ class CreadorServidor:
     @staticmethod
     def _setup_fabric(carpeta_server, ver_server, callback_progreso):
         try:
-            callback_progreso(f"[1/5] Obteniendo versiones de Fabric para {ver_server}...")
+            callback_progreso(f"[1/5] Obteniendo versiones de Fabric compatibles con {ver_server}...")
+            loader_ver = None
+            inst_ver = None
             try:
-                loader_resp = requests.get("https://meta.fabricmc.net/v2/versions/loader", timeout=10)
-                inst_resp   = requests.get("https://meta.fabricmc.net/v2/versions/installer", timeout=10)
-                loader_resp.raise_for_status()
-                inst_resp.raise_for_status()
-            except Exception as e:
-                return False, f"No se pudo conectar con la API de Fabric: {e}"
-            loaders    = loader_resp.json()
-            installers = inst_resp.json()
-            loader_ver = next((l['version'] for l in loaders    if l.get('stable')), loaders[0]['version'])
-            inst_ver   = next((i['version'] for i in installers if i.get('stable')), installers[0]['version'])
+                # API version-específica: devuelve loader+installer compatibles con la versión del juego
+                ver_resp = requests.get(
+                    f"https://meta.fabricmc.net/v2/versions/loader/{ver_server}",
+                    timeout=10)
+                if ver_resp.status_code == 200 and ver_resp.json():
+                    entries = ver_resp.json()
+                    best = next((e for e in entries if e.get("loader", {}).get("stable")), entries[0])
+                    loader_ver = best["loader"]["version"]
+                    inst_ver   = best.get("installer", {}).get("version")
+            except Exception:
+                pass
+            # Fallback: API global si la versión específica no respondió
+            if not loader_ver or not inst_ver:
+                try:
+                    loader_resp = requests.get("https://meta.fabricmc.net/v2/versions/loader",    timeout=10)
+                    inst_resp   = requests.get("https://meta.fabricmc.net/v2/versions/installer", timeout=10)
+                    loader_resp.raise_for_status(); inst_resp.raise_for_status()
+                    loaders = loader_resp.json(); installers = inst_resp.json()
+                    loader_ver = loader_ver or next((l['version'] for l in loaders    if l.get('stable')), loaders[0]['version'])
+                    inst_ver   = inst_ver   or next((i['version'] for i in installers if i.get('stable')), installers[0]['version'])
+                except Exception as e:
+                    return False, f"No se pudo conectar con la API de Fabric: {e}"
             callback_progreso(f"[1/5] Fabric loader {loader_ver} | installer {inst_ver}")
 
             server_jar_path = os.path.join(carpeta_server, "server.jar")
@@ -454,10 +497,10 @@ class CreadorServidor:
                            f"/{loader_ver}/{inst_ver}/server/jar")
                 callback_progreso(f"[2/5] Descargando Fabric server {ver_server}...")
                 try:
-                    r_jar = requests.get(jar_url, stream=True, timeout=(15, 300))
+                    r_jar = requests.get(jar_url, stream=True, timeout=(15, 300), allow_redirects=True)
                     if r_jar.status_code != 200:
-                        return False, (f"Fabric no soporta la versión '{ver_server}'. "
-                                       f"Usá 1.18.2, 1.19.4, 1.20.4, 1.21.4, etc.")
+                        return False, (f"Fabric no encontró servidor para '{ver_server}' "
+                                       f"(HTTP {r_jar.status_code}). Verificá que la versión sea soportada.")
                     r_jar.raise_for_status()
                 except Exception as e:
                     return False, f"Error descargando Fabric server: {e}"
@@ -470,6 +513,65 @@ class CreadorServidor:
                             if downloaded % (5 * 1024 * 1024) < 65536:
                                 callback_progreso(f"[2/5] Descargando... {downloaded/1048576:.1f} MB")
                 callback_progreso(f"[2/5] Fabric server descargado ({downloaded/1048576:.1f} MB).")
+
+            # 2b. SkinsRestorer mod (skinrestorer para Fabric)
+            mods_dir = os.path.join(carpeta_server, "mods")
+            os.makedirs(mods_dir, exist_ok=True)
+            sr_path = os.path.join(mods_dir, "SkinsRestorer.jar")
+            if not (os.path.exists(sr_path) and os.path.getsize(sr_path) > 100_000):
+                callback_progreso("[2b/5] Descargando SkinsRestorer...")
+                try:
+                    sr_r = requests.get(
+                        "https://api.modrinth.com/v2/project/skinsrestorer/version",
+                        params={"loaders": '["fabric"]', "game_versions": f'["{ver_server}"]'},
+                        timeout=10, headers={"User-Agent": "ParaguacraftLauncher/2.0"})
+                    sr_vers = sr_r.json() if sr_r.status_code == 200 else []
+                    if not sr_vers:  # sin filtro de versión si no hay match exacto
+                        sr_r2 = requests.get(
+                            "https://api.modrinth.com/v2/project/skinsrestorer/version",
+                            params={"loaders": '["fabric"]'}, timeout=10,
+                            headers={"User-Agent": "ParaguacraftLauncher/2.0"})
+                        sr_vers = sr_r2.json() if sr_r2.status_code == 200 else []
+                    if sr_vers:
+                        sr_file = next((f for f in sr_vers[0]["files"] if f.get("primary")), sr_vers[0]["files"][0])
+                        r_sr = requests.get(sr_file["url"], stream=True, timeout=(15, 120), allow_redirects=True)
+                        r_sr.raise_for_status()
+                        with open(sr_path, "wb") as f:
+                            shutil.copyfileobj(r_sr.raw, f, length=65536)
+                        callback_progreso("✅ SkinsRestorer instalado en mods/")
+                    else:
+                        callback_progreso("⚠️ SkinsRestorer no disponible para esta versión en Modrinth.")
+                except Exception as e_sr:
+                    callback_progreso(f"⚠️ SkinsRestorer no descargado: {e_sr}")
+
+            # 2c. Fabric API (requerida por Geyser y la mayoría de mods Fabric server)
+            fa_existing = [f for f in os.listdir(mods_dir)
+                           if 'fabric-api' in f.lower() or 'fabricapi' in f.lower()]
+            if not fa_existing:
+                callback_progreso("[2c/5] Descargando Fabric API...")
+                try:
+                    fa_r = requests.get(
+                        "https://api.modrinth.com/v2/project/fabric-api/version",
+                        params={"loaders": '["fabric"]', "game_versions": f'["{ver_server}"]'},
+                        timeout=10, headers={"User-Agent": "ParaguacraftLauncher/2.0"})
+                    fa_vers = fa_r.json() if fa_r.status_code == 200 else []
+                    if not fa_vers:
+                        fa_r2 = requests.get(
+                            "https://api.modrinth.com/v2/project/fabric-api/version",
+                            params={"loaders": '["fabric"]'}, timeout=10,
+                            headers={"User-Agent": "ParaguacraftLauncher/2.0"})
+                        fa_vers = fa_r2.json() if fa_r2.status_code == 200 else []
+                    if fa_vers:
+                        fa_file = next((f for f in fa_vers[0]["files"] if f.get("primary")), fa_vers[0]["files"][0])
+                        r_fa = requests.get(fa_file["url"], stream=True, timeout=(15, 120), allow_redirects=True)
+                        r_fa.raise_for_status()
+                        with open(os.path.join(mods_dir, fa_file["filename"]), "wb") as f:
+                            shutil.copyfileobj(r_fa.raw, f, length=65536)
+                        callback_progreso("✅ Fabric API instalada en mods/")
+                    else:
+                        callback_progreso("⚠️ Fabric API no disponible para esta versión en Modrinth.")
+                except Exception as e_fa:
+                    callback_progreso(f"⚠️ Fabric API no descargada: {e_fa}")
 
             callback_progreso("[3/5] Aceptando EULA...")
             with open(os.path.join(carpeta_server, "eula.txt"), "w") as f:
