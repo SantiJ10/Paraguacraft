@@ -30,18 +30,20 @@ try:
 except Exception:
     _lanzar_minecraft_ref = None
 
-VERSION = "5.1.0"  # Actualizar en cada release
+VERSION = "5.2.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 
 try:
     import credentials as _cred
     _GEMINI_API_KEY   = _cred.GEMINI_API_KEY
+    _GROQ_API_KEY     = getattr(_cred, "GROQ_API_KEY", "")
     _CF_API_KEY       = _cred.CF_API_KEY
     _SP_CLIENT_ID     = _cred.SP_CLIENT_ID
     _SP_CLIENT_SECRET = _cred.SP_CLIENT_SECRET
     _YOUTUBE_API_KEY  = getattr(_cred, "YOUTUBE_API_KEY", "")
 except (ImportError, AttributeError):
     _GEMINI_API_KEY   = ""
+    _GROQ_API_KEY     = ""
     _CF_API_KEY       = ""
     _SP_CLIENT_ID     = ""
     _SP_CLIENT_SECRET = ""
@@ -133,6 +135,7 @@ class Api:
             "fondo_animado": "",
             "spotify_client_id": _SP_CLIENT_ID,
             "spotify_client_secret": _SP_CLIENT_SECRET,
+            "groq_api_key": _GROQ_API_KEY,
         }
 
         # Migrar archivos de config del directorio viejo (junto al .exe) al nuevo AppData
@@ -485,6 +488,16 @@ class Api:
     def get_settings(self):
         ram_total = max(1, math.floor(psutil.virtual_memory().total / (1024**3)))
         return {"config": self.config_actual, "ram_max": ram_total}
+
+    def actualizar_config(self, data):
+        try:
+            if not isinstance(data, dict):
+                return {"ok": False, "error": "data debe ser un dict"}
+            self.config_actual.update(data)
+            self._guardar()
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
 
     def save_setting(self, key, value):
         self.config_actual[key] = value
@@ -1042,7 +1055,7 @@ class Api:
                 daemon=True,
             ).start()
 
-        self._game_status = {"running": True, "status": "Iniciando..."}
+        self._game_status = {"running": True, "status": "Iniciando...", "version": version, "motor": motor, "started_at": time.time()}
         _last_ui_update = [0.0]
 
         def _set_status(msg):
@@ -1218,6 +1231,7 @@ class Api:
                 # análisis de crash + notificación de cierre
                 _crash = self._analizar_crash_report(version, motor, since_ts=_t0)
                 if _crash:
+                    self.__class__._ultimo_crash_ia_data = _crash  # disponible via get_ultimo_crash_ia()
                     threading.Thread(
                         target=lambda c=_crash: self._mostrar_notificacion(
                             "💥 Minecraft Crasheó", c.get("causa", "Error desconocido")
@@ -3213,24 +3227,17 @@ class Api:
     def instalar_mod_modrinth(self, slug, version, motor, extra=""):
         try:
             import json as _j
-            _m = motor.lower()
-            if "neoforge" in _m:
-                loader = "neoforge"
-            elif "forge" in _m:
-                loader = "forge"
-            elif "fabric" in _m:
-                loader = "fabric"
-            elif "quilt" in _m:
-                loader = "quilt"
-            else:
-                loader = None  # vanilla / optifine: sin filtro de loader
-            sr = requests.get(
-                "https://api.modrinth.com/v2/search",
-                params={"query": slug, "limit": 1},
-                headers={"User-Agent": "Paraguacraft-Launcher"}, timeout=8).json()
-            if not sr.get("hits"):
+            _HDR = {"User-Agent": "Paraguacraft-Launcher/2.0"}
+            loader = self._normalizar_loader(motor) if motor else None
+            if loader in ("vanilla", "optifine"):
+                loader = None  # sin filtro de loader para Vanilla/OptiFine
+            # Usar endpoint directo por slug — evita resultados incorrectos del buscador
+            pr = requests.get(
+                f"https://api.modrinth.com/v2/project/{slug}",
+                headers=_HDR, timeout=8).json()
+            pid = pr.get("id")
+            if not pid:
                 return {"ok": False, "error": f"No se encontró '{slug}' en Modrinth"}
-            pid = sr["hits"][0]["project_id"]
             params = {}
             if loader:
                 params["loaders"] = _j.dumps([loader])
@@ -3238,7 +3245,14 @@ class Api:
                 params["game_versions"] = _j.dumps([version])
             vr = requests.get(
                 f"https://api.modrinth.com/v2/project/{pid}/version",
-                params=params, headers={"User-Agent": "Paraguacraft-Launcher"}, timeout=8).json()
+                params=params, headers=_HDR, timeout=8).json()
+            if not vr or not isinstance(vr, list) or len(vr) == 0:
+                # Fallback: reintentar sin filtro de loader (mayor compatibilidad)
+                if loader and version:
+                    params_fb = {"game_versions": _j.dumps([version])}
+                    vr = requests.get(
+                        f"https://api.modrinth.com/v2/project/{pid}/version",
+                        params=params_fb, headers=_HDR, timeout=8).json()
             if not vr or not isinstance(vr, list) or len(vr) == 0:
                 return {"ok": False, "error": f"Sin versiones compatibles para '{slug}' en {motor} {version}"}
             return self.instalar_mod_desde_modrinth(pid, vr[0]["id"], "mod", version, motor)
@@ -4348,6 +4362,7 @@ class Api:
     # ── CURSEFORGE STORE ─────────────────────────────────────────────────
     _CF_API_KEY = _CF_API_KEY
     _GEMINI_API_KEY = _GEMINI_API_KEY
+    _GROQ_API_KEY = _GROQ_API_KEY
     _SP_CLIENT_ID = _SP_CLIENT_ID
     _SP_CLIENT_SECRET = _SP_CLIENT_SECRET
 
@@ -4770,24 +4785,27 @@ class Api:
 
     MODS_LOADER_MAP = {
         "forge": {
-            "sodium":        ("embeddium",    "Embeddium"),
-            "lithium":       ("canary",       "Canary"),
-            "iris":          ("oculus",       "Oculus"),
-            "indium":        None,            # Fabric-only Sodium addon
-            "entityculling": None,            # Port uses SpongeMixin, crashes Forge LaunchWrapper
-            "starlight":     None,            # Discontinued, no Forge build exists
-            "itemmodel-fix": None,            # Fabric only
-            "minihud":       None,            # Fabric only (masa mod)
+            "sodium":          ("embeddium",    "Embeddium"),
+            "lithium":         ("canary",       "Canary"),
+            "iris":            ("oculus",       "Oculus"),
+            "indium":          None,             # Fabric-only Sodium addon
+            "entityculling":   None,             # Port crashes Forge LaunchWrapper
+            "starlight":       None,             # Discontinued, no Forge build
+            "itemmodel-fix":   None,             # Fabric only
+            "minihud":         None,             # Fabric only (masa mod)
+            "immediatelyfast": None,             # Fabric/NeoForge only
+            "modernfix":       ("modernfix",    "ModernFix"),  # Has Forge port
         },
         "neoforge": {
-            "sodium":        ("embeddium",    "Embeddium"),
-            "lithium":       ("canary",       "Canary"),
-            "iris":          ("oculus",       "Oculus"),
-            "indium":        None,
-            "entityculling": None,
-            "starlight":     None,
-            "itemmodel-fix": None,
-            "minihud":       None,
+            "sodium":          ("embeddium",    "Embeddium"),
+            "lithium":         ("canary",       "Canary"),
+            "iris":            ("oculus",       "Oculus"),
+            "indium":          None,
+            "entityculling":   None,
+            "starlight":       None,
+            "itemmodel-fix":   None,
+            "minihud":         None,
+            "modernfix":       ("modernfix",    "ModernFix"),
         },
     }
 
@@ -4804,6 +4822,7 @@ class Api:
                 ("starlight", "Starlight"),
                 ("entityculling", "EntityCulling"),
                 ("memoryleakfix", "MemoryLeakFix"),
+                ("modernfix", "ModernFix"),
                 ("no-chat-reports", "No Chat Reports"),
             ],
             "gc": "ZGC",
@@ -4821,6 +4840,8 @@ class Api:
                 ("ferrite-core", "FerriteCore"),
                 ("entityculling", "EntityCulling"),
                 ("memoryleakfix", "MemoryLeakFix"),
+                ("modernfix", "ModernFix"),
+                ("immediatelyfast", "ImmediatelyFast"),
                 ("indium", "Indium"),
             ],
             "shaders_modrinth": [("makeup-ultra-fast-shaders", "Makeup Ultra Fast Shaders")],
@@ -4840,6 +4861,8 @@ class Api:
                 ("ferrite-core", "FerriteCore"),
                 ("entityculling", "EntityCulling"),
                 ("memoryleakfix", "MemoryLeakFix"),
+                ("modernfix", "ModernFix"),
+                ("immediatelyfast", "ImmediatelyFast"),
                 ("replaymod", "ReplayMod"),
                 ("itemmodel-fix", "ItemModel Fix"),
             ],
@@ -4870,7 +4893,22 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    @staticmethod
+    def _normalizar_loader(motor):
+        """Convierte el nombre de motor del launcher al loader de Modrinth."""
+        _m = motor.lower()
+        if "neoforge" in _m:
+            return "neoforge"
+        if "forge" in _m:
+            return "forge"
+        if "fabric" in _m:
+            return "fabric"
+        if "quilt" in _m:
+            return "quilt"
+        return _m.split()[0]
+
     def aplicar_perfil_hardware(self, perfil_id, version, motor, estilo="pvp"):
+        _HDR = {"User-Agent": "Paraguacraft-Launcher/2.0"}
         try:
             if perfil_id not in self.PERFILES_HARDWARE:
                 return {"ok": False, "error": "Perfil desconocido."}
@@ -4888,15 +4926,15 @@ class Api:
             # Merge without duplicates
             base_slugs = {s for s, _ in perfil["mods_modrinth"]}
             mods_merged = list(perfil["mods_modrinth"]) + [(s, n) for s, n in mods_extra if s not in base_slugs]
-            # Apply loader-specific substitutions (e.g. Forge: Embeddium instead of Sodium)
-            loader_key = motor.lower().split()[0]
-            loader_subs = self.MODS_LOADER_MAP.get(loader_key, {})
+            # Normalize loader name for MODS_LOADER_MAP lookup and Modrinth API
+            loader_name = self._normalizar_loader(motor)
+            loader_subs = self.MODS_LOADER_MAP.get(loader_name, {})
             mods_final = []
             for slug, nombre in mods_merged:
                 if slug in loader_subs:
                     sub = loader_subs[slug]
                     if sub is None:
-                        continue  # skip Fabric-only mod (e.g. Indium on Forge)
+                        continue  # skip incompatible mod for this loader
                     slug, nombre = sub
                 mods_final.append((slug, nombre))
             ram_gb = round(psutil.virtual_memory().total / 1073741824, 1)
@@ -4907,23 +4945,25 @@ class Api:
             instalados, errores = [], []
             for slug, nombre in mods_final:
                 try:
-                    sr = requests.get(f"https://api.modrinth.com/v2/search?query={requests.utils.quote(slug)}&limit=1",
-                                      timeout=8).json()
-                    if sr.get("hits"):
-                        pid = sr["hits"][0]["project_id"]
-                        params = {"game_versions": f'["{version}"]', "loaders": f'["{motor.lower()}"]'}
+                    # Use direct slug endpoint — avoids wrong search results
+                    pr = requests.get(f"https://api.modrinth.com/v2/project/{slug}",
+                                      timeout=8, headers=_HDR).json()
+                    pid = pr.get("id")
+                    if not pid:
+                        errores.append(nombre)
+                        continue
+                    params = {"game_versions": f'["{version}"]', "loaders": f'["{loader_name}"]'}
+                    vr = requests.get(f"https://api.modrinth.com/v2/project/{pid}/version",
+                                      params=params, timeout=8, headers=_HDR).json()
+                    if not vr:
+                        # Fallback: try without loader filter (wider compatibility)
+                        params.pop("loaders")
                         vr = requests.get(f"https://api.modrinth.com/v2/project/{pid}/version",
-                                          params=params, timeout=8).json()
-                        if not vr:
-                            params.pop("loaders")
-                            vr = requests.get(f"https://api.modrinth.com/v2/project/{pid}/version",
-                                              params=params, timeout=8).json()
-                        if vr:
-                            res = self.instalar_mod_desde_modrinth(pid, vr[0]["id"], "mod", version, motor)
-                            if res.get("ok"):
-                                instalados.append(nombre)
-                            else:
-                                errores.append(nombre)
+                                          params=params, timeout=8, headers=_HDR).json()
+                    if vr:
+                        res = self.instalar_mod_desde_modrinth(pid, vr[0]["id"], "mod", version, motor)
+                        if res.get("ok"):
+                            instalados.append(nombre)
                         else:
                             errores.append(nombre)
                     else:
@@ -4932,18 +4972,21 @@ class Api:
                     errores.append(nombre)
             for slug, nombre in perfil.get("shaders_modrinth", []):
                 try:
-                    sr = requests.get(f"https://api.modrinth.com/v2/search?query={requests.utils.quote(slug)}&limit=1",
-                                      timeout=8).json()
-                    if sr.get("hits"):
-                        pid = sr["hits"][0]["project_id"]
-                        vr = requests.get(f"https://api.modrinth.com/v2/project/{pid}/version",
-                                          params={"game_versions": f'["{version}"]'}, timeout=8).json()
-                        if vr:
-                            res = self.instalar_mod_desde_modrinth(pid, vr[0]["id"], "shader", version, motor)
-                            if res.get("ok"):
-                                instalados.append(nombre)
-                            else:
-                                errores.append(nombre)
+                    pr = requests.get(f"https://api.modrinth.com/v2/project/{slug}",
+                                      timeout=8, headers=_HDR).json()
+                    pid = pr.get("id")
+                    if not pid:
+                        errores.append(nombre)
+                        continue
+                    vr = requests.get(f"https://api.modrinth.com/v2/project/{pid}/version",
+                                      params={"game_versions": f'["{version}"]'},
+                                      timeout=8, headers=_HDR).json()
+                    if vr:
+                        res = self.instalar_mod_desde_modrinth(pid, vr[0]["id"], "shader", version, motor)
+                        if res.get("ok"):
+                            instalados.append(nombre)
+                        else:
+                            errores.append(nombre)
                 except Exception:
                     errores.append(nombre)
             self._guardar()
@@ -5434,84 +5477,162 @@ class Api:
         try:
             if not fragmento:
                 return {"ok": False, "error": "Fragmento vacío."}
-            prompt = ("Sos un experto en Minecraft y modding. Analizá este log de crash y explicá:"
-                      " 1) Cuál fue la causa principal, 2) Qué mods o configuración lo generó,"
-                      " 3) Cómo solucionarlo paso a paso. Respondé en español, claro y conciso.\n\nLOG:\n"
-                      + fragmento[:4000])
-            texto, err = self._gemini(prompt, max_tokens=600, temperature=0.2)
+            messages = [
+                {"role": "system", "content": (
+                    "Sos un experto en Minecraft, modding y troubleshooting de Java. "
+                    "Analizá el log de crash provisto y respondé en español con: "
+                    "1) La causa principal exacta, 2) Qué mod o configuración lo generó, "
+                    "3) Los pasos concretos para solucionarlo. Sé específico con nombres de mods y archivos."
+                )},
+                {"role": "user", "content": f"LOG DE CRASH:\n{fragmento[:30000]}"}
+            ]
+            texto, err = self._ia_messages(messages, max_tokens=800, temperature=0.1)
             if texto:
                 return {"ok": True, "analisis": texto}
-            return {"ok": False, "error": err or "Sin respuesta de Gemini."}
+            return {"ok": False, "error": err or "Sin respuesta de IA."}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
-    def _gemini(self, prompt, max_tokens=800, temperature=0.7):
-        if not self._GEMINI_API_KEY:
-            return None, "API key de Gemini no configurada."
+    def _ia_messages(self, messages, max_tokens=800, temperature=0.7):
+        """Proveedor IA principal con messages API (system/user/assistant roles).
+        Fallback automático entre modelos si hay rate-limit o error de modelo."""
+        _key = self.config_actual.get("groq_api_key", "") or self._GROQ_API_KEY
+        if not _key:
+            return None, "API key de IA no configurada. Ingresá tu Groq API Key en Ajustes."
+        _HDR = {"Authorization": f"Bearer {_key}", "Content-Type": "application/json"}
+        _models = (
+            "llama-3.3-70b-versatile",   # 14 400 RPD · 30 RPM — mejor calidad
+            "llama3-70b-8192",           # fallback 70B
+            "llama-3.1-8b-instant",      # 14 400 RPD · 30 RPM — rápido
+            "gemma2-9b-it",              # 14 400 RPD · 30 RPM — fallback
+        )
+        last_err = "Sin respuesta de IA."
         try:
-            import re as _re
-            payload = {"contents": [{"parts": [{"text": prompt}]}],
-                       "generationConfig": {"temperature": temperature, "maxOutputTokens": max_tokens}}
-            _models = (
-                "gemma-3-27b-it",        # 14 400 RPD · 30 RPM
-                "gemma-3-12b-it",        # 14 400 RPD · 30 RPM
-                "gemma-3-4b-it",         # 14 400 RPD · 30 RPM
-                "gemma-3-1b-it",         # 14 400 RPD · 30 RPM
-                "gemini-2.0-flash-lite", # 500 RPD  · 15 RPM
-                "gemini-2.0-flash",      # 20 RPD   · 5 RPM
-                "gemini-1.5-flash",      # fallback
-                "gemini-1.5-flash-8b",   # fallback
-            )
-            last_err = "Sin respuesta de Gemini."
             for model in _models:
-                url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
-                       f"{model}:generateContent?key={self._GEMINI_API_KEY}")
-                r = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=25)
+                payload = {"model": model, "messages": messages,
+                           "temperature": temperature, "max_tokens": max_tokens}
+                r = requests.post("https://api.groq.com/openai/v1/chat/completions",
+                                  json=payload, headers=_HDR, timeout=20)
                 if r.status_code == 200:
-                    return r.json()["candidates"][0]["content"]["parts"][0]["text"], None
+                    return r.json()["choices"][0]["message"]["content"], None
                 if r.status_code in (404, 400):
                     continue
                 if r.status_code == 429:
-                    msg = r.json().get("error", {}).get("message", "")
-                    retry = _re.search(r'retry in ([\d.]+)s', msg)
-                    secs = int(float(retry.group(1))) if retry else None
-                    last_err = (f"⏳ Cuota de Gemini agotada."
-                                f"{f' Reintentá en {secs}s.' if secs else ' Reintentá en unos minutos.'}")
+                    last_err = "⏳ Cuota de IA agotada. Reintentá en unos segundos."
                     continue
-                last_err = f"Gemini {r.status_code}: " + r.json().get("error", {}).get("message", r.text[:120])
+                try: _msg = r.json().get("error", {}).get("message", r.text[:120])
+                except Exception: _msg = r.text[:120]
+                last_err = f"Error IA {r.status_code}: {_msg}"
                 break
             return None, last_err
         except Exception as e:
             return None, str(e)
 
+    def _ia(self, prompt, max_tokens=800, temperature=0.7):
+        """Wrapper simple: convierte un prompt a messages API de Groq."""
+        return self._ia_messages([{"role": "user", "content": prompt}], max_tokens, temperature)
+
+    def _gemini(self, prompt, max_tokens=800, temperature=0.7):
+        """Alias de compatibilidad — redirige a _ia()."""
+        return self._ia(prompt, max_tokens, temperature)
+
+    # ── STREAMING CHAT ────────────────────────────────────────────────────
+    _ia_stream_sessions: dict = {}
+
+    def ia_chat_stream_start(self, mensaje, historial=None):
+        """Inicia respuesta streaming de Groq con proper messages API. Retorna session_id."""
+        import uuid as _uuid
+        sid = _uuid.uuid4().hex
+        self._ia_stream_sessions[sid] = {"texto": "", "done": False, "error": None}
+        # Construir messages con system + historial como pares user/assistant + nuevo mensaje
+        messages = [
+            {"role": "system", "content": (
+                "Sos un asistente experto en Minecraft integrado en el launcher Paraguacraft. "
+                "Respondé siempre en español rioplatense, de forma concisa y amigable. "
+                "Podés responder sobre recetas, comandos, mods, seeds, versiones, estrategias, builds, crafting, farms y builds de construcción. "
+                "Cuando listés pasos o items, usá formato claro con números o guiones."
+            )}
+        ]
+        for h in (historial or [])[-30:]:
+            messages.append({"role": "user" if h["rol"] == "user" else "assistant", "content": h["texto"]})
+        messages.append({"role": "user", "content": mensaje})
+        _key = self.config_actual.get("groq_api_key", "") or self._GROQ_API_KEY
+
+        def _run():
+            try:
+                if not _key:
+                    self._ia_stream_sessions[sid]["error"] = "API key no configurada."
+                    self._ia_stream_sessions[sid]["done"] = True
+                    return
+                _HDR = {"Authorization": f"Bearer {_key}", "Content-Type": "application/json"}
+                payload = {"model": "llama-3.3-70b-versatile", "messages": messages,
+                           "temperature": 0.7, "max_tokens": 600, "stream": True}
+                r = requests.post("https://api.groq.com/openai/v1/chat/completions",
+                                  json=payload, headers=_HDR, timeout=30, stream=True)
+                for line in r.iter_lines():
+                    if not line:
+                        continue
+                    if isinstance(line, bytes):
+                        line = line.decode("utf-8")
+                    if line.startswith("data: "):
+                        chunk_str = line[6:].strip()
+                        if chunk_str == "[DONE]":
+                            break
+                        try:
+                            delta = json.loads(chunk_str)["choices"][0]["delta"].get("content", "")
+                            if delta:
+                                self._ia_stream_sessions[sid]["texto"] += delta
+                        except Exception:
+                            pass
+            except Exception as ex:
+                self._ia_stream_sessions[sid]["error"] = str(ex)
+            finally:
+                self._ia_stream_sessions[sid]["done"] = True
+
+        threading.Thread(target=_run, daemon=True).start()
+        return {"ok": True, "session_id": sid}
+
+    def ia_chat_stream_poll(self, session_id):
+        s = self._ia_stream_sessions.get(session_id)
+        if not s:
+            return {"ok": False, "done": True, "texto": "", "error": "Sesión no encontrada"}
+        done = s["done"]
+        if done and session_id in self._ia_stream_sessions:
+            del self._ia_stream_sessions[session_id]
+        return {"ok": True, "texto": s["texto"], "done": done, "error": s.get("error")}
+
     # ── GEMINI CHAT ───────────────────────────────────────────────────────
     def gemini_chat(self, mensaje, historial=None):
         try:
-            ctx = ("Sos un asistente experto en Minecraft integrado en el launcher Paraguacraft. "
-                   "Respondé siempre en español rioplatense, de forma concisa y amigable. "
-                   "Podés responder sobre recetas, comandos, mods, seeds, versiones, estrategias, builds, etc.")
-            conv = ""
-            for h in (historial or [])[-6:]:
-                rol = "Usuario" if h["rol"] == "user" else "Asistente"
-                conv += f"\n{rol}: {h['texto']}"
-            prompt = f"{ctx}\n\nConversación:{conv}\n\nUsuario: {mensaje}\nAsistente:"
-            resp, err = self._gemini(prompt, max_tokens=500)
+            messages = [
+                {"role": "system", "content": (
+                    "Sos un asistente experto en Minecraft integrado en el launcher Paraguacraft. "
+                    "Respondé siempre en español rioplatense, de forma concisa y amigable. "
+                    "Podés responder sobre recetas, comandos, mods, seeds, versiones, estrategias y builds."
+                )}
+            ]
+            for h in (historial or [])[-30:]:
+                messages.append({"role": "user" if h["rol"] == "user" else "assistant", "content": h["texto"]})
+            messages.append({"role": "user", "content": mensaje})
+            resp, err = self._ia_messages(messages, max_tokens=600)
             if resp:
                 return {"ok": True, "respuesta": resp.strip()}
-            return {"ok": False, "error": err or "Sin respuesta de Gemini."}
+            return {"ok": False, "error": err or "Sin respuesta de IA."}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
     # ── GEMINI COMANDOS ───────────────────────────────────────────────────
     def gemini_generar_comando(self, descripcion, version="1.21"):
         try:
-            prompt = (f"Sos un experto en comandos de Minecraft. Versión: {version}.\n"
-                      f"Generá el/los comandos exactos para: {descripcion}\n"
-                      "Respondé SOLO con los comandos (uno por línea), sin explicación. "
-                      "Si necesitás más de uno, ponelos en orden de ejecución.")
-            resp, err = self._gemini(prompt, max_tokens=300, temperature=0.1)
+            messages = [
+                {"role": "system", "content": f"Sos un experto en comandos de Minecraft versión {version}. "
+                                               "Respondé SOLO con los comandos exactos (uno por línea), sin explicación ni texto adicional. "
+                                               "Si se necesitan más de uno, ponelos en orden de ejecución."},
+                {"role": "user", "content": descripcion}
+            ]
+            resp, err = self._ia_messages(messages, max_tokens=300, temperature=0.05)
             if resp:
-                cmds = [l.strip() for l in resp.strip().splitlines() if l.strip()]
+                cmds = [l.strip() for l in resp.strip().splitlines() if l.strip() and not l.strip().startswith('#')]
                 return {"ok": True, "comandos": cmds}
             return {"ok": False, "error": err or "Sin respuesta."}
         except Exception as e:
@@ -5522,56 +5643,123 @@ class Api:
         try:
             prompt = (f"Sos un experto en modding de Minecraft. El usuario quiere: \"{descripcion}\".\n"
                       f"Versión: {version}, Loader: {motor}.\n"
-                      "Devolvé una lista JSON de exactamente 8 slugs de mods de Modrinth compatibles "
-                      "con esa versión y loader, ordenados por importancia. Solo el array JSON, sin texto extra. "
-                      "Ejemplo: [\"sodium\",\"lithium\",\"fabric-api\",\"jei\"]")
-            resp, err = self._gemini(prompt, max_tokens=200, temperature=0.2)
+                      "Devolvé un JSON con categorías de mods de Modrinth. Formato exacto:\n"
+                      '{"categorias": [{"nombre": "Rendimiento", "mods": [{"slug": "sodium", "razon": "FPS mejorado"}]}, ...]}\n'
+                      "Incluir 4 categorías: Rendimiento, Gameplay, Visual, Utilidad. 2-3 mods por categoría. "
+                      "Solo el JSON, sin texto extra. Slugs válidos de Modrinth.")
+            resp, err = self._ia(prompt, max_tokens=600, temperature=0.2)
             if not resp:
-                return {"ok": False, "error": err or "Sin respuesta de Gemini."}
-            import re
-            match = re.search(r'\[.*?\]', resp, re.DOTALL)
+                return {"ok": False, "error": err or "Sin respuesta de IA."}
+            import re as _re
+            match = _re.search(r'\{.*\}', resp, _re.DOTALL)
             if not match:
                 return {"ok": False, "error": "Formato de respuesta inválido."}
-            slugs = json.loads(match.group())
-            return {"ok": True, "slugs": slugs}
+            data = json.loads(match.group())
+            # Extraer también lista plana de slugs para compatibilidad
+            all_slugs = [m["slug"] for cat in data.get("categorias", []) for m in cat.get("mods", [])]
+            return {"ok": True, "slugs": all_slugs, "categorias": data.get("categorias", [])}
         except Exception as e:
             return {"ok": False, "error": str(e)}
+
+    # ── IA DESCRIBIR MOD ─────────────────────────────────────────────────
+    def ia_describir_mod(self, titulo, descripcion_en, loader=""):
+        try:
+            messages = [
+                {"role": "system", "content": (
+                    "Sos un experto en mods de Minecraft. Cuando te pasen un mod, respondé "
+                    "en 2 oraciones en español rioplatense: qué hace y para qué tipo de jugador sirve. "
+                    "Si tiene requisito importante (como Fabric API), mencionálo brevemente. Sin título ni formato markdown."
+                )},
+                {"role": "user", "content": f"Mod: {titulo}. Descripción en inglés: {descripcion_en[:400]}. Loader: {loader or 'cualquiera'}."}
+            ]
+            resp, err = self._ia_messages(messages, max_tokens=130, temperature=0.3)
+            return {"ok": bool(resp), "desc": resp or "", "error": err}
+        except Exception as e:
+            return {"ok": False, "desc": "", "error": str(e)}
+
+    # ── IA ANALIZAR TELEMETRÍA ────────────────────────────────────────────
+    def ia_analizar_telemetria(self, datos):
+        try:
+            cpu = datos.get("cpu_pct", 0)
+            ram_usado = datos.get("ram_usado_gb", 0)
+            ram_total = datos.get("ram_total_gb", 0)
+            ram_config = datos.get("max_ram_config", "")
+            mc_ram = datos.get("mc_ram_mb", 0)
+            version = datos.get("version", "")
+            motor = datos.get("motor", "")
+            messages = [
+                {"role": "system", "content": (
+                    "Sos un experto en optimización de Minecraft y configuración de JVM. "
+                    "El usuario te pasa sus métricas de hardware. Respondé con 3-4 sugerencias CONCRETAS "
+                    "en español: cuánta RAM exacta asignar, qué GC flag usar (-XX:+UseZGC o G1GC), "
+                    "si hay bottleneck, y si alguna optimización extra es recomendable. Sé directo con números."
+                )},
+                {"role": "user", "content": (
+                    f"CPU: {cpu}% | RAM sistema: {ram_usado:.1f}/{ram_total:.1f} GB | "
+                    f"RAM asignada a MC: {ram_config} | RAM Java real: {mc_ram} MB | "
+                    f"Versión: {version} | Loader: {motor}"
+                )}
+            ]
+            resp, err = self._ia_messages(messages, max_tokens=400, temperature=0.1)
+            return {"ok": bool(resp), "analisis": resp or "", "error": err}
+        except Exception as e:
+            return {"ok": False, "analisis": "", "error": str(e)}
+
+    # ── ULTIMO CRASH IA ────────────────────────────────────────────────────
+    _ultimo_crash_ia_data = None
+
+    def get_ultimo_crash_ia(self):
+        data = self.__class__._ultimo_crash_ia_data
+        self.__class__._ultimo_crash_ia_data = None  # leer una sola vez
+        return {"ok": bool(data), "data": data}
 
     # ── GEMINI SEMILLAS ────────────────────────────────────────────────────
     def gemini_generar_semilla(self, descripcion):
         try:
-            prompt = (
-                "Sos un experto en Minecraft. El jugador describe el tipo de mundo que quiere. "
-                "Generá 3 seeds de Minecraft (números o texto) con una breve explicación de cada una "
-                "(biomas cercanos al spawn, estructuras, etc.). "
-                "Respondé en español, formato claro con numeración. "
-                f"\nDescripción del jugador: {descripcion[:300]}"
-            )
-            resp, err = self._gemini(prompt, max_tokens=400, temperature=0.7)
-            if resp:
-                return {"ok": True, "respuesta": resp}
-            return {"ok": False, "error": err or "Sin respuesta de Gemini."}
+            messages = [
+                {"role": "system", "content": (
+                    "Sos un experto en Minecraft Seeds. Respondé SIEMPRE con un JSON válido, sin texto extra. "
+                    "Formato exacto: [{\"seed\": \"valor\", \"spawn\": \"bioma principal\", "
+                    "\"estructuras\": [\"estructura1\", \"estructura2\"], \"descripcion\": \"breve descripción en español\"}]. "
+                    "Devolvé exactamente 3 objetos en el array. Los seeds pueden ser números o strings. "
+                    "Las estructuras son las más cercanas al spawn (templos, aldeas, fortalezas, etc.)."
+                )},
+                {"role": "user", "content": descripcion[:300]}
+            ]
+            resp, err = self._ia_messages(messages, max_tokens=500, temperature=0.7)
+            if not resp:
+                return {"ok": False, "error": err or "Sin respuesta de IA."}
+            import re as _re
+            match = _re.search(r'\[.*\]', resp, _re.DOTALL)
+            if match:
+                seeds = json.loads(match.group())
+                return {"ok": True, "seeds": seeds, "respuesta": resp}
+            return {"ok": True, "seeds": [], "respuesta": resp}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
     # ── GEMINI SURVIVAL ASSIST ─────────────────────────────────────────────
     def gemini_survival_assist(self, pregunta):
         try:
-            prompt = (
-                "Sos un asistente experto en Minecraft Survival. "
-                "Respondé de forma ULTRA CONCISA y directa en español. "
-                "Máximo 3-4 líneas por respuesta. Priorizá pasos claros y recetas exactas. "
-                f"\nPregunta: {pregunta[:400]}"
-            )
-            resp, err = self._gemini(prompt, max_tokens=300, temperature=0.3)
-            if resp:
-                return {"ok": True, "respuesta": resp}
-            return {"ok": False, "error": err or "Sin respuesta de Gemini."}
+            messages = [
+                {"role": "system", "content": (
+                    "Sos un asistente experto en Minecraft Survival. Respondé SIEMPRE con un JSON válido, sin texto extra. "
+                    "Formato exacto: {\"pasos\": [\"paso 1\", \"paso 2\"], \"materiales\": [\"item (cantidad)\"], \"consejo\": \"truco o dato extra\"}. "
+                    "Pasos: máximo 5, numerados, directos. Materiales: lista con cantidades aproximadas. Consejo: 1 oración."
+                )},
+                {"role": "user", "content": pregunta[:400]}
+            ]
+            resp, err = self._ia_messages(messages, max_tokens=400, temperature=0.2)
+            if not resp:
+                return {"ok": False, "error": err or "Sin respuesta de IA."}
+            import re as _re
+            match = _re.search(r'\{.*\}', resp, _re.DOTALL)
+            if match:
+                data = json.loads(match.group())
+                return {"ok": True, "pasos": data.get("pasos", []), "materiales": data.get("materiales", []), "consejo": data.get("consejo", ""), "respuesta": resp}
+            return {"ok": True, "pasos": [], "materiales": [], "consejo": "", "respuesta": resp}
         except Exception as e:
             return {"ok": False, "error": str(e)}
-
-    # ── SCREENSHOTS ───────────────────────────────────────────────────────
-    def get_screenshots(self):
         try:
             import minecraft_launcher_lib
             mc_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
@@ -6343,7 +6531,7 @@ class Api:
                     header.pack(fill='x')
                     header.bind('<Button-1>', _drag_start)
                     header.bind('<B1-Motion>', _drag_move)
-                    tk.Label(header, text='🤖 IA Gemini', bg=C_PANEL, fg=C_AI,
+                    tk.Label(header, text='🤖 IA Groq', bg=C_PANEL, fg=C_AI,
                              font=('Segoe UI', 8, 'bold')).pack(side='left', padx=8, pady=5)
                     tk.Label(header, text='F9 = ocultar/mostrar', bg=C_PANEL, fg=C_HINT,
                              font=('Segoe UI', 7)).pack(side='left')
@@ -6391,16 +6579,46 @@ class Api:
                         inp.delete(0, 'end')
                         send_btn.config(state='disabled', text='...')
                         _append('user', f'Vos: {msg}')
+                        # Insertar placeholder para la respuesta en streaming
+                        chat.config(state='normal')
+                        chat.insert('end', 'IA: ', 'ai')
+                        stream_start = chat.index('end - 1c')
+                        chat.config(state='disabled')
 
                         def _ask():
                             try:
-                                resp, err = self._gemini(
-                                    f"Sos un asistente experto en Minecraft. Respondé en español rioplatense, "
-                                    f"de forma concisa y directa. Máximo 4 oraciones.\n\nPregunta: {msg}",
-                                    max_tokens=350, temperature=0.5
-                                )
-                                root.after(0, lambda: _append('ai', f'IA: {resp.strip()}' if resp else f'Error: {err}'))
-                                root.after(0, lambda: (send_btn.config(state='normal', text='Enviar'),))
+                                _key = self.config_actual.get('groq_api_key', '') or self._GROQ_API_KEY
+                                _HDR = {'Authorization': f'Bearer {_key}', 'Content-Type': 'application/json'}
+                                _msgs = [
+                                    {'role': 'system', 'content': 'Sos un asistente experto en Minecraft. Respondé en español rioplatense, de forma concisa y directa. Máximo 4 oraciones.'},
+                                    {'role': 'user', 'content': msg}
+                                ]
+                                payload = {'model': 'llama-3.3-70b-versatile', 'messages': _msgs,
+                                           'temperature': 0.5, 'max_tokens': 350, 'stream': True}
+                                r = requests.post('https://api.groq.com/openai/v1/chat/completions',
+                                                  json=payload, headers=_HDR, timeout=30, stream=True)
+                                for line in r.iter_lines():
+                                    if not line:
+                                        continue
+                                    if isinstance(line, bytes):
+                                        line = line.decode('utf-8')
+                                    if line.startswith('data: '):
+                                        chunk = line[6:].strip()
+                                        if chunk == '[DONE]':
+                                            break
+                                        try:
+                                            delta = __import__('json').loads(chunk)['choices'][0]['delta'].get('content', '')
+                                            if delta:
+                                                def _ins(d=delta):
+                                                    chat.config(state='normal')
+                                                    chat.insert('end', d, 'ai')
+                                                    chat.config(state='disabled')
+                                                    chat.see('end')
+                                                root.after(0, _ins)
+                                        except Exception:
+                                            pass
+                                root.after(0, lambda: _append('ai', ''))  # newline
+                                root.after(0, lambda: send_btn.config(state='normal', text='Enviar'))
                             except Exception as ex:
                                 root.after(0, lambda: _append('err', f'Error: {ex}'))
                                 root.after(0, lambda: send_btn.config(state='normal', text='Enviar'))
@@ -6651,26 +6869,29 @@ class Api:
     # ── GENERADOR DE SKINS CON IA ─────────────────────────────────────────
     def gemini_generar_skin(self, descripcion):
         try:
-            prompt = (
-                "Sos un diseñador de skins de Minecraft. El usuario quiere una skin con esta descripción: "
-                f'"{descripcion}"\n'
-                "Devolvé SOLO un JSON con exactamente estas 6 claves y valores en formato hex (#RRGGBB):\n"
-                '{"skin": "#color_piel", "cabello": "#color_pelo", "camiseta": "#color_ropa_superior", '
-                '"pantalon": "#color_pantalon", "zapatos": "#color_zapatos", "ojos": "#color_ojos"}\n'
-                "Sin texto extra, solo el JSON."
-            )
-            resp, err = self._gemini(prompt, max_tokens=80, temperature=0.3)
+            messages = [
+                {"role": "system", "content": (
+                    "Sos un diseñador de skins de Minecraft. Respondé SOLO con un JSON válido, sin texto extra. "
+                    "Claves requeridas (valores en hex #RRGGBB): "
+                    'skin, cabello, camiseta, pantalon, zapatos, ojos, capa (color de capa, puede ser null). '
+                    'Agregá también: "modelo": "steve" o "alex", "descripcion": "1 oración describiendo el personaje".'
+                )},
+                {"role": "user", "content": descripcion}
+            ]
+            resp, err = self._ia_messages(messages, max_tokens=150, temperature=0.4)
             if not resp:
-                return {"ok": False, "error": err or "Sin respuesta de Gemini."}
-            match = re.search(r'\{[^}]+\}', resp, re.DOTALL)
+                return {"ok": False, "error": err or "Sin respuesta de IA."}
+            match = re.search(r'\{[^{}]+\}', resp, re.DOTALL)
             if not match:
-                return {"ok": False, "error": "Gemini no devolvió JSON válido."}
+                return {"ok": False, "error": "IA no devolvió JSON válido."}
             colores = json.loads(match.group())
             keys = {"skin", "cabello", "camiseta", "pantalon", "zapatos", "ojos"}
             if not keys.issubset(colores.keys()):
-                return {"ok": False, "error": "JSON incompleto de Gemini."}
+                return {"ok": False, "error": "JSON incompleto de IA."}
             resultado = self._generar_skin_pil(colores)
             resultado["colores"] = colores
+            resultado["modelo"] = colores.get("modelo", "steve")
+            resultado["descripcion_ia"] = colores.get("descripcion", "")
             return resultado
         except Exception as e:
             return {"ok": False, "error": str(e)}

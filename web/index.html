@@ -17,6 +17,8 @@
         .vista-seccion { display: none; }
         .toggle-checkbox:checked { right: 0; border-color: #2ECC71; }
         .toggle-checkbox:checked + .toggle-label { background-color: #2ECC71; }
+        @keyframes ia-blink { 0%,100%{opacity:1} 50%{opacity:0} }
+        .ia-stream-cursor { display:inline-block; color:#9B59B6; animation:ia-blink 0.8s ease-in-out infinite; margin-left:1px; }
     </style>
 </head>
 <body class="bg-[#121212] text-white h-screen flex flex-col relative" onclick="cerrarDropdowns(event)">
@@ -185,7 +187,11 @@
 
                 <!-- ── PANEL: TELEMETRÍA ── -->
                 <div id="panel-ajuste-telemetria" class="hidden p-5 overflow-y-auto flex-1 space-y-4">
-                    <p class="text-sm text-gray-400">Hardware en tiempo real. Actualización cada 1.5 s.</p>
+                    <div class="flex items-center justify-between">
+                        <p class="text-sm text-gray-400">Hardware en tiempo real. Actualización cada 1.5 s.</p>
+                        <button onclick="analizarTelemetriaIA()" id="btn-tele-ia" class="flex items-center gap-1.5 bg-[#9B59B6]/20 hover:bg-[#9B59B6]/40 border border-[#9B59B6]/40 text-[#9B59B6] font-bold px-3 py-1.5 rounded-lg text-xs transition">🤖 Optimizar con IA</button>
+                    </div>
+                    <div id="tele-ia-resultado" class="hidden bg-[#181818] border border-[#9B59B6]/30 rounded-xl p-4 text-sm text-gray-300 leading-relaxed whitespace-pre-wrap"></div>
                     <div class="grid grid-cols-2 gap-3">
                         <div class="bg-[#181818] p-4 rounded-lg border border-[#2A2A2A]">
                             <span class="text-xs font-bold text-gray-500 uppercase">CPU</span>
@@ -589,9 +595,14 @@
                     </select>
                 </div>
                 <div>
-                    <label class="text-xs font-bold text-gray-400 mb-1 block">PLATAFORMA</label>
+                    <label class="text-xs font-bold text-gray-400 mb-1 block">PLATAFORMA (Modrinth)</label>
                     <select id="imod-platform-select" onchange="imodCambiarPlatform()" class="w-full bg-[#1E1E1E] border border-[#333] text-white px-3 py-2.5 rounded-lg outline-none text-sm focus:border-[#2ECC71]" disabled>
                         <option value="">Seleccionar plataforma...</option>
+                    </select>
+                </div>
+                <div id="imod-perfil-row" class="hidden">
+                    <label class="text-xs font-bold text-gray-400 mb-1 block">INSTALAR EN PERFIL</label>
+                    <select id="imod-perfil-select" class="w-full bg-[#1E1E1E] border border-[#9B59B6]/50 text-white px-3 py-2.5 rounded-lg outline-none text-sm focus:border-[#9B59B6]">
                     </select>
                 </div>
                 <div id="imod-file-info" class="hidden bg-[#1E1E1E] border border-[#2A2A2A] rounded-lg p-3 flex items-center gap-3">
@@ -640,6 +651,21 @@
                 <button onclick="inicioQuickPlay('play.jartexnetwork.com')" class="flex items-center gap-2 bg-[#181818] hover:bg-[#2ECC71]/20 border border-[#2A2A2A] hover:border-[#2ECC71] px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0">🌐 JartexNet</button>
                 <button onclick="inicioQuickPlay('extremecraft.net')" class="flex items-center gap-2 bg-[#181818] hover:bg-[#E74C3C]/20 border border-[#2A2A2A] hover:border-[#E74C3C] px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0">⚡ ExtremeCraft</button>
                 <button onclick="inicioQuickPlay('play.fadecloud.com')" class="flex items-center gap-2 bg-[#181818] hover:bg-[#3498DB]/20 border border-[#2A2A2A] hover:border-[#3498DB] px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0">🌀 FadeCloud</button>
+            </div>
+
+            <!-- Banner: juego activo -->
+            <div id="inicio-game-banner" class="hidden shrink-0 bg-[#071A07] border-b border-[#2ECC71]/40 px-5 py-3 flex items-center gap-3">
+                <div class="flex items-center gap-2">
+                    <div class="w-2.5 h-2.5 rounded-full bg-[#2ECC71] animate-pulse"></div>
+                    <span class="text-[#2ECC71] font-black text-sm tracking-wide">MINECRAFT EN JUEGO</span>
+                </div>
+                <span id="game-banner-ver" class="text-xs font-mono bg-[#0A0A0A] border border-[#2ECC71]/20 text-[#2ECC71] px-2.5 py-0.5 rounded-full">—</span>
+                <span class="text-gray-600 text-xs">·</span>
+                <span id="game-banner-time" class="text-sm font-black text-white font-mono tabular-nums">00:00:00</span>
+                <span id="game-banner-status" class="text-xs text-gray-500 truncate max-w-xs ml-1"></span>
+                <div class="ml-auto">
+                    <button onclick="cambiarPestaña('versiones','Versiones')" class="text-xs text-gray-500 hover:text-[#2ECC71] font-bold transition">Ver estado →</button>
+                </div>
             </div>
 
             <div class="relative flex flex-col items-center justify-center overflow-hidden" style="min-height:calc(100vh - 175px)">
@@ -1313,7 +1339,7 @@
                     <button onclick="herTab('fondo')" id="htab-fondo" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🖼️ Fondo</button>
                     <button onclick="herTab('shaders')" id="htab-shaders" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">✨ Shaders</button>
                     <button onclick="herTab('java')" id="htab-java" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">⚡ Java</button>
-                    <button onclick="herTab('ia')" id="htab-ia" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🤖 IA Gemini</button>
+                    <button onclick="herTab('ia')" id="htab-ia" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🤖 IA Groq</button>
                     <button onclick="herTab('fotos')" id="htab-fotos" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">📸 Fotos</button>
                     <button onclick="herTab('updates')" id="htab-updates" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🔄 Actualizaciones</button>
                     <button onclick="herTab('turbo')" id="htab-turbo" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🚀 Turbo</button>
@@ -1498,6 +1524,15 @@
                 </div>
                 <div id="mpanel-spotify" class="hidden bg-[#181818] border border-[#2A2A2A] rounded-xl p-5">
                     <div id="spotify-noconectado">
+                        <h3 class="font-black mb-3">🤖 IA (Groq)</h3>
+                        <div class="flex flex-col gap-2 mb-5">
+                            <p class="text-xs text-gray-500">Creá una API Key gratis en <a href="https://console.groq.com" target="_blank" class="text-[#9B59B6] underline">console.groq.com</a> y pegála acá.</p>
+                            <div class="flex gap-2">
+                                <input id="groq-api-key" type="password" placeholder="gsk_..." class="flex-1 bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none focus:border-[#9B59B6] font-mono">
+                                <button onclick="guardarGroqKey()" class="bg-[#9B59B6] hover:bg-[#7D3C98] text-white font-black px-4 py-2 rounded text-sm transition">Guardar</button>
+                            </div>
+                            <p id="groq-key-status" class="text-xs text-gray-600 min-h-[14px]"></p>
+                        </div>
                         <h3 class="font-black mb-2">🎵 Conectar Spotify</h3>
                         <p class="text-xs text-gray-500 mb-4">Necesitás una <strong class="text-white">Spotify Developer App</strong> (gratis).</p>
                         <div class="flex flex-col gap-2">
@@ -1832,7 +1867,7 @@
                     <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">JARs mencionados en el log</p>
                     <div id="crash-jars" class="flex flex-wrap gap-1.5"></div>
                 </div>
-                <!-- Gemini AI resultado -->
+                <!-- IA resultado -->
                 <div id="crash-ai-resultado" class="hidden bg-[#0A0A0A] border border-[#9B59B6]/30 rounded-xl p-4 text-xs text-gray-300 leading-relaxed whitespace-pre-wrap"></div>
                 <!-- Raw log collapsible -->
                 <details class="bg-[#181818] border border-[#2A2A2A] rounded-xl overflow-hidden">
@@ -1841,7 +1876,7 @@
                 </details>
             </div>
 
-            <!-- IA GEMINI -->
+            <!-- IA GROQ -->
             <div id="hpanel-ia" class="absolute inset-0 overflow-y-auto p-5 pr-4" style="display:none">
                 <div class="flex gap-2 mb-4">
                     <button onclick="iaTab('chat')" id="iatab-chat" class="px-4 py-2 rounded-lg font-bold text-sm bg-[#9B59B6] text-white transition">💬 Chat</button>
@@ -1867,7 +1902,7 @@
                 <div id="iapanel-comandos" class="hidden flex flex-col gap-4">
                     <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5">
                         <h3 class="font-black mb-2">⚡ Generador de comandos Minecraft</h3>
-                        <p class="text-xs text-gray-500 mb-4">Describí qué querés hacer y Gemini escribe el comando exacto.</p>
+                        <p class="text-xs text-gray-500 mb-4">Describí qué querés hacer y la IA escribe el comando exacto.</p>
                         <div class="flex gap-2 mb-3">
                             <input id="ia-cmd-desc" type="text" placeholder="Ej: Dar 64 esmeraldas a todos los jugadores" onkeypress="if(event.key==='Enter') generarComandoIA()" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm flex-1 outline-none focus:border-[#9B59B6]">
                             <input id="ia-cmd-ver" type="text" value="1.21" placeholder="Versión" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm w-20 outline-none">
@@ -1881,7 +1916,7 @@
                 <div id="iapanel-modpack" class="hidden flex flex-col gap-4">
                     <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5">
                         <h3 class="font-black mb-1">📦 Generador de Modpack con IA</h3>
-                        <p class="text-xs text-gray-500 mb-4">Describí la experiencia que querés y Gemini arma un modpack de 8 mods + los instala desde Modrinth.</p>
+                        <p class="text-xs text-gray-500 mb-4">Describí la experiencia que querés y la IA arma un modpack categorizado + lo instala desde Modrinth.</p>
                         <div class="flex flex-col gap-3">
                             <textarea id="ia-mp-desc" placeholder="Ej: Survival hardcore con magia y tecnología, enfocado en FPS alto" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none focus:border-[#9B59B6] resize-none h-20"></textarea>
                             <div class="flex gap-2">
@@ -1900,12 +1935,12 @@
                 <div id="iapanel-semillas" class="hidden flex flex-col gap-4">
                     <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5">
                         <h3 class="font-black mb-1">🌱 Generador de Seeds con IA</h3>
-                        <p class="text-xs text-gray-500 mb-4">Describí el mundo que querés y Gemini sugiere 3 seeds con descripción de biomas y estructuras.</p>
+                        <p class="text-xs text-gray-500 mb-4">Describí el mundo que querés y la IA sugiere 3 seeds con descripción de biomas y estructuras.</p>
                         <div class="flex gap-2 mb-3">
                             <input id="ia-seed-desc" type="text" placeholder="Ej: Spawn en jungla cerca de templo, con llanuras cerca" onkeypress="if(event.key==='Enter') generarSemillaIA()" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm flex-1 outline-none focus:border-[#9B59B6]">
                             <button onclick="generarSemillaIA()" id="btn-ia-seed" class="bg-[#9B59B6] hover:bg-[#7D3C98] text-white font-black px-5 py-2 rounded transition text-sm">🌱 Generar</button>
                         </div>
-                        <div id="ia-seed-resultado" class="bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg p-4 text-sm text-gray-400 whitespace-pre-wrap min-h-[80px]"></div>
+                        <div id="ia-seed-resultado" class="space-y-3 min-h-[80px]"></div>
                     </div>
                 </div>
 
@@ -1918,7 +1953,7 @@
                             <input id="ia-surv-preg" type="text" placeholder="Ej: ¿Qué necesito para ir al Nether?" onkeypress="if(event.key==='Enter') preguntarSurvival()" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm flex-1 outline-none focus:border-[#2ECC71]">
                             <button onclick="preguntarSurvival()" id="btn-ia-surv" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black px-5 py-2 rounded transition text-sm">⚔️ Preguntar</button>
                         </div>
-                        <div id="ia-surv-resultado" class="bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg p-4 text-sm text-gray-400 whitespace-pre-wrap min-h-[80px]"></div>
+                        <div id="ia-surv-resultado" class="min-h-[80px]"></div>
                     </div>
                 </div>
             </div>
@@ -2017,7 +2052,7 @@
                         </div>
                         <button onclick="abrirOverlay()" class="bg-[#3498DB] hover:bg-[#2980B9] text-white font-black py-2.5 rounded transition">🖥️ Abrir Overlay</button>
                         <button onclick="abrirKeystrokeOverlay()" class="bg-[#9B59B6] hover:bg-[#7D3C98] text-white font-black py-2.5 rounded transition">⌨️ Overlay de Teclas</button>
-                        <button onclick="abrirIAOverlay()" id="btn-ia-overlay" class="bg-[#27AE60] hover:bg-[#1E8449] text-white font-black py-2.5 rounded transition">🤖 IA Gemini Overlay</button>
+                        <button onclick="abrirIAOverlay()" id="btn-ia-overlay" class="bg-[#27AE60] hover:bg-[#1E8449] text-white font-black py-2.5 rounded transition">🤖 IA Overlay</button>
                         <button onclick="instalarModsPvp189()" class="bg-[#E74C3C] hover:bg-[#C0392B] text-white font-black py-2.5 rounded transition">⚔️ Mods PvP 1.8.9</button>
                         <p id="pvp-mods-msg" class="text-xs text-center text-gray-500 min-h-[14px]"></p>
                         <div class="bg-[#0A0A0A] rounded-lg p-3 border border-[#2A2A2A]">
@@ -2150,7 +2185,7 @@
                             <span class="text-4xl">🎨</span>
                             <div>
                                 <h3 class="font-black text-lg text-[#9B59B6]">Generador de Skins con IA</h3>
-                                <p class="text-xs text-gray-500">Gemini crea una paleta y PIL dibuja la textura 64×64</p>
+                                <p class="text-xs text-gray-500">Groq elige la paleta de colores y PIL dibuja la textura 64×64</p>
                             </div>
                         </div>
                         <textarea id="skin-gen-desc" placeholder="Ej: Un ninja con armadura roja y ojos azules" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none focus:border-[#9B59B6] resize-none h-20"></textarea>
@@ -2172,7 +2207,7 @@
                         <img id="skin-gen-preview" class="hidden w-32 h-32 mx-auto rounded-lg border border-[#9B59B6]/30" style="image-rendering:pixelated" alt="Skin generada">
                         <div class="bg-[#0A0A0A] rounded-lg p-3 border border-[#2A2A2A] text-xs text-gray-500 space-y-1">
                             <p class="font-bold text-gray-400">¿Cómo funciona?</p>
-                            <p>1. Gemini analiza tu descripción y elige 6 colores</p>
+                            <p>1. Groq (IA) analiza tu descripción y elige los colores</p>
                             <p>2. PIL dibuja la textura 64×64 con esos colores</p>
                             <p>3. Se guarda en tu carpeta .minecraft</p>
                         </div>
@@ -3321,8 +3356,10 @@
                     const catBadges = cats.map(c=>`<span class="px-1.5 py-0.5 rounded text-[10px] bg-[#1A1A1A] border border-[#2A2A2A] text-gray-400">${c}</span>`).join('');
                     const safeTitle = (m.title||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
                     const safeIcon = (icon||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+                    const safeDesc = (m.description||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").slice(0,300);
+                    const safeLoader = (m.loaders||[]).join(',').replace(/'/g,"\\'");
                     grid.innerHTML += `
-                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-3.5 flex items-start gap-3.5 hover:border-[#2ECC71]/50 transition group">
+                    <div class="imod-card bg-[#181818] border border-[#2A2A2A] rounded-xl p-3.5 flex items-start gap-3.5 hover:border-[#2ECC71]/50 transition group">
                         ${icon ? `<img src="${icon}" class="w-12 h-12 rounded-lg object-cover shrink-0 bg-[#1A1A1A]" onerror="this.style.display='none'" alt="">` : `<div class="w-12 h-12 rounded-lg bg-[#1A1A1A] shrink-0 flex items-center justify-center text-xl">📦</div>`}
                         <div class="flex-1 min-w-0">
                             <div class="flex items-baseline gap-1.5 flex-wrap">
@@ -3336,7 +3373,8 @@
                             <span class="text-[11px] text-gray-500">⬇ ${_fmtNum(m.downloads)}</span>
                             <span class="text-[11px] text-gray-500">♥ ${_fmtNum(m.follows)}</span>
                             <span class="text-[10px] text-gray-600">${updated}</span>
-                            <button onclick="abrirInstalarMod('${m.project_id}','${safeTitle}','${t}','${safeIcon}')" class="mt-1 bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black py-1 px-2.5 rounded-lg transition text-[11px]">⬇ Instalar</button>
+                            <button onclick="iaDescribirMod(this,'${safeTitle}','${safeDesc}','${safeLoader}')" class="mt-1 bg-[#9B59B6]/20 hover:bg-[#9B59B6]/40 border border-[#9B59B6]/30 text-[#9B59B6] font-bold py-1 px-2 rounded-lg transition text-[10px]">🤖 ¿Qué hace?</button>
+                            <button onclick="abrirInstalarMod('${m.project_id}','${safeTitle}','${t}','${safeIcon}')" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black py-1 px-2.5 rounded-lg transition text-[11px]">⬇ Instalar</button>
                         </div>
                     </div>`;
                 });
@@ -3347,9 +3385,9 @@
 
         // ─── HW PERFIL / ESTILO DE JUEGO data ───
         const _hwBaseMods = {
-            baja:  [["sodium","Sodium"],["lithium","Lithium"],["ferrite-core","FerriteCore"],["starlight","Starlight"],["entityculling","EntityCulling"],["memoryleakfix","MemoryLeakFix"],["no-chat-reports","NoChatReports"]],
-            media: [["sodium","Sodium"],["lithium","Lithium"],["iris","Iris"],["ferrite-core","FerriteCore"],["entityculling","EntityCulling"],["memoryleakfix","MemoryLeakFix"],["indium","Indium"]],
-            alta:  [["sodium","Sodium"],["lithium","Lithium"],["iris","Iris"],["indium","Indium"],["ferrite-core","FerriteCore"],["entityculling","EntityCulling"],["memoryleakfix","MemoryLeakFix"],["replaymod","ReplayMod"],["itemmodel-fix","ItemModel Fix"]],
+            baja:  [["sodium","Sodium"],["lithium","Lithium"],["ferrite-core","FerriteCore"],["starlight","Starlight"],["entityculling","EntityCulling"],["memoryleakfix","MemoryLeakFix"],["modernfix","ModernFix"],["no-chat-reports","NoChatReports"]],
+            media: [["sodium","Sodium"],["lithium","Lithium"],["iris","Iris"],["ferrite-core","FerriteCore"],["entityculling","EntityCulling"],["memoryleakfix","MemoryLeakFix"],["modernfix","ModernFix"],["immediatelyfast","ImmediatelyFast"],["indium","Indium"]],
+            alta:  [["sodium","Sodium"],["lithium","Lithium"],["iris","Iris"],["indium","Indium"],["ferrite-core","FerriteCore"],["entityculling","EntityCulling"],["memoryleakfix","MemoryLeakFix"],["modernfix","ModernFix"],["immediatelyfast","ImmediatelyFast"],["replaymod","ReplayMod"],["itemmodel-fix","ItemModel Fix"]],
         };
         const _hwBaseShaders = {
             baja: [], media: [["Shaders: Makeup Ultra Fast"]], alta: [["Shaders: Complementary Reimagined"]]
@@ -3374,7 +3412,17 @@
             modded:     {baja:{ram:55},media:{ram:60},alta:{ram:70,chunks:12}},
         };
         const _hwLoaderMap = {
-            Forge: {sodium:["embeddium","Embeddium"],lithium:["canary","Canary"],iris:["oculus","Oculus"],indium:null}
+            Forge: {
+                sodium:          ["embeddium","Embeddium"],
+                lithium:         ["canary","Canary"],
+                iris:            ["oculus","Oculus"],
+                indium:          null,
+                entityculling:   null,
+                starlight:       null,
+                "itemmodel-fix": null,
+                immediatelyfast: null,
+                modernfix:       ["modernfix","ModernFix"],
+            }
         };
         function hwBuildModList(perfil, estilo, loader) {
             const loaderSubs = _hwLoaderMap[loader] || {};
@@ -4259,9 +4307,21 @@
                     setTimeout(() => {
                         const platSel = document.getElementById('imod-platform-select');
                         if (platSel && activaLoader) {
-                            const loaderLower = activaLoader.toLowerCase();
-                            const opt = Array.from(platSel.options).find(o => o.value.toLowerCase() === loaderLower);
-                            if (opt) { platSel.value = opt.value; imodCambiarPlatform(); }
+                            // Normalizar: "Fabric + Iris" → "fabric", "NeoForge" → "neoforge", etc.
+                            const _al = activaLoader.toLowerCase();
+                            let loaderNorm = _al;
+                            if (_al.includes('neoforge'))    loaderNorm = 'neoforge';
+                            else if (_al.includes('forge'))  loaderNorm = 'forge';
+                            else if (_al.includes('iris'))   loaderNorm = 'iris';
+                            else if (_al.includes('fabric')) loaderNorm = 'fabric';
+                            else if (_al.includes('quilt'))  loaderNorm = 'quilt';
+                            const opt = Array.from(platSel.options).find(o => o.value.toLowerCase() === loaderNorm);
+                            if (opt) {
+                                platSel.value = opt.value;
+                                imodCambiarPlatform();
+                                // Asignar DESPUÉS de imodCambiarPlatform para no ser borrado por ella
+                                window._imodInstanceMotor = activaLoader;
+                            }
                         }
                     }, 50);
                 }
@@ -4270,37 +4330,72 @@
             }
         }
 
+        // Loaders que el launcher soporta (Quilt, LiteLoader, Rift, etc. no están integrados)
+        const _LOADERS_SOPORTADOS = new Set(['fabric','forge','neoforge','vanilla','optifine','iris']);
+        const _LOADER_DISPLAY = { iris: 'Iris (Fabric)', optifine: 'OptiFine', fabric: 'Fabric',
+                                  forge: 'Forge', neoforge: 'NeoForge', vanilla: 'Vanilla' };
         function imodCambiarVersion() {
             const ver = document.getElementById('imod-ver-select').value;
             const platSel = document.getElementById('imod-platform-select');
             document.getElementById('imod-file-info').classList.add('hidden');
+            window._imodInstanceMotor = null;
             if (!ver || !_imodVersionsData) { platSel.innerHTML = '<option value="">Seleccionar plataforma...</option>'; platSel.disabled = true; return; }
             const compatible = _imodVersionsData.filter(v => v.game_versions.includes(ver));
-            const loaders = [...new Set(compatible.flatMap(v => v.loaders))];
+            // Filtrar solo loaders que el launcher soporta
+            const allLoaders = [...new Set(compatible.flatMap(v => v.loaders))];
+            const loaders = allLoaders.filter(l => _LOADERS_SOPORTADOS.has(l.toLowerCase()));
+            if (loaders.length === 0) {
+                platSel.innerHTML = '<option value="">Sin plataformas compatibles</option>';
+                platSel.disabled = true;
+                return;
+            }
             platSel.innerHTML = '<option value="">Seleccionar plataforma...</option>' +
-                loaders.map(l=>`<option value="${l}">${l.charAt(0).toUpperCase()+l.slice(1)}</option>`).join('');
+                loaders.map(l=>`<option value="${l}">${_LOADER_DISPLAY[l.toLowerCase()] || (l.charAt(0).toUpperCase()+l.slice(1))}</option>`).join('');
             platSel.disabled = false;
             if (loaders.length === 1) { platSel.value = loaders[0]; imodCambiarPlatform(); }
         }
 
+        // Mapeo: loader Modrinth → perfiles del launcher disponibles
+        const _IMOD_PERFILES = {
+            'fabric':   ['Fabric', 'Fabric + Iris'],
+            'iris':     ['Fabric + Iris'],
+            'forge':    ['Forge'],
+            'neoforge': ['NeoForge'],
+            'vanilla':  ['Vanilla'],
+            'optifine': ['OptiFine'],
+        };
+
         function imodCambiarPlatform() {
+            window._imodInstanceMotor = null;
             const ver = document.getElementById('imod-ver-select').value;
             const platform = document.getElementById('imod-platform-select').value;
             const fileInfo = document.getElementById('imod-file-info');
-            if (!ver || !platform || !_imodVersionsData) { fileInfo.classList.add('hidden'); return; }
+            const perfilRow = document.getElementById('imod-perfil-row');
+            const perfilSel = document.getElementById('imod-perfil-select');
+            if (!ver || !platform || !_imodVersionsData) { fileInfo.classList.add('hidden'); perfilRow.classList.add('hidden'); return; }
             const match = _imodVersionsData.find(v => v.game_versions.includes(ver) && v.loaders.includes(platform));
-            if (!match || !match.files || !match.files.length) { fileInfo.classList.add('hidden'); return; }
+            if (!match || !match.files || !match.files.length) { fileInfo.classList.add('hidden'); perfilRow.classList.add('hidden'); return; }
             const file = match.files.find(f=>f.primary) || match.files[0];
             _imodSelectedVersionId = match.id;
             document.getElementById('imod-fname').textContent = file.filename;
             document.getElementById('imod-fmeta').textContent = `${match.version_number} · ${(file.size/1048576).toFixed(2)} MB`;
+            // Poblar selector de perfiles
+            const perfiles = _IMOD_PERFILES[platform.toLowerCase()] || [platform];
+            perfilSel.innerHTML = perfiles.map(p => `<option value="${p}">${p}</option>`).join('');
+            // Si hay un motor de instancia activo y es compatible, pre-seleccionarlo
+            if (window._imodInstanceMotor && perfiles.includes(window._imodInstanceMotor)) {
+                perfilSel.value = window._imodInstanceMotor;
+            }
+            perfilRow.classList.remove('hidden');
             fileInfo.classList.remove('hidden');
         }
 
         async function imodInstalar() {
             if (!_imodSelectedVersionId || !_imodProjectId) return;
             const ver = document.getElementById('imod-ver-select').value;
-            const motor = document.getElementById('imod-platform-select').value;
+            // Usar el perfil seleccionado por el usuario (Fabric / Fabric+Iris / Forge / etc.)
+            const perfilSel = document.getElementById('imod-perfil-select');
+            const motor = (perfilSel && perfilSel.value) || window._imodInstanceMotor || document.getElementById('imod-platform-select').value;
             document.getElementById('imod-instalando').classList.remove('hidden');
             document.getElementById('imod-file-info').classList.add('hidden');
             const result = await pywebview.api.instalar_mod_desde_modrinth(_imodProjectId, _imodSelectedVersionId, _imodTipo, ver, motor);
@@ -4317,6 +4412,60 @@
         function cerrarInstalarMod() {
             document.getElementById('instalar-mod-modal').classList.add('hidden');
             _imodProjectId = null;
+            window._imodInstanceMotor = null;
+            const pr = document.getElementById('imod-perfil-row');
+            if (pr) pr.classList.add('hidden');
+        }
+
+        // ══ IA DESCRIBIR MOD ════════════════════════════════════════
+        async function iaDescribirMod(btn, titulo, descEn, loader) {
+            const card = btn.closest('.imod-card') || btn.parentElement;
+            let desc = card.querySelector('.ia-mod-desc');
+            if (!desc) {
+                desc = document.createElement('p');
+                desc.className = 'ia-mod-desc text-xs text-[#9B59B6] mt-1 leading-snug animate-pulse';
+                desc.textContent = '🤖 Cargando descripción...';
+                card.appendChild(desc);
+            } else {
+                desc.classList.toggle('hidden');
+                return;
+            }
+            try {
+                const r = await pywebview.api.ia_describir_mod(titulo, descEn, loader);
+                desc.classList.remove('animate-pulse');
+                desc.textContent = r.ok ? r.desc : ('❌ ' + (r.error || 'Error'));
+            } catch(e) { desc.textContent = '❌ ' + e; }
+        }
+
+        // ══ IA ANALIZAR TELEMETRÍA ══════════════════════════════════
+        async function analizarTelemetriaIA() {
+            const btn = document.getElementById('btn-tele-ia');
+            const res = document.getElementById('tele-ia-resultado');
+            if (!btn || !res) return;
+            btn.disabled = true; btn.textContent = '⏳ Analizando...';
+            res.classList.remove('hidden');
+            res.textContent = '🤖 Analizando tu hardware con IA...';
+            try {
+                // Leer valores actuales de la telemetría
+                const cpuEl = document.getElementById('tel-cpu');
+                const ramEl = document.getElementById('tel-ram');
+                const cfg = await pywebview.api.get_settings();
+                const ver = (document.getElementById('panel-version-sel')||{}).value || '';
+                const mtr = (document.getElementById('panel-loader-sel')||{}).value || '';
+                const cpuPct = parseFloat((cpuEl && cpuEl.textContent)||'0') || 0;
+                // RAM: parsear texto como "4.2/16.0 GB"
+                const ramTxt = (ramEl && ramEl.textContent) || '';
+                const ramMatch = ramTxt.match(/([\d.]+)\/([\d.]+)/);
+                const ramUsado = ramMatch ? parseFloat(ramMatch[1]) : 0;
+                const ramTotal = ramMatch ? parseFloat(ramMatch[2]) : 0;
+                const r = await pywebview.api.ia_analizar_telemetria({
+                    cpu_pct: cpuPct, ram_usado_gb: ramUsado, ram_total_gb: ramTotal,
+                    max_ram_config: cfg.config.max_ram || '4G',
+                    mc_ram_mb: 0, version: ver, motor: mtr
+                });
+                res.textContent = r.ok ? r.analisis : ('❌ ' + (r.error || 'Error'));
+            } catch(e) { res.textContent = '❌ ' + e; }
+            btn.disabled = false; btn.textContent = '🤖 Optimizar con IA';
         }
 
         async function cargarVersionesMod() {
@@ -4662,34 +4811,56 @@
         }
 
         let _iaChatHistorial = [];
+        let _iaChatStreamId = null;
+        let _iaChatStreamInterval = null;
+
         async function enviarChatIA() {
             const input = document.getElementById('ia-chat-input');
-            // ... (rest of the code remains the same)
             const msgs = document.getElementById('ia-chat-msgs');
             const btn = document.getElementById('btn-ia-chat');
             const msg = (input.value || '').trim();
             if (!msg) return;
             input.value = '';
+            // Mostrar mensaje del usuario
             msgs.innerHTML += `<div class="flex justify-end"><div class="bg-[#9B59B6]/20 border border-[#9B59B6]/30 rounded-lg px-3 py-2 text-sm max-w-[80%]">${msg}</div></div>`;
-            const thinking = document.createElement('div');
-            thinking.className = 'flex gap-2 items-center text-xs text-gray-500';
-            thinking.innerHTML = '<div class="w-3 h-3 border-2 border-[#9B59B6] border-t-transparent rounded-full animate-spin"></div> Pensando...';
-            msgs.appendChild(thinking);
+            // Burbuja de IA con streaming
+            const bubble = document.createElement('div');
+            bubble.className = 'flex justify-start';
+            bubble.innerHTML = '<div class="bg-[#181818] border border-[#2A2A2A] rounded-lg px-3 py-2 text-sm max-w-[85%] leading-relaxed whitespace-pre-wrap ia-stream-bubble"><span class="ia-stream-cursor">&#9612;</span></div>';
+            msgs.appendChild(bubble);
             msgs.scrollTop = msgs.scrollHeight;
             btn.disabled = true;
             try {
-                const r = await pywebview.api.gemini_chat(msg, _iaChatHistorial);
-                thinking.remove();
-                if (r.ok) {
-                    _iaChatHistorial.push({ rol: 'user', texto: msg });
-                    _iaChatHistorial.push({ rol: 'assistant', texto: r.respuesta });
-                    if (_iaChatHistorial.length > 14) _iaChatHistorial = _iaChatHistorial.slice(-14);
-                    msgs.innerHTML += `<div class="flex justify-start"><div class="bg-[#181818] border border-[#2A2A2A] rounded-lg px-3 py-2 text-sm max-w-[85%] leading-relaxed whitespace-pre-wrap">${r.respuesta}</div></div>`;
-                } else {
-                    msgs.innerHTML += `<div class="text-xs text-red-400">${r.error}</div>`;
-                }
-            } catch(e) { thinking.remove(); msgs.innerHTML += `<div class="text-xs text-red-400">${e}</div>`; }
-            btn.disabled = false;
+                const r = await pywebview.api.ia_chat_stream_start(msg, _iaChatHistorial);
+                if (!r.ok) throw new Error(r.error || 'Error al iniciar stream');
+                _iaChatStreamId = r.session_id;
+                const contentEl = bubble.querySelector('.ia-stream-bubble');
+                let fullText = '';
+                _iaChatStreamInterval = setInterval(async () => {
+                    try {
+                        const p = await pywebview.api.ia_chat_stream_poll(_iaChatStreamId);
+                        fullText = p.texto || '';
+                        contentEl.innerHTML = (fullText || '<span class="text-gray-500 animate-pulse">...</span>') +
+                            (p.done ? '' : '<span class="ia-stream-cursor">&#9612;</span>');
+                        msgs.scrollTop = msgs.scrollHeight;
+                        if (p.done || p.error) {
+                            clearInterval(_iaChatStreamInterval);
+                            _iaChatStreamId = null;
+                            if (p.error && !fullText) {
+                                contentEl.innerHTML = `<span class="text-red-400">${p.error}</span>`;
+                            } else if (fullText) {
+                                _iaChatHistorial.push({ rol: 'user', texto: msg });
+                                _iaChatHistorial.push({ rol: 'assistant', texto: fullText });
+                                if (_iaChatHistorial.length > 60) _iaChatHistorial = _iaChatHistorial.slice(-60);
+                            }
+                            btn.disabled = false;
+                        }
+                    } catch(pe) { clearInterval(_iaChatStreamInterval); btn.disabled = false; }
+                }, 120);
+            } catch(e) {
+                bubble.innerHTML = `<div class="text-xs text-red-400">${e}</div>`;
+                btn.disabled = false;
+            }
             msgs.scrollTop = msgs.scrollHeight;
         }
 
@@ -4722,21 +4893,39 @@
             const btn = document.getElementById('btn-ia-mp');
             if (!desc || !ver) { alert('Completá descripción y versión.'); return; }
             btn.disabled = true;
-            res.innerHTML = '<div class="flex items-center gap-2 text-sm text-[#9B59B6]"><div class="w-4 h-4 border-2 border-[#9B59B6] border-t-transparent rounded-full animate-spin"></div>Gemini está eligiendo los mods...</div>';
+            res.innerHTML = '<div class="flex items-center gap-2 text-sm text-[#9B59B6]"><div class="w-4 h-4 border-2 border-[#9B59B6] border-t-transparent rounded-full animate-spin"></div>IA eligiendo los mejores mods...</div>';
             try {
                 const r = await pywebview.api.gemini_generar_modpack(desc, ver, motor);
                 if (!r.ok) { res.innerHTML = `<p class="text-xs text-red-400">${r.error}</p>`; btn.disabled = false; return; }
-                res.innerHTML = `<p class="text-xs text-gray-400 mb-2">Gemini sugiere: <span class="text-white font-bold">${r.slugs.join(', ')}</span></p>
-                    <div id="ia-mp-install-log" class="bg-[#0A0A0A] rounded-lg p-3 text-xs font-mono text-gray-400 space-y-1 max-h-48 overflow-y-auto"></div>`;
+                // Mostrar categorías si las hay, si no lista plana
+                let html = '';
+                if (r.categorias && r.categorias.length) {
+                    const catColors = {'Rendimiento':'#2ECC71','Gameplay':'#3498DB','Visual':'#9B59B6','Utilidad':'#F39C12'};
+                    html = r.categorias.map(cat => {
+                        const col = catColors[cat.nombre] || '#9B59B6';
+                        return `<div class="mb-2"><p class="text-xs font-black mb-1" style="color:${col}">${cat.nombre}</p>` +
+                            cat.mods.map(m => `<div class="flex items-center gap-2 bg-[#0A0A0A] rounded px-2 py-1 mb-1">`+
+                                `<span class="text-xs font-mono text-white flex-1">${m.slug}</span>`+
+                                `<span class="text-[10px] text-gray-500 truncate max-w-[120px]">${m.razon||''}</span>`+
+                                `<span id="mp-st-${m.slug}" class="text-[10px] text-gray-600">—</span></div>`).join('') + '</div>';
+                    }).join('');
+                } else {
+                    html = `<p class="text-xs text-gray-400 mb-2">IA sugiere: <span class="text-white font-bold">${r.slugs.join(', ')}</span></p>`;
+                }
+                html += `<div id="ia-mp-install-log" class="bg-[#0A0A0A] rounded-lg p-2 text-xs font-mono space-y-0.5 max-h-32 overflow-y-auto mt-2"></div>`;
+                res.innerHTML = html;
                 const log = document.getElementById('ia-mp-install-log');
                 for (const slug of r.slugs) {
-                    log.innerHTML += `<div class="text-[#9B59B6] animate-pulse">⬇ Instalando ${slug}...</div>`;
+                    const stEl = document.getElementById(`mp-st-${slug}`);
+                    if (stEl) stEl.textContent = '⬇';
+                    log.innerHTML += `<div class="text-[#9B59B6]">⬇ Instalando ${slug}...</div>`;
                     log.scrollTop = log.scrollHeight;
                     try {
                         const ir = await pywebview.api.instalar_mod_modrinth(slug, ver, motor, '');
+                        if (stEl) stEl.textContent = ir.ok ? '✅' : '❌';
                         log.lastElementChild.className = '';
                         log.lastElementChild.innerHTML = `<span class="${ir.ok ? 'text-[#2ECC71]' : 'text-red-400'}">${ir.ok ? '✅' : '❌'} ${slug}${ir.ok ? '' : ': ' + ir.error}</span>`;
-                    } catch(e) { log.lastElementChild.innerHTML = `<span class="text-red-400">❌ ${slug}: ${e}</span>`; }
+                    } catch(e) { if (stEl) stEl.textContent = '❌'; log.lastElementChild.innerHTML = `<span class="text-red-400">❌ ${slug}: ${e}</span>`; }
                 }
                 log.innerHTML += '<div class="text-[#2ECC71] font-bold mt-2">✅ Modpack instalado.</div>';
             } catch(e) { res.innerHTML = `<p class="text-xs text-red-400">${e}</p>`; }
@@ -5446,11 +5635,36 @@
             const btn = document.getElementById('btn-ia-seed');
             const res = document.getElementById('ia-seed-resultado');
             btn.disabled = true; btn.textContent = '⏳ Generando...';
-            res.textContent = 'Consultando IA...';
+            res.innerHTML = '<div class="text-xs text-gray-500 animate-pulse py-4 text-center">Consultando IA...</div>';
             try {
                 const r = await pywebview.api.gemini_generar_semilla(desc);
-                res.textContent = r.ok ? r.respuesta : ('Error: ' + r.error);
-            } catch(e) { res.textContent = 'Error: ' + e; }
+                if (!r.ok) { res.innerHTML = `<p class="text-xs text-red-400">Error: ${r.error}</p>`; return; }
+                if (r.seeds && r.seeds.length) {
+                    const colors = ['#2ECC71','#9B59B6','#3498DB'];
+                    res.innerHTML = r.seeds.map((s, i) => {
+                        const estructurasHtml = (s.estructuras && s.estructuras.length)
+                            ? `<div class="flex flex-wrap gap-1 mb-2">${s.estructuras.map(e=>`<span class="text-[10px] bg-[#1E1E1E] border border-[#2A2A2A] px-2 py-0.5 rounded text-gray-400">🏛 ${e}</span>`).join('')}</div>`
+                            : '';
+                        return `<div class="bg-[#0D0D0D] border border-[#2A2A2A] rounded-xl p-4 hover:border-[${colors[i%3]}]/50 transition">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="font-black text-sm" style="color:${colors[i%3]}">🌐 ${s.spawn || 'Spawn variado'}</span>
+                                <button data-seed="${(s.seed||'').replace(/"/g,'&quot;')}" onclick="navigator.clipboard.writeText(this.dataset.seed)"
+                                    class="text-[10px] bg-[#1E1E1E] hover:bg-[#2A2A2A] border border-[#333] px-2 py-1 rounded font-bold text-gray-400 hover:text-white transition">
+                                    📋 Copiar seed
+                                </button>
+                            </div>
+                            <div class="flex items-center gap-2 mb-2 bg-[#1A1A1A] rounded-lg px-3 py-1.5">
+                                <span class="text-[10px] text-gray-500 font-bold uppercase">Seed</span>
+                                <code class="text-white font-mono text-sm flex-1">${s.seed}</code>
+                            </div>
+                            ${estructurasHtml}
+                            <p class="text-xs text-gray-400 leading-snug">${s.descripcion || ''}</p>
+                        </div>`;
+                    }).join('');
+                } else {
+                    res.innerHTML = `<div class="bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg p-4 text-sm text-gray-400 whitespace-pre-wrap">${r.respuesta}</div>`;
+                }
+            } catch(e) { res.innerHTML = `<p class="text-xs text-red-400">Error: ${e}</p>`; }
             finally { btn.disabled = false; btn.textContent = '🌱 Generar'; }
         }
 
@@ -5460,11 +5674,29 @@
             const btn = document.getElementById('btn-ia-surv');
             const res = document.getElementById('ia-surv-resultado');
             btn.disabled = true; btn.textContent = '⏳ Pensando...';
-            res.textContent = 'Consultando IA...';
+            res.innerHTML = '<div class="text-xs text-gray-500 animate-pulse py-4 text-center">Consultando IA...</div>';
             try {
                 const r = await pywebview.api.gemini_survival_assist(preg);
-                res.textContent = r.ok ? r.respuesta : ('Error: ' + r.error);
-            } catch(e) { res.textContent = 'Error: ' + e; }
+                if (!r.ok) { res.innerHTML = `<p class="text-xs text-red-400">Error: ${r.error}</p>`; return; }
+                let html = '';
+                if (r.pasos && r.pasos.length) {
+                    html += `<div class="bg-[#0D0D0D] border border-[#2ECC71]/30 rounded-xl p-4 mb-2">
+                        <p class="text-xs font-black text-[#2ECC71] mb-2">📍 PASOS</p>
+                        <ol class="space-y-1.5">${r.pasos.map((p,i)=>`<li class="text-xs text-gray-300 flex gap-2"><span class="text-[#2ECC71] font-black shrink-0">${i+1}.</span><span>${p}</span></li>`).join('')}</ol></div>`;
+                }
+                if (r.materiales && r.materiales.length) {
+                    html += `<div class="bg-[#0D0D0D] border border-[#F39C12]/30 rounded-xl p-4 mb-2">
+                        <p class="text-xs font-black text-[#F39C12] mb-2">📦 MATERIALES</p>
+                        <ul class="grid grid-cols-2 gap-1">${r.materiales.map(m=>`<li class="text-xs text-gray-300 flex gap-1"><span class="text-[#F39C12]">•</span>${m}</li>`).join('')}</ul></div>`;
+                }
+                if (r.consejo) {
+                    html += `<div class="bg-[#9B59B6]/10 border border-[#9B59B6]/30 rounded-xl p-3">
+                        <p class="text-xs font-black text-[#9B59B6] mb-1">💡 CONSEJO</p>
+                        <p class="text-xs text-gray-400 leading-snug">${r.consejo}</p></div>`;
+                }
+                if (!html) html = `<div class="text-xs text-gray-400 whitespace-pre-wrap p-3">${r.respuesta}</div>`;
+                res.innerHTML = html;
+            } catch(e) { res.innerHTML = `<p class="text-xs text-red-400">Error: ${e}</p>`; }
             finally { btn.disabled = false; btn.textContent = '⚔️ Preguntar'; }
         }
 
@@ -5598,7 +5830,7 @@
             if (!desc) { msg.textContent = 'Escribí una descripción primero.'; return; }
             btn.disabled = true;
             btn.textContent = '⏳ Generando...';
-            msg.textContent = 'Gemini eligiendo colores...';
+            msg.textContent = 'Groq eligiendo colores...';
             coloresBox.classList.add('hidden');
             acciones.classList.add('hidden');
             preview.classList.add('hidden');
@@ -6462,12 +6694,13 @@
                         <div><span class="text-gray-500">Perfil sugerido</span><p class="font-black ${c} text-lg">${r.nombre}</p></div>
                     </div>
                     <p class="mt-2 text-xs text-gray-500">${r.descripcion || ''}</p>`;
-                    // Auto-fill the version inputs
+                    // Auto-fill the version inputs with last played version (fallback 1.21.1)
+                    const _ultimaVer = (window._configCache && window._configCache.ultima_version) || '1.21.1';
                     ['baja','media','alta'].forEach(p => {
                         const vEl = document.getElementById('hw-'+p+'-ver');
-                        const mEl = document.getElementById('hw-'+p+'-motor');
-                        if (vEl && !vEl.value) vEl.value = '1.21.1';
+                        if (vEl && !vEl.value) vEl.value = _ultimaVer;
                     });
+                    hwActualizarCards();
                 } else {
                     info.innerHTML = `<span class="text-red-400">Error: ${r.error || 'No se pudo detectar'}</span>`;
                 }
@@ -6699,7 +6932,7 @@
                 alert('Primero analizá los logs haciendo clic en "Analizar logs".'); return;
             }
             const res = document.getElementById('crash-ai-resultado');
-            res.textContent = '🤖 Consultando Gemini...'; res.classList.remove('hidden');
+            res.textContent = '🤖 Consultando IA...'; res.classList.remove('hidden');
             try {
                 const r = await pywebview.api.analizar_crash_con_ia(fragmento.slice(0, 3000));
                 res.textContent = r.ok ? r.analisis : '❌ Error: ' + (r.error || 'Respuesta inválida');
@@ -6792,19 +7025,65 @@
                     aplicarFondo(f.fondo, _src, _tipo, _tipo === 'imagen' ? _src : null);
                 }
             } catch(e) {}
-            // Pre-fill Spotify credentials from config
+            // Pre-fill API credentials from config
             try {
                 const cfg = await pywebview.api.get_settings();
                 const cidEl = document.getElementById('sp-client-id');
                 const secEl = document.getElementById('sp-client-secret');
+                const groqEl = document.getElementById('groq-api-key');
                 if (cidEl && cfg.config.spotify_client_id) cidEl.value = cfg.config.spotify_client_id;
                 if (secEl && cfg.config.spotify_client_secret) secEl.value = cfg.config.spotify_client_secret;
+                if (groqEl && cfg.config.groq_api_key) groqEl.value = cfg.config.groq_api_key;
             } catch(e) {}
             setTimeout(cargarNoticiasInicio, 1000);
             setTimeout(pingTodosServidores, 2000);
             setTimeout(actualizarJugadoresOnline, 5000);
             setInterval(actualizarJugadoresOnline, 60000);
+            setInterval(actualizarGameBanner, 2000);
+            actualizarGameBanner();
         }
+
+        // ══ GROQ API KEY ═════════════════════════════════════════════════
+        async function guardarGroqKey() {
+            const key = (document.getElementById('groq-api-key').value || '').trim();
+            const st = document.getElementById('groq-key-status');
+            if (!key) { if(st) st.textContent = '⚠️ Ingresá una API key.'; return; }
+            try {
+                await pywebview.api.actualizar_config({ groq_api_key: key });
+                if(st) { st.textContent = '✅ Guardada correctamente.'; st.className = 'text-xs text-[#2ECC71] min-h-[14px]'; }
+            } catch(e) { if(st) { st.textContent = '❌ Error: ' + e; st.className = 'text-xs text-red-400 min-h-[14px]'; } }
+        }
+
+        // ══ GAME STATUS BANNER ═══════════════════════════════════════════
+        let _gameBannerStartAt = null;
+        async function actualizarGameBanner() {
+            const banner = document.getElementById('inicio-game-banner');
+            if (!banner) return;
+            try {
+                const port = window._API_PORT || 9875;
+                const r = await fetch(`http://127.0.0.1:${port}/api/game_status`);
+                const data = await r.json();
+                if (data && data.running) {
+                    banner.classList.remove('hidden');
+                    if (!_gameBannerStartAt && data.started_at) _gameBannerStartAt = data.started_at * 1000;
+                    if (!_gameBannerStartAt) _gameBannerStartAt = Date.now();
+                    const ver = document.getElementById('game-banner-ver');
+                    const tim = document.getElementById('game-banner-time');
+                    const st  = document.getElementById('game-banner-status');
+                    if (ver) ver.textContent = (data.version || '?') + ' · ' + (data.motor || '?');
+                    if (st)  st.textContent  = data.status || '';
+                    const elapsed = Math.max(0, Math.floor((Date.now() - _gameBannerStartAt) / 1000));
+                    const hh = String(Math.floor(elapsed / 3600)).padStart(2, '0');
+                    const mm = String(Math.floor((elapsed % 3600) / 60)).padStart(2, '0');
+                    const ss = String(elapsed % 60).padStart(2, '0');
+                    if (tim) tim.textContent = `${hh}:${mm}:${ss}`;
+                } else {
+                    banner.classList.add('hidden');
+                    _gameBannerStartAt = null;
+                }
+            } catch(e) {}
+        }
+
         // --- FIN EXTRAS ---
     </script>
 </body>
