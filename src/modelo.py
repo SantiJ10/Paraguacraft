@@ -677,15 +677,18 @@ class CreadorServidor:
             if not downloaded:
                 try:
                     url = f"https://api.modrinth.com/v2/project/{slug}/version"
-                    r = requests.get(url, timeout=15)
+                    params = {"loaders": '["fabric"]', "game_versions": f'["{ver_server}"]'}
+                    r = requests.get(url, params=params, timeout=15)
                     r.raise_for_status()
-                    versions = r.json()
-                    if versions:
-                        version = versions[0]
-                        files = version.get("files", [])
+                    versions_list = r.json()
+                    if not versions_list:
+                        r2 = requests.get(url, timeout=15)
+                        versions_list = r2.json() if r2.status_code == 200 else []
+                    if versions_list:
+                        ver_entry = versions_list[0]
+                        files = ver_entry.get("files", [])
                         if files:
-                            file = files[0]
-                            file_url = file.get("url")
+                            file_url = files[0].get("url")
                             if file_url:
                                 r = requests.get(file_url, stream=True, timeout=(20, 180), allow_redirects=True)
                                 r.raise_for_status()
@@ -703,6 +706,127 @@ class CreadorServidor:
         callback_progreso("✅ Geyser + Floodgate para Fabric instalados. Jugadores Bedrock pueden conectarse.")
         callback_progreso("ℹ️ Bedrock: En playit.gg creá un túnel UDP en puerto 19132 para jugadores Bedrock.")
         return True, f"¡Fabric + Geyser listo en {carpeta_server}!"
+
+    @staticmethod
+    def _setup_forge(carpeta_server, ver_server, callback_progreso):
+        try:
+            import subprocess, tempfile, platform as _plat
+            callback_progreso(f"[1/5] Buscando versión de Forge para {ver_server}...")
+            forge_full = minecraft_launcher_lib.forge.find_forge_version(ver_server)
+            if not forge_full:
+                return False, f"Forge no está disponible aún para la versión {ver_server}. Probá con 1.20.1, 1.19.4 o versiones estables."
+
+            # forge_full puede ser "1.20.1-47.3.0" o "47.3.0"
+            if "-" in forge_full and forge_full.startswith(ver_server):
+                full_id = forge_full
+            else:
+                full_id = f"{ver_server}-{forge_full}"
+
+            installer_name = f"forge-{full_id}-installer.jar"
+            installer_url  = f"https://maven.minecraftforge.net/net/minecraftforge/forge/{full_id}/{installer_name}"
+
+            callback_progreso(f"[2/5] Descargando Forge installer {full_id}...")
+            tmpdir = tempfile.mkdtemp(prefix="paraguacraft_forge_")
+            installer_path = os.path.join(tmpdir, installer_name)
+            try:
+                r_inst = requests.get(installer_url, stream=True, timeout=(20, 300), allow_redirects=True)
+                if r_inst.status_code == 404:
+                    # Intento alternativo sin prefijo de versión MC
+                    forge_only = forge_full.split("-")[-1]
+                    alt_id  = f"{ver_server}-{forge_only}"
+                    alt_url = f"https://maven.minecraftforge.net/net/minecraftforge/forge/{alt_id}/forge-{alt_id}-installer.jar"
+                    r_inst = requests.get(alt_url, stream=True, timeout=(20, 300), allow_redirects=True)
+                    if r_inst.status_code == 404:
+                        shutil.rmtree(tmpdir, ignore_errors=True)
+                        return False, f"No se encontró el installer de Forge para {ver_server}. Verificá que la versión sea compatible con Forge."
+                    full_id = alt_id
+                r_inst.raise_for_status()
+                with open(installer_path, "wb") as _fj:
+                    shutil.copyfileobj(r_inst.raw, _fj, length=65536)
+            except Exception as _de:
+                shutil.rmtree(tmpdir, ignore_errors=True)
+                return False, f"Error descargando Forge installer: {_de}"
+
+            # Encontrar Java bundled
+            java_cmd = "java"
+            try:
+                mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+                rt_dir = os.path.join(mine_dir, "runtime")
+                jexe = "java.exe" if _plat.system() == "Windows" else "java"
+                if os.path.exists(rt_dir):
+                    javas = [os.path.join(r2, jexe) for r2, _, fs in os.walk(rt_dir) if jexe in fs]
+                    if javas:
+                        best = next((j for j in javas if "21" in j or "delta" in j.lower() or "gamma" in j.lower()), javas[0])
+                        java_cmd = best
+            except Exception:
+                pass
+
+            callback_progreso(f"[3/5] Instalando Forge server en {carpeta_server}...")
+            _flags = subprocess.CREATE_NO_WINDOW if _plat.system() == "Windows" else 0
+            try:
+                subprocess.run(
+                    [java_cmd, "-jar", installer_path, "--installServer"],
+                    cwd=carpeta_server, capture_output=True, timeout=600, creationflags=_flags
+                )
+            except Exception as _re:
+                callback_progreso(f"⚠️ Advertencia al ejecutar installer: {_re}")
+            finally:
+                shutil.rmtree(tmpdir, ignore_errors=True)
+
+            # Forge 1.17+ genera run.bat; legacy no lo hace → crear uno manual
+            run_bat = os.path.join(carpeta_server, "run.bat")
+            if not os.path.exists(run_bat):
+                forge_jar = next(
+                    (f for f in os.listdir(carpeta_server)
+                     if f.startswith("forge-") and f.endswith(".jar") and "installer" not in f),
+                    None)
+                if forge_jar:
+                    bat_lines = [f'@echo off\n"{java_cmd}" -Xmx4G -Xms1G -jar {forge_jar} nogui\npause\n']
+                else:
+                    bat_lines = [
+                        "@echo off\n",
+                        f'"{java_cmd}" -Xmx4G -Xms1G @libraries/net/minecraftforge/forge/{full_id}/unix_args.txt "$@" nogui\n',
+                        "pause\n"
+                    ]
+                with open(run_bat, "w", encoding="utf-8") as _fb:
+                    _fb.writelines(bat_lines)
+
+            # EULA
+            eula_path = os.path.join(carpeta_server, "eula.txt")
+            if not os.path.exists(eula_path):
+                with open(eula_path, "w", encoding="utf-8") as _fe:
+                    _fe.write("eula=true\n")
+
+            # Descargar playit.exe
+            callback_progreso("[4/5] Descargando playit.exe...")
+            playit_path = os.path.join(carpeta_server, "playit.exe")
+            if not os.path.exists(playit_path):
+                try:
+                    api_r = requests.get(
+                        "https://api.github.com/repos/playit-cloud/playit-agent/releases/latest",
+                        timeout=15, headers={"Accept": "application/vnd.github+json"})
+                    api_r.raise_for_status()
+                    exe_url = next(
+                        (a["browser_download_url"] for a in api_r.json().get("assets", [])
+                         if a["name"].lower().endswith(".exe") and
+                         ("win" in a["name"].lower() or "windows" in a["name"].lower())),
+                        None)
+                    if exe_url:
+                        r_p = requests.get(exe_url, stream=True, timeout=(20, 300))
+                        r_p.raise_for_status()
+                        with open(playit_path, "wb") as _fp:
+                            shutil.copyfileobj(r_p.raw, _fp, length=65536)
+                        callback_progreso("playit.exe descargado.")
+                    else:
+                        callback_progreso("⚠️ playit.exe no encontrado, descargalo de playit.gg")
+                except Exception as _pe:
+                    callback_progreso(f"⚠️ playit.exe no descargado: {_pe}")
+
+            callback_progreso(f"[5/5] ✅ Servidor Forge {full_id} listo.")
+            callback_progreso("ℹ️ Forge requiere que todos los jugadores tengan los mismos mods instalados en el cliente.")
+            return True, f"¡Forge server listo en {carpeta_server}!"
+        except Exception as _e:
+            return False, str(_e)
 
 class GestorLocalMods:
     @staticmethod
