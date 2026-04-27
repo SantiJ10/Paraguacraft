@@ -581,15 +581,16 @@ def _offline_uuid(username):
     md5[8] = (md5[8] & 0x3f) | 0x80  # variant bits
     return str(uuid.UUID(bytes=bytes(md5)))
 
-def _descargar_mods_fabric_slugs(mods_dir, version, slugs, progress_callback, headers):
+def _descargar_mods_fabric_slugs(mods_dir, version, slugs, progress_callback, headers, loaders=None):
     os.makedirs(mods_dir, exist_ok=True)
     _existing_lower = {f.lower() for f in os.listdir(mods_dir) if f.endswith(".jar") or f.endswith(".jar.disabled")}
+    _loaders_json = json.dumps(loaders) if loaders else '["fabric"]'
     for slug in slugs:
         # Skip API call if a file matching this slug name already exists locally
         if any(slug.lower() in f for f in _existing_lower):
             continue
         url_api = f"https://api.modrinth.com/v2/project/{slug}/version"
-        params = {"loaders": '["fabric"]', "game_versions": f'["{version}"]'}
+        params = {"loaders": _loaders_json, "game_versions": f'["{version}"]'}
         try:
             r = requests.get(url_api, params=params, headers=headers, timeout=10)
             if r.status_code != 200:
@@ -698,6 +699,15 @@ def instalar_mods_por_motor(game_dir, version, motor_elegido, progress_callback,
 
     if "fabric" in motor_lower and "iris" in motor_lower:
         instalar_bundle_fabric_iris_cache(minecraft_directory, game_dir, version, progress_callback, lan_distancia)
+        return
+
+    if "quilt" in motor_lower:
+        if progress_callback:
+            progress_callback(f"Configurando Quilt (Quilted Standard Libraries)...")
+        _descargar_mods_fabric_slugs(mods_dir, version, ["qsl", "quilted-fabric-api"], progress_callback, headers,
+                                     loaders=["quilt", "fabric"])
+        if lan_distancia:
+            _descargar_mods_fabric_slugs(mods_dir, version, ["e4mc"], progress_callback, headers, loaders=["quilt", "fabric"])
         return
 
     if "fabric" in motor_lower:
@@ -933,26 +943,37 @@ def _instalar_neoforge(version_base, minecraft_directory, progress_callback, on_
 
 def _install_mc_with_retry(version, mc_dir, cb_dict, progress_cb=None):
     """install_minecraft_version con reintento automático (hasta 3 intentos).
-    Detecta archivos con hash corrupto, los elimina y reintenta la descarga."""
+    Detecta archivos con hash corrupto, los elimina y reintenta la descarga.
+    También reintenta en errores de red (timeout, connection error)."""
     import re as _re_r
+    import socket as _sock
+    _NETWORK_ERRORS = (ConnectionError, TimeoutError, OSError, _sock.timeout)
     for _attempt in range(3):
         try:
             minecraft_launcher_lib.install.install_minecraft_version(version, mc_dir, callback=cb_dict)
             return
+        except _NETWORK_ERRORS as _ne:
+            if _attempt < 2:
+                if progress_cb: progress_cb(f"Error de red, reintentando ({_attempt + 2}/3)... ({type(_ne).__name__})")
+                import time as _t; _t.sleep(2 * (_attempt + 1))
+            else:
+                raise
         except Exception as _ie:
             _m = _re_r.match(r'^(.*?) has the wrong', str(_ie))
             if _m and _attempt < 2:
                 _bad = _m.group(1).strip()
-                if progress_cb:
-                    progress_cb(f"Archivo corrupto, limpiando y reintentando ({_attempt + 2}/3)...")
+                if progress_cb: progress_cb(f"Archivo corrupto, limpiando y reintentando ({_attempt + 2}/3)...")
                 if os.path.exists(_bad):
                     try: os.remove(_bad)
                     except Exception: pass
+            elif _attempt < 2 and any(k in str(_ie).lower() for k in ('timeout', 'connection', 'network', 'reset', 'eof')):
+                if progress_cb: progress_cb(f"Error de conexión, reintentando ({_attempt + 2}/3)...")
+                import time as _t; _t.sleep(2 * (_attempt + 1))
             else:
                 raise
 
 
-def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type="G1GC", optimizar=False, motor_elegido="Vanilla", papa_mode=False, usar_mesa=False, mostrar_consola=False, progress_callback=None, uuid_real=None, token_real=None, lan_distancia=False, fabric_loader_override=None, server_ip="", java_path=None):
+def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type="G1GC", optimizar=False, motor_elegido="Vanilla", papa_mode=False, usar_mesa=False, mostrar_consola=False, progress_callback=None, uuid_real=None, token_real=None, lan_distancia=False, fabric_loader_override=None, server_ip="", java_path=None, extra_jvm_args=None):
     minecraft_directory = minecraft_launcher_lib.utils.get_minecraft_directory()
 
     def on_progress(event):
@@ -964,6 +985,8 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
     motor_lower = motor_elegido.lower()
     if "neoforge" in motor_lower:
         tipo_cliente_base = "NeoForge"
+    elif "quilt" in motor_lower:
+        tipo_cliente_base = "Quilt"
     elif "fabric" in motor_lower:
         tipo_cliente_base = "Fabric"
     elif "forge" in motor_lower:
@@ -979,7 +1002,18 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
     version_instalada = False
     _versions_dir = os.path.join(minecraft_directory, "versions")
     _versiones_locales = os.listdir(_versions_dir) if os.path.exists(_versions_dir) else []
-    if tipo_cliente_base == "Fabric":
+    if tipo_cliente_base == "Quilt":
+        for v in _versiones_locales:
+            if v.startswith("quilt-loader-") and version_base in v:
+                _qjson = os.path.join(_versions_dir, v, v + ".json")
+                if os.path.exists(_qjson):
+                    _base_jar = os.path.join(_versions_dir, version_base, version_base + ".jar")
+                    if not (os.path.exists(_base_jar) and os.path.getsize(_base_jar) > 4096):
+                        continue
+                    version_a_lanzar = v
+                    version_instalada = True
+                    break
+    elif tipo_cliente_base == "Fabric":
         for v in _versiones_locales:
             if v.startswith("fabric-loader-") and version_base in v:
                 _fjson = os.path.join(_versions_dir, v, v + ".json")
@@ -1037,7 +1071,34 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
 
     # Si NO está instalada, ejecutamos el motor de descarga
     if not version_instalada:
-        if tipo_cliente_base == "Fabric":
+        if tipo_cliente_base == "Quilt":
+            if progress_callback: progress_callback(f"Descargando Minecraft {version_base} base...")
+            try:
+                _install_mc_with_retry(version_base, minecraft_directory, {"setStatus": on_progress}, progress_callback)
+            except Exception as _qbe:
+                if progress_callback: progress_callback(f"Advertencia base: {_qbe}")
+            if progress_callback: progress_callback("Instalando Quilt loader...")
+            try:
+                if hasattr(minecraft_launcher_lib, 'quilt'):
+                    _qloader = minecraft_launcher_lib.quilt.get_latest_loader_version()
+                    minecraft_launcher_lib.quilt.install_quilt(
+                        version_base, minecraft_directory, _qloader,
+                        callback={"setStatus": on_progress})
+                    version_a_lanzar = f"quilt-loader-{_qloader}-{version_base}"
+                else:
+                    raise AttributeError("Quilt no disponible en esta versión de minecraft_launcher_lib")
+            except Exception as _qe:
+                if progress_callback: progress_callback(f"Quilt no disponible ({_qe}), instalando Fabric como alternativa...")
+                try:
+                    _qfallback = minecraft_launcher_lib.fabric.get_latest_loader_version()
+                    minecraft_launcher_lib.fabric.install_fabric(
+                        version_base, minecraft_directory, _qfallback,
+                        callback={"setStatus": on_progress})
+                    version_a_lanzar = f"fabric-loader-{_qfallback}-{version_base}"
+                except Exception as _qfe:
+                    if progress_callback: progress_callback(f"Error instalando loader: {_qfe}")
+
+        elif tipo_cliente_base == "Fabric":
             # 1) Descargar base vanilla primero (Fabric la necesita para el classpath)
             if progress_callback: progress_callback(f"Descargando Minecraft {version_base} base...")
             try:
@@ -1191,6 +1252,11 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
         elif gc_type == "Shenandoah": jvm_arguments.append("-XX:+UseShenandoahGC")
 
     # 5. CONFIGURACIÓN FINAL DEL JUEGO
+    if extra_jvm_args:
+        for _arg in extra_jvm_args:
+            _arg = _arg.strip()
+            if _arg and _arg not in jvm_arguments:
+                jvm_arguments.append(_arg)
     options = {
         "username": username,
         "uuid": uuid_real if uuid_real else _offline_uuid(username),

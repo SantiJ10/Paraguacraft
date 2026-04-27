@@ -32,6 +32,10 @@ except Exception:
 
 VERSION = "5.2.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
+# Opcional: URL de Cloudflare Pages con latest.json (sin rate limits, CDN global)
+# Formato del JSON: {"version":"5.2.0", "download_url":"...", "size_bytes":0, "notes":"..."}
+# Dejar vacío para usar solo GitHub.
+UPDATE_MANIFEST_URL = ""  # ej: "https://paraguacraft.pages.dev/latest.json"
 
 try:
     import credentials as _cred
@@ -1122,6 +1126,14 @@ class Api:
                         _ram_gb = json.load(_f2).get("ram_gb") or self.config_actual.get("ram_asignada", 4)
                 except Exception:
                     _ram_gb = self.config_actual.get("ram_asignada", 4)
+                _extra_jvm = []
+                try:
+                    with open(_icp) as _f_jvm:
+                        _raw_jvm = json.load(_f_jvm).get("extra_jvm_args", "").strip()
+                        if _raw_jvm:
+                            _extra_jvm = [a for a in _raw_jvm.splitlines() if a.strip()]
+                except Exception:
+                    pass
                 # Auto-backup de mundos si corresponde
                 try:
                     import datetime as _dt
@@ -1198,6 +1210,7 @@ class Api:
                     progress_callback=_set_status,
                     server_ip=server_ip or "",
                     java_path=self.config_actual.get("java_custom_path") or None,
+                    extra_jvm_args=_extra_jvm or None,
                 )
                 # Restaurar ventana al estado previo (maximizado si lo estaba)
                 try:
@@ -2114,7 +2127,7 @@ class Api:
         self._guardar()
         return {"ok": True, "favorito": added, "favoritos": favs}
 
-    def crear_servidor(self, version, carpeta, tipo='paper'):
+    def crear_servidor(self, version, carpeta, tipo='paper', ram_gb=None):
         try:
             from src.modelo import CreadorServidor
             os.makedirs(carpeta, exist_ok=True)
@@ -2123,8 +2136,11 @@ class Api:
             self._servidor_creando = True
             tipo = tipo or 'paper'
             try:
+                _srv_cfg = {'tipo': self._servidor_tipo}
+                if ram_gb and str(ram_gb) != 'auto':
+                    _srv_cfg['ram_gb'] = int(ram_gb)
                 with open(os.path.join(carpeta, '_paragua_srv.json'), 'w') as _f:
-                    json.dump({'tipo': self._servidor_tipo}, _f)
+                    json.dump(_srv_cfg, _f)
             except Exception:
                 pass
             _nombre_tipo = {'paper': 'PaperMC', 'paper-geyser': 'PaperMC + Geyser', 'fabric': 'Fabric'}.get(tipo, tipo)
@@ -2295,7 +2311,18 @@ class Api:
                     total_gb = _kb.value / (1024 ** 2)
                 except Exception:
                     total_gb = 4.0
-            xmx = max(1, min(8, int(total_gb * 0.5)))
+            _srv_cfg_custom = {}
+            try:
+                _srv_cfg_path = os.path.join(carpeta, '_paragua_srv.json')
+                if os.path.exists(_srv_cfg_path):
+                    with open(_srv_cfg_path) as _scf: _srv_cfg_custom = json.load(_scf)
+            except Exception:
+                pass
+            _ram_custom = _srv_cfg_custom.get('ram_gb')
+            if _ram_custom and str(_ram_custom) != 'auto':
+                xmx = max(1, int(_ram_custom))
+            else:
+                xmx = max(1, min(8, int(total_gb * 0.5)))
             xms = max(512, xmx * 256)
             xmx_flag = f"-Xmx{xmx}G"
             xms_flag = f"-Xms{xms}M" if xms < 1024 else f"-Xms{xms // 1024}G"
@@ -3181,7 +3208,106 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    def instalar_modpack_mrpack(self, project_id, version_id, version_mc, motor):
+        """Descarga e instala un modpack completo desde un .mrpack de Modrinth."""
+        import zipfile, json as _json, tempfile, shutil
+        _HDR = {"User-Agent": "Paraguacraft-Launcher/2.0"}
+        try:
+            from core import carpeta_instancia_paraguacraft
+            import minecraft_launcher_lib
+            mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+            ver_info = requests.get(
+                f"https://api.modrinth.com/v2/version/{version_id}",
+                headers=_HDR, timeout=15).json()
+            files = ver_info.get("files", [])
+            mrpack_file = next(
+                (f for f in files if f.get("filename","").endswith(".mrpack")),
+                files[0] if files else None)
+            if not mrpack_file:
+                return {"ok": False, "error": "No se encontró el archivo .mrpack"}
+            mrpack_url = mrpack_file["url"]
+            mrpack_name = mrpack_file["filename"]
+            self._mod_dl_progress = {"pct": 0, "nombre": mrpack_name, "estado": "Descargando modpack..."}
+            # 1. Descargar .mrpack
+            tmp_dir = tempfile.mkdtemp(prefix="paraguacraft_mrpack_")
+            mrpack_path = os.path.join(tmp_dir, mrpack_name)
+            r = requests.get(mrpack_url, stream=True, timeout=300, headers=_HDR)
+            r.raise_for_status()
+            total = int(r.headers.get("content-length", 0))
+            downloaded = 0
+            with open(mrpack_path, "wb") as f:
+                for chunk in r.iter_content(65536):
+                    if chunk:
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        if total > 0:
+                            self._mod_dl_progress["pct"] = int(downloaded / total * 20)
+            # 2. Extraer y parsear modrinth.index.json
+            self._mod_dl_progress = {"pct": 20, "nombre": mrpack_name, "estado": "Extrayendo modpack..."}
+            folder = carpeta_instancia_paraguacraft(version_mc.strip(), motor)
+            base = os.path.join(mine_dir, "instancias", folder)
+            with zipfile.ZipFile(mrpack_path, "r") as zf:
+                with zf.open("modrinth.index.json") as f:
+                    index = _json.load(f)
+                for name in zf.namelist():
+                    for prefix in ("overrides/", "client-overrides/"):
+                        if name.startswith(prefix):
+                            rel = name[len(prefix):]
+                            if not rel:
+                                continue
+                            dest = os.path.join(base, rel.replace("/", os.sep))
+                            os.makedirs(os.path.dirname(dest), exist_ok=True)
+                            with zf.open(name) as src_f:
+                                with open(dest, "wb") as dst_f:
+                                    dst_f.write(src_f.read())
+                            break
+            # 3. Descargar los archivos listados
+            files_list = index.get("files", [])
+            total_files = len(files_list)
+            installed = 0
+            errors = []
+            for i, file_entry in enumerate(files_list):
+                file_path = file_entry.get("path", "")
+                downloads = file_entry.get("downloads", [])
+                if not downloads:
+                    continue
+                dest_full = os.path.join(base, file_path.replace("/", os.sep))
+                os.makedirs(os.path.dirname(dest_full), exist_ok=True)
+                pct = 20 + int((i / total_files) * 78) if total_files > 0 else 20
+                fname = os.path.basename(file_path)
+                self._mod_dl_progress = {
+                    "pct": pct,
+                    "nombre": fname,
+                    "estado": f"Descargando {i+1}/{total_files}: {fname}"
+                }
+                try:
+                    r2 = requests.get(downloads[0], stream=True, timeout=60, headers=_HDR)
+                    r2.raise_for_status()
+                    with open(dest_full, "wb") as f:
+                        for chunk in r2.iter_content(65536):
+                            if chunk:
+                                f.write(chunk)
+                    installed += 1
+                except Exception:
+                    errors.append(fname)
+            try:
+                shutil.rmtree(tmp_dir)
+            except Exception:
+                pass
+            self._mod_dl_progress = {"pct": 100, "nombre": mrpack_name, "estado": "¡Listo!"}
+            return {
+                "ok": True,
+                "nombre": ver_info.get("name", mrpack_name),
+                "installed": installed,
+                "total": total_files,
+                "errors": errors
+            }
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
     def instalar_mod_desde_modrinth(self, project_id, version_id, tipo, version_mc, motor):
+        if tipo == 'modpack':
+            return self.instalar_modpack_mrpack(project_id, version_id, version_mc, motor)
         try:
             url = f"https://api.modrinth.com/v2/version/{version_id}"
             r = requests.get(url, timeout=10, headers={"User-Agent": "Paraguacraft-Launcher"})
@@ -3320,16 +3446,43 @@ class Api:
             return {"ok": False, "error": str(e)}
 
     def verificar_actualizacion(self):
+        def _ver_tuple(v):
+            try: return tuple(int(x) for x in v.strip().lstrip("v").lstrip(".").split("."))
+            except: return (0,)
+
+        # Intento 1: Cloudflare Pages (sin rate limits, CDN global)
+        _manifest = UPDATE_MANIFEST_URL.strip()
+        if _manifest:
+            try:
+                r = requests.get(_manifest, timeout=5, headers={"User-Agent": "Paraguacraft-Launcher"})
+                if r.status_code == 200:
+                    data = r.json()
+                    tag = data.get("version", "").strip().lstrip("v")
+                    if tag and _ver_tuple(tag) > _ver_tuple(VERSION):
+                        return {
+                            "actualizar": True,
+                            "version_actual": VERSION,
+                            "version_nueva": tag,
+                            "url": data.get("download_url"),
+                            "size": data.get("size_bytes", 0),
+                            "notas": data.get("notes", "")[:600],
+                            "fuente": "cloudflare",
+                        }
+                    if tag:
+                        return {"actualizar": False, "version_actual": VERSION}
+            except Exception:
+                pass  # Fallback a GitHub
+
+        # Intento 2: GitHub Releases API
         try:
             url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
             r = requests.get(url, timeout=8, headers={"User-Agent": "Paraguacraft-Launcher"})
+            if r.status_code == 403:
+                return {"actualizar": False, "version_actual": VERSION, "error": "GitHub API rate limit. Intentá más tarde."}
             data = r.json()
             tag = data.get("tag_name", "").strip().lstrip("v").lstrip(".")
-            if not tag:
+            if not tag or "message" in data:
                 return {"actualizar": False, "version_actual": VERSION}
-            def _ver_tuple(v):
-                try: return tuple(int(x) for x in v.strip().lstrip("v").lstrip(".").split("."))
-                except: return (0,)
             if _ver_tuple(tag) > _ver_tuple(VERSION):
                 exe_url = None
                 for asset in data.get("assets", []):
@@ -3337,14 +3490,14 @@ class Api:
                     if name.endswith(".exe") and not any(kw in name for kw in ("setup", "install", "instalar")):
                         exe_url = asset.get("browser_download_url")
                         break
-                html_url = data.get("html_url", f"https://github.com/{GITHUB_REPO}/releases/latest")
                 return {
                     "actualizar": True,
                     "version_actual": VERSION,
                     "version_nueva": tag,
                     "url": exe_url,
-                    "html_url": html_url,
+                    "html_url": data.get("html_url", f"https://github.com/{GITHUB_REPO}/releases/latest"),
                     "notas": data.get("body", "")[:600],
+                    "fuente": "github",
                 }
             return {"actualizar": False, "version_actual": VERSION}
         except Exception as e:
@@ -3419,86 +3572,106 @@ class Api:
             try:
                 webview.windows[0].evaluate_js(f"_updateFailed({json.dumps(str(msg))})")
             except Exception: pass
+        def _report_progress(pct, msg=""):
+            try:
+                webview.windows[0].evaluate_js(f"_updateProgress({pct}, {json.dumps(str(msg))})")
+            except Exception: pass
         def _hilo():
             tmp = os.path.join(tempfile.gettempdir(), "Paraguacraft_update.exe")
-            exe_actual = sys.executable
-            old_exe = exe_actual + ".old"
+            exe_actual2 = sys.executable
+            old_exe = exe_actual2 + ".old"
             marker = os.path.join(tempfile.gettempdir(), "paraguacraft_updated.flag")
             try:
-                # ── Descarga ─────────────────────────────────────────────────
-                r = requests.get(download_url, stream=True, timeout=180,
-                                 headers={"User-Agent": "Paraguacraft-Launcher"})
-                if r.status_code == 404:
-                    _notify_err(f"Archivo no encontrado en GitHub (404). Verific\u00e1 que el release '{VERSION}' tenga Paraguacraft.exe adjunto como asset.")
-                    return
-                r.raise_for_status()
-                with open(tmp, "wb") as f:
-                    for chunk in r.iter_content(65536):
-                        if chunk: f.write(chunk)
-
-                # ── Verificar descarga ────────────────────────────────────────
-                dl_size = os.path.getsize(tmp) if os.path.exists(tmp) else 0
-                if dl_size < 500_000:
-                    _notify_err(f"Descarga incompleta o corrupta ({dl_size} bytes). Intent\u00e1 de nuevo.")
-                    try: os.remove(tmp)
-                    except Exception: pass
-                    return
-
-                # ── Estrategia 1: rename en proceso (sin PowerShell) ──────────
-                # Windows permite renombrar un .exe en ejecuci\u00f3n. Al renombrar
-                # el ejecutable actual, su path queda libre y podemos copiar el
-                # nuevo sin que ning\u00fan antivirus lo vea como overwrite de proceso.
-                try:
-                    if os.path.exists(old_exe):
-                        os.remove(old_exe)
-                    os.rename(exe_actual, old_exe)   # renombrar exe en uso ✓
+                _descarga_ok = False
+                for _attempt in range(3):
                     try:
-                        _sh.copy2(tmp, exe_actual)   # copiar nuevo al path libre
+                        if _attempt > 0:
+                            _report_progress(0, f"Reintentando ({_attempt + 1}/3)...")
+                            time.sleep(4 * _attempt)
+                            if os.path.exists(tmp):
+                                try: os.remove(tmp)
+                                except Exception: pass
+                        r = requests.get(download_url, stream=True, timeout=(15, 120),
+                                         headers={"User-Agent": "Paraguacraft-Launcher"})
+                        if r.status_code == 404:
+                            _notify_err("Archivo no encontrado (404). Verificá que el release tenga Paraguacraft.exe.")
+                            return
+                        r.raise_for_status()
+                        total = int(r.headers.get('content-length', 0))
+                        total_mb = total / 1_048_576 if total > 0 else 0
+                        downloaded = 0
+                        with open(tmp, "wb") as _f:
+                            for chunk in r.iter_content(65536):
+                                if chunk:
+                                    _f.write(chunk)
+                                    downloaded += len(chunk)
+                                    if total > 0:
+                                        pct = min(99, int(downloaded * 100 / total))
+                                        mb_done = downloaded / 1_048_576
+                                        _report_progress(pct, f"Descargando... {mb_done:.1f} / {total_mb:.1f} MB")
+                        dl_size = os.path.getsize(tmp) if os.path.exists(tmp) else 0
+                        if dl_size < 500_000:
+                            if _attempt < 2: continue
+                            _notify_err(f"Descarga incompleta ({dl_size} bytes) tras 3 intentos.")
+                            try: os.remove(tmp)
+                            except Exception: pass
+                            return
+                        _descarga_ok = True
+                        _report_progress(99, "Preparando instalación...")
+                        break
+                    except requests.exceptions.RequestException as _re:
+                        if _attempt == 2:
+                            _notify_err(f"Error de red tras 3 intentos: {str(_re)[:200]}")
+                            return
+                if not _descarga_ok:
+                    return
+
+                # ── Estrategia 1: rename en proceso ─────────────────────────
+                try:
+                    if os.path.exists(old_exe): os.remove(old_exe)
+                    os.rename(exe_actual2, old_exe)
+                    try:
+                        _sh.copy2(tmp, exe_actual2)
                         try: os.remove(tmp)
                         except Exception: pass
                     except Exception:
-                        # rollback: restaurar exe original si la copia fall\u00f3
-                        try: os.rename(old_exe, exe_actual)
+                        try: os.rename(old_exe, exe_actual2)
                         except Exception: pass
                         raise
                     try: open(marker, "w").write("updated")
                     except Exception: pass
                     subprocess.Popen(
-                        [exe_actual],
+                        [exe_actual2],
                         creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
                     )
                     os._exit(0)
                 except OSError as _oe:
-                    print(f"[Updater] Rename in-process fall\u00f3 ({_oe}), usando PowerShell...")
+                    print(f"[Updater] Rename falló ({_oe}), usando PowerShell...")
 
-                # ── Estrategia 2: PowerShell (fallback para carpetas UAC) ─────
+                # ── Estrategia 2: PowerShell ──────────────────────────────
                 ps_path = os.path.join(tempfile.gettempdir(), "paragua_updater.ps1")
                 tmp_esc    = tmp.replace("'", "''")
-                exe_esc    = exe_actual.replace("'", "''")
+                exe_esc    = exe_actual2.replace("'", "''")
                 old_esc    = old_exe.replace("'", "''")
                 marker_esc = marker.replace("'", "''")
                 ps = [
-                    "Start-Sleep -Seconds 4",
-                    "$ok = $false",
-                    "for ($i = 0; $i -lt 10; $i++) {",
-                    "    try {",
+                    "Start-Sleep -Seconds 4", "$ok = $false",
+                    "for ($i = 0; $i -lt 10; $i++) {", "    try {",
                     f"        if (Test-Path '{old_esc}') {{ Remove-Item -Force '{old_esc}' -EA Stop }}",
                     f"        Rename-Item '{exe_esc}' '{old_esc}' -EA Stop",
                     f"        Copy-Item -Force '{tmp_esc}' '{exe_esc}' -EA Stop",
                     f"        Remove-Item -Force '{tmp_esc}' -EA SilentlyContinue",
                     "        $ok = $true; break",
-                    "    } catch { Start-Sleep -Seconds 2 }",
-                    "}",
+                    "    } catch { Start-Sleep -Seconds 2 }", "}",
                     "if ($ok) {",
                     f"    Set-Content '{marker_esc}' 'updated' -EA SilentlyContinue",
                     f"    Start-Process '{exe_esc}'",
                     f"    Start-Sleep -Seconds 2",
                     f"    Remove-Item -Force '{old_esc}' -EA SilentlyContinue",
-                    "}",
-                    "Remove-Item -Force $PSCommandPath -EA SilentlyContinue",
+                    "}", "Remove-Item -Force $PSCommandPath -EA SilentlyContinue",
                 ]
-                with open(ps_path, "w", encoding="utf-8-sig") as f:
-                    f.write("\n".join(ps))
+                with open(ps_path, "w", encoding="utf-8-sig") as _psf:
+                    _psf.write("\n".join(ps))
                 subprocess.Popen(
                     ["powershell", "-NonInteractive", "-NoProfile",
                      "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden",
@@ -3530,6 +3703,142 @@ class Api:
             n |= (b & 0x7F) << shift; shift += 7
             if not (b & 0x80): break
         return n, offset
+
+    # ── SERVIDORES PERSONALIZADOS ────────────────────────────────────────
+    def agregar_servidor_personalizado(self, nombre, ip):
+        try:
+            custom = self.config_actual.get("servidores_personalizados", [])
+            if any(s.get("ip") == ip for s in custom):
+                return {"ok": False, "error": "Ya existe un servidor con esa IP"}
+            custom.append({"nombre": nombre, "ip": ip})
+            self.config_actual["servidores_personalizados"] = custom
+            threading.Thread(target=self._guardar, daemon=True).start()
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def listar_servidores_personalizados(self):
+        return {"ok": True, "lista": self.config_actual.get("servidores_personalizados", [])}
+
+    def eliminar_servidor_personalizado_ip(self, ip):
+        try:
+            custom = [s for s in self.config_actual.get("servidores_personalizados", []) if s.get("ip") != ip]
+            self.config_actual["servidores_personalizados"] = custom
+            threading.Thread(target=self._guardar, daemon=True).start()
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── JVM ARGS POR INSTANCIA ────────────────────────────────────────────
+    def get_jvm_args_instancia(self, version, motor):
+        try:
+            from core import carpeta_instancia_paraguacraft
+            import minecraft_launcher_lib
+            mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+            path = os.path.join(mine_dir, "instancias", carpeta_instancia_paraguacraft(version, motor), "_paragua_instance.json")
+            if os.path.exists(path):
+                with open(path) as f:
+                    return {"ok": True, "jvm_args": json.load(f).get("extra_jvm_args", "")}
+            return {"ok": True, "jvm_args": ""}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "jvm_args": ""}
+
+    def set_jvm_args_instancia(self, version, motor, jvm_args):
+        try:
+            from core import carpeta_instancia_paraguacraft
+            import minecraft_launcher_lib
+            mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+            path = os.path.join(mine_dir, "instancias", carpeta_instancia_paraguacraft(version, motor), "_paragua_instance.json")
+            cfg = {}
+            if os.path.exists(path):
+                with open(path) as f: cfg = json.load(f)
+            cfg["extra_jvm_args"] = (jvm_args or "").strip()
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w") as f: json.dump(cfg, f, indent=2)
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── REPARAR LOADER ────────────────────────────────────────────────────
+    def reparar_loader(self, version, motor):
+        try:
+            motor_l = (motor or '').lower()
+            if 'fabric' in motor_l:
+                import minecraft_launcher_lib as _mcl
+                from core import carpeta_instancia_paraguacraft
+                mine_dir = _mcl.utils.get_minecraft_directory()
+                game_dir = os.path.join(mine_dir, "instancias", carpeta_instancia_paraguacraft(version, motor))
+                _mcl.fabric.install_fabric(version, mine_dir)
+                return {"ok": True, "msg": f"Fabric reinstalado para {version}"}
+            elif 'forge' in motor_l or 'neoforge' in motor_l:
+                import minecraft_launcher_lib as _mcl
+                from core import carpeta_instancia_paraguacraft
+                mine_dir = _mcl.utils.get_minecraft_directory()
+                forge_ver = _mcl.forge.find_forge_version(version) or version
+                _mcl.forge.install_forge_version(forge_ver, mine_dir)
+                return {"ok": True, "msg": f"Forge reinstalado para {version}"}
+            else:
+                return {"ok": False, "error": f"Loader '{motor}' no requiere reparación o no es compatible"}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── GESTIÓN DE INSTANCIAS ────────────────────────────────────────────
+    def renombrar_instancia(self, version, motor, nuevo_nombre):
+        try:
+            import shutil
+            from core import carpeta_instancia_paraguacraft
+            import minecraft_launcher_lib
+            mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+            folder = carpeta_instancia_paraguacraft(version.strip(), motor)
+            carpeta_vieja = os.path.join(mine_dir, "instancias", folder)
+            if not os.path.exists(carpeta_vieja):
+                return {"ok": False, "error": "Instancia no encontrada"}
+            safe = "".join(c for c in nuevo_nombre if c.isalnum() or c in "_- ").strip().replace(" ", "_")
+            if not safe:
+                return {"ok": False, "error": "Nombre inválido"}
+            carpeta_nueva = os.path.join(mine_dir, "instancias", safe)
+            if os.path.exists(carpeta_nueva):
+                return {"ok": False, "error": "Ya existe una instancia con ese nombre"}
+            shutil.move(carpeta_vieja, carpeta_nueva)
+            return {"ok": True, "nuevo": safe}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def duplicar_instancia(self, version, motor):
+        try:
+            import shutil
+            from core import carpeta_instancia_paraguacraft
+            import minecraft_launcher_lib
+            mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+            folder = carpeta_instancia_paraguacraft(version.strip(), motor)
+            carpeta_orig = os.path.join(mine_dir, "instancias", folder)
+            if not os.path.exists(carpeta_orig):
+                return {"ok": False, "error": "Instancia no encontrada"}
+            dest_base = folder + "_copia"
+            carpeta_dest = os.path.join(mine_dir, "instancias", dest_base)
+            n = 2
+            while os.path.exists(carpeta_dest):
+                carpeta_dest = os.path.join(mine_dir, "instancias", f"{folder}_copia{n}")
+                n += 1
+            shutil.copytree(carpeta_orig, carpeta_dest)
+            return {"ok": True, "nuevo": os.path.basename(carpeta_dest)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def eliminar_instancia(self, version, motor):
+        try:
+            import shutil
+            from core import carpeta_instancia_paraguacraft
+            import minecraft_launcher_lib
+            mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+            folder = carpeta_instancia_paraguacraft(version.strip(), motor)
+            carpeta = os.path.join(mine_dir, "instancias", folder)
+            if not os.path.exists(carpeta):
+                return {"ok": False, "error": "Instancia no encontrada"}
+            shutil.rmtree(carpeta)
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
 
     # ── PING SERVIDOR MC ────────────────────────────────────────────────
     def ping_servidor(self, ip, puerto=25565):
@@ -7517,7 +7826,8 @@ class _LocalAPIHandler(BaseHTTPRequestHandler):
                 self._json({'ok': False, 'error': 'version y carpeta son requeridas'})
             else:
                 try:
-                    result = _api_http_ref.crear_servidor(version, carpeta, tipo)
+                    ram_gb = body.get('ram_gb', 'auto')
+                    result = _api_http_ref.crear_servidor(version, carpeta, tipo, ram_gb=ram_gb)
                     self._json(result)
                 except Exception as _e:
                     self._json({'ok': False, 'error': str(_e)})

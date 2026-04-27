@@ -372,8 +372,16 @@
                             </div>
                         </div>
                         <div class="flex gap-3">
-                            <button onclick="exportarInstancia()" class="flex-1 bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold py-2.5 rounded text-sm transition border border-[#333]">📤 Exportar instancia</button>
+                            <button onclick="exportarInstancia()" class="flex-1 bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold py-2.5 rounded text-sm transition border border-[#333]">📤 Exportar</button>
                             <button onclick="backupMundosInstancia()" class="flex-1 bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold py-2.5 rounded text-sm transition border border-[#333]">💾 Backup mundos</button>
+                            <button onclick="repararLoader()" class="flex-1 bg-[#E74C3C]/20 hover:bg-[#E74C3C]/30 text-[#E74C3C] font-bold py-2.5 rounded text-sm transition border border-[#E74C3C]/30">🔧 Reparar loader</button>
+                        </div>
+                        <div>
+                            <h3 class="font-bold mb-1">JVM Args extra <span class="text-xs text-gray-500 font-normal">(avanzado)</span></h3>
+                            <p class="text-[10px] text-gray-600 mb-1.5">Un argumento por línea. Ej: -Dfml.ignorePatchDiscrepancies=true</p>
+                            <textarea id="gestor-jvm-args" rows="3" placeholder="-Dfml.ignorePatchDiscrepancies=true" class="w-full bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-xs outline-none focus:border-[#9B59B6] font-mono resize-y max-h-28"></textarea>
+                            <button onclick="guardarJvmArgs()" class="mt-1.5 bg-[#9B59B6] hover:bg-[#7D3C98] text-white font-bold px-4 py-2 rounded text-xs transition">Guardar JVM args</button>
+                            <span id="gestor-jvm-msg" class="text-xs ml-2"></span>
                         </div>
                         <div>
                             <h3 class="font-bold mb-2">Drag &amp; Drop de mods</h3>
@@ -405,6 +413,22 @@
                             <p class="text-xs text-gray-600 mb-1">Solo aplica al instalar Fabric por primera vez en esta PC para esta versión.</p>
                             <select id="modal-fabric-loader-sel" class="mt-1 bg-[#121212] border border-[#2A2A2A] text-white p-2 rounded outline-none w-full max-w-md text-sm font-bold cursor-pointer"></select>
                             <button type="button" onclick="guardarFabricLoaderVersion()" class="mt-2 text-xs font-bold text-[#3498DB] hover:underline">Guardar selección</button>
+                        </div>
+                        <!-- Gestión de instancia -->
+                        <div class="border-t border-[#2A2A2A] pt-4 flex flex-col gap-3">
+                            <h4 class="font-black text-sm text-white">Gestión de instancia</h4>
+                            <div class="flex gap-2 items-end flex-wrap">
+                                <div class="flex flex-col gap-1 flex-1">
+                                    <span class="text-xs font-bold text-gray-400 uppercase tracking-wide">Renombrar</span>
+                                    <input id="gestor-rename-input" type="text" placeholder="Nuevo nombre de carpeta..." class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none focus:border-[#3498DB]">
+                                </div>
+                                <button onclick="renombrarInstancia()" class="bg-[#3498DB] hover:bg-[#2980B9] text-white font-black px-4 py-2 rounded text-sm transition">Renombrar</button>
+                            </div>
+                            <div class="flex gap-2 flex-wrap">
+                                <button onclick="duplicarInstancia()" class="bg-[#9B59B6] hover:bg-[#7D3C98] text-white font-bold px-4 py-2.5 rounded text-sm transition">⧉ Duplicar instancia</button>
+                                <button onclick="eliminarInstancia()" class="bg-[#E74C3C]/20 hover:bg-[#E74C3C]/30 text-[#E74C3C] font-bold px-4 py-2.5 rounded text-sm transition border border-[#E74C3C]/30">🗑 Eliminar</button>
+                            </div>
+                            <p id="gestor-rename-msg" class="text-xs min-h-[1rem]"></p>
                         </div>
                     </div>
                 </div>
@@ -488,9 +512,18 @@
                 <pre id="upd-notas" class="text-xs text-gray-300 whitespace-pre-wrap font-sans">Cargando notas...</pre>
             </div>
             <div id="upd-progress" class="hidden">
-                <div class="flex items-center gap-3 bg-[#181818] border border-[#2A2A2A] rounded-lg p-3">
-                    <div class="w-4 h-4 border-2 border-[#F39C12] border-t-transparent rounded-full animate-spin shrink-0"></div>
-                    <span class="text-sm font-bold text-[#F39C12]">Descargando actualización...</span>
+                <div class="bg-[#181818] border border-[#2A2A2A] rounded-lg p-3 flex flex-col gap-2">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-3 border-2 border-[#F39C12] border-t-transparent rounded-full animate-spin shrink-0"></div>
+                            <span class="text-sm font-bold text-[#F39C12]" id="upd-progress-lbl">Iniciando descarga...</span>
+                        </div>
+                        <span class="text-xs font-mono text-[#F39C12] font-black" id="upd-progress-pct">0%</span>
+                    </div>
+                    <div class="w-full bg-[#0A0A0A] rounded-full overflow-hidden h-2">
+                        <div id="upd-progress-bar" class="h-2 bg-[#F39C12] rounded-full transition-all duration-300" style="width:0%"></div>
+                    </div>
+                    <p class="text-[10px] text-gray-500" id="upd-progress-err"></p>
                 </div>
             </div>
             <div id="upd-actions" class="flex gap-3">
@@ -586,31 +619,50 @@
                 <div class="flex-1 min-w-0"><h2 class="font-black text-white truncate" id="imod-titulo">Instalar mod</h2><p class="text-xs text-gray-500" id="imod-subtitulo"></p></div>
                 <button onclick="cerrarInstalarMod()" class="text-gray-500 hover:text-white text-xl leading-none shrink-0">✕</button>
             </div>
-            <!-- MODRINTH: version + platform dropdowns -->
+            <!-- MODRINTH: Modrinth-style download modal -->
             <div id="imod-mr-section" class="p-4 flex flex-col gap-3">
-                <div>
-                    <label class="text-xs font-bold text-gray-400 mb-1 block">VERSIÓN DE MINECRAFT</label>
-                    <select id="imod-ver-select" onchange="imodCambiarVersion()" class="w-full bg-[#1E1E1E] border border-[#333] text-white px-3 py-2.5 rounded-lg outline-none text-sm focus:border-[#2ECC71]">
-                        <option value="">Cargando versiones...</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="text-xs font-bold text-gray-400 mb-1 block">PLATAFORMA (Modrinth)</label>
-                    <select id="imod-platform-select" onchange="imodCambiarPlatform()" class="w-full bg-[#1E1E1E] border border-[#333] text-white px-3 py-2.5 rounded-lg outline-none text-sm focus:border-[#2ECC71]" disabled>
-                        <option value="">Seleccionar plataforma...</option>
-                    </select>
-                </div>
-                <div id="imod-perfil-row" class="hidden">
-                    <label class="text-xs font-bold text-gray-400 mb-1 block">INSTALAR EN PERFIL</label>
-                    <select id="imod-perfil-select" class="w-full bg-[#1E1E1E] border border-[#9B59B6]/50 text-white px-3 py-2.5 rounded-lg outline-none text-sm focus:border-[#9B59B6]">
-                    </select>
-                </div>
-                <div id="imod-file-info" class="hidden bg-[#1E1E1E] border border-[#2A2A2A] rounded-lg p-3 flex items-center gap-3">
-                    <div class="flex-1 min-w-0">
-                        <p class="font-bold text-sm text-white truncate" id="imod-fname"></p>
-                        <p class="text-xs text-gray-500" id="imod-fmeta"></p>
+                <!-- Game version accordion -->
+                <div class="border border-[#2A2A2A] rounded-xl overflow-hidden">
+                    <button onclick="imodToggleVerPanel()" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#1A1A1A] transition text-left">
+                        <span class="text-sm shrink-0">🎮</span>
+                        <span id="imod-ver-label" class="flex-1 text-sm text-gray-400">Seleccionar versión</span>
+                        <span id="imod-ver-arrow" class="text-[10px] text-gray-500 shrink-0">▼</span>
+                    </button>
+                    <div id="imod-ver-panel" class="hidden border-t border-[#2A2A2A]">
+                        <div class="p-2">
+                            <input id="imod-ver-search" type="text" placeholder="Buscar versiones..." oninput="imodFiltrarVers()"
+                                class="w-full bg-[#0A0A0A] border border-[#2A2A2A] text-white px-3 py-1.5 rounded-lg text-xs outline-none focus:border-[#2ECC71]">
+                        </div>
+                        <div id="imod-ver-list" class="max-h-48 overflow-y-auto px-2 pb-2 flex flex-col gap-0.5"></div>
                     </div>
-                    <button onclick="imodInstalar()" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black px-3 py-2 rounded-lg transition text-sm shrink-0">⬇ Instalar</button>
+                </div>
+                <!-- Platform accordion -->
+                <div class="border border-[#2A2A2A] rounded-xl overflow-hidden">
+                    <button onclick="imodTogglePlatPanel()" id="imod-plat-btn"
+                        class="w-full flex items-center gap-3 px-4 py-3 text-left opacity-40 cursor-not-allowed" disabled>
+                        <span class="text-sm shrink-0">🔑</span>
+                        <span id="imod-plat-label" class="flex-1 text-sm text-gray-500">Seleccionar plataforma</span>
+                        <span id="imod-plat-arrow" class="text-[10px] text-gray-500 shrink-0">▼</span>
+                    </button>
+                    <div id="imod-plat-panel" class="hidden border-t border-[#2A2A2A] p-3">
+                        <div id="imod-plat-btns" class="flex flex-wrap gap-2"></div>
+                    </div>
+                </div>
+                <!-- Profile selector -->
+                <div id="imod-perfil-row" class="hidden">
+                    <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1.5 block">Instalar en perfil</label>
+                    <select id="imod-perfil-select" class="w-full bg-[#1E1E1E] border border-[#9B59B6]/50 text-white px-3 py-2.5 rounded-lg outline-none text-sm focus:border-[#9B59B6]"></select>
+                </div>
+                <!-- File info row -->
+                <div id="imod-file-info" class="hidden bg-[#181818] border border-[#2A2A2A] rounded-xl">
+                    <div class="flex items-center gap-3 p-3.5">
+                        <div class="w-9 h-9 rounded-lg bg-[#2ECC71]/10 border border-[#2ECC71]/20 flex items-center justify-center font-black text-[#2ECC71] text-sm shrink-0" id="imod-file-icon">R</div>
+                        <div class="flex-1 min-w-0">
+                            <p class="font-bold text-sm text-white truncate" id="imod-fname"></p>
+                            <p class="text-xs text-gray-500" id="imod-fmeta"></p>
+                        </div>
+                        <button onclick="imodInstalar()" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black px-4 py-2 rounded-lg transition text-sm shrink-0">⬇ Instalar</button>
+                    </div>
                 </div>
             </div>
             <!-- CURSEFORGE: manual input -->
@@ -717,13 +769,20 @@
             </div>
 
             <div id="srv-panel-publicos" class="flex-1 flex flex-col min-h-0 overflow-hidden">
-                <div class="flex gap-2 items-center mb-4 shrink-0 flex-wrap">
-                    <span class="text-xs text-gray-500 font-bold uppercase tracking-wider mr-1">Filtrar:</span>
-                    <button onclick="filtrarSrv('todos')" id="sfil-todos" class="px-3 py-1 rounded text-xs font-bold bg-[#2ECC71] text-black transition">Todos</button>
-                    <button onclick="filtrarSrv('premium')" id="sfil-premium" class="px-3 py-1 rounded text-xs font-bold bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">Solo Premium</button>
-                    <button onclick="filtrarSrv('nopremium')" id="sfil-nopremium" class="px-3 py-1 rounded text-xs font-bold bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">No-Premium</button>
+                <div class="flex gap-2 items-center mb-2 shrink-0 flex-wrap">
+                    <span class="text-[10px] text-gray-600 font-black uppercase tracking-wider">Cuenta:</span>
+                    <button onclick="filtrarSrv('todos')" id="sfil-todos" class="px-2.5 py-1 rounded text-xs font-bold bg-[#2ECC71] text-black transition">Todos</button>
+                    <button onclick="filtrarSrv('premium')" id="sfil-premium" class="px-2.5 py-1 rounded text-xs font-bold bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">Premium</button>
+                    <button onclick="filtrarSrv('nopremium')" id="sfil-nopremium" class="px-2.5 py-1 rounded text-xs font-bold bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">No-Premium</button>
+                    <span class="w-px h-4 bg-[#2A2A2A] mx-0.5 shrink-0"></span>
+                    <span class="text-[10px] text-gray-600 font-black uppercase tracking-wider">Modo:</span>
+                    <button onclick="filtrarSrvModo('')" id="sfil-modo-" class="px-2.5 py-1 rounded text-xs font-bold bg-[#3A3A3A] text-white transition">Todos</button>
+                    <button onclick="filtrarSrvModo('pvp')" id="sfil-modo-pvp" class="px-2.5 py-1 rounded text-xs font-bold bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">⚔️ PvP</button>
+                    <button onclick="filtrarSrvModo('mini-games')" id="sfil-modo-mini-games" class="px-2.5 py-1 rounded text-xs font-bold bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🎮 Mini-games</button>
+                    <button onclick="filtrarSrvModo('survival')" id="sfil-modo-survival" class="px-2.5 py-1 rounded text-xs font-bold bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🌲 Survival</button>
+                    <button onclick="filtrarSrvModo('mmorpg')" id="sfil-modo-mmorpg" class="px-2.5 py-1 rounded text-xs font-bold bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">🗡️ MMORPG</button>
                 </div>
-                <div class="grid grid-cols-2 gap-4 pb-6 overflow-y-auto flex-1 min-h-0" id="grid-srvs">
+                <div class="grid grid-cols-2 gap-3 pb-6 overflow-y-auto flex-1 min-h-0" id="grid-srvs">
 
                     <div data-tipo="premium" class="srv-card bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col justify-between hover:border-[#3498DB] transition group">
                         <div class="flex items-start gap-3 mb-3"><span class="text-3xl">🔷</span>
@@ -870,7 +929,8 @@
                         <p id="srv-activo-carpeta" class="text-xs text-gray-400 truncate mt-0.5"></p>
                     </div>
                     <button onclick="mostrarCrearNuevoServidor()" class="bg-[#9B59B6] hover:bg-[#7D3C98] text-white text-xs font-bold px-3 py-2 rounded transition shrink-0">+ Nuevo</button>
-                    <button onclick="cambiarCarpetaServidor()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white text-xs font-bold px-3 py-2 rounded transition border border-[#333] shrink-0">📂 Cambiar carpeta</button>
+                    <button onclick="cambiarCarpetaServidor()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white text-xs font-bold px-3 py-2 rounded transition border border-[#333] shrink-0">📂 Cambiar</button>
+                    <button onclick="cargarServerPropsVisual()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white text-xs font-bold px-3 py-2 rounded transition border border-[#333] shrink-0">⚙️ Props</button>
                 </div>
 
                 <!-- Servidores guardados -->
@@ -880,6 +940,56 @@
                         <button onclick="cargarServidoresGuardados()" class="text-xs text-gray-500 hover:text-white transition">↻ Actualizar</button>
                     </div>
                     <div id="srv-lista-cards" class="flex flex-col gap-2 max-h-40 overflow-y-auto"></div>
+                </div>
+
+                <!-- Server Properties Editor -->
+                <div id="srv-props-box" class="hidden bg-[#181818] border border-[#2A2A2A] rounded-xl p-4 shrink-0">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-black text-sm">⚙️ server.properties</h3>
+                        <button onclick="guardarServerPropsVisual()" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black px-3 py-1.5 rounded text-xs transition">Guardar</button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Dificultad</p>
+                            <div id="sp-difficulty" class="flex gap-1 flex-wrap">
+                                <button onclick="spSet('difficulty','peaceful','sp-difficulty')" data-val="peaceful" class="sp-opt px-2 py-1 rounded text-[11px] font-bold bg-[#2A2A2A] text-white transition">🏳 Peaceful</button>
+                                <button onclick="spSet('difficulty','easy','sp-difficulty')" data-val="easy" class="sp-opt px-2 py-1 rounded text-[11px] font-bold bg-[#2A2A2A] text-white transition">🟢 Easy</button>
+                                <button onclick="spSet('difficulty','normal','sp-difficulty')" data-val="normal" class="sp-opt px-2 py-1 rounded text-[11px] font-bold bg-[#2ECC71] text-black transition">🟡 Normal</button>
+                                <button onclick="spSet('difficulty','hard','sp-difficulty')" data-val="hard" class="sp-opt px-2 py-1 rounded text-[11px] font-bold bg-[#2A2A2A] text-white transition">🔴 Hard</button>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Modo de juego</p>
+                            <div id="sp-gamemode" class="flex gap-1 flex-wrap">
+                                <button onclick="spSet('gamemode','survival','sp-gamemode')" data-val="survival" class="sp-opt px-2 py-1 rounded text-[11px] font-bold bg-[#2ECC71] text-black transition">🪵 Survival</button>
+                                <button onclick="spSet('gamemode','creative','sp-gamemode')" data-val="creative" class="sp-opt px-2 py-1 rounded text-[11px] font-bold bg-[#2A2A2A] text-white transition">🎨 Creative</button>
+                                <button onclick="spSet('gamemode','adventure','sp-gamemode')" data-val="adventure" class="sp-opt px-2 py-1 rounded text-[11px] font-bold bg-[#2A2A2A] text-white transition">⛏️ Adventure</button>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Máx jugadores</p>
+                            <input id="sp-max-players" type="number" min="1" max="1000" value="20" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-1.5 rounded text-sm outline-none focus:border-[#2ECC71] w-28">
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">View distance: <span id="sp-vd-lbl">10</span></p>
+                            <input id="sp-view-distance" type="range" min="4" max="32" value="10" class="w-full h-2 bg-[#2A2A2A] rounded-lg accent-[#2ECC71]" oninput="document.getElementById('sp-vd-lbl').textContent=this.value">
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-[11px] font-bold text-gray-400">PvP</span>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="sp-pvp" class="sr-only peer" checked>
+                                <div class="w-9 h-5 bg-[#333] peer-checked:bg-[#2ECC71] rounded-full transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4"></div>
+                            </label>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-[11px] font-bold text-gray-400">Whitelist</span>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="sp-whitelist" class="sr-only peer">
+                                <div class="w-9 h-5 bg-[#333] peer-checked:bg-[#2ECC71] rounded-full transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4"></div>
+                            </label>
+                        </div>
+                    </div>
+                    <p id="sp-msg" class="text-[11px] mt-3 min-h-[1rem] text-[#2ECC71]"></p>
                 </div>
 
                 <!-- Plugin Store + Gestor -->
@@ -937,6 +1047,19 @@
                                 <input id="srv-carpeta" type="text" placeholder="Elegí o escribí la ruta..." class="bg-[#121212] border border-[#333] text-white px-3 py-2 rounded outline-none text-sm flex-1 focus:border-[#9B59B6]">
                                 <button onclick="elegirCarpetaServidor()" title="Elegir carpeta" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] px-3 py-2 rounded font-bold text-sm transition border border-[#333]">📂</button>
                             </div>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <span class="text-xs text-gray-400 font-bold uppercase tracking-wide">RAM servidor</span>
+                            <select id="srv-ram-gb" class="bg-[#121212] border border-[#333] text-white px-2 py-2 rounded outline-none text-sm w-24">
+                                <option value="auto" selected>Auto</option>
+                                <option value="1">1 GB</option>
+                                <option value="2">2 GB</option>
+                                <option value="3">3 GB</option>
+                                <option value="4">4 GB</option>
+                                <option value="6">6 GB</option>
+                                <option value="8">8 GB</option>
+                                <option value="12">12 GB</option>
+                            </select>
                         </div>
                         <button id="btn-crear-srv" onclick="crearServidor()" class="bg-[#9B59B6] hover:bg-[#7D3C98] text-white font-black px-6 py-2 rounded transition h-[38px]">Crear</button>
                     </div>
@@ -1026,7 +1149,8 @@
                         <button onclick="mostrarBans()" id="bans" class="flex-1 bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold py-2 rounded text-sm transition border border-[#333]">🚫 Bans</button>
                         <button onclick="mostrarOps()" class="flex-1 bg-[#2A2A2A] hover:bg-[#2A2A4A] hover:text-[#9B59B6] text-white font-bold py-2 rounded text-sm transition border border-[#333]">⭐ OPs</button>
                         <button onclick="toggleReinicio()" id="reinicio-auto" class="flex-1 bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold py-2 rounded text-sm transition border border-[#333]">🔄 Reinicio auto</button>
-                        <button onclick="toggleServerPropsPanel()" class="flex-1 bg-[#2A2A2A] hover:bg-[#F39C12]/20 hover:text-[#F39C12] text-white font-bold py-2 rounded text-sm transition border border-[#333]">⚙️ server.properties</button>
+                        <button onclick="toggleServerPropsPanel()" class="flex-1 bg-[#2A2A2A] hover:bg-[#F39C12]/20 hover:text-[#F39C12] text-white font-bold py-2 rounded text-sm transition border border-[#333]">⚙️ Propiedades</button>
+                        <button onclick="backupMundosServidor()" class="flex-1 bg-[#2A2A2A] hover:bg-[#3498DB]/20 hover:text-[#3498DB] text-white font-bold py-2 rounded text-sm transition border border-[#333]">💾 Backup</button>
                         <button id="btn-instalar-geyser" onclick="instalarGeyserServidor()" class="hidden flex-1 bg-[#0D1A2A] hover:bg-[#1A3A6A] text-[#3498DB] font-bold py-2 rounded text-sm transition border border-[#1A4A7A]">🌐 Instalar Geyser</button>
                     </div>
                     <p id="lbl-geyser-install" class="text-xs font-bold text-[#2ECC71] min-h-[1rem] hidden"></p>
@@ -1064,8 +1188,18 @@
             </div>
 
             <div id="srv-panel-guardados" class="flex-1 hidden flex-col gap-4 overflow-y-auto">
-                <div class="flex items-center justify-between mb-2 shrink-0">
-                    <h2 class="font-black text-lg">📋 Servidores Guardados</h2>
+                <!-- Agregar servidor personalizado -->
+                <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-4 shrink-0">
+                    <h3 class="font-black text-sm mb-3">➕ Agregar servidor</h3>
+                    <div class="flex flex-wrap gap-2">
+                        <input id="srv-add-nombre" type="text" placeholder="Nombre (opcional)" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none focus:border-[#2ECC71] flex-1 min-w-[100px]">
+                        <input id="srv-add-ip" type="text" placeholder="IP — ej. play.servidor.net" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none focus:border-[#2ECC71] flex-1 min-w-[160px]" onkeypress="if(event.key==='Enter') agregarServidorPersonalizado()">
+                        <button onclick="agregarServidorPersonalizado()" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black px-4 py-2 rounded text-sm transition">Agregar</button>
+                    </div>
+                    <p id="srv-add-msg" class="text-xs mt-2 min-h-[1rem]"></p>
+                </div>
+                <div class="flex items-center justify-between shrink-0">
+                    <h2 class="font-black text-sm">📋 Mis servidores</h2>
                     <button onclick="cargarServidoresGuardados()" class="text-xs text-gray-500 hover:text-white transition">↻ Actualizar</button>
                 </div>
                 <div id="srv-guardados-grid" class="grid grid-cols-2 gap-4">
@@ -1109,6 +1243,9 @@
                         <button type="button" onclick="abrirGestorInstancia()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold px-4 py-3 rounded transition border border-[#333] text-sm">⚙</button>
                     </div>
                     <p id="lbl-estado-juego" class="text-center text-xs font-bold mt-2 min-h-[1.5rem] break-all text-[#3498DB]"></p>
+                    <div id="launch-progress" class="hidden mt-1 w-full bg-[#1A1A1A] rounded-full overflow-hidden">
+                        <div id="launch-progress-bar" class="h-1 bg-gradient-to-r from-[#2ECC71] to-[#27AE60] rounded-full transition-all duration-700" style="width:0%"></div>
+                    </div>
                     <div id="panel-bedrock-controls" class="hidden mt-3 flex flex-col gap-3">
                         <div class="bg-[#0D1A2A] border border-[#1A4A7A] rounded-xl p-4 flex flex-col gap-3">
                             <div class="flex items-center gap-3">
@@ -1247,8 +1384,16 @@
                 </div>
                 <!-- Game version -->
                 <div class="p-3 border-b border-[#2A2A2A]">
-                    <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Game version</p>
-                    <input id="filtro-version" type="text" placeholder="Ej: 1.21.1" onkeypress="if(event.key==='Enter')buscarTiendaActual()" onchange="buscarTiendaActual()" class="w-full bg-[#121212] border border-[#333] text-white px-2 py-1.5 rounded text-xs outline-none focus:border-[#2ECC71] transition">
+                    <button onclick="tiendaToggleVerSection()" class="w-full flex items-center justify-between mb-2">
+                        <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest hover:text-gray-300 transition">Game version</p>
+                        <span id="tienda-ver-arrow" class="text-[10px] text-gray-600">▲</span>
+                    </button>
+                    <div id="tienda-ver-section">
+                        <input id="tienda-ver-search" type="text" placeholder="Search..." oninput="tiendaFiltrarVers()"
+                            class="w-full bg-[#0A0A0A] border border-[#333] text-white px-2 py-1.5 rounded-lg text-[11px] outline-none focus:border-[#2ECC71] transition mb-1.5">
+                        <div id="tienda-ver-list" class="max-h-36 overflow-y-auto flex flex-col gap-0.5 text-[11px] text-gray-600 py-1 text-center">Cargando...</div>
+                    </div>
+                    <input id="filtro-version" type="hidden" value="">
                 </div>
                 <!-- Loader -->
                 <div class="p-3 border-b border-[#2A2A2A]" id="sidebar-loader-section">
@@ -1260,26 +1405,28 @@
                         <label class="flex items-center gap-2 cursor-pointer text-xs text-gray-300 hover:text-white transition"><input type="checkbox" value="quilt" onchange="buscarTiendaActual()" class="accent-[#C39BD3] rounded"> <span style="color:#C39BD3">&#9670;</span> Quilt</label>
                     </div>
                 </div>
-                <!-- Category -->
-                <div class="p-3">
-                    <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Category</p>
-                    <div class="flex flex-col gap-0.5" id="modrinth-cats">
-                        <button onclick="filtrarCatModrinth('')" id="mcat-all" class="text-left px-2 py-1.5 rounded text-xs font-bold transition bg-[#2ECC71] text-black">All</button>
-                        <button onclick="filtrarCatModrinth('optimization')" id="mcat-optimization" class="text-left px-2 py-1.5 rounded text-xs text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">⚡ Optimization</button>
-                        <button onclick="filtrarCatModrinth('library')" id="mcat-library" class="text-left px-2 py-1.5 rounded text-xs text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">📚 Library</button>
-                        <button onclick="filtrarCatModrinth('decoration')" id="mcat-decoration" class="text-left px-2 py-1.5 rounded text-xs text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🎨 Decoration</button>
-                        <button onclick="filtrarCatModrinth('adventure')" id="mcat-adventure" class="text-left px-2 py-1.5 rounded text-xs text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">⚔️ Adventure</button>
-                        <button onclick="filtrarCatModrinth('magic')" id="mcat-magic" class="text-left px-2 py-1.5 rounded text-xs text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🧪 Magic</button>
-                        <button onclick="filtrarCatModrinth('technology')" id="mcat-technology" class="text-left px-2 py-1.5 rounded text-xs text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🔧 Technology</button>
-                        <button onclick="filtrarCatModrinth('food')" id="mcat-food" class="text-left px-2 py-1.5 rounded text-xs text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🍎 Food</button>
-                        <button onclick="filtrarCatModrinth('game-mechanics')" id="mcat-mechanics" class="text-left px-2 py-1.5 rounded text-xs text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🎮 Game Mechanics</button>
-                        <button onclick="filtrarCatModrinth('cursed')" id="mcat-cursed" class="text-left px-2 py-1.5 rounded text-xs text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🟣 Cursed</button>
-                        <button onclick="filtrarCatModrinth('economy')" id="mcat-economy" class="text-left px-2 py-1.5 rounded text-xs text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">💰 Economy</button>
-                        <button onclick="filtrarCatModrinth('equipment')" id="mcat-equipment" class="text-left px-2 py-1.5 rounded text-xs text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🛡️ Equipment</button>
-                        <button onclick="filtrarCatModrinth('world-generation')" id="mcat-worldgen" class="text-left px-2 py-1.5 rounded text-xs text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🌍 World Gen</button>
-                        <button onclick="filtrarCatModrinth('storage')" id="mcat-storage" class="text-left px-2 py-1.5 rounded text-xs text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">📦 Storage</button>
-                        <button onclick="filtrarCatModrinth('utility')" id="mcat-utility" class="text-left px-2 py-1.5 rounded text-xs text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🔧 Utility</button>
+                <!-- Environment -->
+                <div class="p-3 border-b border-[#2A2A2A]" id="sidebar-env-section">
+                    <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Environment</p>
+                    <div class="flex flex-col gap-2">
+                        <label class="flex items-center gap-2 cursor-pointer text-xs text-gray-300 hover:text-white transition"><input type="checkbox" id="env-client" onchange="buscarTiendaActual()" class="accent-[#2ECC71] rounded"> 💻 Client-side</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-xs text-gray-300 hover:text-white transition"><input type="checkbox" id="env-server" onchange="buscarTiendaActual()" class="accent-[#3498DB] rounded"> 🖥️ Server-side</label>
                     </div>
+                </div>
+                <!-- Category -->
+                <div class="p-3 border-b border-[#2A2A2A]">
+                    <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Category</p>
+                    <div class="flex flex-col gap-0.5" id="modrinth-cats"></div>
+                </div>
+                <!-- Feature (shaders, resource packs) -->
+                <div class="p-3 border-b border-[#2A2A2A]" id="sidebar-feature-section" style="display:none">
+                    <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Feature</p>
+                    <div class="flex flex-col gap-0.5" id="modrinth-features"></div>
+                </div>
+                <!-- Performance impact (shaders only) -->
+                <div class="p-3" id="sidebar-perf-section" style="display:none">
+                    <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Performance impact</p>
+                    <div class="flex flex-col gap-0.5" id="modrinth-perf"></div>
                 </div>
             </div>
             <!-- MAIN CONTENT -->
@@ -1294,7 +1441,8 @@
                 </div>
                 <!-- Search + sort bar -->
                 <div class="flex items-center gap-2 p-3 border-b border-[#2A2A2A] shrink-0">
-                    <input type="text" id="buscador-mods" onkeypress="if(event.key==='Enter')buscarTiendaActual()" placeholder="Search mods..." class="flex-1 bg-[#1E1E1E] border border-[#333] text-white px-3 py-2 rounded-lg outline-none text-sm focus:border-[#2ECC71] transition">
+                    <input type="text" id="buscador-mods" onkeypress="if(event.key==='Enter')buscarTiendaActual()" oninput="tiendaDebounce()" placeholder="Search mods..." class="flex-1 bg-[#1E1E1E] border border-[#333] text-white px-3 py-2 rounded-lg outline-none text-sm focus:border-[#2ECC71] transition">
+                    <button onclick="tiendaUsarMiVersion()" title="Filtrar por la versión del perfil activo" class="bg-[#2A2A2A] hover:bg-[#3498DB]/20 hover:text-[#3498DB] text-gray-500 px-2.5 py-2 rounded-lg text-xs font-bold transition border border-[#333] shrink-0">🎮</button>
                     <select id="filtro-sort" onchange="buscarTiendaActual()" class="bg-[#1E1E1E] text-white px-3 py-2 rounded-lg outline-none border border-[#333] text-sm shrink-0">
                         <option value="relevance">Relevance</option>
                         <option value="downloads" selected>Downloads</option>
@@ -1316,8 +1464,83 @@
                         <button onclick="document.getElementById('mods-update-banner').classList.add('hidden')" class="text-gray-600 hover:text-white text-sm shrink-0">✕</button>
                     </div>
                 </div>
-                <div id="grid-resultados-mods" class="flex-1 overflow-y-auto px-4 pb-6 flex flex-col gap-2"></div>
+                <!-- Featured / Trending -->
+                <div id="tienda-featured" class="shrink-0 px-4 pt-2 pb-3 border-b border-[#1A1A1A]">
+                    <p class="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-2">🔥 Trending</p>
+                    <div id="tienda-featured-list" class="flex gap-2.5 overflow-x-auto pb-0.5"></div>
+                </div>
+                <div id="grid-resultados-mods" class="flex-1 overflow-y-auto px-4 pb-2 flex flex-col gap-2">
+                </div>
+                <div id="tienda-load-more-bar" class="hidden px-4 pb-4 pt-1 shrink-0">
+                    <button onclick="tiendaLoadMore()" id="btn-tienda-load-more"
+                        class="w-full py-2.5 bg-[#1E1E1E] hover:bg-[#2A2A2A] border border-[#333] text-gray-400 hover:text-white rounded-xl text-xs font-bold transition">
+                        Cargar más resultados
+                    </button>
+                </div>
             </div>
+        <!-- MOD DETAIL PANEL -->
+        <div id="mod-detail-panel" class="hidden absolute inset-0 bg-[#0A0A0A] flex flex-col z-10 overflow-hidden">
+            <!-- Header -->
+            <div class="flex items-center gap-3 px-4 py-3 border-b border-[#2A2A2A] shrink-0">
+                <button onclick="cerrarDetalleMod()" class="text-gray-500 hover:text-white transition text-sm font-bold shrink-0">← Volver</button>
+                <div class="w-px h-5 bg-[#2A2A2A] shrink-0"></div>
+                <img id="mdp-icon" src="" class="w-8 h-8 rounded-lg object-cover bg-[#1A1A1A] shrink-0" onerror="this.style.display='none'" style="display:none">
+                <div class="flex-1 min-w-0">
+                    <h2 class="font-black text-white text-sm truncate" id="mdp-title">Cargando...</h2>
+                    <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <span class="text-[11px] text-gray-500" id="mdp-author"></span>
+                        <span class="text-[11px] text-gray-600" id="mdp-stats"></span>
+                    </div>
+                </div>
+                <div id="mdp-tags-inline" class="hidden flex flex-wrap gap-1 shrink-0 max-w-[140px]"></div>
+                <button id="mdp-install-btn" onclick="mdpInstalar()" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black px-4 py-2 rounded-lg transition text-sm shrink-0">⬇ Instalar</button>
+            </div>
+            <!-- Tabs -->
+            <div class="flex border-b border-[#2A2A2A] shrink-0 px-4 gap-0">
+                <button onclick="mdpTab('description')" id="mdptab-description" class="px-4 py-2.5 text-xs font-black border-b-2 border-[#2ECC71] text-white transition shrink-0">Description</button>
+                <button onclick="mdpTab('gallery')" id="mdptab-gallery" class="px-4 py-2.5 text-xs font-black border-b-2 border-transparent text-gray-500 hover:text-white transition shrink-0">Gallery</button>
+                <button onclick="mdpTab('changelog')" id="mdptab-changelog" class="px-4 py-2.5 text-xs font-black border-b-2 border-transparent text-gray-500 hover:text-white transition shrink-0">Changelog</button>
+                <button onclick="mdpTab('versions')" id="mdptab-versions" class="px-4 py-2.5 text-xs font-black border-b-2 border-transparent text-gray-500 hover:text-white transition shrink-0">Versions</button>
+            </div>
+            <!-- Body -->
+            <div class="flex-1 overflow-hidden flex min-h-0">
+                <!-- Main content -->
+                <div class="flex-1 overflow-y-auto p-5 min-w-0">
+                    <div id="mdp-tab-description" class="text-sm text-gray-300 leading-relaxed"></div>
+                    <div id="mdp-tab-gallery" class="hidden grid grid-cols-2 gap-3"></div>
+                    <div id="mdp-tab-changelog" class="hidden text-sm text-gray-300 leading-relaxed"></div>
+                    <div id="mdp-tab-versions" class="hidden flex flex-col gap-2"></div>
+                </div>
+                <!-- Right sidebar -->
+                <div class="w-52 shrink-0 border-l border-[#2A2A2A] overflow-y-auto p-4 flex flex-col gap-4">
+                    <div>
+                        <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Compatibility</p>
+                        <p class="text-[11px] font-bold text-gray-400 mb-1.5">Minecraft: Java Edition</p>
+                        <div id="mdp-mc-versions" class="flex flex-wrap gap-1"></div>
+                    </div>
+                    <div id="mdp-sidebar-platforms">
+                        <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Platforms</p>
+                        <div id="mdp-platforms" class="flex flex-wrap gap-1"></div>
+                    </div>
+                    <div id="mdp-sidebar-env" class="hidden">
+                        <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Supported environments</p>
+                        <div id="mdp-env-badges" class="flex flex-wrap gap-1"></div>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Links</p>
+                        <div id="mdp-links" class="flex flex-col gap-1.5"></div>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Tags</p>
+                        <div id="mdp-tags" class="flex flex-wrap gap-1"></div>
+                    </div>
+                </div>
+            </div>
+            <!-- Loading overlay -->
+            <div id="mdp-loading" class="hidden absolute inset-0 bg-[#0A0A0A]/80 flex items-center justify-center z-20">
+                <div class="w-8 h-8 border-2 border-[#2ECC71] border-t-transparent rounded-full animate-spin"></div>
+            </div>
+        </div>
         </div>
 
         <!-- VISTA HERRAMIENTAS -->
@@ -2783,7 +3006,7 @@
             if (!v) return ['Vanilla'];
             const out = ['Vanilla'];
             if (v.startsWith('26')) {
-                out.push('OptiFine', 'Forge', 'NeoForge', 'Fabric', 'Fabric + Iris');
+                out.push('OptiFine', 'Forge', 'NeoForge', 'Fabric', 'Fabric + Iris', 'Quilt');
             } else {
                 const parts = v.split('.');
                 const major = parseInt(parts[0]);
@@ -2792,7 +3015,7 @@
                 if (major === 1) {
                     if (minor >= 7)  { out.push('OptiFine'); out.push('Forge'); }
                     if (minor > 20 || (minor === 20 && patch >= 2)) out.push('NeoForge');
-                    if (minor >= 14) out.push('Fabric');
+                    if (minor >= 14) { out.push('Fabric'); out.push('Quilt'); }
                     if (minor >= 16) out.push('Fabric + Iris');
                 }
             }
@@ -2985,6 +3208,7 @@
                 if (panel) panel.classList.toggle('hidden', t !== cual);
             });
             if (cual === 'contenido') refrescarListaGestor();
+            if (cual === 'java') _cargarJvmArgs();
             if (cual === 'versiones') { syncModalDesdePanel(); cargarFabricLoaderSelect(); }
             if (cual === 'screenshots') cargarScreenshotsGestor && cargarScreenshotsGestor();
         }
@@ -3279,32 +3503,178 @@
             if (bread) bread.innerText = ruta;
             if (idVista === 'skins' && !_skinCatLoaded) buscarCatalogoSkins();
             if (idVista === 'herramientas') { herTab('estadisticas'); pingTodosServidores(); }
-            if (idVista === 'servidores') pingTodosServidores();
-            if (idVista === 'mods') { buscarTiendaActual(); setTimeout(autoCheckModUpdates, 2500); }
+            if (idVista === 'servidores') { initServerCards(); pingTodosServidores(); }
+            if (idVista === 'mods') { buscarTiendaActual(); tiendaCargarVers(); cargarFeaturedMods(); setTimeout(autoCheckModUpdates, 2500); }
         }
 
+        // ── Categorías dinámicas por tipo de proyecto ─────────────────────
+        const _MR_CATS = {
+            mod: [
+                ['optimization','⚡','Optimization'],['library','📚','Library'],
+                ['decoration','🎨','Decoration'],['adventure','⚔️','Adventure'],
+                ['magic','🧪','Magic'],['technology','⚙️','Technology'],
+                ['food','🍎','Food'],['game-mechanics','🎮','Game Mechanics'],
+                ['cursed','🟣','Cursed'],['economy','💰','Economy'],
+                ['equipment','🛡️','Equipment'],['world-generation','🌍','World Gen'],
+                ['storage','📦','Storage'],['utility','🔧','Utility'],
+                ['mobs','🐾','Mobs'],['combat','⚔️','Combat'],
+                ['social','👥','Social'],['transportation','🚂','Transportation'],
+                ['management','📋','Management'],['minigame','🎯','Minigame'],
+            ],
+            shader: [
+                ['cartoon','🎨','Cartoon'],['cursed','🟣','Cursed'],
+                ['fantasy','✨','Fantasy'],['realistic','🌄','Realistic'],
+                ['semi-realistic','🌿','Semi-Realistic'],['vanilla-like','🟧','Vanilla Like'],
+            ],
+            resourcepack: [
+                ['combat','⚔️','Combat'],['cursed','🟣','Cursed'],
+                ['decoration','🎨','Decoration'],['modded','📦','Modded'],
+                ['realistic','🌄','Realistic'],['simplistic','🟨','Simplistic'],
+                ['themed','🎭','Themed'],['tweaks','🔧','Tweaks'],
+                ['utility','🔧','Utility'],['vanilla-like','🟧','Vanilla Like'],
+            ],
+            modpack: [
+                ['adventure','⚔️','Adventure'],['challenge','🏆','Challenge'],
+                ['combat','⚔️','Combat'],['exploration','🗺️','Exploration'],
+                ['kitchen-sink','🍳','Kitchen Sink'],['lightweight','⚡','Lightweight'],
+                ['magic','🧪','Magic'],['multiplayer','👥','Multiplayer'],
+                ['optimization','⚡','Optimization'],['quests','📜','Quests'],
+                ['sci-fi','🚀','Sci-Fi'],['technology','⚙️','Technology'],
+            ],
+            datapack: [
+                ['adventure','⚔️','Adventure'],['decoration','🎨','Decoration'],
+                ['equipment','🛡️','Equipment'],['food','🍎','Food'],
+                ['magic','🧪','Magic'],['mobs','🐾','Mobs'],
+                ['optimization','⚡','Optimization'],['technology','⚙️','Technology'],
+                ['utility','🔧','Utility'],['world-generation','🌍','World Gen'],
+            ],
+        };
+
+        // ── Feature & Performance data ────────────────────────────────────────
+        const _MR_FEATURES = {
+            shader: [
+                ['atmosphere','🌤','Atmosphere'],['bloom','✨','Bloom'],
+                ['colored-lighting','💡','Colored Lighting'],['foliage','🌿','Foliage'],
+                ['path-tracing','🔆','Path Tracing'],['pbr','🔮','PBR'],
+                ['reflections','💧','Reflections'],['shadows','🌑','Shadows'],
+            ],
+            resourcepack: [
+                ['audio','🔊','Audio'],['blocks','🧱','Blocks'],
+                ['core-shaders','✨','Core Shaders'],['entities','🐾','Entities'],
+                ['environment','🌍','Environment'],['equipment','🛡️','Equipment'],
+                ['fonts','🔤','Fonts'],['gui','🖥','GUI'],
+                ['items','🎒','Items'],['locale','🌐','Locale'],
+                ['models','📐','Models'],
+            ],
+        };
+        const _MR_PERF = [
+            ['potato','🥔','Potato'],['low','🟢','Low'],
+            ['medium','🟡','Medium'],['high','🔴','High'],
+            ['ultra','⚡','Ultra'],
+        ];
+
         let _modrinthCatActual = '';
+        let _mrFeatureActual = '';
+        let _mrPerfActual = '';
+
+        function filtrarFeatureModrinth(feat) {
+            _mrFeatureActual = feat;
+            _tiendaOffset = 0;
+            document.querySelectorAll('#modrinth-features button').forEach(b => {
+                const active = b.id === 'mfeat-' + (feat || 'all');
+                b.className = 'text-left px-2 py-1.5 rounded text-xs font-bold transition ' +
+                    (active ? 'bg-[#2ECC71] text-black' : 'text-gray-400 hover:bg-[#2A2A2A] hover:text-white');
+            });
+            buscarModrinthAPI(false);
+        }
+        function filtrarPerfModrinth(perf) {
+            _mrPerfActual = perf;
+            _tiendaOffset = 0;
+            document.querySelectorAll('#modrinth-perf button').forEach(b => {
+                const active = b.id === 'mperf-' + (perf || 'all');
+                b.className = 'text-left px-2 py-1.5 rounded text-xs font-bold transition ' +
+                    (active ? 'bg-[#2ECC71] text-black' : 'text-gray-400 hover:bg-[#2A2A2A] hover:text-white');
+            });
+            buscarModrinthAPI(false);
+        }
+        function _renderFeatures(tipo) {
+            const c = document.getElementById('modrinth-features');
+            const sec = document.getElementById('sidebar-feature-section');
+            const feats = _MR_FEATURES[tipo];
+            if (!c) return;
+            if (!feats) { if (sec) sec.style.display = 'none'; return; }
+            if (sec) sec.style.display = '';
+            c.innerHTML = `<button onclick="filtrarFeatureModrinth('')" id="mfeat-all"
+                class="text-left px-2 py-1.5 rounded text-xs font-bold transition bg-[#2ECC71] text-black">All</button>` +
+                feats.map(([s,i,l]) => `<button onclick="filtrarFeatureModrinth('${s}')" id="mfeat-${s}"
+                    class="text-left px-2 py-1.5 rounded text-xs text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">${i} ${l}</button>`).join('');
+        }
+        function _renderPerf() {
+            const c = document.getElementById('modrinth-perf');
+            const sec = document.getElementById('sidebar-perf-section');
+            if (!c) return;
+            if (sec) sec.style.display = '';
+            c.innerHTML = `<button onclick="filtrarPerfModrinth('')" id="mperf-all"
+                class="text-left px-2 py-1.5 rounded text-xs font-bold transition bg-[#2ECC71] text-black">All</button>` +
+                _MR_PERF.map(([s,i,l]) => `<button onclick="filtrarPerfModrinth('${s}')" id="mperf-${s}"
+                    class="text-left px-2 py-1.5 rounded text-xs text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">${i} ${l}</button>`).join('');
+        }
+
+        function _renderCats(tipo) {
+            const container = document.getElementById('modrinth-cats');
+            if (!container) return;
+            const cats = _MR_CATS[tipo] || _MR_CATS.mod;
+            container.innerHTML = `<button onclick="filtrarCatModrinth('')" id="mcat-all"
+                class="text-left px-2 py-1.5 rounded text-xs font-bold transition bg-[#2ECC71] text-black">All</button>` +
+                cats.map(([slug, icon, label]) =>
+                    `<button onclick="filtrarCatModrinth('${slug}')" id="mcat-${slug}"
+                        class="text-left px-2 py-1.5 rounded text-xs text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">${icon} ${label}</button>`
+                ).join('');
+        }
+
         function filtrarCatModrinth(cat) {
             _modrinthCatActual = cat;
+            _tiendaOffset = 0;
             document.querySelectorAll('#modrinth-cats button').forEach(b => {
                 const isActive = b.id === 'mcat-' + (cat || 'all');
                 b.className = 'text-left px-2 py-1.5 rounded text-xs font-bold transition ' +
                     (isActive ? 'bg-[#2ECC71] text-black' : 'text-gray-400 hover:bg-[#2A2A2A] hover:text-white');
             });
-            buscarModrinthAPI();
+            buscarModrinthAPI(false);
+        }
+
+        // ── Paginación ───────────────────────────────────────────────────────
+        let _tiendaOffset = 0;
+        let _tiendaTotalHits = 0;
+        let _tiendaLoading = false;
+        const _TIENDA_LIMIT = 20;
+
+        function tiendaLoadMore() {
+            if (_tiendaLoading || _tiendaOffset >= _tiendaTotalHits) return;
+            buscarModrinthAPI(true);
         }
 
         let _modTipoActual = 'mod';
         function setModTipo(tipo) {
             _modTipoActual = tipo;
+            _modrinthCatActual = '';
+            _mrFeatureActual = '';
+            _mrPerfActual = '';
+            _tiendaOffset = 0;
             document.querySelectorAll('[id^="mtab-"]').forEach(b => {
                 const active = b.id === 'mtab-' + tipo;
                 b.className = 'px-4 py-3 text-xs font-black border-b-2 shrink-0 transition ' +
                     (active ? 'border-[#2ECC71] text-white' : 'border-transparent text-gray-500 hover:text-white');
             });
-            // Mostrar/ocultar el sidebar de loader (solo relevante para mods y modpacks)
             const loaderSec = document.getElementById('sidebar-loader-section');
+            const envSec = document.getElementById('sidebar-env-section');
+            const perfSec = document.getElementById('sidebar-perf-section');
             if (loaderSec) loaderSec.style.display = ['mod','modpack'].includes(tipo) ? '' : 'none';
+            if (envSec) envSec.style.display = ['mod','resourcepack','modpack','datapack'].includes(tipo) ? '' : 'none';
+            if (perfSec) perfSec.style.display = tipo === 'shader' ? '' : 'none';
+            _renderCats(tipo);
+            _renderFeatures(tipo);
+            if (tipo === 'shader') _renderPerf();
             buscarTiendaActual();
         }
         function _timeAgo(dateStr) {
@@ -3321,67 +3691,354 @@
             if (n >= 1e3) return (n/1e3).toFixed(0) + 'K';
             return n;
         }
-        const _LOADER_COLORS = {fabric:'#DBB479',forge:'#7BA0CC',neoforge:'#E8894A',quilt:'#C39BD3',liteloader:'#AAD9FF'};
-        async function buscarModrinthAPI() {
+        const _LOADER_COLORS = {fabric:'#DBB479',forge:'#7BA0CC',neoforge:'#E8894A',quilt:'#C39BD3',liteloader:'#AAD9FF',iris:'#9B59B6',optifine:'#3498DB'};
+        const _ALL_LOADERS = new Set(['fabric','forge','neoforge','quilt','liteloader','iris','optifine']);
+
+        function _renderModCard(m, t, grid) {
+            const icon = m.icon_url || '';
+            const updated = m.date_modified ? _timeAgo(m.date_modified) : '';
+            const loaders = (m.categories||[]).filter(c => _ALL_LOADERS.has(c));
+            const cats = (m.display_categories||m.categories||[]).filter(c => !_ALL_LOADERS.has(c)).slice(0,3);
+            const loaderBadges = loaders.map(l=>`<span style="color:${_LOADER_COLORS[l]||'#aaa'}" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#1A1A1A] border border-[#2A2A2A]">${l.charAt(0).toUpperCase()+l.slice(1)}</span>`).join('');
+            const catBadges = cats.map(c=>`<span class="px-1.5 py-0.5 rounded text-[10px] bg-[#1A1A1A] border border-[#2A2A2A] text-gray-400">${c}</span>`).join('');
+            const envBadge = (m.client_side && m.server_side)
+                ? ((m.client_side==='required'&&m.server_side==='unsupported')?'<span class="text-[9px] px-1.5 py-0.5 rounded bg-[#2ECC71]/10 border border-[#2ECC71]/20 text-[#2ECC71]">client</span>'
+                :  (m.client_side==='unsupported'&&m.server_side==='required')?'<span class="text-[9px] px-1.5 py-0.5 rounded bg-[#3498DB]/10 border border-[#3498DB]/20 text-[#3498DB]">server</span>'
+                :  '') : '';
+            const card = document.createElement('div');
+            card.className = 'imod-card bg-[#181818] border border-[#2A2A2A] rounded-xl p-3.5 flex items-start gap-3.5 hover:border-[#2ECC71]/50 transition group cursor-pointer';
+            card.onclick = (e) => { if (!e.target.closest('button')) abrirDetalleMod(m.project_id, m.title, icon); };
+            card.innerHTML = `
+                ${icon ? `<img src="${icon}" class="w-12 h-12 rounded-lg object-cover shrink-0 bg-[#1A1A1A]" onerror="this.style.display='none'" alt="">` : `<div class="w-12 h-12 rounded-lg bg-[#1A1A1A] shrink-0 flex items-center justify-center text-xl">📦</div>`}
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-baseline gap-1.5 flex-wrap">
+                        <span class="font-black text-white group-hover:text-[#2ECC71] transition text-sm">${m.title}</span>
+                        <span class="text-[11px] text-gray-500">by ${m.author||''}</span>
+                        ${envBadge}
+                    </div>
+                    <p class="text-[11px] text-gray-400 mt-0.5 line-clamp-1">${m.description||''}</p>
+                    <div class="flex flex-wrap gap-1 mt-1.5">${loaderBadges}${catBadges}</div>
+                </div>
+                <div class="flex flex-col items-end gap-1 shrink-0 ml-2">
+                    <span class="text-[11px] text-gray-500">⬇ ${_fmtNum(m.downloads)}</span>
+                    <span class="text-[11px] text-gray-500">♥ ${_fmtNum(m.follows)}</span>
+                    <span class="text-[10px] text-gray-600">${updated}</span>
+                </div>`;
+            const actBtns = document.createElement('div');
+            actBtns.className = 'flex flex-col items-end gap-1 shrink-0';
+            const safeTitle = (m.title||'').replace(/'/g,"\\'");
+            const safeIcon  = (icon||'').replace(/'/g,"\\'");
+            const safeDesc  = (m.description||'').slice(0,300).replace(/'/g,"\\'");
+            const safeLoader= (m.categories||[]).filter(c=>_ALL_LOADERS.has(c)).join(',').replace(/'/g,"\\'");
+            const btnIA = document.createElement('button');
+            btnIA.className = 'bg-[#9B59B6]/20 hover:bg-[#9B59B6]/40 border border-[#9B59B6]/30 text-[#9B59B6] font-bold py-1 px-2 rounded-lg transition text-[10px]';
+            btnIA.textContent = '🤖 ¿Qué hace?';
+            btnIA.onclick = () => iaDescribirMod(btnIA, safeTitle, safeDesc, safeLoader);
+            const btnInst = document.createElement('button');
+            btnInst.className = 'bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black py-1 px-2.5 rounded-lg transition text-[11px]';
+            btnInst.textContent = '⬇ Instalar';
+            btnInst.onclick = () => abrirInstalarMod(m.project_id, m.title, t, icon);
+            actBtns.append(btnIA, btnInst);
+            card.appendChild(actBtns);
+            grid.appendChild(card);
+        }
+
+        async function buscarModrinthAPI(append = false) {
+            if (_tiendaLoading) return;
+            _tiendaLoading = true;
+            if (!append) { _tiendaOffset = 0; _tiendaTotalHits = 0; }
             const q = encodeURIComponent(document.getElementById('buscador-mods').value || '');
             const t = _modTipoActual || 'mod';
             const sort = (document.getElementById('filtro-sort')||{}).value || 'downloads';
             const ver = (document.getElementById('filtro-version')||{}).value || '';
             const loaderChecks = [...(document.querySelectorAll('#loader-checks input:checked')||[])].map(c=>c.value);
+            const envClient = (document.getElementById('env-client')||{}).checked;
+            const envServer = (document.getElementById('env-server')||{}).checked;
             const grid = document.getElementById('grid-resultados-mods');
-            if (!grid) return;
-            grid.innerHTML = `<div class="text-center text-gray-500 mt-10 py-10 flex flex-col items-center gap-2"><div class="w-5 h-5 border-2 border-[#2ECC71] border-t-transparent rounded-full animate-spin"></div><span class="text-xs">Buscando en Modrinth...</span></div>`;
+            const loadMoreBar = document.getElementById('tienda-load-more-bar');
+            if (!grid) { _tiendaLoading = false; return; }
+            if (!append) {
+                const q0 = (document.getElementById('buscador-mods').value||'').trim();
+                const featEl = document.getElementById('tienda-featured');
+                if (featEl) featEl.style.display = q0 ? 'none' : '';
+                grid.innerHTML = `<div class="text-center text-gray-500 mt-10 py-10 flex flex-col items-center gap-2"><div class="w-5 h-5 border-2 border-[#2ECC71] border-t-transparent rounded-full animate-spin"></div><span class="text-xs">Buscando en Modrinth...</span></div>`;
+                if (loadMoreBar) loadMoreBar.classList.add('hidden');
+            } else {
+                const btn = document.getElementById('btn-tienda-load-more');
+                if (btn) { btn.disabled = true; btn.textContent = 'Cargando...'; }
+            }
             try {
                 const facets = [["project_type:"+t]];
                 if (ver.trim()) facets.push(["versions:"+ver.trim()]);
                 if (_modrinthCatActual) facets.push(["categories:"+_modrinthCatActual]);
                 if (loaderChecks.length > 0) facets.push(loaderChecks.map(l=>"categories:"+l));
-                const res = await fetch(
-                    `https://api.modrinth.com/v2/search?query=${q}&limit=20&index=${sort}&facets=${encodeURIComponent(JSON.stringify(facets))}`,
-                    {headers:{'User-Agent':'ParaguacraftLauncher/1.0'}});
+                if (envClient)  facets.push(["client_side:required","client_side:optional"]);
+                if (envServer)  facets.push(["server_side:required","server_side:optional"]);
+                if (_mrFeatureActual) facets.push(["categories:"+_mrFeatureActual]);
+                if (_mrPerfActual)    facets.push(["categories:"+_mrPerfActual]);
+                const url = `https://api.modrinth.com/v2/search?query=${q}&limit=${_TIENDA_LIMIT}&offset=${_tiendaOffset}&index=${sort}&facets=${encodeURIComponent(JSON.stringify(facets))}`;
+                const res = await fetch(url, {headers:{'User-Agent':'ParaguacraftLauncher/2.0'}});
                 const data = await res.json();
+                _tiendaTotalHits = data.total_hits || 0;
+                _tiendaOffset += (data.hits||[]).length;
                 const countEl = document.getElementById('mods-result-count');
-                if (countEl) countEl.textContent = data.total_hits ? `${data.total_hits.toLocaleString()} results` : '';
-                grid.innerHTML = '';
+                if (countEl) countEl.textContent = _tiendaTotalHits ? `${_tiendaTotalHits.toLocaleString()} results` : '';
+                if (!append) grid.innerHTML = '';
                 if (!data.hits || !data.hits.length) {
-                    grid.innerHTML = `<div class="text-center text-gray-500 mt-10 py-10"><p class="text-2xl mb-2">🔍</p><p>No results found</p></div>`;
-                    return;
+                    if (!append) grid.innerHTML = `<div class="text-center text-gray-500 mt-10 py-10"><p class="text-2xl mb-2">🔍</p><p>No results found</p></div>`;
+                    if (loadMoreBar) loadMoreBar.classList.add('hidden');
+                    _tiendaLoading = false; return;
                 }
-                data.hits.forEach(m => {
-                    const icon = m.icon_url || '';
-                    const updated = m.date_modified ? _timeAgo(m.date_modified) : '';
-                    const loaders = (m.categories||[]).filter(c=>['fabric','forge','neoforge','quilt','liteloader'].includes(c));
-                    const cats = (m.display_categories||m.categories||[]).filter(c=>!['fabric','forge','neoforge','quilt','liteloader'].includes(c)).slice(0,3);
-                    const loaderBadges = loaders.map(l=>`<span style="color:${_LOADER_COLORS[l]||'#aaa'}" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#1A1A1A] border border-[#2A2A2A]">${l.charAt(0).toUpperCase()+l.slice(1)}</span>`).join('');
-                    const catBadges = cats.map(c=>`<span class="px-1.5 py-0.5 rounded text-[10px] bg-[#1A1A1A] border border-[#2A2A2A] text-gray-400">${c}</span>`).join('');
-                    const safeTitle = (m.title||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-                    const safeIcon = (icon||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-                    const safeDesc = (m.description||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").slice(0,300);
-                    const safeLoader = (m.loaders||[]).join(',').replace(/'/g,"\\'");
-                    grid.innerHTML += `
-                    <div class="imod-card bg-[#181818] border border-[#2A2A2A] rounded-xl p-3.5 flex items-start gap-3.5 hover:border-[#2ECC71]/50 transition group">
-                        ${icon ? `<img src="${icon}" class="w-12 h-12 rounded-lg object-cover shrink-0 bg-[#1A1A1A]" onerror="this.style.display='none'" alt="">` : `<div class="w-12 h-12 rounded-lg bg-[#1A1A1A] shrink-0 flex items-center justify-center text-xl">📦</div>`}
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-baseline gap-1.5 flex-wrap">
-                                <span class="font-black text-white group-hover:text-[#2ECC71] transition text-sm">${m.title}</span>
-                                <span class="text-[11px] text-gray-500">by ${m.author||''}</span>
-                            </div>
-                            <p class="text-[11px] text-gray-400 mt-0.5 line-clamp-1">${m.description||''}</p>
-                            <div class="flex flex-wrap gap-1 mt-1.5">${loaderBadges}${catBadges}</div>
-                        </div>
-                        <div class="flex flex-col items-end gap-1 shrink-0 ml-2">
-                            <span class="text-[11px] text-gray-500">⬇ ${_fmtNum(m.downloads)}</span>
-                            <span class="text-[11px] text-gray-500">♥ ${_fmtNum(m.follows)}</span>
-                            <span class="text-[10px] text-gray-600">${updated}</span>
-                            <button onclick="iaDescribirMod(this,'${safeTitle}','${safeDesc}','${safeLoader}')" class="mt-1 bg-[#9B59B6]/20 hover:bg-[#9B59B6]/40 border border-[#9B59B6]/30 text-[#9B59B6] font-bold py-1 px-2 rounded-lg transition text-[10px]">🤖 ¿Qué hace?</button>
-                            <button onclick="abrirInstalarMod('${m.project_id}','${safeTitle}','${t}','${safeIcon}')" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black py-1 px-2.5 rounded-lg transition text-[11px]">⬇ Instalar</button>
-                        </div>
-                    </div>`;
-                });
+                data.hits.forEach(m => _renderModCard(m, t, grid));
+                // Mostrar/ocultar "Cargar más"
+                if (loadMoreBar) {
+                    const hasMore = _tiendaOffset < _tiendaTotalHits;
+                    loadMoreBar.classList.toggle('hidden', !hasMore);
+                    const btn = document.getElementById('btn-tienda-load-more');
+                    if (btn) { btn.disabled = false; btn.textContent = `Cargar más (${_tiendaTotalHits - _tiendaOffset} restantes)`; }
+                }
             } catch(e) {
-                grid.innerHTML = `<div class="text-center text-red-500 mt-10 py-10">Error de red: ${e.message}</div>`;
+                if (!append) grid.innerHTML = `<div class="text-center text-red-500 mt-10 py-10">Error de red: ${e.message}</div>`;
+            }
+            _tiendaLoading = false;
+        }
+
+        // ── Sidebar: Game version list ──────────────────────────────────────────
+        let _tiendaVerAllList = [];
+        async function tiendaCargarVers() {
+            if (_tiendaVerAllList.length > 0) { _tiendaRenderVerList(''); return; }
+            try {
+                const r = await fetch('https://api.modrinth.com/v2/tag/game_version',
+                    {headers:{'User-Agent':'ParaguacraftLauncher/2.0'}});
+                const data = await r.json();
+                _tiendaVerAllList = data
+                    .filter(v => v.version_type === 'release')
+                    .map(v => v.version)
+                    .sort((a,b) => {
+                        const pa=a.split('.').map(Number), pb=b.split('.').map(Number);
+                        for(let i=0;i<Math.max(pa.length,pb.length);i++)
+                            if((pa[i]||0)!==(pb[i]||0)) return (pb[i]||0)-(pa[i]||0);
+                        return 0;
+                    });
+            } catch(e) {
+                _tiendaVerAllList = ['1.21.5','1.21.4','1.21.3','1.21.1','1.21',
+                    '1.20.6','1.20.4','1.20.1','1.19.4','1.19.2','1.18.2','1.17.1',
+                    '1.16.5','1.12.2','1.8.9'];
+            }
+            _tiendaRenderVerList('');
+        }
+        function _tiendaRenderVerList(q) {
+            const listEl = document.getElementById('tienda-ver-list');
+            if (!listEl) return;
+            const filtered = q ? _tiendaVerAllList.filter(v=>v.includes(q)) : _tiendaVerAllList.slice(0,30);
+            const selected = (document.getElementById('filtro-version')||{}).value || '';
+            listEl.className = 'max-h-36 overflow-y-auto flex flex-col gap-0.5';
+            listEl.innerHTML = filtered.map(v => `<button onclick="tiendaSelectVer('${v}')" data-ver="${v}"
+                class="text-left px-2 py-1.5 rounded-lg text-[11px] transition ${v===selected ? 'bg-[#2ECC71]/10 text-[#2ECC71] font-bold' : 'text-gray-400 hover:bg-[#2A2A2A] hover:text-white'}">
+                ${v===selected?'● ':''} ${v}</button>`).join('');
+        }
+        function tiendaFiltrarVers() {
+            const q=(document.getElementById('tienda-ver-search').value||'').trim();
+            _tiendaRenderVerList(q);
+        }
+        function tiendaSelectVer(ver) {
+            const hidden = document.getElementById('filtro-version');
+            hidden.value = hidden.value === ver ? '' : ver;
+            _tiendaRenderVerList((document.getElementById('tienda-ver-search')||{}).value||'');
+            buscarTiendaActual();
+        }
+        function tiendaToggleVerSection() {
+            const sec = document.getElementById('tienda-ver-section');
+            const arr = document.getElementById('tienda-ver-arrow');
+            if (!sec) return;
+            const hide = !sec.classList.toggle('hidden');
+            if (arr) arr.textContent = hide ? '▼' : '▲';
+        }
+
+        // ── Featured / Trending ──────────────────────────────────────────────
+        const _featuredCache = {};
+        async function cargarFeaturedMods() {
+            const q = (document.getElementById('buscador-mods').value || '').trim();
+            const feat = document.getElementById('tienda-featured');
+            if (!feat) return;
+            if (q) { feat.style.display = 'none'; return; }
+            feat.style.display = '';
+            const t = _modTipoActual || 'mod';
+            if (_featuredCache[t]) return;
+            const list = document.getElementById('tienda-featured-list');
+            list.innerHTML = '<div class="text-[10px] text-gray-600 animate-pulse py-2 px-1">Cargando...</div>';
+            try {
+                const facets = [["project_type:"+t]];
+                const res = await fetch(
+                    `https://api.modrinth.com/v2/search?limit=8&index=downloads&facets=${encodeURIComponent(JSON.stringify(facets))}`,
+                    {headers:{'User-Agent':'ParaguacraftLauncher/2.0'}});
+                const data = await res.json();
+                list.innerHTML = '';
+                (data.hits||[]).forEach(m => {
+                    const card = document.createElement('button');
+                    card.className = 'flex-shrink-0 w-44 bg-[#181818] border border-[#2A2A2A] rounded-xl p-3 text-left hover:border-[#2ECC71]/50 transition group';
+                    card.onclick = () => abrirDetalleMod(m.project_id, m.title, m.icon_url);
+                    card.innerHTML = `
+                        <div class="flex items-center gap-2 mb-2">
+                            ${m.icon_url ? `<img src="${m.icon_url}" class="w-7 h-7 rounded-lg object-cover bg-[#1A1A1A] shrink-0" onerror="this.style.display='none'" alt="">` : `<div class="w-7 h-7 rounded-lg bg-[#1A1A1A] shrink-0 flex items-center justify-center">📦</div>`}
+                            <span class="font-bold text-[11px] text-white group-hover:text-[#2ECC71] transition truncate">${m.title}</span>
+                        </div>
+                        <p class="text-[10px] text-gray-500 line-clamp-2 mb-2">${m.description||''}</p>
+                        <div class="flex items-center gap-2 text-[10px] text-gray-600">
+                            <span>⬇ ${_fmtNum(m.downloads)}</span>
+                            <span>♥ ${_fmtNum(m.follows)}</span>
+                        </div>`;
+                    list.appendChild(card);
+                });
+                _featuredCache[t] = true;
+            } catch(e) { feat.style.display = 'none'; }
+        }
+
+        // ── Markdown renderer (simple) ───────────────────────────────────
+        function _renderMd(md) {
+            if (!md) return '<p class="text-gray-600 text-sm">Sin contenido.</p>';
+            return md
+                .replace(/```[\s\S]*?```/g, m => {
+                    const code = m.slice(3,-3).replace(/^[^\n]*\n/,'');
+                    return `<pre class="bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg p-3 text-xs font-mono overflow-x-auto my-3 text-gray-300">${code.replace(/</g,'&lt;')}</pre>`;
+                })
+                .replace(/^#{3} (.+)$/gm,'<h3 class="font-black text-white text-sm mt-5 mb-2">$1</h3>')
+                .replace(/^#{2} (.+)$/gm,'<h2 class="font-bold text-white text-base mt-6 mb-2">$1</h2>')
+                .replace(/^# (.+)$/gm,'<h1 class="font-black text-white text-lg mt-6 mb-3">$1</h1>')
+                .replace(/\*\*\*(.+?)\*\*\*/g,'<strong><em>$1</em></strong>')
+                .replace(/\*\*(.+?)\*\*/g,'<strong class="text-white font-bold">$1</strong>')
+                .replace(/\*(.+?)\*/g,'<em class="text-gray-300">$1</em>')
+                .replace(/`([^`]+)`/g,'<code class="bg-[#1A1A1A] text-[#2ECC71] px-1.5 py-0.5 rounded text-xs font-mono">$1</code>')
+                .replace(/!\[([^\]]*)\]\(([^)]+)\)/g,'<img src="$2" alt="$1" class="max-w-full rounded-lg my-3 border border-[#2A2A2A]" loading="lazy">')
+                .replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank" class="text-[#2ECC71] hover:underline">$1</a>')
+                .replace(/^[-*] (.+)$/gm,'<li class="ml-5 list-disc text-gray-300 mb-1">$1</li>')
+                .replace(/^\d+\. (.+)$/gm,'<li class="ml-5 list-decimal text-gray-300 mb-1">$1</li>')
+                .replace(/^---+$/gm,'<hr class="border-[#2A2A2A] my-4">')
+                .split('\n\n').map(p => {
+                    p = p.trim(); if (!p) return '';
+                    if (/^<(h[1-6]|pre|li|hr|img)/.test(p)) return p;
+                    return `<p class="text-gray-300 mb-3 leading-relaxed">${p.replace(/\n/g,'<br>')}</p>`;
+                }).join('\n');
+        }
+
+        // ── Detail panel ───────────────────────────────────────────────────
+        let _mdpProjectId = ''; let _mdpVersionsData = null;
+
+        async function abrirDetalleMod(projectId, titulo, iconUrl) {
+            const panel = document.getElementById('mod-detail-panel');
+            const loading = document.getElementById('mdp-loading');
+            if (!panel) return;
+            _mdpProjectId = projectId;
+            _mdpVersionsData = null;
+            panel.classList.remove('hidden');
+            loading.classList.remove('hidden');
+            const el = id => document.getElementById(id);
+            el('mdp-title').textContent = titulo || 'Cargando...';
+            el('mdp-author').textContent = '';
+            el('mdp-stats').textContent = '';
+            el('mdp-tags-inline').innerHTML = '';
+            el('mdp-tags-inline').classList.add('hidden');
+            el('mdp-mc-versions').innerHTML = '';
+            el('mdp-platforms').innerHTML = '';
+            el('mdp-env-badges').innerHTML = '';
+            el('mdp-sidebar-env').classList.add('hidden');
+            el('mdp-links').innerHTML = '';
+            el('mdp-tags').innerHTML = '';
+            ['description','gallery','changelog','versions'].forEach(t => { const d=el('mdp-tab-'+t); if(d) d.innerHTML=''; });
+            if (iconUrl) { el('mdp-icon').src=iconUrl; el('mdp-icon').style.display=''; }
+            else el('mdp-icon').style.display='none';
+            mdpTab('description');
+            try {
+                const [projRes, versRes] = await Promise.all([
+                    fetch(`https://api.modrinth.com/v2/project/${projectId}`, {headers:{'User-Agent':'ParaguacraftLauncher/2.0'}}),
+                    fetch(`https://api.modrinth.com/v2/project/${projectId}/version`, {headers:{'User-Agent':'ParaguacraftLauncher/2.0'}}),
+                ]);
+                const proj = await projRes.json();
+                _mdpVersionsData = await versRes.json();
+                loading.classList.add('hidden');
+                el('mdp-title').textContent = proj.title || titulo || '';
+                el('mdp-author').textContent = 'by ' + (proj.team || '');
+                el('mdp-stats').textContent = `⬇ ${_fmtNum(proj.downloads)} · ♥ ${_fmtNum(proj.followers)}`;
+                const displayCats = (proj.categories||[]).filter(c=>!_ALL_LOADERS.has(c)).slice(0,3);
+                if (displayCats.length) {
+                    el('mdp-tags-inline').innerHTML = displayCats.map(c=>`<span class="px-2 py-0.5 rounded-full text-[10px] bg-[#2A2A2A] text-gray-400">${c}</span>`).join('');
+                    el('mdp-tags-inline').classList.remove('hidden');
+                }
+                el('mdp-tab-description').innerHTML = _renderMd(proj.body || proj.description || '');
+                const gallery = proj.gallery || [];
+                el('mdp-tab-gallery').innerHTML = gallery.length
+                    ? gallery.map(g=>`<div class="rounded-xl overflow-hidden border border-[#2A2A2A]"><img src="${g.url}" alt="${g.title||''}" class="w-full object-cover" loading="lazy">${g.title?`<p class="text-xs text-gray-500 p-2">${g.title}</p>`:''}</div>`).join('')
+                    : '<p class="text-gray-600 text-sm py-10 text-center">Sin imágenes disponibles.</p>';
+                const latest = Array.isArray(_mdpVersionsData) ? _mdpVersionsData[0] : null;
+                el('mdp-tab-changelog').innerHTML = latest && latest.changelog
+                    ? _renderMd(latest.changelog)
+                    : '<p class="text-gray-600 text-sm py-10 text-center">Sin changelog disponible.</p>';
+                if (Array.isArray(_mdpVersionsData) && _mdpVersionsData.length) {
+                    const _isRel = v => /^\d+\.\d+(\.\d+)?$/.test(v);
+                    el('mdp-tab-versions').innerHTML = _mdpVersionsData.slice(0,40).map(v => {
+                        const mcV = v.game_versions.filter(_isRel).slice(0,3).join(', ');
+                        const lBadges = v.loaders.filter(l=>_ALL_LOADERS.has(l)).map(l=>`<span style="color:${_LOADER_COLORS[l]||'#aaa'}" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#1A1A1A] border border-[#2A2A2A]">${l.charAt(0).toUpperCase()+l.slice(1)}</span>`).join('');
+                        const safeT = (proj.title||'').replace(/'/g,"\\'"); const safeI = (proj.icon_url||'').replace(/'/g,"\\'");
+                        return `<div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-3 flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-[#2ECC71]/10 border border-[#2ECC71]/20 flex items-center justify-center font-black text-[#2ECC71] text-xs shrink-0">${v.version_number.charAt(0).toUpperCase()}</div>
+                            <div class="flex-1 min-w-0"><p class="font-bold text-sm text-white">${v.version_number} <span class="text-xs text-gray-500 font-normal">· ${mcV}</span></p><div class="flex flex-wrap gap-1 mt-1">${lBadges}</div></div>
+                            <div class="flex items-center gap-2 shrink-0">
+                                <span class="text-[10px] text-gray-600">${v.date_published?_timeAgo(v.date_published):''}</span>
+                                <button onclick="abrirInstalarMod('${projectId}','${safeT}','${_modTipoActual}','${safeI}');cerrarDetalleMod()" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black px-3 py-1 rounded-lg transition text-xs">⬇</button>
+                            </div></div>`;
+                    }).join('');
+                }
+                const _isRel = v => /^\d+\.\d+(\.\d+)?$/.test(v);
+                const mcVers = [...new Set((Array.isArray(_mdpVersionsData)?_mdpVersionsData:[]).flatMap(v=>v.game_versions).filter(_isRel))].slice(0,12);
+                el('mdp-mc-versions').innerHTML = mcVers.map(v=>`<span class="px-1.5 py-0.5 rounded text-[10px] bg-[#1A1A1A] border border-[#2A2A2A] text-gray-400">${v}</span>`).join('');
+                const platforms = [...new Set((Array.isArray(_mdpVersionsData)?_mdpVersionsData:[]).flatMap(v=>v.loaders).filter(l=>_ALL_LOADERS.has(l)))];
+                el('mdp-platforms').innerHTML = platforms.map(l=>`<span style="color:${_LOADER_COLORS[l]||'#aaa'}" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#1A1A1A] border border-[#2A2A2A]">${l.charAt(0).toUpperCase()+l.slice(1)}</span>`).join('');
+                const envB = [];
+                if (proj.client_side && proj.client_side!=='unsupported') envB.push(`<span class="px-2 py-0.5 rounded-full text-[10px] bg-[#2ECC71]/10 border border-[#2ECC71]/20 text-[#2ECC71]">💻 Client</span>`);
+                if (proj.server_side && proj.server_side!=='unsupported') envB.push(`<span class="px-2 py-0.5 rounded-full text-[10px] bg-[#3498DB]/10 border border-[#3498DB]/20 text-[#3498DB]">🖥️ Server</span>`);
+                if (envB.length) { el('mdp-env-badges').innerHTML=envB.join(''); el('mdp-sidebar-env').classList.remove('hidden'); }
+                const links = [];
+                if (proj.source_url) links.push(`<a href="${proj.source_url}" target="_blank" class="text-[11px] text-gray-400 hover:text-white transition">🔗 View source</a>`);
+                if (proj.issues_url) links.push(`<a href="${proj.issues_url}" target="_blank" class="text-[11px] text-gray-400 hover:text-white transition">⚠️ Report issues</a>`);
+                if (proj.wiki_url) links.push(`<a href="${proj.wiki_url}" target="_blank" class="text-[11px] text-gray-400 hover:text-white transition">📖 Wiki</a>`);
+                if (proj.discord_url) links.push(`<a href="${proj.discord_url}" target="_blank" class="text-[11px] text-gray-400 hover:text-white transition">💬 Discord</a>`);
+                el('mdp-links').innerHTML = links.join('') || '<span class="text-[11px] text-gray-600">Sin links.</span>';
+                el('mdp-tags').innerHTML = (proj.categories||[]).map(c=>`<span class="px-1.5 py-0.5 rounded text-[10px] bg-[#1A1A1A] border border-[#2A2A2A] text-gray-400">${c}</span>`).join('');
+                el('mdp-install-btn').onclick = () => abrirInstalarMod(projectId, proj.title, _modTipoActual, proj.icon_url||'');
+            } catch(e) {
+                loading.classList.add('hidden');
+                document.getElementById('mdp-tab-description').innerHTML = `<p class="text-red-400 text-sm">Error al cargar: ${e.message}</p>`;
             }
         }
+        function cerrarDetalleMod() {
+            const p = document.getElementById('mod-detail-panel');
+            if (p) p.classList.add('hidden');
+            _mdpProjectId = '';
+        }
+        function mdpTab(tab) {
+            ['description','gallery','changelog','versions'].forEach(t => {
+                const d=document.getElementById('mdp-tab-'+t); if(d) d.classList.toggle('hidden', t!==tab);
+                const b=document.getElementById('mdptab-'+t);
+                if(b) b.className='px-4 py-2.5 text-xs font-black border-b-2 transition shrink-0 '+(t===tab?'border-[#2ECC71] text-white':'border-transparent text-gray-500 hover:text-white');
+            });
+        }
+        function mdpInstalar() {
+            if (!_mdpProjectId) return;
+            const t = document.getElementById('mdp-title');
+            const i = document.getElementById('mdp-icon');
+            abrirInstalarMod(_mdpProjectId, t?t.textContent:'', _modTipoActual, i?i.src:'');
+        }
+
+        // Infinite scroll en el grid
+        document.addEventListener('DOMContentLoaded', () => {
+            const grid = document.getElementById('grid-resultados-mods');
+            if (grid) grid.addEventListener('scroll', () => {
+                if (grid.scrollTop + grid.clientHeight >= grid.scrollHeight - 120) tiendaLoadMore();
+            });
+            _renderCats('mod');
+            _renderFeatures('mod');
+            cargarFeaturedMods();
+        });
 
         // ─── HW PERFIL / ESTILO DE JUEGO data ───
         const _hwBaseMods = {
@@ -3551,27 +4208,65 @@
 
         function cerrarModalUpdate() {
             document.getElementById('update-modal').classList.add('hidden');
-        }
-
-        async function instalarActualizacion() {
-            if (!_updUrl) { alert('URL de descarga no disponible. Descargá manualmente desde GitHub.'); return; }
+            const bar = document.getElementById('upd-progress-bar');
             const prog = document.getElementById('upd-progress');
             const actions = document.getElementById('upd-actions');
+            const manual = document.getElementById('btn-dl-manual');
+            if (bar) { bar.style.width = '0%'; bar.className = 'h-2 bg-[#F39C12] rounded-full transition-all duration-300'; }
+            if (prog) prog.classList.add('hidden');
+            if (actions) actions.classList.remove('hidden');
+            if (manual) manual.remove();
+        }
+
+        const _GITHUB_REPO_JS = 'SantiJ10/Paraguacraft';
+        async function instalarActualizacion() {
+            if (!_updUrl) {
+                _updateFailed('URL de descarga no disponible. No hay ejecutable adjunto en este release de GitHub.');
+                return;
+            }
+            const prog = document.getElementById('upd-progress');
+            const actions = document.getElementById('upd-actions');
+            const bar = document.getElementById('upd-progress-bar');
+            const errLbl = document.getElementById('upd-progress-err');
+            if (bar) { bar.style.width = '0%'; bar.className = 'h-2 bg-[#F39C12] rounded-full transition-all duration-300'; }
+            if (errLbl) errLbl.textContent = '';
             if (prog) prog.classList.remove('hidden');
             if (actions) actions.classList.add('hidden');
+            _updateProgress(1, 'Conectando a GitHub...');
             const r = await pywebview.api.aplicar_actualizacion(_updUrl);
             if (r && !r.ok) {
-                if (prog) prog.classList.add('hidden');
-                if (actions) actions.classList.remove('hidden');
-                alert('Error: ' + r.error + '\n\nDescargá el .exe manualmente desde GitHub Releases.');
+                _updateFailed(r.error || 'Error desconocido');
             }
+        }
+        function _updateProgress(pct, msg) {
+            const bar = document.getElementById('upd-progress-bar');
+            const lbl = document.getElementById('upd-progress-lbl');
+            const pctLbl = document.getElementById('upd-progress-pct');
+            const errLbl = document.getElementById('upd-progress-err');
+            if (bar) bar.style.width = Math.min(100, Math.max(0, pct)) + '%';
+            if (lbl) lbl.textContent = msg || ('Descargando... ' + pct + '%');
+            if (pctLbl) pctLbl.textContent = Math.min(100, pct) + '%';
+            if (errLbl) errLbl.textContent = '';
         }
         function _updateFailed(msg) {
             const prog = document.getElementById('upd-progress');
             const actions = document.getElementById('upd-actions');
-            if (prog) prog.classList.add('hidden');
+            const errLbl = document.getElementById('upd-progress-err');
+            const lbl = document.getElementById('upd-progress-lbl');
+            const bar = document.getElementById('upd-progress-bar');
+            if (prog) prog.classList.remove('hidden');
+            if (lbl) lbl.textContent = '❌ Error al actualizar';
+            if (bar) { bar.style.width = '100%'; bar.className = 'h-2 bg-[#E74C3C] rounded-full'; }
+            if (errLbl) errLbl.textContent = msg + ' — Descargá el .exe manualmente desde GitHub Releases.';
             if (actions) actions.classList.remove('hidden');
-            alert('Error al actualizar: ' + msg + '\n\nDescargá el .exe manualmente desde GitHub Releases.');
+            if (!document.getElementById('btn-dl-manual') && actions) {
+                const dlBtn = document.createElement('button');
+                dlBtn.id = 'btn-dl-manual';
+                dlBtn.className = 'flex-1 bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold py-2 rounded transition text-sm';
+                dlBtn.textContent = '📥 Descargar manual';
+                dlBtn.onclick = () => pywebview.api.abrir_url_navegador(`https://github.com/${_GITHUB_REPO_JS}/releases/latest`);
+                actions.appendChild(dlBtn);
+            }
         }
         // --- FIN AUTO-UPDATE ---
 
@@ -3661,13 +4356,28 @@
             if (inp) inp.value = carpeta;
         }
 
+        let _srvCurrentTipo = 'todos', _srvCurrentModo = '';
         function filtrarSrv(tipo) {
-            document.querySelectorAll('.srv-card').forEach(c => {
-                c.style.display = (tipo === 'todos' || c.dataset.tipo === tipo) ? '' : 'none';
-            });
+            _srvCurrentTipo = tipo;
             ['todos','premium','nopremium'].forEach(t => {
                 const b = document.getElementById('sfil-' + t);
-                if (b) b.className = `px-3 py-1 rounded text-xs font-bold transition ${t === tipo ? 'bg-[#2ECC71] text-black' : 'bg-[#2A2A2A] text-white hover:bg-[#3A3A3A]'}`;
+                if (b) b.className = `px-2.5 py-1 rounded text-xs font-bold transition ${t === tipo ? 'bg-[#2ECC71] text-black' : 'bg-[#2A2A2A] text-white hover:bg-[#3A3A3A]'}`;
+            });
+            _applyServerFilters();
+        }
+        function filtrarSrvModo(modo) {
+            _srvCurrentModo = modo;
+            ['','pvp','mini-games','survival','mmorpg'].forEach(m => {
+                const b = document.getElementById('sfil-modo-' + m);
+                if (b) b.className = `px-2.5 py-1 rounded text-xs font-bold transition ${m === modo ? 'bg-[#3A3A3A] text-white' : 'bg-[#2A2A2A] text-white hover:bg-[#3A3A3A]'}`;
+            });
+            _applyServerFilters();
+        }
+        function _applyServerFilters() {
+            document.querySelectorAll('.srv-card').forEach(c => {
+                const tipoOk = _srvCurrentTipo === 'todos' || c.dataset.tipo === _srvCurrentTipo;
+                const modoOk = !_srvCurrentModo || c.dataset.modo === _srvCurrentModo;
+                c.style.display = (tipoOk && modoOk) ? '' : 'none';
             });
         }
 
@@ -3705,7 +4415,7 @@
                 const _resp = await fetch(`http://127.0.0.1:${_srvPort}/api/crear_servidor`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({version: ver, carpeta: carpeta, tipo: _srvTipoActual})
+                    body: JSON.stringify({version: ver, carpeta: carpeta, tipo: _srvTipoActual, ram_gb: (document.getElementById('srv-ram-gb')||{}).value || 'auto'})
                 });
                 const r = await _resp.json();
                 clearInterval(_srvPoller);
@@ -3942,14 +4652,20 @@
             const cons = document.getElementById('srv-console');
             if (!cons) return;
             const colorMap = [
-                [/\[ERROR\]/i, 'text-red-400'],
-                [/\[WARN\]/i, 'text-yellow-400'],
-                [/Done \(/, 'text-[#2ECC71] font-bold'],
-                [/\[SETUP\]/, 'text-[#9B59B6]'],
-                [/\[PLAYIT\]/, 'text-[#3498DB]'],
-                [/^> /, 'text-white font-bold'],
+                [/\[ERROR\]|Exception|SEVERE/i,                          'text-red-400'],
+                [/\[WARN\]/i,                                             'text-yellow-400'],
+                [/Done \(/,                                               'text-[#2ECC71] font-bold text-sm'],
+                [/\[SETUP\]/,                                             'text-[#9B59B6]'],
+                [/\[PLAYIT\]/,                                            'text-[#3498DB]'],
+                [/^> /,                                                   'text-white font-bold'],
+                [/joined the game|se unió|has joined/i,                  'text-[#2ECC71] font-bold'],
+                [/left the game|se fue|has left/i,                       'text-[#E74C3C]'],
+                [/was slain|drowned|blew up|fell|burned|hit the ground|died/i, 'text-orange-400'],
+                [/\[INFO\].*<.*>/,                                        'text-white'],
+                [/\[RCON\]|\[Command\]/i,                                'text-[#F39C12]'],
+                [/Starting|Preparing|Loading/i,                          'text-[#3498DB]'],
             ];
-            let cls = 'text-green-400';
+            let cls = 'text-gray-400';
             for (const [pat, c] of colorMap) {
                 if (typeof pat === 'string' ? msg.includes(pat) : pat.test(msg)) { cls = c; break; }
             }
@@ -3957,6 +4673,7 @@
             el.className = 'leading-5 ' + cls;
             el.textContent = msg;
             cons.appendChild(el);
+            if (cons.children.length > 500) cons.removeChild(cons.firstChild);
             cons.scrollTop = cons.scrollHeight;
         }
 
@@ -4134,6 +4851,8 @@
                     if (d.status && d.status !== 'idle') actualizarEstadoPanel(d.status);
                     if (d.running) {
                         _wasRunning = true;
+                        const fill = document.getElementById('launch-progress-bar');
+                        if (fill && parseFloat(fill.style.width) < 95) fill.style.width = '95%';
                     } else if (_wasRunning || (d.status && d.status !== 'idle')) {
                         clearInterval(_gamePoller); _gamePoller = null;
                         resetLaunchButton();
@@ -4143,10 +4862,35 @@
             setTimeout(() => { if (_gamePoller) { clearInterval(_gamePoller); _gamePoller = null; resetLaunchButton(); } }, 600000);
         }
 
+        const _LAUNCH_STEPS = [
+            [['iniciando','starting','inicio'],5],
+            [['verificando','checking','descargando','downloading','assets','libraries','librer'],25],
+            [['fabric','forge','neoforge','quilt','loader','instalando motor'],55],
+            [['configurando','launching','abriendo','launching minecraft'],75],
+            [['done','listo','started','started on'],90],
+        ];
+        function _statusToPct(m) {
+            const ml = (m||'').toLowerCase();
+            for (const [keys,pct] of _LAUNCH_STEPS) { if (keys.some(k=>ml.includes(k))) return pct; }
+            return null;
+        }
         function actualizarEstadoPanel(m) {
             const lbl = document.getElementById('lbl-estado-juego');
             if (!lbl) return;
             lbl.innerText = m;
+            const bar = document.getElementById('launch-progress');
+            const fill = document.getElementById('launch-progress-bar');
+            if (bar && fill) {
+                const isClosed = m && (m.toLowerCase().includes('cerrado') || m.toLowerCase().includes('closed') || m.toLowerCase().includes('idle'));
+                if (isClosed) {
+                    fill.style.width = '100%';
+                    setTimeout(() => { bar.classList.add('hidden'); fill.style.width = '0%'; }, 600);
+                } else if (m && m !== 'idle') {
+                    bar.classList.remove('hidden');
+                    const pct = _statusToPct(m);
+                    if (pct !== null) fill.style.width = pct + '%';
+                }
+            }
             const isErr = m && (m.startsWith('Error') || m.toLowerCase().includes('traceback'));
             lbl.className = 'text-center text-xs font-bold mb-2 min-h-[1.25rem] break-all ' + (isErr ? 'text-[#E74C3C]' : 'text-[#3498DB]');
         }
@@ -4259,6 +5003,121 @@
 
         let _imodVersionsData = null;
         let _imodSelectedVersionId = null;
+        let _imodSelectedVer = '';
+        let _imodSelectedPlat = '';
+        let _imodVerPanelOpen = false;
+        let _imodPlatPanelOpen = false;
+
+        // ── Modal: accordion helpers ────────────────────────────────────────
+        function imodToggleVerPanel() {
+            _imodVerPanelOpen = !_imodVerPanelOpen;
+            document.getElementById('imod-ver-panel').classList.toggle('hidden', !_imodVerPanelOpen);
+            document.getElementById('imod-ver-arrow').textContent = _imodVerPanelOpen ? '▲' : '▼';
+        }
+        function imodTogglePlatPanel() {
+            const btn = document.getElementById('imod-plat-btn');
+            if (btn && btn.disabled) return;
+            _imodPlatPanelOpen = !_imodPlatPanelOpen;
+            document.getElementById('imod-plat-panel').classList.toggle('hidden', !_imodPlatPanelOpen);
+            document.getElementById('imod-plat-arrow').textContent = _imodPlatPanelOpen ? '▲' : '▼';
+        }
+        function imodFiltrarVers() {
+            const q = (document.getElementById('imod-ver-search').value||'').toLowerCase();
+            document.querySelectorAll('#imod-ver-list button').forEach(b => {
+                b.style.display = q && !b.dataset.ver.toLowerCase().includes(q) ? 'none' : '';
+            });
+        }
+        function imodSelectVer(ver) {
+            _imodSelectedVer = ver;
+            _imodSelectedPlat = '';
+            const label = document.getElementById('imod-ver-label');
+            label.textContent = 'Game version: ' + ver;
+            label.className = 'flex-1 text-sm text-white font-bold';
+            document.querySelectorAll('#imod-ver-list button').forEach(b => {
+                const active = b.dataset.ver === ver;
+                b.className = 'w-full text-left px-3 py-1.5 rounded-lg text-xs transition ' +
+                    (active ? 'bg-[#2ECC71] text-black font-bold' : 'text-gray-300 hover:bg-[#2A2A2A]');
+            });
+            _imodVerPanelOpen = false;
+            document.getElementById('imod-ver-panel').classList.add('hidden');
+            document.getElementById('imod-ver-arrow').textContent = '▼';
+            document.getElementById('imod-file-info').classList.add('hidden');
+            document.getElementById('imod-perfil-row').classList.add('hidden');
+            _imodActualizarPlataformas(ver);
+        }
+        function _imodActualizarPlataformas(ver) {
+            const platBtn = document.getElementById('imod-plat-btn');
+            const platPanel = document.getElementById('imod-plat-panel');
+            const platLabel = document.getElementById('imod-plat-label');
+            if (!ver || !_imodVersionsData) { platBtn.disabled = true; return; }
+            const compatible = _imodVersionsData.filter(v => v.game_versions.includes(ver));
+            const allLoaders = [...new Set(compatible.flatMap(v => v.loaders))];
+            const loaders = allLoaders.filter(l => _LOADERS_SOPORTADOS.has(l.toLowerCase()));
+            if (!loaders.length) {
+                platBtn.disabled = true;
+                platLabel.textContent = 'Sin plataformas compatibles';
+                platLabel.className = 'flex-1 text-sm text-red-400';
+                return;
+            }
+            document.getElementById('imod-plat-btns').innerHTML = loaders.map(l =>
+                `<button onclick="imodSelectPlat('${l}')" data-plat="${l.toLowerCase()}"
+                    class="imod-plat-chip px-4 py-2 rounded-lg text-sm font-bold border transition
+                        bg-[#1E1E1E] border-[#333] text-gray-300 hover:border-[#2ECC71] hover:text-white">
+                    ${_LOADER_DISPLAY[l.toLowerCase()] || l}</button>`
+            ).join('');
+            platBtn.disabled = false;
+            platBtn.className = 'w-full flex items-center gap-3 px-4 py-3 hover:bg-[#1A1A1A] transition text-left';
+            platLabel.textContent = 'Seleccionar plataforma';
+            platLabel.className = 'flex-1 text-sm text-gray-400';
+            _imodPlatPanelOpen = true;
+            platPanel.classList.remove('hidden');
+            document.getElementById('imod-plat-arrow').textContent = '▲';
+            // Pre-select active loader
+            const activaLoader = (document.getElementById('panel-loader-sel')||{}).value || '';
+            if (activaLoader) {
+                const _al = activaLoader.toLowerCase();
+                let norm = _al;
+                if (_al.includes('neoforge')) norm = 'neoforge';
+                else if (_al.includes('forge'))   norm = 'forge';
+                else if (_al.includes('iris'))    norm = 'iris';
+                else if (_al.includes('fabric'))  norm = 'fabric';
+                const matchL = loaders.find(l => l.toLowerCase() === norm);
+                if (matchL) setTimeout(() => imodSelectPlat(matchL, activaLoader), 50);
+            }
+        }
+        function imodSelectPlat(plat, motorOverride) {
+            _imodSelectedPlat = plat;
+            const platLabel = document.getElementById('imod-plat-label');
+            platLabel.textContent = 'Platform: ' + (_LOADER_DISPLAY[plat.toLowerCase()] || plat);
+            platLabel.className = 'flex-1 text-sm text-white font-bold';
+            document.querySelectorAll('#imod-plat-btns button').forEach(b => {
+                const active = b.dataset.plat === plat.toLowerCase();
+                b.className = `imod-plat-chip px-4 py-2 rounded-lg text-sm font-bold border transition ` +
+                    (active ? 'bg-[#2ECC71] border-[#2ECC71] text-black' :
+                              'bg-[#1E1E1E] border-[#333] text-gray-300 hover:border-[#2ECC71] hover:text-white');
+            });
+            _imodPlatPanelOpen = false;
+            document.getElementById('imod-plat-panel').classList.add('hidden');
+            document.getElementById('imod-plat-arrow').textContent = '▼';
+            const match = _imodVersionsData.find(v => v.game_versions.includes(_imodSelectedVer) && v.loaders.includes(plat));
+            if (!match || !match.files || !match.files.length) {
+                document.getElementById('imod-file-info').classList.add('hidden');
+                return;
+            }
+            const file = match.files.find(f=>f.primary) || match.files[0];
+            _imodSelectedVersionId = match.id;
+            document.getElementById('imod-fname').textContent = file.filename;
+            document.getElementById('imod-fmeta').textContent = `${match.version_number} · ${(file.size/1048576).toFixed(2)} MB`;
+            const iconEl = document.getElementById('imod-file-icon');
+            if (iconEl) iconEl.textContent = (match.version_number||'R').charAt(0).toUpperCase();
+            const perfilSel = document.getElementById('imod-perfil-select');
+            const perfiles = _IMOD_PERFILES[plat.toLowerCase()] || [plat];
+            perfilSel.innerHTML = perfiles.map(p=>`<option value="${p}">${p}</option>`).join('');
+            if (motorOverride && perfiles.includes(motorOverride)) perfilSel.value = motorOverride;
+            window._imodInstanceMotor = motorOverride || null;
+            document.getElementById('imod-perfil-row').classList.remove('hidden');
+            document.getElementById('imod-file-info').classList.remove('hidden');
+        }
 
         async function abrirInstalarMod(projectId, titulo, tipo, iconUrl) {
             _imodProjectId = projectId;
@@ -4266,94 +5125,62 @@
             _imodSource = 'modrinth';
             _imodVersionsData = null;
             _imodSelectedVersionId = null;
+            _imodSelectedVer = '';
+            _imodSelectedPlat = '';
+            _imodVerPanelOpen = true;
+            _imodPlatPanelOpen = false;
             const el = id => document.getElementById(id);
             el('imod-titulo').textContent = titulo;
             el('imod-subtitulo').textContent = tipo + ' · Modrinth';
             const icon = el('imod-icon');
-            if (iconUrl) { icon.src = iconUrl; icon.style.display = ''; } else { icon.style.display = 'none'; }
+            if (iconUrl) { icon.src = iconUrl; icon.style.display=''; } else { icon.style.display='none'; }
             el('imod-mr-section').classList.remove('hidden');
             el('imod-cf-section').classList.add('hidden');
             el('imod-lista').innerHTML = '';
             el('imod-file-info').classList.add('hidden');
             el('imod-instalando').classList.add('hidden');
-            el('imod-ver-select').innerHTML = '<option value="">Cargando versiones...</option>';
-            el('imod-platform-select').innerHTML = '<option value="">Seleccionar plataforma...</option>';
-            el('imod-platform-select').disabled = true;
+            el('imod-perfil-row').classList.add('hidden');
+            el('imod-ver-label').textContent = 'Cargando versiones...';
+            el('imod-ver-label').className = 'flex-1 text-sm text-gray-400';
+            el('imod-ver-panel').classList.remove('hidden');
+            el('imod-ver-arrow').textContent = '▲';
+            el('imod-ver-list').innerHTML = '<div class="py-4 text-center text-xs text-gray-500 animate-pulse">Cargando...</div>';
+            el('imod-plat-btn').disabled = true;
+            el('imod-plat-btn').className = 'w-full flex items-center gap-3 px-4 py-3 text-left opacity-40 cursor-not-allowed';
+            el('imod-plat-label').textContent = 'Seleccionar plataforma';
+            el('imod-plat-label').className = 'flex-1 text-sm text-gray-500';
+            el('imod-plat-panel').classList.add('hidden');
+            el('imod-plat-arrow').textContent = '▼';
             el('instalar-mod-modal').classList.remove('hidden');
             try {
                 const r = await fetch(`https://api.modrinth.com/v2/project/${projectId}/version`,
-                    {headers:{'User-Agent':'ParaguacraftLauncher/1.0'}});
+                    {headers:{'User-Agent':'ParaguacraftLauncher/2.0'}});
                 _imodVersionsData = await r.json();
-                // Solo versiones release (X.Y o X.Y.Z, sin snapshots/pre/rc)
                 const _isRelease = v => /^\d+\.\d+(\.\d+)?$/.test(v);
-                const gameVersions = [...new Set(_imodVersionsData.flatMap(v => v.game_versions))]
-                    .filter(_isRelease);
+                const gameVersions = [...new Set(_imodVersionsData.flatMap(v => v.game_versions))].filter(_isRelease);
                 gameVersions.sort((a,b) => {
-                    const pa = a.split('.').map(Number), pb = b.split('.').map(Number);
-                    for (let i=0;i<Math.max(pa.length,pb.length);i++) {
-                        if ((pa[i]||0) !== (pb[i]||0)) return (pb[i]||0)-(pa[i]||0);
-                    }
+                    const pa=a.split('.').map(Number), pb=b.split('.').map(Number);
+                    for(let i=0;i<Math.max(pa.length,pb.length);i++)
+                        if((pa[i]||0)!==(pb[i]||0)) return (pb[i]||0)-(pa[i]||0);
                     return 0;
                 });
-                el('imod-ver-select').innerHTML = '<option value="">Seleccionar versión...</option>' +
-                    gameVersions.map(v=>`<option value="${v}">${v}</option>`).join('');
-                // Pre-seleccionar versión y loader de la instancia activa
+                el('imod-ver-label').textContent = 'Seleccionar versión de Minecraft';
+                el('imod-ver-list').innerHTML = gameVersions.map(v =>
+                    `<button onclick="imodSelectVer('${v}')" data-ver="${v}"
+                        class="w-full text-left px-3 py-1.5 rounded-lg text-xs text-gray-300 hover:bg-[#2A2A2A] transition">${v}</button>`
+                ).join('');
                 const activaVer = (document.getElementById('panel-version-sel')||{}).value || '';
-                const activaLoader = (document.getElementById('panel-loader-sel')||{}).value || '';
-                if (activaVer && gameVersions.includes(activaVer)) {
-                    el('imod-ver-select').value = activaVer;
-                    imodCambiarVersion();
-                    // Después de poblar loaders, pre-seleccionar loader activo
-                    setTimeout(() => {
-                        const platSel = document.getElementById('imod-platform-select');
-                        if (platSel && activaLoader) {
-                            // Normalizar: "Fabric + Iris" → "fabric", "NeoForge" → "neoforge", etc.
-                            const _al = activaLoader.toLowerCase();
-                            let loaderNorm = _al;
-                            if (_al.includes('neoforge'))    loaderNorm = 'neoforge';
-                            else if (_al.includes('forge'))  loaderNorm = 'forge';
-                            else if (_al.includes('iris'))   loaderNorm = 'iris';
-                            else if (_al.includes('fabric')) loaderNorm = 'fabric';
-                            else if (_al.includes('quilt'))  loaderNorm = 'quilt';
-                            const opt = Array.from(platSel.options).find(o => o.value.toLowerCase() === loaderNorm);
-                            if (opt) {
-                                platSel.value = opt.value;
-                                imodCambiarPlatform();
-                                // Asignar DESPUÉS de imodCambiarPlatform para no ser borrado por ella
-                                window._imodInstanceMotor = activaLoader;
-                            }
-                        }
-                    }, 50);
-                }
+                if (activaVer && gameVersions.includes(activaVer)) imodSelectVer(activaVer);
             } catch(e) {
-                el('imod-ver-select').innerHTML = '<option value="">Error cargando versiones</option>';
+                el('imod-ver-list').innerHTML = '<div class="py-4 text-center text-xs text-red-400">Error al cargar versiones</div>';
+                el('imod-ver-label').textContent = 'Error al cargar';
             }
         }
 
-        // Loaders que el launcher soporta (Quilt, LiteLoader, Rift, etc. no están integrados)
+        // Loaders que el launcher soporta
         const _LOADERS_SOPORTADOS = new Set(['fabric','forge','neoforge','vanilla','optifine','iris']);
         const _LOADER_DISPLAY = { iris: 'Iris (Fabric)', optifine: 'OptiFine', fabric: 'Fabric',
                                   forge: 'Forge', neoforge: 'NeoForge', vanilla: 'Vanilla' };
-        function imodCambiarVersion() {
-            const ver = document.getElementById('imod-ver-select').value;
-            const platSel = document.getElementById('imod-platform-select');
-            document.getElementById('imod-file-info').classList.add('hidden');
-            window._imodInstanceMotor = null;
-            if (!ver || !_imodVersionsData) { platSel.innerHTML = '<option value="">Seleccionar plataforma...</option>'; platSel.disabled = true; return; }
-            const compatible = _imodVersionsData.filter(v => v.game_versions.includes(ver));
-            // Filtrar solo loaders que el launcher soporta
-            const allLoaders = [...new Set(compatible.flatMap(v => v.loaders))];
-            const loaders = allLoaders.filter(l => _LOADERS_SOPORTADOS.has(l.toLowerCase()));
-            if (loaders.length === 0) {
-                platSel.innerHTML = '<option value="">Sin plataformas compatibles</option>';
-                platSel.disabled = true;
-                return;
-            }
-            platSel.innerHTML = '<option value="">Seleccionar plataforma...</option>' +
-                loaders.map(l=>`<option value="${l}">${_LOADER_DISPLAY[l.toLowerCase()] || (l.charAt(0).toUpperCase()+l.slice(1))}</option>`).join('');
-            platSel.disabled = false;
-            if (loaders.length === 1) { platSel.value = loaders[0]; imodCambiarPlatform(); }
-        }
 
         // Mapeo: loader Modrinth → perfiles del launcher disponibles
         const _IMOD_PERFILES = {
@@ -4365,43 +5192,46 @@
             'optifine': ['OptiFine'],
         };
 
-        function imodCambiarPlatform() {
-            window._imodInstanceMotor = null;
-            const ver = document.getElementById('imod-ver-select').value;
-            const platform = document.getElementById('imod-platform-select').value;
-            const fileInfo = document.getElementById('imod-file-info');
-            const perfilRow = document.getElementById('imod-perfil-row');
-            const perfilSel = document.getElementById('imod-perfil-select');
-            if (!ver || !platform || !_imodVersionsData) { fileInfo.classList.add('hidden'); perfilRow.classList.add('hidden'); return; }
-            const match = _imodVersionsData.find(v => v.game_versions.includes(ver) && v.loaders.includes(platform));
-            if (!match || !match.files || !match.files.length) { fileInfo.classList.add('hidden'); perfilRow.classList.add('hidden'); return; }
-            const file = match.files.find(f=>f.primary) || match.files[0];
-            _imodSelectedVersionId = match.id;
-            document.getElementById('imod-fname').textContent = file.filename;
-            document.getElementById('imod-fmeta').textContent = `${match.version_number} · ${(file.size/1048576).toFixed(2)} MB`;
-            // Poblar selector de perfiles
-            const perfiles = _IMOD_PERFILES[platform.toLowerCase()] || [platform];
-            perfilSel.innerHTML = perfiles.map(p => `<option value="${p}">${p}</option>`).join('');
-            // Si hay un motor de instancia activo y es compatible, pre-seleccionarlo
-            if (window._imodInstanceMotor && perfiles.includes(window._imodInstanceMotor)) {
-                perfilSel.value = window._imodInstanceMotor;
-            }
-            perfilRow.classList.remove('hidden');
-            fileInfo.classList.remove('hidden');
-        }
-
         async function imodInstalar() {
             if (!_imodSelectedVersionId || !_imodProjectId) return;
-            const ver = document.getElementById('imod-ver-select').value;
-            // Usar el perfil seleccionado por el usuario (Fabric / Fabric+Iris / Forge / etc.)
             const perfilSel = document.getElementById('imod-perfil-select');
-            const motor = (perfilSel && perfilSel.value) || window._imodInstanceMotor || document.getElementById('imod-platform-select').value;
-            document.getElementById('imod-instalando').classList.remove('hidden');
+            const motor = (perfilSel && perfilSel.value) || window._imodInstanceMotor || _imodSelectedPlat;
+            const instalandoEl = document.getElementById('imod-instalando');
             document.getElementById('imod-file-info').classList.add('hidden');
-            const result = await pywebview.api.instalar_mod_desde_modrinth(_imodProjectId, _imodSelectedVersionId, _imodTipo, ver, motor);
-            document.getElementById('imod-instalando').classList.add('hidden');
+            // Modpack: show progress bar
+            let progressInterval = null;
+            if (_imodTipo === 'modpack') {
+                instalandoEl.innerHTML = `<div class="flex flex-col gap-3 p-4">
+                    <p class="text-xs font-bold text-white truncate" id="imod-prog-label">Iniciando instalación...</p>
+                    <div class="w-full bg-[#1A1A1A] rounded-full h-2 overflow-hidden">
+                        <div id="imod-prog-bar" class="bg-[#2ECC71] h-2 rounded-full transition-all duration-300" style="width:0%"></div>
+                    </div>
+                    <p class="text-[10px] text-gray-500 truncate" id="imod-prog-estado"></p>
+                </div>`;
+                progressInterval = setInterval(async () => {
+                    try {
+                        const p = await pywebview.api.get_mod_dl_progress();
+                        const bar = document.getElementById('imod-prog-bar');
+                        const lbl = document.getElementById('imod-prog-label');
+                        const est = document.getElementById('imod-prog-estado');
+                        if (bar) bar.style.width = (p.pct||0)+'%';
+                        if (lbl) lbl.textContent = p.nombre || 'Instalando...';
+                        if (est) est.textContent = p.estado || '';
+                    } catch(e) {}
+                }, 400);
+            } else {
+                instalandoEl.innerHTML = `<div class="flex items-center gap-3 p-4"><div class="w-4 h-4 border-2 border-[#2ECC71] border-t-transparent rounded-full animate-spin shrink-0"></div><span class="text-sm font-bold text-[#2ECC71]">Descargando e instalando...</span></div>`;
+            }
+            instalandoEl.classList.remove('hidden');
+            const result = await pywebview.api.instalar_mod_desde_modrinth(_imodProjectId, _imodSelectedVersionId, _imodTipo, _imodSelectedVer, motor);
+            if (progressInterval) clearInterval(progressInterval);
+            instalandoEl.classList.add('hidden');
+            instalandoEl.innerHTML = `<div class="flex items-center gap-3 p-4"><div class="w-4 h-4 border-2 border-[#2ECC71] border-t-transparent rounded-full animate-spin shrink-0"></div><span class="text-sm font-bold text-[#2ECC71]">Descargando e instalando...</span></div>`;
             if (result.ok) {
-                document.getElementById('imod-file-info').innerHTML = `<div class="flex flex-col items-center justify-center gap-2 py-4 w-full text-center"><p class="text-3xl">✅</p><p class="text-[#2ECC71] font-black">¡Instalado!</p><p class="text-xs text-gray-500">${result.nombre}</p><button onclick="cerrarInstalarMod()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] px-4 py-2 rounded font-bold text-sm transition mt-1">Cerrar</button></div>`;
+                let msg = result.nombre;
+                if (_imodTipo === 'modpack' && result.installed != null)
+                    msg = `${result.installed}/${result.total} archivos instalados`;
+                document.getElementById('imod-file-info').innerHTML = `<div class="flex flex-col items-center justify-center gap-3 py-6 w-full text-center"><p class="text-4xl">✅</p><p class="text-[#2ECC71] font-black text-lg">¡Instalado!</p><p class="text-xs text-gray-500">${msg}</p><button onclick="cerrarInstalarMod()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] px-5 py-2 rounded-lg font-bold text-sm transition mt-1">Cerrar</button></div>`;
                 document.getElementById('imod-file-info').classList.remove('hidden');
             } else {
                 alert('Error: ' + (result.error||'desconocido'));
@@ -4417,24 +5247,255 @@
             if (pr) pr.classList.add('hidden');
         }
 
-        // ══ IA DESCRIBIR MOD ════════════════════════════════════════
+        // ══ TIENDA: debounce + usar mi versión ═════════════════════
+        let _tiendaDebounceTimer = null;
+        function tiendaDebounce() {
+            clearTimeout(_tiendaDebounceTimer);
+            _tiendaDebounceTimer = setTimeout(() => buscarTiendaActual(), 450);
+        }
+        function tiendaUsarMiVersion() {
+            const v = (document.getElementById('panel-version-sel')||{}).value || '';
+            if (!v) return;
+            const searchEl = document.getElementById('tienda-ver-search');
+            if (searchEl) { searchEl.value = v; tiendaFiltrarVers(); }
+            tiendaSelectVer(v);
+        }
+
+        // ══ REPARAR LOADER ═══════════════════════════════════
+        async function repararLoader() {
+            const sV = document.getElementById('modal-version-sel') || document.getElementById('panel-version-sel');
+            const sL = document.getElementById('modal-loader-sel') || document.getElementById('panel-loader-sel');
+            if (!sV || !sL || !sV.value) { alert('Selecioná una versión primero.'); return; }
+            const ver = sV.value, motor = sL.value;
+            if (!confirm(`¿Reinstalar/reparar ${motor} para ${ver}? Esto no elimina tus mods.`)) return;
+            const msg = document.getElementById('gestor-rename-msg');
+            if (msg) { msg.textContent = '🔧 Reparando...'; msg.className = 'text-xs text-gray-500'; }
+            try {
+                const r = await pywebview.api.reparar_loader(ver, motor);
+                if (msg) { msg.textContent = r.ok ? '✓ Loader reparado' : ('❌ ' + (r.error||'Error')); msg.className = 'text-xs ' + (r.ok ? 'text-[#2ECC71]' : 'text-red-400'); }
+            } catch(e) { if (msg) { msg.textContent = '❌ ' + e; msg.className = 'text-xs text-red-400'; } }
+        }
+
+        // ══ JVM ARGS POR INSTANCIA ════════════════════════════════
+        async function _cargarJvmArgs() {
+            const sV = document.getElementById('modal-version-sel') || document.getElementById('panel-version-sel');
+            const sL = document.getElementById('modal-loader-sel') || document.getElementById('panel-loader-sel');
+            const ta = document.getElementById('gestor-jvm-args');
+            if (!ta || !sV || !sV.value) return;
+            try {
+                const r = await pywebview.api.get_jvm_args_instancia(sV.value, sL ? sL.value : 'Vanilla');
+                if (r.ok) ta.value = r.jvm_args || '';
+            } catch(e) {}
+        }
+        async function guardarJvmArgs() {
+            const sV = document.getElementById('modal-version-sel') || document.getElementById('panel-version-sel');
+            const sL = document.getElementById('modal-loader-sel') || document.getElementById('panel-loader-sel');
+            const ta = document.getElementById('gestor-jvm-args');
+            const msg = document.getElementById('gestor-jvm-msg');
+            if (!ta || !sV || !sV.value) return;
+            try {
+                const r = await pywebview.api.set_jvm_args_instancia(sV.value, sL ? sL.value : 'Vanilla', ta.value);
+                if (msg) { msg.textContent = r.ok ? '✓ Guardado' : ('❌ ' + (r.error||'Error')); msg.className = 'text-xs ' + (r.ok ? 'text-[#2ECC71]' : 'text-red-400'); }
+                setTimeout(() => { if (msg) msg.textContent = ''; }, 2000);
+            } catch(e) { if (msg) { msg.textContent = '❌ ' + e; msg.className = 'text-xs text-red-400'; } }
+        }
+
+        // ══ BACKUP MUNDOS SERVIDOR ════════════════════════════════
+        async function backupMundosServidor() {
+            const carpetaEl = document.getElementById('srv-carpeta');
+            const actEl = document.getElementById('srv-activo-carpeta');
+            const carpeta = (carpetaEl && carpetaEl.value.trim()) || (actEl && actEl.textContent.trim()) || '';
+            if (!carpeta) { alert('No hay servidor configurado.'); return; }
+            const btn = event.currentTarget;
+            const origText = btn.textContent;
+            btn.textContent = '⏳ Backup...';
+            btn.disabled = true;
+            try {
+                const r = await pywebview.api.backup_mundos(carpeta);
+                if (r && r.ok) {
+                    alert(`✅ Backup guardado en: ${r.ruta || 'Escritorio'}`);
+                } else {
+                    alert('❌ ' + (r && r.error || 'Error al hacer backup'));
+                }
+            } catch(e) { alert('❌ ' + e); }
+            btn.textContent = origText;
+            btn.disabled = false;
+        }
+
+        // ══ AGREGAR SERVIDOR PERSONALIZADO ══════════════════════════
+        async function agregarServidorPersonalizado() {
+            const nombre = (document.getElementById('srv-add-nombre').value || '').trim();
+            const ip = (document.getElementById('srv-add-ip').value || '').trim();
+            const msg = document.getElementById('srv-add-msg');
+            if (!ip) { if (msg) { msg.textContent = '⚠️ Ingresá una IP'; msg.className = 'text-xs mt-2 text-[#F39C12]'; } return; }
+            if (msg) { msg.textContent = 'Guardando...'; msg.className = 'text-xs mt-2 text-gray-500'; }
+            try {
+                const r = await pywebview.api.agregar_servidor_personalizado(nombre || ip, ip);
+                if (r.ok) {
+                    if (msg) { msg.textContent = '✓ Servidor agregado'; msg.className = 'text-xs mt-2 text-[#2ECC71]'; }
+                    document.getElementById('srv-add-nombre').value = '';
+                    document.getElementById('srv-add-ip').value = '';
+                    await cargarServidoresGuardados();
+                    setTimeout(() => { if (msg) msg.textContent = ''; }, 2000);
+                } else {
+                    if (msg) { msg.textContent = '❌ ' + (r.error || 'Error'); msg.className = 'text-xs mt-2 text-red-400'; }
+                }
+            } catch(e) { if (msg) { msg.textContent = '❌ ' + e; msg.className = 'text-xs mt-2 text-red-400'; } }
+        }
+
+        // ══ RENAME / DUPLICATE / DELETE INSTANCE ═════════════════════
+        async function renombrarInstancia() {
+            const sV = document.getElementById('modal-version-sel') || document.getElementById('panel-version-sel');
+            const sL = document.getElementById('modal-loader-sel') || document.getElementById('panel-loader-sel');
+            const inp = document.getElementById('gestor-rename-input');
+            const msg = document.getElementById('gestor-rename-msg');
+            if (!sV || !sL || !inp) return;
+            const ver = sV.value, motor = sL.value, nuevo = inp.value.trim();
+            if (!ver || !nuevo) { if (msg) { msg.textContent = '⚠️ Escribí un nombre'; msg.className = 'text-xs text-[#F39C12]'; } return; }
+            if (msg) { msg.textContent = 'Renombrando...'; msg.className = 'text-xs text-gray-500'; }
+            try {
+                const r = await pywebview.api.renombrar_instancia(ver, motor, nuevo);
+                if (msg) { msg.textContent = r.ok ? ('✓ Renombrada: ' + r.nuevo) : ('❌ ' + (r.error || 'Error')); msg.className = 'text-xs ' + (r.ok ? 'text-[#2ECC71]' : 'text-red-400'); }
+                if (r.ok) inp.value = '';
+            } catch(e) { if (msg) { msg.textContent = '❌ ' + e; msg.className = 'text-xs text-red-400'; } }
+        }
+        async function duplicarInstancia() {
+            const sV = document.getElementById('modal-version-sel') || document.getElementById('panel-version-sel');
+            const sL = document.getElementById('modal-loader-sel') || document.getElementById('panel-loader-sel');
+            const msg = document.getElementById('gestor-rename-msg');
+            if (!sV || !sL) return;
+            const ver = sV.value, motor = sL.value;
+            if (!ver) { if (msg) { msg.textContent = '⚠️ Selecioná una versión'; msg.className = 'text-xs text-[#F39C12]'; } return; }
+            if (msg) { msg.textContent = 'Duplicando...'; msg.className = 'text-xs text-gray-500'; }
+            try {
+                const r = await pywebview.api.duplicar_instancia(ver, motor);
+                if (msg) { msg.textContent = r.ok ? ('✓ Duplicada: ' + r.nuevo) : ('❌ ' + (r.error || 'Error')); msg.className = 'text-xs ' + (r.ok ? 'text-[#2ECC71]' : 'text-red-400'); }
+            } catch(e) { if (msg) { msg.textContent = '❌ ' + e; msg.className = 'text-xs text-red-400'; } }
+        }
+        async function eliminarInstancia() {
+            const sV = document.getElementById('modal-version-sel') || document.getElementById('panel-version-sel');
+            const sL = document.getElementById('modal-loader-sel') || document.getElementById('panel-loader-sel');
+            const msg = document.getElementById('gestor-rename-msg');
+            if (!sV || !sL) return;
+            const ver = sV.value, motor = sL.value;
+            if (!ver) return;
+            if (!confirm(`¿Eliminar la instancia ${ver} (${motor})? Se borrarán todos los mods.`)) return;
+            if (msg) { msg.textContent = 'Eliminando...'; msg.className = 'text-xs text-gray-500'; }
+            try {
+                const r = await pywebview.api.eliminar_instancia(ver, motor);
+                if (msg) { msg.textContent = r.ok ? '✓ Instancia eliminada' : ('❌ ' + (r.error || 'Error')); msg.className = 'text-xs ' + (r.ok ? 'text-[#2ECC71]' : 'text-red-400'); }
+            } catch(e) { if (msg) { msg.textContent = '❌ ' + e; msg.className = 'text-xs text-red-400'; } }
+        }
+
+        // ══ SERVER PROPERTIES VISUAL EDITOR ══════════════════════════════
+        async function cargarServerPropsVisual() {
+            const box = document.getElementById('srv-props-box');
+            if (!box) return;
+            const carpetaEl = document.getElementById('srv-carpeta');
+            const carpeta = carpetaEl ? carpetaEl.value.trim() : '';
+            const actEl = document.getElementById('srv-activo-carpeta');
+            const carpetaActivo = actEl ? actEl.textContent.trim() : '';
+            const carpetaFinal = carpeta || carpetaActivo;
+            if (!carpetaFinal) { box.classList.add('hidden'); alert('Selecioná la carpeta del servidor primero.'); return; }
+            box.classList.toggle('hidden');
+            if (box.classList.contains('hidden')) return;
+            try {
+                const r = await pywebview.api.leer_server_properties(carpetaFinal);
+                if (!r || !r.ok) return;
+                const p = r.props || {};
+                document.getElementById('sp-max-players').value = p['max-players'] || '20';
+                const vd = p['view-distance'] || '10';
+                document.getElementById('sp-view-distance').value = vd;
+                document.getElementById('sp-vd-lbl').textContent = vd;
+                document.getElementById('sp-pvp').checked = p['pvp'] !== 'false';
+                document.getElementById('sp-whitelist').checked = p['white-list'] === 'true';
+                const normDiff = {'0':'peaceful','1':'easy','2':'normal','3':'hard'};
+                const normGm   = {'0':'survival','1':'creative','2':'adventure','3':'spectator'};
+                spSet('difficulty', normDiff[p['difficulty']] || p['difficulty'] || 'easy', 'sp-difficulty');
+                spSet('gamemode', normGm[p['gamemode']] || p['gamemode'] || 'survival', 'sp-gamemode');
+            } catch(e) {}
+        }
+        function spSet(key, val, groupId) {
+            const group = document.getElementById(groupId);
+            if (!group) return;
+            group.querySelectorAll('.sp-opt').forEach(b => {
+                const active = b.dataset.val === val;
+                b.className = 'sp-opt px-2 py-1 rounded text-[11px] font-bold transition ' + (active ? 'bg-[#2ECC71] text-black' : 'bg-[#2A2A2A] text-white hover:bg-[#3A3A3A]');
+            });
+        }
+        async function guardarServerPropsVisual() {
+            const carpetaEl = document.getElementById('srv-carpeta');
+            const actEl = document.getElementById('srv-activo-carpeta');
+            const carpeta = (carpetaEl && carpetaEl.value.trim()) || (actEl && actEl.textContent.trim()) || '';
+            if (!carpeta) { alert('Selecioná la carpeta del servidor primero.'); return; }
+            const msg = document.getElementById('sp-msg');
+            const diffBtn = document.querySelector('#sp-difficulty .sp-opt.bg-\[\#2ECC71\]');
+            const gmBtn   = document.querySelector('#sp-gamemode .sp-opt.bg-\[\#2ECC71\]');
+            const props = {};
+            if (diffBtn) props['difficulty'] = diffBtn.dataset.val;
+            if (gmBtn) props['gamemode'] = gmBtn.dataset.val;
+            props['max-players'] = document.getElementById('sp-max-players').value;
+            props['view-distance'] = document.getElementById('sp-view-distance').value;
+            props['pvp'] = document.getElementById('sp-pvp').checked ? 'true' : 'false';
+            props['white-list'] = document.getElementById('sp-whitelist').checked ? 'true' : 'false';
+            if (msg) { msg.textContent = 'Guardando...'; msg.className = 'text-[11px] mt-3 text-gray-500'; }
+            try {
+                const r = await pywebview.api.guardar_server_properties(carpeta, props);
+                if (msg) { msg.textContent = r.ok ? '✓ Guardado' : ('❌ ' + (r.error || 'Error')); msg.className = 'text-[11px] mt-3 ' + (r.ok ? 'text-[#2ECC71]' : 'text-red-400'); }
+                setTimeout(() => { if (msg) msg.textContent = ''; }, 2000);
+            } catch(e) { if (msg) { msg.textContent = '❌ ' + e; msg.className = 'text-[11px] mt-3 text-red-400'; } }
+        }
+
+        // ══ IA DESCRIBIR MOD — tooltip flotante ═══════════════════
+        let _iaTooltipBtnRef = null;
+        function _getOrCreateTooltip() {
+            let t = document.getElementById('ia-mod-tooltip');
+            if (!t) {
+                t = document.createElement('div');
+                t.id = 'ia-mod-tooltip';
+                t.className = 'hidden fixed z-[500] max-w-[280px] bg-[#1A1A2E] border border-[#9B59B6]/40 rounded-xl shadow-2xl p-3 text-xs text-[#C39BD3] leading-relaxed';
+                t.innerHTML = '<p id="ia-tooltip-text" class="animate-pulse">🤖 Cargando...</p>';
+                document.body.appendChild(t);
+                document.addEventListener('click', (e) => {
+                    if (!t.contains(e.target) && e.target !== _iaTooltipBtnRef) {
+                        t.classList.add('hidden');
+                        _iaTooltipBtnRef = null;
+                    }
+                }, true);
+            }
+            return t;
+        }
         async function iaDescribirMod(btn, titulo, descEn, loader) {
-            const card = btn.closest('.imod-card') || btn.parentElement;
-            let desc = card.querySelector('.ia-mod-desc');
-            if (!desc) {
-                desc = document.createElement('p');
-                desc.className = 'ia-mod-desc text-xs text-[#9B59B6] mt-1 leading-snug animate-pulse';
-                desc.textContent = '🤖 Cargando descripción...';
-                card.appendChild(desc);
-            } else {
-                desc.classList.toggle('hidden');
+            const tooltip = _getOrCreateTooltip();
+            const txtEl = document.getElementById('ia-tooltip-text');
+            if (_iaTooltipBtnRef === btn && !tooltip.classList.contains('hidden')) {
+                tooltip.classList.add('hidden');
+                _iaTooltipBtnRef = null;
                 return;
             }
+            _iaTooltipBtnRef = btn;
+            // Posicionar cerca del botón
+            const rect = btn.getBoundingClientRect();
+            const spaceBelow = window.innerHeight - rect.bottom;
+            tooltip.style.left = Math.min(rect.left, window.innerWidth - 300) + 'px';
+            if (spaceBelow > 120) {
+                tooltip.style.top = (rect.bottom + 6) + 'px';
+                tooltip.style.bottom = '';
+            } else {
+                tooltip.style.bottom = (window.innerHeight - rect.top + 6) + 'px';
+                tooltip.style.top = '';
+            }
+            txtEl.className = 'animate-pulse';
+            txtEl.textContent = '🤖 Cargando descripción...';
+            tooltip.classList.remove('hidden');
             try {
                 const r = await pywebview.api.ia_describir_mod(titulo, descEn, loader);
-                desc.classList.remove('animate-pulse');
-                desc.textContent = r.ok ? r.desc : ('❌ ' + (r.error || 'Error'));
-            } catch(e) { desc.textContent = '❌ ' + e; }
+                txtEl.className = '';
+                txtEl.textContent = r.ok ? r.desc : ('❌ ' + (r.error || 'Error'));
+            } catch(e) {
+                txtEl.className = '';
+                txtEl.textContent = '❌ ' + e;
+            }
         }
 
         // ══ IA ANALIZAR TELEMETRÍA ══════════════════════════════════
@@ -5265,6 +6326,33 @@
                         </div>
                     </div>`;
                 }).join('');
+                // Append custom public servers
+                try {
+                    const rCustom = await pywebview.api.listar_servidores_personalizados();
+                    if (rCustom && rCustom.ok && rCustom.lista && rCustom.lista.length) {
+                        const customHtml = rCustom.lista.map(s => {
+                            const ip = (s.ip || '').replace(/'/g, "\\'");
+                            return `<div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-4 flex flex-col gap-3 hover:border-[#3498DB]/40 transition group">
+                                <div class="flex items-start justify-between gap-2">
+                                    <div>
+                                        <h3 class="font-black text-sm text-white">${s.nombre || s.ip}</h3>
+                                        <div class="flex items-center gap-1 font-mono text-[10px] text-gray-500 mt-0.5">
+                                            <span>${s.ip}</span>
+                                            <button onclick="copiarIP('${ip}')" class="hover:text-white transition">📋</button>
+                                        </div>
+                                    </div>
+                                    <button onclick="pywebview.api.eliminar_servidor_personalizado_ip('${ip}').then(()=>cargarServidoresGuardados())" class="text-gray-700 hover:text-red-400 text-sm opacity-0 group-hover:opacity-100 transition shrink-0">🗑</button>
+                                </div>
+                                <div class="flex items-center justify-between gap-2">
+                                    <span id="ping-custom-${ip.replace(/\./g,'-')}" class="text-[10px] font-mono text-gray-600">...</span>
+                                    <button onclick="autoJoinServer('${ip}')" class="bg-[#2A2A2A] hover:bg-[#3498DB]/20 text-[#3498DB] font-bold py-1.5 px-4 rounded transition text-xs">⚡ Jugar</button>
+                                </div>
+                            </div>`;
+                        }).join('');
+                        grid.innerHTML += customHtml;
+                        rCustom.lista.forEach(s => pingServidor(s.ip, `ping-custom-${s.ip.replace(/\./g,'-')}`));
+                    }
+                } catch(_) {}
             } catch(e) { console.error('[Servidores]', e); }
         }
         async function iniciarServidorCard(carpeta) {
@@ -6407,20 +7495,35 @@
             } catch(e) {}
         }
 
-        // ══ PING EN VIVO ══════════════════════════════════════════════════
+        // ══ PING EN VIVO (mejorado: MOTD + jugadores) ═════════════════════
         async function pingServidor(ip, badgeId) {
-            const badge = document.getElementById(badgeId);
-            if (!badge) return;
-            badge.textContent = '...';
-            badge.className = 'text-[10px] font-mono text-gray-500 shrink-0';
-            const r = await pywebview.api.ping_servidor(ip);
-            if (r.ok) {
-                const color = r.latency_ms < 80 ? 'text-[#2ECC71]' : r.latency_ms < 150 ? 'text-[#F39C12]' : 'text-[#E74C3C]';
-                badge.textContent = `${r.latency_ms}ms · ${r.players_online}/${r.players_max}`;
-                badge.className = `text-[10px] font-mono shrink-0 ${color}`;
-            } else {
-                badge.textContent = 'offline';
-                badge.className = 'text-[10px] font-mono text-gray-600 shrink-0';
+            const badge = badgeId ? document.getElementById(badgeId) : null;
+            const card = document.querySelector(`.srv-card[data-ip="${ip}"]`);
+            if (badge) { badge.textContent = '...'; badge.className = 'text-[10px] font-mono text-gray-600 shrink-0'; }
+            try {
+                const r = await pywebview.api.ping_servidor(ip);
+                if (r.ok) {
+                    const color = r.latency_ms < 80 ? 'text-[#2ECC71]' : r.latency_ms < 150 ? 'text-[#F39C12]' : 'text-[#E74C3C]';
+                    if (badge) { badge.textContent = `${r.latency_ms}ms`; badge.className = `text-[10px] font-mono shrink-0 ${color}`; }
+                    if (card) {
+                        const motdEl = card.querySelector('.srv-motd');
+                        const onlineEl = card.querySelector('.srv-online');
+                        const dotEl = card.querySelector('.srv-status-dot');
+                        if (motdEl && r.motd) { motdEl.textContent = r.motd; motdEl.classList.remove('hidden'); }
+                        if (onlineEl) { onlineEl.textContent = `${r.players_online.toLocaleString()} / ${r.players_max.toLocaleString()}`; onlineEl.className = 'srv-online text-[10px] text-[#2ECC71]'; }
+                        if (dotEl) dotEl.className = 'srv-status-dot w-2 h-2 rounded-full bg-[#2ECC71] shrink-0';
+                    }
+                } else {
+                    if (badge) { badge.textContent = 'offline'; badge.className = 'text-[10px] font-mono text-gray-600 shrink-0'; }
+                    if (card) {
+                        const onlineEl = card.querySelector('.srv-online');
+                        const dotEl = card.querySelector('.srv-status-dot');
+                        if (onlineEl) { onlineEl.textContent = 'offline'; onlineEl.className = 'srv-online text-[10px] text-gray-600'; }
+                        if (dotEl) dotEl.className = 'srv-status-dot w-2 h-2 rounded-full bg-gray-700 shrink-0';
+                    }
+                }
+            } catch(e) {
+                if (badge) { badge.textContent = '?'; badge.className = 'text-[10px] font-mono text-gray-600 shrink-0'; }
             }
         }
 
@@ -6434,8 +7537,122 @@
                 ['extremecraft.net', 'ping-extremecraft'],
                 ['play.fadecloud.com', 'ping-fadecloud'],
                 ['play.minesuperior.com', 'ping-minesuperior'],
+                ['play.redpvp.net', 'ping-redpvp'],
+                ['play.minebolt.com', 'ping-minebolt'],
+                ['rhomc.com', 'ping-rhomc'],
             ];
             servidores.forEach(([ip, id]) => pingServidor(ip, id));
+        }
+
+        // ══ SERVER CARDS: inicializar + nuevos + copiar IP ══════════════════
+        const _srvData = {
+            'ping-hypixel':     {ip:'mc.hypixel.net',            modo:'mini-games'},
+            'ping-cubecraft':   {ip:'play.cubecraft.net',        modo:'mini-games'},
+            'ping-wynncraft':   {ip:'play.wynncraft.com',        modo:'mmorpg'},
+            'ping-minemen':     {ip:'minemen.club',              modo:'pvp'},
+            'ping-jartex':      {ip:'play.jartexnetwork.com',    modo:'mini-games'},
+            'ping-extremecraft':{ip:'extremecraft.net',          modo:'survival'},
+            'ping-fadecloud':   {ip:'play.fadecloud.com',        modo:'mini-games'},
+            'ping-minesuperior':{ip:'play.minesuperior.com',     modo:'survival'},
+        };
+        const _newSrvCards = [
+            {id:'redpvp',   emoji:'🔴', color:'#E74C3C', nombre:'RedPVP',   ip:'play.redpvp.net',
+             desc:'El más grande en español. Factions, BedWars, SkyWars, PvP. 1.8+',  tipo:'nopremium', modo:'pvp'},
+            {id:'minebolt', emoji:'⚡', color:'#F39C12', nombre:'Minebolt', ip:'play.minebolt.com',
+             desc:'Hispano popular. SkyBlock, SkyWars, BedWars, Lifesteal. 1.8+',      tipo:'nopremium', modo:'mini-games'},
+            {id:'rhomc',    emoji:'🌿', color:'#2ECC71', nombre:'RhoMC',    ip:'rhomc.com',
+             desc:'Comunidad hispana. Survival, Prison, Factions. No-Premium bienvenido.', tipo:'nopremium', modo:'survival'},
+        ];
+        let _srvCardsInited = false;
+        function initServerCards() {
+            if (_srvCardsInited) return;
+            _srvCardsInited = true;
+            const grid = document.getElementById('grid-srvs');
+            if (!grid) return;
+            // Augment static cards
+            document.querySelectorAll('.srv-card').forEach(card => {
+                const pingEl = card.querySelector('[id^="ping-"]');
+                if (!pingEl) return;
+                const d = _srvData[pingEl.id];
+                if (!d) return;
+                card.dataset.ip = d.ip;
+                card.dataset.modo = d.modo;
+                const ipEl = card.querySelector('.font-mono');
+                if (ipEl && !ipEl.querySelector('.copy-ip-btn')) {
+                    const btn = document.createElement('button');
+                    btn.className = 'copy-ip-btn ml-1 text-gray-600 hover:text-white transition';
+                    btn.title = 'Copiar IP'; btn.textContent = '📋';
+                    btn.onclick = (e) => { e.stopPropagation(); copiarIP(d.ip); };
+                    ipEl.appendChild(btn);
+                }
+                if (!card.querySelector('.srv-motd')) {
+                    const desc = card.querySelector('.text-xs.text-gray-400');
+                    if (desc) { const m = document.createElement('p'); m.className = 'srv-motd text-[10px] text-[#3498DB] mt-0.5 truncate hidden'; desc.after(m); }
+                }
+                if (!card.querySelector('.srv-status-dot')) {
+                    const row = card.querySelector('.flex.justify-between.items-center');
+                    if (row) {
+                        const st = document.createElement('div');
+                        st.className = 'flex items-center gap-1.5';
+                        st.innerHTML = '<span class="srv-status-dot w-2 h-2 rounded-full bg-gray-700 shrink-0"></span><span class="srv-online text-[10px] text-gray-600">—</span>';
+                        row.insertBefore(st, row.firstChild);
+                    }
+                }
+            });
+            // Append new servers
+            _newSrvCards.forEach(s => {
+                if (grid.querySelector(`[data-ip="${s.ip}"]`)) return;
+                const div = document.createElement('div');
+                div.dataset.tipo = s.tipo; div.dataset.modo = s.modo; div.dataset.ip = s.ip;
+                div.className = `srv-card bg-[#181818] border border-[#2A2A2A] rounded-xl p-4 flex flex-col justify-between transition group`;
+                div.innerHTML = `
+                    <div class="flex items-start gap-3 mb-3">
+                        <div class="w-10 h-10 rounded-lg flex items-center justify-center text-2xl shrink-0" style="background:${s.color}15;border:1px solid ${s.color}30">${s.emoji}</div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-1.5 flex-wrap mb-0.5">
+                                <h3 class="text-sm font-black text-white">${s.nombre}</h3>
+                                <span class="text-[9px] font-black px-1.5 py-0.5 rounded bg-green-900/40 text-green-400">F2P</span>
+                                <span class="text-[9px] px-1.5 py-0.5 rounded text-gray-400 bg-[#2A2A2A]">${s.modo}</span>
+                            </div>
+                            <div class="flex items-center gap-1 font-mono text-[10px] text-gray-600">
+                                <span>${s.ip}</span><button onclick="copiarIP('${s.ip}')" class="hover:text-white transition">📋</button>
+                            </div>
+                            <p class="text-[11px] text-gray-400 mt-1">${s.desc}</p>
+                            <p class="srv-motd text-[10px] text-[#3498DB] mt-0.5 truncate hidden"></p>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="flex items-center gap-1.5">
+                            <span class="srv-status-dot w-2 h-2 rounded-full bg-gray-700 shrink-0"></span>
+                            <span class="srv-online text-[10px] text-gray-600">—</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span id="ping-${s.id}" class="text-[10px] font-mono text-gray-600">...</span>
+                            <button onclick="autoJoinServer('${s.ip}')" style="color:${s.color};border:1px solid ${s.color}30;background:${s.color}18" class="font-bold py-1 px-3 rounded-lg transition text-xs">⚡ Jugar</button>
+                        </div>
+                    </div>`;
+                grid.appendChild(div);
+            });
+        }
+
+        function copiarIP(ip) {
+            navigator.clipboard.writeText(ip).catch(() => {
+                const ta = document.createElement('textarea');
+                ta.value = ip; document.body.appendChild(ta); ta.select();
+                document.execCommand('copy'); document.body.removeChild(ta);
+            });
+            let toast = document.getElementById('toast-copy-ip');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'toast-copy-ip';
+                toast.className = 'fixed bottom-6 right-6 bg-[#2ECC71] text-black font-black text-sm px-4 py-2 rounded-xl shadow-xl z-[999]';
+                toast.style.transition = 'opacity 0.3s';
+                document.body.appendChild(toast);
+            }
+            toast.textContent = `✓ Copiado: ${ip}`;
+            toast.style.opacity = '1';
+            clearTimeout(toast._t);
+            toast._t = setTimeout(() => { toast.style.opacity = '0'; }, 1800);
         }
 
         // ══ COMPACT MODE ══════════════════════════════════════════════════
