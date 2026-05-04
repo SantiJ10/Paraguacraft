@@ -4,7 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Paraguacraft</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!--
+        Tailwind se sirve desde archivo LOCAL (assets/tailwind.min.css) para
+        garantizar compatibilidad con Windows 10 LTSC/Enterprise donde el CDN
+        puede estar bloqueado por firewall o políticas de red corporativas.
+
+        INSTRUCCIÓN DE BUILD:
+          Descargá tailwind.min.css y colocalo en web/assets/tailwind.min.css
+          Opción A (descarga directa):
+            https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.1/tailwind.css
+          Opción B (compilado solo con las clases usadas — más liviano):
+            npx tailwindcss -i input.css -o web/assets/tailwind.min.css --minify
+    -->
+    <link rel="stylesheet" href="assets/tailwind.min.css">
     <script src="https://unpkg.com/skinview3d@2.1.1/bundles/skinview3d.browser.js"></script>
     <style>
         body { user-select: none; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; }
