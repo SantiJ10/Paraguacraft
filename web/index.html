@@ -4185,12 +4185,14 @@
         // ─── FIN HW PERFIL ───
         // --- AUTO-UPDATE ---
         let _updUrl = null;
+        let _updSha256 = '';
 
         async function verificarActualizaciones() {
             try {
                 const r = await pywebview.api.verificar_actualizacion();
                 if (r && r.actualizar && r.url) {
                     _updUrl = r.url;
+                    _updSha256 = r.sha256 || '';
                     const btn = document.getElementById('btn-update');
                     const ver = document.getElementById('btn-update-ver');
                     if (btn) { btn.classList.remove('hidden'); }
@@ -4233,7 +4235,7 @@
             if (prog) prog.classList.remove('hidden');
             if (actions) actions.classList.add('hidden');
             _updateProgress(1, 'Conectando a GitHub...');
-            const r = await pywebview.api.aplicar_actualizacion(_updUrl);
+            const r = await pywebview.api.aplicar_actualizacion(_updUrl, _updSha256);
             if (r && !r.ok) {
                 _updateFailed(r.error || 'Error desconocido');
             }
