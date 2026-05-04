@@ -30,12 +30,12 @@ try:
 except Exception:
     _lanzar_minecraft_ref = None
 
-VERSION = "5.2.0"  # Actualizar en cada release
+VERSION = "5.3.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 # Opcional: URL de Cloudflare Pages con latest.json (sin rate limits, CDN global)
 # Formato del JSON: {"version":"5.2.0", "download_url":"...", "size_bytes":0, "notes":"..."}
 # Dejar vacío para usar solo GitHub.
-UPDATE_MANIFEST_URL = ""  # ej: "https://paraguacraft.pages.dev/latest.json"
+UPDATE_MANIFEST_URL = "https://paraguacraft.pages.dev/latest.json"
 
 try:
     import credentials as _cred
@@ -3465,6 +3465,7 @@ class Api:
                             "version_nueva": tag,
                             "url": data.get("download_url"),
                             "size": data.get("size_bytes", 0),
+                            "sha256": data.get("sha256", ""),
                             "notas": data.get("notes", "")[:600],
                             "fuente": "cloudflare",
                         }
@@ -3503,7 +3504,7 @@ class Api:
         except Exception as e:
             return {"actualizar": False, "version_actual": VERSION, "error": str(e)}
 
-    def aplicar_actualizacion(self, download_url):
+    def aplicar_actualizacion(self, download_url, sha256_esperado=""):
         import tempfile, shutil as _sh
         if not getattr(sys, "frozen", False):
             return {"ok": False, "error": "Solo funciona en el ejecutable compilado (.exe)."}
@@ -3582,6 +3583,7 @@ class Api:
             old_exe = exe_actual2 + ".old"
             marker = os.path.join(tempfile.gettempdir(), "paraguacraft_updated.flag")
             try:
+                import hashlib as _hl
                 _descarga_ok = False
                 for _attempt in range(3):
                     try:
@@ -3616,6 +3618,21 @@ class Api:
                             try: os.remove(tmp)
                             except Exception: pass
                             return
+                        # ── Verificar SHA256 si fue provisto ─────────────────
+                        if sha256_esperado:
+                            h = _hl.sha256()
+                            with open(tmp, "rb") as _hf:
+                                for _chunk in iter(lambda: _hf.read(65536), b""):
+                                    h.update(_chunk)
+                            calculado = h.hexdigest()
+                            if calculado.lower() != sha256_esperado.lower():
+                                try: os.remove(tmp)
+                                except Exception: pass
+                                if _attempt < 2:
+                                    _report_progress(0, f"Hash incorrecto, reintentando ({_attempt + 2}/3)...")
+                                    continue
+                                _notify_err(f"Hash SHA256 incorrecto. Descarga corrupta o manipulada. No se instala.")
+                                return
                         _descarga_ok = True
                         _report_progress(99, "Preparando instalación...")
                         break
