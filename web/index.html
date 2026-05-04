@@ -458,11 +458,13 @@
                 <button onclick="abrirAcerca()" class="text-left px-4 py-2 text-sm font-bold text-white hover:bg-[#2A2A2A] transition w-full">ℹ️  Acerca del launcher</button>
                 <button onclick="abrirAjustes();cerrarDropdowns({target:document.body})" class="text-left px-4 py-2 text-sm font-bold text-white hover:bg-[#2A2A2A] transition w-full">⚙️  Ajustes</button>
                 <button onclick="buscarActualizacionesManual()" class="text-left px-4 py-2 text-sm font-bold text-white hover:bg-[#2A2A2A] transition w-full">🔄  Buscar actualizaciones</button>
+                <button onclick="verChangelogManual();cerrarDropdowns({target:document.body})" class="text-left px-4 py-2 text-sm font-bold text-white hover:bg-[#2A2A2A] transition w-full">✨  Novedades / Changelog</button>
+                <button onclick="importarMrpackLocal();cerrarDropdowns({target:document.body})" class="text-left px-4 py-2 text-sm font-bold text-white hover:bg-[#2A2A2A] transition w-full">📦  Importar modpack .mrpack</button>
                 <button onclick="abrirLimpieza()" class="text-left px-4 py-2 text-sm font-bold text-white hover:bg-[#2A2A2A] transition w-full">🧹  Memoria y limpieza</button>
                 <div class="border-t border-[#2A2A2A] my-1"></div>
                 <button onclick="cerrarSesion()" class="text-left px-4 py-2 text-sm font-bold text-[#E74C3C] hover:bg-[#2A2A2A] transition w-full">↪  Cerrar sesión</button>
             </div>
-            <div id="nav-offline-badge" class="hidden items-center gap-1.5 bg-[#E74C3C]/10 border border-[#E74C3C]/40 px-3 py-1 rounded-full cursor-default select-none" title="Sin conexión a internet">
+            <div id="nav-offline-badge" onclick="mostrarInfoOffline()" class="hidden items-center gap-1.5 bg-[#E74C3C]/10 border border-[#E74C3C]/40 hover:bg-[#E74C3C]/20 px-3 py-1 rounded-full cursor-pointer select-none transition" title="Sin conexión a internet — clic para saber qué podés hacer">
                 <div class="w-2 h-2 rounded-full bg-[#E74C3C]"></div>
                 <span class="text-[11px] font-bold text-[#E74C3C]">Sin conexión</span>
             </div>
@@ -479,7 +481,7 @@
             <button onclick="cambiarPestaña('versiones', 'Versiones')" id="btn-versiones" class="nav-btn hover:text-white transition">Versiones</button>
             <button onclick="cambiarPestaña('skins', 'Skins')" id="btn-skins" class="nav-btn hover:text-white transition">Skins</button>
             <button onclick="cambiarPestaña('mods', 'Mods')" id="btn-mods" class="nav-btn hover:text-white transition">Mods</button>
-            <button onclick="cambiarPestaña('herramientas', 'Herramientas')" id="btn-herramientas" class="nav-btn hover:text-white transition">Extras</button>
+            <button onclick="cambiarPestaña('herramientas', 'Herramientas')" id="btn-herramientas" class="nav-btn hover:text-white transition relative">Extras<span id="badge-mod-updates" class="hidden absolute -top-1.5 -right-3 bg-[#F39C12] text-black text-[10px] font-black rounded-full w-4 h-4 flex items-center justify-center leading-none" title="Mods con actualización disponible">0</span></button>
         </div>
 
         <div class="ml-auto flex items-center space-x-3 relative dropdown-container">
@@ -1137,9 +1139,17 @@
                 </div>
 
                 <div class="bg-[#0A0A0A] border border-[#2A2A2A] rounded-xl p-4 flex flex-col" style="min-height:180px;max-height:260px">
-                    <div class="flex justify-between items-center mb-2 shrink-0">
+                    <div class="flex justify-between items-center mb-2 shrink-0 gap-2 flex-wrap">
                         <h3 class="font-black text-xs text-gray-400 tracking-wider uppercase">Consola</h3>
-                        <button onclick="limpiarConsolaServidor()" class="text-xs text-gray-600 hover:text-white transition">Limpiar</button>
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <input id="srv-console-search" type="text" placeholder="Filtrar..." oninput="aplicarFiltrosConsola()" class="bg-[#0F0F0F] border border-[#2A2A2A] rounded px-2 py-0.5 text-[11px] text-white w-32 focus:border-[#2ECC71] outline-none">
+                            <button data-srv-filter="all" onclick="setFiltroConsola('all')" class="srv-filter-btn bg-[#2ECC71] text-black text-[10px] font-black px-2 py-0.5 rounded transition">Todo</button>
+                            <button data-srv-filter="info" onclick="setFiltroConsola('info')" class="srv-filter-btn bg-[#2A2A2A] text-gray-400 hover:text-white text-[10px] font-black px-2 py-0.5 rounded transition">INFO</button>
+                            <button data-srv-filter="warn" onclick="setFiltroConsola('warn')" class="srv-filter-btn bg-[#2A2A2A] text-gray-400 hover:text-white text-[10px] font-black px-2 py-0.5 rounded transition">WARN</button>
+                            <button data-srv-filter="error" onclick="setFiltroConsola('error')" class="srv-filter-btn bg-[#2A2A2A] text-gray-400 hover:text-white text-[10px] font-black px-2 py-0.5 rounded transition">ERROR</button>
+                            <button data-srv-filter="chat" onclick="setFiltroConsola('chat')" class="srv-filter-btn bg-[#2A2A2A] text-gray-400 hover:text-white text-[10px] font-black px-2 py-0.5 rounded transition">Chat</button>
+                            <button onclick="limpiarConsolaServidor()" class="text-xs text-gray-600 hover:text-white transition ml-1">Limpiar</button>
+                        </div>
                     </div>
                     <div id="srv-console" class="flex-1 overflow-y-auto font-mono text-xs space-y-0.5 min-h-0"></div>
                 </div>
@@ -2085,7 +2095,10 @@
                     <div class="flex gap-2 flex-wrap">
                         <button onclick="analizarCrashLog()" id="btn-analizar-crash" class="bg-[#E74C3C] hover:bg-[#C0392B] text-white font-black py-2 px-5 rounded-lg transition text-sm flex items-center gap-2"><span id="crash-scan-icon">🔍</span> Escanear logs</button>
                         <button onclick="verLaunchDebug()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-gray-300 font-bold py-2 px-4 rounded-lg transition text-sm border border-[#333]">📄 Log inicio</button>
-                        <button onclick="analizarCrashIA()" class="bg-[#9B59B6] hover:bg-[#7D3C98] text-white font-bold py-2 px-4 rounded-lg transition text-sm">🤖 IA</button>
+                        <button onclick="explicarCrashFacil()" title="Explicación simple en español, sin términos técnicos" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black py-2 px-4 rounded-lg transition text-sm">💬 Explicá fácil</button>
+                        <button onclick="analizarCrashIA()" title="Análisis técnico detallado con IA" class="bg-[#9B59B6] hover:bg-[#7D3C98] text-white font-bold py-2 px-4 rounded-lg transition text-sm">🤖 IA técnica</button>
+                        <button onclick="abrirLogLauncher()" title="Abre el log interno del launcher (paraguacraft_debug.log)" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-gray-300 font-bold py-2 px-4 rounded-lg transition text-sm border border-[#333]">📋 Log launcher</button>
+                        <button onclick="generarReporteBug()" id="btn-bug-report" title="Empaqueta logs + info del sistema en un ZIP listo para adjuntar en GitHub Issues" class="bg-[#F39C12] hover:bg-[#E67E22] text-black font-black py-2 px-4 rounded-lg transition text-sm">📦 Reportar bug (ZIP)</button>
                     </div>
                 </div>
                 <!-- Error principal detectado -->
@@ -4041,6 +4054,287 @@
             abrirInstalarMod(_mdpProjectId, t?t.textContent:'', _modTipoActual, i?i.src:'');
         }
 
+        // ══ ATAJOS DE TECLADO GLOBALES ═══════════════════════════════════
+        const _ATAJOS = [
+            { combo: 'Ctrl+1',  accion: 'Ir a Inicio',       fn: () => cambiarPestaña('inicio','Inicio') },
+            { combo: 'Ctrl+2',  accion: 'Ir a Servidores',   fn: () => cambiarPestaña('servidores','Servidores') },
+            { combo: 'Ctrl+3',  accion: 'Ir a Versiones',    fn: () => cambiarPestaña('versiones','Versiones') },
+            { combo: 'Ctrl+4',  accion: 'Ir a Skins',        fn: () => cambiarPestaña('skins','Skins') },
+            { combo: 'Ctrl+5',  accion: 'Ir a Mods',         fn: () => cambiarPestaña('mods','Mods') },
+            { combo: 'Ctrl+6',  accion: 'Ir a Extras',       fn: () => cambiarPestaña('herramientas','Extras') },
+            { combo: 'Ctrl+J',  accion: 'Jugar última versión', fn: () => { try { inicioLanzarUltima(); } catch(e){} } },
+            { combo: 'Ctrl+L',  accion: 'Abrir tienda de mods',   fn: () => cambiarPestaña('mods','Mods') },
+            { combo: 'Ctrl+,',  accion: 'Abrir Ajustes',     fn: () => { try { abrirAjustes(); } catch(e){} } },
+            { combo: 'Ctrl+/',  accion: 'Ver esta ayuda',    fn: () => mostrarAyudaAtajos() },
+            { combo: 'Esc',     accion: 'Cerrar modales',    fn: () => cerrarModalesAbiertos() },
+        ];
+
+        function cerrarModalesAbiertos() {
+            try {
+                const ids = ['settings-modal','modal-atajos','modal-changelog','modal-onboarding','modal-offline-info','modal-import-modpack'];
+                ids.forEach(id => { const el = document.getElementById(id); if (el && !el.classList.contains('hidden')) el.classList.add('hidden'); });
+            } catch(e) {}
+        }
+
+        // Convierte un subset de Markdown (headings, listas, bold, code) a HTML seguro
+        function _mdSimple(md) {
+            const esc = (s) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            const lines = md.split('\n');
+            const out = [];
+            let inList = false;
+            const closeList = () => { if (inList) { out.push('</ul>'); inList = false; } };
+            for (let ln of lines) {
+                let s = ln.trimEnd();
+                if (/^---+$/.test(s)) { closeList(); out.push('<hr class="my-3 border-[#2A2A2A]">'); continue; }
+                let h = s.match(/^(#{1,4})\s+(.+)$/);
+                if (h) {
+                    closeList();
+                    const lvl = h[1].length;
+                    const sizes = {1:'text-xl font-black text-white mt-3 mb-2',
+                                   2:'text-lg font-black text-[#2ECC71] mt-3 mb-2',
+                                   3:'text-sm font-black text-white mt-3 mb-1.5',
+                                   4:'text-xs font-black text-gray-300 mt-2 mb-1'};
+                    out.push(`<h${lvl} class="${sizes[lvl]}">${_mdInline(esc(h[2]))}</h${lvl}>`);
+                    continue;
+                }
+                let li = s.match(/^\s*[-*]\s+(.+)$/);
+                if (li) {
+                    if (!inList) { out.push('<ul class="list-disc pl-5 space-y-1 text-sm text-gray-300">'); inList = true; }
+                    out.push(`<li>${_mdInline(esc(li[1]))}</li>`);
+                    continue;
+                }
+                closeList();
+                if (s.trim()) out.push(`<p class="text-sm text-gray-400 leading-relaxed mb-2">${_mdInline(esc(s))}</p>`);
+            }
+            closeList();
+            return out.join('\n');
+        }
+        function _mdInline(s) {
+            return s
+                .replace(/\*\*([^*]+)\*\*/g, '<strong class="text-white">$1</strong>')
+                .replace(/`([^`]+)`/g, '<code class="bg-[#2A2A2A] text-[#2ECC71] font-mono text-xs px-1.5 py-0.5 rounded">$1</code>')
+                .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-[#2ECC71] hover:underline" target="_blank">$1</a>');
+        }
+
+        async function mostrarChangelog(version, previous) {
+            try {
+                const r = await pywebview.api.get_changelog(version);
+                if (!r || !r.ok) {
+                    // Fallback: pedí el changelog completo
+                    const rf = await pywebview.api.get_changelog();
+                    if (!rf || !rf.ok) return;
+                    r.markdown = rf.markdown;
+                }
+                let m = document.getElementById('modal-changelog');
+                if (!m) {
+                    m = document.createElement('div');
+                    m.id = 'modal-changelog';
+                    m.className = 'fixed inset-0 bg-black/80 z-[95] flex items-center justify-center p-6';
+                    m.onclick = (e) => { if (e.target === m) cerrarChangelog(); };
+                    m.innerHTML = `
+                        <div class="bg-[#0F0F0F] border border-[#2ECC71]/40 rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl">
+                            <div class="flex items-center justify-between p-5 border-b border-[#2A2A2A] shrink-0">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-full bg-[#2ECC71]/20 border border-[#2ECC71]/40 flex items-center justify-center text-xl">✨</div>
+                                    <div>
+                                        <h2 id="changelog-title" class="text-lg font-black text-white">¡Novedades!</h2>
+                                        <p id="changelog-sub" class="text-xs text-gray-500"></p>
+                                    </div>
+                                </div>
+                                <button onclick="cerrarChangelog()" class="text-gray-500 hover:text-white text-xl">✕</button>
+                            </div>
+                            <div id="changelog-body" class="flex-1 overflow-y-auto p-5"></div>
+                            <div class="flex items-center justify-between gap-2 p-4 border-t border-[#2A2A2A] shrink-0">
+                                <button onclick="verChangelogCompleto()" class="text-xs text-gray-500 hover:text-[#2ECC71] font-bold transition">Ver historial completo →</button>
+                                <button onclick="cerrarChangelog()" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black py-2 px-6 rounded-lg transition text-sm">¡Entendido!</button>
+                            </div>
+                        </div>`;
+                    document.body.appendChild(m);
+                }
+                const title = m.querySelector('#changelog-title');
+                const sub = m.querySelector('#changelog-sub');
+                const body = m.querySelector('#changelog-body');
+                title.textContent = version ? `Novedades de la v${version}` : 'Changelog';
+                sub.textContent = previous && previous !== 'anterior'
+                    ? `Actualizado desde la v${previous}`
+                    : 'Gracias por mantener tu launcher al día';
+                body.innerHTML = _mdSimple(r.markdown || '');
+                m.classList.remove('hidden');
+            } catch(e) { console.error('mostrarChangelog', e); }
+        }
+
+        async function verChangelogCompleto() {
+            try {
+                const r = await pywebview.api.get_changelog();
+                if (r && r.ok) {
+                    const body = document.getElementById('changelog-body');
+                    if (body) body.innerHTML = _mdSimple(r.markdown || '');
+                    const sub = document.getElementById('changelog-sub');
+                    if (sub) sub.textContent = 'Historial completo';
+                    const title = document.getElementById('changelog-title');
+                    if (title) title.textContent = 'Historial de cambios';
+                }
+            } catch(e) {}
+        }
+
+        function verChangelogManual() {
+            // Invocado manualmente desde el dropdown: mostrar siempre el historial completo
+            mostrarChangelog(null, null);
+        }
+
+        function cerrarChangelog() {
+            const m = document.getElementById('modal-changelog');
+            if (m) m.classList.add('hidden');
+            try { pywebview.api.marcar_changelog_visto(); } catch(e) {}
+        }
+
+        // ── Importar modpack .mrpack local ────────────────────────────────
+        async function importarMrpackLocal() {
+            try {
+                const pick = await pywebview.api.seleccionar_archivo_mrpack();
+                if (!pick || !pick.ok) {
+                    if (pick && pick.error && pick.error !== 'cancelado') {
+                        showToast('❌ ' + pick.error, '#E74C3C', 4000);
+                    }
+                    return;
+                }
+                const ruta = pick.path;
+                _abrirModalMrpackProgreso(ruta.split(/[\\\/]/).pop());
+
+                // Polling de progreso
+                const iv = setInterval(async () => {
+                    try {
+                        const p = await pywebview.api.get_mod_dl_progress();
+                        if (!p) return;
+                        const bar = document.getElementById('mrpack-prog-bar');
+                        const lbl = document.getElementById('mrpack-prog-label');
+                        const est = document.getElementById('mrpack-prog-estado');
+                        if (bar) bar.style.width = (p.pct || 0) + '%';
+                        if (lbl) lbl.textContent = (p.pct || 0) + '%';
+                        if (est) est.textContent = p.estado || '';
+                    } catch(e) {}
+                }, 400);
+
+                // Disparar instalación (bloqueante en backend)
+                let r;
+                try {
+                    r = await pywebview.api.importar_mrpack_archivo(ruta);
+                } finally {
+                    clearInterval(iv);
+                }
+
+                if (r && r.ok) {
+                    const bar = document.getElementById('mrpack-prog-bar');
+                    if (bar) bar.style.width = '100%';
+                    const errs = (r.errors && r.errors.length)
+                        ? `<p class="text-xs text-yellow-400 mt-2">⚠ ${r.errors.length} archivo(s) fallaron:<br><span class="font-mono text-[10px] text-yellow-500 break-all">${r.errors.slice(0,5).join('<br>')}</span></p>`
+                        : '';
+                    _mostrarResultadoMrpack({
+                        titulo: `✅ ${r.nombre}`,
+                        html: `
+                            <p class="text-sm text-gray-300"><b>Versión:</b> ${r.version} · <b>Motor:</b> ${r.motor}</p>
+                            <p class="text-sm text-gray-300"><b>Archivos instalados:</b> ${r.installed}/${r.total}${r.skipped ? ` (${r.skipped} ya estaban)` : ''}</p>
+                            <p class="text-xs text-gray-500 mt-1 font-mono break-all">Instancia: ${r.instancia}</p>
+                            ${errs}
+                            <p class="text-xs text-gray-400 mt-3">Ya podés jugar: elegí la versión <b>${r.version}</b> con motor <b>${r.motor}</b> y dale a Jugar.</p>`,
+                        ok: true
+                    });
+                } else {
+                    _mostrarResultadoMrpack({
+                        titulo: '❌ No se pudo importar',
+                        html: `<p class="text-sm text-red-300 break-all">${(r && r.error) || 'Error desconocido'}</p>`,
+                        ok: false
+                    });
+                }
+            } catch(e) {
+                showToast('❌ ' + e, '#E74C3C', 5000);
+            }
+        }
+
+        function _abrirModalMrpackProgreso(nombreArchivo) {
+            let m = document.getElementById('modal-import-modpack');
+            if (!m) {
+                m = document.createElement('div');
+                m.id = 'modal-import-modpack';
+                m.className = 'fixed inset-0 bg-black/80 z-[110] flex items-center justify-center p-6';
+                document.body.appendChild(m);
+            }
+            m.classList.remove('hidden');
+            m.innerHTML = `
+                <div class="bg-[#0F0F0F] border border-[#2A2A2A] rounded-2xl w-full max-w-lg p-6 shadow-2xl">
+                    <h3 class="text-lg font-black text-white mb-1">📦 Importando modpack</h3>
+                    <p class="text-xs text-gray-500 mb-4 font-mono break-all">${nombreArchivo}</p>
+                    <div class="w-full h-3 bg-[#1A1A1A] rounded-full overflow-hidden border border-[#2A2A2A]">
+                        <div id="mrpack-prog-bar" class="h-full bg-gradient-to-r from-[#2ECC71] to-[#27AE60] transition-all duration-300" style="width:0%"></div>
+                    </div>
+                    <div class="flex justify-between mt-2">
+                        <p id="mrpack-prog-estado" class="text-xs text-gray-400">Iniciando...</p>
+                        <p id="mrpack-prog-label" class="text-xs text-gray-300 font-mono">0%</p>
+                    </div>
+                </div>`;
+        }
+
+        function _mostrarResultadoMrpack({ titulo, html, ok }) {
+            const m = document.getElementById('modal-import-modpack');
+            if (!m) return;
+            const color = ok ? '#2ECC71' : '#E74C3C';
+            m.innerHTML = `
+                <div class="bg-[#0F0F0F] border border-[#2A2A2A] rounded-2xl w-full max-w-lg p-6 shadow-2xl">
+                    <h3 class="text-lg font-black mb-3" style="color:${color}">${titulo}</h3>
+                    ${html}
+                    <div class="flex justify-end mt-5">
+                        <button onclick="document.getElementById('modal-import-modpack').classList.add('hidden')"
+                                class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold py-2 px-5 rounded-lg transition text-sm">Cerrar</button>
+                    </div>
+                </div>`;
+        }
+
+        function mostrarAyudaAtajos() {
+            let m = document.getElementById('modal-atajos');
+            if (!m) {
+                m = document.createElement('div');
+                m.id = 'modal-atajos';
+                m.className = 'fixed inset-0 bg-black/80 z-[90] flex items-center justify-center p-6';
+                m.onclick = (e) => { if (e.target === m) m.classList.add('hidden'); };
+                m.innerHTML = `
+                    <div class="bg-[#0F0F0F] border border-[#2A2A2A] rounded-2xl w-full max-w-md p-6 shadow-2xl">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-lg font-black text-white flex items-center gap-2">⌨️ Atajos de teclado</h2>
+                            <button onclick="document.getElementById('modal-atajos').classList.add('hidden')" class="text-gray-500 hover:text-white text-xl">✕</button>
+                        </div>
+                        <div id="atajos-lista" class="flex flex-col gap-1.5"></div>
+                    </div>`;
+                document.body.appendChild(m);
+            }
+            const lista = m.querySelector('#atajos-lista');
+            lista.innerHTML = _ATAJOS.map(a => `
+                <div class="flex items-center justify-between text-sm py-1.5 px-2 rounded hover:bg-[#1A1A1A]">
+                    <span class="text-gray-300">${a.accion}</span>
+                    <kbd class="bg-[#2A2A2A] border border-[#333] text-[#2ECC71] font-mono text-xs px-2 py-0.5 rounded">${a.combo}</kbd>
+                </div>`).join('');
+            m.classList.remove('hidden');
+        }
+
+        window.addEventListener('keydown', (e) => {
+            // No interferir si escribís en un input/textarea
+            const tag = (e.target.tagName || '').toLowerCase();
+            const editable = tag === 'input' || tag === 'textarea' || e.target.isContentEditable;
+            if (e.key === 'Escape') { cerrarModalesAbiertos(); return; }
+            if (editable) return;
+            if (!(e.ctrlKey || e.metaKey)) return;
+            const k = e.key.toLowerCase();
+            let match = null;
+            if (['1','2','3','4','5','6'].includes(k)) match = _ATAJOS.find(a => a.combo === 'Ctrl+' + k);
+            else if (k === 'j') match = _ATAJOS.find(a => a.combo === 'Ctrl+J');
+            else if (k === 'l') match = _ATAJOS.find(a => a.combo === 'Ctrl+L');
+            else if (k === ',') match = _ATAJOS.find(a => a.combo === 'Ctrl+,');
+            else if (k === '/') match = _ATAJOS.find(a => a.combo === 'Ctrl+/');
+            if (match) {
+                e.preventDefault();
+                try { match.fn(); } catch(err) { console.error(err); }
+            }
+        });
+
         // Infinite scroll en el grid
         document.addEventListener('DOMContentLoaded', () => {
             const grid = document.getElementById('grid-resultados-mods');
@@ -4683,12 +4977,50 @@
             for (const [pat, c] of colorMap) {
                 if (typeof pat === 'string' ? msg.includes(pat) : pat.test(msg)) { cls = c; break; }
             }
+            // Clasificar nivel para filtro
+            let lvl = 'info';
+            if (/\[ERROR\]|Exception|SEVERE/i.test(msg)) lvl = 'error';
+            else if (/\[WARN\]/i.test(msg)) lvl = 'warn';
+            else if (/\[INFO\].*<.*>/.test(msg) || /<[^>]+>\s*.+/.test(msg)) lvl = 'chat';
             const el = document.createElement('div');
             el.className = 'leading-5 ' + cls;
+            el.dataset.lvl = lvl;
             el.textContent = msg;
+            // Aplicar filtro actual al nuevo mensaje
+            const f = window._srvConsoleFilter || 'all';
+            const q = (document.getElementById('srv-console-search')||{}).value || '';
+            if ((f !== 'all' && f !== lvl) || (q && !msg.toLowerCase().includes(q.toLowerCase()))) {
+                el.style.display = 'none';
+            }
             cons.appendChild(el);
             if (cons.children.length > 500) cons.removeChild(cons.firstChild);
             cons.scrollTop = cons.scrollHeight;
+        }
+
+        function setFiltroConsola(f) {
+            window._srvConsoleFilter = f;
+            document.querySelectorAll('.srv-filter-btn').forEach(b => {
+                if (b.dataset.srvFilter === f) {
+                    b.className = 'srv-filter-btn bg-[#2ECC71] text-black text-[10px] font-black px-2 py-0.5 rounded transition';
+                } else {
+                    b.className = 'srv-filter-btn bg-[#2A2A2A] text-gray-400 hover:text-white text-[10px] font-black px-2 py-0.5 rounded transition';
+                }
+            });
+            aplicarFiltrosConsola();
+        }
+
+        function aplicarFiltrosConsola() {
+            const cons = document.getElementById('srv-console');
+            if (!cons) return;
+            const f = window._srvConsoleFilter || 'all';
+            const q = ((document.getElementById('srv-console-search')||{}).value || '').toLowerCase();
+            [...cons.children].forEach(el => {
+                const lvl = el.dataset.lvl || 'info';
+                const txt = el.textContent.toLowerCase();
+                const matchLvl = (f === 'all' || f === lvl);
+                const matchQ = !q || txt.includes(q);
+                el.style.display = (matchLvl && matchQ) ? '' : 'none';
+            });
         }
 
         function limpiarConsolaServidor() {
@@ -6043,7 +6375,13 @@
                 if (!r.mods || r.mods.length === 0) { lista.innerHTML = '<p class="text-gray-500 text-sm">No se encontraron mods en la carpeta.</p>'; return; }
                 const con = r.mods.filter(m => m.update_disponible);
                 const sin = r.mods.filter(m => !m.update_disponible);
-                lista.innerHTML = `<p class="text-xs text-gray-500 mb-3">${r.mods.length} mods escaneados — <span class="text-[#F39C12] font-bold">${con.length} con actualización</span></p>` +
+                const headerBtn = con.length > 0
+                    ? `<button onclick="actualizarTodosLosMods('${ver}','${motor}')" class="bg-[#F39C12] hover:bg-[#E67E22] text-black font-black px-3 py-1.5 rounded transition text-xs">⚡ Actualizar todos (con backup)</button>`
+                    : '';
+                lista.innerHTML = `<div class="flex items-center justify-between mb-3">
+                        <p class="text-xs text-gray-500">${r.mods.length} mods escaneados — <span class="text-[#F39C12] font-bold">${con.length} con actualización</span></p>
+                        ${headerBtn}
+                    </div>` +
                     con.map(m => `<div class="flex items-center gap-3 bg-[#181818] border border-[#F39C12]/30 rounded-lg px-4 py-3">
                         <span class="text-lg">🔄</span>
                         <div class="flex-1 min-w-0">
@@ -6051,12 +6389,60 @@
                             <p class="text-xs text-gray-500 truncate">${m.archivo}</p>
                         </div>
                         <span class="text-xs text-[#F39C12] font-mono shrink-0">v${m.version_nueva}</span>
-                        <button onclick="pywebview.api.instalar_mod_modrinth('${m.slug}','${ver}','${motor}','')" class="bg-[#F39C12] hover:bg-[#E67E22] text-black font-bold px-3 py-1.5 rounded transition text-xs shrink-0">Actualizar</button>
+                        <button onclick="actualizarUnMod('${m.slug}','${ver}','${motor}')" class="bg-[#F39C12] hover:bg-[#E67E22] text-black font-bold px-3 py-1.5 rounded transition text-xs shrink-0">Actualizar</button>
                     </div>`).join('') +
                     sin.map(m => `<div class="flex items-center gap-3 bg-[#181818] border border-[#2A2A2A] rounded-lg px-4 py-2 opacity-50">
                         <span>✅</span><p class="text-xs text-gray-500 truncate flex-1">${m.slug || m.archivo}</p><span class="text-xs text-gray-600">Al día</span>
                     </div>`).join('');
             } catch(e) { lista.innerHTML = `<p class="text-red-400 text-sm">${e}</p>`; }
+        }
+
+        async function actualizarUnMod(slug, ver, motor) {
+            const lista = document.getElementById('upd-lista');
+            try {
+                showToast(`💾 Creando backup de mods antes de actualizar...`, '#3498DB', 2500);
+                const bk = await pywebview.api.backup_mods_instancia(ver, motor);
+                if (!bk.ok) {
+                    if (!confirm('⚠️ No se pudo crear el backup de mods: ' + (bk.error || 'error') + '\n\n¿Continuar igual con la actualización?')) return;
+                } else {
+                    showToast(`✅ Backup creado (${bk.tamano_mb} MB) — actualizando ${slug}...`, '#2ECC71', 2500);
+                }
+                const r = await pywebview.api.instalar_mod_modrinth(slug, ver, motor, '');
+                if (r && r.ok !== false) {
+                    showToast(`✅ ${slug} actualizado`, '#2ECC71');
+                    setTimeout(buscarUpdates, 600);
+                } else {
+                    showToast(`❌ Error: ${(r && r.error) || 'desconocido'}`, '#E74C3C', 5000);
+                }
+            } catch(e) { showToast('Error: ' + e, '#E74C3C', 5000); }
+        }
+
+        async function actualizarTodosLosMods(ver, motor) {
+            if (!confirm('¿Actualizar TODOS los mods con actualización disponible?\n\nSe creará un backup automático de tu carpeta de mods antes de empezar. Podés restaurarlo si algo se rompe.')) return;
+            const lista = document.getElementById('upd-lista');
+            try {
+                // Backup único antes del batch
+                showToast('💾 Respaldando carpeta de mods...', '#3498DB', 2500);
+                const bk = await pywebview.api.backup_mods_instancia(ver, motor);
+                if (!bk.ok) {
+                    if (!confirm('⚠️ No se pudo crear el backup: ' + (bk.error || 'error') + '\n\n¿Continuar igual?')) return;
+                } else {
+                    showToast(`✅ Backup listo: ${bk.archivo} (${bk.tamano_mb} MB)`, '#2ECC71', 3000);
+                }
+                // Leer la lista actual de updates
+                const r = await pywebview.api.get_mod_updates(ver, motor);
+                const updates = (r.mods || []).filter(m => m.update_disponible);
+                let ok = 0, fail = 0;
+                for (const m of updates) {
+                    try {
+                        const ir = await pywebview.api.instalar_mod_modrinth(m.slug, ver, motor, '');
+                        if (ir && ir.ok !== false) ok++; else fail++;
+                    } catch(e) { fail++; }
+                }
+                showToast(`🎉 ${ok} actualizado${ok !== 1 ? 's' : ''}${fail ? ' · ' + fail + ' fallaron' : ''}`, fail ? '#F39C12' : '#2ECC71', 5000);
+                setTimeout(buscarUpdates, 800);
+                actualizarBadgeModsBackground();
+            } catch(e) { showToast('Error: ' + e, '#E74C3C', 5000); }
         }
 
         // ══ TURBO MODE ═══════════════════════════════════════════════════
@@ -6355,7 +6741,7 @@
                                             <button onclick="copiarIP('${ip}')" class="hover:text-white transition">📋</button>
                                         </div>
                                     </div>
-                                    <button onclick="pywebview.api.eliminar_servidor_personalizado_ip('${ip}').then(()=>cargarServidoresGuardados())" class="text-gray-700 hover:text-red-400 text-sm opacity-0 group-hover:opacity-100 transition shrink-0">🗑</button>
+                                    <button onclick="quitarServidorPersonalizado('${ip}')" class="text-gray-700 hover:text-red-400 text-sm opacity-0 group-hover:opacity-100 transition shrink-0">🗑</button>
                                 </div>
                                 <div class="flex items-center justify-between gap-2">
                                     <span id="ping-custom-${ip.replace(/\./g,'-')}" class="text-[10px] font-mono text-gray-600">...</span>
@@ -6395,6 +6781,14 @@
             if (!confirm('\u00bfQuitar "' + carpeta.split(/[\\/]/).pop() + '" de la lista?')) return;
             const r = await pywebview.api.eliminar_servidor_guardado(carpeta);
             if (r && r.ok) await cargarServidoresGuardados();
+        }
+
+        async function quitarServidorPersonalizado(ip) {
+            if (!confirm(`¿Quitar el servidor "${ip}" de tu lista guardada?`)) return;
+            try {
+                await pywebview.api.eliminar_servidor_personalizado_ip(ip);
+                await cargarServidoresGuardados();
+            } catch(e) {}
         }
 
         // ══ PLUGIN STORE ═══════════════════════════════════════════════════════
@@ -6727,6 +7121,7 @@
         }
 
         async function eliminarWhitelist(nombre) {
+            if (!confirm(`¿Quitar a "${nombre}" de la whitelist? Ya no podrá entrar al servidor.`)) return;
             try { const r = await pywebview.api.eliminar_whitelist(nombre); if (r && r.ok) cargarWhitelist(); } catch(e) {}
         }
 
@@ -7982,6 +8377,39 @@
             reinstall: 'ℹ Ver cómo reinstalar',
         };
 
+        async function abrirLogLauncher() {
+            try {
+                const r = await pywebview.api.abrir_log_launcher();
+                if (r && r.ok) {
+                    showToast('📋 Log del launcher abierto', '#2ECC71');
+                } else {
+                    showToast('❌ ' + (r && r.error ? r.error : 'No se pudo abrir el log'), '#E74C3C', 4000);
+                }
+            } catch(e) {
+                showToast('❌ ' + e, '#E74C3C', 4000);
+            }
+        }
+
+        async function generarReporteBug() {
+            const btn = document.getElementById('btn-bug-report');
+            if (btn) { btn.disabled = true; btn.textContent = '⏳ Empaquetando...'; }
+            try {
+                const r = await pywebview.api.generar_reporte_bug();
+                if (r.ok) {
+                    showToast(`✅ Reporte listo en Escritorio (${r.tamano_mb} MB)`, '#2ECC71', 5000);
+                    if (confirm(`📦 Reporte de bug generado:\n\n${r.archivo}\n${r.tamano_mb} MB\n\n¿Abrir la carpeta contenedora?`)) {
+                        try { await pywebview.api.abrir_carpeta_archivo(r.archivo); } catch(e) {}
+                    }
+                } else {
+                    showToast('❌ Error: ' + (r.error || 'desconocido'), '#E74C3C', 5000);
+                }
+            } catch(e) {
+                showToast('❌ ' + e, '#E74C3C', 5000);
+            } finally {
+                if (btn) { btn.disabled = false; btn.innerHTML = '📦 Reportar bug (ZIP)'; }
+            }
+        }
+
         async function analizarCrashLog() {
             const ver = (document.getElementById('panel-version-sel')||{}).value || '';
             const motor = (document.getElementById('panel-loader-sel')||{}).value || 'Fabric';
@@ -8017,6 +8445,7 @@
 
                 diag.innerHTML = '';
                 const issues = r.issues || [];
+                _ultimosIssuesCrash = issues;
                 if (!issues.length) {
                     diag.innerHTML = `<div class="bg-[#2ECC71]/10 border border-[#2ECC71]/30 rounded-xl p-5 text-center">
                         <p class="text-2xl mb-2">✅</p>
@@ -8170,6 +8599,32 @@
             } catch(e) { res.textContent = 'Error: ' + e; }
         }
 
+        // Explicación simple en español para usuarios no técnicos
+        let _ultimosIssuesCrash = [];
+        async function explicarCrashFacil() {
+            const fragmento = (document.getElementById('crash-fragmento') ? document.getElementById('crash-fragmento').textContent : '').trim();
+            if (!fragmento || fragmento === 'Hacé clic en Analizar para leer los logs.') {
+                alert('Primero escaneá los logs haciendo clic en "Escanear logs".'); return;
+            }
+            const res = document.getElementById('crash-ai-resultado');
+            res.innerHTML = '<div class="flex items-center gap-2 text-sm animate-pulse"><div class="w-4 h-4 border-2 border-[#2ECC71] border-t-transparent rounded-full animate-spin"></div>Pensando en cómo explicarte...</div>';
+            res.classList.remove('hidden');
+            try {
+                const r = await pywebview.api.explicar_crash_simple(fragmento.slice(0, 3000), _ultimosIssuesCrash);
+                if (r.ok) {
+                    res.innerHTML = `<div class="bg-[#0f2015] border border-[#2ECC71]/40 rounded-xl p-4">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="text-2xl">💬</span>
+                            <span class="font-black text-[#2ECC71] text-sm uppercase tracking-wider">Explicación simple</span>
+                        </div>
+                        <p class="text-gray-100 text-sm leading-relaxed whitespace-pre-wrap">${r.explicacion.replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'})[c])}</p>
+                    </div>`;
+                } else {
+                    res.textContent = '❌ ' + (r.error || 'No se pudo generar la explicación.');
+                }
+            } catch(e) { res.textContent = 'Error: ' + e; }
+        }
+
         // ══ EARLY INIT (no pywebview needed) ══════════════════════════════
         // Script is at bottom of body so DOM is ready - call directly
         dibujarGrillaVersiones();
@@ -8177,6 +8632,63 @@
 
         // ══ INIT HOOKS ════════════════════════════════════════════════════
         // ── MODO OFFLINE ─────────────────────────────────────────────────
+        function mostrarInfoOffline() {
+            let m = document.getElementById('modal-offline-info');
+            if (!m) {
+                m = document.createElement('div');
+                m.id = 'modal-offline-info';
+                m.className = 'fixed inset-0 bg-black/80 z-[90] flex items-center justify-center p-6';
+                m.onclick = (e) => { if (e.target === m) m.classList.add('hidden'); };
+                m.innerHTML = `
+                    <div class="bg-[#0F0F0F] border border-[#E74C3C]/40 rounded-2xl w-full max-w-lg p-6 shadow-2xl">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-lg font-black text-white flex items-center gap-2">
+                                <div class="w-2.5 h-2.5 rounded-full bg-[#E74C3C] animate-pulse"></div>
+                                Modo sin conexión
+                            </h2>
+                            <button onclick="document.getElementById('modal-offline-info').classList.add('hidden')" class="text-gray-500 hover:text-white text-xl">✕</button>
+                        </div>
+                        <p class="text-sm text-gray-400 mb-4">No detectamos conexión a internet. Esto es lo que podés seguir haciendo:</p>
+                        <div class="flex flex-col gap-3">
+                            <div class="bg-[#0A1F10] border border-[#2ECC71]/30 rounded-lg p-3">
+                                <p class="text-xs font-black text-[#2ECC71] uppercase tracking-wider mb-2">✅ Funciona sin internet</p>
+                                <ul class="text-xs text-gray-300 space-y-1 leading-relaxed">
+                                    <li>• Jugar versiones ya descargadas (modo offline)</li>
+                                    <li>• Usar cuentas offline (invitado)</li>
+                                    <li>• Administrar mods y recursos ya instalados</li>
+                                    <li>• Crear y abrir servidores LAN locales</li>
+                                    <li>• Ver logs, crash reports y herramientas</li>
+                                </ul>
+                            </div>
+                            <div class="bg-[#1F0A0A] border border-[#E74C3C]/30 rounded-lg p-3">
+                                <p class="text-xs font-black text-[#E74C3C] uppercase tracking-wider mb-2">❌ Requiere internet</p>
+                                <ul class="text-xs text-gray-300 space-y-1 leading-relaxed">
+                                    <li>• Iniciar sesión con cuentas Microsoft</li>
+                                    <li>• Descargar versiones nuevas de Minecraft</li>
+                                    <li>• Tienda de mods (Modrinth / CurseForge)</li>
+                                    <li>• Jugar en servidores externos (Playit, online)</li>
+                                    <li>• Actualizaciones del launcher</li>
+                                </ul>
+                            </div>
+                            <div class="bg-[#181818] border border-[#2A2A2A] rounded-lg p-3">
+                                <p class="text-xs font-black text-gray-400 uppercase tracking-wider mb-2">💡 Sugerencias</p>
+                                <ul class="text-xs text-gray-400 space-y-1 leading-relaxed">
+                                    <li>• Revisá tu Wi-Fi / cable de red</li>
+                                    <li>• Probá desactivar VPN o proxy</li>
+                                    <li>• Reintentá en unos segundos — se re-chequea cada minuto</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="flex gap-2 mt-5">
+                            <button onclick="verificarModoOffline();document.getElementById('modal-offline-info').classList.add('hidden')" class="flex-1 bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black py-2 rounded-lg transition text-sm">🔄 Reintentar ahora</button>
+                            <button onclick="document.getElementById('modal-offline-info').classList.add('hidden')" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold py-2 px-4 rounded-lg transition text-sm">Entendido</button>
+                        </div>
+                    </div>`;
+                document.body.appendChild(m);
+            }
+            m.classList.remove('hidden');
+        }
+
         async function verificarModoOffline() {
             try {
                 const r = await fetch(`http://127.0.0.1:${window._API_PORT}/api/call`, {
@@ -8244,7 +8756,11 @@
         async function initExtras() {
             try {
                 const upd = await pywebview.api.check_post_update();
-                if (upd && upd.updated) showToast(`✅ Actualizado a v${upd.version} correctamente`);
+                if (upd && upd.updated) {
+                    showToast(`✅ Actualizado a v${upd.version} correctamente`);
+                    // Mostrar modal con changelog de la versión instalada
+                    setTimeout(() => mostrarChangelog(upd.version, upd.previous), 400);
+                }
             } catch(e) {}
             try {
                 const f = await pywebview.api.get_fondo_actual();
@@ -8272,6 +8788,24 @@
             setInterval(actualizarJugadoresOnline, 60000);
             setInterval(actualizarGameBanner, 2000);
             actualizarGameBanner();
+            // Background: chequear actualizaciones de mods en todas las instancias
+            setTimeout(actualizarBadgeModsBackground, 6000);
+        }
+
+        async function actualizarBadgeModsBackground() {
+            try {
+                const r = await pywebview.api.check_all_mod_updates();
+                const badge = document.getElementById('badge-mod-updates');
+                if (!badge) return;
+                if (r.ok && r.total_updates > 0) {
+                    badge.textContent = r.total_updates > 9 ? '9+' : String(r.total_updates);
+                    badge.classList.remove('hidden');
+                    const detalle = (r.por_instancia || []).map(p => `${p.version} ${p.motor}: ${p.updates}`).join('\n');
+                    badge.title = `${r.total_updates} mod${r.total_updates > 1 ? 's' : ''} con actualización disponible\n\n${detalle}`;
+                } else {
+                    badge.classList.add('hidden');
+                }
+            } catch(e) { console.warn('mod updates bg check:', e); }
         }
 
         // ══ GROQ API KEY ═════════════════════════════════════════════════

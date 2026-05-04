@@ -30,7 +30,21 @@ try:
 except Exception:
     _lanzar_minecraft_ref = None
 
-VERSION = "5.4.0"  # Actualizar en cada release
+# ── Logger central (RotatingFileHandler en %APPDATA%/ParaguacraftLauncher/) ──
+try:
+    from src.logger import setup_logger, LOG_PATH as _LOG_PATH
+    import logging
+    setup_logger()
+    log = logging.getLogger("paraguacraft.main")
+except Exception:
+    # Fallback: logger básico a stderr si falla el módulo
+    import logging
+    logging.basicConfig(level=logging.WARNING,
+                        format="[%(asctime)s] [%(levelname)-8s] %(name)s - %(message)s")
+    log = logging.getLogger("paraguacraft.main")
+    _LOG_PATH = ""
+
+VERSION = "5.5.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 # Opcional: URL de Cloudflare Pages con latest.json (sin rate limits, CDN global)
 # Formato del JSON: {"version":"5.2.0", "download_url":"...", "size_bytes":0, "notes":"..."}
@@ -409,7 +423,7 @@ class Api:
                 with open(self.ruta_sesion, "w") as f:
                     json.dump(self.ms_data, f)
         except Exception as e:
-            print("[MS Refresh] Error al refrescar token:", e)
+            log.warning("[MS Refresh] Error al refrescar token: %s", e)
 
     def login_microsoft_paso1(self):
         try:
@@ -601,6 +615,132 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    def abrir_carpeta_archivo(self, ruta):
+        """Abre el explorador con el archivo seleccionado."""
+        try:
+            if not ruta or not os.path.exists(ruta):
+                return {"ok": False, "error": "Archivo no encontrado."}
+            if sys.platform == "win32":
+                subprocess.Popen(["explorer", "/select,", os.path.normpath(ruta)])
+            elif sys.platform == "darwin":
+                subprocess.Popen(["open", "-R", ruta])
+            else:
+                subprocess.Popen(["xdg-open", os.path.dirname(ruta)])
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def get_log_path(self):
+        """Devuelve la ruta del log del launcher (para que la UI pueda abrirlo)."""
+        return {"ok": bool(_LOG_PATH),
+                "path": _LOG_PATH,
+                "existe": bool(_LOG_PATH) and os.path.isfile(_LOG_PATH)}
+
+    def abrir_log_launcher(self):
+        """Abre el log del launcher en el visor por defecto del SO."""
+        try:
+            if not _LOG_PATH or not os.path.isfile(_LOG_PATH):
+                return {"ok": False, "error": "Todavía no hay log generado"}
+            if platform.system() == "Windows":
+                os.startfile(_LOG_PATH)
+            elif sys.platform == "darwin":
+                subprocess.Popen(["open", _LOG_PATH])
+            else:
+                subprocess.Popen(["xdg-open", _LOG_PATH])
+            return {"ok": True, "path": _LOG_PATH}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def generar_reporte_bug(self):
+        """Empaqueta logs relevantes, info del sistema y config (sin datos sensibles)
+        en un ZIP listo para adjuntar en GitHub Issues."""
+        try:
+            import platform
+            import minecraft_launcher_lib
+            mc_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+            desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+            if not os.path.isdir(desktop):
+                desktop = os.path.expanduser("~")
+            ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            zip_path = os.path.join(desktop, f"paraguacraft_bug_report_{ts}.zip")
+
+            # Recolectar info del sistema
+            try:
+                ram_total = round(psutil.virtual_memory().total / (1024 ** 3), 1)
+            except Exception:
+                ram_total = "?"
+            info_txt = (
+                f"=== PARAGUACRAFT BUG REPORT ===\n"
+                f"Fecha: {datetime.datetime.now().isoformat()}\n"
+                f"Versión launcher: {VERSION if 'VERSION' in globals() else 'desconocida'}\n"
+                f"\n=== SISTEMA ===\n"
+                f"OS: {platform.platform()}\n"
+                f"Arquitectura: {platform.machine()}\n"
+                f"Python: {sys.version.split()[0]}\n"
+                f"RAM total: {ram_total} GB\n"
+                f"\n=== MINECRAFT ===\n"
+                f"Directorio: {mc_dir}\n"
+            )
+
+            # Config redactada (sin tokens ni keys)
+            cfg_redacted = {}
+            try:
+                sensibles = {"cf_api_key", "groq_api_key", "spotify_client_secret",
+                             "spotify_refresh_token", "microsoft_accounts", "discord_token"}
+                for k, v in (self.config_actual or {}).items():
+                    if k in sensibles:
+                        cfg_redacted[k] = "***REDACTED***"
+                    else:
+                        cfg_redacted[k] = v
+            except Exception:
+                cfg_redacted = {"error": "no se pudo leer config"}
+
+            with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+                zf.writestr("SYSTEM_INFO.txt", info_txt)
+                try:
+                    zf.writestr("config_redacted.json", json.dumps(cfg_redacted, indent=2, ensure_ascii=False))
+                except Exception:
+                    pass
+
+                # Log del propio launcher (con rotados .1, .2, .3)
+                try:
+                    if _LOG_PATH and os.path.isfile(_LOG_PATH) and os.path.getsize(_LOG_PATH) < 5 * 1024 * 1024:
+                        zf.write(_LOG_PATH, "launcher/paraguacraft_debug.log")
+                    for _i in range(1, 4):
+                        _rot = f"{_LOG_PATH}.{_i}"
+                        if os.path.isfile(_rot) and os.path.getsize(_rot) < 5 * 1024 * 1024:
+                            zf.write(_rot, f"launcher/paraguacraft_debug.log.{_i}")
+                except Exception:
+                    pass
+
+                # latest.log de la instancia activa (si existe)
+                instancias_dir = os.path.join(mc_dir, "instancias")
+                if os.path.isdir(instancias_dir):
+                    for inst in os.listdir(instancias_dir):
+                        logs_dir = os.path.join(instancias_dir, inst, "logs")
+                        if not os.path.isdir(logs_dir):
+                            continue
+                        # latest.log + debug.log
+                        for nombre in ("latest.log", "debug.log"):
+                            fp = os.path.join(logs_dir, nombre)
+                            if os.path.isfile(fp) and os.path.getsize(fp) < 5 * 1024 * 1024:
+                                zf.write(fp, f"logs/{inst}/{nombre}")
+                        # Últimos 2 crash reports
+                        crash_dir = os.path.join(instancias_dir, inst, "crash-reports")
+                        if os.path.isdir(crash_dir):
+                            crashes = sorted(
+                                [f for f in os.listdir(crash_dir) if f.endswith(".txt")],
+                                key=lambda x: os.path.getmtime(os.path.join(crash_dir, x)),
+                                reverse=True
+                            )[:2]
+                            for cr in crashes:
+                                zf.write(os.path.join(crash_dir, cr), f"crashes/{inst}/{cr}")
+
+            return {"ok": True, "archivo": zip_path,
+                    "tamano_mb": round(os.path.getsize(zip_path) / (1024 * 1024), 2)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
     def limpiar_logs_minecraft(self):
         try:
             import minecraft_launcher_lib
@@ -699,7 +839,7 @@ class Api:
             lista = GestorLocalMods.obtener_lista_mods(mods_dir)
             return [{"archivo": m["archivo"], "estado": m["estado"]} for m in lista]
         except Exception as e:
-            print("get_local_mods:", e)
+            log.error("get_local_mods: %s", e, exc_info=True)
             return []
 
     def toggle_local_mod(self, version, motor, nombre_archivo):
@@ -714,7 +854,7 @@ class Api:
             GestorLocalMods.alternar_estado_mod(mods_dir, nombre_archivo)
             return True
         except Exception as e:
-            print("toggle_local_mod:", e)
+            log.error("toggle_local_mod: %s", e, exc_info=True)
             return False
 
     def _dir_instancia(self, version, motor):
@@ -779,7 +919,7 @@ class Api:
                 return GestorContenidoInstancia.listar_datapacks(base)
             return []
         except Exception as e:
-            print("get_instance_content:", e)
+            log.error("get_instance_content: %s", e, exc_info=True)
             return []
 
     def toggle_instance_content(self, version, motor, categoria, nombre_archivo, mundo=None):
@@ -800,7 +940,7 @@ class Api:
                 return GestorContenidoInstancia.alternar_datapack(base, mundo, nombre_archivo)
             return False
         except Exception as e:
-            print("toggle_instance_content:", e)
+            log.error("toggle_instance_content: %s", e, exc_info=True)
             return False
 
     def open_instance_folder(self, version, motor, subcarpeta):
@@ -826,7 +966,7 @@ class Api:
                 subprocess.Popen(["xdg-open", path])
             return True
         except Exception as e:
-            print("open_instance_folder:", e)
+            log.error("open_instance_folder: %s", e, exc_info=True)
             return False
 
     def get_fabric_loader_versions(self):
@@ -848,6 +988,10 @@ class Api:
 
             versiones = minecraft_launcher_lib.utils.get_version_list()
             lista_oficiales = [v["id"] for v in versiones if v["type"] == "release"]
+            # Snapshots recientes (últimos 25 para no saturar la UI)
+            snapshots = [v["id"] for v in versiones if v["type"] == "snapshot"][:25]
+            # Betas y alphas legacy (limitadas)
+            betas = [v["id"] for v in versiones if v["type"] in ("old_beta", "old_alpha")][:15]
 
             grupos = {}
             for vid in lista_oficiales:
@@ -866,9 +1010,13 @@ class Api:
 
             otras = [vid for vid in lista_oficiales if vid not in featured]
             grupos["otras"] = otras
+            if snapshots:
+                grupos["snapshots"] = snapshots
+            if betas:
+                grupos["beta_legacy"] = betas
             return grupos
         except Exception as e:
-            print("Error obteniendo versiones de Mojang:", e)
+            log.error("Error obteniendo versiones de Mojang: %s", e, exc_info=True)
             return {}
 
     def get_versiones_instaladas(self):
@@ -1037,13 +1185,13 @@ class Api:
                         except Exception:
                             break
         except Exception as e:
-            print("Error RPC dinámico:", e)
+            log.debug("Error RPC dinámico: %s", e)
 
     def lanzar_juego(self, version, motor, server_ip=""):
         if self.hilo_juego_activo:
-            print(f"[GUARD] Ya hay un juego activo, ignorando lanzamiento de {version}")
+            log.warning("[GUARD] Ya hay un juego activo, ignorando lanzamiento de %s", version)
             return "ya_activo"
-        print(f"Lanzando {version} con {motor}. AutoJoin: {server_ip}")
+        log.info("Lanzando %s con %s. AutoJoin: %s", version, motor, server_ip or "(ninguno)")
         self.hilo_juego_activo = True
         self.config_actual["ultima_version"] = version
         self.config_actual["ultimo_motor"] = motor
@@ -1153,7 +1301,7 @@ class Api:
                             self.config_actual["ultimo_backup_auto"] = _now.isoformat()
                             self._guardar()
                 except Exception as _bk_e:
-                    print(f"[BackupAuto] {_bk_e}")
+                    log.warning("[BackupAuto] %s", _bk_e)
                 # Dynamic RAM: +1 GB si >20 mods, +2 GB si >50 mods
                 try:
                     import minecraft_launcher_lib as _mcl3
@@ -1280,7 +1428,7 @@ class Api:
                 tb = traceback.format_exc()
                 err = f"Error: {str(e)[:120]}"
                 _log_launch(f"ERROR: {tb}")
-                print(f"Error critico lanzar: {tb}")
+                log.error("Error critico lanzar:\n%s", tb)
                 self.hilo_juego_activo = False
                 self._game_status = {"running": False, "status": err}
                 _crash_err = self._analizar_crash_report(version, motor, since_ts=time.time() - 300)
@@ -1817,11 +1965,11 @@ class Api:
                 return {"ok": False, "error": "Se necesita cuenta Premium para jugar Minecraft: Bedrock Edition"}
             try:
                 _pack_r = self.instalar_pack_paraguacraft()
-                print("[PACK]", _pack_r)
+                log.info("[PACK] %s", _pack_r)
                 with open(os.path.join(os.path.expanduser("~"), "paraguacraft_pack_debug.txt"), "w") as _dbg:
                     _dbg.write(str(_pack_r))
             except Exception as _pe:
-                print("[PACK] error:", _pe)
+                log.error("[PACK] error: %s", _pe, exc_info=True)
                 try:
                     with open(os.path.join(os.path.expanduser("~"), "paraguacraft_pack_debug.txt"), "w") as _dbg:
                         _dbg.write("ERROR: " + str(_pe))
@@ -3305,6 +3453,207 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    def seleccionar_archivo_mrpack(self):
+        """Abre file dialog para que el usuario elija un .mrpack local."""
+        try:
+            result = webview.windows[0].create_file_dialog(
+                webview.OPEN_DIALOG,
+                allow_multiple=False,
+                file_types=("Modrinth Modpack (*.mrpack)", "Archivo ZIP (*.zip)", "Todos los archivos (*.*)")
+            )
+            if result and len(result) > 0:
+                return {"ok": True, "path": result[0]}
+            return {"ok": False, "error": "cancelado"}
+        except Exception as e:
+            log.error("seleccionar_archivo_mrpack: %s", e, exc_info=True)
+            return {"ok": False, "error": str(e)}
+
+    @staticmethod
+    def _motor_desde_mrpack_deps(deps):
+        """Convierte las dependencias del manifest a (mc_version, motor_launcher)."""
+        mc = (deps or {}).get("minecraft", "1.20.1")
+        if "neoforge" in deps:
+            return mc, "NeoForge"
+        if "forge" in deps:
+            return mc, "Forge"
+        if "fabric-loader" in deps:
+            return mc, "Fabric"
+        if "quilt-loader" in deps:
+            return mc, "Fabric"  # Quilt es compat con Fabric en el launcher
+        return mc, "Vanilla"
+
+    def importar_mrpack_archivo(self, ruta_archivo):
+        """Instala un modpack .mrpack LOCAL (ya descargado) en una instancia
+        Paraguacraft_{mc}_{motor}. Reporta progreso via self._mod_dl_progress.
+        """
+        import zipfile as _zf
+        import json as _json
+        import hashlib as _hashlib
+        _HDR = {"User-Agent": "Paraguacraft-Launcher/2.0"}
+        try:
+            if not ruta_archivo or not os.path.isfile(ruta_archivo):
+                return {"ok": False, "error": "Archivo no encontrado"}
+            if os.path.getsize(ruta_archivo) > 500 * 1024 * 1024:
+                return {"ok": False, "error": "El archivo excede 500 MB, probable corrupto"}
+
+            self._mod_dl_progress = {"pct": 0, "nombre": os.path.basename(ruta_archivo),
+                                     "estado": "Leyendo manifest..."}
+
+            from core import carpeta_instancia_paraguacraft
+            import minecraft_launcher_lib as _mcl
+            mine_dir = _mcl.utils.get_minecraft_directory()
+
+            # 1) Parse manifest
+            try:
+                with _zf.ZipFile(ruta_archivo, "r") as z:
+                    if "modrinth.index.json" not in z.namelist():
+                        return {"ok": False, "error": "El archivo no contiene modrinth.index.json (¿no es un .mrpack?)"}
+                    with z.open("modrinth.index.json") as f:
+                        index = _json.load(f)
+                    names_in_zip = z.namelist()
+            except _zf.BadZipFile:
+                return {"ok": False, "error": "Archivo ZIP corrupto o inválido"}
+
+            if index.get("game") != "minecraft":
+                return {"ok": False, "error": f"Game no soportado: {index.get('game')}"}
+
+            deps = index.get("dependencies", {}) or {}
+            mc_ver, motor = self._motor_desde_mrpack_deps(deps)
+            pack_name = index.get("name", os.path.basename(ruta_archivo))
+            folder = carpeta_instancia_paraguacraft(mc_ver.strip(), motor)
+            base = os.path.join(mine_dir, "instancias", folder)
+            os.makedirs(base, exist_ok=True)
+
+            files_list = [f for f in index.get("files", [])
+                          if (f.get("env", {}).get("client", "required") != "unsupported")]
+            total_files = len(files_list)
+            self._mod_dl_progress = {"pct": 5, "nombre": pack_name,
+                                     "estado": f"Instalando {pack_name} ({mc_ver} · {motor})..."}
+
+            # 2) Descargar files[] con verificación sha1 si viene
+            installed = 0
+            errors = []
+            skipped = 0
+            for i, entry in enumerate(files_list):
+                file_path = (entry.get("path") or "").lstrip("/").replace("..", "_")
+                if not file_path:
+                    continue
+                # seguridad: path no puede salir del base
+                dest_full = os.path.normpath(os.path.join(base, file_path.replace("/", os.sep)))
+                if not dest_full.startswith(os.path.normpath(base)):
+                    errors.append(f"{file_path} (path inválido)")
+                    continue
+                downloads = entry.get("downloads") or []
+                if not downloads:
+                    continue
+                sha1_expected = (entry.get("hashes") or {}).get("sha1", "").lower()
+
+                if os.path.isfile(dest_full) and sha1_expected:
+                    try:
+                        h = _hashlib.sha1()
+                        with open(dest_full, "rb") as _rf:
+                            for _c in iter(lambda: _rf.read(65536), b""):
+                                h.update(_c)
+                        if h.hexdigest().lower() == sha1_expected:
+                            skipped += 1
+                            installed += 1
+                            continue
+                    except Exception:
+                        pass
+
+                os.makedirs(os.path.dirname(dest_full), exist_ok=True)
+                fname = os.path.basename(file_path)
+                pct = 5 + int((i / max(1, total_files)) * 80)
+                self._mod_dl_progress = {
+                    "pct": pct, "nombre": fname,
+                    "estado": f"Descargando {i+1}/{total_files}: {fname}"
+                }
+
+                ok_file = False
+                last_err = ""
+                for url in downloads:
+                    try:
+                        r2 = requests.get(url, stream=True, timeout=(15, 180), headers=_HDR)
+                        r2.raise_for_status()
+                        with open(dest_full, "wb") as _wf:
+                            for chunk in r2.iter_content(65536):
+                                if chunk:
+                                    _wf.write(chunk)
+                        if sha1_expected:
+                            h = _hashlib.sha1()
+                            with open(dest_full, "rb") as _rf:
+                                for _c in iter(lambda: _rf.read(65536), b""):
+                                    h.update(_c)
+                            if h.hexdigest().lower() != sha1_expected:
+                                last_err = "hash mismatch"
+                                try: os.remove(dest_full)
+                                except Exception: pass
+                                continue
+                        ok_file = True
+                        break
+                    except Exception as _de:
+                        last_err = str(_de)[:80]
+                        continue
+                if ok_file:
+                    installed += 1
+                else:
+                    errors.append(f"{fname} ({last_err})")
+
+            # 3) Extraer overrides/ y client-overrides/
+            self._mod_dl_progress = {"pct": 90, "nombre": pack_name,
+                                     "estado": "Aplicando configs y overrides..."}
+            try:
+                with _zf.ZipFile(ruta_archivo, "r") as z:
+                    for name in names_in_zip:
+                        for prefix in ("overrides/", "client-overrides/"):
+                            if name.startswith(prefix) and not name.endswith("/"):
+                                rel = name[len(prefix):].replace("..", "_")
+                                dest = os.path.normpath(os.path.join(base, rel.replace("/", os.sep)))
+                                if not dest.startswith(os.path.normpath(base)):
+                                    continue
+                                os.makedirs(os.path.dirname(dest), exist_ok=True)
+                                with z.open(name) as sf, open(dest, "wb") as df:
+                                    shutil.copyfileobj(sf, df)
+                                break
+            except Exception as _oe:
+                log.warning("mrpack overrides: %s", _oe)
+
+            # 4) Marcar la instancia para referencia
+            try:
+                meta = {
+                    "source": "mrpack_local",
+                    "archivo_original": os.path.basename(ruta_archivo),
+                    "name": index.get("name", ""),
+                    "version_id": index.get("versionId", ""),
+                    "mc_version": mc_ver,
+                    "motor": motor,
+                    "imported_at": datetime.datetime.now().isoformat(timespec="seconds"),
+                    "files": installed,
+                }
+                with open(os.path.join(base, "_paragua_mrpack.json"), "w", encoding="utf-8") as _mf:
+                    _json.dump(meta, _mf, ensure_ascii=False, indent=2)
+            except Exception:
+                pass
+
+            self._mod_dl_progress = {"pct": 100, "nombre": pack_name, "estado": "¡Listo!"}
+            log.info("[mrpack] Importado '%s' (%s · %s) → %d/%d archivos, %d errores",
+                     pack_name, mc_ver, motor, installed, total_files, len(errors))
+
+            return {
+                "ok": True,
+                "nombre": pack_name,
+                "version": mc_ver,
+                "motor": motor,
+                "installed": installed,
+                "total": total_files,
+                "skipped": skipped,
+                "errors": errors[:20],
+                "instancia": folder,
+            }
+        except Exception as e:
+            log.error("importar_mrpack_archivo: %s", e, exc_info=True)
+            return {"ok": False, "error": str(e)}
+
     def instalar_mod_desde_modrinth(self, project_id, version_id, tipo, version_mc, motor):
         if tipo == 'modpack':
             return self.instalar_modpack_mrpack(project_id, version_id, version_mc, motor)
@@ -3663,7 +4012,7 @@ class Api:
                     )
                     os._exit(0)
                 except OSError as _oe:
-                    print(f"[Updater] Rename falló ({_oe}), usando PowerShell...")
+                    log.warning("[Updater] Rename falló (%s), usando PowerShell...", _oe)
 
                 # ── Estrategia 2: PowerShell ──────────────────────────────
                 ps_path = os.path.join(tempfile.gettempdir(), "paragua_updater.ps1")
@@ -3698,7 +4047,7 @@ class Api:
                 )
                 os._exit(0)
             except Exception as e:
-                print(f"[Updater] Error: {e}")
+                log.error("[Updater] Error: %s", e, exc_info=True)
                 _notify_err(str(e)[:300])
         threading.Thread(target=_hilo, daemon=True).start()
         return {"ok": True}
@@ -4031,6 +4380,49 @@ class Api:
                                        "tamano_mb": round(_tamano_carpeta(ruta) / (1024 * 1024), 1)})
             mundos.sort(key=lambda x: x["modificado"], reverse=True)
             return {"ok": True, "mundos": mundos}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def backup_mods_instancia(self, version, motor):
+        """Crea un ZIP de respaldo de la carpeta mods/ de una instancia antes
+        de actualizar. Mantiene solo los últimos 3 snapshots por instancia."""
+        try:
+            import minecraft_launcher_lib
+            from core import carpeta_instancia_paraguacraft
+            mc_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+            inst_nombre = carpeta_instancia_paraguacraft(version, motor)
+            mods_dir = os.path.join(mc_dir, "instancias", inst_nombre, "mods")
+            if not os.path.isdir(mods_dir):
+                return {"ok": False, "error": "La instancia no tiene carpeta de mods."}
+            # Directorio de backups de mods (separado del de mundos)
+            backup_dir = os.path.join(os.path.dirname(os.path.abspath(self.ruta_config)), "paraguacraft_backups_mods")
+            os.makedirs(backup_dir, exist_ok=True)
+            ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            nombre_zip = f"mods_{inst_nombre}_{ts}.zip"
+            ruta_zip = os.path.join(backup_dir, nombre_zip)
+            with zipfile.ZipFile(ruta_zip, "w", zipfile.ZIP_DEFLATED) as zf:
+                for root, _, files in os.walk(mods_dir):
+                    for f in files:
+                        if not (f.endswith(".jar") or f.endswith(".disabled")):
+                            continue
+                        fp = os.path.join(root, f)
+                        zf.write(fp, os.path.relpath(fp, mods_dir))
+            # Mantener solo últimos 3 backups de esta instancia
+            try:
+                prefijo = f"mods_{inst_nombre}_"
+                previos = sorted(
+                    [f for f in os.listdir(backup_dir) if f.startswith(prefijo) and f.endswith(".zip")],
+                    reverse=True
+                )
+                for viejo in previos[3:]:
+                    try:
+                        os.remove(os.path.join(backup_dir, viejo))
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+            return {"ok": True, "archivo": nombre_zip,
+                    "tamano_mb": round(os.path.getsize(ruta_zip) / (1024 * 1024), 1)}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
@@ -4467,11 +4859,53 @@ class Api:
             except Exception:
                 pass
         marker = os.path.join(tempfile.gettempdir(), "paraguacraft_updated.flag")
+        last_seen = self.config_actual.get("last_changelog_version", "")
+        # Si marker existe, hubo actualización en esta sesión
         if os.path.isfile(marker):
             try: os.remove(marker)
             except Exception: pass
-            return {"updated": True, "version": VERSION}
-        return {"updated": False}
+            return {"updated": True, "version": VERSION, "previous": last_seen or "anterior"}
+        # Si la versión instalada difiere de la última vista (ej: actualización manual o primer arranque)
+        if last_seen and last_seen != VERSION:
+            return {"updated": True, "version": VERSION, "previous": last_seen}
+        return {"updated": False, "version": VERSION}
+
+    def marcar_changelog_visto(self):
+        """Marca la versión actual como 'changelog ya visto' para no mostrar el modal de nuevo."""
+        try:
+            self.config_actual["last_changelog_version"] = VERSION
+            self._guardar()
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def get_changelog(self, version=None):
+        """Devuelve el contenido del CHANGELOG.md (en Markdown)."""
+        try:
+            # Buscar CHANGELOG.md en varios paths (frozen o dev)
+            candidatos = []
+            if getattr(sys, "frozen", False):
+                candidatos.append(os.path.join(getattr(sys, "_MEIPASS", os.path.dirname(sys.executable)), "CHANGELOG.md"))
+                candidatos.append(os.path.join(os.path.dirname(sys.executable), "CHANGELOG.md"))
+            candidatos.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "CHANGELOG.md"))
+            contenido = ""
+            for p in candidatos:
+                if os.path.isfile(p):
+                    with open(p, "r", encoding="utf-8") as f:
+                        contenido = f.read()
+                    break
+            if not contenido:
+                return {"ok": False, "error": "CHANGELOG.md no encontrado", "version": VERSION}
+            # Si piden una versión específica, recortar solo esa sección
+            if version:
+                import re
+                m = re.search(rf"^## \[?{re.escape(version)}\]?.*?(?=^## |\Z)",
+                              contenido, re.MULTILINE | re.DOTALL)
+                if m:
+                    return {"ok": True, "version": version, "markdown": m.group(0).strip()}
+            return {"ok": True, "version": VERSION, "markdown": contenido}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "version": VERSION}
 
     def get_fondo_actual(self):
         fondo = self.config_actual.get("fondo_animado", "")
@@ -4734,6 +5168,35 @@ class Api:
             return {"ok": True}
         except Exception as e:
             return {"ok": False, "error": str(e)}
+
+    def check_all_mod_updates(self):
+        """Escanea TODAS las instancias instaladas en background y devuelve
+        el total de mods con actualización disponible. Se usa para mostrar
+        un badge al iniciar el launcher."""
+        try:
+            instaladas_resp = self.get_versiones_instaladas()
+            if not instaladas_resp.get("ok"):
+                return {"ok": False, "total_updates": 0, "por_instancia": []}
+            todas = (instaladas_resp.get("instaladas") or []) + (instaladas_resp.get("extras") or [])
+            por_instancia = []
+            total = 0
+            for inst in todas[:15]:  # max 15 instancias para no saturar
+                v = inst.get("version", "")
+                m = inst.get("motor", "")
+                if not v or not m or m.lower() == "vanilla":
+                    continue
+                try:
+                    r = self.get_mod_updates(v, m)
+                    if r.get("ok"):
+                        n_upd = sum(1 for x in r.get("mods", []) if x.get("update_disponible"))
+                        if n_upd > 0:
+                            por_instancia.append({"version": v, "motor": m, "updates": n_upd})
+                            total += n_upd
+                except Exception:
+                    pass
+            return {"ok": True, "total_updates": total, "por_instancia": por_instancia}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "total_updates": 0, "por_instancia": []}
 
     def get_mod_updates(self, version, motor):
         """Verifica actualizaciones de mods en la instancia usando la API de hashes de Modrinth."""
@@ -5796,6 +6259,45 @@ class Api:
 
             else:
                 return {"ok": False, "error": f"Fix '{fix_action}' no reconocido."}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def explicar_crash_simple(self, fragmento, issues_detectados=None):
+        """Explicación amigable del crash para usuarios no técnicos.
+        Traduce el error técnico a lenguaje simple con pasos concretos."""
+        try:
+            if not fragmento:
+                return {"ok": False, "error": "Fragmento vacío."}
+            ctx_issues = ""
+            if issues_detectados:
+                try:
+                    ctx_issues = "\n\nProblemas detectados por patrones:\n" + "\n".join(
+                        f"- {i.get('titulo','')}: {i.get('descripcion','')}"
+                        for i in issues_detectados[:5]
+                    )
+                except Exception:
+                    ctx_issues = ""
+            messages = [
+                {"role": "system", "content": (
+                    "Sos un asistente amigable del launcher Paraguacraft. "
+                    "Tu tarea es explicar por qué crasheó Minecraft de forma MUY SIMPLE, "
+                    "en español rioplatense, a un jugador que NO sabe programación ni inglés técnico. "
+                    "REGLAS:\n"
+                    "1) Nunca uses palabras como 'stacktrace', 'exception', 'classloader', 'JVM'.\n"
+                    "2) Usá máximo 3-4 oraciones cortas.\n"
+                    "3) Empezá con una frase de empatía ('Tranqui, esto pasa...').\n"
+                    "4) Explicá la causa en 1 oración simple.\n"
+                    "5) Terminá con 1-2 pasos concretos que el usuario pueda hacer.\n"
+                    "6) Si la solución está en el launcher, mencioná dónde (ej: 'Ajustes → Rendimiento').\n"
+                    "Ejemplo de tono: 'Tranqui, te quedaste sin memoria. Entrá a Ajustes → Rendimiento "
+                    "y subí la RAM de 4GB a 6GB. Listo, reiniciá y va a andar.'"
+                )},
+                {"role": "user", "content": f"LOG DE CRASH:\n{fragmento[:20000]}{ctx_issues}"}
+            ]
+            texto, err = self._ia_messages(messages, max_tokens=400, temperature=0.3)
+            if texto:
+                return {"ok": True, "explicacion": texto.strip()}
+            return {"ok": False, "error": err or "Sin respuesta de IA."}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
@@ -7994,7 +8496,9 @@ def _asegurar_webview2():
         _url = "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
         _tmp = os.path.join(tempfile.gettempdir(), "MicrosoftEdgeWebview2Setup.exe")
         if not os.path.exists(_tmp):
-            urllib.request.urlretrieve(_url, _tmp)
+            # urlopen con timeout para evitar freezes silenciosos si la red falla
+            with urllib.request.urlopen(_url, timeout=30) as _resp, open(_tmp, "wb") as _f:
+                shutil.copyfileobj(_resp, _f, length=65536)
         subprocess.run([_tmp, "/silent", "/install"], timeout=180, check=False)
         _cerrar_progreso()
         if _instalado():
@@ -8045,12 +8549,12 @@ def _asegurar_long_paths():
         _val, _ = winreg.QueryValueEx(_key, "LongPathsEnabled")
         if _val != 1:
             winreg.SetValueEx(_key, "LongPathsEnabled", 0, winreg.REG_DWORD, 1)
-            print("[LongPaths] Soporte de rutas largas habilitado.")
+            log.info("[LongPaths] Soporte de rutas largas habilitado.")
         winreg.CloseKey(_key)
     except PermissionError:
         pass  # Sin permisos admin — no es crítico, Minecraft igual puede funcionar
     except Exception as _e:
-        print(f"[LongPaths] No se pudo habilitar: {_e}")
+        log.warning("[LongPaths] No se pudo habilitar: %s", _e)
 
 
 if __name__ == "__main__":
