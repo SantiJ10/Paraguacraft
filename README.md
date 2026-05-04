@@ -4,7 +4,7 @@
 
 **Launcher completo de Minecraft, desarrollado en Python con interfaz web moderna.**
 
-[![Version](https://img.shields.io/badge/versión-5.0.0-2ECC71?style=flat-square)](https://github.com/SantiJ10/Paraguacraft/releases)
+[![Version](https://img.shields.io/badge/versión-5.4.0-2ECC71?style=flat-square)](https://github.com/SantiJ10/Paraguacraft/releases)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![License](https://img.shields.io/badge/licencia-MIT-blue?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/plataforma-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)](https://github.com/SantiJ10/Paraguacraft/releases)
@@ -93,11 +93,21 @@ Paraguacraft es un launcher de Minecraft completamente personalizado, desarrolla
 - Perfiles de hardware (baja/media/alta gama) con mods preconfigurados
 
 ### 🔄 Sistema
-- **Auto-actualización** vía GitHub Releases
+- **Auto-actualización** vía GitHub Releases con barra de progreso en tiempo real
+- Verificación de integridad **SHA256** del ejecutable descargado
+- Manifest de actualización vía **Cloudflare Pages** (sin rate limits)
+- Fallback a GitHub API si Cloudflare no está disponible
 - Notificaciones nativas de Windows
 - Noticias de Minecraft en la pantalla de inicio
 - Contador de jugadores online en tiempo real
 - Ping en vivo a servidores populares
+
+### 🖥️ Compatibilidad Windows
+- Compatible con **Windows 10 y 11** en todas las ediciones (Home, Pro, Enterprise, LTSC)
+- **WebView2 Runtime**: detección e instalación automática con diálogo amigable al usuario
+- El instalador también gestiona WebView2 como prerequisito automático
+- **Long Paths** (>260 caracteres) habilitado automáticamente para modpacks pesados
+- CSS compilado localmente (sin dependencia de CDN) para entornos con firewall corporativo
 
 ---
 
@@ -124,10 +134,31 @@ python paragua.py
 
 ```bash
 pip install pyinstaller
+
+# 1. Compilar el CSS de Tailwind (necesario si modificaste el HTML)
+powershell -command "Invoke-WebRequest -Uri 'https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.17/tailwindcss-windows-x64.exe' -OutFile 'tailwindcss.exe'"
+.\tailwindcss.exe --content web/index.html -o web/assets/tailwind.min.css --minify
+del tailwindcss.exe
+
+# 2. Compilar el ejecutable
 pyinstaller Paraguacraft.spec --noconfirm
 ```
 
 El ejecutable queda en `dist/Paraguacraft.exe`.
+
+### Proceso de release
+
+```
+1. Actualizar VERSION en paragua.py
+2. Actualizar AppVersion y OutputBaseFilename en script_mc.iss
+3. Recompilar CSS (si hubo cambios en index.html)
+4. pyinstaller Paraguacraft.spec --noconfirm
+5. certutil -hashfile dist\Paraguacraft.exe SHA256
+6. Actualizar latest.json (version, download_url, sha256)
+7. Compilar instalador en Inno Setup
+8. Crear GitHub Release → subir Paraguacraft.exe + instalador
+9. Cloudflare Pages → subir latest.json actualizado
+```
 
 ---
 
@@ -135,14 +166,17 @@ El ejecutable queda en `dist/Paraguacraft.exe`.
 
 ```
 Paraguacraft/
-├── paragua.py            # Backend principal (API pywebview)
-├── core.py               # Lógica de lanzamiento de Minecraft
+├── paragua.py              # Backend principal (API pywebview)
+├── core.py                 # Lógica de lanzamiento de Minecraft
 ├── web/
-│   └── index.html        # Interfaz web completa
-├── web/assets/           # Imágenes, íconos y recursos estáticos
-├── src/                  # Módulos auxiliares
-├── Paraguacraft.spec     # Configuración de PyInstaller
-└── requirements.txt      # Dependencias Python
+│   ├── index.html          # Interfaz web completa
+│   └── assets/
+│       └── tailwind.min.css  # CSS compilado localmente (Tailwind JIT)
+├── src/                    # Módulos auxiliares
+├── Paraguacraft.spec       # Configuración de PyInstaller
+├── script_mc.iss           # Script Inno Setup (instalador)
+├── latest.json             # Manifest de actualización (subir a Cloudflare Pages)
+└── requirements.txt        # Dependencias Python
 ```
 
 ---
@@ -152,8 +186,9 @@ Paraguacraft/
 | Capa | Tecnología |
 |------|-----------|
 | Backend | Python 3, pywebview, requests, psutil |
-| Frontend | HTML5, TailwindCSS, JavaScript |
+| Frontend | HTML5, TailwindCSS (compilado local), JavaScript |
 | Empaquetado | PyInstaller + Inno Setup |
+| CDN updates | Cloudflare Pages (manifest) + GitHub Releases (binarios) |
 | APIs externas | Modrinth, CurseForge, Mojang, Gemini AI, Spotify, YouTube |
 | Minecraft | minecraft-launcher-lib |
 | Túnel público | playit.gg |
@@ -161,6 +196,34 @@ Paraguacraft/
 ---
 
 ## 📝 Changelog
+
+### v5.4.0
+- **Compatibilidad total Windows 10/11**: todas las ediciones incluyendo LTSC Enterprise
+- **WebView2 auto-install**: detecta si falta WebView2, muestra diálogo amigable y lo descarga/instala automáticamente
+- Detección en HKLM y HKCU (installs por usuario y del sistema)
+- **Long Paths habilitado automáticamente** vía registro para modpacks con rutas largas
+- **Tailwind CSS local**: compilado desde el HTML con el CLI standalone, sin dependencia de CDN
+- Instalador Inno Setup detecta y descarga WebView2 como prerequisito si no está instalado
+
+### v5.3.0
+- **Sistema de auto-actualización reescrito** con barra de progreso en tiempo real
+- Progreso real de descarga basado en `Content-Length` (MB descargados / MB totales)
+- **Verificación SHA256** del ejecutable descargado antes de instalar
+- **Manifest vía Cloudflare Pages** (`latest.json`) como fuente primaria sin rate limits
+- Fallback automático a GitHub Releases API si Cloudflare no responde
+- 3 reintentos automáticos con espera progresiva ante errores de red
+- Estrategia 1: rename in-process (sin UAC)
+- Estrategia 2: PowerShell con 10 reintentos (fallback si el exe está bloqueado)
+- Botón "Descargar manual" inline al fallar (sin alertas molestas)
+- `cerrarModalUpdate()` resetea correctamente el estado de la barra
+
+### v5.2.0
+- Tienda de mods y sistema de servidores estabilizado
+- Correcciones generales de rendimiento
+
+### v5.1.0
+- Mejoras en el sistema de diagnóstico de crashes
+- Optimizaciones de UI
 
 ### v5.0.0
 - **Auto-maximize**: la ventana del launcher inicia maximizada via parámetro nativo de pywebview

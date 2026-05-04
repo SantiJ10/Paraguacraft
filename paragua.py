@@ -30,7 +30,7 @@ try:
 except Exception:
     _lanzar_minecraft_ref = None
 
-VERSION = "5.3.0"  # Actualizar en cada release
+VERSION = "5.4.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 # Opcional: URL de Cloudflare Pages con latest.json (sin rate limits, CDN global)
 # Formato del JSON: {"version":"5.2.0", "download_url":"...", "size_bytes":0, "notes":"..."}
@@ -7921,7 +7921,141 @@ def _start_local_api(api):
 # ──────────────────────────────────────────────────────────────────────────────
 
 
+def _asegurar_webview2():
+    """
+    En Windows 10 LTSC y ediciones sin WebView2 preinstalado,
+    descarga e instala el runtime de WebView2 con feedback al usuario.
+    Sin WebView2 pywebview cae en MSHTML/IE11 y el layout se rompe.
+    """
+    if sys.platform != "win32":
+        return
+    import winreg, ctypes
+
+    _GUID = "{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+    _SUBKEYS = [
+        rf"SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{_GUID}",
+        rf"SOFTWARE\Microsoft\EdgeUpdate\Clients\{_GUID}",
+    ]
+
+    def _instalado():
+        for _hive in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
+            for _sub in _SUBKEYS:
+                try:
+                    _k = winreg.OpenKey(_hive, _sub)
+                    _pv = winreg.QueryValueEx(_k, "pv")[0]
+                    winreg.CloseKey(_k)
+                    if _pv and _pv != "0.0.0.0":
+                        return True
+                except Exception:
+                    pass
+        return False
+
+    if _instalado():
+        return
+
+    # Pedir permiso al usuario antes de descargar
+    _MB_YESNO = 0x04
+    _MB_ICONWARNING = 0x30
+    _IDYES = 6
+    _resp = ctypes.windll.user32.MessageBoxW(
+        None,
+        "Paraguacraft necesita Microsoft WebView2 Runtime para mostrar la interfaz correctamente.\n\n"
+        "Sin este componente el launcher se ve en blanco o con elementos dispersos.\n\n"
+        "¿Querés instalarlo ahora? (descarga ~2 MB, requiere internet)",
+        "Componente necesario — Paraguacraft",
+        _MB_YESNO | _MB_ICONWARNING,
+    )
+    if _resp != _IDYES:
+        # El usuario rechazó — intentar arrancar igual, puede que funcione con Edge instalado
+        return
+
+    # Mostrar ventana de progreso en un hilo separado mientras se descarga/instala
+    _TITLE_PROG = "Paraguacraft — Instalando WebView2"
+    def _progress_dlg():
+        ctypes.windll.user32.MessageBoxW(
+            None,
+            "Descargando e instalando Microsoft WebView2 Runtime...\n\n"
+            "Por favor esperá, esto puede tardar hasta 1 minuto.\n"
+            "Esta ventana se cierra sola cuando termina.",
+            _TITLE_PROG,
+            0x40,  # MB_ICONINFORMATION
+        )
+    _t = threading.Thread(target=_progress_dlg, daemon=True)
+    _t.start()
+    time.sleep(0.4)  # Dar tiempo a que aparezca el diálogo
+
+    def _cerrar_progreso():
+        _hw = ctypes.windll.user32.FindWindowW(None, _TITLE_PROG)
+        if _hw:
+            ctypes.windll.user32.SendMessageW(_hw, 0x0111, 1, 0)  # WM_COMMAND IDOK
+
+    try:
+        import urllib.request, tempfile
+        _url = "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
+        _tmp = os.path.join(tempfile.gettempdir(), "MicrosoftEdgeWebview2Setup.exe")
+        if not os.path.exists(_tmp):
+            urllib.request.urlretrieve(_url, _tmp)
+        subprocess.run([_tmp, "/silent", "/install"], timeout=180, check=False)
+        _cerrar_progreso()
+        if _instalado():
+            ctypes.windll.user32.MessageBoxW(
+                None,
+                "Microsoft WebView2 se instaló correctamente.\n\n"
+                "El launcher se va a abrir ahora.",
+                "Paraguacraft",
+                0x40,
+            )
+        else:
+            ctypes.windll.user32.MessageBoxW(
+                None,
+                "WebView2 fue instalado pero no se pudo verificar.\n\n"
+                "Si el launcher no se ve bien, cerralo y volvé a abrirlo.",
+                "Paraguacraft",
+                0x40,
+            )
+    except Exception as _e:
+        _cerrar_progreso()
+        ctypes.windll.user32.MessageBoxW(
+            None,
+            f"No se pudo instalar WebView2 automáticamente:\n{str(_e)[:200]}\n\n"
+            "Descargalo manualmente desde:\n"
+            "https://developer.microsoft.com/en-us/microsoft-edge/webview2/\n\n"
+            "Después de instalarlo, volvé a abrir el launcher.",
+            "Error — Paraguacraft",
+            0x10,  # MB_ICONERROR
+        )
+
+
+def _asegurar_long_paths():
+    """
+    Habilita el soporte de rutas largas (>260 caracteres) en Windows.
+    Necesario para modpacks pesados (ATM, All The Mods, etc.) que generan
+    rutas muy largas. Requiere reinicio de proceso para tener efecto completo,
+    pero Java lo toma en cuenta al lanzar Minecraft.
+    """
+    if sys.platform != "win32":
+        return
+    try:
+        import winreg
+        _key = winreg.OpenKey(
+            winreg.HKEY_LOCAL_MACHINE,
+            r"SYSTEM\CurrentControlSet\Control\FileSystem",
+            0, winreg.KEY_READ | winreg.KEY_WRITE,
+        )
+        _val, _ = winreg.QueryValueEx(_key, "LongPathsEnabled")
+        if _val != 1:
+            winreg.SetValueEx(_key, "LongPathsEnabled", 0, winreg.REG_DWORD, 1)
+            print("[LongPaths] Soporte de rutas largas habilitado.")
+        winreg.CloseKey(_key)
+    except PermissionError:
+        pass  # Sin permisos admin — no es crítico, Minecraft igual puede funcionar
+    except Exception as _e:
+        print(f"[LongPaths] No se pudo habilitar: {_e}")
+
+
 if __name__ == "__main__":
+    _asegurar_webview2()
+    _asegurar_long_paths()
     api = Api()
     _base = sys._MEIPASS if getattr(sys, "frozen", False) else os.path.dirname(os.path.abspath(__file__))
     html_path = os.path.join(_base, "web", "index.html")
@@ -7982,6 +8116,23 @@ if __name__ == "__main__":
     ventana.events.loaded += _on_loaded
 
     _icon_path = os.path.join(_base, "iconomc.ico")
-    webview.start(debug=False, http_server=True,
-                  icon=_icon_path if os.path.exists(_icon_path) else None,
-                  user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+
+    # Forzar WebView2 (Chromium) en Windows.
+    # Sin esto pywebview puede caer en MSHTML/IE11 en Windows 10 LTSC/Enterprise,
+    # lo que rompe Tailwind y deja el layout en blanco con elementos dispersos.
+    _gui_backend = "edgechromium" if sys.platform == "win32" else None
+    try:
+        webview.settings["ALLOW_FILE_URLS"] = True
+    except Exception:
+        pass
+
+    _start_kwargs = dict(
+        debug=False,
+        http_server=True,
+        icon=_icon_path if os.path.exists(_icon_path) else None,
+        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    )
+    if _gui_backend:
+        _start_kwargs["gui"] = _gui_backend
+
+    webview.start(**_start_kwargs)
