@@ -4,7 +4,7 @@
 
 **Launcher completo de Minecraft, desarrollado en Python con interfaz web moderna.**
 
-[![Version](https://img.shields.io/badge/versión-5.4.0-2ECC71?style=flat-square)](https://github.com/SantiJ10/Paraguacraft/releases)
+[![Version](https://img.shields.io/badge/versión-5.5.0-2ECC71?style=flat-square)](https://github.com/SantiJ10/Paraguacraft/releases)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![License](https://img.shields.io/badge/licencia-MIT-blue?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/plataforma-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)](https://github.com/SantiJ10/Paraguacraft/releases)
@@ -40,6 +40,7 @@ Paraguacraft es un launcher de Minecraft completamente personalizado, desarrolla
 - **Auto-check de actualizaciones** al abrir la sección (vía hash SHA-512 contra Modrinth)
 - **Configuración de API Key de CurseForge** integrada en la UI (sin editar archivos)
 - Acceso directo desde el botón 🧩 del panel de juego
+- **Importación de modpacks `.mrpack` locales** con detección automática de versión y loader, verificación SHA-1 y aplicación de `overrides/`
 
 ### 🖼️ Skins
 - Visor 3D con animaciones (caminar, rotar, modelos Alex/Steve)
@@ -56,6 +57,8 @@ Paraguacraft es un launcher de Minecraft completamente personalizado, desarrolla
 - **Overlay en juego**: estadísticas de rendimiento sin salir de MC
 - **Centro de Diagnóstico**: 45+ patrones de error, lectura de 5 archivos de log, auto-fixes con un clic
 - **Auto-diagnóstico**: al crashear Minecraft, el launcher navega y escanea automáticamente
+- **Reporte de bugs con un clic**: empaqueta logs, crash reports, info del sistema y config (redactada) en un ZIP listo para adjuntar en GitHub Issues
+- **Log interno del launcher** accesible desde la UI (rotado automáticamente, máx. 15 MB)
 
 ### 🤖 Inteligencia Artificial (Gemini)
 - Asistente de chat sobre Minecraft
@@ -76,6 +79,7 @@ Paraguacraft es un launcher de Minecraft completamente personalizado, desarrolla
   - Soporte de dirección Bedrock personalizada con **persistencia entre reinicios**
   - La dirección se guarda por servidor en `_paragua_srv.json`
 - Consola en tiempo real con colores por nivel de log
+- **Filtros en consola**: chips `Todo / INFO / WARN / ERROR / Chat` + buscador libre
 - Reinicio automático programado por horas
 - Sistema de **whitelist** y **bans** integrado
 - Edición de `server.properties` desde la UI
@@ -91,12 +95,17 @@ Paraguacraft es un launcher de Minecraft completamente personalizado, desarrolla
 - Fondo del launcher configurable: imágenes, GIFs o videos
 - Modo compacto
 - Perfiles de hardware (baja/media/alta gama) con mods preconfigurados
+- **Atajos de teclado globales**: `Ctrl+1..6` para navegar, `Ctrl+J` jugar, `Ctrl+L` tienda de mods, `Ctrl+,` ajustes, `Ctrl+/` ver todos los atajos
 
 ### 🔄 Sistema
 - **Auto-actualización** vía GitHub Releases con barra de progreso en tiempo real
 - Verificación de integridad **SHA256** del ejecutable descargado
 - Manifest de actualización vía **Cloudflare Pages** (sin rate limits)
 - Fallback a GitHub API si Cloudflare no está disponible
+- **Modal de changelog** al actualizar, con parser Markdown embebido
+- **Modo sin conexión explicativo**: badge clickeable que muestra qué funciona y qué no sin internet
+- **Logging estructurado** con archivo rotatorio (`paraguacraft_debug.log`) para diagnóstico remoto
+- **Timeouts reforzados** en todas las llamadas HTTP para evitar cuelgues silenciosos
 - Notificaciones nativas de Windows
 - Noticias de Minecraft en la pantalla de inicio
 - Contador de jugadores online en tiempo real
@@ -196,6 +205,17 @@ Paraguacraft/
 ---
 
 ## 📝 Changelog
+
+### v5.5.0
+- **Importar modpacks `.mrpack`**: elegí un archivo local de Modrinth y el launcher detecta automáticamente la versión de Minecraft y el loader (Fabric/Forge/NeoForge/Quilt), descarga todos los mods con verificación SHA-1, aplica los `overrides/` y arma la instancia lista para jugar
+- **Reporte de bugs con un clic**: nuevo botón en Extras → Crash Log que empaqueta logs, crash reports, info del sistema y config (redactada, sin tokens) en un ZIP listo para GitHub Issues
+- **Atajos de teclado globales**: `Ctrl+1..6` navegación, `Ctrl+J` jugar, `Ctrl+L` tienda, `Ctrl+,` ajustes, `Ctrl+/` ver todos
+- **Changelog visible al actualizar**: modal con las novedades al detectar cambio de versión, con parser Markdown
+- **Modo sin conexión explicativo**: el badge "Sin conexión" ahora es clickeable y explica qué funciona offline
+- **Filtros en la consola del servidor**: chips `Todo / INFO / WARN / ERROR / Chat` + buscador libre
+- **Log interno del launcher**: botón `📋 Log launcher` + inclusión automática en el ZIP de reporte de bug
+- **Logging estructurado**: migrados los `print()` dispersos a `logging` con `RotatingFileHandler` (5 MB × 3 archivos) en `%APPDATA%/ParaguacraftLauncher/`
+- **Timeouts reforzados**: todas las llamadas HTTP ahora tienen `timeout` explícito para evitar cuelgues silenciosos
 
 ### v5.4.0
 - **Compatibilidad total Windows 10/11**: todas las ediciones incluyendo LTSC Enterprise

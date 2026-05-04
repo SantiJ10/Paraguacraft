@@ -1,7 +1,7 @@
 {
-  "version": "5.4.0",
+  "version": "5.5.0",
   "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v5.4.0/Paraguacraft.exe",
   "size_bytes": 0,
-  "sha256": "7b86162955dfc5f458d093cd6b12c5df6870b239cd627d391d1c164f4da79af",
+  "sha256": "29eb0de6661dd59d635b6319e942b575fc7147dbcc6747c76193757e68a207a6",
   "notes": "- Mejoras de estabilidad\n- Correcciones de bugs"
 }
