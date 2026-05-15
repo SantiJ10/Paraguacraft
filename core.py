@@ -973,7 +973,7 @@ def _install_mc_with_retry(version, mc_dir, cb_dict, progress_cb=None):
                 raise
 
 
-def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type="G1GC", optimizar=False, motor_elegido="Vanilla", papa_mode=False, usar_mesa=False, mostrar_consola=False, progress_callback=None, uuid_real=None, token_real=None, lan_distancia=False, fabric_loader_override=None, server_ip="", java_path=None, extra_jvm_args=None):
+def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type="G1GC", optimizar=False, motor_elegido="Vanilla", papa_mode=False, usar_mesa=False, mostrar_consola=False, progress_callback=None, uuid_real=None, token_real=None, lan_distancia=False, fabric_loader_override=None, server_ip="", java_path=None, extra_jvm_args=None, gpu_compat_mode="off"):
     minecraft_directory = minecraft_launcher_lib.utils.get_minecraft_directory()
 
     def on_progress(event):
@@ -1292,6 +1292,64 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
     if usar_mesa:
         entorno["MESA_GL_VERSION_OVERRIDE"] = "3.3"
         entorno["MESA_GLSL_VERSION_OVERRIDE"] = "330"
+
+    # ── GPU Compat Mode (Phase E) ────────────────────────────────────────
+    # Inyecta DLLs de Mesa al lado de javaw.exe y configura env vars según el
+    # driver gallium elegido. Idempotente: vuelve a copiar/borrar los DLL en
+    # cada lanzamiento según el modo actual.
+    _java_exe_final = options.get("executablePath") or _java_for_launch
+    _gpu_dlls_extra = (
+        "libgallium_wgl.dll", "libGLESv2.dll", "libEGL.dll",
+        "vulkan-1.dll", "d3dcompiler_47.dll", "graw.dll",
+    )
+    if _java_exe_final and _java_exe_final != "java" and os.path.isfile(_java_exe_final):
+        _java_bin = os.path.dirname(_java_exe_final)
+        _mesa_src = os.path.join(minecraft_directory, "paraguacraft_compat", "mesa")
+        _opengl_src = os.path.join(_mesa_src, "opengl32.dll")
+        _opengl_dst = os.path.join(_java_bin, "opengl32.dll")
+        # Marca: archivo .paragua_mesa indica que el opengl32 actual es nuestro
+        _marker = os.path.join(_java_bin, ".paragua_mesa")
+        try:
+            if gpu_compat_mode and gpu_compat_mode != "off" and os.path.isfile(_opengl_src):
+                if progress_callback:
+                    progress_callback(f"Aplicando modo compatibilidad GPU: {gpu_compat_mode}")
+                try:
+                    shutil.copy2(_opengl_src, _opengl_dst)
+                    for _dll in _gpu_dlls_extra:
+                        _src = os.path.join(_mesa_src, _dll)
+                        if os.path.isfile(_src):
+                            try: shutil.copy2(_src, os.path.join(_java_bin, _dll))
+                            except Exception: pass
+                    with open(_marker, "w", encoding="utf-8") as _mf:
+                        _mf.write(gpu_compat_mode)
+                except Exception as _ce:
+                    if progress_callback:
+                        progress_callback(f"⚠ No se pudo copiar Mesa: {_ce}")
+                # Configurar driver Gallium según modo
+                if gpu_compat_mode == "mesa-llvmpipe":
+                    entorno["GALLIUM_DRIVER"] = "llvmpipe"
+                elif gpu_compat_mode == "mesa-d3d12":
+                    entorno["GALLIUM_DRIVER"] = "d3d12"
+                    entorno["MESA_LOADER_DRIVER_OVERRIDE"] = "d3d12"
+                elif gpu_compat_mode == "mesa-zink":
+                    entorno["GALLIUM_DRIVER"] = "zink"
+                # Asegurar versión moderna de OpenGL para MC 1.17+
+                entorno.setdefault("MESA_GL_VERSION_OVERRIDE", "4.6")
+                entorno.setdefault("MESA_GLSL_VERSION_OVERRIDE", "460")
+            else:
+                # Modo off: si dejamos un opengl32.dll nuestro, lo eliminamos
+                if os.path.isfile(_marker) and os.path.isfile(_opengl_dst):
+                    try: os.remove(_opengl_dst)
+                    except Exception: pass
+                    for _dll in _gpu_dlls_extra:
+                        _p = os.path.join(_java_bin, _dll)
+                        if os.path.isfile(_p):
+                            try: os.remove(_p)
+                            except Exception: pass
+                    try: os.remove(_marker)
+                    except Exception: pass
+        except Exception:
+            pass
 
     options_txt_path = os.path.join(game_dir, "options.txt")
     servers_dat_path = os.path.join(game_dir, "servers.dat")

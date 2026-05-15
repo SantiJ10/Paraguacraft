@@ -44,12 +44,21 @@ except Exception:
     log = logging.getLogger("paraguacraft.main")
     _LOG_PATH = ""
 
-VERSION = "5.5.0"  # Actualizar en cada release
+VERSION = "5.6.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 # Opcional: URL de Cloudflare Pages con latest.json (sin rate limits, CDN global)
 # Formato del JSON: {"version":"5.2.0", "download_url":"...", "size_bytes":0, "notes":"..."}
 # Dejar vacío para usar solo GitHub.
 UPDATE_MANIFEST_URL = "https://paraguacraft.pages.dev/latest.json"
+
+# Repo público de configs de comunidad (Phase D)
+# Estructura del repo:
+#   /index.json    →  {"schema":1, "configs":[{...}]}
+#   /configs/<id>/<archivos>
+COMMUNITY_CONFIGS_REPO   = "SantiJ10/Paraguacraft-Configs"
+COMMUNITY_CONFIGS_BRANCH = "main"
+COMMUNITY_CONFIGS_INDEX  = f"https://raw.githubusercontent.com/{COMMUNITY_CONFIGS_REPO}/{COMMUNITY_CONFIGS_BRANCH}/index.json"
+COMMUNITY_CONFIGS_RAW    = f"https://raw.githubusercontent.com/{COMMUNITY_CONFIGS_REPO}/{COMMUNITY_CONFIGS_BRANCH}/"
 
 try:
     import credentials as _cred
@@ -141,6 +150,8 @@ class Api:
             "backup_var": True,
             "backup_auto_horas": 0,
             "ultimo_backup_auto": "",
+            "backup_saves_pre_update": True,
+            "ultimo_backup_pre_update": "",
             "limpiador_deep_var": False,
             "lan_distancia": False,
             "fabric_loader_version": "",
@@ -1359,6 +1370,7 @@ class Api:
                     server_ip=server_ip or "",
                     java_path=self.config_actual.get("java_custom_path") or None,
                     extra_jvm_args=_extra_jvm or None,
+                    gpu_compat_mode=self.config_actual.get("gpu_compat_mode", "off"),
                 )
                 # Restaurar ventana al estado previo (maximizado si lo estaba)
                 try:
@@ -1540,6 +1552,199 @@ class Api:
             with open(cfg_path, "w") as f:
                 json.dump(existing, f)
             return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── Iconos personalizables por instancia ──────────────────────────────
+    def get_instancia_icon(self, version, motor):
+        """Devuelve {emoji, image_path} de la instancia."""
+        try:
+            from core import carpeta_instancia_paraguacraft
+            import minecraft_launcher_lib as _mcl
+            mine_dir = _mcl.utils.get_minecraft_directory()
+            folder = carpeta_instancia_paraguacraft(version.strip(), motor)
+            cfg_path = os.path.join(mine_dir, "instancias", folder, "_paragua_instance.json")
+            if not os.path.exists(cfg_path):
+                return {"ok": True, "emoji": "", "image_path": ""}
+            with open(cfg_path, "r") as f:
+                cfg = json.load(f)
+            return {"ok": True,
+                    "emoji": cfg.get("icon_emoji", "") or "",
+                    "image_path": cfg.get("icon_image", "") or ""}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def set_instancia_icon(self, version, motor, emoji="", image_b64=""):
+        """Guarda el icono de una instancia. emoji es un string (1-4 chars) o vacío.
+        image_b64 es opcional: se guarda como PNG de 64x64 en la carpeta de la instancia.
+        Pasar ambos vacíos para borrar el icono."""
+        try:
+            from core import carpeta_instancia_paraguacraft
+            import minecraft_launcher_lib as _mcl
+            import base64
+            mine_dir = _mcl.utils.get_minecraft_directory()
+            folder = carpeta_instancia_paraguacraft(version.strip(), motor)
+            inst_dir = os.path.join(mine_dir, "instancias", folder)
+            os.makedirs(inst_dir, exist_ok=True)
+            cfg_path = os.path.join(inst_dir, "_paragua_instance.json")
+            existing = {}
+            if os.path.exists(cfg_path):
+                with open(cfg_path, "r") as f:
+                    existing = json.load(f)
+            # Limpiar icono anterior si se reemplaza
+            old_img = existing.get("icon_image", "")
+            if old_img and os.path.isfile(old_img) and (image_b64 or not emoji):
+                try: os.remove(old_img)
+                except Exception: pass
+            existing["icon_emoji"] = (emoji or "").strip()[:8]
+            if image_b64:
+                # Aceptar data URL o base64 puro
+                _b64 = image_b64.split(",", 1)[-1] if "," in image_b64 else image_b64
+                try:
+                    raw = base64.b64decode(_b64)
+                    img_path = os.path.join(inst_dir, "_paragua_icon.png")
+                    # Reescalar a 64x64 si PIL está disponible
+                    try:
+                        from PIL import Image
+                        import io as _io
+                        im = Image.open(_io.BytesIO(raw))
+                        if im.mode != "RGBA":
+                            im = im.convert("RGBA")
+                        im.thumbnail((64, 64), Image.LANCZOS)
+                        im.save(img_path, "PNG")
+                    except Exception:
+                        with open(img_path, "wb") as f:
+                            f.write(raw)
+                    existing["icon_image"] = img_path
+                except Exception as e:
+                    return {"ok": False, "error": f"Imagen inválida: {e}"}
+            else:
+                existing["icon_image"] = ""
+            with open(cfg_path, "w") as f:
+                json.dump(existing, f)
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── Perfiles personalizados (instancias nombradas con icono) ──────────
+    def listar_perfiles_personalizados(self):
+        """Devuelve la lista guardada en config_actual['perfiles_personalizados']."""
+        try:
+            lista = list(self.config_actual.get("perfiles_personalizados", []))
+            # Enriquecer con icono persistido en _paragua_instance.json (si existe)
+            for p in lista:
+                try:
+                    info = self.get_instancia_icon(p.get("version", ""), p.get("loader", ""))
+                    if info.get("ok"):
+                        # Preferir icono del perfil; si no, fallback al de la instancia
+                        if not p.get("icono") and info.get("emoji"):
+                            p["icono"] = info["emoji"]
+                        if not p.get("icon_image_path") and info.get("image_path"):
+                            p["icon_image_path"] = info["image_path"]
+                except Exception:
+                    pass
+            return {"ok": True, "perfiles": lista}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def guardar_perfil_personalizado(self, data):
+        """Crea o actualiza un perfil. data = {id?, nombre, version, loader, icono?, icon_image_b64?}"""
+        try:
+            import time as _t, base64 as _b64m
+            nombre = (data or {}).get("nombre", "").strip()
+            version = (data or {}).get("version", "").strip()
+            loader = (data or {}).get("loader", "").strip()
+            if not nombre or not version or not loader:
+                return {"ok": False, "error": "Faltan campos: nombre, versión o loader."}
+            icono = (data.get("icono") or "").strip()[:8]
+            perfiles = list(self.config_actual.get("perfiles_personalizados", []))
+            pid = data.get("id") or f"p_{int(_t.time()*1000)}"
+
+            # Persistir imagen base64 (si llegó) en la carpeta de datos
+            icon_image_path = (data.get("icon_image_path") or "").strip()
+            img_b64 = data.get("icon_image_b64") or ""
+            if img_b64:
+                try:
+                    icons_dir = os.path.join(self._DATA_DIR, "perfil_icons")
+                    os.makedirs(icons_dir, exist_ok=True)
+                    raw = _b64m.b64decode(img_b64.split(",", 1)[-1] if "," in img_b64 else img_b64)
+                    dest = os.path.join(icons_dir, f"{pid}.png")
+                    try:
+                        from PIL import Image
+                        import io as _io
+                        im = Image.open(_io.BytesIO(raw))
+                        if im.mode != "RGBA":
+                            im = im.convert("RGBA")
+                        im.thumbnail((64, 64), Image.LANCZOS)
+                        im.save(dest, "PNG")
+                    except Exception:
+                        with open(dest, "wb") as f:
+                            f.write(raw)
+                    icon_image_path = dest
+                except Exception as e:
+                    return {"ok": False, "error": f"Imagen inválida: {e}"}
+
+            perfil = {
+                "id": pid,
+                "nombre": nombre,
+                "version": version,
+                "loader": loader,
+                "icono": icono,
+                "icon_image_path": icon_image_path,
+                "created_at": int(_t.time()),
+            }
+            # Update or append
+            idx = next((i for i, p in enumerate(perfiles) if p.get("id") == pid), -1)
+            if idx >= 0:
+                perfil["created_at"] = perfiles[idx].get("created_at", perfil["created_at"])
+                perfiles[idx] = perfil
+            else:
+                perfiles.append(perfil)
+            self.config_actual["perfiles_personalizados"] = perfiles
+            self._guardar()
+            # También sincronizar el icono con _paragua_instance.json
+            try:
+                self.set_instancia_icon(version, loader, emoji=icono, image_b64="")
+            except Exception:
+                pass
+            return {"ok": True, "perfil": perfil}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def eliminar_perfil_personalizado(self, perfil_id):
+        try:
+            perfiles = list(self.config_actual.get("perfiles_personalizados", []))
+            target = next((p for p in perfiles if p.get("id") == perfil_id), None)
+            perfiles = [p for p in perfiles if p.get("id") != perfil_id]
+            self.config_actual["perfiles_personalizados"] = perfiles
+            self._guardar()
+            # Borrar imagen asociada si quedó huérfana
+            if target and target.get("icon_image_path"):
+                try:
+                    if os.path.isfile(target["icon_image_path"]):
+                        os.remove(target["icon_image_path"])
+                except Exception:
+                    pass
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def elegir_imagen_icono(self):
+        """Abre un file dialog y devuelve la imagen elegida en base64 (PNG/JPG)."""
+        try:
+            import base64 as _b64m
+            result = webview.windows[0].create_file_dialog(
+                webview.OPEN_DIALOG,
+                allow_multiple=False,
+                file_types=("Imágenes (*.png;*.jpg;*.jpeg;*.webp)", "Todos los archivos (*.*)")
+            )
+            if not result:
+                return {"ok": False, "cancelled": True}
+            path = result[0]
+            with open(path, "rb") as f:
+                raw = f.read()
+            return {"ok": True, "b64": _b64m.b64encode(raw).decode("ascii"),
+                    "filename": os.path.basename(path)}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
@@ -3932,6 +4137,20 @@ class Api:
             old_exe = exe_actual2 + ".old"
             marker = os.path.join(tempfile.gettempdir(), "paraguacraft_updated.flag")
             try:
+                # ── FASE 0: Backup automático de saves (Phase D) ────────────
+                if self.config_actual.get("backup_saves_pre_update", True):
+                    try:
+                        _report_progress(0, "Respaldando mundos antes de actualizar...")
+                        bk = self.backup_saves_pre_update()
+                        if bk and bk.get("ok"):
+                            if bk.get("saltado"):
+                                _report_progress(0, "Sin mundos para respaldar — continuando...")
+                            else:
+                                _report_progress(0, f"Backup OK: {bk.get('archivo','')} ({bk.get('tamano_mb',0)} MB)")
+                        else:
+                            _report_progress(0, f"Aviso: backup falló ({(bk or {}).get('error','?')[:80]}). Continuando con la actualización...")
+                    except Exception as _be:
+                        log.warning("[Updater] Backup pre-update falló: %s", _be)
                 import hashlib as _hl
                 _descarga_ok = False
                 for _attempt in range(3):
@@ -4521,6 +4740,144 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    # ── BACKUP PRE-UPDATE (Phase D) ──────────────────────────────────────
+    def _pre_update_backups_dir(self):
+        d = os.path.join(os.path.dirname(os.path.abspath(self.ruta_config)),
+                         "paraguacraft_backups", "pre_update")
+        os.makedirs(d, exist_ok=True)
+        return d
+
+    def backup_saves_pre_update(self, max_keep=3):
+        """Crea un ZIP con TODAS las saves antes de aplicar un update.
+
+        Recorre `.minecraft/saves` y `.minecraft/instancias/*/saves`.
+        Reporta progreso a la UI vía `_preUpdateBackupProgress(pct, msg)`.
+        Mantiene únicamente los `max_keep` backups más recientes.
+        """
+        import minecraft_launcher_lib as _mcl
+        def _notify(pct, msg):
+            try:
+                webview.windows[0].evaluate_js(
+                    f"_preUpdateBackupProgress({int(pct)}, {json.dumps(str(msg))})"
+                )
+            except Exception:
+                pass
+        try:
+            mc_dir = _mcl.utils.get_minecraft_directory()
+            # Recolectar todos los saves (root + instancias)
+            saves_roots = []
+            root_saves = os.path.join(mc_dir, "saves")
+            if os.path.isdir(root_saves):
+                saves_roots.append(("vanilla", root_saves))
+            instancias_dir = os.path.join(mc_dir, "instancias")
+            if os.path.isdir(instancias_dir):
+                for inst in os.listdir(instancias_dir):
+                    sd = os.path.join(instancias_dir, inst, "saves")
+                    if os.path.isdir(sd):
+                        saves_roots.append((inst, sd))
+            if not saves_roots:
+                _notify(100, "Sin mundos para respaldar — saltando")
+                return {"ok": True, "saltado": True, "mundos": 0}
+
+            # Contar archivos totales para % preciso
+            _notify(2, "Calculando tamaño...")
+            total_files = 0
+            total_bytes = 0
+            for _, sd in saves_roots:
+                for root, _, files in os.walk(sd):
+                    for f in files:
+                        try:
+                            total_files += 1
+                            total_bytes += os.path.getsize(os.path.join(root, f))
+                        except Exception:
+                            pass
+            if total_files == 0:
+                _notify(100, "Saves vacíos — saltando")
+                return {"ok": True, "saltado": True, "mundos": 0}
+
+            backup_dir = self._pre_update_backups_dir()
+            ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            nombre_zip = f"pre_update_v{VERSION}_{ts}.zip"
+            ruta_zip = os.path.join(backup_dir, nombre_zip)
+
+            _notify(5, f"Comprimiendo {total_files} archivos ({round(total_bytes/1048576,1)} MB)...")
+            done_files = 0
+            with zipfile.ZipFile(ruta_zip, "w", zipfile.ZIP_DEFLATED, compresslevel=5) as zf:
+                for tag, sd in saves_roots:
+                    base_parent = os.path.dirname(sd)
+                    for root, _, files in os.walk(sd):
+                        for f in files:
+                            fp = os.path.join(root, f)
+                            try:
+                                # arcname: <tag>/saves/<mundo>/<...>
+                                rel = os.path.relpath(fp, base_parent)
+                                zf.write(fp, os.path.join(tag, rel))
+                            except Exception:
+                                pass
+                            done_files += 1
+                            if done_files % 50 == 0 or done_files == total_files:
+                                pct = 5 + int(done_files * 90 / max(1, total_files))
+                                _notify(pct, f"Comprimiendo... {done_files}/{total_files}")
+
+            # Mantener solo últimos max_keep
+            try:
+                previos = sorted(
+                    [f for f in os.listdir(backup_dir)
+                     if f.startswith("pre_update_") and f.endswith(".zip")],
+                    reverse=True,
+                )
+                for viejo in previos[max_keep:]:
+                    try:
+                        os.remove(os.path.join(backup_dir, viejo))
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+            tam_mb = round(os.path.getsize(ruta_zip) / 1048576, 1)
+            _notify(100, f"Backup listo: {nombre_zip} ({tam_mb} MB)")
+            self.config_actual["ultimo_backup_pre_update"] = datetime.datetime.now().isoformat()
+            self._guardar()
+            return {"ok": True, "archivo": nombre_zip, "ruta": ruta_zip,
+                    "tamano_mb": tam_mb, "mundos": len(saves_roots)}
+        except Exception as e:
+            log.error("[BackupPreUpdate] %s", e, exc_info=True)
+            try:
+                webview.windows[0].evaluate_js(
+                    f"_preUpdateBackupProgress(-1, {json.dumps('Error: ' + str(e)[:200])})"
+                )
+            except Exception:
+                pass
+            return {"ok": False, "error": str(e)}
+
+    def listar_backups_pre_update(self):
+        try:
+            d = self._pre_update_backups_dir()
+            out = []
+            for f in os.listdir(d):
+                if not f.endswith(".zip"):
+                    continue
+                fp = os.path.join(d, f)
+                st = os.stat(fp)
+                out.append({
+                    "archivo": f,
+                    "ruta": fp,
+                    "fecha": time.strftime("%d/%m/%Y %H:%M", time.localtime(st.st_mtime)),
+                    "tamano_mb": round(st.st_size / 1048576, 1),
+                })
+            out.sort(key=lambda x: x["archivo"], reverse=True)
+            return {"ok": True, "backups": out}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def abrir_carpeta_backups_pre_update(self):
+        try:
+            d = self._pre_update_backups_dir()
+            subprocess.Popen(["explorer", d])
+            return {"ok": True, "path": d}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
     # ── ESTADÍSTICAS DE SESIONES ─────────────────────────────────────────
     def get_estadisticas(self):
         try:
@@ -4668,6 +5025,503 @@ class Api:
                     self.config_actual[k] = perfil[k]
             self._guardar()
             return {"ok": True, "version": perfil.get("version", "?"), "motor": perfil.get("motor", "?")}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── COMPATIBILIDAD GPU / OPENGL (Phase E) ────────────────────────────
+    # Modos soportados:
+    #   "off"           → driver del sistema (default)
+    #   "mesa-llvmpipe" → Mesa3D software (CPU). Funciona en cualquier PC.
+    #   "mesa-d3d12"    → Mesa3D Gallium D3D12. Usa la GPU vía DirectX 12.
+    #   "mesa-zink"     → Mesa3D Zink. Usa la GPU vía Vulkan.
+    GPU_COMPAT_MODES = ("off", "mesa-llvmpipe", "mesa-d3d12", "mesa-zink")
+
+    def _gpu_compat_dir(self):
+        """Carpeta donde se guardan los DLLs de Mesa descargados."""
+        import minecraft_launcher_lib as _mcl
+        d = os.path.join(_mcl.utils.get_minecraft_directory(), "paraguacraft_compat", "mesa")
+        os.makedirs(d, exist_ok=True)
+        return d
+
+    def gpu_diagnostico(self):
+        """Detecta GPU(s), drivers y versión OpenGL del sistema."""
+        info = {"ok": True, "gpus": [], "opengl_version": None,
+                "opengl_vendor": None, "opengl_renderer": None,
+                "opengl_major": 0, "opengl_minor": 0, "fuente_gl": None}
+        # 1) GPU(s) vía WMIC
+        try:
+            r = subprocess.run(
+                ["wmic", "path", "win32_VideoController", "get",
+                 "Name,DriverVersion,AdapterRAM,VideoProcessor", "/format:csv"],
+                capture_output=True, text=True, timeout=10,
+                creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
+            )
+            lines = [l.strip() for l in r.stdout.splitlines() if l.strip() and "," in l]
+            if lines:
+                headers = [h.strip() for h in lines[0].split(",")]
+                for line in lines[1:]:
+                    cols = [c.strip() for c in line.split(",")]
+                    if len(cols) != len(headers): continue
+                    row = dict(zip(headers, cols))
+                    name = row.get("Name", "")
+                    if not name: continue
+                    try:
+                        ram_mb = int(row.get("AdapterRAM", "0") or 0) // (1024 * 1024)
+                    except Exception:
+                        ram_mb = 0
+                    info["gpus"].append({
+                        "nombre": name,
+                        "driver": row.get("DriverVersion", ""),
+                        "ram_mb": ram_mb,
+                        "procesador": row.get("VideoProcessor", ""),
+                    })
+        except Exception as e:
+            info["wmic_error"] = str(e)[:120]
+
+        # 2) Versión OpenGL: probar primero leer latest.log (rápido y robusto)
+        try:
+            import minecraft_launcher_lib as _mcl
+            mc_dir = _mcl.utils.get_minecraft_directory()
+            inst_root = os.path.join(mc_dir, "instancias")
+            candidatos = []
+            if os.path.isdir(inst_root):
+                for inst in os.listdir(inst_root):
+                    log = os.path.join(inst_root, inst, "logs", "latest.log")
+                    if os.path.isfile(log):
+                        candidatos.append((os.path.getmtime(log), log))
+            candidatos.sort(reverse=True)
+            for _, log_path in candidatos[:3]:
+                try:
+                    with open(log_path, "r", encoding="utf-8", errors="replace") as f:
+                        contenido = f.read(80000)
+                    import re as _re
+                    # Patrones típicos de MC: "OpenGL Version: 4.6.0 NVIDIA 555.85"
+                    m = _re.search(r"OpenGL Version:\s*([\d.]+)\s*([^\r\n]*)", contenido, _re.I)
+                    if m:
+                        ver = m.group(1)
+                        info["opengl_version"] = ver
+                        info["opengl_renderer"] = m.group(2).strip()[:120]
+                        info["fuente_gl"] = "minecraft_log"
+                        try:
+                            partes = ver.split(".")
+                            info["opengl_major"] = int(partes[0])
+                            info["opengl_minor"] = int(partes[1]) if len(partes) > 1 else 0
+                        except Exception: pass
+                        break
+                except Exception: continue
+        except Exception: pass
+
+        # 3) Si no encontramos en logs, intentar WGL via ctypes (Windows)
+        if not info["opengl_version"] and platform.system() == "Windows":
+            try:
+                v, vendor, renderer = self._gpu_wgl_query_version()
+                if v:
+                    info["opengl_version"] = v
+                    info["opengl_vendor"] = vendor
+                    info["opengl_renderer"] = renderer
+                    info["fuente_gl"] = "wgl_dummy"
+                    try:
+                        partes = v.split(" ")[0].split(".")
+                        info["opengl_major"] = int(partes[0])
+                        info["opengl_minor"] = int(partes[1]) if len(partes) > 1 else 0
+                    except Exception: pass
+            except Exception as e:
+                info["wgl_error"] = str(e)[:120]
+
+        # 4) Recomendaciones automáticas
+        major = info["opengl_major"]
+        if major >= 4:
+            info["recomendacion"] = "tu_gpu_va_bien"
+            info["mc_recomendado"] = "Cualquier versión, incluyendo 1.21+"
+        elif major == 3 and info["opengl_minor"] >= 2:
+            info["recomendacion"] = "compatible_moderno"
+            info["mc_recomendado"] = "Hasta 1.20.x (1.21+ puede funcionar lento)"
+        elif major == 3:
+            info["recomendacion"] = "limite_inferior"
+            info["mc_recomendado"] = "1.16.5 o anterior. Para 1.17+ activá modo compatibilidad."
+        elif major == 2:
+            info["recomendacion"] = "muy_viejo"
+            info["mc_recomendado"] = "1.12.2 o anterior. Para versiones modernas activá Mesa3D."
+        elif major == 0:
+            info["recomendacion"] = "desconocido"
+            info["mc_recomendado"] = "Lanzá MC al menos una vez para detectar tu OpenGL."
+        else:
+            info["recomendacion"] = "incompatible"
+            info["mc_recomendado"] = "Activá Mesa3D (software o D3D12) para poder jugar."
+        return info
+
+    def _gpu_wgl_query_version(self):
+        """Crea un contexto OpenGL dummy en Windows para leer la versión real."""
+        import ctypes
+        from ctypes import wintypes
+        if platform.system() != "Windows":
+            return (None, None, None)
+        user32 = ctypes.windll.user32
+        gdi32 = ctypes.windll.gdi32
+        opengl32 = ctypes.windll.opengl32
+        kernel32 = ctypes.windll.kernel32
+
+        # PIXELFORMATDESCRIPTOR
+        class PIXELFORMATDESCRIPTOR(ctypes.Structure):
+            _fields_ = [
+                ("nSize", wintypes.WORD), ("nVersion", wintypes.WORD),
+                ("dwFlags", wintypes.DWORD), ("iPixelType", ctypes.c_byte),
+                ("cColorBits", ctypes.c_byte), ("cRedBits", ctypes.c_byte),
+                ("cRedShift", ctypes.c_byte), ("cGreenBits", ctypes.c_byte),
+                ("cGreenShift", ctypes.c_byte), ("cBlueBits", ctypes.c_byte),
+                ("cBlueShift", ctypes.c_byte), ("cAlphaBits", ctypes.c_byte),
+                ("cAlphaShift", ctypes.c_byte), ("cAccumBits", ctypes.c_byte),
+                ("cAccumRedBits", ctypes.c_byte), ("cAccumGreenBits", ctypes.c_byte),
+                ("cAccumBlueBits", ctypes.c_byte), ("cAccumAlphaBits", ctypes.c_byte),
+                ("cDepthBits", ctypes.c_byte), ("cStencilBits", ctypes.c_byte),
+                ("cAuxBuffers", ctypes.c_byte), ("iLayerType", ctypes.c_byte),
+                ("bReserved", ctypes.c_byte), ("dwLayerMask", wintypes.DWORD),
+                ("dwVisibleMask", wintypes.DWORD), ("dwDamageMask", wintypes.DWORD),
+            ]
+        hwnd = user32.GetDesktopWindow()
+        hdc = user32.GetDC(hwnd)
+        if not hdc:
+            return (None, None, None)
+        pfd = PIXELFORMATDESCRIPTOR()
+        pfd.nSize = ctypes.sizeof(PIXELFORMATDESCRIPTOR)
+        pfd.nVersion = 1
+        pfd.dwFlags = 0x00000004 | 0x00000020 | 0x00000001  # DRAW_TO_WINDOW | SUPPORT_OPENGL | DOUBLEBUFFER
+        pfd.iPixelType = 0
+        pfd.cColorBits = 32
+        pfd.cDepthBits = 24
+        pfd.iLayerType = 0
+        ipf = gdi32.ChoosePixelFormat(hdc, ctypes.byref(pfd))
+        if not ipf:
+            user32.ReleaseDC(hwnd, hdc)
+            return (None, None, None)
+        if not gdi32.SetPixelFormat(hdc, ipf, ctypes.byref(pfd)):
+            user32.ReleaseDC(hwnd, hdc)
+            return (None, None, None)
+        opengl32.wglCreateContext.restype = wintypes.HANDLE
+        hglrc = opengl32.wglCreateContext(hdc)
+        if not hglrc:
+            user32.ReleaseDC(hwnd, hdc)
+            return (None, None, None)
+        opengl32.wglMakeCurrent.argtypes = [wintypes.HDC, wintypes.HANDLE]
+        opengl32.wglMakeCurrent(hdc, hglrc)
+        opengl32.glGetString.restype = ctypes.c_char_p
+        opengl32.glGetString.argtypes = [ctypes.c_uint]
+        try:
+            version  = (opengl32.glGetString(0x1F02) or b"").decode("utf-8", "replace")  # GL_VERSION
+            vendor   = (opengl32.glGetString(0x1F00) or b"").decode("utf-8", "replace")  # GL_VENDOR
+            renderer = (opengl32.glGetString(0x1F01) or b"").decode("utf-8", "replace")  # GL_RENDERER
+        finally:
+            opengl32.wglMakeCurrent(hdc, None)
+            opengl32.wglDeleteContext(hglrc)
+            user32.ReleaseDC(hwnd, hdc)
+        return (version or None, vendor or None, renderer or None)
+
+    def gpu_compat_estado(self):
+        """Devuelve modo actual + si Mesa está instalado en disco."""
+        modo = self.config_actual.get("gpu_compat_mode", "off")
+        mesa_dir = self._gpu_compat_dir()
+        instalado = os.path.isfile(os.path.join(mesa_dir, "opengl32.dll"))
+        version_mesa = ""
+        meta_path = os.path.join(mesa_dir, "_meta.json")
+        if os.path.isfile(meta_path):
+            try:
+                with open(meta_path, "r", encoding="utf-8") as f:
+                    version_mesa = json.load(f).get("version", "")
+            except Exception: pass
+        return {"ok": True, "modo": modo, "mesa_instalado": instalado,
+                "mesa_version": version_mesa, "mesa_path": mesa_dir,
+                "forzar_dedicada": bool(self.config_actual.get("gpu_forzar_dedicada", False)),
+                "modos": list(self.GPU_COMPAT_MODES)}
+
+    def gpu_compat_set_modo(self, modo):
+        """Cambia el modo de compatibilidad GPU. Lo lee `core.lanzar_minecraft`
+        en la próxima sesión."""
+        if modo not in self.GPU_COMPAT_MODES:
+            return {"ok": False, "error": f"Modo inválido. Válidos: {self.GPU_COMPAT_MODES}"}
+        if modo != "off":
+            mesa_dir = self._gpu_compat_dir()
+            if not os.path.isfile(os.path.join(mesa_dir, "opengl32.dll")):
+                return {"ok": False, "error": "Mesa3D no está instalado. Hacé clic en 'Descargar Mesa3D' primero."}
+        self.config_actual["gpu_compat_mode"] = modo
+        self._guardar()
+        return {"ok": True, "modo": modo}
+
+    def gpu_compat_descargar_mesa(self):
+        """Descarga el último release de pal1000/mesa-dist-win y extrae opengl32.dll
+        + DLLs auxiliares al directorio paraguacraft_compat/mesa/."""
+        try:
+            api = "https://api.github.com/repos/pal1000/mesa-dist-win/releases/latest"
+            headers = {"User-Agent": "Paraguacraft-Launcher",
+                       "Accept": "application/vnd.github+json"}
+            r = requests.get(api, headers=headers, timeout=10)
+            r.raise_for_status()
+            release = r.json()
+            tag = release.get("tag_name", "")
+            assets = release.get("assets", [])
+            # Preferir el "mingw" release (incluye gallium d3d12 y zink)
+            asset = None
+            for a in assets:
+                n = a.get("name", "").lower()
+                if n.endswith(".7z") and "release-mingw" in n:
+                    asset = a; break
+            if not asset:
+                for a in assets:
+                    n = a.get("name", "").lower()
+                    if n.endswith(".7z") and "release-msvc" in n:
+                        asset = a; break
+            if not asset:
+                return {"ok": False, "error": "No se encontró asset .7z en el release de Mesa."}
+            # Necesitamos py7zr para extraer
+            try:
+                import py7zr
+            except ImportError:
+                # Auto-instalar
+                try:
+                    import sys
+                    subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", "py7zr"],
+                                   check=True, timeout=120,
+                                   creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0)
+                    import py7zr
+                except Exception as _pe:
+                    return {"ok": False, "error": f"No se pudo instalar py7zr ({_pe}). Ejecutá manualmente: pip install py7zr"}
+            mesa_dir = self._gpu_compat_dir()
+            tmp_path = os.path.join(mesa_dir, "_mesa_download.7z")
+            url = asset["browser_download_url"]
+            log.info(f"[GPU Compat] Descargando Mesa {tag} desde {url}")
+            with requests.get(url, stream=True, timeout=120, headers={"User-Agent":"Paraguacraft-Launcher"}) as rr:
+                rr.raise_for_status()
+                with open(tmp_path, "wb") as f:
+                    for chunk in rr.iter_content(chunk_size=1024 * 256):
+                        if chunk: f.write(chunk)
+            # Extraer
+            with py7zr.SevenZipFile(tmp_path, mode="r") as z:
+                # Sólo nos interesan x64 DLLs
+                names = z.getnames()
+                # Patrones típicos en pal1000: x64/opengl32.dll, x64/libgallium_wgl.dll, x64/libGLESv2.dll, x64/libEGL.dll, x64/d3dcompiler_47.dll
+                wanted = []
+                for n in names:
+                    nl = n.lower().replace("\\", "/")
+                    if nl.startswith("x64/") and nl.endswith(".dll"):
+                        wanted.append(n)
+                if not wanted:
+                    # Fallback: cualquier .dll en el zip
+                    wanted = [n for n in names if n.lower().endswith(".dll")]
+                # Extraer a temp luego mover
+                tmp_extract = os.path.join(mesa_dir, "_extract_tmp")
+                if os.path.isdir(tmp_extract):
+                    shutil.rmtree(tmp_extract, ignore_errors=True)
+                os.makedirs(tmp_extract, exist_ok=True)
+                z.extract(path=tmp_extract, targets=wanted)
+                # Mover los DLL a la raíz de mesa_dir
+                copiados = 0
+                for root, _dirs, files in os.walk(tmp_extract):
+                    for fn in files:
+                        if fn.lower().endswith(".dll"):
+                            src = os.path.join(root, fn)
+                            dst = os.path.join(mesa_dir, fn)
+                            try:
+                                shutil.copy2(src, dst)
+                                copiados += 1
+                            except Exception: pass
+                shutil.rmtree(tmp_extract, ignore_errors=True)
+            try: os.remove(tmp_path)
+            except Exception: pass
+            # Guardar metadata
+            try:
+                with open(os.path.join(mesa_dir, "_meta.json"), "w", encoding="utf-8") as f:
+                    json.dump({"version": tag, "asset": asset["name"], "fecha": time.time()}, f)
+            except Exception: pass
+            if copiados == 0 or not os.path.isfile(os.path.join(mesa_dir, "opengl32.dll")):
+                return {"ok": False, "error": "Descarga OK pero no se encontró opengl32.dll en el archivo."}
+            return {"ok": True, "version": tag, "dlls_copiados": copiados, "destino": mesa_dir}
+        except requests.exceptions.RequestException as e:
+            return {"ok": False, "error": f"Error de red: {str(e)[:140]}"}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def gpu_compat_eliminar_mesa(self):
+        """Borra los archivos de Mesa descargados y desactiva el modo."""
+        try:
+            mesa_dir = self._gpu_compat_dir()
+            for fn in os.listdir(mesa_dir):
+                try: os.remove(os.path.join(mesa_dir, fn))
+                except Exception: pass
+            self.config_actual["gpu_compat_mode"] = "off"
+            self._guardar()
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def gpu_forzar_dedicada(self, activar=True):
+        """Registra `javaw.exe` del runtime de MC con preferencia de GPU
+        de alto rendimiento en Windows (HKCU\\...\\DirectX\\UserGpuPreferences)."""
+        if platform.system() != "Windows":
+            return {"ok": False, "error": "Solo disponible en Windows."}
+        try:
+            import winreg
+            from core import _java_exe_para_mc as _jexe
+            import minecraft_launcher_lib as _mcl
+            mc_dir = _mcl.utils.get_minecraft_directory()
+            javaw = _jexe(mc_dir)
+            if javaw == "java" or not os.path.isfile(javaw):
+                # Probar javaw.exe en lugar de java.exe
+                javaw_alt = javaw.replace("java.exe", "javaw.exe")
+                if os.path.isfile(javaw_alt):
+                    javaw = javaw_alt
+                else:
+                    return {"ok": False, "error": "No se encontró javaw.exe del runtime de Minecraft."}
+            key_path = r"Software\Microsoft\DirectX\UserGpuPreferences"
+            with winreg.CreateKeyEx(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_SET_VALUE) as k:
+                if activar:
+                    # GpuPreference=2 → High Performance (dedicated)
+                    winreg.SetValueEx(k, javaw, 0, winreg.REG_SZ, "GpuPreference=2;")
+                else:
+                    try: winreg.DeleteValue(k, javaw)
+                    except FileNotFoundError: pass
+            self.config_actual["gpu_forzar_dedicada"] = bool(activar)
+            self._guardar()
+            return {"ok": True, "javaw": javaw, "activado": bool(activar)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── CONFIGS COMUNIDAD (Phase D) ──────────────────────────────────────
+    # Cache simple en memoria para el index.json (10 min)
+    _comunidad_cache = {"data": None, "ts": 0.0}
+
+    def _comunidad_inst_dir(self, version, motor):
+        """Devuelve el path de la instancia (o vanilla) donde aplicar configs."""
+        import minecraft_launcher_lib as _mcl
+        mc_dir = _mcl.utils.get_minecraft_directory()
+        v = (version or "").strip()
+        m = (motor or "").strip()
+        if v and m:
+            try:
+                from core import carpeta_instancia_paraguacraft
+                return os.path.join(mc_dir, "instancias", carpeta_instancia_paraguacraft(v, m))
+            except Exception:
+                pass
+        return mc_dir
+
+    def comunidad_configs_listar(self, force_refresh=False):
+        """Devuelve el catálogo de configs comunitarios (cacheado 10min)."""
+        try:
+            now = time.time()
+            cache = ParaguacraftAPI._comunidad_cache
+            if (not force_refresh) and cache["data"] and (now - cache["ts"] < 600):
+                return {"ok": True, "configs": cache["data"], "cached": True}
+            r = requests.get(COMMUNITY_CONFIGS_INDEX, timeout=8,
+                             headers={"User-Agent": "Paraguacraft-Launcher",
+                                      "Cache-Control": "no-cache"})
+            if r.status_code == 404:
+                return {"ok": False, "error": "El repo de configs aún no está publicado.",
+                        "configs": []}
+            r.raise_for_status()
+            data = r.json()
+            configs = data.get("configs", []) if isinstance(data, dict) else []
+            # Normalizar/validar campos mínimos
+            limpios = []
+            for c in configs:
+                if not isinstance(c, dict): continue
+                cid = str(c.get("id", "")).strip()
+                if not cid: continue
+                limpios.append({
+                    "id": cid,
+                    "nombre": str(c.get("nombre", cid))[:80],
+                    "autor": str(c.get("autor", "Anónimo"))[:40],
+                    "tipo": str(c.get("tipo", "otro")).lower()[:20],
+                    "descripcion": str(c.get("descripcion", ""))[:500],
+                    "tags": [str(t)[:24] for t in (c.get("tags") or [])][:8],
+                    "compatibilidad": c.get("compatibilidad", {}),
+                    "files": c.get("files", []),
+                    "rating": float(c.get("rating", 0) or 0),
+                    "downloads": int(c.get("downloads", 0) or 0),
+                    "preview": str(c.get("preview", ""))[:300],
+                })
+            cache["data"] = limpios
+            cache["ts"] = now
+            return {"ok": True, "configs": limpios, "cached": False,
+                    "fuente": COMMUNITY_CONFIGS_INDEX}
+        except requests.exceptions.RequestException as e:
+            return {"ok": False, "error": f"Sin conexión: {str(e)[:120]}", "configs": []}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "configs": []}
+
+    def comunidad_configs_descargar(self, config_id, version="", motor=""):
+        """Descarga e instala los archivos de un config en la instancia indicada."""
+        try:
+            cfgs = self.comunidad_configs_listar().get("configs", [])
+            cfg = next((c for c in cfgs if c["id"] == config_id), None)
+            if not cfg:
+                return {"ok": False, "error": "Config no encontrado en el índice."}
+            inst_dir = self._comunidad_inst_dir(version, motor)
+            if not os.path.isdir(inst_dir):
+                try:
+                    os.makedirs(inst_dir, exist_ok=True)
+                except Exception:
+                    return {"ok": False, "error": f"No se pudo crear la instancia destino: {inst_dir}"}
+            descargados = []
+            saltados = []
+            for f in cfg.get("files", []):
+                if not isinstance(f, dict): continue
+                src = str(f.get("src", "")).strip().lstrip("/")
+                dst = str(f.get("dst", "")).strip().lstrip("/")
+                if not src or not dst: continue
+                # Defensa: prohibir traversal
+                if ".." in dst.replace("\\", "/").split("/"):
+                    saltados.append(dst); continue
+                url = COMMUNITY_CONFIGS_RAW + src
+                try:
+                    rr = requests.get(url, timeout=15,
+                                      headers={"User-Agent": "Paraguacraft-Launcher"})
+                    if rr.status_code != 200:
+                        saltados.append(f"{src} ({rr.status_code})"); continue
+                    dst_path = os.path.join(inst_dir, dst.replace("/", os.sep))
+                    os.makedirs(os.path.dirname(dst_path) or inst_dir, exist_ok=True)
+                    # Backup si ya existe
+                    if os.path.exists(dst_path):
+                        try:
+                            bk = dst_path + ".paragua_bak"
+                            if os.path.exists(bk):
+                                os.remove(bk)
+                            os.rename(dst_path, bk)
+                        except Exception:
+                            pass
+                    with open(dst_path, "wb") as out:
+                        out.write(rr.content)
+                    descargados.append(dst)
+                except Exception as _de:
+                    saltados.append(f"{src} ({str(_de)[:40]})")
+            if not descargados:
+                return {"ok": False, "error": "No se descargó ningún archivo.",
+                        "saltados": saltados}
+            return {"ok": True, "descargados": descargados, "saltados": saltados,
+                    "destino": inst_dir, "config": cfg["nombre"]}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def comunidad_configs_compartir_url(self, tipo="otro"):
+        """Devuelve la URL del repo (o de un nuevo issue) para que el usuario
+        proponga un config vía Pull Request."""
+        tipo = (tipo or "otro").lower().strip()
+        url = (
+            f"https://github.com/{COMMUNITY_CONFIGS_REPO}/issues/new"
+            f"?title=" + requests.utils.quote(f"[Config {tipo}] Nuevo aporte")
+            + "&body=" + requests.utils.quote(
+                "**Tipo de config:** " + tipo + "\n\n"
+                "**Versiones MC compatibles:** \n\n"
+                "**Loader (Fabric/Forge/etc):** \n\n"
+                "**Descripción corta:**\n\n"
+                "**Archivo(s) (pegá el contenido aquí o adjuntá ZIP):**\n```\n\n```\n"
+            )
+        )
+        return {"ok": True, "url": url, "repo": f"https://github.com/{COMMUNITY_CONFIGS_REPO}"}
+
+    def comunidad_configs_abrir_compartir(self, tipo="otro"):
+        try:
+            r = self.comunidad_configs_compartir_url(tipo)
+            import webbrowser
+            webbrowser.open(r["url"])
+            return {"ok": True}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
@@ -5660,6 +6514,160 @@ class Api:
             "ram_fraction": 0.6
         }
     }
+
+    # ── JAVA: detección, verificación y descarga automática ───────────────
+    def detectar_javas_disponibles(self):
+        """Lista todas las instalaciones de Java en el sistema."""
+        try:
+            from src.java_manager import detectar_javas
+            return {"ok": True, "javas": detectar_javas()}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "javas": []}
+
+    def java_requerido_para_mc(self, mc_version):
+        try:
+            from src.java_manager import java_requerido_para_mc as _req
+            return {"ok": True, "major": _req(mc_version)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def verificar_java_para_version(self, mc_version):
+        """Devuelve si el Java actual (custom o auto-elegido) sirve para la versión MC.
+        {ok, sirve, java_actual?, major_requerido, mejor_disponible?}"""
+        try:
+            from src.java_manager import (detectar_javas, java_requerido_para_mc as _req,
+                                          verificar_java, elegir_mejor_java)
+            major_req = _req(mc_version)
+            # Set de majors aceptados: el requerido y +1 (los mayores también suelen servir)
+            aceptados = {major_req}
+            if major_req <= 8:
+                aceptados |= {17, 21}
+            elif major_req <= 17:
+                aceptados |= {17, 21}
+            else:
+                aceptados |= {21}
+
+            custom = (self.config_actual.get("java_custom_path") or "").strip()
+            if custom and os.path.isfile(custom):
+                info = verificar_java(custom)
+                if info.get("ok") and info["version_major"] in aceptados:
+                    return {"ok": True, "sirve": True, "major_requerido": major_req,
+                            "java_actual": {"path": custom, **info}}
+
+            javas = detectar_javas()
+            mejor = elegir_mejor_java(aceptados, javas)
+            if mejor:
+                return {"ok": True, "sirve": True, "major_requerido": major_req,
+                        "mejor_disponible": mejor}
+            return {"ok": True, "sirve": False, "major_requerido": major_req,
+                    "javas_detectados": javas}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    _java_install_progress = {"pct": 0, "estado": "", "ok": None, "path": ""}
+
+    def get_java_install_progress(self):
+        return dict(self._java_install_progress)
+
+    def instalar_java_auto(self, major):
+        """Descarga e instala Adoptium Temurin (JRE) del major dado.
+        No bloquea: corre en hilo y reporta a get_java_install_progress."""
+        try:
+            major = int(major)
+            if major not in (8, 11, 17, 21):
+                return {"ok": False, "error": f"Versión no soportada: {major}"}
+            self._java_install_progress = {"pct": 0, "estado": "Iniciando...", "ok": None, "path": ""}
+
+            def _worker():
+                try:
+                    from src.java_manager import descargar_adoptium
+                    dest = os.path.join(self._DATA_DIR, "java")
+                    def _cb(pct, lbl):
+                        self._java_install_progress["pct"] = int(pct)
+                        self._java_install_progress["estado"] = lbl
+                    r = descargar_adoptium(major, dest, progress_cb=_cb)
+                    if r.get("ok"):
+                        self._java_install_progress["pct"] = 100
+                        self._java_install_progress["estado"] = "Java instalado"
+                        self._java_install_progress["ok"] = True
+                        self._java_install_progress["path"] = r["path"]
+                        # Auto-asignar como java path si el usuario no tenía uno
+                        if not (self.config_actual.get("java_custom_path") or "").strip():
+                            self.config_actual["java_custom_path"] = r["path"]
+                            try: self._guardar()
+                            except Exception: pass
+                    else:
+                        self._java_install_progress["ok"] = False
+                        self._java_install_progress["estado"] = r.get("error", "Error")
+                except Exception as e:
+                    self._java_install_progress["ok"] = False
+                    self._java_install_progress["estado"] = str(e)
+
+            threading.Thread(target=_worker, daemon=True).start()
+            return {"ok": True, "iniciado": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def get_hardware_info(self):
+        """Información consolidada de hardware para wizard y perfiles."""
+        try:
+            from src.java_manager import get_hardware_info
+            return {"ok": True, **get_hardware_info()}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── WIZARD DE PRIMERA VEZ ─────────────────────────────────────────────
+    def wizard_completado(self):
+        """Devuelve si el wizard ya fue completado por el usuario.
+        Si la flag no existe pero hay indicios de uso previo del launcher
+        (ultima_version, ms_data, etc.), se asume completado para no molestar
+        a usuarios existentes que actualizan."""
+        try:
+            if "wizard_completado" in self.config_actual:
+                return {"ok": True, "completado": bool(self.config_actual["wizard_completado"])}
+            indicios_uso = bool(
+                self.config_actual.get("ultima_version")
+                or self.config_actual.get("ultimo_motor")
+                or self.ms_data
+                or self.config_actual.get("usuario", "Invitado") not in ("", "Invitado")
+            )
+            if indicios_uso:
+                # Marcar silenciosamente para no preguntar de nuevo
+                self.config_actual["wizard_completado"] = True
+                self._guardar()
+                return {"ok": True, "completado": True}
+            return {"ok": True, "completado": False}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "completado": True}
+
+    def marcar_wizard_completado(self, completado=True):
+        """Persiste el estado del wizard. Llamar al cerrarlo."""
+        try:
+            self.config_actual["wizard_completado"] = bool(completado)
+            self._guardar()
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def aplicar_rendimiento_recomendado_global(self):
+        """Aplica RAM y JVM args recomendados según hardware al config global
+        (sin tocar instancias específicas). Útil para el wizard."""
+        try:
+            from src.java_manager import get_hardware_info
+            hw = get_hardware_info()
+            perfil_id = hw.get("perfil_sugerido", "media")
+            perfil = self.PERFILES_HARDWARE.get(perfil_id, self.PERFILES_HARDWARE["media"])
+            ram_gb = hw.get("ram_gb", 8)
+            ram_rec = max(2, min(int(ram_gb * perfil["ram_fraction"]), perfil["ram_max_gb"]))
+            self.config_actual["ram_asignada"] = ram_rec
+            gc = perfil.get("gc", "G1GC")
+            self.config_actual["gc_type"] = gc
+            self._guardar()
+            return {"ok": True, "perfil_id": perfil_id, "ram_gb_asignada": ram_rec,
+                    "ram_total": ram_gb, "gc": gc,
+                    "nombre": perfil.get("nombre", perfil_id)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
 
     def detectar_perfil_hardware_sugerido(self):
         try:
@@ -8631,7 +9639,7 @@ if __name__ == "__main__":
         pass
 
     _start_kwargs = dict(
-        debug=False,
+        debug=True,
         http_server=True,
         icon=_icon_path if os.path.exists(_icon_path) else None,
         user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
