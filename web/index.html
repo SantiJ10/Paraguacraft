@@ -195,6 +195,13 @@
                             <button onclick="cerrarAjustes();cambiarPestaña('herramientas','Extras');setTimeout(()=>herTab('musica'),150)" class="w-full flex items-center justify-between py-2.5 text-sm font-bold hover:text-[#2ECC71] transition"><span> Música del launcher</span><span class="text-gray-600 text-xs">Extras → Música →</span></button>
                         </div>
                     </div>
+                    <div>
+                        <h3 class="font-bold text-sm mb-2"> Asistente</h3>
+                        <div class="bg-[#181818] p-3 rounded-lg border border-[#2A2A2A]">
+                            <button onclick="cerrarAjustes();setTimeout(wizardAbrir,150)" class="w-full flex items-center justify-between py-2.5 text-sm font-bold hover:text-[#2ECC71] transition"><span>🌱 Reabrir wizard de bienvenida</span><span class="text-gray-600 text-xs">4 pasos →</span></button>
+                            <p class="text-[11px] text-gray-500 mt-1">Útil si querés volver a configurar Java, hardware o tu cuenta paso a paso.</p>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- ── PANEL: TELEMETRÍA ── -->
@@ -513,6 +520,41 @@
         </div>
     </nav>
 
+    <!-- Modal instalación de Config Comunidad (Phase D) -->
+    <div id="cfg-install-modal" class="absolute inset-0 z-[260] bg-black/80 hidden flex items-center justify-center backdrop-blur-sm" style="display:none">
+        <div class="bg-[#121212] w-[460px] rounded-xl border border-[#3498DB]/40 shadow-2xl p-6 flex flex-col gap-4">
+            <div class="flex justify-between items-start">
+                <div class="min-w-0">
+                    <p class="text-[10px] uppercase tracking-widest text-[#3498DB] font-black">Instalar config</p>
+                    <h2 class="text-lg font-black truncate" id="cfg-install-nombre">—</h2>
+                    <p class="text-xs text-gray-500 mt-0.5" id="cfg-install-autor">—</p>
+                </div>
+                <button onclick="cfgInstallCerrar()" class="text-gray-500 hover:text-white text-xl leading-none">×</button>
+            </div>
+            <p class="text-xs text-gray-400" id="cfg-install-desc"></p>
+            <div class="flex flex-col gap-2">
+                <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Aplicar a la instancia de</label>
+                <div class="grid grid-cols-2 gap-2">
+                    <select id="cfg-install-version" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none focus:border-[#3498DB]"><option value="">Versión...</option></select>
+                    <select id="cfg-install-motor" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none focus:border-[#3498DB]">
+                        <option value="">Motor...</option>
+                        <option value="vanilla">Vanilla</option>
+                        <option value="fabric">Fabric</option>
+                        <option value="forge">Forge</option>
+                        <option value="neoforge">NeoForge</option>
+                        <option value="quilt">Quilt</option>
+                    </select>
+                </div>
+                <p class="text-[10px] text-gray-600">Si no elegís nada se aplica a la carpeta global de Minecraft. Los archivos existentes se respaldan como <code>.paragua_bak</code>.</p>
+            </div>
+            <p id="cfg-install-msg" class="text-xs min-h-[16px]"></p>
+            <div class="flex gap-2">
+                <button onclick="cfgInstallCerrar()" class="flex-1 bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold py-2 rounded transition">Cancelar</button>
+                <button onclick="cfgInstallConfirmar()" id="cfg-install-btn" class="flex-1 bg-[#3498DB] hover:bg-[#2980B9] text-white font-black py-2 rounded transition">⬇ Instalar</button>
+            </div>
+        </div>
+    </div>
+
     <div id="update-modal" class="absolute inset-0 z-[300] bg-black/80 hidden flex items-center justify-center backdrop-blur-sm">
         <div class="bg-[#121212] w-[480px] rounded-xl border border-[#F39C12]/40 shadow-2xl p-6 flex flex-col gap-4">
             <div class="flex justify-between items-start">
@@ -524,6 +566,27 @@
             </div>
             <div class="bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg p-3 max-h-40 overflow-y-auto">
                 <pre id="upd-notas" class="text-xs text-gray-300 whitespace-pre-wrap font-sans">Cargando notas...</pre>
+            </div>
+            <label class="flex items-start gap-2 cursor-pointer bg-[#181818] border border-[#2A2A2A] rounded-lg p-3 hover:border-[#2ECC71]/40 transition">
+                <input type="checkbox" id="upd-chk-backup" checked onchange="pywebview.api.save_setting('backup_saves_pre_update', this.checked)" class="mt-0.5 accent-[#2ECC71] cursor-pointer">
+                <div class="flex-1">
+                    <span class="text-sm font-bold text-white">💾 Hacer backup de mundos antes de actualizar</span>
+                    <p class="text-[11px] text-gray-500 mt-0.5">Comprime tus saves a un ZIP en <span class="font-mono">paraguacraft_backups/pre_update/</span>. Recomendado.</p>
+                </div>
+            </label>
+            <div id="upd-backup-progress" class="hidden">
+                <div class="bg-[#181818] border border-[#2ECC71]/30 rounded-lg p-3 flex flex-col gap-2">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-3 border-2 border-[#2ECC71] border-t-transparent rounded-full animate-spin shrink-0"></div>
+                            <span class="text-sm font-bold text-[#2ECC71]" id="upd-backup-lbl">Respaldando mundos...</span>
+                        </div>
+                        <span class="text-xs font-mono text-[#2ECC71] font-black" id="upd-backup-pct">0%</span>
+                    </div>
+                    <div class="w-full bg-[#0A0A0A] rounded-full overflow-hidden h-2">
+                        <div id="upd-backup-bar" class="h-2 bg-[#2ECC71] rounded-full transition-all duration-300" style="width:0%"></div>
+                    </div>
+                </div>
             </div>
             <div id="upd-progress" class="hidden">
                 <div class="bg-[#181818] border border-[#2A2A2A] rounded-lg p-3 flex flex-col gap-2">
@@ -588,6 +651,151 @@
         </div>
     </div>
 
+    <!-- WIZARD DE PRIMERA VEZ -->
+    <div id="wizard-modal" class="absolute inset-0 z-[400] bg-black/95 hidden flex items-center justify-center backdrop-blur-md">
+        <div class="bg-[#0F0F0F] w-[640px] max-h-[90vh] rounded-2xl border border-[#2ECC71]/30 shadow-[0_0_60px_rgba(46,204,113,0.15)] flex flex-col overflow-hidden">
+            <!-- Indicator -->
+            <div class="px-8 pt-6 pb-3 flex items-center gap-2">
+                <div class="wiz-step flex-1 h-1 rounded-full bg-[#2ECC71] transition-all" data-paso="1"></div>
+                <div class="wiz-step flex-1 h-1 rounded-full bg-[#2A2A2A] transition-all" data-paso="2"></div>
+                <div class="wiz-step flex-1 h-1 rounded-full bg-[#2A2A2A] transition-all" data-paso="3"></div>
+                <div class="wiz-step flex-1 h-1 rounded-full bg-[#2A2A2A] transition-all" data-paso="4"></div>
+            </div>
+            <div class="px-8 pb-2 flex items-center justify-between">
+                <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest"><span id="wiz-paso-num">1</span>/4</p>
+                <button onclick="wizardSaltar()" class="text-[10px] text-gray-600 hover:text-gray-400 uppercase tracking-widest transition">Saltar wizard</button>
+            </div>
+
+            <!-- PASO 1: BIENVENIDA -->
+            <div id="wiz-step-1" class="wiz-step-panel flex-1 overflow-y-auto px-8 py-6 flex flex-col items-center text-center gap-5">
+                <div class="text-7xl">🌱</div>
+                <h1 class="text-3xl font-black text-white">Bienvenido a Paraguacraft</h1>
+                <p class="text-base text-gray-400 max-w-md leading-relaxed">Tu launcher de Minecraft en español.<br>Listo en 1 minuto.</p>
+                <div class="grid grid-cols-3 gap-3 w-full mt-2">
+                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-lg p-3 text-center">
+                        <p class="text-2xl mb-1">⚡</p>
+                        <p class="text-[10px] font-black text-[#2ECC71] uppercase">Rápido</p>
+                    </div>
+                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-lg p-3 text-center">
+                        <p class="text-2xl mb-1">🛡️</p>
+                        <p class="text-[10px] font-black text-[#3498DB] uppercase">Seguro</p>
+                    </div>
+                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-lg p-3 text-center">
+                        <p class="text-2xl mb-1">🇦🇷</p>
+                        <p class="text-[10px] font-black text-[#F39C12] uppercase">En español</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PASO 2: JAVA + HARDWARE -->
+            <div id="wiz-step-2" class="wiz-step-panel hidden flex-1 overflow-y-auto px-8 py-6 flex flex-col gap-4">
+                <h2 class="text-2xl font-black text-white flex items-center gap-3"><span class="text-3xl">☕</span> Configurando Java</h2>
+                <p class="text-sm text-gray-400">Java es necesario para ejecutar Minecraft. Estamos detectando tu sistema...</p>
+                <div id="wiz-java-status" class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-4 flex items-center gap-3">
+                    <div class="w-5 h-5 border-2 border-[#2ECC71] border-t-transparent rounded-full animate-spin shrink-0"></div>
+                    <span class="text-sm text-gray-300">Buscando Java en tu sistema...</span>
+                </div>
+                <div id="wiz-java-install-row" class="hidden flex flex-col gap-2">
+                    <button onclick="wizardInstalarJava(21)" id="wiz-btn-install-java" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black py-3 rounded-lg transition flex items-center justify-center gap-2">
+                        <span>⬇</span> Instalar Java automáticamente
+                    </button>
+                    <p class="text-[10px] text-gray-500 text-center">Descarga oficial de Eclipse Adoptium · ~45 MB</p>
+                </div>
+                <div id="wiz-java-progress" class="hidden bg-[#0A0A0A] border border-[#2A2A2A] rounded-xl p-4">
+                    <p id="wiz-java-prog-lbl" class="text-xs text-[#2ECC71] font-bold mb-2">Iniciando descarga...</p>
+                    <div class="w-full h-2 bg-[#2A2A2A] rounded-full overflow-hidden">
+                        <div id="wiz-java-prog-bar" class="h-2 bg-[#2ECC71] rounded-full transition-all" style="width:0%"></div>
+                    </div>
+                </div>
+
+                <h3 class="text-base font-black text-white flex items-center gap-3 mt-3"><span class="text-2xl">💻</span> Optimización por hardware</h3>
+                <div id="wiz-hw-info" class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-4 text-xs text-gray-400">Detectando hardware...</div>
+                <button onclick="wizardAplicarRendimiento()" id="wiz-btn-rendimiento" class="bg-[#3498DB] hover:bg-[#2980B9] text-white font-black py-2.5 rounded-lg transition text-sm">⚡ Aplicar perfil recomendado</button>
+            </div>
+
+            <!-- PASO 3: CUENTA -->
+            <div id="wiz-step-3" class="wiz-step-panel hidden flex-1 overflow-y-auto px-8 py-6 flex flex-col gap-4">
+                <h2 class="text-2xl font-black text-white flex items-center gap-3"><span class="text-3xl">👤</span> Tu cuenta</h2>
+                <p class="text-sm text-gray-400">Elegí cómo querés iniciar sesión. Podés cambiarlo después en Ajustes.</p>
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="wizardLoginMicrosoft()" class="bg-[#181818] hover:border-[#3498DB] border-2 border-[#2A2A2A] rounded-xl p-5 transition text-left flex flex-col gap-2 group">
+                        <div class="flex items-center gap-2"><span class="text-3xl">🟦</span><span class="font-black text-white">Microsoft</span></div>
+                        <p class="text-[11px] text-gray-500 leading-snug">Cuenta premium oficial. Acceso a servidores online, skin oficial, multiplayer público.</p>
+                        <span class="text-[10px] text-[#3498DB] font-bold mt-auto group-hover:underline">Iniciar sesión →</span>
+                    </button>
+                    <button onclick="wizardModoInvitado()" class="bg-[#181818] hover:border-[#F39C12] border-2 border-[#2A2A2A] rounded-xl p-5 transition text-left flex flex-col gap-2 group">
+                        <div class="flex items-center gap-2"><span class="text-3xl">👥</span><span class="font-black text-white">Modo invitado</span></div>
+                        <p class="text-[11px] text-gray-500 leading-snug">Singleplayer y servidores locales/LAN. <span class="text-[#F39C12]">Sin acceso a servidores premium</span>.</p>
+                        <span class="text-[10px] text-[#F39C12] font-bold mt-auto group-hover:underline">Continuar como invitado →</span>
+                    </button>
+                </div>
+                <div id="wiz-cuenta-info" class="hidden bg-[#2ECC71]/10 border border-[#2ECC71]/30 rounded-lg p-3 text-xs text-[#2ECC71] font-bold"></div>
+            </div>
+
+            <!-- PASO 4: PRIMERA INSTANCIA -->
+            <div id="wiz-step-4" class="wiz-step-panel hidden flex-1 overflow-y-auto px-8 py-6 flex flex-col gap-4">
+                <h2 class="text-2xl font-black text-white flex items-center gap-3"><span class="text-3xl">🎮</span> Tu primera instancia</h2>
+                <p class="text-sm text-gray-400">Elegí cómo querés empezar. Podés crear más instancias después.</p>
+                <div class="grid grid-cols-1 gap-3">
+                    <button onclick="wizardIrA('versiones')" class="bg-[#181818] hover:border-[#2ECC71] border-2 border-[#2A2A2A] rounded-xl p-4 transition text-left flex items-center gap-4 group">
+                        <span class="text-4xl shrink-0">📥</span>
+                        <div class="flex-1 min-w-0">
+                            <p class="font-black text-white">Descargar versión de Minecraft</p>
+                            <p class="text-[11px] text-gray-500">Vanilla, Fabric, Forge, Iris, OptiFine — todas las versiones disponibles.</p>
+                        </div>
+                        <span class="text-[#2ECC71] text-xl group-hover:translate-x-1 transition shrink-0">→</span>
+                    </button>
+                    <button onclick="wizardIrA('importar-mrpack')" class="bg-[#181818] hover:border-[#9B59B6] border-2 border-[#2A2A2A] rounded-xl p-4 transition text-left flex items-center gap-4 group">
+                        <span class="text-4xl shrink-0">📦</span>
+                        <div class="flex-1 min-w-0">
+                            <p class="font-black text-white">Importar modpack .mrpack</p>
+                            <p class="text-[11px] text-gray-500">Pegá un código de tu amigo o subí un archivo .mrpack para instalar todo automáticamente.</p>
+                        </div>
+                        <span class="text-[#9B59B6] text-xl group-hover:translate-x-1 transition shrink-0">→</span>
+                    </button>
+                    <button onclick="wizardIrA('mods')" class="bg-[#181818] hover:border-[#F39C12] border-2 border-[#2A2A2A] rounded-xl p-4 transition text-left flex items-center gap-4 group">
+                        <span class="text-4xl shrink-0">🧩</span>
+                        <div class="flex-1 min-w-0">
+                            <p class="font-black text-white">Explorar la tienda de mods</p>
+                            <p class="text-[11px] text-gray-500">Descubrí mods, shaders, resource packs y modpacks de Modrinth.</p>
+                        </div>
+                        <span class="text-[#F39C12] text-xl group-hover:translate-x-1 transition shrink-0">→</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Footer nav -->
+            <div class="border-t border-[#2A2A2A] px-8 py-4 flex items-center justify-between bg-[#0A0A0A]">
+                <button id="wiz-btn-prev" onclick="wizardPaso(-1)" class="text-sm text-gray-500 hover:text-white transition px-4 py-2 disabled:opacity-30 disabled:cursor-not-allowed" disabled>← Anterior</button>
+                <button id="wiz-btn-next" onclick="wizardPaso(+1)" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black px-6 py-2 rounded-lg transition text-sm">Siguiente →</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PRE-FLIGHT JAVA MODAL -->
+    <div id="preflight-java-modal" class="absolute inset-0 z-[390] bg-black/90 hidden flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-[#121212] w-[480px] rounded-xl border border-[#F39C12]/30 shadow-2xl p-6 flex flex-col gap-5">
+            <div class="flex items-center gap-3">
+                <span class="text-4xl">☕</span>
+                <div>
+                    <h2 class="font-black text-white text-lg">Java incompatible</h2>
+                    <p class="text-xs text-gray-500">Esta versión de Minecraft necesita una versión de Java diferente.</p>
+                </div>
+            </div>
+            <div id="preflight-java-info" class="bg-[#181818] border border-[#2A2A2A] rounded-lg p-3 text-sm text-gray-300"></div>
+            <div id="preflight-java-progress" class="hidden bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg p-3">
+                <p id="preflight-prog-lbl" class="text-xs text-[#2ECC71] font-bold mb-2">Descargando...</p>
+                <div class="w-full h-2 bg-[#2A2A2A] rounded-full overflow-hidden">
+                    <div id="preflight-prog-bar" class="h-2 bg-[#2ECC71] rounded-full transition-all" style="width:0%"></div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3" id="preflight-java-actions">
+                <button onclick="preflightCerrar(false)" class="text-sm text-gray-500 hover:text-white transition px-4 py-2">Cancelar</button>
+                <button onclick="preflightInstalar()" id="preflight-btn-instalar" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black px-5 py-2 rounded-lg text-sm transition">⬇ Instalar Java automáticamente</button>
+            </div>
+        </div>
+    </div>
+
     <!-- HW PERFIL MODAL (one-time at launch) -->
     <div id="hw-perfil-modal" class="absolute inset-0 z-[320] bg-black/90 hidden flex items-center justify-center backdrop-blur-sm">
         <div class="bg-[#121212] w-[640px] rounded-xl border border-[#2ECC71]/20 shadow-2xl p-6 flex flex-col gap-5">
@@ -622,6 +830,27 @@
             </div>
             <div class="flex justify-end gap-3">
                 <button onclick="cerrarHwPerfilModal()" class="text-sm text-gray-500 hover:text-white transition px-4 py-2">Saltar — jugar sin optimizar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- EMOJI PICKER MODAL -->
+    <div id="emoji-picker-modal" class="absolute inset-0 z-[330] bg-black/80 hidden flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-[#121212] w-[420px] rounded-xl border border-[#2A2A2A] shadow-2xl flex flex-col overflow-hidden">
+            <div class="p-4 border-b border-[#2A2A2A] flex items-center gap-3 shrink-0">
+                <h2 class="font-black text-white flex-1">Elegir ícono</h2>
+                <button onclick="emojiPickerCerrar()" class="text-gray-500 hover:text-white text-xl leading-none">✕</button>
+            </div>
+            <div class="p-4 flex flex-col gap-3">
+                <input type="text" id="emoji-picker-input" maxlength="8" placeholder="O escribí un emoji libre..."
+                    class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-2xl text-center outline-none focus:border-[#2ECC71]"
+                    style="font-family: 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;">
+                <div id="emoji-picker-grid" class="grid grid-cols-8 gap-1.5 max-h-64 overflow-y-auto"
+                    style="font-family: 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;"></div>
+                <div class="flex justify-end gap-2 pt-2 border-t border-[#2A2A2A]">
+                    <button onclick="emojiPickerCerrar()" class="text-gray-400 hover:text-white text-sm px-4 py-2 transition">Cancelar</button>
+                    <button onclick="emojiPickerConfirmar()" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black px-4 py-2 rounded text-sm transition">Aplicar</button>
+                </div>
             </div>
         </div>
     </div>
@@ -1578,11 +1807,13 @@
                     <p class="text-[10px] font-black text-gray-600 uppercase tracking-widest px-2 pt-3 pb-0.5 select-none">RENDIMIENTO</p>
                     <button onclick="herTab('gamemode')" id="htab-gamemode" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🚀 Game Mode</button>
                     <button onclick="herTab('hwperfil')" id="htab-hwperfil" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">💻 HW Perfil</button>
+                    <button onclick="herTab('gpuopengl')" id="htab-gpuopengl" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🖥️ GPU/OpenGL</button>
                     <button onclick="herTab('crash')" id="htab-crash" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🔴 Crash Log</button>
                     <p class="text-[10px] font-black text-gray-600 uppercase tracking-widest px-2 pt-3 pb-0.5 select-none">PERSONALIZACIÓN</p>
                     <button onclick="herTab('musica')" id="htab-musica" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🎵 Música</button>
                     <button onclick="herTab('fondo')" id="htab-fondo" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🖼️ Fondo</button>
                     <button onclick="herTab('shaders')" id="htab-shaders" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">✨ Shaders</button>
+                    <button onclick="herTab('configs')" id="htab-configs" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🌐 Configs Comunidad</button>
                     <button onclick="herTab('java')" id="htab-java" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">⚡ Java</button>
                     <button onclick="herTab('ia')" id="htab-ia" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🤖 IA Groq</button>
                     <button onclick="herTab('fotos')" id="htab-fotos" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">📸 Fotos</button>
@@ -1646,6 +1877,22 @@
                         </div>
                     </div>
                 </div>
+                <!-- Backups pre-update (Phase D) -->
+                <div class="bg-[#181818] border border-[#F39C12]/30 rounded-xl p-5 mt-4 flex flex-col gap-3">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="font-black">🛡️ Backups pre-actualización</h3>
+                            <p class="text-xs text-gray-500 mt-0.5">Snapshots automáticos de tus mundos creados justo antes de cada update del launcher.</p>
+                        </div>
+                        <div class="flex gap-2 shrink-0">
+                            <button onclick="cargarBackupsPreUpdate()" class="text-xs bg-[#2A2A2A] hover:bg-[#3A3A3A] px-3 py-1.5 rounded transition">↻ Recargar</button>
+                            <button onclick="pywebview.api.abrir_carpeta_backups_pre_update()" class="text-xs bg-[#2A2A2A] hover:bg-[#3A3A3A] px-3 py-1.5 rounded transition">📂 Abrir carpeta</button>
+                        </div>
+                    </div>
+                    <div id="backups-preupdate-lista" class="space-y-2 max-h-60 overflow-y-auto">
+                        <p class="text-xs text-gray-600">Cargando...</p>
+                    </div>
+                </div>
                 <!-- Backup auto-scheduler -->
                 <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 mt-4 flex flex-col gap-3">
                     <h3 class="font-black">⏰ Backup automático</h3>
@@ -1668,12 +1915,39 @@
 
             <!-- PERFILES -->
             <div id="hpanel-perfiles" class="absolute inset-0 overflow-y-auto p-5 pr-4" style="display:none">
+                <!-- MIS PERFILES (lista) -->
+                <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 mb-5">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-black">📦 Mis perfiles</h3>
+                        <button onclick="cargarPerfilesGuardados()" class="text-xs bg-[#2A2A2A] hover:bg-[#3A3A3A] px-3 py-1.5 rounded transition">↻ Recargar</button>
+                    </div>
+                    <div id="perfiles-grid" class="grid grid-cols-3 gap-3">
+                        <p class="text-xs text-gray-500 col-span-3">Cargando...</p>
+                    </div>
+                </div>
                 <div class="grid grid-cols-2 gap-5">
                     <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col gap-4">
-                        <h3 class="font-black">👤 Nuevo perfil</h3>
+                        <h3 class="font-black" id="perfil-form-titulo">👤 Nuevo perfil</h3>
+                        <div class="flex flex-col gap-1">
+                            <span class="text-xs font-bold text-gray-400 uppercase tracking-wide">Ícono</span>
+                            <div class="flex items-center gap-3">
+                                <button type="button" onclick="emojiPickerAbrir()" id="perfil-icono-preview"
+                                    class="w-14 h-14 rounded-xl bg-[#0A0A0A] border-2 border-[#333] hover:border-[#2ECC71] transition flex items-center justify-center text-3xl select-none">
+                                    📦
+                                </button>
+                                <div class="flex flex-col gap-1 flex-1">
+                                    <button type="button" onclick="emojiPickerAbrir()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white text-xs font-bold px-3 py-1.5 rounded transition text-left">😀 Elegir emoji</button>
+                                    <button type="button" onclick="subirImagenPerfilIcono()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white text-xs font-bold px-3 py-1.5 rounded transition text-left">🖼️ Subir imagen 64×64</button>
+                                </div>
+                                <button type="button" onclick="limpiarIconoPerfil()" id="perfil-icono-clear" class="text-gray-500 hover:text-red-400 text-xs px-2 py-1 transition" title="Quitar ícono">✕</button>
+                            </div>
+                            <input type="hidden" id="perfil-icono-emoji" value="">
+                            <input type="hidden" id="perfil-icono-imgb64" value="">
+                            <input type="hidden" id="perfil-edit-id" value="">
+                        </div>
                         <div class="flex flex-col gap-1">
                             <span class="text-xs font-bold text-gray-400 uppercase tracking-wide">Nombre</span>
-                            <input type="text" id="perfil-nombre" placeholder="Ej: PvP 1.8" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none focus:border-[#2ECC71]">
+                            <input type="text" id="perfil-nombre" placeholder="Ej: Servidor con amigos" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none focus:border-[#2ECC71]">
                         </div>
                         <div class="flex flex-col gap-1">
                             <span class="text-xs font-bold text-gray-400 uppercase tracking-wide">Versión</span>
@@ -1868,6 +2142,110 @@
                         </div>
                     </div>
                     <p id="shader-msg" class="text-xs text-center text-gray-500 mt-4 min-h-[16px]"></p>
+                </div>
+            </div>
+
+            <!-- CONFIGS COMUNIDAD (Phase D) -->
+            <div id="hpanel-configs" class="absolute inset-0 overflow-y-auto p-5 pr-4" style="display:none">
+                <div class="bg-gradient-to-br from-[#3498DB]/10 to-[#9B59B6]/10 border border-[#3498DB]/30 rounded-xl p-5 mb-4">
+                    <div class="flex items-start justify-between gap-4 flex-wrap">
+                        <div class="min-w-0">
+                            <h3 class="font-black text-lg">🌐 Configs de la Comunidad</h3>
+                            <p class="text-xs text-gray-400 mt-1 max-w-xl">Descargá y aplicá configuraciones (Sodium, Iris, OptiFine, options.txt, servers.dat...) compartidas por la comunidad de Paraguacraft. Probadas y curadas.</p>
+                        </div>
+                        <div class="flex flex-wrap gap-2 shrink-0">
+                            <button onclick="cargarComunidadConfigs(true)" class="text-xs bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white px-3 py-2 rounded font-bold transition">↻ Recargar</button>
+                            <button onclick="comunidadCompartirAbrir()" class="text-xs bg-[#2ECC71] hover:bg-[#27AE60] text-black px-3 py-2 rounded font-black transition">📤 Compartir el mío</button>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-2 mt-4">
+                        <input id="cfg-search" type="text" placeholder="🔍 Buscar..." oninput="renderComunidadConfigs()" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none focus:border-[#3498DB] flex-1 min-w-[180px]">
+                        <select id="cfg-filtro-tipo" onchange="renderComunidadConfigs()" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none">
+                            <option value="">Todos los tipos</option>
+                            <option value="sodium">Sodium</option>
+                            <option value="iris">Iris</option>
+                            <option value="optifine">OptiFine</option>
+                            <option value="options">Options.txt</option>
+                            <option value="servers">Servers</option>
+                            <option value="otro">Otro</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="cfg-grid" class="grid grid-cols-3 gap-4">
+                    <p class="col-span-3 text-center text-gray-500 text-sm">Cargando catálogo...</p>
+                </div>
+                <p id="cfg-msg" class="text-xs text-center text-gray-500 mt-4 min-h-[16px]"></p>
+            </div>
+
+            <!-- GPU/OPENGL (Phase E) -->
+            <div id="hpanel-gpuopengl" class="absolute inset-0 overflow-y-auto p-5 pr-4" style="display:none">
+                <div class="bg-gradient-to-br from-[#9B59B6]/10 to-[#3498DB]/10 border border-[#9B59B6]/30 rounded-xl p-5 mb-4">
+                    <h3 class="font-black text-lg">🖥️ Compatibilidad GPU / OpenGL</h3>
+                    <p class="text-xs text-gray-400 mt-1">Para PCs viejas con problemas de OpenGL ("OpenGL 3.2 not supported", pantalla negra, crash al iniciar). Activá Mesa3D para que Minecraft use software o DirectX 12 en lugar del driver OpenGL del sistema.</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <!-- DIAGNÓSTICO -->
+                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="font-black text-sm">🔍 Diagnóstico</h4>
+                            <button onclick="cargarGpuOpenGL()" class="text-[10px] bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white px-2 py-1 rounded font-bold transition">↻</button>
+                        </div>
+                        <div id="gpu-diag" class="text-xs text-gray-400 space-y-2">
+                            <p class="text-gray-500">Cargando...</p>
+                        </div>
+                    </div>
+
+                    <!-- MODO COMPATIBILIDAD -->
+                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col gap-3">
+                        <h4 class="font-black text-sm">⚙️ Modo de compatibilidad</h4>
+                        <div id="gpu-mesa-estado" class="text-xs text-gray-400">Cargando...</div>
+                        <div id="gpu-modo-radios" class="flex flex-col gap-1.5"></div>
+                        <div class="flex flex-wrap gap-2 mt-2">
+                            <button onclick="gpuDescargarMesa()" id="btn-gpu-descargar" class="flex-1 bg-[#3498DB] hover:bg-[#2980B9] text-white font-black text-xs py-2 rounded transition">⬇ Descargar Mesa3D</button>
+                            <button onclick="gpuEliminarMesa()" id="btn-gpu-eliminar" class="bg-[#E74C3C] hover:bg-[#C0392B] text-white font-bold text-xs px-3 py-2 rounded transition">🗑️</button>
+                        </div>
+                        <p id="gpu-msg" class="text-xs min-h-[16px]"></p>
+                    </div>
+
+                    <!-- FORZAR GPU DEDICADA -->
+                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col gap-3">
+                        <h4 class="font-black text-sm">⚡ Forzar GPU dedicada</h4>
+                        <p class="text-xs text-gray-500">Útil en laptops con GPU integrada + dedicada (NVIDIA Optimus / AMD switchable). Registra <code class="text-[#F39C12]">javaw.exe</code> con preferencia de alto rendimiento en Windows.</p>
+                        <label class="flex items-center gap-2 cursor-pointer text-xs text-gray-300 select-none">
+                            <input type="checkbox" id="gpu-forzar-dedi" onchange="gpuToggleForzarDedicada(this.checked)" class="w-4 h-4 accent-[#2ECC71]">
+                            <span>Activar preferencia de GPU dedicada para Minecraft</span>
+                        </label>
+                        <p id="gpu-dedi-msg" class="text-[10px] min-h-[14px]"></p>
+                    </div>
+
+                    <!-- RECOMENDADOR -->
+                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col gap-3">
+                        <h4 class="font-black text-sm">🎯 Recomendación</h4>
+                        <div id="gpu-recomendacion" class="text-xs text-gray-400 space-y-2">
+                            <p class="text-gray-500">Esperando diagnóstico...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- INFO SOBRE MODOS -->
+                <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 mt-4">
+                    <h4 class="font-black text-sm mb-3">📚 ¿Qué modo elegir?</h4>
+                    <div class="grid grid-cols-3 gap-3 text-xs">
+                        <div class="bg-[#0A0A0A] border border-[#F39C12]/30 rounded p-3">
+                            <p class="font-black text-[#F39C12]">Software (llvmpipe)</p>
+                            <p class="text-gray-500 mt-1">Renderiza con la CPU. <b class="text-gray-300">Lento (10-30 FPS)</b> pero funciona en CUALQUIER PC sin importar la GPU. Última opción si nada más anda.</p>
+                        </div>
+                        <div class="bg-[#0A0A0A] border border-[#2ECC71]/30 rounded p-3">
+                            <p class="font-black text-[#2ECC71]">DirectX 12 (d3d12) ⭐</p>
+                            <p class="text-gray-500 mt-1">Mesa traduce OpenGL → DX12. <b class="text-gray-300">Rápido</b> en GPUs con drivers DX12 buenos pero OpenGL roto. <b>Recomendado primero.</b></p>
+                        </div>
+                        <div class="bg-[#0A0A0A] border border-[#9B59B6]/30 rounded p-3">
+                            <p class="font-black text-[#9B59B6]">Vulkan (zink)</p>
+                            <p class="text-gray-500 mt-1">Mesa traduce OpenGL → Vulkan. Solo si tu GPU tiene drivers Vulkan modernos. Performance similar a nativo.</p>
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-gray-600 mt-3">Mesa3D se descarga desde <a class="text-[#3498DB]" onclick="pywebview.api.abrir_url_navegador('https://github.com/pal1000/mesa-dist-win')">pal1000/mesa-dist-win</a> (~30 MB). Los DLLs se copian al runtime de Java de Minecraft solo cuando jugás.</p>
                 </div>
             </div>
 
@@ -2762,6 +3140,7 @@
             try { if ((await pywebview.api.get_settings()).config.auto_update_check !== false) setTimeout(verificarActualizaciones, 3000); } catch(e) { setTimeout(verificarActualizaciones, 3000); }
             setTimeout(cargarDatosInicio, 500);
             setTimeout(initExtras, 800);
+            setTimeout(() => { try { wizardComprobarYAbrir(); } catch(e) {} }, 1500);
             verificarModoOffline();
             setInterval(verificarModoOffline, 60000);
         }
@@ -2783,12 +3162,16 @@
 
         function abrirAjustes() {
             mostrarPanelAjustes('juego');
-            document.getElementById('settings-modal').classList.remove('hidden');
+            const m = document.getElementById('settings-modal');
+            m.classList.remove('hidden');
+            m.style.display = 'flex';
         }
 
         function cerrarAjustes() {
             detenerTelemetriaModal();
-            document.getElementById('settings-modal').classList.add('hidden');
+            const m = document.getElementById('settings-modal');
+            m.classList.add('hidden');
+            m.style.display = 'none';
         }
 
         function mostrarPanelAjustes(cual) {
@@ -4510,8 +4893,15 @@
             } catch(e) { console.error('[Update]', e); }
         }
 
-        function abrirModalUpdate() {
+        async function abrirModalUpdate() {
             document.getElementById('update-modal').classList.remove('hidden');
+            try {
+                const s = await pywebview.api.get_settings();
+                const chk = document.getElementById('upd-chk-backup');
+                if (chk && s && s.config) {
+                    chk.checked = s.config.backup_saves_pre_update !== false;
+                }
+            } catch(e) {}
         }
 
         function cerrarModalUpdate() {
@@ -4544,6 +4934,25 @@
             const r = await pywebview.api.aplicar_actualizacion(_updUrl, _updSha256);
             if (r && !r.ok) {
                 _updateFailed(r.error || 'Error desconocido');
+            }
+        }
+        function _preUpdateBackupProgress(pct, msg) {
+            const wrap = document.getElementById('upd-backup-progress');
+            const bar = document.getElementById('upd-backup-bar');
+            const lbl = document.getElementById('upd-backup-lbl');
+            const pctLbl = document.getElementById('upd-backup-pct');
+            if (!wrap) return;
+            wrap.classList.remove('hidden');
+            if (pct < 0) {
+                if (lbl) { lbl.textContent = msg || 'Error en backup'; lbl.className = 'text-sm font-bold text-red-400'; }
+                return;
+            }
+            const v = Math.min(100, Math.max(0, pct));
+            if (bar) bar.style.width = v + '%';
+            if (pctLbl) pctLbl.textContent = v + '%';
+            if (lbl) lbl.textContent = msg || ('Respaldando... ' + v + '%');
+            if (v >= 100) {
+                setTimeout(() => { try { wrap.classList.add('hidden'); } catch(e) {} }, 1500);
             }
         }
         function _updateProgress(pct, msg) {
@@ -4582,6 +4991,8 @@
             const v = document.getElementById('panel-version-sel').value;
             const l = document.getElementById('panel-loader-sel').value;
             if (!v) { cambiarPestaña('versiones', 'Versiones'); return; }
+            const javaOk = await preflightJava(v);
+            if (!javaOk) return;
             const btn = document.getElementById('btn-launch-game');
             if (btn) { btn.innerText = 'Conectando...'; btn.classList.replace('bg-[#2ECC71]', 'bg-gray-600'); btn.disabled = true; }
             cambiarPestaña('versiones', 'Versiones');
@@ -5154,6 +5565,8 @@
             const v = document.getElementById('panel-version-sel').value;
             const l = document.getElementById('panel-loader-sel').value;
             if (!v) { alert('Seleccioná una versión primero.'); return; }
+            const javaOk = await preflightJava(v);
+            if (!javaOk) return;  // Usuario canceló
             _lanzarJuegoReal(v, l);
         }
 
@@ -5318,6 +5731,8 @@
         async function inicioLanzarUltima() {
             const d = await pywebview.api.get_ultima_version_jugada();
             if (!d.version) { cambiarPestaña('versiones', 'Versiones'); return; }
+            const javaOk = await preflightJava(d.version);
+            if (!javaOk) return;
             const btn = document.getElementById('btn-inicio-jugar');
             if (btn) { btn.textContent = 'Iniciando...'; btn.disabled = true; }
             await pywebview.api.lanzar_juego(d.version, d.motor, '');
@@ -5327,6 +5742,8 @@
         async function inicioQuickPlay(ip) {
             const d = await pywebview.api.get_ultima_version_jugada();
             if (!d.version) { cambiarPestaña('versiones', 'Versiones'); return; }
+            const javaOk = await preflightJava(d.version);
+            if (!javaOk) return;
             const btn = document.getElementById('btn-inicio-jugar');
             if (btn) { btn.textContent = 'Conectando...'; btn.disabled = true; }
             await pywebview.api.lanzar_juego(d.version, d.motor, ip);
@@ -5483,6 +5900,16 @@
             el('imod-mr-section').classList.remove('hidden');
             el('imod-cf-section').classList.add('hidden');
             el('imod-lista').innerHTML = '';
+            // Restaurar markup original de file-info (puede haber sido sobrescrito por mensaje "Instalado")
+            el('imod-file-info').innerHTML = `
+                <div class="flex items-center gap-3 p-3.5">
+                    <div class="w-9 h-9 rounded-lg bg-[#2ECC71]/10 border border-[#2ECC71]/20 flex items-center justify-center font-black text-[#2ECC71] text-sm shrink-0" id="imod-file-icon">R</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="font-bold text-sm text-white truncate" id="imod-fname"></p>
+                        <p class="text-xs text-gray-500" id="imod-fmeta"></p>
+                    </div>
+                    <button onclick="imodInstalar()" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black px-4 py-2 rounded-lg transition text-sm shrink-0">⬇ Instalar</button>
+                </div>`;
             el('imod-file-info').classList.add('hidden');
             el('imod-instalando').classList.add('hidden');
             el('imod-perfil-row').classList.add('hidden');
@@ -6190,7 +6617,7 @@
 
         // ══ HERRAMIENTAS: TAB SWITCHER ══════════════════════════════════
         function herTab(cual) {
-            const allTabs = ['estadisticas','backup','perfiles','compartir','gamemode','hwperfil','crash','musica','fondo','shaders','java','ia','fotos','updates','turbo','overlay','benchmark','skingen','smartram','conflictos','optimizer','comparador','whitelist'];
+            const allTabs = ['estadisticas','backup','perfiles','compartir','gamemode','hwperfil','gpuopengl','crash','musica','fondo','shaders','configs','java','ia','fotos','updates','turbo','overlay','benchmark','skingen','smartram','conflictos','optimizer','comparador','whitelist'];
             allTabs.forEach(t => {
                 const panel = document.getElementById('hpanel-' + t);
                 if (panel) {
@@ -6211,8 +6638,10 @@
                 }
             });
             if (cual === 'estadisticas') cargarEstadisticas();
-            if (cual === 'backup') { cargarMundos(); cargarBackups(); cargarBackupConfig(); }
-            if (cual === 'perfiles') poblarPerfilesVersiones();
+            if (cual === 'backup') { cargarMundos(); cargarBackups(); cargarBackupConfig(); cargarBackupsPreUpdate(); }
+            if (cual === 'configs') cargarComunidadConfigs(false);
+            if (cual === 'gpuopengl') cargarGpuOpenGL();
+            if (cual === 'perfiles') { poblarPerfilesVersiones(); cargarPerfilesGuardados(); }
             if (cual === 'whitelist') cargarWhitelist();
             if (cual === 'hwperfil') hwEstiloTab(window._hwEstiloActual || 'pvp');
         }
@@ -6507,18 +6936,511 @@
             const version = document.getElementById('perfil-version').value;
             const loader = document.getElementById('perfil-loader').value;
             const msg = document.getElementById('perfil-msg');
-            if (!nombre) { msg.textContent = '\u26a0\ufe0f Ingres\u00e1 un nombre.'; return; }
+            const icono = document.getElementById('perfil-icono-emoji').value || '';
+            const icon_image_b64 = document.getElementById('perfil-icono-imgb64').value || '';
+            const id = document.getElementById('perfil-edit-id').value || '';
+            if (!nombre) { msg.textContent = '\u26a0\ufe0f Ingres\u00e1 un nombre.'; msg.className = 'text-xs text-yellow-400 min-h-[14px]'; return; }
+            if (!version) { msg.textContent = '\u26a0\ufe0f Eleg\u00ed una versi\u00f3n.'; msg.className = 'text-xs text-yellow-400 min-h-[14px]'; return; }
             try {
-                const r = await pywebview.api.guardar_perfil_personalizado({nombre, version, loader});
+                const payload = {nombre, version, loader, icono, icon_image_b64};
+                if (id) payload.id = id;
+                const r = await pywebview.api.guardar_perfil_personalizado(payload);
                 if (r && r.ok) {
                     msg.textContent = '\u2705 Perfil guardado.';
                     msg.className = 'text-xs text-[#2ECC71] min-h-[14px]';
-                    cargarPerfilesGuardados && cargarPerfilesGuardados();
+                    _resetFormPerfil();
+                    cargarPerfilesGuardados();
                 } else {
                     msg.textContent = '\u274c ' + (r && r.error || 'Error');
                     msg.className = 'text-xs text-red-400 min-h-[14px]';
                 }
             } catch(e) { msg.textContent = '\u274c ' + e; msg.className = 'text-xs text-red-400 min-h-[14px]'; }
+        }
+
+        // ── Emoji picker ─────────────────────────────────────────────────
+        const _EMOJIS_COMUNES = [
+            '📦','🏠','💀','🧪','⚔️','🛡️','🌍','🐉','⛏️','🌱','🔥','❄️',
+            '🎮','🎯','👑','💎','🗡️','🏹','🪓','🔱','⚒️','🧱','🌋','🏔️',
+            '🌳','🌴','🌵','🍄','🌟','⭐','✨','💫','🚀','🛸','🌙','☀️',
+            '🐺','🐲','🦊','🐱','🐶','🐰','🦁','🐯','🐻','🐼','🐸','🦋',
+            '⚡','💥','🌈','🌊','🍖','🍗','🥩','🍞','🍎','🥕','🐟','🥚',
+            '🧙','🧝','🧛','🧟','🤖','👾','🎃','👻','😈','💪','🏆','🎁'
+        ];
+        let _emojiTempSel = '';
+        function emojiPickerAbrir() {
+            const grid = document.getElementById('emoji-picker-grid');
+            const inp = document.getElementById('emoji-picker-input');
+            _emojiTempSel = document.getElementById('perfil-icono-emoji').value || '';
+            inp.value = _emojiTempSel;
+            grid.innerHTML = _EMOJIS_COMUNES.map(e =>
+                `<button type="button" data-emo="${e}" onclick="emojiPickerSelect('${e}')"
+                    class="emoji-cell text-2xl rounded-lg hover:bg-[#2A2A2A] transition aspect-square flex items-center justify-center ${e===_emojiTempSel?'bg-[#2ECC71]/20 border border-[#2ECC71]':''}">${e}</button>`
+            ).join('');
+            const m = document.getElementById('emoji-picker-modal');
+            m.classList.remove('hidden');
+            m.style.display = 'flex';
+            setTimeout(() => inp.focus(), 50);
+        }
+        function emojiPickerCerrar() {
+            const m = document.getElementById('emoji-picker-modal');
+            m.classList.add('hidden');
+            m.style.display = 'none';
+        }
+        function emojiPickerSelect(e) {
+            _emojiTempSel = e;
+            document.getElementById('emoji-picker-input').value = e;
+            document.querySelectorAll('#emoji-picker-grid .emoji-cell').forEach(b => {
+                b.className = 'emoji-cell text-2xl rounded-lg hover:bg-[#2A2A2A] transition aspect-square flex items-center justify-center ' +
+                    (b.dataset.emo === e ? 'bg-[#2ECC71]/20 border border-[#2ECC71]' : '');
+            });
+        }
+        function emojiPickerConfirmar() {
+            const inpVal = (document.getElementById('emoji-picker-input').value || '').trim();
+            const final = inpVal || _emojiTempSel || '';
+            document.getElementById('perfil-icono-emoji').value = final;
+            // Limpiar imagen si se eligió emoji
+            if (final) document.getElementById('perfil-icono-imgb64').value = '';
+            _renderIconoPreview();
+            emojiPickerCerrar();
+        }
+        function _renderIconoPreview() {
+            const prev = document.getElementById('perfil-icono-preview');
+            if (!prev) return;
+            const emo = document.getElementById('perfil-icono-emoji').value || '';
+            const img = document.getElementById('perfil-icono-imgb64').value || '';
+            if (img) {
+                prev.innerHTML = `<img src="data:image/png;base64,${img}" class="w-full h-full rounded-xl object-cover">`;
+            } else if (emo) {
+                prev.innerHTML = emo;
+            } else {
+                prev.innerHTML = '📦';
+            }
+        }
+        async function subirImagenPerfilIcono() {
+            try {
+                const r = await pywebview.api.elegir_imagen_icono();
+                if (r && r.ok && r.b64) {
+                    document.getElementById('perfil-icono-imgb64').value = r.b64;
+                    document.getElementById('perfil-icono-emoji').value = '';
+                    _renderIconoPreview();
+                }
+            } catch(e) {}
+        }
+        function limpiarIconoPerfil() {
+            document.getElementById('perfil-icono-emoji').value = '';
+            document.getElementById('perfil-icono-imgb64').value = '';
+            _renderIconoPreview();
+        }
+        function _resetFormPerfil() {
+            document.getElementById('perfil-nombre').value = '';
+            document.getElementById('perfil-icono-emoji').value = '';
+            document.getElementById('perfil-icono-imgb64').value = '';
+            document.getElementById('perfil-edit-id').value = '';
+            document.getElementById('perfil-form-titulo').textContent = '👤 Nuevo perfil';
+            _renderIconoPreview();
+        }
+
+        // ── Lista de perfiles guardados ──────────────────────────────────
+        function _iconoPerfilHTML(p, sizeCls) {
+            sizeCls = sizeCls || 'w-12 h-12 text-2xl';
+            if (p.icon_image_path) {
+                // Cargar como file:// si webview lo permite; si no, dejar emoji fallback
+                const safe = p.icon_image_path.replace(/\\/g, '/');
+                return `<div class="${sizeCls} rounded-xl bg-[#0A0A0A] border border-[#333] overflow-hidden flex items-center justify-center shrink-0">
+                    <img src="file:///${safe}" class="w-full h-full object-cover" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'${(p.icono||'📦').replace(/'/g,'\\\'')}',className:'text-2xl'}))">
+                </div>`;
+            }
+            return `<div class="${sizeCls} rounded-xl bg-[#0A0A0A] border border-[#333] flex items-center justify-center shrink-0" style="font-family:'Segoe UI Emoji','Apple Color Emoji',sans-serif">${p.icono||'📦'}</div>`;
+        }
+        async function cargarPerfilesGuardados() {
+            const grid = document.getElementById('perfiles-grid');
+            if (!grid) return;
+            grid.innerHTML = '<p class="text-xs text-gray-500 col-span-3">Cargando...</p>';
+            try {
+                const r = await pywebview.api.listar_perfiles_personalizados();
+                const lista = (r && r.ok && r.perfiles) || [];
+                if (!lista.length) {
+                    grid.innerHTML = '<p class="text-xs text-gray-500 col-span-3">A\u00fan no creaste perfiles. Llen\u00e1 el formulario de abajo y guard\u00e1 uno.</p>';
+                    return;
+                }
+                grid.innerHTML = lista.map(p => `
+                    <div class="bg-[#121212] border border-[#2A2A2A] hover:border-[#2ECC71]/50 rounded-xl p-3 flex items-center gap-3 transition group">
+                        ${_iconoPerfilHTML(p)}
+                        <div class="flex-1 min-w-0">
+                            <p class="font-black text-sm text-white truncate">${(p.nombre||'').replace(/</g,'&lt;')}</p>
+                            <p class="text-[10px] text-gray-500 truncate">${p.version} · ${p.loader}</p>
+                        </div>
+                        <div class="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition">
+                            <button onclick="aplicarPerfilPersonalizado('${p.id}')" title="Usar este perfil" class="text-[#2ECC71] hover:text-white text-xs px-1.5 py-0.5 transition">▶</button>
+                            <button onclick="editarPerfilPersonalizado('${p.id}')" title="Editar" class="text-[#3498DB] hover:text-white text-xs px-1.5 py-0.5 transition">✎</button>
+                            <button onclick="eliminarPerfilPersonalizado('${p.id}')" title="Eliminar" class="text-red-400 hover:text-white text-xs px-1.5 py-0.5 transition">🗑</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch(e) {
+                grid.innerHTML = `<p class="text-xs text-red-400 col-span-3">Error: ${e}</p>`;
+            }
+        }
+        async function aplicarPerfilPersonalizado(id) {
+            try {
+                const r = await pywebview.api.listar_perfiles_personalizados();
+                const p = (r && r.perfiles || []).find(x => x.id === id);
+                if (!p) return;
+                const sV = document.getElementById('panel-version-sel');
+                const sL = document.getElementById('panel-loader-sel');
+                if (sV) {
+                    // Insertar la opción si no existe
+                    if (!Array.from(sV.options).some(o => o.value === p.version)) {
+                        const o = document.createElement('option'); o.value = p.version; o.textContent = p.version; sV.appendChild(o);
+                    }
+                    sV.value = p.version;
+                    sV.dispatchEvent(new Event('change'));
+                }
+                if (sL) {
+                    if (!Array.from(sL.options).some(o => o.value === p.loader)) {
+                        const o = document.createElement('option'); o.value = p.loader; o.textContent = p.loader; sL.appendChild(o);
+                    }
+                    sL.value = p.loader;
+                    sL.dispatchEvent(new Event('change'));
+                }
+            } catch(e) {}
+        }
+        async function editarPerfilPersonalizado(id) {
+            try {
+                const r = await pywebview.api.listar_perfiles_personalizados();
+                const p = (r && r.perfiles || []).find(x => x.id === id);
+                if (!p) return;
+                document.getElementById('perfil-edit-id').value = p.id;
+                document.getElementById('perfil-nombre').value = p.nombre || '';
+                document.getElementById('perfil-icono-emoji').value = p.icono || '';
+                document.getElementById('perfil-icono-imgb64').value = '';
+                document.getElementById('perfil-form-titulo').textContent = '✎ Editar perfil';
+                // Setear version/loader (insertando opción si falta)
+                const sV = document.getElementById('perfil-version');
+                const sL = document.getElementById('perfil-loader');
+                if (sV && p.version) {
+                    if (!Array.from(sV.options).some(o => o.value === p.version)) {
+                        const o = document.createElement('option'); o.value = p.version; o.textContent = p.version; sV.appendChild(o);
+                    }
+                    sV.value = p.version;
+                }
+                if (sL && p.loader) {
+                    if (!Array.from(sL.options).some(o => o.value === p.loader)) {
+                        const o = document.createElement('option'); o.value = p.loader; o.textContent = p.loader; sL.appendChild(o);
+                    }
+                    sL.value = p.loader;
+                }
+                _renderIconoPreview();
+                document.getElementById('perfil-nombre').scrollIntoView({behavior:'smooth', block:'center'});
+            } catch(e) {}
+        }
+        async function eliminarPerfilPersonalizado(id) {
+            if (!confirm('¿Eliminar este perfil?')) return;
+            try {
+                const r = await pywebview.api.eliminar_perfil_personalizado(id);
+                if (r && r.ok) cargarPerfilesGuardados();
+            } catch(e) {}
+        }
+
+        // ══ WIZARD DE PRIMERA VEZ ══════════════════════════════════════
+        let _wizPaso = 1;
+        const _WIZ_TOTAL = 4;
+
+        async function wizardComprobarYAbrir() {
+            try {
+                const r = await pywebview.api.wizard_completado();
+                if (r && r.ok && !r.completado) wizardAbrir();
+            } catch(e) {}
+        }
+        function wizardAbrir() {
+            _wizPaso = 1;
+            wizardActualizarUI();
+            const m = document.getElementById('wizard-modal');
+            m.classList.remove('hidden');
+            m.style.display = 'flex';
+        }
+        function wizardCerrar() {
+            const m = document.getElementById('wizard-modal');
+            m.classList.add('hidden');
+            m.style.display = 'none';
+            if (_wizJavaPoll) { clearInterval(_wizJavaPoll); _wizJavaPoll = null; }
+            _wizCuentaDetenerPoll();
+        }
+        async function wizardSaltar() {
+            try { await pywebview.api.marcar_wizard_completado(true); } catch(e) {}
+            wizardCerrar();
+        }
+        function wizardPaso(delta) {
+            const nuevo = _wizPaso + delta;
+            if (nuevo < 1) return;
+            if (nuevo > _WIZ_TOTAL) { wizardFinalizar(); return; }
+            _wizPaso = nuevo;
+            wizardActualizarUI();
+            if (_wizPaso === 2) wizardPaso2Init();
+            if (_wizPaso === 4) wizardPaso4Init();
+        }
+        function wizardActualizarUI() {
+            for (let i = 1; i <= _WIZ_TOTAL; i++) {
+                const panel = document.getElementById('wiz-step-' + i);
+                if (panel) panel.classList.toggle('hidden', i !== _wizPaso);
+            }
+            document.querySelectorAll('.wiz-step').forEach(el => {
+                const n = parseInt(el.dataset.paso);
+                el.className = 'wiz-step flex-1 h-1 rounded-full transition-all ' +
+                    (n <= _wizPaso ? 'bg-[#2ECC71]' : 'bg-[#2A2A2A]');
+            });
+            document.getElementById('wiz-paso-num').textContent = _wizPaso;
+            document.getElementById('wiz-btn-prev').disabled = (_wizPaso === 1);
+            document.getElementById('wiz-btn-next').textContent =
+                (_wizPaso === _WIZ_TOTAL) ? 'Finalizar ✓' : 'Siguiente →';
+        }
+        async function wizardFinalizar() {
+            try { await pywebview.api.marcar_wizard_completado(true); } catch(e) {}
+            wizardCerrar();
+        }
+
+        // PASO 2: detectar Java + hardware
+        let _wizJavaPoll = null;
+        async function wizardPaso2Init() {
+            const status = document.getElementById('wiz-java-status');
+            const installRow = document.getElementById('wiz-java-install-row');
+            const hwBox = document.getElementById('wiz-hw-info');
+            installRow.classList.add('hidden');
+            document.getElementById('wiz-java-progress').classList.add('hidden');
+            status.innerHTML = '<div class="w-5 h-5 border-2 border-[#2ECC71] border-t-transparent rounded-full animate-spin shrink-0"></div><span class="text-sm text-gray-300">Buscando Java en tu sistema...</span>';
+            // Detectar Java
+            try {
+                const r = await pywebview.api.detectar_javas_disponibles();
+                const javas = (r && r.javas) || [];
+                if (javas.length > 0) {
+                    const mejor = javas[0];
+                    status.innerHTML = `<span class="text-2xl shrink-0">✅</span><div class="flex-1 min-w-0"><p class="text-sm font-bold text-[#2ECC71]">Java ${mejor.version_major} detectado</p><p class="text-[10px] text-gray-500 truncate">${mejor.version_full} · ${(mejor.fuente||'').split(':')[0]}</p></div>`;
+                } else {
+                    status.innerHTML = `<span class="text-2xl shrink-0">⚠️</span><div class="flex-1"><p class="text-sm font-bold text-[#F39C12]">No se encontró Java</p><p class="text-[10px] text-gray-500">Instalalo automáticamente abajo.</p></div>`;
+                    installRow.classList.remove('hidden');
+                }
+            } catch(e) {
+                status.innerHTML = `<span class="text-2xl">❌</span><span class="text-sm text-red-400">Error: ${e}</span>`;
+            }
+            // Hardware
+            try {
+                const r = await pywebview.api.get_hardware_info();
+                if (r && r.ok) {
+                    const perf = {baja:'🟢 Gama Baja', media:'🟡 Gama Media', alta:'🔵 Gama Alta'}[r.perfil_sugerido] || r.perfil_sugerido;
+                    hwBox.innerHTML = `
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div><span class="text-gray-500">RAM:</span> <strong class="text-white">${r.ram_gb} GB</strong></div>
+                            <div><span class="text-gray-500">Cores:</span> <strong class="text-white">${r.cpu_cores || r.cpu_threads}</strong></div>
+                            <div class="col-span-2 truncate"><span class="text-gray-500">CPU:</span> <strong class="text-white">${(r.cpu_name||'?').replace(/</g,'&lt;')}</strong></div>
+                            <div class="col-span-2"><span class="text-gray-500">Perfil sugerido:</span> <strong class="text-[#2ECC71]">${perf}</strong></div>
+                        </div>`;
+                }
+            } catch(e) {
+                hwBox.textContent = 'Error detectando hardware: ' + e;
+            }
+        }
+        async function wizardInstalarJava(major) {
+            const btn = document.getElementById('wiz-btn-install-java');
+            const prog = document.getElementById('wiz-java-progress');
+            const lbl = document.getElementById('wiz-java-prog-lbl');
+            const bar = document.getElementById('wiz-java-prog-bar');
+            if (btn) { btn.disabled = true; btn.classList.add('opacity-50','cursor-not-allowed'); }
+            prog.classList.remove('hidden');
+            try {
+                await pywebview.api.instalar_java_auto(major);
+                if (_wizJavaPoll) clearInterval(_wizJavaPoll);
+                let lastPct = -1, sameSince = Date.now();
+                const TIMEOUT_MS = 90000;
+                _wizJavaPoll = setInterval(async () => {
+                    try {
+                        const p = await pywebview.api.get_java_install_progress();
+                        if (lbl) lbl.textContent = p.estado || '...';
+                        if (bar) bar.style.width = (p.pct||0) + '%';
+                        if ((p.pct||0) !== lastPct) { lastPct = p.pct||0; sameSince = Date.now(); }
+                        if (p.ok === true) {
+                            clearInterval(_wizJavaPoll); _wizJavaPoll = null;
+                            wizardPaso2Init();
+                        } else if (p.ok === false) {
+                            clearInterval(_wizJavaPoll); _wizJavaPoll = null;
+                            if (lbl) { lbl.textContent = '❌ ' + p.estado; lbl.className = 'text-xs text-red-400 font-bold mb-2'; }
+                            if (btn) { btn.disabled = false; btn.classList.remove('opacity-50','cursor-not-allowed'); }
+                        } else if (Date.now() - sameSince > TIMEOUT_MS) {
+                            clearInterval(_wizJavaPoll); _wizJavaPoll = null;
+                            if (lbl) { lbl.textContent = '⌛ Sin progreso. Verificá tu conexión y reintentá.'; lbl.className = 'text-xs text-red-400 font-bold mb-2'; }
+                            if (btn) { btn.disabled = false; btn.classList.remove('opacity-50','cursor-not-allowed'); }
+                        }
+                    } catch(e) {}
+                }, 500);
+            } catch(e) {
+                if (lbl) lbl.textContent = '❌ ' + e;
+            }
+        }
+        async function wizardAplicarRendimiento() {
+            const btn = document.getElementById('wiz-btn-rendimiento');
+            if (btn) { btn.disabled = true; btn.textContent = 'Aplicando...'; }
+            try {
+                const r = await pywebview.api.aplicar_rendimiento_recomendado_global();
+                if (r && r.ok) {
+                    if (btn) {
+                        btn.textContent = `✅ ${r.nombre} aplicado · RAM ${r.ram_gb_asignada} GB · ${r.gc}`;
+                        btn.classList.remove('bg-[#3498DB]','hover:bg-[#2980B9]');
+                        btn.classList.add('bg-[#2ECC71]/20','text-[#2ECC71]','border','border-[#2ECC71]/30');
+                    }
+                } else {
+                    if (btn) { btn.disabled = false; btn.textContent = '⚠️ ' + (r && r.error || 'Error'); }
+                }
+            } catch(e) {
+                if (btn) { btn.disabled = false; btn.textContent = '❌ ' + e; }
+            }
+        }
+
+        // PASO 3: cuenta
+        let _wizCuentaPoll = null;
+        function wizardLoginMicrosoft() {
+            if (typeof loginMicrosoft === 'function') loginMicrosoft();
+            const info = document.getElementById('wiz-cuenta-info');
+            if (info) {
+                info.textContent = '⏳ Completá el login en la ventana de Microsoft que se abrió...';
+                info.className = 'bg-[#3498DB]/10 border border-[#3498DB]/30 rounded-lg p-3 text-xs text-[#3498DB] font-bold';
+                info.classList.remove('hidden');
+            }
+            // Empezar a sondear si la sesión cambió
+            _wizCuentaIniciarPoll();
+        }
+        function _wizCuentaIniciarPoll() {
+            if (_wizCuentaPoll) return;
+            _wizCuentaPoll = setInterval(async () => {
+                if (_wizPaso !== 3) { _wizCuentaDetenerPoll(); return; }
+                try {
+                    const r = await pywebview.api.get_settings();
+                    const u = (r && r.config && r.config.usuario) || '';
+                    const prem = !!(r && r.config && r.config.is_premium);
+                    if (prem && u && u !== 'Invitado') {
+                        const info = document.getElementById('wiz-cuenta-info');
+                        if (info) {
+                            info.textContent = `✅ Sesión Microsoft iniciada como ${u}`;
+                            info.className = 'bg-[#2ECC71]/10 border border-[#2ECC71]/30 rounded-lg p-3 text-xs text-[#2ECC71] font-bold';
+                            info.classList.remove('hidden');
+                        }
+                        _wizCuentaDetenerPoll();
+                    }
+                } catch(e) {}
+            }, 1500);
+        }
+        function _wizCuentaDetenerPoll() {
+            if (_wizCuentaPoll) { clearInterval(_wizCuentaPoll); _wizCuentaPoll = null; }
+        }
+        function wizardModoInvitado() {
+            const info = document.getElementById('wiz-cuenta-info');
+            const nombre = prompt('Nombre offline (sin espacios, 3-16 caracteres):');
+            if (!nombre || !/^[A-Za-z0-9_]{3,16}$/.test(nombre.trim())) {
+                if (info) {
+                    info.textContent = '⚠️ Nombre inválido. Probá con letras, números o _ (3-16).';
+                    info.className = 'bg-[#F39C12]/10 border border-[#F39C12]/30 rounded-lg p-3 text-xs text-[#F39C12] font-bold';
+                    info.classList.remove('hidden');
+                }
+                return;
+            }
+            const inp = document.getElementById('input-guest');
+            if (inp) inp.value = nombre.trim();
+            try { if (typeof loginInvitado === 'function') loginInvitado(); } catch(e) {}
+            if (info) {
+                info.textContent = '✅ Sesión iniciada como ' + nombre.trim();
+                info.className = 'bg-[#2ECC71]/10 border border-[#2ECC71]/30 rounded-lg p-3 text-xs text-[#2ECC71] font-bold';
+                info.classList.remove('hidden');
+            }
+        }
+
+        // PASO 4: primera instancia
+        function wizardPaso4Init() { /* Nada que precargar */ }
+        async function wizardIrA(destino) {
+            await wizardFinalizar();
+            if (destino === 'versiones') cambiarPestaña('versiones', 'Versiones');
+            else if (destino === 'mods') cambiarPestaña('mods', 'Mods');
+            else if (destino === 'importar-mrpack') {
+                cambiarPestaña('herramientas', 'Extras');
+                setTimeout(() => herTab('compartir'), 200);
+            }
+        }
+
+        // ══ PRE-FLIGHT JAVA ════════════════════════════════════════════
+        let _preflightContinuar = null;  // callback to fire after install
+        let _preflightMajor = 21;
+        let _preflightPoll = null;
+
+        async function preflightJava(version) {
+            // Devuelve true si Java sirve, false si el usuario canceló.
+            // Si no sirve, abre modal y espera resolución.
+            try {
+                const r = await pywebview.api.verificar_java_para_version(version);
+                if (!r || !r.ok) return true;  // En caso de error, dejamos pasar (no bloqueamos)
+                if (r.sirve) return true;
+                _preflightMajor = r.major_requerido || 21;
+                const info = document.getElementById('preflight-java-info');
+                if (info) {
+                    let detectados = '';
+                    if (r.javas_detectados && r.javas_detectados.length) {
+                        detectados = '<p class="text-[11px] text-gray-500 mt-2">Java instalado: ' +
+                            r.javas_detectados.map(j => `Java ${j.version_major}`).join(', ') + '</p>';
+                    }
+                    info.innerHTML = `<p class="text-sm">Esta versión (<strong>${version}</strong>) requiere <strong class="text-[#F39C12]">Java ${_preflightMajor}</strong>.</p>${detectados}<p class="text-[11px] text-gray-500 mt-2">Podemos descargarlo automáticamente desde Eclipse Adoptium (~45 MB).</p>`;
+                }
+                document.getElementById('preflight-java-progress').classList.add('hidden');
+                document.getElementById('preflight-java-actions').classList.remove('hidden');
+                const btn = document.getElementById('preflight-btn-instalar');
+                if (btn) { btn.disabled = false; btn.classList.remove('opacity-50','cursor-not-allowed'); }
+                const pm = document.getElementById('preflight-java-modal');
+                pm.classList.remove('hidden');
+                pm.style.display = 'flex';
+                return await new Promise(resolve => { _preflightContinuar = resolve; });
+            } catch(e) {
+                return true;
+            }
+        }
+        function preflightCerrar(success) {
+            if (_preflightPoll) { clearInterval(_preflightPoll); _preflightPoll = null; }
+            const pm = document.getElementById('preflight-java-modal');
+            pm.classList.add('hidden');
+            pm.style.display = 'none';
+            const cb = _preflightContinuar;
+            _preflightContinuar = null;
+            if (cb) cb(!!success);
+        }
+        async function preflightInstalar() {
+            const btn = document.getElementById('preflight-btn-instalar');
+            const prog = document.getElementById('preflight-java-progress');
+            const lbl = document.getElementById('preflight-prog-lbl');
+            const bar = document.getElementById('preflight-prog-bar');
+            if (btn) { btn.disabled = true; btn.classList.add('opacity-50','cursor-not-allowed'); }
+            prog.classList.remove('hidden');
+            try {
+                await pywebview.api.instalar_java_auto(_preflightMajor);
+                if (_preflightPoll) clearInterval(_preflightPoll);
+                let lastPct = -1, sameSince = Date.now();
+                const TIMEOUT_MS = 90000;
+                _preflightPoll = setInterval(async () => {
+                    try {
+                        const p = await pywebview.api.get_java_install_progress();
+                        if (lbl) lbl.textContent = p.estado || '...';
+                        if (bar) bar.style.width = (p.pct||0) + '%';
+                        if ((p.pct||0) !== lastPct) { lastPct = p.pct||0; sameSince = Date.now(); }
+                        if (p.ok === true) {
+                            clearInterval(_preflightPoll); _preflightPoll = null;
+                            preflightCerrar(true);
+                        } else if (p.ok === false) {
+                            clearInterval(_preflightPoll); _preflightPoll = null;
+                            if (lbl) { lbl.textContent = '❌ ' + p.estado; lbl.className = 'text-xs text-red-400 font-bold mb-2'; }
+                            if (btn) { btn.disabled = false; btn.classList.remove('opacity-50','cursor-not-allowed'); }
+                        } else if (Date.now() - sameSince > TIMEOUT_MS) {
+                            clearInterval(_preflightPoll); _preflightPoll = null;
+                            if (lbl) { lbl.textContent = '⌛ Sin progreso. Verificá tu conexión y reintentá.'; lbl.className = 'text-xs text-red-400 font-bold mb-2'; }
+                            if (btn) { btn.disabled = false; btn.classList.remove('opacity-50','cursor-not-allowed'); }
+                        }
+                    } catch(e) {}
+                }, 500);
+            } catch(e) {
+                if (lbl) lbl.textContent = '❌ ' + e;
+            }
         }
 
         // ══ WHITELIST / BANS / OPs / JUGADORES ══════════════════════════════
@@ -7447,6 +8369,311 @@
             if (!confirm(`¿Eliminar backup "${archivo}"?`)) return;
             await pywebview.api.eliminar_backup(archivo);
             cargarBackups();
+        }
+
+        // ── Backups pre-update (Phase D) ─────────────────────────────────
+        async function cargarBackupsPreUpdate() {
+            const box = document.getElementById('backups-preupdate-lista');
+            if (!box) return;
+            box.innerHTML = '<p class="text-xs text-gray-600">Cargando...</p>';
+            try {
+                const d = await pywebview.api.listar_backups_pre_update();
+                if (!d || !d.ok) {
+                    box.innerHTML = `<p class="text-xs text-red-400">Error: ${(d&&d.error)||'desconocido'}</p>`;
+                    return;
+                }
+                if (!d.backups.length) {
+                    box.innerHTML = '<p class="text-xs text-gray-600">Aún no hay backups pre-actualización. Se crearán automáticamente al instalar la próxima versión del launcher.</p>';
+                    return;
+                }
+                box.innerHTML = d.backups.map(b => `
+                    <div class="flex items-center justify-between bg-[#0A0A0A] px-3 py-2 rounded border border-[#F39C12]/20">
+                        <div class="min-w-0">
+                            <p class="font-bold text-xs text-[#F39C12] truncate">${b.archivo}</p>
+                            <p class="text-[10px] text-gray-500">${b.fecha} · ${b.tamano_mb} MB</p>
+                        </div>
+                        <div class="flex gap-1 shrink-0">
+                            <button onclick="pywebview.api.abrir_carpeta_backups_pre_update()" title="Abrir en Explorador" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white text-xs px-2 py-1 rounded transition">📂</button>
+                        </div>
+                    </div>`).join('');
+            } catch(e) {
+                box.innerHTML = `<p class="text-xs text-red-400">Error: ${e}</p>`;
+            }
+        }
+
+        // ══ CONFIGS COMUNIDAD (Phase D) ════════════════════════════════
+        let _comunidadConfigsCache = [];
+        async function cargarComunidadConfigs(force) {
+            const grid = document.getElementById('cfg-grid');
+            const msg = document.getElementById('cfg-msg');
+            if (!grid) return;
+            grid.innerHTML = '<p class="col-span-3 text-center text-gray-500 text-sm">Cargando catálogo...</p>';
+            msg.textContent = '';
+            try {
+                const r = await pywebview.api.comunidad_configs_listar(!!force);
+                if (!r.ok) {
+                    grid.innerHTML = '';
+                    msg.innerHTML = `<span class="text-[#E74C3C]">${r.error || 'No se pudo cargar el catálogo.'}</span>`;
+                    return;
+                }
+                _comunidadConfigsCache = r.configs || [];
+                if (r.cached) msg.textContent = `Catálogo en caché (${_comunidadConfigsCache.length} configs).`;
+                else msg.textContent = `${_comunidadConfigsCache.length} configs disponibles.`;
+                renderComunidadConfigs();
+            } catch(e) {
+                grid.innerHTML = '';
+                msg.innerHTML = `<span class="text-[#E74C3C]">Error: ${e}</span>`;
+            }
+        }
+        function _cfgTipoBadge(t) {
+            const map = {
+                sodium:    'bg-[#2ECC71]/20 text-[#2ECC71]',
+                iris:      'bg-[#9B59B6]/20 text-[#A569BD]',
+                optifine:  'bg-[#F39C12]/20 text-[#F39C12]',
+                options:   'bg-[#3498DB]/20 text-[#3498DB]',
+                servers:   'bg-[#E74C3C]/20 text-[#E74C3C]',
+            };
+            return map[t] || 'bg-[#2A2A2A] text-gray-400';
+        }
+        function _esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+        function renderComunidadConfigs() {
+            const grid = document.getElementById('cfg-grid');
+            if (!grid) return;
+            const q = (document.getElementById('cfg-search').value || '').toLowerCase().trim();
+            const filtroTipo = document.getElementById('cfg-filtro-tipo').value;
+            let lista = _comunidadConfigsCache.slice();
+            if (filtroTipo) lista = lista.filter(c => c.tipo === filtroTipo);
+            if (q) lista = lista.filter(c =>
+                (c.nombre + ' ' + c.autor + ' ' + c.descripcion + ' ' + (c.tags||[]).join(' ')).toLowerCase().includes(q)
+            );
+            if (!lista.length) {
+                grid.innerHTML = '<p class="col-span-3 text-center text-gray-500 text-sm py-8">Sin resultados. Probá quitando filtros o usá <b>📤 Compartir el mío</b> para aportar el primero.</p>';
+                return;
+            }
+            grid.innerHTML = lista.map(c => `
+                <div class="bg-[#181818] border border-[#2A2A2A] hover:border-[#3498DB]/60 rounded-xl p-4 flex flex-col gap-2 transition">
+                    <div class="flex items-start justify-between gap-2">
+                        <h4 class="font-black text-sm text-white truncate flex-1">${_esc(c.nombre)}</h4>
+                        <span class="text-[9px] uppercase tracking-wider px-2 py-0.5 rounded font-black shrink-0 ${_cfgTipoBadge(c.tipo)}">${_esc(c.tipo)}</span>
+                    </div>
+                    <p class="text-[10px] text-gray-500">por <span class="text-gray-300 font-bold">${_esc(c.autor)}</span></p>
+                    <p class="text-xs text-gray-400 line-clamp-3 min-h-[3rem]">${_esc(c.descripcion || 'Sin descripción.')}</p>
+                    <div class="flex flex-wrap gap-1">
+                        ${(c.tags||[]).map(t => `<span class="text-[9px] bg-[#0A0A0A] border border-[#2A2A2A] text-gray-500 px-1.5 py-0.5 rounded">${_esc(t)}</span>`).join('')}
+                    </div>
+                    <div class="flex items-center justify-between mt-auto pt-2">
+                        <span class="text-[10px] text-gray-600">⬇ ${c.downloads||0} · ⭐ ${(c.rating||0).toFixed(1)}</span>
+                        <button onclick="cfgInstallAbrir('${_esc(c.id)}')" class="bg-[#3498DB] hover:bg-[#2980B9] text-white text-xs font-black px-3 py-1.5 rounded transition">⬇ Instalar</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        function cfgInstallAbrir(id) {
+            const c = _comunidadConfigsCache.find(x => x.id === id);
+            if (!c) return;
+            window._cfgInstallActual = c;
+            document.getElementById('cfg-install-nombre').textContent = c.nombre;
+            document.getElementById('cfg-install-autor').textContent = 'por ' + c.autor + ' · ' + c.tipo;
+            document.getElementById('cfg-install-desc').textContent = c.descripcion || '';
+            document.getElementById('cfg-install-msg').textContent = '';
+            // Poblar versión con dataVersionesBase si existe
+            const sel = document.getElementById('cfg-install-version');
+            if (sel.options.length <= 1 && typeof dataVersionesBase !== 'undefined') {
+                Object.keys(dataVersionesBase).forEach(v => {
+                    (dataVersionesBase[v].subs || [v]).forEach(sub => {
+                        sel.innerHTML += `<option value="${sub}">${sub}</option>`;
+                    });
+                });
+            }
+            const m = document.getElementById('cfg-install-modal');
+            m.classList.remove('hidden');
+            m.style.display = 'flex';
+        }
+        function cfgInstallCerrar() {
+            const m = document.getElementById('cfg-install-modal');
+            m.classList.add('hidden');
+            m.style.display = 'none';
+        }
+        async function cfgInstallConfirmar() {
+            const c = window._cfgInstallActual;
+            if (!c) return;
+            const ver = document.getElementById('cfg-install-version').value;
+            const motor = document.getElementById('cfg-install-motor').value;
+            const btn = document.getElementById('cfg-install-btn');
+            const msg = document.getElementById('cfg-install-msg');
+            btn.disabled = true; btn.textContent = '⏳ Instalando...';
+            msg.innerHTML = '<span class="text-gray-400">Descargando archivos...</span>';
+            try {
+                const r = await pywebview.api.comunidad_configs_descargar(c.id, ver, motor);
+                if (r.ok) {
+                    msg.innerHTML = `<span class="text-[#2ECC71]">✅ ${r.descargados.length} archivo(s) instalados.</span>`;
+                    setTimeout(cfgInstallCerrar, 1400);
+                } else {
+                    msg.innerHTML = `<span class="text-[#E74C3C]">❌ ${r.error || 'Error desconocido'}</span>`;
+                }
+            } catch(e) {
+                msg.innerHTML = `<span class="text-[#E74C3C]">❌ ${e}</span>`;
+            } finally {
+                btn.disabled = false; btn.textContent = '⬇ Instalar';
+            }
+        }
+        async function comunidadCompartirAbrir() {
+            try { await pywebview.api.comunidad_configs_abrir_compartir('otro'); }
+            catch(e) { alert('Error: ' + e); }
+        }
+
+        // ══ GPU / OPENGL (Phase E) ══════════════════════════════════════
+        const _GPU_MODOS = [
+            { id: 'off',           label: '🖥️ Sistema (driver normal)', desc: 'Usa el driver OpenGL de tu GPU. Default.', color: 'gray' },
+            { id: 'mesa-d3d12',    label: '⭐ DirectX 12 (Mesa d3d12)',  desc: 'Recomendado: traduce OpenGL → DX12. Rápido.', color: '#2ECC71' },
+            { id: 'mesa-llvmpipe', label: '🐌 Software (CPU)',           desc: 'Renderiza con la CPU. Funciona en cualquier PC.', color: '#F39C12' },
+            { id: 'mesa-zink',     label: '🟣 Vulkan (Mesa zink)',       desc: 'Traduce OpenGL → Vulkan. GPUs modernas.', color: '#9B59B6' },
+        ];
+        async function cargarGpuOpenGL() {
+            const diag = document.getElementById('gpu-diag');
+            const estadoEl = document.getElementById('gpu-mesa-estado');
+            const recoEl = document.getElementById('gpu-recomendacion');
+            diag.innerHTML = '<p class="text-gray-500">Detectando hardware...</p>';
+            estadoEl.textContent = 'Cargando...';
+            try {
+                const [d, est] = await Promise.all([
+                    pywebview.api.gpu_diagnostico(),
+                    pywebview.api.gpu_compat_estado(),
+                ]);
+                // Diagnóstico
+                let h = '';
+                if (d.gpus && d.gpus.length) {
+                    h += '<div><p class="text-[10px] uppercase tracking-widest text-gray-600">GPUs detectadas</p>';
+                    d.gpus.forEach(g => {
+                        h += `<p class="text-gray-200 font-bold">${_esc(g.nombre)}</p>`;
+                        const detalles = [];
+                        if (g.ram_mb) detalles.push(g.ram_mb + ' MB');
+                        if (g.driver) detalles.push('Driver ' + _esc(g.driver));
+                        if (detalles.length) h += `<p class="text-[10px] text-gray-500 mb-1">${detalles.join(' · ')}</p>`;
+                    });
+                    h += '</div>';
+                } else {
+                    h += '<p class="text-gray-500">No se detectaron GPUs vía WMIC.</p>';
+                }
+                if (d.opengl_version) {
+                    const major = d.opengl_major || 0;
+                    const colorGl = major >= 4 ? '#2ECC71' : major >= 3 ? '#F39C12' : '#E74C3C';
+                    h += `<div class="mt-2"><p class="text-[10px] uppercase tracking-widest text-gray-600">OpenGL</p>`;
+                    h += `<p class="font-black" style="color:${colorGl}">${_esc(d.opengl_version)}</p>`;
+                    if (d.opengl_renderer) h += `<p class="text-[10px] text-gray-500">${_esc(d.opengl_renderer)}</p>`;
+                    if (d.fuente_gl) h += `<p class="text-[9px] text-gray-700 mt-0.5">fuente: ${d.fuente_gl}</p>`;
+                    h += '</div>';
+                } else {
+                    h += '<p class="text-yellow-500 mt-2">⚠ No se pudo detectar la versión OpenGL. Lanzá MC al menos una vez.</p>';
+                }
+                diag.innerHTML = h;
+
+                // Recomendación
+                const recoMap = {
+                    tu_gpu_va_bien:    { color: '#2ECC71', t: '✅ Tu GPU está perfecta.', sug: 'No necesitás modo compatibilidad. Dejá <b>Sistema</b>.' },
+                    compatible_moderno:{ color: '#2ECC71', t: '✅ Compatible con MC moderno.', sug: 'Modo <b>Sistema</b> debería funcionar.' },
+                    limite_inferior:   { color: '#F39C12', t: '⚠ OpenGL 3.0/3.1 detectado.', sug: 'Para MC 1.17+ activá <b>DirectX 12</b> o <b>Software</b>.' },
+                    muy_viejo:         { color: '#E74C3C', t: '🔴 OpenGL muy antiguo.', sug: 'Activá <b>Mesa3D D3D12</b> (si tu GPU soporta DX12) o <b>Software</b> como último recurso.' },
+                    incompatible:      { color: '#E74C3C', t: '🔴 OpenGL incompatible.', sug: 'Activá <b>Mesa3D Software</b> para que MC arranque sí o sí.' },
+                    desconocido:       { color: '#888',    t: '❓ OpenGL desconocido.', sug: 'Lanzá MC al menos una vez (aunque crashee) y volvé acá.' },
+                };
+                const reco = recoMap[d.recomendacion] || recoMap.desconocido;
+                recoEl.innerHTML = `
+                    <p class="font-black" style="color:${reco.color}">${reco.t}</p>
+                    <p class="text-gray-400">${reco.sug}</p>
+                    <div class="bg-[#0A0A0A] border border-[#2A2A2A] rounded p-2 mt-1">
+                        <p class="text-[10px] text-gray-600 uppercase tracking-widest">MC recomendado</p>
+                        <p class="text-gray-300">${_esc(d.mc_recomendado || '—')}</p>
+                    </div>
+                `;
+
+                // Estado Mesa + radios
+                const meta = est.mesa_version ? ` · v${_esc(est.mesa_version)}` : '';
+                if (est.mesa_instalado) {
+                    estadoEl.innerHTML = `<span class="text-[#2ECC71]">✅ Mesa3D instalado${meta}</span>`;
+                    document.getElementById('btn-gpu-eliminar').style.display = '';
+                } else {
+                    estadoEl.innerHTML = '<span class="text-gray-500">⚠ Mesa3D no instalado. Descargalo si querés activar modos de compatibilidad.</span>';
+                    document.getElementById('btn-gpu-eliminar').style.display = 'none';
+                }
+                const radios = document.getElementById('gpu-modo-radios');
+                radios.innerHTML = _GPU_MODOS.map(m => {
+                    const checked = m.id === est.modo ? 'checked' : '';
+                    const dis = (m.id !== 'off' && !est.mesa_instalado) ? 'disabled' : '';
+                    const opacity = dis ? 'opacity-50' : '';
+                    return `<label class="flex items-start gap-2 cursor-pointer text-xs ${opacity} hover:bg-[#0A0A0A] p-2 rounded transition">
+                        <input type="radio" name="gpu-modo" value="${m.id}" ${checked} ${dis} onchange="gpuSetModo(this.value)" class="mt-0.5 accent-[#3498DB]">
+                        <div class="flex-1 min-w-0">
+                            <p class="font-bold" style="color:${m.color === 'gray' ? '#fff' : m.color}">${m.label}</p>
+                            <p class="text-[10px] text-gray-500">${m.desc}</p>
+                        </div>
+                    </label>`;
+                }).join('');
+
+                // Forzar GPU dedicada (estado)
+                document.getElementById('gpu-forzar-dedi').checked = !!est.forzar_dedicada;
+            } catch(e) {
+                diag.innerHTML = `<p class="text-[#E74C3C]">Error: ${e}</p>`;
+            }
+        }
+        async function gpuSetModo(modo) {
+            const msg = document.getElementById('gpu-msg');
+            msg.innerHTML = '<span class="text-gray-400">Aplicando...</span>';
+            try {
+                const r = await pywebview.api.gpu_compat_set_modo(modo);
+                if (r.ok) {
+                    msg.innerHTML = `<span class="text-[#2ECC71]">✅ Modo: <b>${modo}</b>. Se aplica al próximo lanzamiento.</span>`;
+                } else {
+                    msg.innerHTML = `<span class="text-[#E74C3C]">❌ ${r.error}</span>`;
+                    cargarGpuOpenGL(); // revertir radio
+                }
+            } catch(e) {
+                msg.innerHTML = `<span class="text-[#E74C3C]">❌ ${e}</span>`;
+            }
+        }
+        async function gpuDescargarMesa() {
+            const btn = document.getElementById('btn-gpu-descargar');
+            const msg = document.getElementById('gpu-msg');
+            btn.disabled = true; btn.textContent = '⏳ Descargando...';
+            msg.innerHTML = '<span class="text-gray-400">Bajando ~30 MB de pal1000/mesa-dist-win y extrayendo...</span>';
+            try {
+                const r = await pywebview.api.gpu_compat_descargar_mesa();
+                if (r.ok) {
+                    msg.innerHTML = `<span class="text-[#2ECC71]">✅ Mesa3D ${_esc(r.version)} instalado (${r.dlls_copiados} DLLs).</span>`;
+                    cargarGpuOpenGL();
+                } else {
+                    msg.innerHTML = `<span class="text-[#E74C3C]">❌ ${_esc(r.error || '')}</span>`;
+                }
+            } catch(e) {
+                msg.innerHTML = `<span class="text-[#E74C3C]">❌ ${e}</span>`;
+            } finally {
+                btn.disabled = false; btn.textContent = '⬇ Descargar Mesa3D';
+            }
+        }
+        async function gpuEliminarMesa() {
+            if (!confirm('¿Borrar Mesa3D? Esto desactivará el modo de compatibilidad.')) return;
+            const msg = document.getElementById('gpu-msg');
+            try {
+                const r = await pywebview.api.gpu_compat_eliminar_mesa();
+                msg.innerHTML = r.ok
+                    ? '<span class="text-[#2ECC71]">✅ Mesa3D eliminado.</span>'
+                    : `<span class="text-[#E74C3C]">❌ ${_esc(r.error || '')}</span>`;
+                if (r.ok) cargarGpuOpenGL();
+            } catch(e) {
+                msg.innerHTML = `<span class="text-[#E74C3C]">❌ ${e}</span>`;
+            }
+        }
+        async function gpuToggleForzarDedicada(val) {
+            const msg = document.getElementById('gpu-dedi-msg');
+            try {
+                const r = await pywebview.api.gpu_forzar_dedicada(!!val);
+                msg.innerHTML = r.ok
+                    ? `<span class="text-[#2ECC71]">✅ ${val ? 'Activado' : 'Desactivado'} para <code>${_esc(r.javaw || '')}</code></span>`
+                    : `<span class="text-[#E74C3C]">❌ ${_esc(r.error || '')}</span>`;
+                if (!r.ok) document.getElementById('gpu-forzar-dedi').checked = !val;
+            } catch(e) {
+                msg.innerHTML = `<span class="text-[#E74C3C]">❌ ${e}</span>`;
+            }
         }
 
         // ══ PERFILES ════════════════════════════════════════════════════

@@ -1,10 +1,10 @@
 <div align="center">
 
-# 🟩 Paraguacraft Launcher
+# Paraguacraft Launcher
 
 **Launcher completo de Minecraft, desarrollado en Python con interfaz web moderna.**
 
-[![Version](https://img.shields.io/badge/versión-5.5.0-2ECC71?style=flat-square)](https://github.com/SantiJ10/Paraguacraft/releases)
+[![Version](https://img.shields.io/badge/versi%C3%B3n-5.6.0-2ECC71?style=flat-square)](https://github.com/SantiJ10/Paraguacraft/releases)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![License](https://img.shields.io/badge/licencia-MIT-blue?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/plataforma-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)](https://github.com/SantiJ10/Paraguacraft/releases)
@@ -86,6 +86,7 @@ Paraguacraft es un launcher de Minecraft completamente personalizado, desarrolla
 
 ### 💾 Instancias y mundos
 - Backup y restauración de mundos
+- **Backup automático pre-actualización**: comprime tus mundos a `pre_update_backups/` antes de aplicar cualquier update del launcher (toggle en el modal de update + listado en pestaña Backup)
 - Compartir instancias por código (mods, versión y config)
 - Importar instancias de otros jugadores
 - Activar/desactivar mods sin borrarlos
@@ -95,6 +96,7 @@ Paraguacraft es un launcher de Minecraft completamente personalizado, desarrolla
 - Fondo del launcher configurable: imágenes, GIFs o videos
 - Modo compacto
 - Perfiles de hardware (baja/media/alta gama) con mods preconfigurados
+- **Configs Comunidad**: catálogo público de configuraciones (`options.txt`, Sodium, Iris, OptiFine, `servers.dat`) compartidas por la comunidad. Búsqueda por tipo, instalación con un clic en cualquier instancia (con backup `.paragua_bak` automático) y aporte propio vía issue de GitHub prellenado
 - **Atajos de teclado globales**: `Ctrl+1..6` para navegar, `Ctrl+J` jugar, `Ctrl+L` tienda de mods, `Ctrl+,` ajustes, `Ctrl+/` ver todos los atajos
 
 ### 🔄 Sistema
@@ -117,6 +119,18 @@ Paraguacraft es un launcher de Minecraft completamente personalizado, desarrolla
 - El instalador también gestiona WebView2 como prerequisito automático
 - **Long Paths** (>260 caracteres) habilitado automáticamente para modpacks pesados
 - CSS compilado localmente (sin dependencia de CDN) para entornos con firewall corporativo
+
+### 🖥️ Compatibilidad GPU / OpenGL (PCs viejas)
+Para equipos con GPU sin OpenGL 3.2+ (errores tipo *"OpenGL not supported"*, pantalla negra, crash al iniciar MC 1.17+):
+- **Diagnóstico automático**: detecta GPUs vía WMIC + versión OpenGL real (parse de logs de MC + contexto WGL dummy con ctypes)
+- **Mesa3D integrado**: descarga el último release de [pal1000/mesa-dist-win](https://github.com/pal1000/mesa-dist-win) y lo aplica automáticamente al runtime de Java de Minecraft
+- **3 modos de renderizado**:
+  - 🐌 **Software (llvmpipe)**: renderiza con CPU, funciona en cualquier PC
+  - ⭐ **DirectX 12 (d3d12)**: traduce OpenGL → DX12, rápido en GPUs con DX12
+  - 🟣 **Vulkan (zink)**: traduce OpenGL → Vulkan en GPUs modernas
+- **Forzar GPU dedicada** en laptops híbridas (NVIDIA Optimus / AMD switchable) vía `HKCU\...\DirectX\UserGpuPreferences`
+- **Recomendador de versión MC** según OpenGL detectado
+- 100% reversible: el toggle a "Sistema" elimina los DLLs inyectados sin tocar otros launchers
 
 ---
 
@@ -205,6 +219,14 @@ Paraguacraft/
 ---
 
 ## 📝 Changelog
+
+### v5.6.0
+- **🖥️ Compatibilidad GPU / OpenGL para PCs viejas**: nueva pestaña Extras → GPU/OpenGL con diagnóstico de hardware, descarga e instalación automática de Mesa3D (software / DirectX 12 / Vulkan) y forzado de GPU dedicada. Permite jugar Minecraft 1.17+ en equipos cuya GPU no soporta OpenGL 3.2+
+- **🌐 Configs Comunidad**: catálogo público de configuraciones gráficas/servidores compartidas. Buscador, filtros por tipo (sodium/iris/optifine/options/servers), instalación con un clic en cualquier instancia y backup automático `.paragua_bak`. Aportar tu config se hace vía issue de GitHub prellenado
+- **🛡️ Backup pre-actualización**: cada vez que actualizás el launcher, se comprimen automáticamente los mundos de todas las instancias a `pre_update_backups/` antes de aplicar el update (toggle on/off en el modal). Listado y acceso a la carpeta desde la pestaña Backup
+- **Bug fix**: el wizard de configuración inicial volvía a abrirse correctamente tras cerrarlo (reset de `style.display` además de `classList`)
+- Nuevos endpoints API: `gpu_diagnostico`, `gpu_compat_*`, `gpu_forzar_dedicada`, `comunidad_configs_*`, `listar_backups_pre_update`
+- Nueva variable JVM en `core.lanzar_minecraft`: parámetro `gpu_compat_mode` que inyecta `opengl32.dll` de Mesa al runtime de Java y configura `GALLIUM_DRIVER` / `MESA_LOADER_DRIVER_OVERRIDE` antes del lanzamiento
 
 ### v5.5.0
 - **Importar modpacks `.mrpack`**: elegí un archivo local de Modrinth y el launcher detecta automáticamente la versión de Minecraft y el loader (Fabric/Forge/NeoForge/Quilt), descarga todos los mods con verificación SHA-1, aplica los `overrides/` y arma la instancia lista para jugar
