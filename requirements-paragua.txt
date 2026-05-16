@@ -7,3 +7,6 @@ requests>=2.28
 bsdiff4>=1.2
 pymongo>=4.0
 pywin32>=306; sys_platform == "win32"
+# py7zr: requerido para extraer Mesa3D (Phase E - GPU/OpenGL compat).
+# pal1000/mesa-dist-win publica los releases en formato .7z (LZMA2).
+py7zr>=0.20

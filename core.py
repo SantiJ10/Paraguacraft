@@ -7,6 +7,7 @@ import shutil
 import platform
 import json
 import sys
+import hashlib
 import bsdiff4
 try:
     from src.nube import GestorNube
@@ -973,6 +974,123 @@ def _install_mc_with_retry(version, mc_dir, cb_dict, progress_cb=None):
                 raise
 
 
+_GPU_COMPAT_MESA_DLLS = (
+    "opengl32.dll",  # crítico: KnownDLL en Windows, solo se reemplaza si está
+                     # junto al exe → por eso necesitamos runtime aislado.
+    "libgallium_wgl.dll", "libGLESv2.dll", "libEGL.dll",
+    "vulkan-1.dll", "d3dcompiler_47.dll", "graw.dll",
+)
+
+
+def _file_needs_sync(src, dst):
+    """True si dst no existe o difiere en tamaño/mtime de src.
+
+    Evita copiar repetidamente DLLs grandes en cada lanzamiento de MC.
+    """
+    if not os.path.exists(dst):
+        return True
+    try:
+        s1, s2 = os.stat(src), os.stat(dst)
+        return s1.st_size != s2.st_size or abs(s1.st_mtime - s2.st_mtime) > 2
+    except OSError:
+        return True
+
+
+def _gpu_compat_preparar_runtime_aislado(java_exe_original, mc_dir, mode,
+                                        progress_cb=None):
+    """Si `mode != "off"`, crea un runtime Java aislado en
+    `<mc>/paraguacraft_compat/runtime/<hash>/` con los binarios del JDK original
+    + DLLs de Mesa, y devuelve el path del javaw aislado.
+
+    Razones:
+      * No tocar el runtime de Mojang evita afectar a otros launchers que
+        compartan el mismo `runtime/java-runtime-*/` (CurseForge, Prism, etc.)
+      * Usar hard links donde se pueda mantiene el costo en disco cercano a 0
+        (NTFS: hardlinks no duplican contenido).
+      * Skip de copias innecesarias via `_file_needs_sync` evita rehacer
+        ~30 archivos/100 MB en cada lanzamiento.
+
+    Si algo falla, devuelve el javaw original sin modificar (degradación
+    silenciosa: peor caso, mode=off de facto).
+    """
+    if not mode or mode == "off":
+        return java_exe_original
+    if not (java_exe_original and java_exe_original != "java"
+            and os.path.isfile(java_exe_original)):
+        return java_exe_original
+
+    mesa_src = os.path.join(mc_dir, "paraguacraft_compat", "mesa")
+    if not os.path.isfile(os.path.join(mesa_src, "opengl32.dll")):
+        # Mesa no descargado → no hay nada que aplicar
+        return java_exe_original
+
+    java_bin_orig = os.path.dirname(java_exe_original)
+    java_basename = os.path.basename(java_exe_original)
+    # ID estable por path del runtime original (un shim por cada versión Java)
+    bin_id = hashlib.sha1(java_bin_orig.encode("utf-8", "replace")).hexdigest()[:12]
+    shim_dir = os.path.join(mc_dir, "paraguacraft_compat", "runtime", bin_id)
+    try:
+        os.makedirs(shim_dir, exist_ok=True)
+    except OSError:
+        return java_exe_original
+
+    # 1) Replicar bin del JDK (hard link preferido, copy2 fallback)
+    try:
+        for fname in os.listdir(java_bin_orig):
+            src = os.path.join(java_bin_orig, fname)
+            if not os.path.isfile(src):
+                continue
+            # No replicar los DLLs de Mesa que copiamos abajo (les ganamos)
+            if fname.lower() in (d.lower() for d in _GPU_COMPAT_MESA_DLLS):
+                continue
+            dst = os.path.join(shim_dir, fname)
+            if not _file_needs_sync(src, dst):
+                continue
+            try:
+                if os.path.exists(dst):
+                    os.remove(dst)
+            except OSError:
+                pass
+            try:
+                os.link(src, dst)  # hard link NTFS, ~0 bytes
+            except (OSError, NotImplementedError, AttributeError):
+                try:
+                    shutil.copy2(src, dst)
+                except OSError as _ce:
+                    if progress_cb:
+                        progress_cb(f"⚠ No se pudo replicar {fname}: {_ce}")
+    except OSError as _le:
+        if progress_cb:
+            progress_cb(f"⚠ Runtime aislado falló al listar bin: {_le}")
+        return java_exe_original
+
+    # 2) Copiar DLLs de Mesa (estos SÍ se copian, no se hardlinkean: hardlinks
+    #    a archivos que cambian con cada update de Mesa pueden ser confusos)
+    for dll in _GPU_COMPAT_MESA_DLLS:
+        src = os.path.join(mesa_src, dll)
+        if not os.path.isfile(src):
+            continue
+        dst = os.path.join(shim_dir, dll)
+        if _file_needs_sync(src, dst):
+            try:
+                shutil.copy2(src, dst)
+            except OSError as _ce:
+                if progress_cb:
+                    progress_cb(f"⚠ No se pudo copiar {dll}: {_ce}")
+
+    # 3) Marcador de modo activo
+    try:
+        with open(os.path.join(shim_dir, ".paragua_mesa"), "w", encoding="utf-8") as f:
+            f.write(mode)
+    except OSError:
+        pass
+
+    new_java = os.path.join(shim_dir, java_basename)
+    if not os.path.isfile(new_java):
+        return java_exe_original
+    return new_java
+
+
 def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type="G1GC", optimizar=False, motor_elegido="Vanilla", papa_mode=False, usar_mesa=False, mostrar_consola=False, progress_callback=None, uuid_real=None, token_real=None, lan_distancia=False, fabric_loader_override=None, server_ip="", java_path=None, extra_jvm_args=None, gpu_compat_mode="off"):
     minecraft_directory = minecraft_launcher_lib.utils.get_minecraft_directory()
 
@@ -1278,6 +1396,20 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
     if java_path and os.path.isfile(java_path):
         options["executablePath"] = java_path
 
+    # GPU Compat (Phase E): si el usuario eligió modo Mesa, preparamos un
+    # runtime aislado con los DLLs inyectados y reemplazamos `executablePath`.
+    # Esto debe ocurrir ANTES de get_minecraft_command para que la línea de
+    # comando apunte al javaw del shim aislado.
+    _java_exe_inicial = options.get("executablePath") or _java_for_launch
+    _java_exe_efectivo = _gpu_compat_preparar_runtime_aislado(
+        _java_exe_inicial, minecraft_directory, gpu_compat_mode,
+        progress_cb=progress_callback,
+    )
+    if _java_exe_efectivo and _java_exe_efectivo != _java_exe_inicial:
+        options["executablePath"] = _java_exe_efectivo
+        if progress_callback:
+            progress_callback(f"Runtime GPU aislado activo: {gpu_compat_mode}")
+
     command = minecraft_launcher_lib.command.get_minecraft_command(version_a_lanzar, minecraft_directory, options)
 
     if server_ip and isinstance(server_ip, str) and server_ip.strip():
@@ -1294,62 +1426,19 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
         entorno["MESA_GLSL_VERSION_OVERRIDE"] = "330"
 
     # ── GPU Compat Mode (Phase E) ────────────────────────────────────────
-    # Inyecta DLLs de Mesa al lado de javaw.exe y configura env vars según el
-    # driver gallium elegido. Idempotente: vuelve a copiar/borrar los DLL en
-    # cada lanzamiento según el modo actual.
-    _java_exe_final = options.get("executablePath") or _java_for_launch
-    _gpu_dlls_extra = (
-        "libgallium_wgl.dll", "libGLESv2.dll", "libEGL.dll",
-        "vulkan-1.dll", "d3dcompiler_47.dll", "graw.dll",
-    )
-    if _java_exe_final and _java_exe_final != "java" and os.path.isfile(_java_exe_final):
-        _java_bin = os.path.dirname(_java_exe_final)
-        _mesa_src = os.path.join(minecraft_directory, "paraguacraft_compat", "mesa")
-        _opengl_src = os.path.join(_mesa_src, "opengl32.dll")
-        _opengl_dst = os.path.join(_java_bin, "opengl32.dll")
-        # Marca: archivo .paragua_mesa indica que el opengl32 actual es nuestro
-        _marker = os.path.join(_java_bin, ".paragua_mesa")
-        try:
-            if gpu_compat_mode and gpu_compat_mode != "off" and os.path.isfile(_opengl_src):
-                if progress_callback:
-                    progress_callback(f"Aplicando modo compatibilidad GPU: {gpu_compat_mode}")
-                try:
-                    shutil.copy2(_opengl_src, _opengl_dst)
-                    for _dll in _gpu_dlls_extra:
-                        _src = os.path.join(_mesa_src, _dll)
-                        if os.path.isfile(_src):
-                            try: shutil.copy2(_src, os.path.join(_java_bin, _dll))
-                            except Exception: pass
-                    with open(_marker, "w", encoding="utf-8") as _mf:
-                        _mf.write(gpu_compat_mode)
-                except Exception as _ce:
-                    if progress_callback:
-                        progress_callback(f"⚠ No se pudo copiar Mesa: {_ce}")
-                # Configurar driver Gallium según modo
-                if gpu_compat_mode == "mesa-llvmpipe":
-                    entorno["GALLIUM_DRIVER"] = "llvmpipe"
-                elif gpu_compat_mode == "mesa-d3d12":
-                    entorno["GALLIUM_DRIVER"] = "d3d12"
-                    entorno["MESA_LOADER_DRIVER_OVERRIDE"] = "d3d12"
-                elif gpu_compat_mode == "mesa-zink":
-                    entorno["GALLIUM_DRIVER"] = "zink"
-                # Asegurar versión moderna de OpenGL para MC 1.17+
-                entorno.setdefault("MESA_GL_VERSION_OVERRIDE", "4.6")
-                entorno.setdefault("MESA_GLSL_VERSION_OVERRIDE", "460")
-            else:
-                # Modo off: si dejamos un opengl32.dll nuestro, lo eliminamos
-                if os.path.isfile(_marker) and os.path.isfile(_opengl_dst):
-                    try: os.remove(_opengl_dst)
-                    except Exception: pass
-                    for _dll in _gpu_dlls_extra:
-                        _p = os.path.join(_java_bin, _dll)
-                        if os.path.isfile(_p):
-                            try: os.remove(_p)
-                            except Exception: pass
-                    try: os.remove(_marker)
-                    except Exception: pass
-        except Exception:
-            pass
+    # Los DLLs ya fueron preparados arriba en `_gpu_compat_preparar_runtime_aislado`.
+    # Acá solo seteamos las env vars de Gallium según el modo activo.
+    if gpu_compat_mode and gpu_compat_mode != "off":
+        if gpu_compat_mode == "mesa-llvmpipe":
+            entorno["GALLIUM_DRIVER"] = "llvmpipe"
+        elif gpu_compat_mode == "mesa-d3d12":
+            entorno["GALLIUM_DRIVER"] = "d3d12"
+            entorno["MESA_LOADER_DRIVER_OVERRIDE"] = "d3d12"
+        elif gpu_compat_mode == "mesa-zink":
+            entorno["GALLIUM_DRIVER"] = "zink"
+        # Versión moderna de OpenGL para MC 1.17+
+        entorno.setdefault("MESA_GL_VERSION_OVERRIDE", "4.6")
+        entorno.setdefault("MESA_GLSL_VERSION_OVERRIDE", "460")
 
     options_txt_path = os.path.join(game_dir, "options.txt")
     servers_dat_path = os.path.join(game_dir, "servers.dat")
