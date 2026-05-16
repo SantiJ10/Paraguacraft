@@ -108,6 +108,11 @@ class Api:
         os.makedirs(self._DATA_DIR, exist_ok=True)
         self.ruta_config = os.path.join(self._DATA_DIR, "paraguacraft_config.json")
         self.ruta_sesion = os.path.join(self._DATA_DIR, "paraguacraft_session.json")
+        # Lock para escritura concurrente de config_actual desde múltiples hilos
+        # (UI, lanzamiento de MC, tareas de descarga, polling de servidor).
+        # RLock permite re-entrar desde el mismo hilo (ej: _guardar dentro de
+        # un método que ya tomó el lock externamente).
+        self._config_lock = threading.RLock()
         self.ms_data = None
         self.rpc = None
         self.hilo_juego_activo = False
@@ -510,13 +515,81 @@ class Api:
         return {"ok": True, "nombre": nombre}
 
     def _guardar(self):
-        os.makedirs(os.path.dirname(self.ruta_config), exist_ok=True)
-        with open(self.ruta_config, "w") as f:
-            json.dump(self.config_actual, f)
+        """Persiste `config_actual` a disco de forma thread-safe y atómica.
+
+        - Toma `_config_lock` para serializar escrituras concurrentes.
+        - Escribe primero a un archivo temporal en el mismo directorio y luego
+          hace `os.replace()`, que en Windows y POSIX es atómico a nivel
+          filesystem: o aparece el archivo nuevo completo, o queda el viejo.
+          Esto previene corrupción si el proceso es matado durante el flush.
+        """
+        with self._config_lock:
+            os.makedirs(os.path.dirname(self.ruta_config), exist_ok=True)
+            tmp_path = self.ruta_config + ".tmp"
+            try:
+                with open(tmp_path, "w", encoding="utf-8") as f:
+                    json.dump(self.config_actual, f, ensure_ascii=False, indent=2)
+                    f.flush()
+                    try:
+                        os.fsync(f.fileno())
+                    except OSError:
+                        # fsync puede fallar en algunos FS (red, virtuales);
+                        # no es crítico, la atomicidad de os.replace alcanza.
+                        pass
+                os.replace(tmp_path, self.ruta_config)
+            except Exception:
+                # Cleanup del temp si algo falla a mitad de la escritura
+                try:
+                    if os.path.exists(tmp_path):
+                        os.remove(tmp_path)
+                except OSError:
+                    pass
+                raise
 
     def get_settings(self):
         ram_total = max(1, math.floor(psutil.virtual_memory().total / (1024**3)))
         return {"config": self.config_actual, "ram_max": ram_total}
+
+    # ── DevMode (Phase F) ────────────────────────────────────────────────
+    # Password compartido entre dev y curiosos. No es un secreto criptográfico,
+    # solo un filtro contra clicks accidentales. Para producción puede
+    # cambiarse vía variable de entorno PARAGUA_DEV_PASSWORD.
+    _DEV_MODE_PASSWORD = os.environ.get("PARAGUA_DEV_PASSWORD", "paraguacraft")
+
+    def devmode_estado(self):
+        """Indica si el modo dev está activo (DevTools habilitado)."""
+        return {
+            "ok": True,
+            "activo": bool(self.config_actual.get("dev_mode_enabled", False)),
+            "env_forzado": os.environ.get("PARAGUA_DEV", "").strip() in ("1", "true", "yes", "on"),
+        }
+
+    def devmode_toggle(self, password=""):
+        """Activa o desactiva el modo dev. Requiere password.
+
+        Devuelve `requiere_reinicio=True` siempre que cambia el flag porque
+        pywebview/WebView2 no permite togglear `debug` en runtime.
+        """
+        if not isinstance(password, str) or password.strip() != self._DEV_MODE_PASSWORD:
+            return {"ok": False, "error": "Password incorrecta."}
+        nuevo = not bool(self.config_actual.get("dev_mode_enabled", False))
+        self.config_actual["dev_mode_enabled"] = nuevo
+        try:
+            self._guardar()
+        except Exception as e:
+            return {"ok": False, "error": f"No se pudo persistir la flag: {e}"}
+        try:
+            log.info(f"[DevMode] toggle -> {nuevo}")
+        except Exception:
+            pass
+        return {
+            "ok": True,
+            "activo": nuevo,
+            "requiere_reinicio": True,
+            "mensaje": ("Modo DevTools ACTIVADO. Reiniciá el launcher para abrir DevTools (F12)."
+                        if nuevo else
+                        "Modo DevTools DESACTIVADO. Reiniciá el launcher para aplicar.")
+        }
 
     def actualizar_config(self, data):
         try:
@@ -994,37 +1067,59 @@ class Api:
         return f"file:///{ruta_assets.replace(chr(92), '/')}"
 
     def get_versiones_oficiales(self):
+        """Devuelve un dict de grupos de versiones para la UI.
+
+        Claves devueltas:
+          - "1.21", "1.20", ... → releases agrupadas por major (FEATURED_VERSION_KEYS).
+          - "26.1"              → fallback hardcodeado a ["26.1.1"] solo si Mojang
+                                   aún no publicó nada (evita catálogo vacío).
+          - "otras"             → todas las releases que NO entran en featured.
+          - "snapshots"         → todas las versiones snapshot (ordenadas por
+                                   fecha desc según devuelve Mojang).
+          - "alpha_beta"        → old_alpha + old_beta combinados (los Mojang
+                                   "infdev" y "classic" suelen venir con
+                                   type=old_alpha; los b1.x con old_beta).
+
+        El frontend filtra/oculta cada grupo según los toggles del usuario;
+        este método NO recorta listas para que un usuario que active
+        "ver snapshots" pueda explorar todo el catálogo histórico.
+        """
         try:
             import minecraft_launcher_lib
 
             versiones = minecraft_launcher_lib.utils.get_version_list()
-            lista_oficiales = [v["id"] for v in versiones if v["type"] == "release"]
-            # Snapshots recientes (últimos 25 para no saturar la UI)
-            snapshots = [v["id"] for v in versiones if v["type"] == "snapshot"][:25]
-            # Betas y alphas legacy (limitadas)
-            betas = [v["id"] for v in versiones if v["type"] in ("old_beta", "old_alpha")][:15]
+
+            releases   = [v["id"] for v in versiones if v["type"] == "release"]
+            snapshots  = [v["id"] for v in versiones if v["type"] == "snapshot"]
+            old_alphas = [v["id"] for v in versiones if v["type"] == "old_alpha"]
+            old_betas  = [v["id"] for v in versiones if v["type"] == "old_beta"]
 
             grupos = {}
-            for vid in lista_oficiales:
+            for vid in releases:
                 partes = vid.split(".")
                 if len(partes) >= 2:
                     mayor = f"{partes[0]}.{partes[1]}"
                     grupos.setdefault(mayor, []).append(vid)
 
+            # Fallback de Paraguacraft 26.1: solo si Mojang todavía no publicó.
+            # Cuando aparezca una 26.x oficial, esto deja de aplicarse.
             if "26.1" not in grupos:
                 grupos["26.1"] = ["26.1.1"]
 
-            featured = set()
-            for k in FEATURED_VERSION_KEYS:
-                for vid in grupos.get(k, []):
-                    featured.add(vid)
+            featured = {vid for k in FEATURED_VERSION_KEYS for vid in grupos.get(k, [])}
+            grupos["otras"] = [vid for vid in releases if vid not in featured]
 
-            otras = [vid for vid in lista_oficiales if vid not in featured]
-            grupos["otras"] = otras
             if snapshots:
                 grupos["snapshots"] = snapshots
-            if betas:
-                grupos["beta_legacy"] = betas
+            # Alpha + Beta unificados: la UI los muestra como un solo bucket
+            # "Alpha/Beta clásico". Mantenemos orden Mojang (cronológico desc).
+            alpha_beta = []
+            seen_ab = set()
+            for vid in old_betas + old_alphas:
+                if vid not in seen_ab:
+                    alpha_beta.append(vid); seen_ab.add(vid)
+            if alpha_beta:
+                grupos["alpha_beta"] = alpha_beta
             return grupos
         except Exception as e:
             log.error("Error obteniendo versiones de Mojang: %s", e, exc_info=True)
@@ -5048,35 +5143,13 @@ class Api:
         info = {"ok": True, "gpus": [], "opengl_version": None,
                 "opengl_vendor": None, "opengl_renderer": None,
                 "opengl_major": 0, "opengl_minor": 0, "fuente_gl": None}
-        # 1) GPU(s) vía WMIC
-        try:
-            r = subprocess.run(
-                ["wmic", "path", "win32_VideoController", "get",
-                 "Name,DriverVersion,AdapterRAM,VideoProcessor", "/format:csv"],
-                capture_output=True, text=True, timeout=10,
-                creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
-            )
-            lines = [l.strip() for l in r.stdout.splitlines() if l.strip() and "," in l]
-            if lines:
-                headers = [h.strip() for h in lines[0].split(",")]
-                for line in lines[1:]:
-                    cols = [c.strip() for c in line.split(",")]
-                    if len(cols) != len(headers): continue
-                    row = dict(zip(headers, cols))
-                    name = row.get("Name", "")
-                    if not name: continue
-                    try:
-                        ram_mb = int(row.get("AdapterRAM", "0") or 0) // (1024 * 1024)
-                    except Exception:
-                        ram_mb = 0
-                    info["gpus"].append({
-                        "nombre": name,
-                        "driver": row.get("DriverVersion", ""),
-                        "ram_mb": ram_mb,
-                        "procesador": row.get("VideoProcessor", ""),
-                    })
-        except Exception as e:
-            info["wmic_error"] = str(e)[:120]
+        # 1) GPU(s): probar PowerShell Get-CimInstance primero (Win11 24H2+ ya no
+        #    trae wmic.exe por default). Fallback a wmic si PowerShell falla.
+        info["gpus"] = self._gpu_listar_adaptadores()
+        if not info["gpus"]:
+            info["fuente_gpu"] = "ninguna"
+        else:
+            info["fuente_gpu"] = info["gpus"][0].pop("_fuente", "?") if info["gpus"] else "?"
 
         # 2) Versión OpenGL: probar primero leer latest.log (rápido y robusto)
         try:
@@ -5150,18 +5223,132 @@ class Api:
             info["mc_recomendado"] = "Activá Mesa3D (software o D3D12) para poder jugar."
         return info
 
+    def _gpu_listar_adaptadores(self):
+        """Lista las GPUs del sistema.
+
+        Estrategia:
+          1) PowerShell `Get-CimInstance Win32_VideoController` (Windows 11
+             24H2+ ya no incluye `wmic.exe` por default; viene como Feature
+             on Demand).
+          2) Fallback a `wmic` para sistemas viejos.
+
+        Devuelve lista de dicts con `_fuente` interno para debug.
+        """
+        if platform.system() != "Windows":
+            return []
+        creation_flags = subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0
+
+        # 1) PowerShell + CIM (preferido)
+        try:
+            ps_cmd = (
+                "Get-CimInstance Win32_VideoController | "
+                "Select-Object Name,DriverVersion,AdapterRAM,VideoProcessor | "
+                "ConvertTo-Json -Compress"
+            )
+            r = subprocess.run(
+                ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_cmd],
+                capture_output=True, text=True, timeout=10, creationflags=creation_flags,
+            )
+            out = (r.stdout or "").strip()
+            if out and r.returncode == 0:
+                data = json.loads(out)
+                if isinstance(data, dict):
+                    data = [data]
+                gpus = []
+                for row in data:
+                    name = (row.get("Name") or "").strip()
+                    if not name:
+                        continue
+                    raw_ram = row.get("AdapterRAM") or 0
+                    try:
+                        ram_mb = int(raw_ram) // (1024 * 1024) if raw_ram else 0
+                    except (TypeError, ValueError):
+                        ram_mb = 0
+                    gpus.append({
+                        "nombre": name,
+                        "driver": (row.get("DriverVersion") or "").strip(),
+                        "ram_mb": ram_mb,
+                        "procesador": (row.get("VideoProcessor") or "").strip(),
+                        "_fuente": "powershell",
+                    })
+                if gpus:
+                    return gpus
+        except (subprocess.TimeoutExpired, json.JSONDecodeError, FileNotFoundError, OSError):
+            pass
+
+        # 2) Fallback a wmic
+        try:
+            r = subprocess.run(
+                ["wmic", "path", "win32_VideoController", "get",
+                 "Name,DriverVersion,AdapterRAM,VideoProcessor", "/format:csv"],
+                capture_output=True, text=True, timeout=10, creationflags=creation_flags,
+            )
+            lines = [l.strip() for l in r.stdout.splitlines() if l.strip() and "," in l]
+            if not lines:
+                return []
+            headers = [h.strip() for h in lines[0].split(",")]
+            gpus = []
+            for line in lines[1:]:
+                cols = [c.strip() for c in line.split(",")]
+                if len(cols) != len(headers):
+                    continue
+                row = dict(zip(headers, cols))
+                name = row.get("Name", "")
+                if not name:
+                    continue
+                try:
+                    ram_mb = int(row.get("AdapterRAM", "0") or 0) // (1024 * 1024)
+                except (TypeError, ValueError):
+                    ram_mb = 0
+                gpus.append({
+                    "nombre": name,
+                    "driver": row.get("DriverVersion", ""),
+                    "ram_mb": ram_mb,
+                    "procesador": row.get("VideoProcessor", ""),
+                    "_fuente": "wmic",
+                })
+            return gpus
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+            return []
+
+    # WindowProc no-op para la ventana dummy (necesario en RegisterClassW)
+    _WGL_WND_PROC = None  # se asigna lazy en _gpu_wgl_query_version
+
     def _gpu_wgl_query_version(self):
-        """Crea un contexto OpenGL dummy en Windows para leer la versión real."""
+        """Lee versión OpenGL del sistema creando un contexto WGL aislado.
+
+        IMPORTANTE: usa una ventana invisible dummy (no el desktop). Llamar
+        `SetPixelFormat` sobre `GetDesktopWindow()` es destructivo: el pixel
+        format de una HWND no se puede cambiar dos veces, así que dejaría el
+        compositor del SO con un formato fijo hasta el próximo logoff y
+        puede romper apps OpenGL nativas (Blender, juegos, etc).
+
+        Retorna (version, vendor, renderer) o (None, None, None).
+        """
         import ctypes
         from ctypes import wintypes
         if platform.system() != "Windows":
             return (None, None, None)
+
         user32 = ctypes.windll.user32
         gdi32 = ctypes.windll.gdi32
         opengl32 = ctypes.windll.opengl32
         kernel32 = ctypes.windll.kernel32
 
-        # PIXELFORMATDESCRIPTOR
+        # --- Definiciones Win32 ---
+        WNDPROC = ctypes.WINFUNCTYPE(
+            ctypes.c_long, wintypes.HWND, ctypes.c_uint, wintypes.WPARAM, wintypes.LPARAM
+        )
+
+        class WNDCLASSW(ctypes.Structure):
+            _fields_ = [
+                ("style", ctypes.c_uint), ("lpfnWndProc", WNDPROC),
+                ("cbClsExtra", ctypes.c_int), ("cbWndExtra", ctypes.c_int),
+                ("hInstance", wintypes.HINSTANCE), ("hIcon", wintypes.HICON),
+                ("hCursor", wintypes.HANDLE), ("hbrBackground", wintypes.HBRUSH),
+                ("lpszMenuName", wintypes.LPCWSTR), ("lpszClassName", wintypes.LPCWSTR),
+            ]
+
         class PIXELFORMATDESCRIPTOR(ctypes.Structure):
             _fields_ = [
                 ("nSize", wintypes.WORD), ("nVersion", wintypes.WORD),
@@ -5178,43 +5365,107 @@ class Api:
                 ("bReserved", ctypes.c_byte), ("dwLayerMask", wintypes.DWORD),
                 ("dwVisibleMask", wintypes.DWORD), ("dwDamageMask", wintypes.DWORD),
             ]
-        hwnd = user32.GetDesktopWindow()
+
+        # Firmas explícitas (evita asunciones de tamaño de puntero en x64)
+        user32.DefWindowProcW.restype = ctypes.c_long
+        user32.DefWindowProcW.argtypes = [wintypes.HWND, ctypes.c_uint, wintypes.WPARAM, wintypes.LPARAM]
+        user32.RegisterClassW.argtypes = [ctypes.POINTER(WNDCLASSW)]
+        user32.RegisterClassW.restype = wintypes.ATOM
+        user32.CreateWindowExW.restype = wintypes.HWND
+        user32.CreateWindowExW.argtypes = [
+            wintypes.DWORD, wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.DWORD,
+            ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+            wintypes.HWND, wintypes.HMENU, wintypes.HINSTANCE, wintypes.LPVOID
+        ]
+        user32.DestroyWindow.argtypes = [wintypes.HWND]
+        user32.GetDC.restype = wintypes.HDC
+        user32.GetDC.argtypes = [wintypes.HWND]
+        user32.ReleaseDC.argtypes = [wintypes.HWND, wintypes.HDC]
+        kernel32.GetModuleHandleW.restype = wintypes.HMODULE
+        kernel32.GetModuleHandleW.argtypes = [wintypes.LPCWSTR]
+
+        # WindowProc estático (mantenemos referencia para evitar GC)
+        def _wnd_proc(hwnd, msg, wp, lp):
+            return user32.DefWindowProcW(hwnd, msg, wp, lp)
+        if ParaguacraftAPI._WGL_WND_PROC is None:
+            ParaguacraftAPI._WGL_WND_PROC = WNDPROC(_wnd_proc)
+
+        h_instance = kernel32.GetModuleHandleW(None)
+        class_name = "ParaguacraftWGLProbe"
+        wc = WNDCLASSW()
+        wc.style = 0x0020 | 0x0002  # CS_OWNDC | CS_HREDRAW
+        wc.lpfnWndProc = ParaguacraftAPI._WGL_WND_PROC
+        wc.cbClsExtra = 0
+        wc.cbWndExtra = 0
+        wc.hInstance = h_instance
+        wc.hIcon = None
+        wc.hCursor = None
+        wc.hbrBackground = None
+        wc.lpszMenuName = None
+        wc.lpszClassName = class_name
+        # Registramos; si ya estaba registrada (re-llamada) ignoramos el error
+        atom = user32.RegisterClassW(ctypes.byref(wc))
+        # GetLastError 1410 = ERROR_CLASS_ALREADY_EXISTS, no es problema
+        if not atom and kernel32.GetLastError() != 1410:
+            return (None, None, None)
+
+        hwnd = user32.CreateWindowExW(
+            0, class_name, "wglprobe",
+            0x80000000,  # WS_POPUP (sin bordes, no visible)
+            0, 0, 1, 1,
+            None, None, h_instance, None
+        )
+        if not hwnd:
+            return (None, None, None)
+
         hdc = user32.GetDC(hwnd)
-        if not hdc:
-            return (None, None, None)
-        pfd = PIXELFORMATDESCRIPTOR()
-        pfd.nSize = ctypes.sizeof(PIXELFORMATDESCRIPTOR)
-        pfd.nVersion = 1
-        pfd.dwFlags = 0x00000004 | 0x00000020 | 0x00000001  # DRAW_TO_WINDOW | SUPPORT_OPENGL | DOUBLEBUFFER
-        pfd.iPixelType = 0
-        pfd.cColorBits = 32
-        pfd.cDepthBits = 24
-        pfd.iLayerType = 0
-        ipf = gdi32.ChoosePixelFormat(hdc, ctypes.byref(pfd))
-        if not ipf:
-            user32.ReleaseDC(hwnd, hdc)
-            return (None, None, None)
-        if not gdi32.SetPixelFormat(hdc, ipf, ctypes.byref(pfd)):
-            user32.ReleaseDC(hwnd, hdc)
-            return (None, None, None)
-        opengl32.wglCreateContext.restype = wintypes.HANDLE
-        hglrc = opengl32.wglCreateContext(hdc)
-        if not hglrc:
-            user32.ReleaseDC(hwnd, hdc)
-            return (None, None, None)
-        opengl32.wglMakeCurrent.argtypes = [wintypes.HDC, wintypes.HANDLE]
-        opengl32.wglMakeCurrent(hdc, hglrc)
-        opengl32.glGetString.restype = ctypes.c_char_p
-        opengl32.glGetString.argtypes = [ctypes.c_uint]
+        hglrc = None
         try:
-            version  = (opengl32.glGetString(0x1F02) or b"").decode("utf-8", "replace")  # GL_VERSION
-            vendor   = (opengl32.glGetString(0x1F00) or b"").decode("utf-8", "replace")  # GL_VENDOR
-            renderer = (opengl32.glGetString(0x1F01) or b"").decode("utf-8", "replace")  # GL_RENDERER
+            if not hdc:
+                return (None, None, None)
+            pfd = PIXELFORMATDESCRIPTOR()
+            pfd.nSize = ctypes.sizeof(PIXELFORMATDESCRIPTOR)
+            pfd.nVersion = 1
+            pfd.dwFlags = 0x00000004 | 0x00000020 | 0x00000001  # DRAW_TO_WINDOW | SUPPORT_OPENGL | DOUBLEBUFFER
+            pfd.iPixelType = 0
+            pfd.cColorBits = 32
+            pfd.cDepthBits = 24
+            pfd.iLayerType = 0
+            ipf = gdi32.ChoosePixelFormat(hdc, ctypes.byref(pfd))
+            if not ipf:
+                return (None, None, None)
+            if not gdi32.SetPixelFormat(hdc, ipf, ctypes.byref(pfd)):
+                return (None, None, None)
+            opengl32.wglCreateContext.restype = wintypes.HANDLE
+            opengl32.wglCreateContext.argtypes = [wintypes.HDC]
+            hglrc = opengl32.wglCreateContext(hdc)
+            if not hglrc:
+                return (None, None, None)
+            opengl32.wglMakeCurrent.argtypes = [wintypes.HDC, wintypes.HANDLE]
+            opengl32.wglMakeCurrent(hdc, hglrc)
+            opengl32.glGetString.restype = ctypes.c_char_p
+            opengl32.glGetString.argtypes = [ctypes.c_uint]
+            version  = (opengl32.glGetString(0x1F02) or b"").decode("utf-8", "replace")
+            vendor   = (opengl32.glGetString(0x1F00) or b"").decode("utf-8", "replace")
+            renderer = (opengl32.glGetString(0x1F01) or b"").decode("utf-8", "replace")
+            return (version or None, vendor or None, renderer or None)
         finally:
-            opengl32.wglMakeCurrent(hdc, None)
-            opengl32.wglDeleteContext(hglrc)
-            user32.ReleaseDC(hwnd, hdc)
-        return (version or None, vendor or None, renderer or None)
+            # Cleanup en orden inverso, robusto frente a fallos parciales
+            try:
+                if hglrc:
+                    opengl32.wglMakeCurrent(hdc, None)
+                    opengl32.wglDeleteContext(hglrc)
+            except OSError:
+                pass
+            try:
+                if hdc:
+                    user32.ReleaseDC(hwnd, hdc)
+            except OSError:
+                pass
+            try:
+                user32.DestroyWindow(hwnd)
+            except OSError:
+                pass
 
     def gpu_compat_estado(self):
         """Devuelve modo actual + si Mesa está instalado en disco."""
@@ -5271,19 +5522,19 @@ class Api:
                         asset = a; break
             if not asset:
                 return {"ok": False, "error": "No se encontró asset .7z en el release de Mesa."}
-            # Necesitamos py7zr para extraer
+            # py7zr es dependencia declarada en requirements.txt y empaquetada
+            # en Paraguacraft.spec como hidden import. NO intentamos pip
+            # install runtime porque en el .exe de PyInstaller no hay pip.
             try:
-                import py7zr
+                import py7zr  # noqa: F401
             except ImportError:
-                # Auto-instalar
-                try:
-                    import sys
-                    subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", "py7zr"],
-                                   check=True, timeout=120,
-                                   creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0)
-                    import py7zr
-                except Exception as _pe:
-                    return {"ok": False, "error": f"No se pudo instalar py7zr ({_pe}). Ejecutá manualmente: pip install py7zr"}
+                return {
+                    "ok": False,
+                    "error": ("La librería py7zr no está disponible. Si estás "
+                              "corriendo desde código fuente, ejecutá: "
+                              "pip install py7zr. Si usás el .exe instalado, "
+                              "reinstalá Paraguacraft desde Releases.")
+                }
             mesa_dir = self._gpu_compat_dir()
             tmp_path = os.path.join(mesa_dir, "_mesa_download.7z")
             url = asset["browser_download_url"]
@@ -5459,6 +5710,8 @@ class Api:
                     os.makedirs(inst_dir, exist_ok=True)
                 except Exception:
                     return {"ok": False, "error": f"No se pudo crear la instancia destino: {inst_dir}"}
+            # Path absoluto y normalizado del destino para validación posterior
+            inst_dir_abs = os.path.realpath(inst_dir)
             descargados = []
             saltados = []
             for f in cfg.get("files", []):
@@ -5466,16 +5719,35 @@ class Api:
                 src = str(f.get("src", "")).strip().lstrip("/")
                 dst = str(f.get("dst", "")).strip().lstrip("/")
                 if not src or not dst: continue
-                # Defensa: prohibir traversal
-                if ".." in dst.replace("\\", "/").split("/"):
-                    saltados.append(dst); continue
+                # Defensa anti path-traversal robusta:
+                #   * Rechazar paths absolutos (en Windows, `os.path.join` con un
+                #     path absoluto descarta el prefijo y escribe en C:\ libre).
+                #   * Rechazar caracteres NUL y secuencias `..`.
+                #   * Después del join, verificar con `commonpath` que el destino
+                #     final esté efectivamente DENTRO de `inst_dir_abs`.
+                dst_norm = dst.replace("\\", "/")
+                if (
+                    "\0" in dst_norm
+                    or os.path.isabs(dst_norm)
+                    or os.path.splitdrive(dst_norm)[0]  # "C:" etc.
+                    or ".." in dst_norm.split("/")
+                ):
+                    saltados.append(f"{dst} (path inseguro)"); continue
+                dst_path = os.path.join(inst_dir, dst.replace("/", os.sep))
+                dst_path_abs = os.path.realpath(dst_path)
+                try:
+                    common = os.path.commonpath([inst_dir_abs, dst_path_abs])
+                except ValueError:
+                    # Distintas unidades (ej: C:\ vs D:\) lanzan ValueError
+                    saltados.append(f"{dst} (drive distinto)"); continue
+                if common != inst_dir_abs:
+                    saltados.append(f"{dst} (fuera de la instancia)"); continue
                 url = COMMUNITY_CONFIGS_RAW + src
                 try:
                     rr = requests.get(url, timeout=15,
                                       headers={"User-Agent": "Paraguacraft-Launcher"})
                     if rr.status_code != 200:
                         saltados.append(f"{src} ({rr.status_code})"); continue
-                    dst_path = os.path.join(inst_dir, dst.replace("/", os.sep))
                     os.makedirs(os.path.dirname(dst_path) or inst_dir, exist_ok=True)
                     # Backup si ya existe
                     if os.path.exists(dst_path):
@@ -9638,8 +9910,23 @@ if __name__ == "__main__":
     except Exception:
         pass
 
+    # DevTools (Phase F): por seguridad NO viene activo por default. Se habilita
+    # con:
+    #   * Atajo Ctrl+Shift+D en la UI + password (ver devmode_toggle).
+    #   * Variable de entorno PARAGUA_DEV=1 (para desarrollo local).
+    #   * Flag persistente en config: `dev_mode_enabled`.
+    # En cualquier caso requiere reiniciar el launcher porque pywebview/Edge
+    # WebView2 no permite cambiar `debug` en runtime.
+    _dev_env = os.environ.get("PARAGUA_DEV", "").strip() in ("1", "true", "yes", "on")
+    _dev_cfg = bool(api.config_actual.get("dev_mode_enabled", False))
+    _debug_on = _dev_env or _dev_cfg
+    if _debug_on:
+        try:
+            log.info(f"[DevMode] Activo (env={_dev_env}, cfg={_dev_cfg})")
+        except Exception:
+            pass
     _start_kwargs = dict(
-        debug=True,
+        debug=_debug_on,
         http_server=True,
         icon=_icon_path if os.path.exists(_icon_path) else None,
         user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
