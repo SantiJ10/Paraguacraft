@@ -8,7 +8,32 @@ import platform
 import json
 import sys
 import hashlib
+import threading
+import contextlib
+from datetime import datetime as _dt
 import bsdiff4
+
+# Lock global para serializar mutaciones de os.environ["PATH"] cuando los
+# instaladores de Forge / NeoForge necesitan que el `java` bundled esté en PATH.
+# Sin esto, lanzamientos concurrentes pueden corromperse el PATH entre sí.
+_PATH_MUTATION_LOCK = threading.Lock()
+
+@contextlib.contextmanager
+def _path_con_java(java_bin_dir):
+    """Context manager: agrega `java_bin_dir` al PATH durante el bloque,
+    y lo restaura al salir incluso ante excepción. Thread-safe."""
+    if not java_bin_dir:
+        yield
+        return
+    with _PATH_MUTATION_LOCK:
+        original = os.environ.get("PATH", "")
+        if java_bin_dir not in original.split(os.pathsep):
+            os.environ["PATH"] = java_bin_dir + os.pathsep + original
+        try:
+            yield
+        finally:
+            os.environ["PATH"] = original
+
 try:
     from src.nube import GestorNube
 except Exception:
@@ -896,11 +921,8 @@ def _instalar_neoforge(version_base, minecraft_directory, progress_callback, on_
     _asegurar_java_runtime(version_base, minecraft_directory, progress_callback)
     _java_exe = _java_exe_para_mc(minecraft_directory)
     _java_bin = os.path.dirname(_java_exe) if _java_exe != "java" else ""
-    _orig_path = os.environ.get("PATH", "")
-    if _java_bin and _java_bin not in _orig_path:
-        os.environ["PATH"] = _java_bin + os.pathsep + _orig_path
 
-    try:
+    with _path_con_java(_java_bin):
         if progress_callback: progress_callback(f"Buscando NeoForge para {version_base}...")
         nf_versions = []
         try:
@@ -938,8 +960,7 @@ def _instalar_neoforge(version_base, minecraft_directory, progress_callback, on_
             _fallback = f"neoforge-{nf_latest}"
             if os.path.exists(os.path.join(versions_dir, _fallback, _fallback + ".json")):
                 return _fallback
-    finally:
-        os.environ["PATH"] = _orig_path
+    return None
 
 
 def _install_mc_with_retry(version, mc_dir, cb_dict, progress_cb=None):
@@ -965,8 +986,14 @@ def _install_mc_with_retry(version, mc_dir, cb_dict, progress_cb=None):
                 _bad = _m.group(1).strip()
                 if progress_cb: progress_cb(f"Archivo corrupto, limpiando y reintentando ({_attempt + 2}/3)...")
                 if os.path.exists(_bad):
-                    try: os.remove(_bad)
-                    except Exception: pass
+                    try:
+                        os.remove(_bad)
+                    except PermissionError as _pe:
+                        if progress_cb:
+                            progress_cb(f"⚠ No se pudo eliminar archivo corrupto {_bad}: {_pe}")
+                    except OSError as _oe:
+                        if progress_cb:
+                            progress_cb(f"⚠ Error eliminando {_bad}: {_oe}")
             elif _attempt < 2 and any(k in str(_ie).lower() for k in ('timeout', 'connection', 'network', 'reset', 'eof')):
                 if progress_cb: progress_cb(f"Error de conexión, reintentando ({_attempt + 2}/3)...")
                 import time as _t; _t.sleep(2 * (_attempt + 1))
@@ -1091,7 +1118,81 @@ def _gpu_compat_preparar_runtime_aislado(java_exe_original, mc_dir, mode,
     return new_java
 
 
-def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type="G1GC", optimizar=False, motor_elegido="Vanilla", papa_mode=False, usar_mesa=False, mostrar_consola=False, progress_callback=None, uuid_real=None, token_real=None, lan_distancia=False, fabric_loader_override=None, server_ip="", java_path=None, extra_jvm_args=None, gpu_compat_mode="off"):
+def _analizar_log_minecraft(game_log_path, rc, crash_reports_dir=None):
+    """Lee las últimas líneas del log para categorizar la causa real del crash.
+
+    Devuelve dict { categoria, mensaje, hint, log_tail }. Categorías:
+      oom_java, oom_reserve, auth, mods, gpu, java_version, network, generic.
+    Heurístico, NO falla nunca: si no puede leer, devuelve 'generic'.
+    """
+    tail = ""
+    try:
+        if os.path.exists(game_log_path):
+            size = os.path.getsize(game_log_path)
+            with open(game_log_path, "rb") as _f:
+                if size > 32_000:
+                    _f.seek(-32_000, os.SEEK_END)
+                tail = _f.read().decode("utf-8", "replace")
+    except OSError:
+        tail = ""
+
+    low = tail.lower()
+    if "outofmemoryerror" in low or "java heap space" in low:
+        cat = "oom_java"
+        msg = "Java se quedó sin memoria (heap)."
+        hint = "Subí la RAM asignada desde Ajustes → Rendimiento."
+    elif "could not reserve enough space" in low or "insufficient memory" in low:
+        cat = "oom_reserve"
+        msg = "Java no pudo reservar la RAM solicitada al SO."
+        hint = "Bajá la RAM asignada (probá 4 GB) o liberá memoria del sistema."
+    elif any(k in low for k in ("invalid session", "bad login", "authserver", "authentication", "401", "403")):
+        cat = "auth"
+        msg = "Sesión Microsoft inválida o expirada."
+        hint = "Cerrá sesión y volvé a iniciarla."
+    elif "mixin" in low and ("apply" in low or "injection" in low):
+        cat = "mods"
+        msg = "Un mod (Mixin) falló al inyectarse."
+        hint = "Revisá el log; suele ser un mod incompatible con la versión."
+    elif "glfw" in low or "pixel format" in low or "opengl" in low and "version" in low:
+        cat = "gpu"
+        msg = "Falló la inicialización de OpenGL/GLFW."
+        hint = "Probá modo Mesa (DirectX 12) en Herramientas → GPU/OpenGL, o actualizá drivers."
+    elif "unsupportedclassversionerror" in low or "has been compiled by a more recent" in low:
+        cat = "java_version"
+        msg = "La versión de Java es demasiado vieja para esta versión de Minecraft."
+        hint = "Borrá la carpeta del runtime Java en .minecraft/runtime/ para que Paraguacraft lo re-descargue."
+    elif "unknownhostexception" in low or "connection refused" in low or "no route to host" in low:
+        cat = "network"
+        msg = "Problema de red al conectar al servidor de assets/auth."
+        hint = "Revisá tu conexión o probá de nuevo en un momento."
+    else:
+        cat = "generic"
+        msg = f"Minecraft terminó con código {rc}."
+        hint = "Abrí el log para más detalle."
+
+    crash_file = None
+    if crash_reports_dir and os.path.isdir(crash_reports_dir):
+        try:
+            reports = sorted(
+                [f for f in os.listdir(crash_reports_dir) if f.endswith(".txt")],
+                key=lambda f: os.path.getmtime(os.path.join(crash_reports_dir, f)),
+                reverse=True)
+            if reports:
+                crash_file = reports[0]
+        except OSError:
+            pass
+
+    return {
+        "categoria": cat,
+        "mensaje": msg,
+        "hint": hint,
+        "rc": rc,
+        "crash_file": crash_file,
+        "log_tail": tail[-2000:],
+    }
+
+
+def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type="G1GC", optimizar=False, motor_elegido="Vanilla", papa_mode=False, usar_mesa=False, mostrar_consola=False, progress_callback=None, uuid_real=None, token_real=None, lan_distancia=False, fabric_loader_override=None, server_ip="", java_path=None, extra_jvm_args=None, gpu_compat_mode="off", on_process_started=None):
     minecraft_directory = minecraft_launcher_lib.utils.get_minecraft_directory()
 
     def on_progress(event):
@@ -1149,8 +1250,15 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
                 else:
                     try:
                         shutil.rmtree(os.path.join(_versions_dir, v))
-                    except Exception:
-                        pass
+                    except PermissionError as _pe:
+                        if progress_callback:
+                            progress_callback(
+                                f"⚠ No se pudo limpiar instalación Fabric corrupta ({v}): "
+                                f"permiso denegado. Cerrá Minecraft y reintentá. Detalle: {_pe}")
+                    except OSError as _oe:
+                        if progress_callback:
+                            progress_callback(
+                                f"⚠ No se pudo limpiar {v}: {_oe}")
     elif tipo_cliente_base == "OptiFine":
         for v in sorted(_versiones_locales, reverse=True):
             if version_base in v and "OptiFine" in v:
@@ -1182,10 +1290,21 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
         if os.path.exists(ruta_version) and os.path.exists(version_json_path) and _jar_ok:
             version_instalada = True
         elif os.path.exists(ruta_version):
+            # Carpeta sin JSON o con JAR truncado: hay que limpiar para que la
+            # próxima instalación no caiga en estado híbrido. Si falla por
+            # permisos (juego abierto, antivirus, OneDrive lock), informamos.
             try:
                 shutil.rmtree(ruta_version)
-            except Exception:
-                pass
+            except PermissionError as _pe:
+                if progress_callback:
+                    progress_callback(
+                        f"⚠ No se pudo limpiar instalación previa de {version_base}: "
+                        f"permiso denegado. Cerrá Minecraft / antivirus y reintentá. Detalle: {_pe}")
+            except OSError as _oe:
+                if progress_callback:
+                    progress_callback(
+                        f"⚠ No se pudo limpiar {version_base}: {_oe}. "
+                        f"Si persiste, borrá manualmente .minecraft/versions/{version_base}.")
 
     # Si NO está instalada, ejecutamos el motor de descarga
     if not version_instalada:
@@ -1247,33 +1366,49 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
                 if progress_callback: progress_callback(f"Advertencia descargando base: {_be}")
             # 2) Asegurar Java runtime bundled antes de correr el installer
             _asegurar_java_runtime(version_base, minecraft_directory, progress_callback)
-            # 3) Agregar Java bundled al PATH para que el Forge installer lo encuentre
+            # 3) Agregar Java bundled al PATH (thread-safe, restaurado al salir)
             _java_exe_forge = _java_exe_para_mc(minecraft_directory)
             _java_bin_dir = os.path.dirname(_java_exe_forge) if _java_exe_forge != "java" else ""
-            _orig_path = os.environ.get("PATH", "")
-            if _java_bin_dir and _java_bin_dir not in _orig_path:
-                os.environ["PATH"] = _java_bin_dir + os.pathsep + _orig_path
-            try:
+            with _path_con_java(_java_bin_dir):
                 if progress_callback: progress_callback("Instalando Forge...")
                 forge_version = minecraft_launcher_lib.forge.find_forge_version(version_base)
                 if not forge_version:
-                    if progress_callback: progress_callback(f"Forge no está disponible aún para {version_base}.")
-                else:
-                    try:
-                        minecraft_launcher_lib.forge.install_forge_version(forge_version, minecraft_directory, java=_java_exe_forge, callback={"setStatus": on_progress})
-                    except TypeError:
-                        minecraft_launcher_lib.forge.install_forge_version(forge_version, minecraft_directory, callback={"setStatus": on_progress})
-                    # Buscar la version real creada (el nombre puede diferir de forge_version)
-                    _vdir = os.path.join(minecraft_directory, "versions")
-                    _found_forge = None
+                    # FAIL FAST: el usuario eligió Forge; degradar silenciosamente
+                    # a Vanilla rompe la confianza. Informar y abortar.
+                    raise RuntimeError(
+                        f"Forge no está disponible para Minecraft {version_base}. "
+                        f"Probá con Fabric/Quilt o esperá a que el equipo de Forge publique."
+                    )
+                try:
+                    minecraft_launcher_lib.forge.install_forge_version(
+                        forge_version, minecraft_directory,
+                        java=_java_exe_forge,
+                        callback={"setStatus": on_progress})
+                except TypeError:
+                    # Versiones antiguas de minecraft_launcher_lib no aceptan java=
+                    minecraft_launcher_lib.forge.install_forge_version(
+                        forge_version, minecraft_directory,
+                        callback={"setStatus": on_progress})
+                # Buscar la version real creada (el nombre puede diferir de forge_version)
+                _vdir = os.path.join(minecraft_directory, "versions")
+                _found_forge = None
+                try:
                     for _fv in sorted(os.listdir(_vdir), reverse=True):
                         if version_base in _fv and "forge" in _fv.lower() and "neoforge" not in _fv.lower():
                             if os.path.exists(os.path.join(_vdir, _fv, _fv + ".json")):
                                 _found_forge = _fv
                                 break
-                    version_a_lanzar = _found_forge if _found_forge else forge_version
-            finally:
-                os.environ["PATH"] = _orig_path
+                except OSError as _le:
+                    raise RuntimeError(f"No se pudo listar carpeta de versiones tras instalar Forge: {_le}")
+                if not _found_forge:
+                    # El installer terminó sin error pero la carpeta no aparece:
+                    # casi siempre es un installer corrupto o un cache stale.
+                    raise RuntimeError(
+                        f"Forge {forge_version} parece haberse instalado pero no se encuentra "
+                        f"en .minecraft/versions/. Reintentá; si persiste, borrá la carpeta "
+                        f"y volvé a probar."
+                    )
+                version_a_lanzar = _found_forge
 
         elif tipo_cliente_base == "OptiFine":
             of_ver = _instalar_optifine(version_base, minecraft_directory, progress_callback)
@@ -1370,11 +1505,32 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
         elif gc_type == "Shenandoah": jvm_arguments.append("-XX:+UseShenandoahGC")
 
     # 5. CONFIGURACIÓN FINAL DEL JUEGO
+    # Dedupe robusto de extra_jvm_args: evita duplicar -Xmx/-Xms/-Xss y flags
+    # JVM con valor (-XX:Foo=bar) además de la igualdad exacta. Si el usuario
+    # provee -Xmx5G y ya hay -Xmx{max_ram}, se reemplaza el suyo (gana).
+    def _flag_key(arg):
+        a = arg.strip()
+        if a.startswith(("-Xmx", "-Xms", "-Xss")):
+            return a[:4]
+        # -XX:+/−Foo o -XX:Foo=valor → la "key" es lo previo al = o el flag completo
+        if a.startswith("-XX:"):
+            return a.split("=", 1)[0].lstrip("-XX:").lstrip("+-").rstrip()
+        if a.startswith("-D") and "=" in a:
+            return a.split("=", 1)[0]
+        return a
     if extra_jvm_args:
+        existing_keys = {_flag_key(a) for a in jvm_arguments}
         for _arg in extra_jvm_args:
-            _arg = _arg.strip()
-            if _arg and _arg not in jvm_arguments:
-                jvm_arguments.append(_arg)
+            _arg = (_arg or "").strip()
+            if not _arg:
+                continue
+            k = _flag_key(_arg)
+            if k in existing_keys:
+                if progress_callback:
+                    progress_callback(f"⚠ Ignorado JVM duplicado: {_arg}")
+                continue
+            jvm_arguments.append(_arg)
+            existing_keys.add(k)
     options = {
         "username": username,
         "uuid": uuid_real if uuid_real else _offline_uuid(username),
@@ -1459,16 +1615,54 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
     os.makedirs(logs_dir, exist_ok=True)
     game_log_path = os.path.join(logs_dir, "paraguacraft_launch.log")
 
+    # Rotación simple: si el log supera 5 MB, lo movemos a .old para no perderlo
+    # ni acumular gigas. Mantenemos máximo 1 archivo .old (sobrescribimos).
+    try:
+        if os.path.exists(game_log_path) and os.path.getsize(game_log_path) > 5 * 1024 * 1024:
+            _old = game_log_path + ".old"
+            try:
+                if os.path.exists(_old):
+                    os.remove(_old)
+            except OSError:
+                pass
+            try:
+                os.replace(game_log_path, _old)
+            except OSError:
+                pass
+    except OSError:
+        pass
+
     if mostrar_consola and platform.system() == "Windows":
         flags_creacion = subprocess.CREATE_NEW_CONSOLE
         log_file = None
         salida = None
     else:
         flags_creacion = subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0
-        log_file = open(game_log_path, "w", encoding="utf-8", errors="replace")
+        # Append, no truncate: si el juego crashea sin emitir nada, conservamos
+        # el log del intento anterior. La rotación de arriba evita crecimiento.
+        log_file = open(game_log_path, "a", encoding="utf-8", errors="replace")
+        try:
+            log_file.write(
+                f"\n\n===== Paraguacraft launch @ {_dt.now().isoformat(timespec='seconds')} "
+                f"| version={version_a_lanzar} | motor={motor_elegido} =====\n"
+            )
+            log_file.flush()
+        except OSError:
+            pass
         salida = log_file
 
     proceso = subprocess.Popen(command, env=entorno, creationflags=flags_creacion, stdout=salida, stderr=salida, stdin=subprocess.DEVNULL, cwd=game_dir)
+
+    # Notificamos al caller del PID/handle apenas arranca, para que pueda:
+    #   - registrar el proceso y exponer "Cerrar Minecraft" en UI
+    #   - matarlo si el launcher se cierra durante una descarga colgada
+    if on_process_started:
+        try:
+            on_process_started(proceso)
+        except Exception as _hk:
+            # No frenamos el lanzamiento por un callback roto
+            if progress_callback:
+                progress_callback(f"⚠ on_process_started falló: {_hk}")
 
     try:
         import psutil
@@ -1481,19 +1675,20 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
     rc = proceso.wait()
     if log_file:
         try: log_file.close()
-        except Exception: pass
+        except OSError:
+            pass
 
-    if rc != 0 and progress_callback:
-        crash_dir = os.path.join(game_dir, "crash-reports")
-        crash_hint = ""
-        if os.path.isdir(crash_dir):
-            reports = sorted(
-                [f for f in os.listdir(crash_dir) if f.endswith(".txt")],
-                key=lambda f: os.path.getmtime(os.path.join(crash_dir, f)),
-                reverse=True)
-            if reports:
-                crash_hint = f" | crash: {reports[0]}"
-        progress_callback(f"Juego terminó con error (código {rc}){crash_hint}. Ver: {game_log_path}")
+    # Análisis estructurado del resultado (oom, auth, gpu, mods, ...) leyendo
+    # el log. Si rc == 0 lo informamos como cierre limpio.
+    crash_dir = os.path.join(game_dir, "crash-reports")
+    if rc != 0:
+        analisis = _analizar_log_minecraft(game_log_path, rc, crash_dir)
+        if progress_callback:
+            extra = f" | crash: {analisis['crash_file']}" if analisis.get('crash_file') else ""
+            progress_callback(
+                f"❌ {analisis['mensaje']} {analisis['hint']}{extra} "
+                f"(rc={rc}) · Ver: {game_log_path}"
+            )
     if GestorNube is not None:
         try:
             GestorNube().subir_datos(username, options_txt_path, servers_dat_path)
