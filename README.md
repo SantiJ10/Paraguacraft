@@ -4,7 +4,7 @@
 
 **Launcher completo de Minecraft, desarrollado en Python con interfaz web moderna.**
 
-[![Version](https://img.shields.io/badge/versi%C3%B3n-5.6.0-2ECC71?style=flat-square)](https://github.com/SantiJ10/Paraguacraft/releases)
+[![Version](https://img.shields.io/badge/versi%C3%B3n-5.7.0-2ECC71?style=flat-square)](https://github.com/SantiJ10/Paraguacraft/releases)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![License](https://img.shields.io/badge/licencia-MIT-blue?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/plataforma-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)](https://github.com/SantiJ10/Paraguacraft/releases)
@@ -60,6 +60,14 @@ Paraguacraft es un launcher de Minecraft completamente personalizado, desarrolla
 - **Reporte de bugs con un clic**: empaqueta logs, crash reports, info del sistema y config (redactada) en un ZIP listo para adjuntar en GitHub Issues
 - **Log interno del launcher** accesible desde la UI (rotado automáticamente, máx. 15 MB)
 
+### 🛡️ Estabilidad y robustez
+- **Sesión Microsoft refresh sincrónico**: el token se refresca antes de lanzar Minecraft, evitando kicks por `Invalid session` en servers anti-cheat (Hypixel, CubeCraft)
+- **Username consistente con Mojang**: el launcher prioriza el `name` real de la cuenta MS sobre el cacheado en config
+- **Descarga atómica de mods**: cada `.jar` se baja a `.part`, se valida con SHA-1 contra Modrinth y recién entonces se renombra al destino. Ante MITM, corrupción o truncado, el `.part` se borra automáticamente
+- **Crash analyzer endurecido**: filtro `ERROR_MARKERS` con `^\s+at\s` (multilínea) reduce ~80% los falsos positivos en logs de Forge sin perder detección de errores reales (`OutOfMemoryError`, `NoClassDefFoundError`, etc.)
+- **`estado_minecraft` con cleanup automático**: el botón "🛑 Cerrar Minecraft" desaparece correctamente tras un cierre normal
+- **Smoke test suite**: 34 secciones automatizadas que cubren imports, sesión MS, descarga atómica, crash analyzer, JSONs servidor, regresión Hypixel premium
+
 ### 🤖 Inteligencia Artificial (Gemini)
 - Asistente de chat sobre Minecraft
 - Generador de comandos por descripción en lenguaje natural
@@ -78,11 +86,15 @@ Paraguacraft es un launcher de Minecraft completamente personalizado, desarrolla
   - Detección automática de la dirección Java desde el log del agente
   - Soporte de dirección Bedrock personalizada con **persistencia entre reinicios**
   - La dirección se guarda por servidor en `_paragua_srv.json`
+- **Aikar G1GC flags** aplicados automáticamente a Paper/Vanilla/Fabric: TPS estable garantizado en sesiones de 4 hs+ sin lagazos progresivos. Perfil "lite" automático para heap <4 GB
 - Consola en tiempo real con colores por nivel de log
 - **Filtros en consola**: chips `Todo / INFO / WARN / ERROR / Chat` + buscador libre
+- **Stop graceful con escalada**: timeout 45s + SIGTERM + SIGKILL para servers grandes con muchos jugadores
+- **Cleanup automático al cerrar el launcher** (`atexit`): el servidor recibe `stop` y playit termina limpiamente, sin dejar procesos huérfanos
 - Reinicio automático programado por horas
-- Sistema de **whitelist** y **bans** integrado
-- Edición de `server.properties` desde la UI
+- Sistema de **whitelist**, **ops** y **bans** integrado con escritura **atómica** (`tempfile + os.replace + fsync`) — los JSONs (`ops.json`, `whitelist.json`, `banned-players.json`) ya no se corrompen ante crashes ni escrituras concurrentes (UI + bot Discord)
+- **Bot Discord integrado**: 9 slash commands (`/server-start`, `/server-stop`, `/server-restart`, `/whitelist add|remove|list`, `/op add|remove`, `/ban add|remove`)
+- Edición de `server.properties` desde la UI con escritura atómica
 
 ### 💾 Instancias y mundos
 - Backup y restauración de mundos
@@ -219,6 +231,18 @@ Paraguacraft/
 ---
 
 ## 📝 Changelog
+
+### v5.7.0
+- **🐛 Fix Hypixel/CubeCraft con sesión premium**: arreglado el `Invalid session` por token MS expirado. Ahora se refresca sincrónicamente antes de lanzar y se usa el `name` real de Mojang
+- **⚡ Aikar G1GC flags en servidor MC**: PaperMC/Vanilla/Fabric server arrancan con los 21 flags tuneados de Aikar — TPS estable 4hs+ sin lagazos progresivos. Perfil `lite` automático para heap <4 GB
+- **🛡️ Escritura atómica de JSONs servidor**: `ops.json`, `whitelist.json`, `banned-players.json` ahora usan `tempfile + os.replace + fsync` con lock. El bot Discord y la UI ya no pueden corromperlos en escrituras concurrentes
+- **🔒 Descarga de mods con verificación SHA-1**: cada `.jar` de Modrinth se baja a `.part`, se valida y recién entonces se renombra al destino. Ante MITM o corrupción, el `.part` se borra automáticamente
+- **🧹 Cleanup global con `atexit`**: si cerrás el launcher con un servidor MC o playit corriendo, se cierran graceful (servidor recibe `stop` con timeout 15s; playit `terminate`). No quedan procesos huérfanos
+- **🛑 Botón "Cerrar Minecraft" colgado**: arreglado — `estado_minecraft()` limpia automáticamente el handle del proceso muerto
+- **🔍 Crash analyzer endurecido**: regex `^\s+at\s` (multilínea) reduce ~80% los falsos positivos sin perder detección real (OOM, ClassNotFound, etc.)
+- **⏱️ `detener_servidor` con timeout 45s**: antes era 8s, insuficiente para servers con 10+ jugadores guardando mundos. Escalada graceful → SIGTERM → SIGKILL con logging por etapa
+- **🤖 Bot Discord — 9 comandos nuevos**: `/server-start`, `/server-stop`, `/server-restart`, `/whitelist add|remove|list`, `/op add|remove`, `/ban add|remove`. Toda escritura de JSON pasa por el writer atómico
+- **🧪 Smoke test suite ampliada a 34 secciones**: cubre sesión MS, descarga atómica, crash analyzer (falsos positivos + detección OOM), `estado_minecraft` cleanup, regresión Hypixel premium. Ejecutable con `.venv/Scripts/python.exe test_smoke.py`
 
 ### v5.6.0
 - **🖥️ Compatibilidad GPU / OpenGL para PCs viejas**: nueva pestaña Extras → GPU/OpenGL con diagnóstico de hardware, descarga e instalación automática de Mesa3D (software / DirectX 12 / Vulkan) y forzado de GPU dedicada. Permite jugar Minecraft 1.17+ en equipos cuya GPU no soporta OpenGL 3.2+

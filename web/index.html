@@ -1511,6 +1511,7 @@
                     </div>
                     <div id="panel-launch-row" class="flex gap-2 mt-3 pb-2">
                         <button id="btn-launch-game" onclick="dispararJuego()" class="flex-1 bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black py-3 rounded shadow-[0_0_15px_rgba(46,204,113,0.2)] transition transform hover:scale-[1.01]">▶ JUGAR</button>
+                        <button id="btn-stop-mc" onclick="cerrarMinecraft(false)" oncontextmenu="event.preventDefault(); cerrarMinecraft(true); return false;" class="hidden bg-[#E74C3C] hover:bg-[#C0392B] text-white font-black px-3 py-3 rounded transition" title="Cerrar Minecraft (clic derecho = forzar)">🛑</button>
                         <button type="button" onclick="irATiendaMods()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold px-3 py-3 rounded transition border border-[#333] text-sm" title="Agregar mods a esta instancia">🧩</button>
                         <button type="button" onclick="abrirGestorInstancia()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold px-4 py-3 rounded transition border border-[#333] text-sm">⚙</button>
                     </div>
@@ -3105,7 +3106,12 @@
                         const p = vid.split('.');
                         if (p.length >= 2) { const k = p[0]+'.'+p[1]; (_grupos[k] = _grupos[k]||[]).push(vid); }
                     });
-                    _grupos['26.1'] = ['26.1.1'];
+                    // Fallback Paraguacraft 26.1: SOLO si Mojang aún no publicó
+                    // ninguna versión 26.x. En cuanto aparezca una real, se usa esa.
+                    if (!_grupos['26.1'] || _grupos['26.1'].length === 0) {
+                        const _has26 = Object.keys(_grupos).some(k => k.startsWith('26.'));
+                        if (!_has26) _grupos['26.1'] = ['26.1.1'];
+                    }
                     const _featured = new Set();
                     Object.keys(dataVersionesBase).forEach(k => (_grupos[k]||[]).forEach(v => _featured.add(v)));
                     _grupos['otras'] = _releases.filter(v => !_featured.has(v));
@@ -3556,7 +3562,13 @@
             if (lRow)  lRow.style.display  = '';
             if (bCtrl) bCtrl.classList.add('hidden');
             const d = dataVersionesBase[vM];
-            const etiqueta = vM === 'otras' ? 'Otras versiones' : vM === 'instaladas' ? 'Versiones Instaladas' : ('Paraguacraft ' + vM);
+            const etiquetas = {
+                'otras': 'Otras versiones',
+                'instaladas': 'Versiones Instaladas',
+                'snapshots': 'Snapshots Mojang',
+                'alpha_beta': 'Alpha / Beta clásico',
+            };
+            const etiqueta = etiquetas[vM] || ('Paraguacraft ' + vM);
             document.getElementById('panel-title').innerText = etiqueta;
             document.getElementById('panel-desc').innerText = d.desc;
 
@@ -5749,9 +5761,11 @@
                         _wasRunning = true;
                         const fill = document.getElementById('launch-progress-bar');
                         if (fill && parseFloat(fill.style.width) < 95) fill.style.width = '95%';
+                        _toggleStopButton(true);
                     } else if (_wasRunning || (d.status && d.status !== 'idle')) {
                         clearInterval(_gamePoller); _gamePoller = null;
                         resetLaunchButton();
+                        _toggleStopButton(false);
                     }
                 } catch(e) { /* keep polling on network error */ }
             }, 800);
@@ -5793,6 +5807,36 @@
         function resetLaunchButton() {
             const btn = document.getElementById('btn-launch-game');
             if(btn) { btn.innerText = "▶ JUGAR"; btn.classList.replace('bg-gray-600', 'bg-[#2ECC71]'); btn.disabled = false; }
+            _toggleStopButton(false);
+        }
+
+        // Muestra / oculta el botón "🛑" (cerrar Minecraft) según haya o no
+        // proceso activo. Se invoca desde el game_status poller.
+        function _toggleStopButton(visible) {
+            const stopBtn = document.getElementById('btn-stop-mc');
+            if (!stopBtn) return;
+            if (visible) stopBtn.classList.remove('hidden');
+            else stopBtn.classList.add('hidden');
+        }
+
+        async function cerrarMinecraft(force) {
+            const stopBtn = document.getElementById('btn-stop-mc');
+            if (stopBtn) { stopBtn.disabled = true; stopBtn.innerText = force ? '⏳ KILL' : '⏳'; }
+            try {
+                const r = await pywebview.api.cerrar_minecraft(!!force);
+                if (!r || !r.ok) {
+                    actualizarEstadoPanel('No se pudo cerrar: ' + ((r && r.error) || 'desconocido'));
+                } else {
+                    actualizarEstadoPanel(
+                        force ? `Minecraft forzado a cerrar (rc=${r.rc}).`
+                              : `Minecraft cerrado limpiamente (rc=${r.rc}).`);
+                }
+            } catch(e) {
+                actualizarEstadoPanel('Error cerrando MC: ' + String(e));
+            } finally {
+                if (stopBtn) { stopBtn.disabled = false; stopBtn.innerText = '🛑'; }
+                _toggleStopButton(false);
+            }
         }
 
         // --- ACERCA DEL LAUNCHER ---

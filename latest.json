@@ -1,7 +1,7 @@
 {
-  "version": "5.6.0",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v5.6.0/Paraguacraft.exe",
+  "version": "5.7.0",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v5.7.0/Paraguacraft.exe",
   "size_bytes": 0,
-  "sha256": "bf983716e9f1856ee3db6b5a699625ffa69d35b529c864f8cb6b4443701b1587",
+  "sha256": "78baf5fdee65d09cc0461536cde0528e425e1fb5f14fed1f79203bd13a44d94b",
   "notes": "* Compatibilidad GPU/OpenGL para PCs viejas (Mesa3D integrado: software, DirectX 12, Vulkan)\n* Configs Comunidad: catalogo publico de configuraciones graficas con instalacion 1 clic\n* Backup automatico de mundos antes de cada actualizacion del launcher\n* Probe OpenGL seguro (ya no toca el desktop de Windows)\n* Compatibilidad con Windows 11 24H2+ (PowerShell CIM en vez de WMIC deprecated)\n* Escritura de config atomica + thread-safe (previene corrupcion de paraguacraft_config.json)\n* Wizard inicial: ahora vuelve a abrir correctamente tras cerrarse"
 }

@@ -4,6 +4,79 @@ import hashlib
 import shutil
 import minecraft_launcher_lib
 
+# Tamaño mínimo razonable del binario playit (~ 5 MB en releases recientes).
+# Si la descarga termina por debajo de esto la consideramos truncada.
+_PLAYIT_MIN_BYTES = 2_000_000  # 2 MB de margen por si releases nuevos son más chicos
+
+
+def descargar_playit_exe(carpeta_server, callback_progreso):
+    """Descarga `playit.exe` de la última release oficial de GitHub.
+
+    Validación:
+      - Solo .exe Windows
+      - Tamaño >= _PLAYIT_MIN_BYTES
+      - Si falla cualquier validación, borra el archivo a medio bajar para que
+        el siguiente intento no se quede con un .exe corrupto.
+
+    No lanza: reporta vía callback. Devuelve True/False.
+    """
+    playit_path = os.path.join(carpeta_server, "playit.exe")
+    # Si ya existe Y tiene tamaño razonable, no re-descarga
+    if os.path.exists(playit_path) and os.path.getsize(playit_path) >= _PLAYIT_MIN_BYTES:
+        callback_progreso("playit.exe ya existe y es válido.")
+        return True
+    # Si existe pero es chico, lo borramos
+    if os.path.exists(playit_path):
+        try:
+            os.remove(playit_path)
+            callback_progreso("playit.exe existente era demasiado chico, re-descargando...")
+        except OSError as _re:
+            callback_progreso(f"⚠️ No se pudo borrar playit.exe corrupto: {_re}")
+
+    try:
+        api_r = requests.get(
+            "https://api.github.com/repos/playit-cloud/playit-agent/releases/latest",
+            timeout=15, headers={"Accept": "application/vnd.github+json"})
+        api_r.raise_for_status()
+        assets = api_r.json().get("assets", [])
+        exe_url = None
+        for asset in assets:
+            n = asset["name"].lower()
+            if n.endswith(".exe") and ("win" in n or "windows" in n):
+                exe_url = asset["browser_download_url"]
+                break
+        if not exe_url:
+            callback_progreso("⚠️ No se encontró un .exe de Windows en el release de playit.")
+            return False
+        tag = api_r.json().get("tag_name", "")
+        callback_progreso(f"Descargando playit.exe {tag}...")
+        r_p = requests.get(exe_url, stream=True, timeout=(20, 300))
+        r_p.raise_for_status()
+        tmp_path = playit_path + ".part"
+        downloaded = 0
+        with open(tmp_path, "wb") as _f:
+            for chunk in r_p.iter_content(chunk_size=65536):
+                if chunk:
+                    _f.write(chunk)
+                    downloaded += len(chunk)
+        if downloaded < _PLAYIT_MIN_BYTES:
+            try: os.remove(tmp_path)
+            except OSError: pass
+            callback_progreso(
+                f"⚠️ Descarga truncada ({downloaded} bytes < {_PLAYIT_MIN_BYTES}). "
+                f"Borrado. Reintentá o descargá manualmente desde playit.gg")
+            return False
+        os.replace(tmp_path, playit_path)
+        callback_progreso(f"✅ playit.exe descargado ({downloaded/1048576:.1f} MB).")
+        return True
+    except requests.RequestException as _e:
+        callback_progreso(f"⚠️ Error de red descargando playit.exe: {_e}")
+        return False
+    except OSError as _e:
+        callback_progreso(f"⚠️ Error de E/S guardando playit.exe: {_e}")
+        return False
+
+
 class GestorMods:
     @staticmethod
     def calcular_sha1(ruta):
@@ -254,19 +327,31 @@ class CreadorServidor:
                                         f"{downloaded/1048576:.1f}/{total_bytes/1048576:.1f} MB ({pct}%)")
                 callback_progreso(f"[2/7] PaperMC descargado ({downloaded/1048576:.1f} MB).")
 
-            # 3. Descargar plugins ViaVersion + ViaBackwards (multi-versión de clientes)
+            # 3. Descargar plugins en PARALELO (S5).
+            #
+            # Cada plugin es independiente del resto: HTTP a una URL distinta,
+            # destino distinto, sin estado compartido. Usamos un ThreadPoolExecutor
+            # de hasta 4 workers — saturar más conexiones puede triggerear
+            # rate-limits en GitHub o Modrinth y NO acelera (ya estamos limited
+            # por bandwidth, no por concurrencia).
+            #
+            # callback_progreso es thread-safe a nivel de uso (solo append/log),
+            # pero serializamos los mensajes con un Lock para que no se entrelacen
+            # caracteres en stdout / UI.
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+            import threading as _th
             plugins_dir = os.path.join(carpeta_server, "plugins")
             os.makedirs(plugins_dir, exist_ok=True)
+            _cb_lock = _th.Lock()
+            def _cb(msg):
+                with _cb_lock:
+                    callback_progreso(msg)
 
-            for plugin_name, repo in [
-                ("ViaVersion",   "ViaVersion/ViaVersion"),
-                ("ViaBackwards", "ViaVersion/ViaBackwards"),
-            ]:
-                plugin_path = os.path.join(plugins_dir, f"{plugin_name}.jar")
-                if os.path.exists(plugin_path):
-                    callback_progreso(f"[3/7] {plugin_name}.jar ya existe.")
-                    continue
-                callback_progreso(f"[3/7] Descargando {plugin_name}...")
+            def _bajar_plugin_github(plugin_name, repo, dest):
+                if os.path.exists(dest) and os.path.getsize(dest) > 100_000:
+                    _cb(f"[3/7] {plugin_name}.jar ya existe.")
+                    return True
+                _cb(f"[3/7] Descargando {plugin_name}...")
                 try:
                     api_r = requests.get(
                         f"https://api.github.com/repos/{repo}/releases/latest",
@@ -278,101 +363,134 @@ class CreadorServidor:
                          if a["name"].lower().endswith(".jar")
                          and "sources" not in a["name"].lower()
                          and "javadoc" not in a["name"].lower()),
-                        None
-                    )
-                    if jar_url:
-                        r_plugin = requests.get(jar_url, stream=True, timeout=(15, 120))
-                        r_plugin.raise_for_status()
-                        with open(plugin_path, "wb") as f:
-                            import shutil
-                            shutil.copyfileobj(r_plugin.raw, f)
-                        callback_progreso(f"[3/7] {plugin_name} instalado en plugins/")
-                    else:
-                        callback_progreso(f"⚠️ No se encontró .jar para {plugin_name} en GitHub.")
-                except Exception as e:
-                    callback_progreso(f"⚠️ Error descargando {plugin_name}: {e}")
+                        None)
+                    if not jar_url:
+                        _cb(f"⚠️ No se encontró .jar para {plugin_name} en GitHub.")
+                        return False
+                    tmp = dest + ".part"
+                    r_plugin = requests.get(jar_url, stream=True, timeout=(15, 120))
+                    r_plugin.raise_for_status()
+                    with open(tmp, "wb") as f:
+                        shutil.copyfileobj(r_plugin.raw, f, length=65536)
+                    if os.path.getsize(tmp) < 50_000:
+                        os.remove(tmp); _cb(f"⚠️ {plugin_name}: descarga truncada."); return False
+                    os.replace(tmp, dest)
+                    _cb(f"[3/7] {plugin_name} instalado en plugins/")
+                    return True
+                except (requests.RequestException, OSError) as e:
+                    _cb(f"⚠️ Error descargando {plugin_name}: {e}")
+                    return False
 
-            # 3b. SkinsRestorer plugin (para todos los tipos de server Paper)
-            sr_plugin_path = os.path.join(plugins_dir, "SkinsRestorer.jar")
-            if not (os.path.exists(sr_plugin_path) and os.path.getsize(sr_plugin_path) > 100_000):
-                callback_progreso("[3b/7] Descargando SkinsRestorer...")
+            def _bajar_plugin_modrinth(slug, dest, label, loaders, ver):
+                if os.path.exists(dest) and os.path.getsize(dest) > 100_000:
+                    _cb(f"[3b/7] {label}.jar ya existe.")
+                    return True
+                _cb(f"[3b/7] Descargando {label}...")
                 try:
+                    headers = {"User-Agent": "ParaguacraftLauncher/2.0"}
                     sr_r = requests.get(
-                        "https://api.modrinth.com/v2/project/skinsrestorer/version",
-                        params={"loaders": '["paper","spigot","bukkit"]',
-                                "game_versions": f'["{ver_server}"]'},
-                        timeout=10, headers={"User-Agent": "ParaguacraftLauncher/2.0"})
-                    sr_vers = sr_r.json() if sr_r.status_code == 200 else []
-                    if not sr_vers:  # sin filtro de versión si no hay match exacto
+                        f"https://api.modrinth.com/v2/project/{slug}/version",
+                        params={"loaders": loaders, "game_versions": f'["{ver}"]'},
+                        timeout=10, headers=headers)
+                    vers = sr_r.json() if sr_r.status_code == 200 else []
+                    if not vers:
                         sr_r2 = requests.get(
-                            "https://api.modrinth.com/v2/project/skinsrestorer/version",
-                            params={"loaders": '["paper","spigot","bukkit"]'},
-                            timeout=10, headers={"User-Agent": "ParaguacraftLauncher/2.0"})
-                        sr_vers = sr_r2.json() if sr_r2.status_code == 200 else []
-                    if sr_vers:
-                        sr_file = next((f for f in sr_vers[0]["files"] if f.get("primary")), sr_vers[0]["files"][0])
-                        r_sr = requests.get(sr_file["url"], stream=True, timeout=(15, 120), allow_redirects=True)
-                        r_sr.raise_for_status()
-                        with open(sr_plugin_path, "wb") as f:
-                            shutil.copyfileobj(r_sr.raw, f, length=65536)
-                        callback_progreso("✅ SkinsRestorer instalado en plugins/")
-                    else:
-                        callback_progreso("⚠️ SkinsRestorer no disponible para esta versión en Modrinth.")
-                except Exception as e_sr:
-                    callback_progreso(f"⚠️ SkinsRestorer no descargado: {e_sr}")
+                            f"https://api.modrinth.com/v2/project/{slug}/version",
+                            params={"loaders": loaders}, timeout=10, headers=headers)
+                        vers = sr_r2.json() if sr_r2.status_code == 200 else []
+                    if not vers:
+                        _cb(f"⚠️ {label} no disponible para esta versión en Modrinth.")
+                        return False
+                    sr_file = next((f for f in vers[0]["files"] if f.get("primary")), vers[0]["files"][0])
+                    tmp = dest + ".part"
+                    r_sr = requests.get(sr_file["url"], stream=True, timeout=(15, 120), allow_redirects=True)
+                    r_sr.raise_for_status()
+                    with open(tmp, "wb") as f:
+                        shutil.copyfileobj(r_sr.raw, f, length=65536)
+                    if os.path.getsize(tmp) < 50_000:
+                        os.remove(tmp); _cb(f"⚠️ {label}: descarga truncada."); return False
+                    os.replace(tmp, dest)
+                    _cb(f"✅ {label} instalado en plugins/")
+                    return True
+                except (requests.RequestException, OSError) as e:
+                    _cb(f"⚠️ {label} no descargado: {e}")
+                    return False
 
-            # 3c. Geyser + Floodgate (soporte Bedrock)
-            if tipo == 'paper-geyser':
-                for plugin_name, slug, hangar_owner, hangar_slug in [
-                    ("Geyser-Spigot",    "geyser",    "GeyserMC", "Geyser-Spigot"),
-                    ("Floodgate-Spigot", "floodgate", "GeyserMC", "Floodgate"),
-                ]:
-                    plugin_path = os.path.join(plugins_dir, f"{plugin_name}.jar")
-                    if os.path.exists(plugin_path) and os.path.getsize(plugin_path) > 100_000:
-                        callback_progreso(f"[3c/7] {plugin_name}.jar ya existe.")
+            def _bajar_geyser(plugin_name, slug, hangar_owner, hangar_slug, dest):
+                if os.path.exists(dest) and os.path.getsize(dest) > 100_000:
+                    _cb(f"[3c/7] {plugin_name}.jar ya existe.")
+                    return True
+                _cb(f"[3c/7] Descargando {plugin_name} (soporte Bedrock)...")
+                # Intento 1: download.geysermc.org
+                for platform in ("spigot", "paper"):
+                    try:
+                        dl_url = f"https://download.geysermc.org/v2/projects/{slug}/versions/latest/builds/latest/downloads/{platform}"
+                        r_g = requests.get(dl_url, stream=True, timeout=(20, 180), allow_redirects=True)
+                        r_g.raise_for_status()
+                        tmp = dest + ".part"
+                        with open(tmp, "wb") as f:
+                            shutil.copyfileobj(r_g.raw, f, length=65536)
+                        if os.path.getsize(tmp) > 100_000:
+                            os.replace(tmp, dest)
+                            _cb(f"[3c/7] {plugin_name} instalado (geysermc.org).")
+                            return True
+                        os.remove(tmp)
+                    except (requests.RequestException, OSError):
                         continue
-                    callback_progreso(f"[3c/7] Descargando {plugin_name} (soporte Bedrock)...")
-                    downloaded = False
-                    # Intento 1: download.geysermc.org
-                    for platform in ("spigot", "paper"):
-                        if downloaded:
-                            break
-                        try:
-                            dl_url = f"https://download.geysermc.org/v2/projects/{slug}/versions/latest/builds/latest/downloads/{platform}"
-                            r_g = requests.get(dl_url, stream=True, timeout=(20, 180), allow_redirects=True)
-                            r_g.raise_for_status()
-                            with open(plugin_path, "wb") as f:
-                                shutil.copyfileobj(r_g.raw, f, length=65536)
-                            if os.path.getsize(plugin_path) > 100_000:
-                                downloaded = True
-                                callback_progreso(f"[3b/7] {plugin_name} instalado (geysermc.org).")
-                            else:
-                                os.remove(plugin_path)
-                        except Exception:
-                            pass
-                    # Intento 2: Hangar API (papermc.io)
-                    if not downloaded:
-                        try:
-                            callback_progreso(f"[3b/7] Fallback Hangar para {plugin_name}...")
-                            ver_r = requests.get(
-                                f"https://hangar.papermc.io/api/v1/projects/{hangar_owner}/{hangar_slug}/latestrelease",
-                                timeout=15, headers={"User-Agent": "ParaguacraftLauncher/2.0"})
-                            ver_name = ver_r.text.strip().strip('"')
-                            dl_url2 = f"https://hangar.papermc.io/api/v1/projects/{hangar_owner}/{hangar_slug}/versions/{ver_name}/PAPER/download"
-                            r_h = requests.get(dl_url2, stream=True, timeout=(20, 180),
-                                               allow_redirects=True, headers={"User-Agent": "ParaguacraftLauncher/2.0"})
-                            r_h.raise_for_status()
-                            with open(plugin_path, "wb") as f:
-                                shutil.copyfileobj(r_h.raw, f, length=65536)
-                            if os.path.getsize(plugin_path) > 100_000:
-                                downloaded = True
-                                callback_progreso(f"[3b/7] {plugin_name} instalado (Hangar).")
-                            else:
-                                os.remove(plugin_path)
-                        except Exception as e2:
-                            callback_progreso(f"[3b/7] Fallback Hangar falló: {e2}")
-                    if not downloaded:
-                        callback_progreso(f"⚠️ No se pudo descargar {plugin_name}. Instalalo manualmente desde geysermc.org")
+                # Intento 2: Hangar API
+                try:
+                    _cb(f"[3c/7] Fallback Hangar para {plugin_name}...")
+                    ver_r = requests.get(
+                        f"https://hangar.papermc.io/api/v1/projects/{hangar_owner}/{hangar_slug}/latestrelease",
+                        timeout=15, headers={"User-Agent": "ParaguacraftLauncher/2.0"})
+                    ver_name = ver_r.text.strip().strip('"')
+                    dl_url2 = f"https://hangar.papermc.io/api/v1/projects/{hangar_owner}/{hangar_slug}/versions/{ver_name}/PAPER/download"
+                    r_h = requests.get(dl_url2, stream=True, timeout=(20, 180),
+                                       allow_redirects=True, headers={"User-Agent": "ParaguacraftLauncher/2.0"})
+                    r_h.raise_for_status()
+                    tmp = dest + ".part"
+                    with open(tmp, "wb") as f:
+                        shutil.copyfileobj(r_h.raw, f, length=65536)
+                    if os.path.getsize(tmp) > 100_000:
+                        os.replace(tmp, dest)
+                        _cb(f"[3c/7] {plugin_name} instalado (Hangar).")
+                        return True
+                    os.remove(tmp)
+                except (requests.RequestException, OSError) as e2:
+                    _cb(f"[3c/7] Fallback Hangar falló: {e2}")
+                _cb(f"⚠️ No se pudo descargar {plugin_name}. Instalalo manualmente desde geysermc.org")
+                return False
+
+            # Construimos la lista de tareas paralelas
+            tareas = []
+            for nm, repo in [("ViaVersion", "ViaVersion/ViaVersion"),
+                             ("ViaBackwards", "ViaVersion/ViaBackwards")]:
+                tareas.append(("github", nm, repo,
+                               os.path.join(plugins_dir, f"{nm}.jar")))
+            tareas.append(("modrinth", "skinsrestorer",
+                           os.path.join(plugins_dir, "SkinsRestorer.jar"),
+                           "SkinsRestorer", '["paper","spigot","bukkit"]', ver_server))
+            if tipo == 'paper-geyser':
+                tareas.append(("geyser", "Geyser-Spigot", "geyser", "GeyserMC",
+                               "Geyser-Spigot",
+                               os.path.join(plugins_dir, "Geyser-Spigot.jar")))
+                tareas.append(("geyser", "Floodgate-Spigot", "floodgate", "GeyserMC",
+                               "Floodgate",
+                               os.path.join(plugins_dir, "Floodgate-Spigot.jar")))
+
+            with ThreadPoolExecutor(max_workers=4) as ex:
+                futs = []
+                for t in tareas:
+                    if t[0] == "github":
+                        futs.append(ex.submit(_bajar_plugin_github, t[1], t[2], t[3]))
+                    elif t[0] == "modrinth":
+                        futs.append(ex.submit(_bajar_plugin_modrinth, t[1], t[2], t[3], t[4], t[5]))
+                    elif t[0] == "geyser":
+                        futs.append(ex.submit(_bajar_geyser, t[1], t[2], t[3], t[4], t[5]))
+                # Esperamos a todas (no relanzamos excepciones — cada tarea ya
+                # las captura y reporta vía _cb).
+                for _ in as_completed(futs):
+                    pass
 
             # 4. EULA
             callback_progreso("[4/7] Aceptando EULA...")
@@ -418,35 +536,9 @@ class CreadorServidor:
             with open(os.path.join(carpeta_server, "iniciar_server.bat"), "w", encoding="utf-8") as f:
                 f.write(bat_content)
 
-            # 7. Descarga playit.exe (sincrónico, busca URL correcta via GitHub API)
-            playit_path = os.path.join(carpeta_server, "playit.exe")
-            if not os.path.exists(playit_path):
-                callback_progreso("[7/7] Buscando última versión de playit.exe...")
-                try:
-                    api_r = requests.get(
-                        "https://api.github.com/repos/playit-cloud/playit-agent/releases/latest",
-                        timeout=15, headers={"Accept": "application/vnd.github+json"})
-                    api_r.raise_for_status()
-                    assets = api_r.json().get("assets", [])
-                    exe_url = None
-                    for asset in assets:
-                        n = asset["name"].lower()
-                        if n.endswith(".exe") and ("win" in n or "windows" in n):
-                            exe_url = asset["browser_download_url"]
-                            break
-                    if not exe_url:
-                        raise Exception("No se encontró un .exe de Windows en los assets del release.")
-                    tag = api_r.json().get("tag_name", "")
-                    callback_progreso(f"[7/7] Descargando playit.exe {tag}...")
-                    r_p = requests.get(exe_url, stream=True, timeout=(20, 300))
-                    r_p.raise_for_status()
-                    with open(playit_path, "wb") as _f:
-                        shutil.copyfileobj(r_p.raw, _f, length=65536)
-                    callback_progreso("[7/7] playit.exe descargado.")
-                except Exception as _e:
-                    callback_progreso(f"⚠️ playit.exe no descargado: {_e}. Descargalo manualmente desde playit.gg")
-            else:
-                callback_progreso("[7/7] playit.exe ya existe.")
+            # 7. Descarga playit.exe con validación de tamaño (helper centralizada)
+            callback_progreso("[7/7] Verificando playit.exe...")
+            descargar_playit_exe(carpeta_server, callback_progreso)
 
             callback_progreso("✅ Servidor PaperMC listo. Compatible con clientes 1.8 - última versión.")
             callback_progreso("✅ Plugins: ViaVersion + ViaBackwards instalados en plugins/")
@@ -607,30 +699,7 @@ class CreadorServidor:
             with open(os.path.join(carpeta_server, "iniciar_server.bat"), "w", encoding="utf-8") as f:
                 f.write(bat)
 
-            playit_path = os.path.join(carpeta_server, "playit.exe")
-            if not os.path.exists(playit_path):
-                try:
-                    api_r = requests.get(
-                        "https://api.github.com/repos/playit-cloud/playit-agent/releases/latest",
-                        timeout=15, headers={"Accept": "application/vnd.github+json"})
-                    api_r.raise_for_status()
-                    exe_url = next(
-                        (a["browser_download_url"] for a in api_r.json().get("assets", [])
-                         if a["name"].lower().endswith(".exe") and
-                         ("win" in a["name"].lower() or "windows" in a["name"].lower())),
-                        None)
-                    if exe_url:
-                        r_p = requests.get(exe_url, stream=True, timeout=(20, 300))
-                        r_p.raise_for_status()
-                        with open(playit_path, "wb") as _f:
-                            shutil.copyfileobj(r_p.raw, _f, length=65536)
-                        callback_progreso("playit.exe descargado.")
-                    else:
-                        callback_progreso("⚠️ playit.exe no encontrado, descargalo de playit.gg")
-                except Exception as e:
-                    callback_progreso(f"⚠️ playit.exe no descargado: {e}")
-            else:
-                callback_progreso("playit.exe ya existe.")
+            descargar_playit_exe(carpeta_server, callback_progreso)
 
             os.makedirs(os.path.join(carpeta_server, "mods"), exist_ok=True)
             callback_progreso("✅ Servidor Fabric listo. Coloca tus mods .jar en la carpeta mods/")
@@ -797,30 +866,9 @@ class CreadorServidor:
                 with open(eula_path, "w", encoding="utf-8") as _fe:
                     _fe.write("eula=true\n")
 
-            # Descargar playit.exe
-            callback_progreso("[4/5] Descargando playit.exe...")
-            playit_path = os.path.join(carpeta_server, "playit.exe")
-            if not os.path.exists(playit_path):
-                try:
-                    api_r = requests.get(
-                        "https://api.github.com/repos/playit-cloud/playit-agent/releases/latest",
-                        timeout=15, headers={"Accept": "application/vnd.github+json"})
-                    api_r.raise_for_status()
-                    exe_url = next(
-                        (a["browser_download_url"] for a in api_r.json().get("assets", [])
-                         if a["name"].lower().endswith(".exe") and
-                         ("win" in a["name"].lower() or "windows" in a["name"].lower())),
-                        None)
-                    if exe_url:
-                        r_p = requests.get(exe_url, stream=True, timeout=(20, 300))
-                        r_p.raise_for_status()
-                        with open(playit_path, "wb") as _fp:
-                            shutil.copyfileobj(r_p.raw, _fp, length=65536)
-                        callback_progreso("playit.exe descargado.")
-                    else:
-                        callback_progreso("⚠️ playit.exe no encontrado, descargalo de playit.gg")
-                except Exception as _pe:
-                    callback_progreso(f"⚠️ playit.exe no descargado: {_pe}")
+            # Descargar playit.exe (helper centralizada con validación de tamaño)
+            callback_progreso("[4/5] Verificando playit.exe...")
+            descargar_playit_exe(carpeta_server, callback_progreso)
 
             callback_progreso(f"[5/5] ✅ Servidor Forge {full_id} listo.")
             callback_progreso("ℹ️ Forge requiere que todos los jugadores tengan los mismos mods instalados en el cliente.")
