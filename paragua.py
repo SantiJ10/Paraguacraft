@@ -45,7 +45,7 @@ except Exception:
     log = logging.getLogger("paraguacraft.main")
     _LOG_PATH = ""
 
-VERSION = "5.7.0"  # Actualizar en cada release
+VERSION = "5.8.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 # Opcional: URL de Cloudflare Pages con latest.json (sin rate limits, CDN global)
 # Formato del JSON: {"version":"5.2.0", "download_url":"...", "size_bytes":0, "notes":"..."}
@@ -3116,10 +3116,13 @@ class Api:
             if _ram_custom and str(_ram_custom) != 'auto':
                 xmx = max(1, int(_ram_custom))
             else:
+                # Usa la mitad de la RAM de la PC (tope 8GB en auto)
                 xmx = max(1, min(8, int(total_gb * 0.5)))
-            xms = max(512, xmx * 256)
+            
+            # 🚀 FIX: Hacemos que el Mínimo y el Máximo sean IDÉNTICOS
             xmx_flag = f"-Xmx{xmx}G"
-            xms_flag = f"-Xms{xms}M" if xms < 1024 else f"-Xms{xms // 1024}G"
+            xms_flag = f"-Xms{xmx}G"
+            
             with self._servidor_lock:
                 self._servidor_log.append(f"[SERVER] RAM asignada: {xms_flag} min / {xmx_flag} max (sistema: {total_gb:.1f} GB)")
             flags = subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0
