@@ -1,7 +1,7 @@
 {
-  "version": "5.7.0",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v5.7.0/Paraguacraft.exe",
+  "version": "5.8.0",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v5.8.0/Paraguacraft.exe",
   "size_bytes": 0,
-  "sha256": "78baf5fdee65d09cc0461536cde0528e425e1fb5f14fed1f79203bd13a44d94b",
-  "notes": "* Compatibilidad GPU/OpenGL para PCs viejas (Mesa3D integrado: software, DirectX 12, Vulkan)\n* Configs Comunidad: catalogo publico de configuraciones graficas con instalacion 1 clic\n* Backup automatico de mundos antes de cada actualizacion del launcher\n* Probe OpenGL seguro (ya no toca el desktop de Windows)\n* Compatibilidad con Windows 11 24H2+ (PowerShell CIM en vez de WMIC deprecated)\n* Escritura de config atomica + thread-safe (previene corrupcion de paraguacraft_config.json)\n* Wizard inicial: ahora vuelve a abrir correctamente tras cerrarse"
+  "sha256": "9487f03ca361fcf6d1a8863bb067e800b2822c7ef0102e735bef96c8a98e7562",
+  "notes": "* Fix Hypixel/CubeCraft con sesion premium (token MS sincronico + name real de Mojang)\n* Servidor MC con Aikar G1GC: TPS estable 4hs+ sin lagazos\n* JSONs servidor (ops/whitelist/banned) con escritura atomica + lock\n* Descarga de mods con verificacion SHA-1 contra Modrinth\n* Cleanup automatico al cerrar el launcher (servidor + playit graceful)\n* Boton 'Cerrar Minecraft' ya no queda colgado tras cierre normal\n* Crash analyzer: 80% menos falsos positivos\n* Bot Discord con 9 comandos nuevos para administrar el servidor\n* Suite de smoke tests ampliada a 34 secciones"
 }
