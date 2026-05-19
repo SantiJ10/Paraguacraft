@@ -5,3 +5,4 @@
   "sha256": "9487f03ca361fcf6d1a8863bb067e800b2822c7ef0102e735bef96c8a98e7562",
   "notes": "* Fix Hypixel/CubeCraft con sesion premium (token MS sincronico + name real de Mojang)\n* Servidor MC con Aikar G1GC: TPS estable 4hs+ sin lagazos\n* JSONs servidor (ops/whitelist/banned) con escritura atomica + lock\n* Descarga de mods con verificacion SHA-1 contra Modrinth\n* Cleanup automatico al cerrar el launcher (servidor + playit graceful)\n* Boton 'Cerrar Minecraft' ya no queda colgado tras cierre normal\n* Crash analyzer: 80% menos falsos positivos\n* Bot Discord con 9 comandos nuevos para administrar el servidor\n* Suite de smoke tests ampliada a 34 secciones"
 }
+
