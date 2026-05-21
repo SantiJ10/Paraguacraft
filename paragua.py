@@ -45,7 +45,7 @@ except Exception:
     log = logging.getLogger("paraguacraft.main")
     _LOG_PATH = ""
 
-VERSION = "5.8.0"  # Actualizar en cada release
+VERSION = "5.9.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 # Opcional: URL de Cloudflare Pages con latest.json (sin rate limits, CDN global)
 # Formato del JSON: {"version":"5.2.0", "download_url":"...", "size_bytes":0, "notes":"..."}
@@ -280,8 +280,13 @@ class Api:
         if saved_refresh:
             self._spotify_refresh = saved_refresh
         saved_srv = self.config_actual.get("srv_carpeta", "")
-        if saved_srv and os.path.exists(saved_srv):
-            self._servidor_carpeta = saved_srv
+        if saved_srv:
+            # Aunque la carpeta no exista en ESTA PC (ej: instalación nueva o
+            # carpeta en otra unidad), guardamos la referencia para que la UI
+            # pueda ofrecer "Re-localizar" en vez de borrar silenciosamente.
+            self._servidor_carpeta = saved_srv if os.path.isdir(saved_srv) else ""
+            if not os.path.isdir(saved_srv):
+                log.info("[srv] srv_carpeta guardada no existe en esta PC: %s", saved_srv)
         saved_cf_key = self.config_actual.get("cf_api_key", "")
         if saved_cf_key:
             self._CF_API_KEY = saved_cf_key
@@ -1293,47 +1298,92 @@ class Api:
             return {}
 
     def get_versiones_instaladas(self):
-        """Escanea .minecraft/versions/ y detecta versiones instaladas con su loader."""
+        """Detecta instancias instaladas con su loader real.
+
+        Estrategia (por prioridad):
+        1) Escanea `.minecraft/instancias/` — fuente de verdad del motor elegido
+           (formato `Paraguacraft_<version>_<motor_safe>` donde
+           motor_safe = motor.replace(" ", "_").replace("+", "Plus")).
+           Esto distingue correctamente "Fabric" vs "Fabric + Iris" (que comparten
+           la misma carpeta `fabric-loader-*` en `versions/` y antes se confundían).
+        2) Como fallback agrega versiones presentes en `.minecraft/versions/` que
+           todavía no tengan instancia creada (recién instaladas).
+        """
         try:
             import minecraft_launcher_lib, re as _re
             mc_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
-            versions_dir = os.path.join(mc_dir, "versions")
-            if not os.path.isdir(versions_dir):
-                return {"ok": True, "instaladas": []}
             result = []
             extras = []
             seen = set()
-            for v in sorted(os.listdir(versions_dir)):
-                if not os.path.exists(os.path.join(versions_dir, v, v + ".json")):
-                    continue
-                version_base = None
-                motor = None
-                if v.startswith("fabric-loader-"):
-                    parts = v.split("-")
-                    version_base = parts[-1]
-                    motor = "Fabric"
-                elif "OptiFine" in v:
-                    if "_OptiFine" in v:
-                        version_base = v.split("_OptiFine")[0]
-                    else:
-                        version_base = v.split("-OptiFine")[0]
-                    motor = "OptiFine"
-                elif _re.search(r"-forge", v, _re.IGNORECASE):
-                    m = _re.match(r"^(\d+\.\d+(?:\.\d+)?)-forge", v, _re.IGNORECASE)
-                    if m:
-                        version_base = m.group(1)
-                        motor = "Forge"
-                if version_base and motor:
-                    parts = version_base.split(".")
-                    group_key = f"{parts[0]}.{parts[1]}" if len(parts) >= 2 else ""
-                    key = (version_base, motor)
-                    if key in seen:
+
+            def _bucket(version_base, motor):
+                key = (version_base, motor)
+                if key in seen:
+                    return
+                seen.add(key)
+                parts = version_base.split(".")
+                group_key = f"{parts[0]}.{parts[1]}" if len(parts) >= 2 else ""
+                entry = {"version": version_base, "motor": motor}
+                if group_key in FEATURED_VERSION_KEYS:
+                    extras.append(entry)
+                else:
+                    result.append(entry)
+
+            # 1) Instancias reales (incluye Fabric+Iris, NeoForge, Quilt, etc.)
+            inst_dir = os.path.join(mc_dir, "instancias")
+            if os.path.isdir(inst_dir):
+                # Reverso de carpeta_instancia_paraguacraft: "Plus" → "+", "_" → " ".
+                # Aplicamos en ese orden y luego colapsamos espacios para que
+                # "Fabric_Plus_Iris" → "Fabric + Iris" sin dobles espacios.
+                for entry in sorted(os.listdir(inst_dir)):
+                    if not entry.startswith("Paraguacraft_"):
                         continue
-                    seen.add(key)
-                    if group_key in FEATURED_VERSION_KEYS:
-                        extras.append({"version": version_base, "motor": motor})
-                    else:
-                        result.append({"version": version_base, "motor": motor})
+                    if not os.path.isdir(os.path.join(inst_dir, entry)):
+                        continue
+                    m = _re.match(r"^Paraguacraft_(\d+(?:\.\d+){0,2})_(.+)$", entry)
+                    if not m:
+                        continue
+                    version_base = m.group(1)
+                    motor_safe = m.group(2)
+                    motor = motor_safe.replace("Plus", "+").replace("_", " ").strip()
+                    motor = _re.sub(r"\s+", " ", motor)
+                    _bucket(version_base, motor)
+
+            # 2) Fallback: versiones en versions/ sin instancia todavía
+            versions_dir = os.path.join(mc_dir, "versions")
+            if os.path.isdir(versions_dir):
+                for v in sorted(os.listdir(versions_dir)):
+                    if not os.path.exists(os.path.join(versions_dir, v, v + ".json")):
+                        continue
+                    version_base = None
+                    motor = None
+                    if v.startswith("fabric-loader-"):
+                        parts = v.split("-")
+                        version_base = parts[-1]
+                        motor = "Fabric"
+                    elif v.startswith("quilt-loader-"):
+                        parts = v.split("-")
+                        version_base = parts[-1]
+                        motor = "Quilt"
+                    elif "OptiFine" in v:
+                        if "_OptiFine" in v:
+                            version_base = v.split("_OptiFine")[0]
+                        else:
+                            version_base = v.split("-OptiFine")[0]
+                        motor = "OptiFine"
+                    elif _re.search(r"-neoforge", v, _re.IGNORECASE):
+                        mm = _re.match(r"^(\d+\.\d+(?:\.\d+)?)-neoforge", v, _re.IGNORECASE)
+                        if mm:
+                            version_base = mm.group(1)
+                            motor = "NeoForge"
+                    elif _re.search(r"-forge", v, _re.IGNORECASE):
+                        mm = _re.match(r"^(\d+\.\d+(?:\.\d+)?)-forge", v, _re.IGNORECASE)
+                        if mm:
+                            version_base = mm.group(1)
+                            motor = "Forge"
+                    if version_base and motor:
+                        _bucket(version_base, motor)
+
             return {"ok": True, "instaladas": result, "extras": extras}
         except Exception as e:
             return {"ok": False, "error": str(e), "instaladas": []}
@@ -1430,7 +1480,13 @@ class Api:
                         session_start = int(time.time())
                     elif "Connecting to" in linea:
                         ip = linea.split("Connecting to ")[1].split(",")[0].split(":")[0].strip()
-                        estado_actual = f"🌐 Multijugador: {ip}"
+                        nombre_server = next(
+                            (s.get("nombre") for s in
+                             self.config_actual.get("servidores_personalizados", [])
+                             if s.get("ip", "").split(":")[0] == ip),
+                            ip
+                        )
+                        estado_actual = f"🌐 {nombre_server}"
                         en_mundo = True
                         session_start = int(time.time())
                     elif "Starting integrated minecraft server" in linea:
@@ -2930,7 +2986,7 @@ class Api:
             self._servidor_creando = True
             tipo = tipo or 'paper'
             try:
-                _srv_cfg = {'tipo': self._servidor_tipo}
+                _srv_cfg = {'tipo': self._servidor_tipo, 'version': version}
                 if ram_gb and str(ram_gb) != 'auto':
                     _srv_cfg['ram_gb'] = int(ram_gb)
                 with open(os.path.join(carpeta, '_paragua_srv.json'), 'w') as _f:
@@ -3005,12 +3061,160 @@ class Api:
         return {"ok": True, "servidores": result}
 
     def activar_servidor(self, carpeta):
-        if not os.path.exists(os.path.join(carpeta, "server.jar")):
-            return {"ok": False, "error": "No se encontr\u00f3 server.jar en esa carpeta"}
+        # Aceptamos tanto Paper (server.jar) como Fabric (fabric-server-launch.jar)
+        if not (os.path.exists(os.path.join(carpeta, "server.jar")) or
+                os.path.exists(os.path.join(carpeta, "fabric-server-launch.jar"))):
+            return {"ok": False, "error": "No se encontró server.jar ni fabric-server-launch.jar en esa carpeta"}
         self._servidor_carpeta = carpeta
         self.config_actual["srv_carpeta"] = carpeta
         threading.Thread(target=self._guardar, daemon=True).start()
         return {"ok": True, "carpeta": carpeta}
+
+    def _detectar_version_servidor(self, carpeta):
+        """Mejor esfuerzo para sacar la versión MC de un server.
+
+        Estrategia:
+        1) `version_history.json` (PaperMC lo crea con `currentVersion`).
+        2) Patrón en el nombre del .jar (e.g. 'paper-1.21.4-123.jar').
+        3) `_paragua_srv.json` si ya tiene `version`.
+        Devuelve "" si no se pudo detectar.
+        """
+        try:
+            vh = os.path.join(carpeta, "version_history.json")
+            if os.path.exists(vh):
+                with open(vh, "r", encoding="utf-8") as f:
+                    d = json.load(f) or {}
+                cv = d.get("currentVersion", "")
+                m = re.search(r"\b(\d+\.\d+(?:\.\d+)?)\b", cv)
+                if m:
+                    return m.group(1)
+        except Exception:
+            pass
+        try:
+            for f in os.listdir(carpeta):
+                if f.endswith(".jar"):
+                    m = re.search(r"(\d+\.\d+(?:\.\d+)?)", f)
+                    if m and not f.startswith("playit"):
+                        return m.group(1)
+        except Exception:
+            pass
+        try:
+            srv_info = os.path.join(carpeta, "_paragua_srv.json")
+            if os.path.exists(srv_info):
+                with open(srv_info, "r", encoding="utf-8") as f:
+                    return (json.load(f) or {}).get("version", "") or ""
+        except Exception:
+            pass
+        return ""
+
+    def _java_path_local(self):
+        """Devuelve el path absoluto a un java.exe local del launcher, o 'java'.
+
+        Prioriza el runtime de Mojang en `~/AppData/Roaming/.minecraft/runtime`,
+        eligiendo Java 21 (delta/gamma) si está disponible.
+        """
+        try:
+            import minecraft_launcher_lib as _mcl
+            mine_dir = _mcl.utils.get_minecraft_directory()
+            runtime_dir = os.path.join(mine_dir, "runtime")
+            if os.path.isdir(runtime_dir):
+                javas = [os.path.join(r, "java.exe")
+                         for r, _, fs in os.walk(runtime_dir) if "java.exe" in fs]
+                if javas:
+                    best = next((j for j in javas if "21" in j or "delta" in j.lower() or "gamma" in j.lower()), javas[0])
+                    return best
+        except Exception:
+            pass
+        custom = (self.config_actual.get("java_custom_path") or "").strip()
+        if custom and os.path.isfile(custom):
+            return custom
+        return "java"
+
+    def _regenerar_iniciar_server_bat(self, carpeta, ram_gb=None):
+        """Reescribe `iniciar_server.bat` con el Java local de ESTA PC.
+
+        Imprescindible cuando se copia la carpeta del server entre PCs:
+        el .bat original puede tener una ruta absoluta a un Java que en
+        la nueva máquina no existe.
+        """
+        if not carpeta or not os.path.isdir(carpeta):
+            return False
+        try:
+            java = self._java_path_local()
+            java_q = f'"{java}"' if " " in java and not java.startswith('"') else java
+            xmx = f"{int(ram_gb)}G" if ram_gb else "4G"
+            jar_target = ("fabric-server-launch.jar"
+                          if os.path.exists(os.path.join(carpeta, "fabric-server-launch.jar"))
+                          else "server.jar")
+            content = (
+                "@echo off\n"
+                "echo ========================================\n"
+                "echo  Servidor Paraguacraft (auto-adaptado)\n"
+                "echo ========================================\n"
+                "echo Iniciando Tunel Playit...\n"
+                "if exist playit.exe (start cmd /k playit.exe) else "
+                "(echo playit.exe no encontrado, descargalo de playit.gg)\n"
+                "echo Iniciando Servidor...\n"
+                f"{java_q} -Xmx{xmx} -Xms1G -jar {jar_target} nogui\n"
+                "pause\n"
+            )
+            with open(os.path.join(carpeta, "iniciar_server.bat"), "w", encoding="utf-8") as f:
+                f.write(content)
+            return True
+        except Exception:
+            return False
+
+    def importar_carpeta_servidor(self, carpeta):
+        """Importa una carpeta de servidor (ej: copiada de un amigo) y la adapta a esta PC.
+
+        - Valida que tenga server.jar o fabric-server-launch.jar.
+        - Detecta tipo (paper/fabric/paper-geyser/fabric-geyser).
+        - Crea/actualiza `_paragua_srv.json` con tipo y versión detectada.
+        - Regenera `iniciar_server.bat` con el Java local.
+        - Garantiza `eula.txt` aceptado.
+        - Lo agrega a `srv_lista` y lo deja como servidor activo.
+        """
+        if not carpeta or not os.path.isdir(carpeta):
+            return {"ok": False, "error": "Ruta inválida o no es una carpeta."}
+        carpeta = os.path.abspath(carpeta)
+        es_paper  = os.path.exists(os.path.join(carpeta, "server.jar"))
+        es_fabric = os.path.exists(os.path.join(carpeta, "fabric-server-launch.jar"))
+        if not (es_paper or es_fabric):
+            return {"ok": False, "error":
+                    "Esta carpeta no parece un servidor: faltan server.jar y fabric-server-launch.jar."}
+
+        tipo = self._detectar_tipo_servidor(carpeta)
+        version = self._detectar_version_servidor(carpeta)
+        # Crear/actualizar _paragua_srv.json sin pisar bedrock_address/java_address existentes
+        self._actualizar_srv_info(carpeta, tipo=tipo, version=version or "?")
+
+        # eula.txt
+        eula = os.path.join(carpeta, "eula.txt")
+        try:
+            ok_eula = False
+            if os.path.exists(eula):
+                with open(eula, "r", encoding="utf-8", errors="replace") as f:
+                    ok_eula = "eula=true" in f.read().lower()
+            if not ok_eula:
+                with open(eula, "w", encoding="utf-8") as f:
+                    f.write("eula=true\n")
+        except Exception:
+            pass
+
+        # Regenerar .bat con el Java de esta PC
+        self._regenerar_iniciar_server_bat(carpeta)
+
+        # Agregar a la lista guardada y activar
+        srv_lista = list(self.config_actual.get("srv_lista", []))
+        if not any(s.get("carpeta") == carpeta for s in srv_lista):
+            srv_lista.append({"carpeta": carpeta, "tipo": tipo, "version": version or "?"})
+        self.config_actual["srv_lista"] = srv_lista
+        self.config_actual["srv_carpeta"] = carpeta
+        self._servidor_carpeta = carpeta
+        self._servidor_tipo = tipo
+        threading.Thread(target=self._guardar, daemon=True).start()
+        return {"ok": True, "carpeta": carpeta, "tipo": tipo, "version": version,
+                "mensaje": "Servidor importado y adaptado a esta PC."}
 
     def eliminar_servidor_guardado(self, carpeta):
         srv_lista = [s for s in self.config_actual.get("srv_lista", []) if s.get("carpeta") != carpeta]
@@ -3248,6 +3452,26 @@ class Api:
                                                 self._jugadores_online.add(_join.group(1))
                                             elif _left:
                                                 self._jugadores_online.discard(_left.group(1))
+                                            # Detección de IP Playit desde el server console:
+                                            # cuando un jugador se conecta vía un tunnel Playit,
+                                            # el server logea "logged in from /<host>:<port>".
+                                            # Si <host> es un dominio Playit, lo persistimos como
+                                            # la IP Java de ESTE servidor (más confiable que el log
+                                            # del agent cuando hay múltiples tunnels en la cuenta).
+                                            _conn = _re.search(
+                                                r'/((?:[\w\-]+\.)+(?:ply\.gg|joinmc\.link|playit\.gg))(?::(\d+))?',
+                                                line, _re.IGNORECASE)
+                                            if _conn and self._servidor_carpeta:
+                                                _host = _conn.group(1)
+                                                _port = _conn.group(2)
+                                                _full = f"{_host}:{_port}" if _port else _host
+                                                if self._playit_address != _full:
+                                                    self._playit_address = _full
+                                                    self._actualizar_srv_info(
+                                                        self._servidor_carpeta, java_address=_full)
+                                                    with self._servidor_lock:
+                                                        self._servidor_log.append(
+                                                            f"[PLAYIT] ☕ IP Java detectada vía conexión: {_full}")
                                     pos = _f.tell()
                     except Exception:
                         pass
@@ -3260,6 +3484,26 @@ class Api:
             threading.Thread(target=_stream, daemon=True).start()
             try:
                 self.actualizar_rpc("Servidor activo", f"🖥 {os.path.basename(carpeta)}")
+            except Exception:
+                pass
+            # Escribe rcon_activo.json para que el bot de Discord sepa a qué server conectarse
+            try:
+                _props_path = os.path.join(carpeta, "server.properties")
+                _rcon_port = 25575
+                _rcon_pass = ""
+                if os.path.exists(_props_path):
+                    with open(_props_path, "r", encoding="utf-8", errors="replace") as _pf:
+                        for _line in _pf:
+                            _line = _line.strip()
+                            if _line.startswith("rcon.port="):
+                                try: _rcon_port = int(_line.split("=", 1)[1].strip())
+                                except ValueError: pass
+                            elif _line.startswith("rcon.password="):
+                                _rcon_pass = _line.split("=", 1)[1].strip()
+                _rcon_json = os.path.join(self._DATA_DIR, "rcon_activo.json")
+                with open(_rcon_json, "w", encoding="utf-8") as _rf:
+                    json.dump({"ip": "127.0.0.1", "port": _rcon_port,
+                               "password": _rcon_pass, "carpeta": carpeta}, _rf)
             except Exception:
                 pass
             return {"ok": True}
@@ -3327,6 +3571,12 @@ class Api:
             self._servidor_proc = None
             try: self._rpc_menu()
             except Exception: pass
+            try:
+                _rcon_json = os.path.join(self._DATA_DIR, "rcon_activo.json")
+                if os.path.exists(_rcon_json):
+                    os.remove(_rcon_json)
+            except Exception:
+                pass
             return {"ok": True, "rc": rc, "forced": forced}
         except OSError as e:
             return {"ok": False, "error": f"Error del SO: {e}"}
@@ -3354,23 +3604,56 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e), "plugins": []}
 
+    def _actualizar_srv_info(self, carpeta, **kwargs):
+        """Merge atómico de claves en `<carpeta>/_paragua_srv.json`.
+
+        Usa write-then-rename para evitar archivos corruptos si el proceso
+        crashea durante la escritura. No lanza: silencia errores de I/O.
+        """
+        if not carpeta:
+            return False
+        _srv_info = os.path.join(carpeta, '_paragua_srv.json')
+        try:
+            _d = {}
+            if os.path.exists(_srv_info):
+                try:
+                    with open(_srv_info, 'r', encoding='utf-8') as _f:
+                        _d = json.load(_f) or {}
+                except Exception:
+                    _d = {}
+            changed = False
+            for k, v in kwargs.items():
+                if _d.get(k) != v:
+                    _d[k] = v
+                    changed = True
+            if not changed:
+                return True
+            _tmp = _srv_info + '.tmp'
+            with open(_tmp, 'w', encoding='utf-8') as _f:
+                json.dump(_d, _f, indent=2)
+            os.replace(_tmp, _srv_info)
+            return True
+        except Exception:
+            return False
+
     def guardar_bedrock_address(self, address, carpeta=None):
         """Guarda la dirección Bedrock personalizada (ej: mailing-theories.gl.at.ply.gg:4698)."""
         carpeta = carpeta or self._servidor_carpeta
         self._playit_bedrock_custom = address or ''
-        if carpeta:
-            _srv_info = os.path.join(carpeta, '_paragua_srv.json')
-            try:
-                _d = {}
-                if os.path.exists(_srv_info):
-                    with open(_srv_info) as _f:
-                        _d = json.load(_f)
-                _d['bedrock_address'] = address or ''
-                with open(_srv_info, 'w') as _f:
-                    json.dump(_d, _f)
-            except Exception:
-                pass
+        self._actualizar_srv_info(carpeta, bedrock_address=address or '')
         return {'ok': True}
+
+    def set_playit_java_address(self, address, carpeta=None):
+        """Guarda manualmente la IP Java de Playit para este servidor.
+
+        Útil cuando el agent comparte tunnels entre varios servidores y la
+        autodetección desde el log no asocia el tunnel correcto.
+        """
+        carpeta = carpeta or self._servidor_carpeta
+        addr = (address or '').strip()
+        self._playit_address = addr
+        self._actualizar_srv_info(carpeta, java_address=addr)
+        return {'ok': True, 'java_address': addr}
 
     def instalar_geyser_servidor(self, carpeta=None):
         carpeta = carpeta or self._servidor_carpeta
@@ -3447,6 +3730,23 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    def _get_servidor_mc_version(self):
+        """Devuelve la versión MC del servidor activo, o '' si no se puede leer."""
+        try:
+            carpeta = self._servidor_carpeta
+            if not carpeta:
+                return ""
+            info_path = os.path.join(carpeta, "_paragua_srv.json")
+            if os.path.exists(info_path):
+                with open(info_path, "r", encoding="utf-8") as f:
+                    return (json.load(f) or {}).get("version", "") or ""
+            for s in self.config_actual.get("srv_lista", []):
+                if s.get("carpeta") == carpeta:
+                    return s.get("version", "") or ""
+        except Exception:
+            pass
+        return ""
+
     def instalar_plugin(self, owner, slug, carpeta_server=None):
         try:
             carpeta = carpeta_server or self._servidor_carpeta
@@ -3454,8 +3754,18 @@ class Api:
                 return {"ok": False, "error": "No hay servidor activo seleccionado"}
             plugins_dir = os.path.join(carpeta, "plugins")
             os.makedirs(plugins_dir, exist_ok=True)
+            srv_ver = self._get_servidor_mc_version()
+            _ua = {"User-Agent": "ParaguacraftLauncher/2.0"}
+            if srv_ver:
+                vc_url = f"https://hangar.papermc.io/api/v1/projects/{owner}/{slug}/versions"
+                vc = requests.get(vc_url, params={"platform": "PAPER", "platformVersion": srv_ver},
+                                  headers=_ua, timeout=10)
+                if vc.status_code == 200 and not (vc.json() or {}).get("result"):
+                    return {"ok": False, "error":
+                            f"'{slug}' no tiene versión para MC {srv_ver} en Hangar. "
+                            f"El plugin puede no soportar esta versión."}
             url = f"https://hangar.papermc.io/api/v1/projects/{owner}/{slug}/latestrelease"
-            r = requests.get(url, timeout=10, headers={"User-Agent": "ParaguacraftLauncher/2.0"})
+            r = requests.get(url, timeout=10, headers=_ua)
             r.raise_for_status()
             ver_name = r.text.strip().strip('"')
             dl_url = f"https://hangar.papermc.io/api/v1/projects/{owner}/{slug}/versions/{ver_name}/PAPER/download"
@@ -3473,6 +3783,252 @@ class Api:
                         f.write(chunk)
             size_kb = round(os.path.getsize(out_path) / 1024)
             return {"ok": True, "nombre": fname, "size_kb": size_kb}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── Plugins via Modrinth (alternativa a Hangar) ───────────────────────
+    _PLUGIN_LOADERS_PAPER = ["paper", "spigot", "bukkit", "purpur", "folia"]
+
+    def buscar_plugins_modrinth(self, query, mc_version=""):
+        """Busca plugins en Modrinth filtrando por loaders compatibles con Paper.
+
+        Devuelve la misma forma que `buscar_plugins` (Hangar) para que la UI
+        pueda renderizarlos con el mismo template.
+        """
+        try:
+            import json as _json
+            facets = [["project_type:plugin"]]
+            if mc_version:
+                facets.append([f"versions:{mc_version}"])
+            facets.append([f"categories:{l}" for l in self._PLUGIN_LOADERS_PAPER])
+            r = requests.get(
+                "https://api.modrinth.com/v2/search",
+                params={"query": query, "limit": 16, "index": "downloads",
+                        "facets": _json.dumps(facets)},
+                headers={"User-Agent": "ParaguacraftLauncher/2.0"}, timeout=10)
+            if r.status_code != 200:
+                return {"ok": False, "error": f"HTTP {r.status_code}", "plugins": []}
+            plugins = []
+            for h in r.json().get("hits", []):
+                plugins.append({
+                    "slug": h.get("slug", ""),
+                    "owner": h.get("author", ""),
+                    "name": h.get("title", ""),
+                    "description": (h.get("description") or "")[:120],
+                    "downloads": h.get("downloads", 0),
+                    "stars": h.get("follows", 0),
+                    "icon": h.get("icon_url", ""),
+                    "fuente": "modrinth",
+                })
+            return {"ok": True, "plugins": plugins}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "plugins": []}
+
+    def buscar_plugins_store(self, query, mc_version=""):
+        """Busca plugins en Hangar y Modrinth de forma federada.
+
+        Devuelve {'resultados': [...]} donde cada ítem tiene:
+        fuente, slug, owner, nombre, descripcion, icon_url, downloads.
+        """
+        resultados = []
+        srv_ver = mc_version or self._get_servidor_mc_version()
+        _ua = {"User-Agent": "ParaguacraftLauncher/2.0"}
+        # -- Hangar --
+        try:
+            import json as _json
+            params_h = {"query": query, "limit": 8, "sort": "DOWNLOADS"}
+            if srv_ver:
+                params_h["platform"] = "PAPER"
+                params_h["platformVersion"] = srv_ver
+            rh = requests.get("https://hangar.papermc.io/api/v1/projects",
+                              params=params_h, headers=_ua, timeout=10)
+            if rh.status_code == 200:
+                for p in rh.json().get("result", [])[:8]:
+                    resultados.append({
+                        "fuente": "hangar",
+                        "slug": p.get("name", ""),
+                        "owner": (p.get("namespace") or {}).get("owner", ""),
+                        "nombre": p.get("name", ""),
+                        "descripcion": (p.get("description") or "")[:120],
+                        "icon_url": p.get("avatarUrl") or p.get("icon_url") or "",
+                        "downloads": p.get("stats", {}).get("downloads", 0),
+                    })
+        except Exception:
+            pass
+        # -- Modrinth --
+        try:
+            facets = [["project_type:plugin"]]
+            if srv_ver:
+                facets.append([f"versions:{srv_ver}"])
+            facets.append([f"categories:{l}" for l in self._PLUGIN_LOADERS_PAPER])
+            rm = requests.get("https://api.modrinth.com/v2/search",
+                              params={"query": query, "limit": 8, "index": "downloads",
+                                      "facets": _json.dumps(facets)},
+                              headers=_ua, timeout=10)
+            if rm.status_code == 200:
+                for h in rm.json().get("hits", [])[:8]:
+                    resultados.append({
+                        "fuente": "modrinth",
+                        "slug": h.get("slug", ""),
+                        "owner": h.get("author", ""),
+                        "nombre": h.get("title", ""),
+                        "descripcion": (h.get("description") or "")[:120],
+                        "icon_url": h.get("icon_url", ""),
+                        "downloads": h.get("downloads", 0),
+                    })
+        except Exception:
+            pass
+        resultados.sort(key=lambda x: x.get("downloads", 0), reverse=True)
+        return {"ok": True, "resultados": resultados[:16]}
+
+    def instalar_plugin_modrinth(self, slug, mc_version="", carpeta_server=None):
+        """Instala un plugin desde Modrinth en `<carpeta>/plugins/`.
+
+        Estrategia de matching: primero filtra por loaders Paper-compatibles
+        + versión exacta; si no hay match, relaja la versión; si tampoco,
+        usa la última release sin filtrar.
+        """
+        try:
+            carpeta = carpeta_server or self._servidor_carpeta
+            if not carpeta:
+                return {"ok": False, "error": "No hay servidor seleccionado"}
+            plugins_dir = os.path.join(carpeta, "plugins")
+            os.makedirs(plugins_dir, exist_ok=True)
+            import json as _json
+            headers = {"User-Agent": "ParaguacraftLauncher/2.0"}
+            loaders_json = _json.dumps(self._PLUGIN_LOADERS_PAPER)
+
+            def _versions(params):
+                rr = requests.get(
+                    f"https://api.modrinth.com/v2/project/{slug}/version",
+                    params=params, headers=headers, timeout=15)
+                return rr.json() if rr.status_code == 200 else []
+
+            params_full = {"loaders": loaders_json}
+            if mc_version:
+                params_full["game_versions"] = _json.dumps([mc_version])
+            vers = _versions(params_full)
+            if not vers and mc_version:
+                return {"ok": False, "error":
+                        f"'{slug}' no tiene versión compatible con MC {mc_version}. "
+                        f"El plugin puede no soportar esta versión del servidor."}
+            if not vers:
+                return {"ok": False, "error": f"No hay versiones publicadas para '{slug}'."}
+            v0 = vers[0]
+            f0 = next((f for f in v0.get("files", []) if f.get("primary")),
+                      (v0.get("files") or [None])[0])
+            if not f0:
+                return {"ok": False, "error": "Versión sin archivo descargable."}
+            fname = f0.get("filename") or f"{slug}.jar"
+            dl_url = f0.get("url")
+            tmp = os.path.join(plugins_dir, fname + ".part")
+            with requests.get(dl_url, stream=True, timeout=(15, 180),
+                              headers=headers, allow_redirects=True) as rr:
+                rr.raise_for_status()
+                with open(tmp, "wb") as fh:
+                    for chunk in rr.iter_content(65536):
+                        if chunk:
+                            fh.write(chunk)
+            os.replace(tmp, os.path.join(plugins_dir, fname))
+            size_kb = round(os.path.getsize(os.path.join(plugins_dir, fname)) / 1024)
+            return {"ok": True, "nombre": fname, "size_kb": size_kb,
+                    "version": v0.get("version_number", "")}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def get_plugin_updates(self, mc_version="", carpeta=None):
+        """Detecta plugins con actualización disponible en Modrinth.
+
+        Calcula SHA-512 de cada .jar y consulta `version_files/update`.
+        Devuelve la lista con `update_disponible`, `nueva_version`, `download_url`
+        para que la UI muestre un botón "Actualizar".
+        """
+        try:
+            import hashlib as _hl, json as _json
+            carpeta = carpeta or self._servidor_carpeta
+            if not carpeta:
+                return {"ok": False, "error": "No hay servidor seleccionado", "plugins": []}
+            is_fabric = os.path.exists(os.path.join(carpeta, "fabric-server-launch.jar"))
+            target_dir = os.path.join(carpeta, "mods" if is_fabric else "plugins")
+            if not os.path.isdir(target_dir):
+                return {"ok": True, "plugins": []}
+            jars = [f for f in os.listdir(target_dir) if f.endswith(".jar")]
+            hashes = {}
+            for j in jars:
+                try:
+                    with open(os.path.join(target_dir, j), "rb") as fh:
+                        hashes[_hl.sha512(fh.read()).hexdigest()] = j
+                except Exception:
+                    pass
+            if not hashes:
+                return {"ok": True, "plugins": []}
+            loaders = ["fabric"] if is_fabric else self._PLUGIN_LOADERS_PAPER
+            payload = {"hashes": list(hashes.keys()), "algorithm": "sha512",
+                       "loaders": loaders}
+            if mc_version:
+                payload["game_versions"] = [mc_version]
+            r = requests.post(
+                "https://api.modrinth.com/v2/version_files/update",
+                json=payload, timeout=15,
+                headers={"User-Agent": "ParaguacraftLauncher/2.0"})
+            result = []
+            if r.status_code == 200:
+                data = r.json()
+                for h_local, info in data.items():
+                    fname_local = hashes.get(h_local)
+                    if not fname_local:
+                        continue
+                    files = info.get("files", [])
+                    primary = next((f for f in files if f.get("primary")), files[0] if files else None)
+                    if not primary:
+                        continue
+                    h_remote = (primary.get("hashes") or {}).get("sha512", "")
+                    update = h_remote != h_local
+                    result.append({
+                        "archivo": fname_local,
+                        "version_actual": "",
+                        "nueva_version": info.get("version_number", ""),
+                        "nuevo_archivo": primary.get("filename", ""),
+                        "download_url": primary.get("url", ""),
+                        "project_id": info.get("project_id", ""),
+                        "update_disponible": update,
+                    })
+            # Plugins no encontrados en Modrinth → no se reportan (sin ruido)
+            return {"ok": True, "plugins": result}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "plugins": []}
+
+    def aplicar_plugin_update(self, archivo_actual, download_url, nuevo_archivo, carpeta=None):
+        """Descarga `download_url` y reemplaza atómicamente `archivo_actual`.
+
+        Si el nombre cambia, se borra el viejo después de bajar el nuevo.
+        """
+        try:
+            carpeta = carpeta or self._servidor_carpeta
+            if not carpeta or not download_url:
+                return {"ok": False, "error": "Parámetros inválidos"}
+            is_fabric = os.path.exists(os.path.join(carpeta, "fabric-server-launch.jar"))
+            target_dir = os.path.join(carpeta, "mods" if is_fabric else "plugins")
+            os.makedirs(target_dir, exist_ok=True)
+            fname = nuevo_archivo or archivo_actual
+            tmp = os.path.join(target_dir, fname + ".part")
+            with requests.get(download_url, stream=True, timeout=(15, 180),
+                              headers={"User-Agent": "ParaguacraftLauncher/2.0"},
+                              allow_redirects=True) as r:
+                r.raise_for_status()
+                with open(tmp, "wb") as fh:
+                    for chunk in r.iter_content(65536):
+                        if chunk:
+                            fh.write(chunk)
+            os.replace(tmp, os.path.join(target_dir, fname))
+            if archivo_actual and archivo_actual != fname:
+                _viejo = os.path.join(target_dir, archivo_actual)
+                try:
+                    if os.path.exists(_viejo):
+                        os.remove(_viejo)
+                except OSError:
+                    pass
+            return {"ok": True, "nombre": fname}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
@@ -3778,13 +4334,29 @@ class Api:
         try:
             self._playit_address = ""
             self._playit_bedrock_address = ""
-            if not self._playit_bedrock_custom and carpeta:
+            # Restaurar direcciones previamente detectadas/persistidas para
+            # ESTE servidor (clave: la carpeta), así no dependemos de que el
+            # agent vuelva a imprimirlas en el log de esta sesión.
+            if carpeta:
                 _srv_info = os.path.join(carpeta, '_paragua_srv.json')
                 if os.path.exists(_srv_info):
                     try:
-                        with open(_srv_info) as _f:
-                            _d = json.load(_f)
-                            self._playit_bedrock_custom = _d.get('bedrock_address', '')
+                        with open(_srv_info, 'r', encoding='utf-8') as _f:
+                            _d = json.load(_f) or {}
+                        if not self._playit_bedrock_custom:
+                            self._playit_bedrock_custom = _d.get('bedrock_address', '') or ''
+                        _saved_java = (_d.get('java_address') or '').strip()
+                        if _saved_java:
+                            self._playit_address = _saved_java
+                            with self._servidor_lock:
+                                self._servidor_log.append(
+                                    f"[PLAYIT] 💾 IP Java guardada para este server: {_saved_java}")
+                        _saved_bed = (_d.get('bedrock_address') or '').strip()
+                        if _saved_bed:
+                            self._playit_bedrock_address = _saved_bed
+                            with self._servidor_lock:
+                                self._servidor_log.append(
+                                    f"[PLAYIT] 💾 IP Bedrock guardada para este server: {_saved_bed}")
                     except Exception:
                         pass
             import tempfile as _tmp
@@ -3847,6 +4419,13 @@ class Api:
                                             r"address[=:\s]+([\w\-.]+(?::\d+)?)", line, _re.IGNORECASE)
                                     if _addr_m:
                                         _addr = _addr_m.group(1)
+                                        # Rechazar IPs numéricas puras (sin letras) — playit
+                                        # imprime internamente la IP del edge server (ej.
+                                        # 209.25.x.x) que NO es la IP que el jugador debe usar
+                                        # para conectarse. Solo aceptamos hostnames con letras.
+                                        _host_only = _addr.split(':', 1)[0]
+                                        if not _re.search(r'[A-Za-z]', _host_only):
+                                            continue
                                         _port_in_addr = _re.search(r':(\d+)$', _addr)
                                         _addr_port    = int(_port_in_addr.group(1)) if _port_in_addr else None
                                         # Domain-based classification (highest priority)
@@ -3875,11 +4454,13 @@ class Api:
                                         _es_geyser = self._servidor_tipo in ('paper-geyser', 'fabric-geyser')
                                         if _is_udp and not self._playit_bedrock_address and _es_geyser:
                                             self._playit_bedrock_address = _addr
+                                            self._actualizar_srv_info(carpeta, bedrock_address=_addr)
                                             with self._servidor_lock:
                                                 self._servidor_log.append(
                                                     f"[PLAYIT] 🎮 Bedrock (Geyser) detectado: {_addr} — compartí esta dirección y puerto con tus jugadores Bedrock")
                                         elif not _is_udp and not self._playit_address:
                                             self._playit_address = _addr
+                                            self._actualizar_srv_info(carpeta, java_address=_addr)
                                             with self._servidor_lock:
                                                 self._servidor_log.append(
                                                     f"[PLAYIT] ☕ Java detectado: {_addr} — compartí esta IP con tus jugadores Java")
@@ -3952,6 +4533,7 @@ class Api:
             "playit_address": self._playit_address,
             "playit_bedrock_address": self._playit_bedrock_custom or self._playit_bedrock_address,
             "servidor_tipo": self._servidor_tipo if self._servidor_tipo != 'paper' else self._detectar_tipo_servidor(self._servidor_carpeta or ''),
+            "servidor_version": self._get_servidor_mc_version(),
             "log": log_reciente,
             "creando": self._servidor_creando,
         }
@@ -4626,7 +5208,19 @@ class Api:
                         params=params_fb, headers=_HDR, timeout=8).json()
             if not vr or not isinstance(vr, list) or len(vr) == 0:
                 return {"ok": False, "error": f"Sin versiones compatibles para '{slug}' en {motor} {version}"}
-            return self.instalar_mod_desde_modrinth(pid, vr[0]["id"], "mod", version, motor)
+            result = self.instalar_mod_desde_modrinth(pid, vr[0]["id"], "mod", version, motor)
+            if result and result.get("ok") and extra and extra.endswith(".jar"):
+                try:
+                    import minecraft_launcher_lib as _mcl2
+                    from core import carpeta_instancia_paraguacraft as _cip2
+                    _mdir = _mcl2.utils.get_minecraft_directory()
+                    _fold = _cip2(version.strip(), motor)
+                    _old = os.path.join(_mdir, "instancias", _fold, "mods", extra)
+                    if os.path.isfile(_old) and extra not in (result.get("instalados") or []):
+                        os.remove(_old)
+                except Exception:
+                    pass
+            return result
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
@@ -6946,9 +7540,20 @@ class Api:
                     pass
             if not hashes:
                 return {"ok": True, "mods": []}
-            loader_map = {"fabric": "fabric", "forge": "forge", "neoforge": "neoforge",
-                          "quilt": "quilt", "vanilla": "fabric"}
-            loader_mr = loader_map.get(motor.lower(), motor.lower())
+            # Normalizar el motor del launcher → loader de Modrinth.
+            # Acepta variantes: "Fabric", "Fabric + Iris", "Fabric+Iris", "FABRIC", etc.
+            _m = "".join(motor.lower().split())  # quita TODOS los espacios
+            if "fabric" in _m:
+                loader_mr = "fabric"
+            elif "neoforge" in _m:
+                loader_mr = "neoforge"
+            elif "quilt" in _m:
+                loader_mr = "quilt"
+            elif "forge" in _m or "optifine" in _m:
+                loader_mr = "forge"
+            else:
+                # Vanilla u otros: no tiene mods → no hace falta consultar Modrinth.
+                return {"ok": True, "mods": []}
             payload = {"hashes": list(hashes.keys()), "algorithm": "sha512",
                        "loaders": [loader_mr], "game_versions": [version]}
             r = requests.post(
