@@ -520,7 +520,7 @@
             <button onclick="cambiarPestaña('versiones', 'Versiones')" id="btn-versiones" class="nav-btn hover:text-white transition">Versiones</button>
             <button onclick="cambiarPestaña('skins', 'Skins')" id="btn-skins" class="nav-btn hover:text-white transition">Skins</button>
             <button onclick="cambiarPestaña('mods', 'Mods')" id="btn-mods" class="nav-btn hover:text-white transition">Mods</button>
-            <button onclick="cambiarPestaña('herramientas', 'Herramientas')" id="btn-herramientas" class="nav-btn hover:text-white transition relative">Extras<span id="badge-mod-updates" class="hidden absolute -top-1.5 -right-3 bg-[#F39C12] text-black text-[10px] font-black rounded-full w-4 h-4 flex items-center justify-center leading-none" title="Mods con actualización disponible">0</span></button>
+            <button onclick="cambiarPestaña('herramientas', 'Herramientas')" id="btn-herramientas" class="nav-btn hover:text-white transition">Extras</button>
         </div>
 
         <div class="ml-auto flex items-center space-x-3 relative dropdown-container">
@@ -1178,7 +1178,11 @@
                 <div id="srv-activo-box" class="hidden bg-[#181818] border border-[#2ECC71]/40 rounded-xl p-4 shrink-0 flex items-center gap-4">
                     <div class="w-3 h-3 rounded-full bg-[#2ECC71] shrink-0"></div>
                     <div class="flex-1 min-w-0">
-                        <p class="font-black text-sm text-[#2ECC71]">Servidor configurado</p>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <p class="font-black text-sm text-[#2ECC71]">Servidor configurado</p>
+                            <span id="srv-activo-tipo" class="text-[10px] font-black px-2 py-0.5 rounded hidden"></span>
+                            <span id="srv-activo-ver"  class="text-[10px] text-gray-500 font-mono hidden"></span>
+                        </div>
                         <p id="srv-activo-carpeta" class="text-xs text-gray-400 truncate mt-0.5"></p>
                     </div>
                     <button onclick="mostrarCrearNuevoServidor()" class="bg-[#9B59B6] hover:bg-[#7D3C98] text-white text-xs font-bold px-3 py-2 rounded transition shrink-0">+ Nuevo</button>
@@ -1254,7 +1258,11 @@
                     </div>
                     <!-- Store tab -->
                     <div id="srv-plug-panel-store">
-                        <div class="flex gap-2 mb-3">
+                        <div class="flex gap-2 mb-2">
+                            <select id="plugin-fuente" class="bg-[#0A0A0A] border border-[#333] text-white px-2 py-2 rounded text-xs outline-none focus:border-[#2ECC71]">
+                                <option value="hangar">Hangar</option>
+                                <option value="modrinth">Modrinth</option>
+                            </select>
                             <input id="plugin-search" type="text" placeholder="Buscar plugin..." onkeypress="if(event.key==='Enter')buscarPlugins()" class="flex-1 bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none focus:border-[#2ECC71]">
                             <button onclick="buscarPlugins()" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-bold px-4 py-2 rounded text-sm transition">🔍</button>
                         </div>
@@ -1262,10 +1270,14 @@
                     </div>
                     <!-- Instalados tab -->
                     <div id="srv-plug-panel-local" class="hidden">
-                        <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center justify-between mb-2 gap-2 flex-wrap">
                             <span id="srv-plug-dir-lbl" class="text-[10px] text-gray-500">Carpeta: plugins/</span>
-                            <button onclick="cargarPluginsLocales()" class="text-[10px] text-gray-500 hover:text-white transition">↺ Actualizar</button>
+                            <div class="flex gap-2">
+                                <button onclick="buscarPluginUpdates()" class="text-[10px] bg-[#1A7A40] hover:bg-[#2ECC71] hover:text-black text-white font-bold px-2 py-0.5 rounded transition">⬆ Buscar updates</button>
+                                <button onclick="cargarPluginsLocales()" class="text-[10px] text-gray-500 hover:text-white transition">↺ Actualizar</button>
+                            </div>
                         </div>
+                        <div id="srv-plug-updates-list" class="hidden mb-2 space-y-1 text-[10px]"></div>
                         <div id="srv-plug-local-list" class="space-y-1.5 max-h-44 overflow-y-auto text-xs text-gray-500">
                             <p class="text-center py-4">Hacé clic en "↺ Actualizar" para ver los plugins instalados.</p>
                         </div>
@@ -1299,6 +1311,7 @@
                             <div class="flex gap-2">
                                 <input id="srv-carpeta" type="text" placeholder="Elegí o escribí la ruta..." class="bg-[#121212] border border-[#333] text-white px-3 py-2 rounded outline-none text-sm flex-1 focus:border-[#9B59B6]">
                                 <button onclick="elegirCarpetaServidor()" title="Elegir carpeta" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] px-3 py-2 rounded font-bold text-sm transition border border-[#333]">📂</button>
+                                <button onclick="importarCarpetaServidor()" title="Importar servidor existente (ej: copiado de otra PC) y adaptarlo a esta máquina" class="bg-[#9B59B6] hover:bg-[#8E44AD] text-white px-3 py-2 rounded font-bold text-sm transition">📥 Importar</button>
                             </div>
                         </div>
                         <div class="flex flex-col gap-1">
@@ -1765,6 +1778,7 @@
                     <button onclick="setModTipo('datapack')" id="mtab-datapack" class="px-4 py-3 text-xs font-black border-b-2 border-transparent text-gray-500 hover:text-white shrink-0 transition">Data Packs</button>
                     <button onclick="setModTipo('shader')" id="mtab-shader" class="px-4 py-3 text-xs font-black border-b-2 border-transparent text-gray-500 hover:text-white shrink-0 transition">Shaders</button>
                     <button onclick="setModTipo('modpack')" id="mtab-modpack" class="px-4 py-3 text-xs font-black border-b-2 border-transparent text-gray-500 hover:text-white shrink-0 transition">Modpacks</button>
+                    <button onclick="setModTipo('plugin')" id="mtab-plugin" class="px-4 py-3 text-xs font-black border-b-2 border-transparent text-gray-500 hover:text-white shrink-0 transition">🔌 Plugins</button>
                 </div>
                 <!-- Search + sort bar -->
                 <div class="flex items-center gap-2 p-3 border-b border-[#2A2A2A] shrink-0">
@@ -1797,6 +1811,20 @@
                     <div id="tienda-featured-list" class="flex gap-2.5 overflow-x-auto pb-0.5"></div>
                 </div>
                 <div id="grid-resultados-mods" class="flex-1 overflow-y-auto px-4 pb-2 flex flex-col gap-2">
+                </div>
+                <!-- PLUGIN STORE PANEL (shown only when Plugins tab active) -->
+                <div id="plugin-store-panel" class="hidden flex-1 flex flex-col overflow-hidden">
+                    <div class="flex items-center gap-2 p-3 border-b border-[#2A2A2A] shrink-0">
+                        <input id="plugin-buscar" type="text" placeholder="Buscar plugin (Hangar + Modrinth)…"
+                            onkeypress="if(event.key==='Enter')buscarPluginsStore()"
+                            class="flex-1 bg-[#1E1E1E] border border-[#333] text-white px-3 py-2 rounded-lg outline-none text-sm focus:border-[#2ECC71] transition">
+                        <button onclick="buscarPluginsStore()" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black px-4 py-2 rounded-lg text-sm transition shrink-0">Buscar</button>
+                    </div>
+                    <div id="plugin-trending-section" class="shrink-0 px-4 pt-2 pb-3 border-b border-[#1A1A1A]">
+                        <p class="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-2">🔌 Populares</p>
+                        <div id="plugin-trending-list" class="flex gap-2.5 overflow-x-auto pb-0.5"></div>
+                    </div>
+                    <div id="plugin-store-lista" class="flex-1 overflow-y-auto px-4 pb-4 flex flex-col gap-2 pt-2"></div>
                 </div>
                 <div id="tienda-load-more-bar" class="hidden px-4 pb-4 pt-1 shrink-0">
                     <button onclick="tiendaLoadMore()" id="btn-tienda-load-more"
@@ -2630,10 +2658,17 @@
                 <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 mb-4">
                     <h3 class="font-black mb-2">🔄 Detector de actualizaciones de mods</h3>
                     <p class="text-xs text-gray-500 mb-4">Escanea tu carpeta mods y compara con Modrinth para detectar versiones nuevas.</p>
-                    <div class="flex gap-2 mb-4">
-                        <input id="upd-ver" type="text" placeholder="Versión instalada (ej: 1.21.1)" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm flex-1 outline-none focus:border-[#2ECC71]">
+                    <div class="flex gap-2 mb-4 flex-wrap">
+                        <select id="upd-instancia" onchange="onSelectInstanciaUpdate()" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none flex-1 min-w-[260px]">
+                            <option value="">Elegí una instancia instalada...</option>
+                        </select>
+                        <input id="upd-ver" type="text" placeholder="Versión (ej: 1.21.1)" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm w-36 outline-none focus:border-[#2ECC71]">
                         <select id="upd-motor" class="bg-[#0A0A0A] border border-[#333] text-white px-3 py-2 rounded text-sm outline-none">
-                            <option>Fabric</option><option>Forge</option><option>Quilt</option>
+                            <option>Fabric</option>
+                            <option>Fabric + Iris</option>
+                            <option>Forge</option>
+                            <option>NeoForge</option>
+                            <option>Quilt</option>
                         </select>
                         <button onclick="buscarModUpdates()" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black px-5 py-2 rounded transition text-sm">🔍 Escanear</button>
                     </div>
@@ -4186,6 +4221,24 @@
             if (loaderSec) loaderSec.style.display = ['mod','modpack'].includes(tipo) ? '' : 'none';
             if (envSec) envSec.style.display = ['mod','resourcepack','modpack','datapack'].includes(tipo) ? '' : 'none';
             if (perfSec) perfSec.style.display = tipo === 'shader' ? '' : 'none';
+            const pluginPanel = document.getElementById('plugin-store-panel');
+            const normalPanels = ['tienda-featured','grid-resultados-mods','tienda-load-more-bar'];
+            const searchBar  = document.getElementById('buscador-mods')?.closest('.flex.items-center.gap-2.p-3');
+            const featSec    = document.getElementById('tienda-featured');
+            const sidebarLeft = document.querySelector('#tienda-sidebar-left, .tienda-sidebar');
+            if (tipo === 'plugin') {
+                if (pluginPanel) { pluginPanel.classList.remove('hidden'); pluginPanel.style.display = 'flex'; }
+                normalPanels.forEach(id => { const el = document.getElementById(id); if(el) el.classList.add('hidden'); });
+                if (searchBar) searchBar.style.display = 'none';
+                if (featSec) featSec.style.display = 'none';
+                _initPluginStore();
+                return;
+            } else {
+                if (pluginPanel) { pluginPanel.classList.add('hidden'); pluginPanel.style.display = ''; }
+                normalPanels.forEach(id => { const el = document.getElementById(id); if(el) el.classList.remove('hidden'); });
+                if (searchBar) searchBar.style.display = '';
+                if (featSec) featSec.style.display = '';
+            }
             _renderCats(tipo);
             _renderFeatures(tipo);
             if (tipo === 'shader') _renderPerf();
@@ -5186,6 +5239,22 @@
                     if (carpetaLbl) carpetaLbl.textContent = s.carpeta;
                     const inp = document.getElementById('srv-carpeta');
                     if (inp) inp.value = s.carpeta;
+                    // Type badge
+                    const _tipoLabel = {paper:'📄 Paper','paper-geyser':'🌐 Paper+Geyser',fabric:'🧵 Fabric','fabric-geyser':'🧵🌐 Fabric+Geyser',forge:'🔧 Forge'};
+                    const _tipoColor = {paper:'#2ECC71','paper-geyser':'#3498DB',fabric:'#9B59B6','fabric-geyser':'#9B59B6',forge:'#E74C3C'};
+                    const tipoEl = document.getElementById('srv-activo-tipo');
+                    const verEl  = document.getElementById('srv-activo-ver');
+                    if (tipoEl && s.servidor_tipo) {
+                        const tc = _tipoColor[s.servidor_tipo] || '#888';
+                        tipoEl.textContent = _tipoLabel[s.servidor_tipo] || s.servidor_tipo;
+                        tipoEl.style.color = tc;
+                        tipoEl.style.background = tc + '22';
+                        tipoEl.classList.remove('hidden');
+                    }
+                    if (verEl && s.servidor_version) {
+                        verEl.textContent = s.servidor_version;
+                        verEl.classList.remove('hidden');
+                    }
                     actualizarEstadoServidor();
                 } else {
                     if (crearBox)  crearBox.classList.remove('hidden');
@@ -5252,6 +5321,21 @@
         async function elegirCarpetaServidor() {
             const carpeta = await pywebview.api.seleccionar_carpeta_servidor();
             if (carpeta) document.getElementById('srv-carpeta').value = carpeta;
+        }
+
+        async function importarCarpetaServidor() {
+            const carpeta = await pywebview.api.seleccionar_carpeta_servidor();
+            if (!carpeta) return;
+            const r = await pywebview.api.importar_carpeta_servidor(carpeta);
+            if (!r || !r.ok) {
+                alert('No se pudo importar: ' + ((r && r.error) || 'error desconocido'));
+                return;
+            }
+            const inp = document.getElementById('srv-carpeta');
+            if (inp) inp.value = r.carpeta;
+            alert(`✅ Servidor importado y adaptado a esta PC.\n\nTipo: ${r.tipo}\nVersión: ${r.version || '?'}\n\nSe regeneró iniciar_server.bat con el Java local.`);
+            try { await cargarServidoresGuardados(); } catch(e) {}
+            try { actualizarEstadoServidor(); } catch(e) {}
         }
 
         async function crearServidor() {
@@ -7058,6 +7142,7 @@
             if (cual === 'perfiles') { poblarPerfilesVersiones(); cargarPerfilesGuardados(); }
             if (cual === 'whitelist') cargarWhitelist();
             if (cual === 'hwperfil') hwEstiloTab(window._hwEstiloActual || 'pvp');
+            if (cual === 'updates') cargarInstanciasUpdates();
         }
 
         let _iaChatHistorial = [];
@@ -7207,6 +7292,51 @@
         function verScreenshot(ruta) { window.open('file:///' + ruta, '_blank'); }
 
         // ══ MOD UPDATES ══════════════════════════════════════════════════
+        async function cargarInstanciasUpdates() {
+            const sel = document.getElementById('upd-instancia');
+            if (!sel) return;
+            try {
+                const r = await pywebview.api.get_versiones_instaladas();
+                if (!r || !r.ok) return;
+                const all = [...(r.extras || []), ...(r.instaladas || [])];
+                const inst = all.filter(i => (i.motor || '').toLowerCase() !== 'vanilla');
+                // Conservar el placeholder y limpiar el resto
+                sel.innerHTML = '<option value="">Elegí una instancia instalada...</option>';
+                inst.forEach(i => {
+                    const o = document.createElement('option');
+                    o.value = `${i.version}|${i.motor}`;
+                    o.textContent = `${i.version}  —  ${i.motor}`;
+                    sel.appendChild(o);
+                });
+                // Auto-seleccionar la primera si hay y los inputs están vacíos
+                const ver = document.getElementById('upd-ver');
+                const mot = document.getElementById('upd-motor');
+                if (inst.length && ver && !ver.value.trim()) {
+                    sel.value = `${inst[0].version}|${inst[0].motor}`;
+                    onSelectInstanciaUpdate();
+                }
+            } catch(e) { console.error('cargarInstanciasUpdates:', e); }
+        }
+
+        function onSelectInstanciaUpdate() {
+            const sel = document.getElementById('upd-instancia');
+            if (!sel || !sel.value) return;
+            const [ver, motor] = sel.value.split('|');
+            const verEl = document.getElementById('upd-ver');
+            const motEl = document.getElementById('upd-motor');
+            if (verEl && ver) verEl.value = ver;
+            if (motEl && motor) {
+                // Si el motor no es una opción exacta, agregamos una temporal
+                const opts = Array.from(motEl.options).map(o => o.value);
+                if (!opts.includes(motor)) {
+                    const o = document.createElement('option');
+                    o.value = motor; o.textContent = motor;
+                    motEl.appendChild(o);
+                }
+                motEl.value = motor;
+            }
+        }
+
         async function buscarModUpdates() {
             const ver = document.getElementById('upd-ver').value.trim();
             const motor = document.getElementById('upd-motor').value;
@@ -7228,11 +7358,13 @@
                     con.map(m => `<div class="flex items-center gap-3 bg-[#181818] border border-[#F39C12]/30 rounded-lg px-4 py-3">
                         <span class="text-lg">🔄</span>
                         <div class="flex-1 min-w-0">
-                            <p class="font-bold text-sm truncate">${m.slug}</p>
-                            <p class="text-xs text-gray-500 truncate">${m.archivo}</p>
+                            <p class="font-bold text-sm truncate">${m.slug || m.nombre}</p>
+                            <p class="text-xs text-gray-500 truncate">${m.archivo || m.nombre}</p>
                         </div>
                         <span class="text-xs text-[#F39C12] font-mono shrink-0">v${m.version_nueva}</span>
-                        <button onclick="actualizarUnMod('${m.slug}','${ver}','${motor}')" class="bg-[#F39C12] hover:bg-[#E67E22] text-black font-bold px-3 py-1.5 rounded transition text-xs shrink-0">Actualizar</button>
+                        <button data-slug="${m.slug || m.project_id}" data-ver="${ver}" data-motor="${motor}" data-viejo="${m.archivo||m.nombre||''}"
+                            onclick="actualizarUnMod(this.dataset.slug,this.dataset.ver,this.dataset.motor,this.dataset.viejo)"
+                            class="bg-[#F39C12] hover:bg-[#E67E22] text-black font-bold px-3 py-1.5 rounded transition text-xs shrink-0">Actualizar</button>
                     </div>`).join('') +
                     sin.map(m => `<div class="flex items-center gap-3 bg-[#181818] border border-[#2A2A2A] rounded-lg px-4 py-2 opacity-50">
                         <span>✅</span><p class="text-xs text-gray-500 truncate flex-1">${m.slug || m.archivo}</p><span class="text-xs text-gray-600">Al día</span>
@@ -7240,7 +7372,7 @@
             } catch(e) { lista.innerHTML = `<p class="text-red-400 text-sm">${e}</p>`; }
         }
 
-        async function actualizarUnMod(slug, ver, motor) {
+        async function actualizarUnMod(slug, ver, motor, viejoArchivo) {
             const lista = document.getElementById('upd-lista');
             try {
                 showToast(`💾 Creando backup de mods antes de actualizar...`, '#3498DB', 2500);
@@ -7250,10 +7382,10 @@
                 } else {
                     showToast(`✅ Backup creado (${bk.tamano_mb} MB) — actualizando ${slug}...`, '#2ECC71', 2500);
                 }
-                const r = await pywebview.api.instalar_mod_modrinth(slug, ver, motor, '');
+                const r = await pywebview.api.instalar_mod_modrinth(slug, ver, motor, viejoArchivo || '');
                 if (r && r.ok !== false) {
                     showToast(`✅ ${slug} actualizado`, '#2ECC71');
-                    setTimeout(buscarUpdates, 600);
+                    setTimeout(buscarModUpdates, 600);
                 } else {
                     showToast(`❌ Error: ${(r && r.error) || 'desconocido'}`, '#E74C3C', 5000);
                 }
@@ -7278,12 +7410,12 @@
                 let ok = 0, fail = 0;
                 for (const m of updates) {
                     try {
-                        const ir = await pywebview.api.instalar_mod_modrinth(m.slug, ver, motor, '');
+                        const ir = await pywebview.api.instalar_mod_modrinth(m.slug || m.project_id, ver, motor, m.archivo || m.nombre || '');
                         if (ir && ir.ok !== false) ok++; else fail++;
                     } catch(e) { fail++; }
                 }
                 showToast(`🎉 ${ok} actualizado${ok !== 1 ? 's' : ''}${fail ? ' · ' + fail + ' fallaron' : ''}`, fail ? '#F39C12' : '#2ECC71', 5000);
-                setTimeout(buscarUpdates, 800);
+                setTimeout(buscarModUpdates, 800);
                 actualizarBadgeModsBackground();
             } catch(e) { showToast('Error: ' + e, '#E74C3C', 5000); }
         }
@@ -8240,38 +8372,102 @@
         }
 
         // ══ PLUGIN STORE ═══════════════════════════════════════════════════════
+        function _getMcVersionServidor() {
+            // Mejor esfuerzo: leer de la cabecera del panel server, si está.
+            const lbl = document.getElementById('srv-version-lbl');
+            const txt = (lbl && lbl.textContent || '').trim();
+            const m = txt.match(/(\d+\.\d+(?:\.\d+)?)/);
+            return m ? m[1] : '';
+        }
+
         async function buscarPlugins() {
             const q     = (document.getElementById('plugin-search').value || '').trim();
             const lista = document.getElementById('plugin-lista');
+            const fuenteEl = document.getElementById('plugin-fuente');
+            const fuente = (fuenteEl && fuenteEl.value) || 'hangar';
             if (!q) { lista.innerHTML = '<p class="text-xs text-gray-500">Ingres\u00e1 el nombre del plugin.</p>'; return; }
-            lista.innerHTML = '<div class="flex items-center gap-2 text-xs text-gray-400 animate-pulse"><div class="w-3 h-3 border-2 border-[#2ECC71] border-t-transparent rounded-full animate-spin"></div>Buscando en Hangar...</div>';
+            lista.innerHTML = `<div class="flex items-center gap-2 text-xs text-gray-400 animate-pulse"><div class="w-3 h-3 border-2 border-[#2ECC71] border-t-transparent rounded-full animate-spin"></div>Buscando en ${fuente === 'modrinth' ? 'Modrinth' : 'Hangar'}...</div>`;
             try {
-                const r = await pywebview.api.buscar_plugins(q);
+                const r = (fuente === 'modrinth')
+                    ? await pywebview.api.buscar_plugins_modrinth(q, _getMcVersionServidor())
+                    : await pywebview.api.buscar_plugins(q);
                 if (!r.ok) { lista.innerHTML = `<p class="text-xs text-red-400">${r.error}</p>`; return; }
                 if (!r.plugins.length) { lista.innerHTML = `<p class="text-xs text-gray-500">Sin resultados para "${q}".</p>`; return; }
-                lista.innerHTML = r.plugins.map(p => `
+                lista.innerHTML = r.plugins.map(p => {
+                    const id = `${fuente}-${p.owner||''}-${p.slug}`.replace(/[^a-zA-Z0-9_-]/g,'_');
+                    const onClick = (fuente === 'modrinth')
+                        ? `instalarPluginModrinth('${p.slug}','${id}')`
+                        : `instalarPlugin('${p.owner}','${p.slug}','${id}')`;
+                    return `
                     <div class="flex items-center gap-2 bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg px-3 py-2 hover:border-[#2ECC71]/40 transition">
                         <div class="flex-1 min-w-0">
-                            <p class="font-bold text-xs truncate">${p.name} <span class="text-gray-500 font-normal text-[10px]">by ${p.owner}</span></p>
-                            <p class="text-[10px] text-gray-500 truncate">${p.description}</p>
+                            <p class="font-bold text-xs truncate">${p.name} <span class="text-gray-500 font-normal text-[10px]">by ${p.owner||'?'}</span></p>
+                            <p class="text-[10px] text-gray-500 truncate">${p.description||''}</p>
                         </div>
-                        <button id="btn-plugin-${p.owner}-${p.slug}" onclick="instalarPlugin('${p.owner}','${p.slug}')"
+                        <button id="btn-plugin-${id}" onclick="${onClick}"
                             class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-bold px-2.5 py-1 rounded text-[10px] shrink-0 transition">Instalar</button>
-                    </div>`).join('');
+                    </div>`;
+                }).join('');
             } catch(e) { lista.innerHTML = `<p class="text-xs text-red-400">${e}</p>`; }
         }
-        async function instalarPlugin(owner, slug) {
-            const btn = document.getElementById(`btn-plugin-${owner}-${slug}`);
+        async function instalarPlugin(owner, slug, id) {
+            id = id || `hangar-${owner}-${slug}`;
+            const btn = document.getElementById(`btn-plugin-${id}`);
             if (btn) { btn.disabled = true; btn.textContent = '\u23f3'; }
             try {
                 const r = await pywebview.api.instalar_plugin(owner, slug);
+                if (r && r.ok) { if (btn) btn.textContent = '\u2705 Listo'; }
+                else { if (btn) { btn.disabled = false; btn.textContent = 'Instalar'; } }
+            } catch(e) { if (btn) { btn.disabled = false; btn.textContent = 'Instalar'; } }
+        }
+        async function instalarPluginModrinth(slug, id) {
+            id = id || `modrinth-${slug}`;
+            const btn = document.getElementById(`btn-plugin-${id}`);
+            if (btn) { btn.disabled = true; btn.textContent = '\u23f3'; }
+            try {
+                const r = await pywebview.api.instalar_plugin_modrinth(slug, _getMcVersionServidor());
+                if (r && r.ok) { if (btn) btn.textContent = '\u2705 Listo'; }
+                else { if (btn) { btn.disabled = false; btn.textContent = (r && r.error) ? '⚠️ Error' : 'Instalar'; } }
+            } catch(e) { if (btn) { btn.disabled = false; btn.textContent = 'Instalar'; } }
+        }
+
+        async function buscarPluginUpdates() {
+            const cont = document.getElementById('srv-plug-updates-list');
+            if (!cont) return;
+            cont.classList.remove('hidden');
+            cont.innerHTML = '<p class="text-gray-400 animate-pulse">Buscando actualizaciones en Modrinth...</p>';
+            try {
+                const r = await pywebview.api.get_plugin_updates(_getMcVersionServidor());
+                if (!r || !r.ok) { cont.innerHTML = `<p class="text-red-400">${(r&&r.error)||'Error'}</p>`; return; }
+                const ups = (r.plugins||[]).filter(p => p.update_disponible);
+                if (!ups.length) {
+                    cont.innerHTML = '<p class="text-gray-500">✅ Todos los plugins detectados en Modrinth están al día.</p>';
+                    return;
+                }
+                cont.innerHTML = ups.map((p, i) => `
+                    <div class="flex items-center gap-2 bg-[#0A0A0A] border border-[#1A7A40]/40 rounded px-2 py-1">
+                        <div class="flex-1 min-w-0">
+                            <p class="font-bold text-white truncate">${p.archivo}</p>
+                            <p class="text-gray-500">→ ${p.nuevo_archivo} <span class="text-[#2ECC71]">${p.nueva_version}</span></p>
+                        </div>
+                        <button id="btn-plug-up-${i}" onclick="aplicarPluginUpdate(${i}, ${JSON.stringify(p).replace(/"/g,'&quot;')})" class="bg-[#1A7A40] hover:bg-[#2ECC71] hover:text-black text-white font-bold px-2 py-0.5 rounded transition">⬆ Actualizar</button>
+                    </div>`).join('');
+            } catch(e) { cont.innerHTML = `<p class="text-red-400">${e}</p>`; }
+        }
+
+        async function aplicarPluginUpdate(idx, p) {
+            const btn = document.getElementById(`btn-plug-up-${idx}`);
+            if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+            try {
+                const r = await pywebview.api.aplicar_plugin_update(p.archivo, p.download_url, p.nuevo_archivo);
                 if (r && r.ok) {
-                    if (btn) { btn.textContent = '\u2705 Listo'; }
+                    if (btn) btn.textContent = '✅';
+                    cargarPluginsLocales();
                 } else {
-                    if (btn) { btn.disabled = false; btn.textContent = 'Instalar'; }
+                    if (btn) { btn.disabled = false; btn.textContent = '⚠️'; }
                 }
             } catch(e) {
-                if (btn) { btn.disabled = false; btn.textContent = 'Instalar'; }
+                if (btn) { btn.disabled = false; btn.textContent = '⚠️'; }
             }
         }
 
@@ -9745,6 +9941,101 @@
                 if (srch) srch.placeholder = 'Search mods...';
             }
             buscarTiendaActual();
+        }
+
+        let _pluginStoreLoaded = false;
+        async function _initPluginStore() {
+            if (_pluginStoreLoaded) return;
+            _pluginStoreLoaded = true;
+            buscarPluginsStore('');
+        }
+
+        async function buscarPluginsStore(queryOverride) {
+            const q = queryOverride !== undefined ? queryOverride : (document.getElementById('plugin-buscar')?.value || '').trim();
+            const lista      = document.getElementById('plugin-store-lista');
+            const trendSec   = document.getElementById('plugin-trending-section');
+            const trendList  = document.getElementById('plugin-trending-list');
+            if (!lista) return;
+            lista.innerHTML = '<p class="text-gray-400 text-sm text-center mt-8 animate-pulse">Cargando plugins…</p>';
+            if (trendSec) trendSec.style.display = q ? 'none' : '';
+            try {
+                const r = await pywebview.api.buscar_plugins_store(q);
+                const items = r.resultados || [];
+                if (!items.length) {
+                    lista.innerHTML = q
+                        ? `<p class="text-gray-500 text-sm text-center mt-8">No se encontraron plugins para "${q}".</p>`
+                        : '<p class="text-gray-500 text-sm text-center mt-8">No hay plugins disponibles.</p>';
+                    return;
+                }
+                // Populate trending chips (first 8, only on initial load)
+                if (!q && trendList) {
+                    trendList.innerHTML = items.slice(0, 8).map(p => {
+                        const icon = p.icon_url
+                            ? `<img src="${p.icon_url}" class="w-8 h-8 rounded-lg object-cover shrink-0" onerror="this.style.display='none'">`
+                            : `<div class="w-8 h-8 rounded-lg bg-[#2A2A2A] flex items-center justify-center shrink-0 text-base">🔌</div>`;
+                        return `<button data-nombre="${p.nombre}" onclick="_pluginChipClick(this)"
+                            class="flex items-center gap-2 bg-[#181818] border border-[#2A2A2A] hover:border-[#2ECC71]/40 rounded-xl px-3 py-2 transition shrink-0 text-left min-w-[130px] max-w-[170px]">
+                            ${icon}
+                            <span class="font-bold text-xs truncate">${p.nombre}</span>
+                        </button>`;
+                    }).join('');
+                }
+                // Main list
+                lista.innerHTML = (!q ? `<p class="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-2">🔽 Más descargados</p>` : '') +
+                    items.map(p => {
+                        const src = p.fuente === 'hangar' ? '🏦 Hangar' : '🌿 Modrinth';
+                        const own = p.owner || '';
+                        const srcColor = p.fuente === 'hangar' ? '#F39C12' : '#2ECC71';
+                        const dlFmt = p.downloads >= 1e6 ? (p.downloads/1e6).toFixed(1)+'M' : p.downloads >= 1e3 ? (p.downloads/1e3).toFixed(0)+'K' : String(p.downloads||0);
+                        const icon = p.icon_url
+                            ? `<img src="${p.icon_url}" class="w-10 h-10 rounded-lg object-cover shrink-0" onerror="this.style.display='none'">`
+                            : `<div class="w-10 h-10 rounded-lg bg-[#2A2A2A] flex items-center justify-center text-xl shrink-0">🔌</div>`;
+                        return `<div class="flex items-center gap-3 bg-[#181818] border border-[#2A2A2A] hover:border-[#2ECC71]/40 rounded-xl px-4 py-3 transition">
+                            ${icon}
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <p class="font-black text-sm truncate">${p.nombre}</p>
+                                    <span class="text-[10px] font-black px-1.5 py-0.5 rounded" style="color:${srcColor};background:${srcColor}22">${src}</span>
+                                </div>
+                                <p class="text-xs text-gray-500 truncate mt-0.5">${p.descripcion || ''}</p>
+                                <p class="text-[10px] text-gray-600 mt-0.5">⬇ ${dlFmt} descargas</p>
+                            </div>
+                            <button data-fuente="${p.fuente}" data-owner="${own}" data-slug="${p.slug}"
+                                onclick="_instalarPluginStore(this.dataset.fuente,this.dataset.owner,this.dataset.slug,this)"
+                                class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black px-3 py-1.5 rounded-lg text-xs transition shrink-0">Instalar</button>
+                        </div>`;
+                    }).join('');
+            } catch(e) { lista.innerHTML = `<p class="text-red-400 text-sm text-center mt-8">Error: ${e}</p>`; }
+        }
+
+        function _pluginChipClick(btn) {
+            const inp = document.getElementById('plugin-buscar');
+            if (inp) inp.value = btn.dataset.nombre || '';
+            buscarPluginsStore();
+        }
+
+        async function _instalarPluginStore(fuente, owner, slug, btn) {
+            if (btn) { btn.disabled = true; btn.textContent = '…'; }
+            try {
+                let r;
+                if (fuente === 'hangar') {
+                    r = await pywebview.api.instalar_plugin(owner, slug);
+                } else {
+                    const s = await pywebview.api.get_estado_servidor();
+                    const ver = s.servidor_version || '';
+                    r = await pywebview.api.instalar_plugin_modrinth(slug, ver);
+                }
+                if (r && r.ok !== false) {
+                    showToast(`✅ ${slug} instalado`, '#2ECC71', 4000);
+                    if (btn) { btn.textContent = '✅'; btn.className = btn.className.replace('bg-[#2ECC71]','bg-gray-600').replace('hover:bg-[#27AE60]',''); }
+                } else {
+                    showToast(`❌ ${(r && r.error) || 'Error desconocido'}`, '#E74C3C', 6000);
+                    if (btn) { btn.disabled = false; btn.textContent = 'Instalar'; }
+                }
+            } catch(e) {
+                showToast('Error: ' + e, '#E74C3C', 5000);
+                if (btn) { btn.disabled = false; btn.textContent = 'Instalar'; }
+            }
         }
 
         async function buscarTiendaActual() {
