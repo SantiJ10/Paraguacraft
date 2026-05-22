@@ -45,7 +45,7 @@ except Exception:
     log = logging.getLogger("paraguacraft.main")
     _LOG_PATH = ""
 
-VERSION = "6.0.0"  # Actualizar en cada release
+VERSION = "6.1.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 # Opcional: URL de Cloudflare Pages con latest.json (sin rate limits, CDN global)
 # Formato del JSON: {"version":"5.2.0", "download_url":"...", "size_bytes":0, "notes":"..."}
@@ -122,7 +122,7 @@ def _sha1_de_archivo(path):
 
 def _descargar_archivo_modrinth(url, dest_path, expected_sha1=None,
                                 expected_size=None, progress_dict=None,
-                                filename_label=""):
+                                filename_label="", extra_headers=None):
     """Descarga atómica + verificación SHA-1/tamaño de un archivo de Modrinth.
 
     Estrategia:
@@ -135,9 +135,11 @@ def _descargar_archivo_modrinth(url, dest_path, expected_sha1=None,
     Devuelve dict {ok, downloaded, error?}.
     """
     tmp_path = dest_path + ".part"
+    _hdr = {"User-Agent": PARAGUA_HTTP_UA}
+    if extra_headers:
+        _hdr.update(extra_headers)
     try:
-        with requests.get(url, stream=True, timeout=120,
-                          headers={"User-Agent": PARAGUA_HTTP_UA}) as r:
+        with requests.get(url, stream=True, timeout=120, headers=_hdr) as r:
             r.raise_for_status()
             total = int(r.headers.get("content-length", 0))
             if expected_size and total and abs(total - expected_size) > 1024:
@@ -5383,19 +5385,25 @@ class Api:
           - Detecta "ya instalado" comparando filename + SHA-1 antes de descargar.
           - Datapacks: instala en `<servidor>/<mundo>/datapacks/` si se pasa carpeta_server.
         """
+        tipo = {"mods": "mod", "resourcepacks": "resourcepack", "shaders": "shader",
+                "modpacks": "modpack", "datapacks": "datapack"}.get(
+            (tipo or "").lower(), (tipo or "mod").lower())
         if tipo == 'modpack':
             return self.instalar_modpack_mrpack(project_id, version_id, version_mc, motor)
         try:
             from core import carpeta_instancia_paraguacraft
             import minecraft_launcher_lib
             mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+            motor_inst = self._motor_para_instancia(
+                motor, version_mc, getattr(self, "config_actual", None) or {})
+            folder = ""
             if tipo == "datapack" and (carpeta_server or self._servidor_carpeta):
                 world_dir, err = self._ruta_mundo_servidor(carpeta_server, mundo)
                 if err:
                     return {"ok": False, "error": err}
                 dest_dir = os.path.join(world_dir, "datapacks")
             else:
-                folder = carpeta_instancia_paraguacraft(version_mc.strip(), motor)
+                folder = carpeta_instancia_paraguacraft(version_mc.strip(), motor_inst)
                 base = os.path.join(mine_dir, "instancias", folder)
                 tipo_mapa = {"mod": "mods", "resourcepack": "resourcepacks",
                              "shader": "shaderpacks", "datapack": "datapacks",
@@ -5403,13 +5411,15 @@ class Api:
                 dest_dir = os.path.join(base, tipo_mapa.get(tipo, "mods"))
             os.makedirs(dest_dir, exist_ok=True)
 
+            motor_mr = motor if tipo == "mod" else motor_inst
             loader_mr = {"fabric": "fabric", "forge": "forge", "neoforge": "neoforge",
                          "quilt": "quilt", "vanilla": "fabric", "fabric + iris": "fabric",
-                         "iris": "fabric", "optifine": "forge"}.get(motor.lower(), motor.lower())
+                         "iris": "fabric", "optifine": "forge"}.get(
+                str(motor_mr).lower(), str(motor_mr).lower())
 
             ya_instalados_sha1 = set()
             for _f in os.listdir(dest_dir):
-                if _f.endswith(".jar"):
+                if _f.endswith((".jar", ".zip")):
                     _h = _sha1_de_archivo(os.path.join(dest_dir, _f))
                     if _h:
                         ya_instalados_sha1.add(_h.lower())
@@ -5500,13 +5510,17 @@ class Api:
             if not instalados and not saltados:
                 err_txt = "; ".join(f"{e['slug']}: {e['error']}" for e in errores[:3])
                 return {"ok": False, "error": err_txt or "No se instaló nada"}
-            return {
+            resp = {
                 "ok": True,
                 "nombre": instalados[0] if instalados else (saltados[0] if saltados else ""),
                 "instalados": instalados,
                 "saltados": saltados,
                 "errores": errores,
             }
+            if tipo != "datapack":
+                resp["destino"] = dest_dir
+                resp["instancia"] = folder
+            return resp
         except Exception as e:
             log.error("instalar_mod_desde_modrinth: %s", e, exc_info=True)
             return {"ok": False, "error": str(e)}
@@ -7928,23 +7942,36 @@ class Api:
 
     def get_versiones_curseforge(self, project_id, mc_version=""):
         try:
+            if not (self._CF_API_KEY or "").strip():
+                return {"ok": False, "error": "API key de CurseForge no configurada.", "versions": []}
             _hdr = {"x-api-key": self._CF_API_KEY, "Accept": "application/json"}
+            params = {"pageSize": 50}
+            if mc_version:
+                params["gameVersion"] = mc_version
             r = requests.get(f"https://api.curseforge.com/v1/mods/{project_id}/files",
-                             headers=_hdr, params={"gameVersion": mc_version, "pageSize": 10}, timeout=10)
+                             headers=_hdr, params=params, timeout=15)
+            if r.status_code == 403:
+                return {"ok": False, "error": "API key inválida o sin permisos.", "versions": []}
             if r.status_code != 200:
                 return {"ok": False, "error": f"HTTP {r.status_code}", "versions": []}
             data = r.json().get("data", [])
+            _loader_names = {"forge", "fabric", "quilt", "neoforge"}
             vers = []
             for f in data:
-                gvs = f.get("gameVersions", [])
+                gvs = f.get("gameVersions", []) or []
+                mc_vers = [v for v in gvs if re.match(r"^\d+\.\d+", str(v))]
+                loaders = [v for v in gvs if str(v).lower() in _loader_names]
+                if not loaders and f.get("modLoader"):
+                    loaders = [str(f.get("modLoader"))]
                 vers.append({
                     "id": str(f.get("id", "")),
                     "name": f.get("displayName", ""),
-                    "game_versions": gvs,
-                    "loaders": [v for v in gvs if v.lower() in ("forge","fabric","quilt","neoforge")],
+                    "file_name": f.get("fileName", ""),
+                    "game_versions": mc_vers or gvs,
+                    "loaders": loaders,
                     "size_mb": round(f.get("fileLength", 0) / 1048576, 2),
                     "date_published": (f.get("fileDate") or "")[:10],
-                    "download_url": f.get("downloadUrl", "")
+                    "download_url": f.get("downloadUrl", ""),
                 })
             return {"ok": True, "versions": vers}
         except Exception as e:
@@ -7952,36 +7979,49 @@ class Api:
 
     def instalar_mod_curseforge(self, project_id, file_id, tipo, version, motor):
         try:
-            _hdr = {"x-api-key": self._CF_API_KEY, "Accept": "application/json"}
+            if not (self._CF_API_KEY or "").strip():
+                return {"ok": False, "error": "Configurá la API key de CurseForge en la tienda (botón CF)."}
+            _hdr = {"x-api-key": self._CF_API_KEY, "Accept": "application/json",
+                    "User-Agent": PARAGUA_HTTP_UA}
             r = requests.get(f"https://api.curseforge.com/v1/mods/{project_id}/files/{file_id}",
-                             headers=_hdr, timeout=10)
+                             headers=_hdr, timeout=15)
             if r.status_code != 200:
                 return {"ok": False, "error": f"CurseForge API error {r.status_code}"}
             file_data = r.json().get("data", {})
             url = file_data.get("downloadUrl") or ""
             filename = file_data.get("fileName") or f"cf_{file_id}.jar"
-            # Algunos autores deshabilitan el download directo en CF;
-            # en ese caso construimos la URL del CDN manualmente.
             if not url:
                 _fid = int(file_id)
                 url = f"https://edge.forgecdn.net/files/{_fid // 1000}/{_fid % 1000}/{filename}"
             import minecraft_launcher_lib as _mcl
             from core import carpeta_instancia_paraguacraft
+            motor_inst = self._motor_para_instancia(
+                motor, version, getattr(self, "config_actual", None) or {})
+            _tipo = {"mods": "mod", "resourcepacks": "resourcepack", "shaders": "shader",
+                     "modpacks": "modpack", "datapacks": "datapack"}.get(
+                (tipo or "").lower(), (tipo or "mod").lower())
             carpeta_tipo = {"mod": "mods", "resourcepack": "resourcepacks",
-                            "shader": "shaderpacks", "modpack": "mods"}.get(tipo, "mods")
+                            "shader": "shaderpacks", "modpack": "mods",
+                            "datapack": "datapacks"}.get(_tipo, "mods")
+            folder = carpeta_instancia_paraguacraft(version.strip(), motor_inst)
             dest = os.path.join(_mcl.utils.get_minecraft_directory(), "instancias",
-                                carpeta_instancia_paraguacraft(version, motor), carpeta_tipo)
+                                folder, carpeta_tipo)
             os.makedirs(dest, exist_ok=True)
             ruta = os.path.join(dest, filename)
-            with requests.get(url, stream=True, timeout=120,
-                              headers={"User-Agent": "Paraguacraft-Launcher"}) as dl:
-                dl.raise_for_status()
-                with open(ruta, "wb") as f:
-                    for chunk in dl.iter_content(65536):
-                        if chunk:
-                            f.write(chunk)
-            return {"ok": True, "nombre": filename}
+            res = _descargar_archivo_modrinth(
+                url, ruta, expected_size=file_data.get("fileLength"),
+                filename_label=filename, progress_dict=self._mod_dl_progress,
+                extra_headers={"x-api-key": self._CF_API_KEY})
+            if not res.get("ok"):
+                return {"ok": False, "error": res.get("error", "Error al descargar")}
+            return {
+                "ok": True,
+                "nombre": filename,
+                "instancia": folder,
+                "destino": ruta,
+            }
         except Exception as e:
+            log.error("instalar_mod_curseforge: %s", e, exc_info=True)
             return {"ok": False, "error": str(e)}
 
     # ── COMPARTIR INSTANCIA POR CÓDIGO ────────────────────────────────────
@@ -8499,6 +8539,25 @@ class Api:
                     "shaders": [s[1] for s in perfil.get("shaders_modrinth", [])]}
         except Exception as e:
             return {"ok": False, "error": str(e)}
+
+    @staticmethod
+    def _motor_para_instancia(motor, version_mc=None, config=None):
+        """Convierte loader Modrinth (p. ej. 'minecraft') al motor del launcher."""
+        cfg = config or {}
+        m = (motor or "").strip()
+        ml = m.lower()
+        if ml in ("minecraft", "mrpack", ""):
+            if version_mc and (cfg.get("ultima_version") or "").strip() == str(version_mc).strip():
+                return cfg.get("ultimo_motor") or "Vanilla"
+            return "Vanilla"
+        _map = {
+            "fabric": "Fabric", "forge": "Forge", "neoforge": "NeoForge",
+            "quilt": "Quilt", "iris": "Fabric + Iris", "vanilla": "Vanilla",
+            "optifine": "OptiFine",
+        }
+        if ml in _map:
+            return _map[ml]
+        return m
 
     @staticmethod
     def _normalizar_loader(motor):
