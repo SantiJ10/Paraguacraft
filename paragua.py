@@ -45,7 +45,7 @@ except Exception:
     log = logging.getLogger("paraguacraft.main")
     _LOG_PATH = ""
 
-VERSION = "5.9.0"  # Actualizar en cada release
+VERSION = "6.0.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 # Opcional: URL de Cloudflare Pages con latest.json (sin rate limits, CDN global)
 # Formato del JSON: {"version":"5.2.0", "download_url":"...", "size_bytes":0, "notes":"..."}
@@ -80,6 +80,10 @@ except (ImportError, AttributeError):
 # Credenciales oficiales
 CLIENT_ID = "72fb7c48-c2f5-4d13-b0e7-9835b3b906c0"
 REDIRECT_URI = "https://login.live.com/oauth20_desktop.srf"
+# Device code / QR (el client oficial de MC Launcher devuelve 401 en /devicecode)
+MS_DEVICE_CLIENT_ID = "d772766b-19b4-4f69-b353-989f890c5d3b"
+MS_DEVICE_SCOPE = "XboxLive.signin offline_access"
+MS_DEVICE_VERIFY_URI = "https://www.microsoft.com/link"
 DISCORD_APP_ID = "1487516329631154206"
 
 FEATURED_VERSION_KEYS = ("26.1", "1.21", "1.20", "1.19", "1.18", "1.17", "1.16", "1.12", "1.8", "1.7")
@@ -205,6 +209,9 @@ class Api:
 
         self._servidor_proc = None
         self._servidor_carpeta = None
+        self._ms_device_auth = None
+        self._overlay_last_error = ""
+        self._keystroke_last_error = ""
         self._servidor_tipo = 'paper'
         self._servidor_log = []
         self._servidor_lock = threading.Lock()
@@ -530,7 +537,10 @@ class Api:
             return True
         try:
             from minecraft_launcher_lib.microsoft_account import refresh_authorization_token
-            new_data = refresh_authorization_token(CLIENT_ID, None, REDIRECT_URI, self.ms_data["refresh_token"])
+            cid = self.ms_data.get("ms_client_id", CLIENT_ID)
+            redirect = REDIRECT_URI if cid == CLIENT_ID else None
+            new_data = refresh_authorization_token(
+                cid, None, redirect, self.ms_data["refresh_token"])
             if new_data and "access_token" in new_data:
                 self.ms_data.update(new_data)
                 with open(self.ruta_sesion, "w") as f:
@@ -634,26 +644,162 @@ class Api:
             from minecraft_launcher_lib.microsoft_account import complete_login, url_contains_auth_code, get_auth_code_from_url
             if url_contains_auth_code(url_respuesta):
                 auth_code = get_auth_code_from_url(url_respuesta)
-                self.ms_data = complete_login(CLIENT_ID, None, REDIRECT_URI, auth_code)
-                nombre_premium = f"{self.ms_data['name']} [PREMIUM]"
-                self.config_actual["usuario"] = nombre_premium
-                self.config_actual["is_premium"] = True
-                with open(self.ruta_sesion, "w") as f:
-                    json.dump(self.ms_data, f)
-                try:
-                    _ss = []
-                    if os.path.exists(self._SESIONES_PATH):
-                        with open(self._SESIONES_PATH, "r") as _f: _ss = json.load(_f)
-                    _idx = next((i for i,s in enumerate(_ss) if s.get("id")==self.ms_data.get("id")), None)
-                    if _idx is not None: _ss[_idx] = self.ms_data
-                    else: _ss.append(self.ms_data)
-                    os.makedirs(os.path.dirname(self._SESIONES_PATH), exist_ok=True)
-                    with open(self._SESIONES_PATH, "w") as _f: json.dump(_ss, _f)
-                except Exception: pass
-                self._guardar()
-                return {"ok": True, "nombre": nombre_premium}
+                ms_data = complete_login(CLIENT_ID, None, REDIRECT_URI, auth_code)
+                return self._guardar_sesion_ms(ms_data, CLIENT_ID)
             return {"ok": False, "error": "URL inválida."}
         except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def _guardar_sesion_ms(self, ms_data, ms_client_id=None):
+        """Persiste sesión premium y actualiza config multi-cuenta."""
+        if ms_client_id:
+            ms_data = dict(ms_data)
+            ms_data["ms_client_id"] = ms_client_id
+        elif "ms_client_id" not in ms_data:
+            ms_data = dict(ms_data)
+            ms_data["ms_client_id"] = CLIENT_ID
+        self.ms_data = ms_data
+        nombre_premium = f"{self.ms_data['name']} [PREMIUM]"
+        self.config_actual["usuario"] = nombre_premium
+        self.config_actual["is_premium"] = True
+        with open(self.ruta_sesion, "w") as f:
+            json.dump(self.ms_data, f)
+        try:
+            _ss = []
+            if os.path.exists(self._SESIONES_PATH):
+                with open(self._SESIONES_PATH, "r") as _f:
+                    _ss = json.load(_f)
+            _idx = next((i for i, s in enumerate(_ss) if s.get("id") == self.ms_data.get("id")), None)
+            if _idx is not None:
+                _ss[_idx] = self.ms_data
+            else:
+                _ss.append(self.ms_data)
+            os.makedirs(os.path.dirname(self._SESIONES_PATH), exist_ok=True)
+            with open(self._SESIONES_PATH, "w") as _f:
+                json.dump(_ss, _f)
+        except Exception:
+            pass
+        self._guardar()
+        return {"ok": True, "nombre": nombre_premium}
+
+    def _ms_login_desde_tokens(self, ms_access_token, ms_refresh_token):
+        """Convierte tokens OAuth de Microsoft en sesión Minecraft (misma forma que complete_login)."""
+        headers = {"Content-Type": "application/json", "Accept": "application/json"}
+        r1 = requests.post(
+            "https://user.auth.xboxlive.com/user/authenticate",
+            json={
+                "Properties": {
+                    "AuthMethod": "RPS",
+                    "SiteName": "user.auth.xboxlive.com",
+                    "RpsTicket": f"d={ms_access_token}",
+                },
+                "RelyingParty": "http://auth.xboxlive.com",
+                "TokenType": "JWT",
+            },
+            headers=headers, timeout=20)
+        r1.raise_for_status()
+        xbl = r1.json()
+        uhs = xbl["DisplayClaims"]["xui"][0]["uhs"]
+        xbl_token = xbl["Token"]
+        r2 = requests.post(
+            "https://xsts.auth.xboxlive.com/xsts/authorize",
+            json={
+                "Properties": {"SandboxId": "RETAIL", "UserTokens": [xbl_token]},
+                "RelyingParty": "rp://api.minecraftservices.com/",
+                "TokenType": "JWT",
+            },
+            headers=headers, timeout=20)
+        r2.raise_for_status()
+        xsts = r2.json()
+        xsts_token = xsts["Token"]
+        r3 = requests.post(
+            "https://api.minecraftservices.com/authentication/login_with_xbox",
+            json={"identityToken": f"XBL3.0 x={uhs};{xsts_token}"},
+            headers=headers, timeout=20)
+        r3.raise_for_status()
+        mc_login = r3.json()
+        mc_access = mc_login["access_token"]
+        r4 = requests.get(
+            "https://api.minecraftservices.com/minecraft/profile",
+            headers={"Authorization": f"Bearer {mc_access}"},
+            timeout=15)
+        if r4.status_code == 404:
+            raise RuntimeError(
+                "Esta cuenta Microsoft no tiene Minecraft Java comprado.")
+        r4.raise_for_status()
+        profile = r4.json()
+        return {
+            "id": profile["id"],
+            "name": profile["name"],
+            "access_token": mc_access,
+            "refresh_token": ms_refresh_token,
+        }
+
+    def login_microsoft_qr_iniciar(self):
+        """Inicia login por código QR / microsoft.com/link (device code flow)."""
+        try:
+            r = requests.post(
+                "https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode",
+                data={"client_id": MS_DEVICE_CLIENT_ID, "scope": MS_DEVICE_SCOPE},
+                timeout=15)
+            r.raise_for_status()
+            data = r.json()
+            interval = int(data.get("interval", 5))
+            self._ms_device_auth = {
+                "device_code": data["device_code"],
+                "expires_at": time.time() + int(data.get("expires_in", 900)),
+                "interval": max(interval, 3),
+            }
+            user_code = data.get("user_code", "")
+            # QR solo a microsoft.com/link (sin ?otc ni verification_uri_complete:
+            # esas URLs pasan por login.live.com y fallan con clientes de terceros).
+            verify_uri = MS_DEVICE_VERIFY_URI
+            return {
+                "ok": True,
+                "user_code": user_code,
+                "verification_uri": verify_uri,
+                "expires_in": int(data.get("expires_in", 900)),
+                "interval": interval,
+                "message": data.get("message", ""),
+                "qr_url": verify_uri,
+            }
+        except Exception as e:
+            log.error("login_microsoft_qr_iniciar: %s", e, exc_info=True)
+            return {"ok": False, "error": str(e)}
+
+    def login_microsoft_qr_poll(self):
+        """Hace polling del device code hasta que el usuario autorice."""
+        if not self._ms_device_auth:
+            return {"ok": False, "error": "No hay login QR iniciado"}
+        if time.time() > self._ms_device_auth.get("expires_at", 0):
+            self._ms_device_auth = None
+            return {"ok": False, "error": "El código expiró. Generá uno nuevo."}
+        try:
+            r = requests.post(
+                "https://login.microsoftonline.com/consumers/oauth2/v2.0/token",
+                data={
+                    "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+                    "client_id": MS_DEVICE_CLIENT_ID,
+                    "device_code": self._ms_device_auth["device_code"],
+                },
+                timeout=15)
+            if r.status_code == 400:
+                err = r.json()
+                code = err.get("error", "")
+                if code in ("authorization_pending", "slow_down"):
+                    return {"ok": False, "pending": True}
+                if code == "expired_token":
+                    self._ms_device_auth = None
+                    return {"ok": False, "error": "Código expirado. Generá uno nuevo."}
+                return {"ok": False, "error": err.get("error_description", code)}
+            r.raise_for_status()
+            tok = r.json()
+            self._ms_device_auth = None
+            ms_data = self._ms_login_desde_tokens(
+                tok["access_token"], tok.get("refresh_token", ""))
+            return self._guardar_sesion_ms(ms_data, MS_DEVICE_CLIENT_ID)
+        except Exception as e:
+            log.error("login_microsoft_qr_poll: %s", e, exc_info=True)
             return {"ok": False, "error": str(e)}
 
     def login_invitado(self, nombre):
@@ -2909,6 +3055,132 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    # ── Importar desde otros launchers (TLauncher, SKLauncher, etc.) ─────────
+    def detectar_launchers_externos(self):
+        """Detecta carpetas de juego de launchers no premium conocidos."""
+        appdata = os.environ.get("APPDATA", os.path.join(os.path.expanduser("~"), "AppData", "Roaming"))
+        local = os.environ.get("LOCALAPPDATA", os.path.join(os.path.expanduser("~"), "AppData", "Local"))
+        candidatos = [
+            ("tlauncher", "TLauncher", [
+                os.path.join(appdata, ".minecraft"),
+                os.path.join(appdata, ".tlauncher", "legacy", "Minecraft", "game"),
+                os.path.join(local, ".tlauncher", "legacy", "Minecraft", "game"),
+            ], ["TlauncherProfiles.json", "tlauncher_profiles.json", ".tlauncher"]),
+            ("sklauncher", "SKLauncher", [
+                os.path.join(appdata, "SKlauncher"),
+                os.path.join(appdata, ".minecraft"),
+            ], ["sklauncher", "SKlauncher", "sklauncher.properties"]),
+            ("legacy", "Minecraft (.minecraft)", [
+                os.path.join(appdata, ".minecraft"),
+            ], []),
+        ]
+        encontrados = []
+        vistos = set()
+
+        def _tiene_juego(ruta):
+            return any(os.path.exists(os.path.join(ruta, sub))
+                       for sub in ("saves", "mods", "resourcepacks", "options.txt", "versions"))
+
+        def _marcador_ok(ruta, marcadores, lid):
+            if not marcadores:
+                return lid == "legacy"
+            for m in marcadores:
+                if os.path.exists(os.path.join(ruta, m)):
+                    return True
+                if m in ruta.replace("\\", "/").lower():
+                    return True
+            return False
+
+        for lid, nombre, rutas, marcadores in candidatos:
+            for ruta in rutas:
+                ruta = os.path.normpath(ruta)
+                if ruta in vistos or not os.path.isdir(ruta) or not _tiene_juego(ruta):
+                    continue
+                if not _marcador_ok(ruta, marcadores, lid):
+                    continue
+                vistos.add(ruta)
+                encontrados.append({
+                    "id": lid,
+                    "nombre": nombre,
+                    "ruta": ruta,
+                    "tiene_saves": os.path.isdir(os.path.join(ruta, "saves")),
+                    "tiene_mods": os.path.isdir(os.path.join(ruta, "mods")),
+                    "tiene_rp": os.path.isdir(os.path.join(ruta, "resourcepacks")),
+                })
+        return {"ok": True, "launchers": encontrados}
+
+    def importar_desde_launcher_externo(self, ruta_origen, version_mc, motor, opciones=None):
+        """Copia datos desde otra carpeta .minecraft / launcher hacia una instancia Paraguacraft."""
+        import shutil
+        opciones = opciones or {}
+        copiar_saves = bool(opciones.get("saves", True))
+        copiar_mods = bool(opciones.get("mods", True))
+        copiar_rp = bool(opciones.get("resourcepacks", True))
+        copiar_shaders = bool(opciones.get("shaders", True))
+        copiar_options = bool(opciones.get("options", True))
+        copiar_servers = bool(opciones.get("servers", True))
+        ruta_origen = (ruta_origen or "").strip()
+        if not ruta_origen or not os.path.isdir(ruta_origen):
+            return {"ok": False, "error": "Carpeta de origen inválida"}
+        try:
+            from core import carpeta_instancia_paraguacraft
+            import minecraft_launcher_lib
+            mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
+            folder = carpeta_instancia_paraguacraft(version_mc.strip(), motor)
+            dest_base = os.path.join(mine_dir, "instancias", folder)
+            os.makedirs(dest_base, exist_ok=True)
+            copiados = []
+            errores = []
+
+            def _merge_dir(src_name, dest_name=None):
+                src = os.path.join(ruta_origen, src_name)
+                dst = os.path.join(dest_base, dest_name or src_name)
+                if not os.path.isdir(src):
+                    return
+                os.makedirs(dst, exist_ok=True)
+                for item in os.listdir(src):
+                    s = os.path.join(src, item)
+                    d = os.path.join(dst, item)
+                    try:
+                        if os.path.isdir(s):
+                            if os.path.exists(d):
+                                shutil.copytree(s, d, dirs_exist_ok=True)
+                            else:
+                                shutil.copytree(s, d)
+                        else:
+                            shutil.copy2(s, d)
+                    except OSError as ex:
+                        errores.append(f"{item}: {ex}")
+                copiados.append(dest_name or src_name)
+
+            if copiar_saves:
+                _merge_dir("saves")
+            if copiar_mods:
+                _merge_dir("mods")
+            if copiar_rp:
+                _merge_dir("resourcepacks")
+            if copiar_shaders:
+                _merge_dir("shaderpacks")
+            if copiar_options and os.path.isfile(os.path.join(ruta_origen, "options.txt")):
+                shutil.copy2(os.path.join(ruta_origen, "options.txt"),
+                             os.path.join(dest_base, "options.txt"))
+                copiados.append("options.txt")
+            if copiar_servers and os.path.isfile(os.path.join(ruta_origen, "servers.dat")):
+                shutil.copy2(os.path.join(ruta_origen, "servers.dat"),
+                             os.path.join(dest_base, "servers.dat"))
+                copiados.append("servers.dat")
+            if not copiados:
+                return {"ok": False, "error": "No había datos para importar en esa carpeta"}
+            return {
+                "ok": True,
+                "instancia": folder,
+                "copiados": copiados,
+                "errores": errores,
+            }
+        except Exception as e:
+            log.error("importar_desde_launcher_externo: %s", e, exc_info=True)
+            return {"ok": False, "error": str(e)}
+
     # ── Backup de mundos ──────────────────────────────────────────────────────
     def backup_mundos(self, carpeta):
         import zipfile, datetime
@@ -5043,14 +5315,73 @@ class Api:
             log.error("importar_mrpack_archivo: %s", e, exc_info=True)
             return {"ok": False, "error": str(e)}
 
-    def instalar_mod_desde_modrinth(self, project_id, version_id, tipo, version_mc, motor):
-        """Instala un mod/shader/resourcepack desde Modrinth.
+    def _ruta_mundo_servidor(self, carpeta_server, mundo=None):
+        """Resuelve carpeta world/ del servidor (level-name en server.properties)."""
+        carpeta = (carpeta_server or self._servidor_carpeta or "").strip()
+        if not carpeta or not os.path.isdir(carpeta):
+            return None, "No hay servidor seleccionado"
+        level = (mundo or "").strip()
+        if not level:
+            props_path = os.path.join(carpeta, "server.properties")
+            if os.path.isfile(props_path):
+                try:
+                    with open(props_path, "r", encoding="utf-8", errors="ignore") as f:
+                        for line in f:
+                            if line.startswith("level-name="):
+                                level = line.split("=", 1)[1].strip()
+                                break
+                except OSError:
+                    pass
+        if not level:
+            level = "world"
+        world_dir = os.path.join(carpeta, level)
+        if not os.path.isdir(world_dir):
+            world_dir = os.path.join(carpeta, "world")
+        if not os.path.isdir(world_dir):
+            return None, f"No se encontró el mundo '{level}' en el servidor"
+        return world_dir, None
+
+    def get_servidor_mundos(self, carpeta_server=None):
+        """Lista mundos disponibles en un servidor local (carpetas con level.dat)."""
+        try:
+            carpeta = (carpeta_server or self._servidor_carpeta or "").strip()
+            if not carpeta or not os.path.isdir(carpeta):
+                return {"ok": False, "error": "No hay servidor seleccionado", "mundos": []}
+            mundos = []
+            default_level = "world"
+            props_path = os.path.join(carpeta, "server.properties")
+            if os.path.isfile(props_path):
+                try:
+                    with open(props_path, "r", encoding="utf-8", errors="ignore") as f:
+                        for line in f:
+                            if line.startswith("level-name="):
+                                default_level = line.split("=", 1)[1].strip() or "world"
+                                break
+                except OSError:
+                    pass
+            for name in sorted(os.listdir(carpeta)):
+                p = os.path.join(carpeta, name)
+                if os.path.isdir(p) and os.path.isfile(os.path.join(p, "level.dat")):
+                    mundos.append({
+                        "nombre": name,
+                        "activo": name == default_level,
+                    })
+            if not mundos and os.path.isdir(os.path.join(carpeta, "world")):
+                mundos.append({"nombre": "world", "activo": default_level == "world"})
+            return {"ok": True, "mundos": mundos, "default": default_level}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "mundos": []}
+
+    def instalar_mod_desde_modrinth(self, project_id, version_id, tipo, version_mc, motor,
+                                    carpeta_server=None, mundo=None):
+        """Instala un mod/shader/resourcepack/datapack desde Modrinth.
 
         Mejoras vs versión anterior:
           - Verifica SHA-1 y tamaño contra metadata de Modrinth (anti-corrupción / MITM).
           - Escritura atómica: descarga a `.part` y `os.replace` solo si todo cuadra.
           - Resuelve **dependencias requeridas** recursivamente (límite 6 niveles).
           - Detecta "ya instalado" comparando filename + SHA-1 antes de descargar.
+          - Datapacks: instala en `<servidor>/<mundo>/datapacks/` si se pasa carpeta_server.
         """
         if tipo == 'modpack':
             return self.instalar_modpack_mrpack(project_id, version_id, version_mc, motor)
@@ -5058,12 +5389,18 @@ class Api:
             from core import carpeta_instancia_paraguacraft
             import minecraft_launcher_lib
             mine_dir = minecraft_launcher_lib.utils.get_minecraft_directory()
-            folder = carpeta_instancia_paraguacraft(version_mc.strip(), motor)
-            base = os.path.join(mine_dir, "instancias", folder)
-            tipo_mapa = {"mod": "mods", "resourcepack": "resourcepacks",
-                         "shader": "shaderpacks", "datapack": "datapacks",
-                         "modpack": "mods", "plugin": "plugins"}
-            dest_dir = os.path.join(base, tipo_mapa.get(tipo, "mods"))
+            if tipo == "datapack" and (carpeta_server or self._servidor_carpeta):
+                world_dir, err = self._ruta_mundo_servidor(carpeta_server, mundo)
+                if err:
+                    return {"ok": False, "error": err}
+                dest_dir = os.path.join(world_dir, "datapacks")
+            else:
+                folder = carpeta_instancia_paraguacraft(version_mc.strip(), motor)
+                base = os.path.join(mine_dir, "instancias", folder)
+                tipo_mapa = {"mod": "mods", "resourcepack": "resourcepacks",
+                             "shader": "shaderpacks", "datapack": "datapacks",
+                             "modpack": "mods", "plugin": "plugins"}
+                dest_dir = os.path.join(base, tipo_mapa.get(tipo, "mods"))
             os.makedirs(dest_dir, exist_ok=True)
 
             loader_mr = {"fabric": "fabric", "forge": "forge", "neoforge": "neoforge",
@@ -9208,6 +9545,7 @@ class Api:
     def abrir_overlay(self):
         try:
             import tkinter as tk
+            self._overlay_last_error = ""
             if self.__class__._overlay_window is not None:
                 try:
                     self.__class__._overlay_window.destroy()
@@ -9216,6 +9554,7 @@ class Api:
                 self.__class__._overlay_window = None
 
             def _run():
+                err_holder = []
                 try:
                     import time as _time
                     import subprocess as _sp
@@ -9439,13 +9778,22 @@ class Api:
                     _update()
                     self.__class__._overlay_window = root
                     root.mainloop()
-                except Exception:
-                    pass
+                except Exception as ex:
+                    err_holder.append(str(ex))
+                    log.error("overlay thread: %s", ex, exc_info=True)
                 finally:
                     _alive[0] = False
                     self.__class__._overlay_window = None
+                    if err_holder:
+                        self._overlay_last_error = err_holder[0]
 
             threading.Thread(target=_run, daemon=True).start()
+            time.sleep(0.35)
+            if self._overlay_last_error:
+                return {"ok": False, "error": self._overlay_last_error}
+            if self.__class__._overlay_window is None:
+                return {"ok": False,
+                        "error": "No se pudo abrir el overlay (¿tkinter instalado?)"}
             return {"ok": True}
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -9477,6 +9825,7 @@ class Api:
             import tkinter as tk
             import time
             from collections import deque
+            self._keystroke_last_error = ""
             if self.__class__._keystroke_window is not None:
                 try: self.__class__._keystroke_window.destroy()
                 except Exception: pass
@@ -9484,6 +9833,8 @@ class Api:
 
             def _run():
                 _pynput_listener = None
+                err_holder = []
+                _key_bindings = []
                 try:
                     import math as _math
                     C_TRANS   = '#010203'
@@ -9681,24 +10032,32 @@ class Api:
                     root.after(80, _tick)
 
                     def _on_key(event, pressed):
-                        name = event.keysym.lower()
-                        if name in _key_ids:
-                            rid, tid = _key_ids[name]
-                            cv.itemconfig(rid,
-                                          fill=C_WASD_ON if pressed else C_KEY_BG,
-                                          outline=C_TEAL if pressed else C_KEY_OFF)
-                            cv.itemconfig(tid,
-                                          fill=C_TEAL if pressed else C_KEY_OFF)
-                        elif name in _extra_ids:
-                            rid, tid = _extra_ids[name]
-                            cv.itemconfig(rid,
-                                          fill='#1E1E1E' if pressed else C_KEY_BG,
-                                          outline=C_TEAL if pressed else C_KEY_OFF)
-                            cv.itemconfig(tid,
-                                          fill=C_TEAL if pressed else C_KEY_OFF)
+                        try:
+                            if not root.winfo_exists():
+                                return
+                            name = (event.keysym or "").lower()
+                            if name in _key_ids:
+                                rid, tid = _key_ids[name]
+                                cv.itemconfig(rid,
+                                              fill=C_WASD_ON if pressed else C_KEY_BG,
+                                              outline=C_TEAL if pressed else C_KEY_OFF)
+                                cv.itemconfig(tid,
+                                              fill=C_TEAL if pressed else C_KEY_OFF)
+                            elif name in _extra_ids:
+                                rid, tid = _extra_ids[name]
+                                cv.itemconfig(rid,
+                                              fill='#1E1E1E' if pressed else C_KEY_BG,
+                                              outline=C_TEAL if pressed else C_KEY_OFF)
+                                cv.itemconfig(tid,
+                                              fill=C_TEAL if pressed else C_KEY_OFF)
+                        except Exception:
+                            pass
 
-                    root.bind_all('<KeyPress>', lambda e: _on_key(e, True))
-                    root.bind_all('<KeyRelease>', lambda e: _on_key(e, False))
+                    def _bind_keys():
+                        root.bind('<KeyPress>', lambda e: _on_key(e, True), add='+')
+                        root.bind('<KeyRelease>', lambda e: _on_key(e, False), add='+')
+                        _key_bindings.append(('KeyPress',))
+                    _bind_keys()
                     root.focus_force()
 
                     _pm = None
@@ -9751,17 +10110,40 @@ class Api:
                         _pynput_listener.daemon = True
                         _pynput_listener.start()
 
+                    def _on_close():
+                        if _pynput_listener:
+                            try:
+                                _pynput_listener.stop()
+                            except Exception:
+                                pass
+                        try:
+                            root.destroy()
+                        except Exception:
+                            pass
+
+                    root.protocol("WM_DELETE_WINDOW", _on_close)
                     self.__class__._keystroke_window = root
                     root.mainloop()
-                except Exception:
-                    pass
+                except Exception as ex:
+                    err_holder.append(str(ex))
+                    log.error("keystroke overlay: %s", ex, exc_info=True)
                 finally:
                     self.__class__._keystroke_window = None
                     if _pynput_listener:
-                        try: _pynput_listener.stop()
-                        except Exception: pass
+                        try:
+                            _pynput_listener.stop()
+                        except Exception:
+                            pass
+                    if err_holder:
+                        self._keystroke_last_error = err_holder[0]
 
             threading.Thread(target=_run, daemon=True).start()
+            time.sleep(0.4)
+            if self._keystroke_last_error:
+                return {"ok": False, "error": self._keystroke_last_error}
+            if self.__class__._keystroke_window is None:
+                return {"ok": False,
+                        "error": "No se pudo abrir el overlay de teclas"}
             return {"ok": True}
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -10612,6 +10994,12 @@ class _LocalAPIHandler(BaseHTTPRequestHandler):
         if parsed.path == '/api/ms_start':
             r = _api_http_ref.login_microsoft_paso1()
             self._json({'ok': r is True, 'error': None if r is True else str(r)})
+
+        elif parsed.path == '/api/ms_qr_start':
+            self._json(_api_http_ref.login_microsoft_qr_iniciar() if _api_http_ref else {'ok': False})
+
+        elif parsed.path == '/api/ms_qr_poll':
+            self._json(_api_http_ref.login_microsoft_qr_poll() if _api_http_ref else {'ok': False})
 
         elif parsed.path == '/callback':  # Spotify OAuth redirect
             code = qs.get('code', [None])[0]
