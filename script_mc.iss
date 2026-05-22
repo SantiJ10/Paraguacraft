@@ -1,10 +1,6 @@
 [Setup]
 AppName=Paraguacraft
-<<<<<<< HEAD
 AppVersion=6.0.0
-=======
-AppVersion=5.9.0
->>>>>>> 5e62d720d56f2129240ec588e1b161ca4c8070be
 AppPublisher=Jaful
 DefaultDirName={autopf}\Paraguacraft
 DefaultGroupName=Paraguacraft
@@ -13,13 +9,8 @@ UninstallDisplayIcon={app}\Paraguacraft.exe
 SetupIconFile=C:\Users\San\Documents\Amin\Paraguacraft\iconomc.ico
 Compression=lzma2/ultra
 SolidCompression=yes
-<<<<<<< HEAD
-OutputDir=C:\Users\Amin\Documents\Amin\Proyectos\Paraguacraft
-OutputBaseFilename=Instalar_Paraguacraft_v6.0.0
-=======
 OutputDir=C:\Users\San\Documents\Amin\Paraguacraft
-OutputBaseFilename=Instalar_Paraguacraft_v5.9.0
->>>>>>> 5e62d720d56f2129240ec588e1b161ca4c8070be
+OutputBaseFilename=Instalar_Paraguacraft_v6.0.0
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"

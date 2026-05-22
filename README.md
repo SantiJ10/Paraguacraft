@@ -4,11 +4,7 @@
 
 **Launcher completo de Minecraft, desarrollado en Python con interfaz web moderna.**
 
-<<<<<<< HEAD
 [![Version](https://img.shields.io/badge/versi%C3%B3n-6.0.0-2ECC71?style=flat-square)](https://github.com/SantiJ10/Paraguacraft/releases)
-=======
-[![Version](https://img.shields.io/badge/versi%C3%B3n-5.7.0-2ECC71?style=flat-square)](https://github.com/SantiJ10/Paraguacraft/releases)
->>>>>>> 5e62d720d56f2129240ec588e1b161ca4c8070be
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![License](https://img.shields.io/badge/licencia-MIT-blue?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/plataforma-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)](https://github.com/SantiJ10/Paraguacraft/releases)
@@ -102,11 +98,8 @@ Paraguacraft es un launcher de Minecraft completamente personalizado, desarrolla
 - Sistema de **whitelist**, **ops** y **bans** integrado con escritura **atómica** (`tempfile + os.replace + fsync`) — los JSONs (`ops.json`, `whitelist.json`, `banned-players.json`) ya no se corrompen ante crashes ni escrituras concurrentes (UI + bot Discord)
 - **Bot Discord integrado**: 9 slash commands (`/server-start`, `/server-stop`, `/server-restart`, `/whitelist add|remove|list`, `/op add|remove`, `/ban add|remove`)
 - Edición de `server.properties` desde la UI con escritura atómica
-<<<<<<< HEAD
 - **Importar carpeta de servidor** ya existente (otra PC o backup) con detección de versión y tipo
 - **Actualizaciones de plugins** del servidor desde la UI
-=======
->>>>>>> 5e62d720d56f2129240ec588e1b161ca4c8070be
 
 ### 💾 Instancias y mundos
 - Backup y restauración de mundos
@@ -245,7 +238,6 @@ Paraguacraft/
 
 ## 📝 Changelog
 
-<<<<<<< HEAD
 ### v6.0.0
 - **Login Microsoft unificado**: un botón → modal con navegador + QR; código copiable; QR solo a `microsoft.com/link`
 - **Data packs en servidor local**: selector servidor/mundo → `world/datapacks`
@@ -262,8 +254,6 @@ Paraguacraft/
 ### v5.8.0
 - **RAM servidor**: `-Xms` = `-Xmx` en modo automático (mitad de RAM del sistema, tope 8 GB)
 
-=======
->>>>>>> 5e62d720d56f2129240ec588e1b161ca4c8070be
 ### v5.7.0
 - **🐛 Fix Hypixel/CubeCraft con sesión premium**: arreglado el `Invalid session` por token MS expirado. Ahora se refresca sincrónicamente antes de lanzar y se usa el `name` real de Mojang
 - **⚡ Aikar G1GC flags en servidor MC**: PaperMC/Vanilla/Fabric server arrancan con los 21 flags tuneados de Aikar — TPS estable 4hs+ sin lagazos progresivos. Perfil `lite` automático para heap <4 GB
