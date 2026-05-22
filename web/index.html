@@ -6341,6 +6341,21 @@
         let _imodTipo = 'mod';
         let _imodSource = 'modrinth';
 
+        /** Unifica plural/singular (CF usa resourcepacks, la UI mod/resourcepack). */
+        function _normalizarTipoTienda(tipo) {
+            const t = (tipo || 'mod').toLowerCase();
+            if (t === 'resourcepacks' || t === 'resourcepack') return 'resourcepack';
+            if (t === 'shaders' || t === 'shader') return 'shader';
+            if (t === 'modpacks' || t === 'modpack') return 'modpack';
+            if (t === 'datapacks' || t === 'datapack') return 'datapack';
+            if (t === 'mods') return 'mod';
+            return t;
+        }
+        function _esContenidoInstancia(tipo) {
+            const t = _normalizarTipoTienda(tipo);
+            return t === 'resourcepack' || t === 'shader';
+        }
+
         function _syncImodMotor() {
             const activeMotor = (document.getElementById('panel-loader-sel') || {}).value || '';
             const sel = document.getElementById('imod-motor');
@@ -6399,16 +6414,24 @@
             const platPanel = document.getElementById('imod-plat-panel');
             const platLabel = document.getElementById('imod-plat-label');
             const platSection = document.getElementById('imod-plat-section');
-            if (_imodTipo === 'datapack') {
+            if (_normalizarTipoTienda(_imodTipo) === 'datapack') {
                 if (platSection) platSection.classList.add('hidden');
                 imodSelectDatapackVer(ver);
+                return;
+            }
+            if (_esContenidoInstancia(_imodTipo)) {
+                if (platSection) platSection.classList.add('hidden');
+                imodSelectInstanciaContentVer(ver);
                 return;
             }
             if (platSection) platSection.classList.remove('hidden');
             if (!ver || !_imodVersionsData) { platBtn.disabled = true; return; }
             const compatible = _imodVersionsData.filter(v => v.game_versions.includes(ver));
-            const allLoaders = [...new Set(compatible.flatMap(v => v.loaders))];
-            const loaders = allLoaders.filter(l => _LOADERS_SOPORTADOS.has(l.toLowerCase()));
+            const allLoaders = [...new Set(compatible.flatMap(v => (v.loaders || []).map(x => String(x).toLowerCase())))];
+            let loaders = allLoaders.filter(l => _LOADERS_SOPORTADOS.has(l) && l !== 'minecraft');
+            if (!loaders.length && ['mod', 'modpack'].includes(_imodTipo)) {
+                loaders = ['fabric', 'forge', 'neoforge', 'quilt'];
+            }
             if (!loaders.length) {
                 platBtn.disabled = true;
                 platLabel.textContent = 'Sin plataformas compatibles';
@@ -6455,7 +6478,10 @@
             _imodPlatPanelOpen = false;
             document.getElementById('imod-plat-panel').classList.add('hidden');
             document.getElementById('imod-plat-arrow').textContent = '▼';
-            const match = _imodVersionsData.find(v => v.game_versions.includes(_imodSelectedVer) && v.loaders.includes(plat));
+            const platL = plat.toLowerCase();
+            const match = _imodVersionsData.find(v =>
+                v.game_versions.includes(_imodSelectedVer) &&
+                (v.loaders || []).some(l => String(l).toLowerCase() === platL));
             if (!match || !match.files || !match.files.length) {
                 document.getElementById('imod-file-info').classList.add('hidden');
                 return;
@@ -6490,6 +6516,59 @@
             document.getElementById('imod-file-info').classList.remove('hidden');
         }
 
+        const _PERFILES_LAUNCHER_FALLBACK = ['Vanilla', 'Fabric', 'Fabric + Iris', 'Forge', 'NeoForge', 'OptiFine', 'Quilt'];
+
+        async function poblarPerfilesInstanciaTienda(mcVersion) {
+            const perfilSel = document.getElementById('imod-perfil-select');
+            if (!perfilSel) return;
+            const activaVer = (document.getElementById('panel-version-sel') || {}).value || '';
+            const activaLoader = (document.getElementById('panel-loader-sel') || {}).value || 'Vanilla';
+            let opciones = [];
+            try {
+                const r = await pywebview.api.get_versiones_instaladas();
+                const todas = [...(r.instaladas || []), ...(r.extras || [])];
+                const filtradas = mcVersion
+                    ? todas.filter(i => i.version === mcVersion)
+                    : todas;
+                const seen = new Set();
+                for (const i of filtradas) {
+                    const key = i.version + '|' + i.motor;
+                    if (seen.has(key)) continue;
+                    seen.add(key);
+                    opciones.push({ value: i.motor, label: `${i.version} · ${i.motor}` });
+                }
+            } catch (e) {}
+            if (!opciones.length) {
+                opciones = _PERFILES_LAUNCHER_FALLBACK.map(p => ({ value: p, label: p }));
+            }
+            perfilSel.innerHTML = opciones.map(o =>
+                `<option value="${o.value.replace(/"/g, '&quot;')}">${o.label}</option>`
+            ).join('');
+            const match = opciones.find(o => o.value === activaLoader && (!mcVersion || mcVersion === activaVer));
+            perfilSel.value = (match || opciones[0]).value;
+            window._imodInstanceMotor = perfilSel.value;
+        }
+
+        async function imodSelectInstanciaContentVer(ver) {
+            if (!ver || !_imodVersionsData) return;
+            const compatible = _imodVersionsData.filter(v => v.game_versions.includes(ver));
+            const match = compatible.find(v => v.files && v.files.length) || compatible[0];
+            if (!match) return;
+            _imodSelectedVer = ver;
+            _imodSelectedPlat = '';
+            _imodSelectedVersionId = match.id;
+            const file = match.files.find(f => f.primary) || match.files[0];
+            document.getElementById('imod-fname').textContent = file.filename;
+            document.getElementById('imod-fmeta').textContent = `${match.version_number} · ${(file.size/1048576).toFixed(2)} MB`;
+            const iconEl = document.getElementById('imod-file-icon');
+            if (iconEl) iconEl.textContent = (match.version_number || 'R').charAt(0).toUpperCase();
+            const perfilLbl = document.querySelector('#imod-perfil-row label');
+            if (perfilLbl) perfilLbl.textContent = 'Instalar en instancia';
+            await poblarPerfilesInstanciaTienda(ver);
+            document.getElementById('imod-perfil-row').classList.remove('hidden');
+            document.getElementById('imod-file-info').classList.remove('hidden');
+        }
+
         async function imodSrvCambio() {
             const sel = document.getElementById('imod-srv-select');
             const carpeta = sel ? sel.value : '';
@@ -6501,7 +6580,7 @@
 
         async function abrirInstalarMod(projectId, titulo, tipo, iconUrl) {
             _imodProjectId = projectId;
-            _imodTipo = tipo;
+            _imodTipo = _normalizarTipoTienda(tipo);
             _imodSource = 'modrinth';
             _imodVersionsData = null;
             _imodSelectedVersionId = null;
@@ -6512,16 +6591,19 @@
             const el = id => document.getElementById(id);
             const srvRow = el('imod-servidor-row');
             const platSec = el('imod-plat-section');
-            if (tipo === 'datapack') {
+            if (_imodTipo === 'datapack') {
                 if (srvRow) srvRow.classList.remove('hidden');
                 if (platSec) platSec.classList.add('hidden');
                 await poblarSelectoresServidorTienda('imod-srv-select', 'imod-mundo-select');
+            } else if (_esContenidoInstancia(_imodTipo)) {
+                if (srvRow) srvRow.classList.add('hidden');
+                if (platSec) platSec.classList.add('hidden');
             } else {
                 if (srvRow) srvRow.classList.add('hidden');
                 if (platSec) platSec.classList.remove('hidden');
             }
             el('imod-titulo').textContent = titulo;
-            el('imod-subtitulo').textContent = tipo + ' · Modrinth';
+            el('imod-subtitulo').textContent = _imodTipo + ' · Modrinth';
             const icon = el('imod-icon');
             if (iconUrl) { icon.src = iconUrl; icon.style.display=''; } else { icon.style.display='none'; }
             el('imod-mr-section').classList.remove('hidden');
@@ -6595,7 +6677,14 @@
         async function imodInstalar() {
             if (!_imodSelectedVersionId || !_imodProjectId) return;
             const perfilSel = document.getElementById('imod-perfil-select');
-            const motor = (perfilSel && perfilSel.value) || window._imodInstanceMotor || _imodSelectedPlat;
+            let motor;
+            if (_esContenidoInstancia(_imodTipo)) {
+                motor = (perfilSel && perfilSel.value)
+                    || (document.getElementById('panel-loader-sel') || {}).value
+                    || 'Vanilla';
+            } else {
+                motor = (perfilSel && perfilSel.value) || window._imodInstanceMotor || _imodSelectedPlat;
+            }
             const instalandoEl = document.getElementById('imod-instalando');
             document.getElementById('imod-file-info').classList.add('hidden');
             // Modpack: show progress bar
@@ -6619,6 +6708,25 @@
                         if (est) est.textContent = p.estado || '';
                     } catch(e) {}
                 }, 400);
+            } else if (_imodSource === 'curseforge') {
+                instalandoEl.innerHTML = `<div class="flex flex-col gap-3 p-4">
+                    <p class="text-xs font-bold text-white truncate" id="imod-prog-label">Descargando desde CurseForge...</p>
+                    <div class="w-full bg-[#1A1A1A] rounded-full h-2 overflow-hidden">
+                        <div id="imod-prog-bar" class="bg-orange-500 h-2 rounded-full transition-all duration-300" style="width:0%"></div>
+                    </div>
+                    <p class="text-[10px] text-gray-500 truncate" id="imod-prog-estado"></p>
+                </div>`;
+                progressInterval = setInterval(async () => {
+                    try {
+                        const p = await pywebview.api.get_mod_dl_progress();
+                        const bar = document.getElementById('imod-prog-bar');
+                        const lbl = document.getElementById('imod-prog-label');
+                        const est = document.getElementById('imod-prog-estado');
+                        if (bar) bar.style.width = (p.pct || 0) + '%';
+                        if (lbl) lbl.textContent = p.nombre || 'Descargando...';
+                        if (est) est.textContent = p.estado || '';
+                    } catch (e) {}
+                }, 400);
             } else {
                 instalandoEl.innerHTML = `<div class="flex items-center gap-3 p-4"><div class="w-4 h-4 border-2 border-[#2ECC71] border-t-transparent rounded-full animate-spin shrink-0"></div><span class="text-sm font-bold text-[#2ECC71]">Descargando e instalando...</span></div>`;
             }
@@ -6633,16 +6741,24 @@
                     return;
                 }
             }
-            const result = await pywebview.api.instalar_mod_desde_modrinth(
-                _imodProjectId, _imodSelectedVersionId, _imodTipo, _imodSelectedVer, motor, carpetaSrv, mundo);
+            let result;
+            if (_imodSource === 'curseforge') {
+                result = await pywebview.api.instalar_mod_curseforge(
+                    _imodProjectId, _imodSelectedVersionId, _imodTipo, _imodSelectedVer, motor);
+            } else {
+                result = await pywebview.api.instalar_mod_desde_modrinth(
+                    _imodProjectId, _imodSelectedVersionId, _imodTipo, _imodSelectedVer, motor, carpetaSrv, mundo);
+            }
             if (progressInterval) clearInterval(progressInterval);
             instalandoEl.classList.add('hidden');
             instalandoEl.innerHTML = `<div class="flex items-center gap-3 p-4"><div class="w-4 h-4 border-2 border-[#2ECC71] border-t-transparent rounded-full animate-spin shrink-0"></div><span class="text-sm font-bold text-[#2ECC71]">Descargando e instalando...</span></div>`;
+            const okColor = _imodSource === 'curseforge' ? '#F39C12' : '#2ECC71';
             if (result.ok) {
                 let msg = result.nombre;
                 if (_imodTipo === 'modpack' && result.installed != null)
                     msg = `${result.installed}/${result.total} archivos instalados`;
-                document.getElementById('imod-file-info').innerHTML = `<div class="flex flex-col items-center justify-center gap-3 py-6 w-full text-center"><p class="text-4xl">✅</p><p class="text-[#2ECC71] font-black text-lg">¡Instalado!</p><p class="text-xs text-gray-500">${msg}</p><button onclick="cerrarInstalarMod()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] px-5 py-2 rounded-lg font-bold text-sm transition mt-1">Cerrar</button></div>`;
+                if (result.instancia) msg += ` → ${result.instancia}`;
+                document.getElementById('imod-file-info').innerHTML = `<div class="flex flex-col items-center justify-center gap-3 py-6 w-full text-center"><p class="text-4xl">✅</p><p class="font-black text-lg" style="color:${okColor}">¡Instalado!</p><p class="text-xs text-gray-500">${msg}</p>${result.destino ? `<p class="text-[10px] text-gray-600 font-mono break-all px-2">${result.destino}</p>` : ''}<button onclick="cerrarInstalarMod()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] px-5 py-2 rounded-lg font-bold text-sm transition mt-1">Cerrar</button></div>`;
                 document.getElementById('imod-file-info').classList.remove('hidden');
             } else {
                 alert('Error: ' + (result.error||'desconocido'));
@@ -10577,23 +10693,100 @@
             }
         }
 
-        let _cfProjectId = null, _cfTipo = 'mod';
-        function abrirInstalarModCF(projectId, titulo, tipo) {
-            _cfProjectId = projectId;
-            _cfTipo = tipo;
+        function _cfVersionsToImodData(cfVersions) {
+            return (cfVersions || []).map(v => ({
+                id: v.id,
+                version_number: v.name,
+                game_versions: v.game_versions || [],
+                loaders: (v.loaders && v.loaders.length)
+                    ? v.loaders.map(l => String(l).toLowerCase())
+                    : ['minecraft'],
+                files: [{
+                    filename: v.file_name || v.name || 'download.zip',
+                    primary: true,
+                    size: Math.round((v.size_mb || 0) * 1048576),
+                }],
+            }));
+        }
+
+        async function abrirInstalarModCF(projectId, titulo, tipo) {
             _imodProjectId = projectId;
-            _imodTipo = tipo;
+            _imodTipo = _normalizarTipoTienda(tipo);
             _imodSource = 'curseforge';
-            _syncImodMotor();
+            _imodVersionsData = null;
+            _imodSelectedVersionId = null;
+            _imodSelectedVer = '';
+            _imodSelectedPlat = '';
+            _imodVerPanelOpen = true;
+            _imodPlatPanelOpen = false;
             const el = id => document.getElementById(id);
+            const srvRow = el('imod-servidor-row');
+            const platSec = el('imod-plat-section');
+            if (_imodTipo === 'datapack') {
+                if (srvRow) srvRow.classList.remove('hidden');
+                if (platSec) platSec.classList.add('hidden');
+                await poblarSelectoresServidorTienda('imod-srv-select', 'imod-mundo-select');
+            } else if (_esContenidoInstancia(_imodTipo)) {
+                if (srvRow) srvRow.classList.add('hidden');
+                if (platSec) platSec.classList.add('hidden');
+            } else {
+                if (srvRow) srvRow.classList.add('hidden');
+                if (platSec) platSec.classList.remove('hidden');
+            }
             el('imod-titulo').textContent = titulo;
-            el('imod-subtitulo').textContent = tipo + ' · CurseForge';
+            el('imod-subtitulo').textContent = _imodTipo + ' · CurseForge';
             el('imod-icon').style.display = 'none';
-            el('imod-mr-section').classList.add('hidden');
-            el('imod-cf-section').classList.remove('hidden');
-            el('imod-lista').innerHTML = '<p class="text-xs text-gray-500 text-center mt-4">Escribí la versión MC y hacé clic en Buscar.</p>';
+            el('imod-mr-section').classList.remove('hidden');
+            el('imod-cf-section').classList.add('hidden');
+            el('imod-lista').innerHTML = '';
+            el('imod-file-info').innerHTML = `
+                <div class="flex items-center gap-3 p-3.5">
+                    <div class="w-9 h-9 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center font-black text-orange-400 text-sm shrink-0" id="imod-file-icon">R</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="font-bold text-sm text-white truncate" id="imod-fname"></p>
+                        <p class="text-xs text-gray-500" id="imod-fmeta"></p>
+                    </div>
+                    <button onclick="imodInstalar()" class="bg-orange-500 hover:bg-orange-400 text-black font-black px-4 py-2 rounded-lg transition text-sm shrink-0">⬇ Instalar</button>
+                </div>`;
+            el('imod-file-info').classList.add('hidden');
             el('imod-instalando').classList.add('hidden');
+            el('imod-perfil-row').classList.add('hidden');
+            el('imod-ver-label').textContent = 'Cargando versiones...';
+            el('imod-ver-label').className = 'flex-1 text-sm text-gray-400';
+            el('imod-ver-panel').classList.remove('hidden');
+            el('imod-ver-arrow').textContent = '▲';
+            el('imod-ver-list').innerHTML = '<div class="py-4 text-center text-xs text-gray-500 animate-pulse">Cargando desde CurseForge...</div>';
+            el('imod-plat-btn').disabled = true;
+            el('imod-plat-label').textContent = 'Seleccionar plataforma';
+            el('imod-plat-panel').classList.add('hidden');
             el('instalar-mod-modal').classList.remove('hidden');
+            const verFiltro = (document.getElementById('filtro-version') || {}).value || '';
+            try {
+                const r = await pywebview.api.get_versiones_curseforge(projectId, verFiltro);
+                if (!r.ok || !r.versions || !r.versions.length) {
+                    el('imod-ver-list').innerHTML = `<div class="py-4 text-center text-xs text-red-400 px-3">${r.error || 'Sin versiones compatibles'}</div>`;
+                    el('imod-ver-label').textContent = r.error && r.error.includes('API key') ? 'API key requerida' : 'Sin versiones';
+                    return;
+                }
+                _imodVersionsData = _cfVersionsToImodData(r.versions);
+                const _isRelease = v => /^\d+\.\d+(\.\d+)?$/.test(v);
+                const gameVersions = [...new Set(_imodVersionsData.flatMap(v => v.game_versions))].filter(_isRelease);
+                gameVersions.sort((a, b) => {
+                    const pa = a.split('.').map(Number), pb = b.split('.').map(Number);
+                    for (let i = 0; i < Math.max(pa.length, pb.length); i++)
+                        if ((pa[i] || 0) !== (pb[i] || 0)) return (pb[i] || 0) - (pa[i] || 0);
+                    return 0;
+                });
+                el('imod-ver-label').textContent = 'Seleccionar versión de Minecraft';
+                el('imod-ver-list').innerHTML = gameVersions.map(v =>
+                    `<button onclick="imodSelectVer('${v}')" data-ver="${v}"
+                        class="w-full text-left px-3 py-1.5 rounded-lg text-xs text-gray-300 hover:bg-[#2A2A2A] transition">${v}</button>`
+                ).join('');
+                const activaVer = (document.getElementById('panel-version-sel') || {}).value || verFiltro;
+                if (activaVer && gameVersions.includes(activaVer)) imodSelectVer(activaVer);
+            } catch (e) {
+                el('imod-ver-list').innerHTML = '<div class="py-4 text-center text-xs text-red-400">Error al cargar</div>';
+            }
         }
 
         // ══ COMPARTIR INSTANCIA ════════════════════════════════════════════
