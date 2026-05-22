@@ -3,6 +3,60 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+<<<<<<< HEAD
+## [6.0.0] - 2026-05-22
+
+### ✨ Novedades
+- **Login Microsoft unificado (estilo ATLauncher)**: un solo botón con logo de Microsoft abre un modal con **navegador** y **código QR** en el mismo lugar.
+- **Inicio de sesión por QR / microsoft.com/link**: flujo device code con código copiable al portapapeles (y al generarse). El QR abre solo `microsoft.com/link` (sin URLs que redirigen a `login.live.com` y fallan en el celular).
+- **Tienda — Data packs en servidor local**: selector de servidor guardado y mundo; los datapacks se instalan en `world/datapacks` del servidor (ya no en la instancia del cliente ni con selector de loaders).
+- **Tienda — Plugins en servidor local**: selector de servidor destino en la pestaña Plugins; instalación en `plugins/` del servidor activo (Hangar + Modrinth).
+- **Importar desde otros launchers**: nueva pestaña Extras → **Importar launcher** con detección de TLauncher, SKLauncher y `.minecraft`, tutorial integrado y copia de saves/mods/resource packs/shaders/options/servers a la instancia activa (premium y no premium).
+
+### 🔧 Mejoras
+- Login QR usa client ID compatible con device code (el client oficial del Launcher de Minecraft devolvía 401).
+- Código de verificación en recuadro clicable + botones **Copiar código** y **Abrir microsoft.com/link**.
+- Datapacks en Modrinth: sin paso de “plataforma” incompatible (`minecraft` / sin loaders).
+- Sesión MS guarda `ms_client_id` para refrescar tokens según el método de login (navegador vs QR).
+- Multi-cuenta: una sola opción “Agregar cuenta Microsoft” que abre el modal unificado.
+
+### 🐛 Arreglos
+- **Overlays**: errores reales en la UI en lugar de `ok: true` silencioso; overlay de teclas sin `bind_all` global (evita conflictos/crashes con el launcher); cierre limpio del listener `pynput`.
+- **Overlays**: comprobación de que la ventana tk se abrió antes de reportar éxito.
+
+---
+
+## [5.9.0] - 2026-05-21
+
+### ✨ Novedades
+- **Tienda de plugins**: pestaña Plugins con búsqueda federada **Hangar + Modrinth**, trending y instalación en el servidor local.
+- **Actualizaciones de plugins del servidor**: detección y aplicación de updates en `plugins/`.
+- **Importar servidor existente**: botón para importar una carpeta con `server.jar` / Fabric, detectar tipo y versión, regenerar `iniciar_server.bat` y agregarlo a la lista guardada.
+- **Playit.gg**: persistencia de la dirección Java del túnel por servidor en `_paragua_srv.json`.
+
+### 🔧 Mejoras
+- Detección automática de versión MC del servidor (`version_history.json`, nombre del JAR, `_paragua_srv.json`).
+- Regeneración de `iniciar_server.bat` usando Java local del launcher cuando está disponible.
+- Plugins Modrinth filtrados por loaders Paper-compatibles y versión del servidor.
+- Ampliaciones en la UI de la tienda de mods y panel de servidores.
+
+### 🐛 Arreglos
+- Correcciones en flujos de instalación de plugins y estado del servidor activo.
+
+---
+
+## [5.8.0] - 2026-05-20
+
+### 🔧 Mejoras
+- **RAM del servidor local**: `-Xms` y `-Xmx` ahora usan el mismo valor en modo automático (mitad de la RAM del sistema, tope 8 GB), evitando mínimos incoherentes que podían causar comportamiento raro al arrancar Paper/Fabric server.
+
+### 🐛 Arreglos
+- Ajuste menor en el arranque del proceso del servidor.
+
+---
+
+=======
+>>>>>>> 5e62d720d56f2129240ec588e1b161ca4c8070be
 ## [5.7.0] - 2026-05-18
 
 ### 🐛 Fixes críticos

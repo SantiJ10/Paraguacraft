@@ -102,8 +102,14 @@
         <h1 class="text-6xl font-black tracking-widest text-white drop-shadow-md mb-2">PARAGUACRAFT</h1>
         <p class="text-gray-400 mb-12">Iniciá sesión para entrar al ecosistema.</p>
         
-        <button id="btn-ms-login" onclick="loginMicrosoft()" class="bg-[#0078D4] hover:bg-[#106EBE] text-white font-bold text-lg py-4 w-80 rounded-md shadow-lg transition mb-4">
-            Login con Microsoft (Premium)
+        <button id="btn-ms-login" onclick="abrirLoginMicrosoft()" class="group flex items-center justify-center gap-3 bg-[#2A2A2A] hover:bg-[#333] border border-[#3A3A3A] hover:border-[#0078D4]/60 text-white font-bold text-base py-3.5 w-80 rounded-lg shadow-lg transition mb-4">
+            <svg class="w-5 h-5 shrink-0" viewBox="0 0 23 23" aria-hidden="true">
+                <rect x="1" y="1" width="10" height="10" fill="#f25022"/>
+                <rect x="12" y="1" width="10" height="10" fill="#7fba00"/>
+                <rect x="1" y="12" width="10" height="10" fill="#00a4ef"/>
+                <rect x="12" y="12" width="10" height="10" fill="#ffb900"/>
+            </svg>
+            <span>Iniciar sesión con Microsoft</span>
         </button>
         
         <div class="flex w-80 gap-2">
@@ -112,20 +118,52 @@
         </div>
     </div>
 
-    <!-- Microsoft OAuth URL modal -->
-    <div id="ms-url-modal" class="hidden absolute inset-0 z-[210] bg-[#121212]/95 flex items-center justify-center">
-        <div class="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl p-6 w-[420px] max-w-[90vw] shadow-2xl">
-            <h3 class="font-black text-lg mb-1">🔐 Autenticación Microsoft</h3>
-            <ol class="text-xs text-gray-400 mb-4 space-y-1 list-decimal list-inside">
-                <li>Se abrió tu navegador con la página de Microsoft.</li>
-                <li>Iniciá sesión con tu cuenta de Minecraft.</li>
-                <li>Cuando te redirija a una página en blanco o de error, <strong class="text-white">copiá la URL completa</strong> de la barra del navegador.</li>
-                <li>Pegala acá abajo y hacé clic en <strong class="text-[#2ECC71]">Verificar</strong>.</li>
-            </ol>
-            <input type="text" id="ms-redirect-url" placeholder="https://login.live.com/oauth20_desktop.srf?code=..." class="w-full bg-[#121212] text-white px-4 py-3 rounded-md outline-none border border-[#2A2A2A] focus:border-[#2ECC71] text-xs mb-3">
-            <div class="flex gap-2">
-                <button onclick="completarLoginMs()" class="flex-1 bg-[#0078D4] hover:bg-[#106EBE] text-white font-bold py-2 rounded-md transition text-sm"> Verificar</button>
-                <button onclick="document.getElementById('ms-url-modal').classList.add('hidden'); resetBtnMS();" class="px-5 bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold py-2 rounded-md transition text-sm">Cancelar</button>
+    <!-- Login Microsoft (estilo ATLauncher, estilo Paraguacraft) -->
+    <div id="ms-login-modal" class="hidden absolute inset-0 z-[210] bg-black/85 flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-[#1A1A1A] border border-[#2A2A2A] rounded-2xl w-[400px] max-w-[94vw] shadow-2xl overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-[#2A2A2A]">
+                <h3 class="font-black text-white text-base">Iniciar sesión con Microsoft</h3>
+                <button type="button" onclick="cerrarLoginMicrosoft()" class="text-gray-500 hover:text-white text-xl leading-none w-8 h-8 rounded hover:bg-[#2A2A2A] transition" title="Cerrar">✕</button>
+            </div>
+            <div class="p-5 flex flex-col gap-4">
+                <button type="button" onclick="msLoginConNavegador()" id="btn-ms-browser"
+                    class="w-full flex items-center justify-center gap-2.5 bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black py-3 rounded-lg transition text-sm">
+                    <svg class="w-4 h-4" viewBox="0 0 23 23"><rect x="1" y="1" width="10" height="10" fill="#f25022"/><rect x="12" y="1" width="10" height="10" fill="#7fba00"/><rect x="1" y="12" width="10" height="10" fill="#00a4ef"/><rect x="12" y="12" width="10" height="10" fill="#ffb900"/></svg>
+                    Iniciar sesión en el navegador
+                </button>
+                <div id="ms-browser-paste" class="hidden flex flex-col gap-2">
+                    <p class="text-[11px] text-gray-500">Copiá la URL completa de la barra del navegador después de iniciar sesión:</p>
+                    <input type="text" id="ms-redirect-url" placeholder="https://login.live.com/oauth20_desktop.srf?code=..."
+                        class="w-full bg-[#121212] text-white px-3 py-2.5 rounded-lg outline-none border border-[#333] focus:border-[#2ECC71] text-xs">
+                    <button type="button" onclick="completarLoginMs()" class="w-full bg-[#0078D4] hover:bg-[#106EBE] text-white font-bold py-2 rounded-lg text-sm transition">Verificar enlace</button>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="flex-1 h-px bg-[#2A2A2A]"></div>
+                    <span class="text-[10px] font-black text-gray-600 uppercase tracking-widest">o</span>
+                    <div class="flex-1 h-px bg-[#2A2A2A]"></div>
+                </div>
+                <div class="flex flex-col items-center gap-3">
+                    <div id="ms-qr-loading" class="w-40 h-40 rounded-xl bg-[#121212] border border-[#2A2A2A] flex items-center justify-center">
+                        <span class="text-xs text-gray-500 animate-pulse">Generando código…</span>
+                    </div>
+                    <img id="ms-qr-img" src="" alt="QR — abre microsoft.com/link" class="w-40 h-40 rounded-xl bg-white p-2 hidden" title="Escaneá para abrir microsoft.com/link">
+                    <p class="text-[11px] text-gray-500 text-center leading-relaxed px-1">
+                        Escaneá el QR (abre <span class="text-[#2ECC71]">microsoft.com/link</span>) e ingresá este código:
+                    </p>
+                    <button type="button" id="ms-qr-code-btn" onclick="copiarCodigoMsQR()"
+                        class="w-full max-w-[280px] flex items-center justify-center gap-2 bg-[#121212] hover:bg-[#1E1E1E] border-2 border-dashed border-[#2ECC71]/40 hover:border-[#2ECC71] rounded-xl px-4 py-3 transition group"
+                        title="Clic para copiar el código">
+                        <span id="ms-qr-code" class="text-[#2ECC71] font-black text-xl tracking-[0.4em] select-all">······</span>
+                        <span class="text-[10px] text-gray-600 group-hover:text-[#2ECC71] shrink-0">📋</span>
+                    </button>
+                    <input type="text" id="ms-qr-code-input" readonly tabindex="-1"
+                        class="sr-only" aria-hidden="true">
+                    <p id="ms-qr-status" class="text-[10px] text-gray-600 text-center min-h-[14px]"></p>
+                </div>
+                <div class="flex gap-2">
+                    <button type="button" onclick="copiarCodigoMsQR()" id="btn-ms-copy-code" class="flex-1 bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black py-2.5 rounded-lg text-xs transition">📋 Copiar código</button>
+                    <button type="button" onclick="abrirLinkMsQR()" class="flex-1 bg-[#0078D4] hover:bg-[#106EBE] text-white font-bold py-2.5 rounded-lg text-xs transition">Abrir microsoft.com/link</button>
+                </div>
             </div>
         </div>
     </div>
@@ -889,8 +927,14 @@
                         <div id="imod-ver-list" class="max-h-48 overflow-y-auto px-2 pb-2 flex flex-col gap-0.5"></div>
                     </div>
                 </div>
+                <!-- Servidor local (datapacks) -->
+                <div id="imod-servidor-row" class="hidden flex flex-col gap-2">
+                    <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Servidor destino</label>
+                    <select id="imod-srv-select" onchange="imodSrvCambio()" class="w-full bg-[#1E1E1E] border border-[#3498DB]/50 text-white px-3 py-2.5 rounded-lg outline-none text-sm focus:border-[#3498DB]"></select>
+                    <select id="imod-mundo-select" class="w-full bg-[#1E1E1E] border border-[#333] text-white px-3 py-2.5 rounded-lg outline-none text-sm focus:border-[#2ECC71]"></select>
+                </div>
                 <!-- Platform accordion -->
-                <div class="border border-[#2A2A2A] rounded-xl overflow-hidden">
+                <div id="imod-plat-section" class="border border-[#2A2A2A] rounded-xl overflow-hidden">
                     <button onclick="imodTogglePlatPanel()" id="imod-plat-btn"
                         class="w-full flex items-center gap-3 px-4 py-3 text-left opacity-40 cursor-not-allowed" disabled>
                         <span class="text-sm shrink-0">🔑</span>
@@ -1735,6 +1779,13 @@
                     </div>
                     <input id="filtro-version" type="hidden" value="">
                 </div>
+                <!-- Servidor local (datapacks / plugins) -->
+                <div class="p-3 border-b border-[#2A2A2A] hidden" id="sidebar-server-section">
+                    <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Servidor local</p>
+                    <select id="tienda-srv-select" onchange="tiendaSrvCambio()" class="w-full bg-[#0A0A0A] border border-[#333] text-white px-2 py-2 rounded-lg text-xs outline-none focus:border-[#2ECC71] mb-2"></select>
+                    <select id="tienda-mundo-select" class="w-full bg-[#0A0A0A] border border-[#333] text-white px-2 py-2 rounded-lg text-xs outline-none focus:border-[#3498DB] hidden"></select>
+                    <p id="tienda-srv-hint" class="text-[10px] text-gray-600 mt-1.5">Los datapacks se instalan en <code class="text-gray-500">world/datapacks</code></p>
+                </div>
                 <!-- Loader -->
                 <div class="p-3 border-b border-[#2A2A2A]" id="sidebar-loader-section">
                     <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Loader</p>
@@ -1814,6 +1865,10 @@
                 </div>
                 <!-- PLUGIN STORE PANEL (shown only when Plugins tab active) -->
                 <div id="plugin-store-panel" class="hidden flex-1 flex flex-col overflow-hidden">
+                    <div class="px-4 py-2 border-b border-[#2A2A2A] shrink-0 flex flex-col gap-1.5">
+                        <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Instalar en servidor</label>
+                        <select id="plugin-srv-select" onchange="pluginSrvCambio()" class="w-full bg-[#1E1E1E] border border-[#333] text-white px-3 py-2 rounded-lg text-sm outline-none focus:border-[#2ECC71]"></select>
+                    </div>
                     <div class="flex items-center gap-2 p-3 border-b border-[#2A2A2A] shrink-0">
                         <input id="plugin-buscar" type="text" placeholder="Buscar plugin (Hangar + Modrinth)…"
                             onkeypress="if(event.key==='Enter')buscarPluginsStore()"
@@ -1924,6 +1979,7 @@
                     <button onclick="herTab('turbo')" id="htab-turbo" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🚀 Turbo</button>
                     <p class="text-[10px] font-black text-gray-600 uppercase tracking-widest px-2 pt-3 pb-0.5 select-none">AVANZADO</p>
                     <button onclick="herTab('overlay')" id="htab-overlay" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🖥️ Overlay</button>
+                    <button onclick="herTab('importar')" id="htab-importar" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">📥 Importar launcher</button>
                     <button onclick="herTab('benchmark')" id="htab-benchmark" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🏆 Benchmark</button>
                     <button onclick="herTab('skingen')" id="htab-skingen" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🎨 Skin IA</button>
                     <button onclick="herTab('smartram')" id="htab-smartram" class="htab-btn w-full text-left px-3 py-2 rounded font-bold text-sm text-gray-400 hover:bg-[#2A2A2A] hover:text-white transition">🧠 Smart RAM</button>
@@ -2720,6 +2776,42 @@
                                 <p>Cable Ethernet siempre da menor latencia que Wi-Fi para gaming.</p>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- IMPORTAR DESDE OTROS LAUNCHERS -->
+            <div id="hpanel-importar" class="absolute inset-0 overflow-y-auto p-5 pr-4" style="display:none">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 max-w-5xl">
+                    <div class="bg-[#181818] border border-[#2ECC71]/30 rounded-xl p-6 flex flex-col gap-4">
+                        <h3 class="font-black text-lg text-[#2ECC71]">📥 Traer datos de otro launcher</h3>
+                        <p class="text-xs text-gray-400">Importá mundos, mods, resource packs y opciones desde <strong class="text-white">TLauncher</strong>, <strong class="text-white">SKLauncher</strong> u otra carpeta <code class="text-gray-500">.minecraft</code>. Funciona con cuenta premium y no premium.</p>
+                        <ol class="text-xs text-gray-500 space-y-1 list-decimal list-inside">
+                            <li>Cerrá el otro launcher antes de importar.</li>
+                            <li>Elegí la carpeta detectada o la ruta manual.</li>
+                            <li>Seleccioná qué copiar y la instancia destino (versión del panel principal).</li>
+                            <li>Hacé clic en Importar — no borra nada del launcher viejo.</li>
+                        </ol>
+                        <div id="imp-launchers-lista" class="flex flex-col gap-2 min-h-[80px]">
+                            <p class="text-xs text-gray-600 animate-pulse">Buscando launchers...</p>
+                        </div>
+                        <div class="flex flex-col gap-2 text-xs">
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="imp-opt-saves" checked class="accent-[#2ECC71]"> Mundos (saves)</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="imp-opt-mods" checked class="accent-[#2ECC71]"> Mods</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="imp-opt-rp" checked class="accent-[#2ECC71]"> Resource packs</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="imp-opt-shaders" checked class="accent-[#2ECC71]"> Shaders</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="imp-opt-options" checked class="accent-[#2ECC71]"> options.txt</label>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="imp-opt-servers" checked class="accent-[#2ECC71]"> servers.dat</label>
+                        </div>
+                        <button onclick="ejecutarImportarLauncher()" id="btn-imp-launcher" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black py-3 rounded-lg transition">⬇ Importar a instancia activa</button>
+                        <p id="imp-launcher-msg" class="text-xs text-center text-gray-500 min-h-[1rem]"></p>
+                    </div>
+                    <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 text-xs text-gray-400 space-y-3">
+                        <h4 class="font-black text-white text-sm">Tutorial rápido</h4>
+                        <p><strong class="text-white">TLauncher:</strong> suele usar <code>%APPDATA%\.minecraft</code>. Si tenés perfiles separados, importá desde la carpeta del perfil que usás.</p>
+                        <p><strong class="text-white">SKLauncher:</strong> puede estar en <code>SKlauncher</code> o compartir <code>.minecraft</code>. El launcher detecta ambas.</p>
+                        <p><strong class="text-white">Premium:</strong> tus skins y cuenta Microsoft no se copian (son de Mojang). Solo datos locales del juego.</p>
+                        <p><strong class="text-white">Destino:</strong> se usa la versión y loader del selector principal del launcher. Cambiá el perfil antes de importar si querés otra instancia.</p>
                     </div>
                 </div>
             </div>
@@ -3877,28 +3969,55 @@
             } catch(e) { console.error("Error UI:", e); }
         }
 
-        async function loginMicrosoft() {
-            const btn = document.getElementById("btn-ms-login");
-            if(btn) { btn.innerText = "Abriendo navegador..."; btn.classList.replace('bg-[#0078D4]', 'bg-gray-600'); }
+        let _msQrPollTimer = null;
+        let _msQrUserCode = '';
+        let _msQrLink = 'https://www.microsoft.com/link';
+
+        function abrirLoginMicrosoft() {
+            const modal = document.getElementById('ms-login-modal');
+            const paste = document.getElementById('ms-browser-paste');
+            if (paste) paste.classList.add('hidden');
+            const urlIn = document.getElementById('ms-redirect-url');
+            if (urlIn) urlIn.value = '';
+            if (modal) modal.classList.remove('hidden');
+            iniciarCodigoMsQR();
+        }
+
+        function cerrarLoginMicrosoft() {
+            if (_msQrPollTimer) { clearInterval(_msQrPollTimer); _msQrPollTimer = null; }
+            const modal = document.getElementById('ms-login-modal');
+            if (modal) modal.classList.add('hidden');
+            resetBtnMS();
+        }
+
+        async function msLoginConNavegador() {
+            const paste = document.getElementById('ms-browser-paste');
+            const btn = document.getElementById('btn-ms-browser');
+            if (btn) { btn.disabled = true; btn.textContent = 'Abriendo navegador…'; }
             try {
                 const resp = await fetch(`http://127.0.0.1:${window._API_PORT}/api/ms_start`);
                 const data = await resp.json();
-                if(data.ok) {
-                    document.getElementById('ms-redirect-url').value = '';
-                    document.getElementById('ms-url-modal').classList.remove('hidden');
+                if (data.ok) {
+                    if (paste) paste.classList.remove('hidden');
+                    const st = document.getElementById('ms-qr-status');
+                    if (st) st.textContent = 'Completá el login en el navegador o usá el código QR';
                 } else {
-                    alert("Error al abrir Microsoft: " + (data.error || 'Error desconocido'));
-                    resetBtnMS();
+                    alert('Error: ' + (data.error || 'desconocido'));
                 }
-            } catch(e) { alert("Error al conectar con el launcher: " + e); resetBtnMS(); }
+            } catch(e) { alert('Error: ' + e); }
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<svg class="w-4 h-4" viewBox="0 0 23 23"><rect x="1" y="1" width="10" height="10" fill="#f25022"/><rect x="12" y="1" width="10" height="10" fill="#7fba00"/><rect x="1" y="12" width="10" height="10" fill="#00a4ef"/><rect x="12" y="12" width="10" height="10" fill="#ffb900"/></svg> Iniciar sesión en el navegador';
+            }
         }
+
+        async function loginMicrosoft() { abrirLoginMicrosoft(); msLoginConNavegador(); }
 
         async function completarLoginMs() {
             const urlRespuesta = (document.getElementById('ms-redirect-url').value || '').trim();
             if(!urlRespuesta) { alert('Pegá el link de Microsoft primero.'); return; }
-            const btn = document.getElementById('btn-ms-login');
-            if(btn) btn.innerText = 'Verificando...';
-            document.getElementById('ms-url-modal').classList.add('hidden');
+            const st = document.getElementById('ms-qr-status');
+            if (st) st.textContent = 'Verificando…';
             try {
                 const resp = await fetch(`http://127.0.0.1:${window._API_PORT}/api/ms_complete`, {
                     method: 'POST',
@@ -3907,17 +4026,122 @@
                 });
                 const res = await resp.json();
                 if(res && res.ok) {
+                    cerrarLoginMicrosoft();
                     actualizarUiUsuario(res.nombre, true);
                 } else {
                     alert('Error: ' + (res.error || JSON.stringify(res)));
-                    resetBtnMS();
+                    if (st) st.textContent = res.error || 'Error';
                 }
-            } catch(e) { alert('Error: ' + e); resetBtnMS(); }
+            } catch(e) { alert('Error: ' + e); }
         }
 
         function resetBtnMS() {
-            const btn = document.getElementById("btn-ms-login");
-            if(btn) { btn.innerText = "Login con Microsoft (Premium)"; btn.classList.replace('bg-gray-600', 'bg-[#0078D4]'); }
+            const btn = document.getElementById('btn-ms-login');
+            if (btn) btn.disabled = false;
+        }
+
+        async function iniciarCodigoMsQR() {
+            const loading = document.getElementById('ms-qr-loading');
+            const qrImg = document.getElementById('ms-qr-img');
+            const qrCode = document.getElementById('ms-qr-code');
+            const qrStatus = document.getElementById('ms-qr-status');
+            if (loading) loading.classList.remove('hidden');
+            if (qrImg) qrImg.classList.add('hidden');
+            if (qrCode) qrCode.textContent = '…';
+            if (qrStatus) qrStatus.textContent = '';
+            try {
+                const resp = await fetch(`http://127.0.0.1:${window._API_PORT}/api/ms_qr_start`);
+                const data = await resp.json();
+                if (!data.ok) {
+                    if (qrStatus) qrStatus.textContent = 'QR: ' + (data.error || 'error');
+                    if (loading) loading.innerHTML = '<span class="text-[10px] text-red-400 text-center px-2">No se pudo generar QR. Usá el navegador.</span>';
+                    return;
+                }
+                _msQrUserCode = data.user_code || '';
+                _msQrLink = 'https://www.microsoft.com/link';
+                if (qrCode) qrCode.textContent = _msQrUserCode;
+                const codeInp = document.getElementById('ms-qr-code-input');
+                if (codeInp) codeInp.value = _msQrUserCode;
+                if (loading) loading.classList.add('hidden');
+                if (qrImg) {
+                    qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=168x168&data=' + encodeURIComponent(_msQrLink);
+                    qrImg.classList.remove('hidden');
+                }
+                if (qrStatus) qrStatus.textContent = 'Código listo — tocá el recuadro verde o «Copiar código»';
+                copiarCodigoMsQR(true);
+                if (_msQrPollTimer) clearInterval(_msQrPollTimer);
+                const intervalMs = Math.max((data.interval || 5) * 1000, 3000);
+                _msQrPollTimer = setInterval(pollLoginMsQR, intervalMs);
+                pollLoginMsQR();
+            } catch(e) {
+                if (qrStatus) qrStatus.textContent = 'Error: ' + e;
+            }
+        }
+
+        async function loginMicrosoftQR() { abrirLoginMicrosoft(); }
+
+        async function pollLoginMsQR() {
+            try {
+                const resp = await fetch(`http://127.0.0.1:${window._API_PORT}/api/ms_qr_poll`);
+                const res = await resp.json();
+                const st = document.getElementById('ms-qr-status');
+                if (res.pending) {
+                    if (st) st.textContent = 'Esperando autorización…';
+                    return;
+                }
+                if (res.ok) {
+                    if (_msQrPollTimer) { clearInterval(_msQrPollTimer); _msQrPollTimer = null; }
+                    cerrarLoginMicrosoft();
+                    actualizarUiUsuario(res.nombre, true);
+                    return;
+                }
+                if (st) st.textContent = res.error || 'Error';
+                if (!res.pending && _msQrPollTimer) {
+                    clearInterval(_msQrPollTimer);
+                    _msQrPollTimer = null;
+                }
+            } catch(e) {
+                const st = document.getElementById('ms-qr-status');
+                if (st) st.textContent = 'Error: ' + e;
+            }
+        }
+
+        function copiarCodigoMsQR(silent) {
+            if (!_msQrUserCode) {
+                const st = document.getElementById('ms-qr-status');
+                if (st && !silent) st.textContent = 'Esperá a que se genere el código…';
+                return false;
+            }
+            const codeInp = document.getElementById('ms-qr-code-input');
+            if (codeInp) {
+                codeInp.value = _msQrUserCode;
+                codeInp.classList.remove('sr-only');
+                codeInp.select();
+                codeInp.setSelectionRange(0, 99999);
+                try { document.execCommand('copy'); } catch(e) {}
+                codeInp.classList.add('sr-only');
+            }
+            const done = () => {
+                const st = document.getElementById('ms-qr-status');
+                const btn = document.getElementById('btn-ms-copy-code');
+                if (st) st.textContent = '✅ Código copiado — pegalo en microsoft.com/link';
+                if (btn && !silent) { btn.textContent = '✅ Copiado'; setTimeout(() => { btn.textContent = '📋 Copiar código'; }, 2000); }
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(_msQrUserCode).then(done).catch(() => {
+                    if (!silent) alert('Copiá manualmente: ' + _msQrUserCode);
+                });
+            } else {
+                done();
+            }
+            return true;
+        }
+
+        function abrirLinkMsQR() {
+            copiarCodigoMsQR(true);
+            window.open('https://www.microsoft.com/link', '_blank');
+            const st = document.getElementById('ms-qr-status');
+            if (st) st.textContent = 'Link abierto — pegá el código (Ctrl+V) en la página';
         }
 
         async function loginInvitado() {
@@ -4011,7 +4235,7 @@
 
         function agregarCuentaMicrosoft() {
             document.getElementById('user-dropdown').classList.add('hidden');
-            loginMicrosoft();
+            abrirLoginMicrosoft();
         }
 
         async function agregarCuentaInvitado() {
@@ -4204,6 +4428,86 @@
         }
 
         let _modTipoActual = 'mod';
+        let _tiendaSrvCarpeta = '';
+        let _impLauncherRuta = '';
+
+        async function poblarSelectoresServidorTienda(selectIds, mundoSelectIds) {
+            const ids = Array.isArray(selectIds) ? selectIds : [selectIds];
+            const mundoIds = mundoSelectIds ? (Array.isArray(mundoSelectIds) ? mundoSelectIds : [mundoSelectIds]) : [];
+            try {
+                const r = await pywebview.api.get_servidores_guardados();
+                const srvs = (r.servidores || []).filter(s => s.existe || s.carpeta);
+                ids.forEach(selId => {
+                    const sel = document.getElementById(selId);
+                    if (!sel) return;
+                    if (!srvs.length) {
+                        sel.innerHTML = '<option value="">— Creá un servidor en Servidores —</option>';
+                        return;
+                    }
+                    sel.innerHTML = srvs.map(s => {
+                        const nom = s.nombre || s.carpeta;
+                        const act = s.activo ? ' ★' : '';
+                        return `<option value="${(s.carpeta||'').replace(/"/g,'&quot;')}">${nom}${act}</option>`;
+                    }).join('');
+                    const activo = srvs.find(s => s.activo) || srvs[0];
+                    if (activo) sel.value = activo.carpeta;
+                });
+                if (ids[0]) {
+                    const first = document.getElementById(ids[0]);
+                    _tiendaSrvCarpeta = first ? first.value : '';
+                }
+                if (mundoIds.length && _tiendaSrvCarpeta) await cargarMundosServidorTienda(_tiendaSrvCarpeta, mundoIds);
+            } catch(e) {
+                ids.forEach(selId => {
+                    const sel = document.getElementById(selId);
+                    if (sel) sel.innerHTML = '<option value="">Error al cargar servidores</option>';
+                });
+            }
+        }
+
+        async function cargarMundosServidorTienda(carpeta, selectIds) {
+            const ids = Array.isArray(selectIds) ? selectIds : [selectIds];
+            try {
+                const r = await pywebview.api.get_servidor_mundos(carpeta);
+                ids.forEach(selId => {
+                    const sel = document.getElementById(selId);
+                    if (!sel) return;
+                    const mundos = r.mundos || [];
+                    if (!mundos.length) {
+                        sel.innerHTML = '<option value="">world (por defecto)</option>';
+                        sel.classList.add('hidden');
+                        return;
+                    }
+                    sel.classList.remove('hidden');
+                    sel.innerHTML = mundos.map(m =>
+                        `<option value="${m.nombre}">${m.nombre}${m.activo ? ' (activo)' : ''}</option>`
+                    ).join('');
+                });
+            } catch(e) {}
+        }
+
+        async function tiendaSrvCambio() {
+            const sel = document.getElementById('tienda-srv-select');
+            _tiendaSrvCarpeta = sel ? sel.value : '';
+            const hint = document.getElementById('tienda-srv-hint');
+            if (_modTipoActual === 'datapack' && hint) {
+                hint.textContent = 'Datapacks → ' + (_tiendaSrvCarpeta ? 'world/datapacks del servidor' : 'elegí un servidor');
+            }
+            if (_tiendaSrvCarpeta) {
+                try { await pywebview.api.activar_servidor(_tiendaSrvCarpeta); } catch(e) {}
+                if (_modTipoActual === 'datapack') {
+                    await cargarMundosServidorTienda(_tiendaSrvCarpeta, 'tienda-mundo-select');
+                }
+            }
+        }
+
+        async function pluginSrvCambio() {
+            const sel = document.getElementById('plugin-srv-select');
+            if (sel && sel.value) {
+                try { await pywebview.api.activar_servidor(sel.value); } catch(e) {}
+            }
+        }
+
         function setModTipo(tipo) {
             _modTipoActual = tipo;
             _modrinthCatActual = '';
@@ -4216,9 +4520,26 @@
                     (active ? 'border-[#2ECC71] text-white' : 'border-transparent text-gray-500 hover:text-white');
             });
             const loaderSec = document.getElementById('sidebar-loader-section');
+            const srvSec = document.getElementById('sidebar-server-section');
             const envSec = document.getElementById('sidebar-env-section');
             const perfSec = document.getElementById('sidebar-perf-section');
+            const mundoSel = document.getElementById('tienda-mundo-select');
+            const hint = document.getElementById('tienda-srv-hint');
             if (loaderSec) loaderSec.style.display = ['mod','modpack'].includes(tipo) ? '' : 'none';
+            if (srvSec) {
+                const showSrv = tipo === 'datapack';
+                srvSec.classList.toggle('hidden', !showSrv);
+                srvSec.style.display = showSrv ? '' : 'none';
+                if (showSrv) {
+                    poblarSelectoresServidorTienda('tienda-srv-select', 'tienda-mundo-select');
+                }
+            }
+            if (mundoSel) mundoSel.classList.toggle('hidden', tipo !== 'datapack');
+            if (hint) {
+                hint.textContent = tipo === 'datapack'
+                    ? 'Se instala en world/datapacks del servidor'
+                    : 'Plugins → carpeta plugins/ del servidor';
+            }
             if (envSec) envSec.style.display = ['mod','resourcepack','modpack','datapack'].includes(tipo) ? '' : 'none';
             if (perfSec) perfSec.style.display = tipo === 'shader' ? '' : 'none';
             const pluginPanel = document.getElementById('plugin-store-panel');
@@ -6077,6 +6398,13 @@
             const platBtn = document.getElementById('imod-plat-btn');
             const platPanel = document.getElementById('imod-plat-panel');
             const platLabel = document.getElementById('imod-plat-label');
+            const platSection = document.getElementById('imod-plat-section');
+            if (_imodTipo === 'datapack') {
+                if (platSection) platSection.classList.add('hidden');
+                imodSelectDatapackVer(ver);
+                return;
+            }
+            if (platSection) platSection.classList.remove('hidden');
             if (!ver || !_imodVersionsData) { platBtn.disabled = true; return; }
             const compatible = _imodVersionsData.filter(v => v.game_versions.includes(ver));
             const allLoaders = [...new Set(compatible.flatMap(v => v.loaders))];
@@ -6147,6 +6475,30 @@
             document.getElementById('imod-file-info').classList.remove('hidden');
         }
 
+        function imodSelectDatapackVer(ver) {
+            if (!ver || !_imodVersionsData) return;
+            const compatible = _imodVersionsData.filter(v => v.game_versions.includes(ver));
+            const match = compatible.find(v => v.files && v.files.length) || compatible[0];
+            if (!match) return;
+            _imodSelectedVer = ver;
+            _imodSelectedPlat = 'minecraft';
+            _imodSelectedVersionId = match.id;
+            const file = match.files.find(f => f.primary) || match.files[0];
+            document.getElementById('imod-fname').textContent = file.filename;
+            document.getElementById('imod-fmeta').textContent = `${match.version_number} · ${(file.size/1048576).toFixed(2)} MB`;
+            document.getElementById('imod-perfil-row').classList.add('hidden');
+            document.getElementById('imod-file-info').classList.remove('hidden');
+        }
+
+        async function imodSrvCambio() {
+            const sel = document.getElementById('imod-srv-select');
+            const carpeta = sel ? sel.value : '';
+            if (carpeta) {
+                try { await pywebview.api.activar_servidor(carpeta); } catch(e) {}
+                await cargarMundosServidorTienda(carpeta, 'imod-mundo-select');
+            }
+        }
+
         async function abrirInstalarMod(projectId, titulo, tipo, iconUrl) {
             _imodProjectId = projectId;
             _imodTipo = tipo;
@@ -6158,6 +6510,16 @@
             _imodVerPanelOpen = true;
             _imodPlatPanelOpen = false;
             const el = id => document.getElementById(id);
+            const srvRow = el('imod-servidor-row');
+            const platSec = el('imod-plat-section');
+            if (tipo === 'datapack') {
+                if (srvRow) srvRow.classList.remove('hidden');
+                if (platSec) platSec.classList.add('hidden');
+                await poblarSelectoresServidorTienda('imod-srv-select', 'imod-mundo-select');
+            } else {
+                if (srvRow) srvRow.classList.add('hidden');
+                if (platSec) platSec.classList.remove('hidden');
+            }
             el('imod-titulo').textContent = titulo;
             el('imod-subtitulo').textContent = tipo + ' · Modrinth';
             const icon = el('imod-icon');
@@ -6215,8 +6577,8 @@
             }
         }
 
-        // Loaders que el launcher soporta
-        const _LOADERS_SOPORTADOS = new Set(['fabric','forge','neoforge','vanilla','optifine','iris']);
+        // Loaders que el launcher soporta (minecraft = datapacks en Modrinth)
+        const _LOADERS_SOPORTADOS = new Set(['fabric','forge','neoforge','vanilla','optifine','iris','quilt','minecraft']);
         const _LOADER_DISPLAY = { iris: 'Iris (Fabric)', optifine: 'OptiFine', fabric: 'Fabric',
                                   forge: 'Forge', neoforge: 'NeoForge', vanilla: 'Vanilla' };
 
@@ -6261,7 +6623,18 @@
                 instalandoEl.innerHTML = `<div class="flex items-center gap-3 p-4"><div class="w-4 h-4 border-2 border-[#2ECC71] border-t-transparent rounded-full animate-spin shrink-0"></div><span class="text-sm font-bold text-[#2ECC71]">Descargando e instalando...</span></div>`;
             }
             instalandoEl.classList.remove('hidden');
-            const result = await pywebview.api.instalar_mod_desde_modrinth(_imodProjectId, _imodSelectedVersionId, _imodTipo, _imodSelectedVer, motor);
+            let carpetaSrv = null, mundo = null;
+            if (_imodTipo === 'datapack') {
+                carpetaSrv = (document.getElementById('imod-srv-select')||{}).value || _tiendaSrvCarpeta || '';
+                mundo = (document.getElementById('imod-mundo-select')||{}).value || '';
+                if (!carpetaSrv) {
+                    alert('Seleccioná un servidor local en la tienda o en el modal.');
+                    instalandoEl.classList.add('hidden');
+                    return;
+                }
+            }
+            const result = await pywebview.api.instalar_mod_desde_modrinth(
+                _imodProjectId, _imodSelectedVersionId, _imodTipo, _imodSelectedVer, motor, carpetaSrv, mundo);
             if (progressInterval) clearInterval(progressInterval);
             instalandoEl.classList.add('hidden');
             instalandoEl.innerHTML = `<div class="flex items-center gap-3 p-4"><div class="w-4 h-4 border-2 border-[#2ECC71] border-t-transparent rounded-full animate-spin shrink-0"></div><span class="text-sm font-bold text-[#2ECC71]">Descargando e instalando...</span></div>`;
@@ -7116,7 +7489,7 @@
 
         // ══ HERRAMIENTAS: TAB SWITCHER ══════════════════════════════════
         function herTab(cual) {
-            const allTabs = ['estadisticas','backup','perfiles','compartir','gamemode','hwperfil','gpuopengl','crash','musica','fondo','shaders','java','ia','fotos','updates','turbo','overlay','benchmark','skingen','smartram','conflictos','optimizer','comparador','whitelist'];
+            const allTabs = ['estadisticas','backup','perfiles','compartir','gamemode','hwperfil','gpuopengl','crash','musica','fondo','shaders','java','ia','fotos','updates','turbo','overlay','importar','benchmark','skingen','smartram','conflictos','optimizer','comparador','whitelist'];
             allTabs.forEach(t => {
                 const panel = document.getElementById('hpanel-' + t);
                 if (panel) {
@@ -7143,6 +7516,75 @@
             if (cual === 'whitelist') cargarWhitelist();
             if (cual === 'hwperfil') hwEstiloTab(window._hwEstiloActual || 'pvp');
             if (cual === 'updates') cargarInstanciasUpdates();
+            if (cual === 'importar') cargarLaunchersDetectados();
+        }
+
+        async function cargarLaunchersDetectados() {
+            const lista = document.getElementById('imp-launchers-lista');
+            if (!lista) return;
+            lista.innerHTML = '<p class="text-xs text-gray-600 animate-pulse">Buscando...</p>';
+            try {
+                const r = await pywebview.api.detectar_launchers_externos();
+                const items = r.launchers || [];
+                if (!items.length) {
+                    lista.innerHTML = '<p class="text-xs text-gray-500">No se detectaron carpetas. Usá Servidores → Importar o copiá manualmente desde %APPDATA%.</p>';
+                    _impLauncherRuta = '';
+                    return;
+                }
+                _impLauncherRuta = items[0].ruta;
+                lista.innerHTML = items.map((it, i) => {
+                    const tags = [
+                        it.tiene_saves ? 'saves' : '',
+                        it.tiene_mods ? 'mods' : '',
+                        it.tiene_rp ? 'rp' : '',
+                    ].filter(Boolean).join(' · ');
+                    return `<button type="button" onclick="_impLauncherRuta='${it.ruta.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}';document.querySelectorAll('.imp-launcher-opt').forEach(b=>b.classList.remove('border-[#2ECC71]'));this.classList.add('border-[#2ECC71]')"
+                        class="imp-launcher-opt text-left bg-[#0A0A0A] border ${i===0?'border-[#2ECC71]':'border-[#2A2A2A]'} rounded-lg px-3 py-2 hover:border-[#2ECC71]/50 transition">
+                        <p class="font-bold text-sm text-white">${it.nombre}</p>
+                        <p class="text-[10px] text-gray-500 truncate">${it.ruta}</p>
+                        <p class="text-[10px] text-gray-600">${tags || 'datos locales'}</p>
+                    </button>`;
+                }).join('');
+            } catch(e) {
+                lista.innerHTML = '<p class="text-red-400 text-xs">' + e + '</p>';
+            }
+        }
+
+        async function ejecutarImportarLauncher() {
+            const msg = document.getElementById('imp-launcher-msg');
+            const btn = document.getElementById('btn-imp-launcher');
+            if (!_impLauncherRuta) {
+                if (msg) msg.textContent = 'Elegí un launcher de la lista';
+                return;
+            }
+            const ver = (document.getElementById('panel-version-sel')||{}).value || '';
+            const motor = (document.getElementById('panel-loader-sel')||{}).value || 'Vanilla';
+            if (!ver) {
+                if (msg) msg.textContent = 'Seleccioná versión en el panel principal';
+                return;
+            }
+            if (btn) { btn.disabled = true; btn.textContent = 'Importando...'; }
+            if (msg) msg.textContent = 'Copiando archivos...';
+            try {
+                const opciones = {
+                    saves: document.getElementById('imp-opt-saves')?.checked,
+                    mods: document.getElementById('imp-opt-mods')?.checked,
+                    resourcepacks: document.getElementById('imp-opt-rp')?.checked,
+                    shaders: document.getElementById('imp-opt-shaders')?.checked,
+                    options: document.getElementById('imp-opt-options')?.checked,
+                    servers: document.getElementById('imp-opt-servers')?.checked,
+                };
+                const r = await pywebview.api.importar_desde_launcher_externo(_impLauncherRuta, ver, motor, opciones);
+                if (r.ok) {
+                    if (msg) msg.textContent = '✅ Importado: ' + (r.copiados || []).join(', ');
+                    showToast('Datos importados a ' + r.instancia, '#2ECC71', 5000);
+                } else {
+                    if (msg) msg.textContent = '❌ ' + (r.error || 'Error');
+                }
+            } catch(e) {
+                if (msg) msg.textContent = '❌ ' + e;
+            }
+            if (btn) { btn.disabled = false; btn.textContent = '⬇ Importar a instancia activa'; }
         }
 
         let _iaChatHistorial = [];
@@ -8617,11 +9059,11 @@
         // ══ OVERLAY ═══════════════════════════════════════════════════════
         async function abrirOverlay() {
             const msg = document.getElementById('overlay-msg');
-            msg.textContent = 'Abriendo...';
+            if (msg) msg.textContent = 'Abriendo...';
             try {
                 const r = await pywebview.api.abrir_overlay();
-                msg.textContent = r.ok ? '✅ Overlay abierto' : '❌ ' + r.error;
-            } catch(e) { msg.textContent = '❌ ' + e; }
+                if (msg) msg.textContent = r && r.ok ? '✅ Overlay abierto' : ('❌ ' + (r && r.error || 'Error'));
+            } catch(e) { if (msg) msg.textContent = '❌ ' + e; }
         }
 
         // ══ KEYSTROKE OVERLAY ════════════════════════════════════════════
@@ -8633,6 +9075,7 @@
                 show_mouse:   (document.getElementById('ov-show-mouse')?.checked ?? true),
                 show_compass: (document.getElementById('ov-show-compass')?.checked ?? true),
             };
+            if (msg) msg.textContent = 'Abriendo overlay de teclas...';
             try {
                 const r = await pywebview.api.abrir_keystroke_overlay(cfg);
                 if (msg) msg.textContent = r && r.ok ? '✅ Overlay de teclas abierto' : ('❌ ' + (r && r.error || 'Error'));
@@ -9945,6 +10388,7 @@
 
         let _pluginStoreLoaded = false;
         async function _initPluginStore() {
+            await poblarSelectoresServidorTienda('plugin-srv-select');
             if (_pluginStoreLoaded) return;
             _pluginStoreLoaded = true;
             buscarPluginsStore('');
@@ -10016,14 +10460,20 @@
 
         async function _instalarPluginStore(fuente, owner, slug, btn) {
             if (btn) { btn.disabled = true; btn.textContent = '…'; }
+            const carpetaSrv = (document.getElementById('plugin-srv-select')||{}).value || _tiendaSrvCarpeta || '';
+            if (!carpetaSrv) {
+                showToast('Seleccioná un servidor local primero', '#E74C3C', 5000);
+                if (btn) { btn.disabled = false; btn.textContent = 'Instalar'; }
+                return;
+            }
             try {
                 let r;
                 if (fuente === 'hangar') {
-                    r = await pywebview.api.instalar_plugin(owner, slug);
+                    r = await pywebview.api.instalar_plugin(owner, slug, carpetaSrv);
                 } else {
                     const s = await pywebview.api.get_estado_servidor();
                     const ver = s.servidor_version || '';
-                    r = await pywebview.api.instalar_plugin_modrinth(slug, ver);
+                    r = await pywebview.api.instalar_plugin_modrinth(slug, ver, carpetaSrv);
                 }
                 if (r && r.ok !== false) {
                     showToast(`✅ ${slug} instalado`, '#2ECC71', 4000);

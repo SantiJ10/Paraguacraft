@@ -4,7 +4,11 @@
 
 **Launcher completo de Minecraft, desarrollado en Python con interfaz web moderna.**
 
+<<<<<<< HEAD
+[![Version](https://img.shields.io/badge/versi%C3%B3n-6.0.0-2ECC71?style=flat-square)](https://github.com/SantiJ10/Paraguacraft/releases)
+=======
 [![Version](https://img.shields.io/badge/versi%C3%B3n-5.7.0-2ECC71?style=flat-square)](https://github.com/SantiJ10/Paraguacraft/releases)
+>>>>>>> 5e62d720d56f2129240ec588e1b161ca4c8070be
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![License](https://img.shields.io/badge/licencia-MIT-blue?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/plataforma-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)](https://github.com/SantiJ10/Paraguacraft/releases)
@@ -29,12 +33,15 @@ Paraguacraft es un launcher de Minecraft completamente personalizado, desarrolla
 - Quick Play: conectar directamente a un servidor al iniciar
 - Discord Rich Presence (RPC) en tiempo real
 - Cuentas **Premium (Microsoft/Mojang)** y modo **Offline**
+- **Login Microsoft unificado**: un botón con logo MS → modal con navegador o código QR (`microsoft.com/link`), copia automática del código
 - Ventana **maximizada al iniciar** automáticamente
 - Restauración del estado de ventana correcto al cerrar Minecraft
 
 ### 🛒 Tienda de Mods
 - Búsqueda e instalación desde **Modrinth** y **CurseForge**
 - Mods, shaders, resource packs, datapacks y modpacks
+- **Data packs y plugins** instalables directo en **servidores locales** (`world/datapacks` y `plugins/`) con selector de servidor y mundo
+- **Tienda de plugins** (Hangar + Modrinth) para servidores Paper/Fabric
 - Filtrado por loader y versión de Minecraft
 - Detección de mods conflictivos en la instancia activa
 - **Auto-check de actualizaciones** al abrir la sección (vía hash SHA-512 contra Modrinth)
@@ -54,7 +61,7 @@ Paraguacraft es un launcher de Minecraft completamente personalizado, desarrolla
 - **Turbo Mode**: optimización agresiva de recursos
 - **Smart RAM**: ajuste dinámico de memoria asignada a Minecraft
 - **Benchmark integrado** con métricas en tiempo real
-- **Overlay en juego**: estadísticas de rendimiento sin salir de MC
+- **Overlay en juego**: estadísticas de rendimiento sin salir de MC (errores visibles en la UI; overlay de teclas más estable)
 - **Centro de Diagnóstico**: 45+ patrones de error, lectura de 5 archivos de log, auto-fixes con un clic
 - **Auto-diagnóstico**: al crashear Minecraft, el launcher navega y escanea automáticamente
 - **Reporte de bugs con un clic**: empaqueta logs, crash reports, info del sistema y config (redactada) en un ZIP listo para adjuntar en GitHub Issues
@@ -95,12 +102,18 @@ Paraguacraft es un launcher de Minecraft completamente personalizado, desarrolla
 - Sistema de **whitelist**, **ops** y **bans** integrado con escritura **atómica** (`tempfile + os.replace + fsync`) — los JSONs (`ops.json`, `whitelist.json`, `banned-players.json`) ya no se corrompen ante crashes ni escrituras concurrentes (UI + bot Discord)
 - **Bot Discord integrado**: 9 slash commands (`/server-start`, `/server-stop`, `/server-restart`, `/whitelist add|remove|list`, `/op add|remove`, `/ban add|remove`)
 - Edición de `server.properties` desde la UI con escritura atómica
+<<<<<<< HEAD
+- **Importar carpeta de servidor** ya existente (otra PC o backup) con detección de versión y tipo
+- **Actualizaciones de plugins** del servidor desde la UI
+=======
+>>>>>>> 5e62d720d56f2129240ec588e1b161ca4c8070be
 
 ### 💾 Instancias y mundos
 - Backup y restauración de mundos
 - **Backup automático pre-actualización**: comprime tus mundos a `pre_update_backups/` antes de aplicar cualquier update del launcher (toggle en el modal de update + listado en pestaña Backup)
 - Compartir instancias por código (mods, versión y config)
 - Importar instancias de otros jugadores
+- **Importar desde TLauncher / SKLauncher** (o carpeta `.minecraft`): mundos, mods, resource packs, shaders, `options.txt` y `servers.dat` con tutorial en Extras
 - Activar/desactivar mods sin borrarlos
 - Visualizador de screenshots
 
@@ -232,6 +245,25 @@ Paraguacraft/
 
 ## 📝 Changelog
 
+<<<<<<< HEAD
+### v6.0.0
+- **Login Microsoft unificado**: un botón → modal con navegador + QR; código copiable; QR solo a `microsoft.com/link`
+- **Data packs en servidor local**: selector servidor/mundo → `world/datapacks`
+- **Plugins en servidor local**: tienda con selector de servidor destino
+- **Importar desde TLauncher / SKLauncher** con tutorial en Extras → Importar launcher
+- **Overlays más estables**: sin `bind_all` global, errores visibles, mejor cierre de `pynput`
+
+### v5.9.0
+- **Tienda de plugins** (Hangar + Modrinth) con instalación en servidor local
+- **Actualizaciones de plugins** del servidor
+- **Importar carpeta de servidor** existente + detección de versión
+- **Playit**: dirección Java persistida por servidor
+
+### v5.8.0
+- **RAM servidor**: `-Xms` = `-Xmx` en modo automático (mitad de RAM del sistema, tope 8 GB)
+
+=======
+>>>>>>> 5e62d720d56f2129240ec588e1b161ca4c8070be
 ### v5.7.0
 - **🐛 Fix Hypixel/CubeCraft con sesión premium**: arreglado el `Invalid session` por token MS expirado. Ahora se refresca sincrónicamente antes de lanzar y se usa el `name` real de Mojang
 - **⚡ Aikar G1GC flags en servidor MC**: PaperMC/Vanilla/Fabric server arrancan con los 21 flags tuneados de Aikar — TPS estable 4hs+ sin lagazos progresivos. Perfil `lite` automático para heap <4 GB
