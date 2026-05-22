@@ -2,7 +2,7 @@
   "version": "6.1.0",
   "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v6.1.0/Paraguacraft.exe",
   "size_bytes": 0,
-  "sha256": "81ebeca972c74152ad582c4c18a15a93eab6bb171219c0524774eb86d14e6c2f",
+  "sha256": "c79d3e308139932568bead9bb8d66bdb34e84443a57bd1f98a5f9a2c2447a5a4",
   "notes": "- Login Microsoft unificado (navegador + codigo QR en un solo modal)\n- QR corregido: abre microsoft.com/link y copia el codigo al portapapeles\n- Data packs y plugins de la tienda se instalan en servidores locales (world/datapacks y plugins/)\n- Importar datos desde TLauncher, SKLauncher u otra carpeta .minecraft\n- Overlays de teclas y estadisticas mas estables (menos crasheos, errores visibles en la UI)"
 }
 

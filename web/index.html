@@ -3179,6 +3179,13 @@
             "instaladas": { desc: "Versiones que ya tenés instaladas en tu .minecraft con su loader detectado.", subs: [], _instData: [] }
         };
 
+        /** No son perfiles para lanzar el juego (loader interno Modrinth / carpeta errónea). */
+        const _MOTORES_NO_JUEGO = new Set(['minecraft']);
+        function _motorLanzable(motor) {
+            const m = (motor || '').trim().toLowerCase();
+            return m && !_MOTORES_NO_JUEGO.has(m);
+        }
+
         // Toggles persistidos (cargados desde config en _runPywebviewInit)
         let _showSnapshots = false;
         let _showAlphaBeta = false;
@@ -3262,6 +3269,7 @@
                     if (inst.extras && inst.extras.length > 0) {
                         window._extraLoaders = window._extraLoaders || {};
                         inst.extras.forEach(i => {
+                            if (!_motorLanzable(i.motor)) return;
                             if (!window._extraLoaders[i.version]) window._extraLoaders[i.version] = [];
                             if (!window._extraLoaders[i.version].includes(i.motor))
                                 window._extraLoaders[i.version].push(i.motor);
@@ -3655,9 +3663,11 @@
                 }
             }
             if (window._extraLoaders && window._extraLoaders[v]) {
-                window._extraLoaders[v].forEach(l => { if (!out.includes(l)) out.push(l); });
+                window._extraLoaders[v].forEach(l => {
+                    if (_motorLanzable(l) && !out.includes(l)) out.push(l);
+                });
             }
-            return out;
+            return out.filter(_motorLanzable);
         }
 
         function actualizarLoadersParaVersion() {
@@ -3670,7 +3680,11 @@
             const selOpt = sV.options[sV.selectedIndex];
             if (selOpt && selOpt.dataset.motor) {
                 const dm = selOpt.dataset.motor;
-                if (sL.querySelector(`option[value="${dm}"]`)) sL.value = dm;
+                if (_motorLanzable(dm) && sL.querySelector(`option[value="${dm}"]`)) {
+                    sL.value = dm;
+                } else {
+                    sL.value = 'Vanilla';
+                }
             }
             const ver = sV.value;
             if (ver) {
@@ -6541,6 +6555,7 @@
             if (!opciones.length) {
                 opciones = _PERFILES_LAUNCHER_FALLBACK.map(p => ({ value: p, label: p }));
             }
+            opciones = opciones.filter(o => _motorLanzable(o.value));
             perfilSel.innerHTML = opciones.map(o =>
                 `<option value="${o.value.replace(/"/g, '&quot;')}">${o.label}</option>`
             ).join('');
@@ -6659,8 +6674,8 @@
             }
         }
 
-        // Loaders que el launcher soporta (minecraft = datapacks en Modrinth)
-        const _LOADERS_SOPORTADOS = new Set(['fabric','forge','neoforge','vanilla','optifine','iris','quilt','minecraft']);
+        // Loaders de Modrinth para mods (sin "minecraft": solo aplica a datapacks en API, no es perfil de juego)
+        const _LOADERS_SOPORTADOS = new Set(['fabric','forge','neoforge','vanilla','optifine','iris','quilt']);
         const _LOADER_DISPLAY = { iris: 'Iris (Fabric)', optifine: 'OptiFine', fabric: 'Fabric',
                                   forge: 'Forge', neoforge: 'NeoForge', vanilla: 'Vanilla' };
 

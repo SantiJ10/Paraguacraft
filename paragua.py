@@ -45,7 +45,7 @@ except Exception:
     log = logging.getLogger("paraguacraft.main")
     _LOG_PATH = ""
 
-VERSION = "6.1.0"  # Actualizar en cada release
+VERSION = "6.0.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 # Opcional: URL de Cloudflare Pages con latest.json (sin rate limits, CDN global)
 # Formato del JSON: {"version":"5.2.0", "download_url":"...", "size_bytes":0, "notes":"..."}
@@ -1226,10 +1226,10 @@ class Api:
                 out.append(o)
                 vistos.add(o)
         for x in loaders:
-            if x not in vistos:
+            if x not in vistos and x.lower() != "minecraft":
                 out.append(x)
                 vistos.add(x)
-        return out
+        return [x for x in out if x.lower() != "minecraft"]
 
     def get_local_mods(self, version, motor):
         try:
