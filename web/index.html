@@ -3302,7 +3302,7 @@
                     <p id="mid-meta" class="text-sm text-gray-400 mt-0.5"></p>
                 </div>
                 <button id="mid-add-mods-btn" onclick="midAgregarMods()" class="hidden bg-[#2A2A2A] hover:bg-[#3A3A3A] text-gray-300 hover:text-white font-black px-4 py-2.5 rounded-xl flex items-center gap-2 text-sm transition shrink-0">+ Mods</button>
-                <button id="mid-play-btn" onclick="bibJugar(_midInstActual)" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black px-5 py-2.5 rounded-xl flex items-center gap-2 text-sm transition shrink-0">▶ Jugar</button>
+                <button id="mid-play-btn" onclick="bibJugar(_midInstActual, this)" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black px-5 py-2.5 rounded-xl flex items-center gap-2 text-sm transition shrink-0">▶ Jugar</button>
                 <button id="mid-settings-btn" onclick="abrirInstanciaSettings()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-gray-300 hover:text-white w-10 h-10 rounded-xl flex items-center justify-center text-lg transition shrink-0" title="Configuración">⚙</button>
                 <button onclick="cerrarInstanciaDetalle()" class="text-gray-500 hover:text-white w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#2A2A2A] transition text-lg">✕</button>
             </div>
@@ -3410,6 +3410,14 @@
                                 <input type="text" id="mis-nueva-ver" placeholder="ej: 2.0.0" class="flex-1 bg-[#1E1E1E] border border-[#333] text-white px-3 py-2 rounded-xl text-sm outline-none focus:border-[#3498DB]">
                                 <button onclick="misCambiarVersion()" class="bg-[#3498DB] hover:bg-[#2980B9] text-white font-bold px-4 py-2 rounded-xl text-sm transition">Cambiar</button>
                             </div>
+                        </div>
+                        <div id="mis-loader-ver-section" class="hidden space-y-3">
+                            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Versión del loader Fabric</p>
+                            <p class="text-xs text-gray-600">Si el modpack requiere una versión específica de Fabric Loader (como en el error "Incompatible mods"), seleccionála acá. Dejalo en automático para usar la última estable.</p>
+                            <select id="mis-loader-ver-sel" class="w-full bg-[#1E1E1E] border border-[#333] text-white px-3 py-2.5 rounded-xl text-sm outline-none focus:border-[#3498DB]">
+                                <option value="">Cargando versiones...</option>
+                            </select>
+                            <button onclick="misGuardarLoaderVer()" class="bg-[#3498DB] hover:bg-[#2980B9] text-white font-bold px-5 py-2.5 rounded-xl text-sm transition w-full">💾 Guardar versión del loader</button>
                         </div>
                     </div>
                     <div id="mis-panel-java" class="hidden space-y-4">
@@ -6506,7 +6514,7 @@
                     }
                 } catch(e) { /* keep polling on network error */ }
             }, 800);
-            setTimeout(() => { if (_gamePoller) { clearInterval(_gamePoller); _gamePoller = null; resetLaunchButton(); } }, 600000);
+            setTimeout(() => { if (_gamePoller) { clearInterval(_gamePoller); _gamePoller = null; resetLaunchButton(); } }, 3600000);
         }
 
         const _LAUNCH_STEPS = [
@@ -6541,10 +6549,23 @@
             const isErr = m && (m.startsWith('Error') || m.toLowerCase().includes('traceback'));
             lbl.className = 'text-center text-xs font-bold mb-2 min-h-[1.25rem] break-all ' + (isErr ? 'text-[#E74C3C]' : 'text-[#3498DB]');
         }
+        let _bibActiveBtn = null, _bibActiveBtnOrigHtml = '', _bibActiveBtnOrigClass = '';
+        function _resetBibLaunchBtn() {
+            if (_bibActiveBtn) {
+                _bibActiveBtn.innerHTML = _bibActiveBtnOrigHtml;
+                _bibActiveBtn.className = _bibActiveBtnOrigClass;
+                _bibActiveBtn.style.opacity = '';
+                _bibActiveBtn.disabled = false;
+                _bibActiveBtn = null;
+            }
+            const pb = document.getElementById('mid-play-btn');
+            if (pb) { pb.textContent = '▶ Jugar'; pb.disabled = false; }
+        }
         function resetLaunchButton() {
             const btn = document.getElementById('btn-launch-game');
             if(btn) { btn.innerText = "▶ JUGAR"; btn.classList.replace('bg-gray-600', 'bg-[#2ECC71]'); btn.disabled = false; }
             _toggleStopButton(false);
+            _resetBibLaunchBtn();
         }
 
         // Muestra / oculta el botón "🛑" (cerrar Minecraft) según haya o no
@@ -12041,20 +12062,28 @@
                 </div>
                 ${inst.fuente === 'paraguacraft' ? '<button class="bib-play-btn opacity-0 group-hover:opacity-100 shrink-0 bg-[#2ECC71] hover:bg-[#27AE60] text-black w-9 h-9 rounded-xl flex items-center justify-center text-base font-black transition shadow-lg" title="Jugar">▶</button>' : ''}`;
             const pb = card.querySelector('.bib-play-btn');
-            if (pb) pb.addEventListener('click', e => { e.stopPropagation(); bibJugar(inst); });
+            if (pb) pb.addEventListener('click', e => { e.stopPropagation(); bibJugar(inst, pb); });
             card.addEventListener('click', () => abrirInstanciaDetalle(inst));
             return card;
         }
 
-        async function bibJugar(inst) {
+        async function bibJugar(inst, btn) {
             if (!inst) return;
+            _bibActiveBtnOrigHtml = btn ? btn.innerHTML : '';
+            _bibActiveBtnOrigClass = btn ? btn.className : '';
+            _bibActiveBtn = btn || null;
+            const pb = document.getElementById('mid-play-btn');
+            const spinner = '<div class="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>';
+            if (btn) { btn.innerHTML = spinner; btn.style.opacity = '1'; btn.disabled = true; }
+            if (pb && pb !== btn) { pb.innerHTML = spinner; pb.disabled = true; }
             try {
-                const sV = document.getElementById('panel-version-sel');
-                const sL = document.getElementById('panel-loader-sel');
-                if (sV) sV.value = inst.mc_version || '';
-                if (sL) sL.value = inst.motor || '';
-                await pywebview.api.lanzar_juego(inst.mc_version, inst.motor, '');
-            } catch(e) { try { showToast('Error al lanzar: ' + e, '#E74C3C', 3000); } catch(_){} }
+                const javaOk = await preflightJava(inst.mc_version);
+                if (!javaOk) { _resetBibLaunchBtn(); return; }
+                await _lanzarJuegoReal(inst.mc_version, inst.motor);
+            } catch(e) {
+                try { showToast('Error al lanzar: ' + e, '#E74C3C', 3000); } catch(_){}
+                _resetBibLaunchBtn();
+            }
         }
 
         async function bibEliminar(inst) {
@@ -12299,6 +12328,10 @@
                 verSec.classList.toggle('hidden', !isModpack);
                 if (isModpack) document.getElementById('mis-nueva-ver').value = _misInstActual.mc_version || '';
             }
+            const loaderSec = document.getElementById('mis-loader-ver-section');
+            const _motorLower = (_misInstActual.motor || '').toLowerCase();
+            const _isFabricLike = _motorLower.includes('fabric') || _motorLower.includes('quilt');
+            if (loaderSec) loaderSec.classList.toggle('hidden', !_isFabricLike);
             document.getElementById('mis-icon-input').value = '';
             m.classList.remove('hidden');
             misTab('general');
@@ -12317,6 +12350,10 @@
                 if (panel) panel.classList.toggle('hidden', !on);
             });
             if (tab === 'herramientas') misCargarBackups();
+            if (tab === 'instalacion') {
+                const _m2 = (_misInstActual?.motor || '').toLowerCase();
+                if (_m2.includes('fabric') || _m2.includes('quilt')) _misCargarLoaderVersiones();
+            }
         }
 
         async function misGuardarGeneral() {
@@ -12363,6 +12400,44 @@
 
         async function misReparar() {
             try { showToast('Re-instalación próximamente disponible', '#F39C12', 2500); } catch(_){}
+        }
+
+        async function _misCargarLoaderVersiones() {
+            const sel = document.getElementById('mis-loader-ver-sel');
+            if (!sel || !_misInstActual) return;
+            sel.innerHTML = '<option value="">Cargando...</option>';
+            sel.disabled = true;
+            try {
+                const [vers, cfgR] = await Promise.all([
+                    pywebview.api.get_fabric_loader_versions(),
+                    pywebview.api.get_instancia_config(_misInstActual.folder)
+                ]);
+                const cur = (cfgR?.ok ? (cfgR.config?.fabric_loader_version || '') : '');
+                sel.innerHTML = '<option value="">(Automático — última estable)</option>';
+                (vers || []).forEach(v => {
+                    sel.innerHTML += `<option value="${v}"${v === cur ? ' selected' : ''}>${v}</option>`;
+                });
+                if (cur && !(vers || []).includes(cur)) {
+                    sel.innerHTML = `<option value="${cur}" selected>${cur} (actual)</option>` + sel.innerHTML;
+                }
+            } catch(e) {
+                sel.innerHTML = '<option value="">Error cargando versiones</option>';
+            } finally {
+                sel.disabled = false;
+            }
+        }
+
+        async function misGuardarLoaderVer() {
+            if (!_misInstActual) return;
+            const sel = document.getElementById('mis-loader-ver-sel');
+            if (!sel) return;
+            const ver = sel.value || '';
+            const r = await pywebview.api.set_instancia_config(_misInstActual.folder, {fabric_loader_version: ver});
+            if (r && r.ok) {
+                try { showToast(ver ? `✓ Fabric Loader ${ver} guardado` : '✓ Loader en automático (última estable)', '#2ECC71', 3000); } catch(_){}
+            } else {
+                try { showToast('Error: ' + (r?.error || '?'), '#E74C3C', 3000); } catch(_){}
+            }
         }
 
         async function misDuplicar() {

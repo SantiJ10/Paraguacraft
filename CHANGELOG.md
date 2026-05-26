@@ -3,6 +3,31 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [6.5.0] - 2026-05-26
+
+### 🐛 Arreglos
+- **Lanzamiento desde Biblioteca**: instancias y modpacks ahora inician correctamente al presionar ▶ en la tarjeta o ▶ Jugar en el detalle. El botón muestra spinner y se restaura automáticamente al cerrar el juego.
+- **Spinner persistente**: el spinner del botón de lanzamiento ahora dura hasta que Minecraft se cierra (no desaparece después de 10 min para modpacks pesados — nuevo timeout de 60 min).
+- **Servidor Fabric**: `iniciar_servidor` detecta y usa `fabric-server-launch.jar` correctamente. Antes intentaba usar `server.jar` que no existe en servidores Fabric.
+- **Plugins en servidor Fabric**: instalación de mods/plugins en servidores Fabric ahora apunta a `/mods` en vez de `/plugins`. Afectaba también a Geyser, listado, eliminación, toggle y subida de plugins.
+- **Detección de tipo servidor**: nuevo helper `_es_fabric_servidor` unifica la detección (por archivo JAR o por `_paragua_srv.json`) en lugar de 7 chequeos dispersos.
+- **Badge "corriendo" en Biblioteca**: corregida comparación de motor que nunca matcheaba para motores con espacios (ej: `Fabric + Iris`). La tarjeta ahora se resalta correctamente mientras el juego está activo.
+- **Protección contra sobreescritura de instancias**: `crear_instancia_personalizada` ahora avisa si ya existe una instancia con distinto nombre para la misma versión/motor, en vez de sobreescribir silenciosamente.
+
+### ✨ Novedades
+- **Selector de versión del loader Fabric por instancia**: en Biblioteca → ⚙ Configuración → Instalación, las instancias Fabric/Quilt muestran un selector con todas las versiones del loader. Útil para bajar de versión cuando un modpack requiere una versión específica (ej: error "Incompatible mods").
+
+---
+
+## [6.4.0] - 2026-05-26
+
+### 🐛 Arreglos
+- **Nombre de modpacks**: modpacks instalados desde Modrinth (ej: Fabulously Optimized) ahora muestran su título de proyecto real en vez del string de versión (ej: "6.3.0-beta.4" o "12.1.2 for 1.21.1"). El título se obtiene de la API de Modrinth al instalar y se guarda en `_paragua_instance.json`.
+- **Guardar nombre en Biblioteca**: editar el nombre de una instancia desde Biblioteca → ⚙ Configuración ahora persiste correctamente. Antes, el nombre del modpack en `_paragua_modpacks.json` sobreescribía siempre el nombre guardado en `_paragua_instance.json` al recargar la biblioteca.
+- **Botón Iniciar en tarjeta de instancia**: al hacer clic en ▶ en la biblioteca, ahora muestra un spinner de carga, valida Java con `preflightJava` antes de lanzar (igual que el botón principal), y restaura el estado del botón al terminar. Antes no daba ninguna señal visual de que el juego estaba descargando o iniciando.
+
+---
+
 ## [6.3.0] - 2026-05-26
 
 ### ✨ Novedades

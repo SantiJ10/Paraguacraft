@@ -45,7 +45,7 @@ except Exception:
     log = logging.getLogger("paraguacraft.main")
     _LOG_PATH = ""
 
-VERSION = "6.3.0"  # Actualizar en cada release
+VERSION = "6.5.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 # Opcional: URL de Cloudflare Pages con latest.json (sin rate limits, CDN global)
 # Formato del JSON: {"version":"5.2.0", "download_url":"...", "size_bytes":0, "notes":"..."}
@@ -2448,7 +2448,7 @@ class Api:
                                 tipo = "modpack"
                         except Exception:
                             pass
-                    if modpack_name:
+                    if modpack_name and not cfg.get("nombre"):
                         nombre = modpack_name
                     icono_b64 = ""
                     icon_path = cfg.get("icon_image", "")
@@ -2463,7 +2463,7 @@ class Api:
                         except Exception:
                             pass
                     _gs = getattr(self, "_game_status", {})
-                    _running = bool(_gs.get("running") and _gs.get("version") == mc_ver and _gs.get("motor", "").replace(" ", "_") == motor)
+                    _running = bool(_gs.get("running") and _gs.get("version") == mc_ver and _gs.get("motor") == motor)
                     resultado.append({
                         "id": entry, "folder": entry, "nombre": nombre,
                         "mc_version": mc_ver, "motor": motor, "tipo": tipo,
@@ -2746,6 +2746,11 @@ class Api:
                         cfg = _j.load(_f)
                 except Exception:
                     pass
+            _existing_name = cfg.get("nombre", "").strip()
+            if _existing_name and _existing_name != nombre:
+                return {"ok": False,
+                        "error": f"Ya existe una instancia \"{_existing_name}\" para {mc_version} {motor}. "
+                                  f"Editá su nombre desde Biblioteca → ⚙ Configuración, o usá otro loader/versión."}
             cfg.update({"nombre": nombre, "mc_version": mc_version, "motor": motor,
                         "source": "personalizada",
                         "created_at": datetime.datetime.now().isoformat(timespec="seconds")})
@@ -4227,6 +4232,18 @@ class Api:
             return 'paper-geyser'
         return 'paper'
 
+    def _es_fabric_servidor(self, carpeta):
+        """True si el servidor usa Fabric: detecta fabric-server-launch.jar O _paragua_srv.json tipo fabric."""
+        if not carpeta:
+            return False
+        if os.path.exists(os.path.join(carpeta, "fabric-server-launch.jar")):
+            return True
+        try:
+            with open(os.path.join(carpeta, "_paragua_srv.json")) as _sf:
+                return json.load(_sf).get("tipo", "paper") in ("fabric", "fabric-geyser")
+        except Exception:
+            return False
+
     def iniciar_servidor(self, carpeta=None):
         if self._servidor_proc and self._servidor_proc.poll() is None:
             return {"ok": False, "error": "El servidor ya está corriendo."}
@@ -4244,8 +4261,11 @@ class Api:
         except Exception:
             self._servidor_tipo = self._detectar_tipo_servidor(carpeta)
             self._playit_bedrock_custom = ''
-        if not carpeta or not os.path.exists(os.path.join(carpeta, "server.jar")):
-            return {"ok": False, "error": "No se encontró server.jar. Priméro creá el servidor."}
+        _srv_jar = ("fabric-server-launch.jar"
+                    if os.path.exists(os.path.join(carpeta or "", "fabric-server-launch.jar"))
+                    else "server.jar")
+        if not carpeta or not os.path.exists(os.path.join(carpeta, _srv_jar)):
+            return {"ok": False, "error": "No se encontró server.jar ni fabric-server-launch.jar. Primero creá el servidor."}
         # Kill any stale Java process running in this folder (releases session.lock)
         try:
             import psutil as _psu
@@ -4376,8 +4396,11 @@ class Api:
                     self._servidor_log.append("[SERVER] ⚠ Para TPS óptimo en Forge, editá run.bat manualmente con Aikar flags")
             else:
                 # PaperMC / Vanilla / Fabric server: aplicamos Aikar
+                _start_jar = ("fabric-server-launch.jar"
+                              if os.path.exists(os.path.join(carpeta, "fabric-server-launch.jar"))
+                              else "server.jar")
                 startup_cmd = [java_cmd, xmx_flag, xms_flag, *aikar_flags,
-                               "-jar", "server.jar", "nogui"]
+                               "-jar", _start_jar, "nogui"]
             self._servidor_proc = subprocess.Popen(
                 startup_cmd,
                 cwd=carpeta, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -4642,7 +4665,7 @@ class Api:
         if not carpeta:
             return {"ok": False, "error": "No hay carpeta de servidor seleccionada"}
         try:
-            is_fabric = os.path.exists(os.path.join(carpeta, "fabric-server-launch.jar"))
+            is_fabric = self._es_fabric_servidor(carpeta)
             dest_dir  = os.path.join(carpeta, "mods" if is_fabric else "plugins")
             os.makedirs(dest_dir, exist_ok=True)
             if is_fabric:
@@ -4930,7 +4953,7 @@ class Api:
             carpeta = carpeta or self._servidor_carpeta
             if not carpeta:
                 return {"ok": False, "error": "No hay servidor seleccionado", "plugins": []}
-            is_fabric = os.path.exists(os.path.join(carpeta, "fabric-server-launch.jar"))
+            is_fabric = self._es_fabric_servidor(carpeta)
             target_dir = os.path.join(carpeta, "mods" if is_fabric else "plugins")
             if not os.path.isdir(target_dir):
                 return {"ok": True, "plugins": []}
@@ -4989,7 +5012,7 @@ class Api:
             carpeta = carpeta or self._servidor_carpeta
             if not carpeta or not download_url:
                 return {"ok": False, "error": "Parámetros inválidos"}
-            is_fabric = os.path.exists(os.path.join(carpeta, "fabric-server-launch.jar"))
+            is_fabric = self._es_fabric_servidor(carpeta)
             target_dir = os.path.join(carpeta, "mods" if is_fabric else "plugins")
             os.makedirs(target_dir, exist_ok=True)
             fname = nuevo_archivo or archivo_actual
@@ -5018,7 +5041,7 @@ class Api:
         carpeta = carpeta or self._servidor_carpeta
         if not carpeta:
             return {"ok": True, "plugins": [], "dir_tipo": "plugins"}
-        is_fabric = os.path.exists(os.path.join(carpeta, "fabric-server-launch.jar"))
+        is_fabric = self._es_fabric_servidor(carpeta)
         dir_tipo = "mods" if is_fabric else "plugins"
         target_dir = os.path.join(carpeta, dir_tipo)
         if not os.path.isdir(target_dir):
@@ -5042,7 +5065,7 @@ class Api:
         carpeta = carpeta or self._servidor_carpeta
         if not carpeta:
             return False
-        is_fabric = os.path.exists(os.path.join(carpeta, "fabric-server-launch.jar"))
+        is_fabric = self._es_fabric_servidor(carpeta)
         target_dir = os.path.join(carpeta, "mods" if is_fabric else "plugins")
         ruta = os.path.join(target_dir, archivo)
         if not os.path.exists(ruta):
@@ -5060,7 +5083,7 @@ class Api:
         carpeta = carpeta or self._servidor_carpeta
         if not carpeta:
             return False
-        is_fabric = os.path.exists(os.path.join(carpeta, "fabric-server-launch.jar"))
+        is_fabric = self._es_fabric_servidor(carpeta)
         target_dir = os.path.join(carpeta, "mods" if is_fabric else "plugins")
         ruta = os.path.join(target_dir, archivo)
         try:
@@ -5078,7 +5101,7 @@ class Api:
             return {"ok": False, "error": "No hay servidor seleccionado"}
         if not nombre.lower().endswith(".jar"):
             return {"ok": False, "error": "Solo se aceptan archivos .jar"}
-        is_fabric = os.path.exists(os.path.join(carpeta, "fabric-server-launch.jar"))
+        is_fabric = self._es_fabric_servidor(carpeta)
         target_dir = os.path.join(carpeta, "mods" if is_fabric else "plugins")
         os.makedirs(target_dir, exist_ok=True)
         try:
@@ -5765,7 +5788,17 @@ class Api:
                 return {"ok": False, "error": "No se encontró el archivo .mrpack"}
             mrpack_url = mrpack_file["url"]
             mrpack_name = mrpack_file["filename"]
-            self._mod_dl_progress = {"pct": 0, "nombre": mrpack_name, "estado": "Descargando modpack..."}
+            # Fetch project title early so we can use it as the instance name
+            _project_title = ""
+            _proj_data = {}
+            try:
+                _pjr = requests.get(f"https://api.modrinth.com/v2/project/{project_id}", headers=_HDR, timeout=10)
+                if _pjr.status_code == 200:
+                    _proj_data = _pjr.json()
+                    _project_title = _proj_data.get("title", "")
+            except Exception:
+                pass
+            self._mod_dl_progress = {"pct": 0, "nombre": _project_title or mrpack_name, "estado": "Descargando modpack..."}
             # 1. Descargar .mrpack
             tmp_dir = tempfile.mkdtemp(prefix="paraguacraft_mrpack_")
             mrpack_path = os.path.join(tmp_dir, mrpack_name)
@@ -5840,7 +5873,7 @@ class Api:
                 if os.path.exists(registry_path):
                     with open(registry_path, "r", encoding="utf-8") as _rf:
                         registry = _jreg.load(_rf)
-                pack_name = ver_info.get("name", mrpack_name)
+                pack_name = _project_title or ver_info.get("name", mrpack_name)
                 registry[project_id] = {
                     "name": pack_name,
                     "project_id": project_id,
@@ -5854,46 +5887,45 @@ class Api:
                     _jreg.dump(registry, _wf, ensure_ascii=False, indent=2)
             except Exception:
                 pass
-            # Guardar icono del modpack desde Modrinth
+            # Guardar nombre e icono del modpack desde datos ya obtenidos
             try:
-                proj_r = requests.get(
-                    f"https://api.modrinth.com/v2/project/{project_id}",
-                    headers=_HDR, timeout=10)
-                if proj_r.status_code == 200:
-                    icon_url = proj_r.json().get("icon_url", "")
-                    if icon_url:
-                        ir = requests.get(icon_url, timeout=10, headers=_HDR)
-                        if ir.status_code == 200:
-                            icon_path = os.path.join(base, "_paragua_icon.png")
-                            raw = ir.content
-                            try:
-                                from PIL import Image
-                                import io as _io
-                                im = Image.open(_io.BytesIO(raw))
-                                if im.mode != "RGBA":
-                                    im = im.convert("RGBA")
-                                im.thumbnail((128, 128), Image.LANCZOS)
-                                im.save(icon_path, "PNG")
-                            except Exception:
-                                with open(icon_path, "wb") as _f:
-                                    _f.write(raw)
-                            cfg_path = os.path.join(base, "_paragua_instance.json")
-                            cfg_data = {}
-                            if os.path.exists(cfg_path):
-                                with open(cfg_path, "r", encoding="utf-8") as _f:
-                                    try:
-                                        cfg_data = _json.load(_f)
-                                    except Exception:
-                                        pass
-                            cfg_data["icon_image"] = icon_path
-                            with open(cfg_path, "w", encoding="utf-8") as _f:
-                                _json.dump(cfg_data, _f, ensure_ascii=False)
+                cfg_path = os.path.join(base, "_paragua_instance.json")
+                cfg_data = {}
+                if os.path.exists(cfg_path):
+                    with open(cfg_path, "r", encoding="utf-8") as _f:
+                        try:
+                            cfg_data = _json.load(_f)
+                        except Exception:
+                            pass
+                if _project_title and not cfg_data.get("nombre"):
+                    cfg_data["nombre"] = _project_title
+                icon_url = _proj_data.get("icon_url", "")
+                if icon_url:
+                    ir = requests.get(icon_url, timeout=10, headers=_HDR)
+                    if ir.status_code == 200:
+                        icon_path = os.path.join(base, "_paragua_icon.png")
+                        raw = ir.content
+                        try:
+                            from PIL import Image
+                            import io as _io
+                            im = Image.open(_io.BytesIO(raw))
+                            if im.mode != "RGBA":
+                                im = im.convert("RGBA")
+                            im.thumbnail((128, 128), Image.LANCZOS)
+                            im.save(icon_path, "PNG")
+                        except Exception:
+                            with open(icon_path, "wb") as _f:
+                                _f.write(raw)
+                        cfg_data["icon_image"] = icon_path
+                if cfg_data:
+                    with open(cfg_path, "w", encoding="utf-8") as _f:
+                        _json.dump(cfg_data, _f, ensure_ascii=False)
             except Exception:
                 pass
             self._mod_dl_progress = {"pct": 100, "nombre": mrpack_name, "estado": "¡Listo!"}
             return {
                 "ok": True,
-                "nombre": ver_info.get("name", mrpack_name),
+                "nombre": pack_name,
                 "installed": installed,
                 "total": total_files,
                 "errors": errors
