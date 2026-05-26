@@ -1,8 +1,8 @@
 {
-  "version": "6.3.0",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v6.3.0/Paraguacraft.exe",
-  "size_bytes": 53431989,
-  "sha256": "f0d17e1e8c3504b28a106510edcc05b4cba1d1ba3fa4b8e03d94d080016c7d2c",
-  "notes": "- Noticias interactivas en Inicio con imagenes oficiales y links a Minecraft.net\n- Seccion Modrinth en Inicio: 8 mods mas descargados\n- Iconos reales de servidores (mcsrvstat.us) en Quick Play y Servidores Publicos\n- 3 servidores nuevos: RedPVP, Minebolt, RhoMC con Auto-Join y ping\n- Auto-refresh de sesion Microsoft cada 50 min (evita expiracion frecuente)\n- Auto-Join usa la ultima version jugada (ya no requiere ir a Versiones primero)\n- Quick Play: eliminado overlap visual con la navbar"
+  "version": "6.5.0",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v6.5.0/Paraguacraft.exe",
+  "size_bytes": 53435709,
+  "sha256": "998fb391b9ebf8f24f23c36dd316433e0079cd674357f5b1f2779d5780164c79",
+  "notes": "- Instancias y modpacks se lanzan correctamente desde la Biblioteca (boton ▶ y ▶ Jugar)\n- Spinner de lanzamiento persiste hasta que el juego se cierra y se resetea solo\n- Servidor Fabric: inicia correctamente con fabric-server-launch.jar\n- Plugins/mods en servidores Fabric se instalan en /mods en lugar de /plugins\n- Proteccion contra sobreescritura silenciosa al crear instancias con el mismo motor/version\n- Nuevo selector de version del loader Fabric por instancia (Biblioteca → ⚙ → Instalacion)\n- Badge 'corriendo' en tarjetas de biblioteca corregido para motores multi-palabra (Fabric + Iris)"
 }
 
