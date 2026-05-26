@@ -5323,46 +5323,41 @@
             try {
                 const r = await pywebview.api.get_changelog(version);
                 if (!r || !r.ok) {
-                    // Fallback: pedí el changelog completo
                     const rf = await pywebview.api.get_changelog();
                     if (!rf || !rf.ok) return;
                     r.markdown = rf.markdown;
                 }
-                let m = document.getElementById('modal-changelog');
-                if (!m) {
-                    m = document.createElement('div');
-                    m.id = 'modal-changelog';
-                    m.className = 'fixed inset-0 bg-black/80 z-[95] flex items-center justify-center p-6';
-                    m.onclick = (e) => { if (e.target === m) cerrarChangelog(); };
-                    m.innerHTML = `
-                        <div class="bg-[#0F0F0F] border border-[#2ECC71]/40 rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl">
-                            <div class="flex items-center justify-between p-5 border-b border-[#2A2A2A] shrink-0">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 rounded-full bg-[#2ECC71]/20 border border-[#2ECC71]/40 flex items-center justify-center text-xl">✨</div>
-                                    <div>
-                                        <h2 id="changelog-title" class="text-lg font-black text-white">¡Novedades!</h2>
-                                        <p id="changelog-sub" class="text-xs text-gray-500"></p>
-                                    </div>
+                const old = document.getElementById('modal-changelog');
+                if (old) old.remove();
+                const m = document.createElement('div');
+                m.id = 'modal-changelog';
+                m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(4px);';
+                m.onclick = (e) => { if (e.target === m) cerrarChangelog(); };
+                const subText = (previous && previous !== 'anterior')
+                    ? `Actualizado desde v${previous}` : 'Gracias por mantener tu launcher al día ✨';
+                const titleText = version ? `✨ Novedades v${version}` : '📋 Changelog';
+                m.innerHTML = `
+                    <div style="background:#0F0F0F;border:1px solid rgba(46,204,113,0.35);border-radius:20px;width:100%;max-width:640px;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,0.8),0 0 0 1px rgba(46,204,113,0.1);transform:translateY(0);animation:clSlideIn .25s ease;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 22px 16px;border-bottom:1px solid #1E1E1E;flex-shrink:0;">
+                            <div style="display:flex;align-items:center;gap:14px;">
+                                <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,rgba(46,204,113,0.25),rgba(46,204,113,0.05));border:1px solid rgba(46,204,113,0.3);display:flex;align-items:center;justify-content:center;font-size:22px;">🚀</div>
+                                <div>
+                                    <h2 id="changelog-title" style="font-size:17px;font-weight:900;color:#fff;margin:0 0 2px;">${titleText}</h2>
+                                    <p id="changelog-sub" style="font-size:11px;color:#666;margin:0;">${subText}</p>
                                 </div>
-                                <button onclick="cerrarChangelog()" class="text-gray-500 hover:text-white text-xl">✕</button>
                             </div>
-                            <div id="changelog-body" class="flex-1 overflow-y-auto p-5"></div>
-                            <div class="flex items-center justify-between gap-2 p-4 border-t border-[#2A2A2A] shrink-0">
-                                <button onclick="verChangelogCompleto()" class="text-xs text-gray-500 hover:text-[#2ECC71] font-bold transition">Ver historial completo →</button>
-                                <button onclick="cerrarChangelog()" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black py-2 px-6 rounded-lg transition text-sm">¡Entendido!</button>
-                            </div>
-                        </div>`;
-                    document.body.appendChild(m);
-                }
-                const title = m.querySelector('#changelog-title');
-                const sub = m.querySelector('#changelog-sub');
+                            <button onclick="cerrarChangelog()" style="background:rgba(255,255,255,0.05);border:none;color:#666;font-size:18px;cursor:pointer;width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;transition:all .2s;" onmouseover="this.style.background='rgba(255,255,255,0.1)';this.style.color='#fff'" onmouseout="this.style.background='rgba(255,255,255,0.05)';this.style.color='#666'">✕</button>
+                        </div>
+                        <div id="changelog-body" style="flex:1;overflow-y:auto;padding:20px 22px;"></div>
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 22px;border-top:1px solid #1E1E1E;flex-shrink:0;">
+                            <button onclick="verChangelogCompleto()" style="background:none;border:none;color:#555;font-size:11px;font-weight:700;cursor:pointer;padding:0;transition:color .2s;" onmouseover="this.style.color='#2ECC71'" onmouseout="this.style.color='#555'">Ver historial completo →</button>
+                            <button onclick="cerrarChangelog()" style="background:#2ECC71;border:none;color:#000;font-weight:900;font-size:13px;padding:10px 28px;border-radius:10px;cursor:pointer;transition:background .2s;" onmouseover="this.style.background='#27AE60'" onmouseout="this.style.background='#2ECC71'">¡Entendido!</button>
+                        </div>
+                    </div>
+                    <style>@keyframes clSlideIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}</style>`;
+                document.body.appendChild(m);
                 const body = m.querySelector('#changelog-body');
-                title.textContent = version ? `Novedades de la v${version}` : 'Changelog';
-                sub.textContent = previous && previous !== 'anterior'
-                    ? `Actualizado desde la v${previous}`
-                    : 'Gracias por mantener tu launcher al día';
                 body.innerHTML = _mdSimple(r.markdown || '');
-                m.classList.remove('hidden');
             } catch(e) { console.error('mostrarChangelog', e); }
         }
 
@@ -5387,7 +5382,7 @@
 
         function cerrarChangelog() {
             const m = document.getElementById('modal-changelog');
-            if (m) m.classList.add('hidden');
+            if (m) m.remove();
             try { pywebview.api.marcar_changelog_visto(); } catch(e) {}
         }
 
