@@ -98,7 +98,7 @@
     <!-- END SPLASH -->
 
 
-    <div id="login-overlay" class="absolute inset-0 z-[200] bg-[#121212] flex flex-col items-center justify-center">
+    <div id="login-overlay" class="absolute inset-0 z-[200] flex flex-col items-center justify-center" style="background: linear-gradient(rgba(0,0,0,0.72), rgba(0,0,0,0.86)), url('../assets/main_banner.png') center/cover no-repeat">
         <h1 class="text-6xl font-black tracking-widest text-white drop-shadow-md mb-2">PARAGUACRAFT</h1>
         <p class="text-gray-400 mb-12">Iniciá sesión para entrar al ecosistema.</p>
         
@@ -413,6 +413,7 @@
                             <button type="button" onclick="gestorSubTab('resourcepacks')" id="gst-sub-resourcepacks" class="gst-sub px-3 py-1.5 rounded text-sm font-bold bg-[#2A2A2A] text-white">Resource packs</button>
                             <button type="button" onclick="gestorSubTab('shaders')" id="gst-sub-shaders" class="gst-sub px-3 py-1.5 rounded text-sm font-bold bg-[#2A2A2A] text-white">Shaders</button>
                             <button type="button" onclick="gestorSubTab('datapacks')" id="gst-sub-datapacks" class="gst-sub px-3 py-1.5 rounded text-sm font-bold bg-[#2A2A2A] text-white">Data packs</button>
+                            <button type="button" onclick="gestorSubTab('modpacks')" id="gst-sub-modpacks" class="gst-sub px-3 py-1.5 rounded text-sm font-bold bg-[#2A2A2A] text-white">📦 Modpacks</button>
                         </div>
                         <div class="flex flex-wrap gap-2 mb-3 shrink-0">
                             <input type="text" id="gestor-buscar" placeholder="Buscar por nombre..." class="flex-1 min-w-[140px] bg-[#1E1E1E] border border-[#333] rounded px-3 py-2 text-sm outline-none focus:border-[#2ECC71]" oninput="refrescarListaGestorFiltrado()">
@@ -556,6 +557,7 @@
             <button onclick="cambiarPestaña('inicio', 'Inicio')" id="btn-inicio" class="nav-btn text-white border-b-2 border-[#2ECC71] pb-1 transition">Inicio</button>
             <button onclick="cambiarPestaña('servidores', 'Servidores')" id="btn-servidores" class="nav-btn hover:text-white transition">Servidores</button>
             <button onclick="cambiarPestaña('versiones', 'Versiones')" id="btn-versiones" class="nav-btn hover:text-white transition">Versiones</button>
+            <button onclick="cambiarPestaña('biblioteca', 'Biblioteca')" id="btn-biblioteca" class="nav-btn hover:text-white transition">Biblioteca</button>
             <button onclick="cambiarPestaña('skins', 'Skins')" id="btn-skins" class="nav-btn hover:text-white transition">Skins</button>
             <button onclick="cambiarPestaña('mods', 'Mods')" id="btn-mods" class="nav-btn hover:text-white transition">Mods</button>
             <button onclick="cambiarPestaña('herramientas', 'Herramientas')" id="btn-herramientas" class="nav-btn hover:text-white transition">Extras</button>
@@ -991,15 +993,15 @@
     <main class="flex-1 relative bg-[#121212] w-full h-full overflow-hidden">
         
         <div id="vista-inicio" class="vista-seccion absolute inset-0 flex-col overflow-y-auto" style="display:flex;">
-            <div class="bg-[#0D0D0D] border-b border-[#1E1E1E] px-5 py-2 flex items-center gap-3 shrink-0 overflow-x-auto sticky top-0 z-10">
+            <div class="bg-[#0D0D0D] border-b border-[#1E1E1E] px-5 py-2 flex items-center gap-3 shrink-0 overflow-x-auto">
                 <span class="text-xs font-black text-gray-500 uppercase tracking-widest shrink-0">⚡ Quick Play</span>
-                <button onclick="inicioQuickPlay('mc.hypixel.net')" class="flex items-center gap-2 bg-[#181818] hover:bg-[#3498DB]/20 border border-[#2A2A2A] hover:border-[#3498DB] px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0">🔷 Hypixel</button>
-                <button onclick="inicioQuickPlay('play.cubecraft.net')" class="flex items-center gap-2 bg-[#181818] hover:bg-[#F39C12]/20 border border-[#2A2A2A] hover:border-[#F39C12] px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0">🟧 CubeCraft</button>
-                <button onclick="inicioQuickPlay('play.wynncraft.com')" class="flex items-center gap-2 bg-[#181818] hover:bg-[#1ABC9C]/20 border border-[#2A2A2A] hover:border-[#1ABC9C] px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0">⚔️ Wynncraft</button>
-                <button onclick="inicioQuickPlay('minemen.club')" class="flex items-center gap-2 bg-[#181818] hover:bg-[#9B59B6]/20 border border-[#2A2A2A] hover:border-[#9B59B6] px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0">🥊 Minemen</button>
-                <button onclick="inicioQuickPlay('play.jartexnetwork.com')" class="flex items-center gap-2 bg-[#181818] hover:bg-[#2ECC71]/20 border border-[#2A2A2A] hover:border-[#2ECC71] px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0">🌐 JartexNet</button>
-                <button onclick="inicioQuickPlay('extremecraft.net')" class="flex items-center gap-2 bg-[#181818] hover:bg-[#E74C3C]/20 border border-[#2A2A2A] hover:border-[#E74C3C] px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0">⚡ ExtremeCraft</button>
-                <button onclick="inicioQuickPlay('play.fadecloud.com')" class="flex items-center gap-2 bg-[#181818] hover:bg-[#3498DB]/20 border border-[#2A2A2A] hover:border-[#3498DB] px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0">🌀 FadeCloud</button>
+                <button onclick="inicioQuickPlay('mc.hypixel.net')" class="flex items-center gap-2 bg-[#181818] hover:bg-[#3498DB]/20 border border-[#2A2A2A] hover:border-[#3498DB] px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0"><img src="https://www.google.com/s2/favicons?domain=hypixel.net&sz=32" class="w-4 h-4 rounded" onerror="this.outerHTML='\ud83d\udd37'"> Hypixel</button>
+                <button onclick="inicioQuickPlay('play.cubecraft.net')" class="flex items-center gap-2 bg-[#181818] hover:bg-[#F39C12]/20 border border-[#2A2A2A] hover:border-[#F39C12] px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0"><img src="https://www.google.com/s2/favicons?domain=cubecraft.net&sz=32" class="w-4 h-4 rounded" onerror="this.outerHTML='\ud83d\udfe7'"> CubeCraft</button>
+                <button onclick="inicioQuickPlay('play.wynncraft.com')" class="flex items-center gap-2 bg-[#181818] hover:bg-[#1ABC9C]/20 border border-[#2A2A2A] hover:border-[#1ABC9C] px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0"><img src="https://www.google.com/s2/favicons?domain=wynncraft.com&sz=32" class="w-4 h-4 rounded" onerror="this.outerHTML='\u2694\ufe0f'"> Wynncraft</button>
+                <button onclick="inicioQuickPlay('minemen.club')" class="flex items-center gap-2 bg-[#181818] hover:bg-[#9B59B6]/20 border border-[#2A2A2A] hover:border-[#9B59B6] px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0"><img src="https://www.google.com/s2/favicons?domain=minemen.club&sz=32" class="w-4 h-4 rounded" onerror="this.outerHTML='\ud83e\udd4a'"> Minemen</button>
+                <button onclick="inicioQuickPlay('play.jartexnetwork.com')" class="flex items-center gap-2 bg-[#181818] hover:bg-[#2ECC71]/20 border border-[#2A2A2A] hover:border-[#2ECC71] px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0"><img src="https://www.google.com/s2/favicons?domain=jartexnetwork.com&sz=32" class="w-4 h-4 rounded" onerror="this.outerHTML='\ud83c\udf10'"> JartexNet</button>
+                <button onclick="inicioQuickPlay('extremecraft.net')" class="flex items-center gap-2 bg-[#181818] hover:bg-[#E74C3C]/20 border border-[#2A2A2A] hover:border-[#E74C3C] px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0"><img src="https://www.google.com/s2/favicons?domain=extremecraft.net&sz=32" class="w-4 h-4 rounded" onerror="this.outerHTML='\u26a1'"> ExtremeCraft</button>
+                <button onclick="inicioQuickPlay('play.fadecloud.com')" class="flex items-center gap-2 bg-[#181818] hover:bg-[#3498DB]/20 border border-[#2A2A2A] hover:border-[#3498DB] px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0"><img src="https://www.google.com/s2/favicons?domain=fadecloud.com&sz=32" class="w-4 h-4 rounded" onerror="this.outerHTML='\ud83c\udf00'"> FadeCloud</button>
             </div>
 
             <!-- Banner: juego activo -->
@@ -1040,7 +1042,21 @@
                 </div>
             </div>
 
-            <div id="inicio-noticias" class="shrink-0 px-8 pt-4 pb-2 flex gap-3 overflow-x-auto"></div>
+            <div class="shrink-0 px-8 pt-4 pb-1">
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest">📰 Noticias</p>
+                    <button onclick="pywebview.api.abrir_url_navegador('https://www.minecraft.net/en-us/articles')" class="text-[10px] text-gray-600 hover:text-[#2ECC71] transition font-bold">Ver todas →</button>
+                </div>
+                <div id="inicio-noticias" class="flex gap-3 overflow-x-auto pb-2"></div>
+            </div>
+
+            <div class="shrink-0 px-8 pb-3">
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest">🟢 Descubrí en Modrinth</p>
+                    <button onclick="cambiarPestaña('mods','Mods')" class="text-[10px] text-gray-600 hover:text-[#2ECC71] transition font-bold">Explorar →</button>
+                </div>
+                <div id="inicio-modrinth" class="flex gap-3 overflow-x-auto pb-2"></div>
+            </div>
 
             <div class="shrink-0 px-8 pb-4 grid grid-cols-4 gap-3">
                 <div class="bg-[#181818]/80 backdrop-blur border border-[#2A2A2A] rounded-xl p-4 flex flex-col gap-1 hover:border-[#2ECC71] transition cursor-pointer" onclick="cambiarPestaña('mods','Mods')">
@@ -1082,7 +1098,7 @@
                 <div class="grid grid-cols-2 gap-3 pb-6 overflow-y-auto flex-1 min-h-0" id="grid-srvs">
 
                     <div data-tipo="premium" class="srv-card bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col justify-between hover:border-[#3498DB] transition group">
-                        <div class="flex items-start gap-3 mb-3"><span class="text-3xl">🔷</span>
+                        <div class="flex items-start gap-3 mb-3"><img src="https://api.mcsrvstat.us/icon/mc.hypixel.net" class="w-12 h-12 rounded-xl object-cover shrink-0" onerror="this.src='https://www.google.com/s2/favicons?domain=hypixel.net&sz=64'">
                             <div class="flex-1 min-w-0"><h3 class="text-base font-black text-white group-hover:text-[#3498DB]">Hypixel Network</h3>
                                 <p class="text-xs text-gray-500 font-mono">mc.hypixel.net</p>
                                 <p class="text-xs text-gray-400 mt-1">El servidor más grande del mundo. SkyBlock, BedWars, SkyWars. 1.8+</p></div></div>
@@ -1096,7 +1112,7 @@
 
                     <div data-tipo="premium" class="srv-card bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col justify-between hover:border-[#F39C12] transition group">
                         <div class="flex items-start gap-3 mb-3">
-                            <span class="text-3xl">🟧</span>
+                            <img src="https://www.google.com/s2/favicons?domain=cubecraft.net&sz=64" class="w-12 h-12 rounded-xl object-contain shrink-0" onerror="this.outerHTML='<span class=&quot;text-3xl&quot;>🟧</span>'">
                             <div class="flex-1 min-w-0">
                                 <h3 class="text-base font-black text-white group-hover:text-[#F39C12]">CubeCraft Games</h3>
                                 <p class="text-xs text-gray-500 font-mono">play.cubecraft.net</p>
@@ -1113,7 +1129,7 @@
 
                     <div data-tipo="premium" class="srv-card bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col justify-between hover:border-[#1ABC9C] transition group">
                         <div class="flex items-start gap-3 mb-3">
-                            <span class="text-3xl">⚔️</span>
+                            <img src="https://api.mcsrvstat.us/icon/play.wynncraft.com" class="w-12 h-12 rounded-xl object-cover shrink-0" onerror="this.src='https://www.google.com/s2/favicons?domain=wynncraft.com&sz=64'">
                             <div class="flex-1 min-w-0">
                                 <h3 class="text-base font-black text-white group-hover:text-[#1ABC9C]">Wynncraft</h3>
                                 <p class="text-xs text-gray-500 font-mono">play.wynncraft.com</p>
@@ -1130,7 +1146,7 @@
 
                     <div data-tipo="premium" class="srv-card bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col justify-between hover:border-[#9B59B6] transition group">
                         <div class="flex items-start gap-3 mb-3">
-                            <span class="text-3xl">🥊</span>
+                            <img src="https://api.mcsrvstat.us/icon/minemen.club" class="w-12 h-12 rounded-xl object-cover shrink-0" onerror="this.src='https://www.google.com/s2/favicons?domain=minemen.club&sz=64'">
                             <div class="flex-1 min-w-0">
                                 <h3 class="text-base font-black text-white group-hover:text-[#9B59B6]">Minemen Club</h3>
                                 <p class="text-xs text-gray-500 font-mono">minemen.club</p>
@@ -1147,7 +1163,7 @@
 
                     <div data-tipo="nopremium" class="srv-card bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col justify-between hover:border-[#2ECC71] transition group">
                         <div class="flex items-start gap-3 mb-3">
-                            <span class="text-3xl">🌐</span>
+                            <img src="https://api.mcsrvstat.us/icon/play.jartexnetwork.com" class="w-12 h-12 rounded-xl object-cover shrink-0" onerror="this.src='https://www.google.com/s2/favicons?domain=jartexnetwork.com&sz=64'">
                             <div class="flex-1 min-w-0">
                                 <h3 class="text-base font-black text-white group-hover:text-[#2ECC71]">JartexNetwork</h3>
                                 <p class="text-xs text-gray-500 font-mono">play.jartexnetwork.com</p>
@@ -1164,7 +1180,7 @@
 
                     <div data-tipo="nopremium" class="srv-card bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col justify-between hover:border-[#E74C3C] transition group">
                         <div class="flex items-start gap-3 mb-3">
-                            <span class="text-3xl">⚡</span>
+                            <img src="https://api.mcsrvstat.us/icon/extremecraft.net" class="w-12 h-12 rounded-xl object-cover shrink-0" onerror="this.src='https://www.google.com/s2/favicons?domain=extremecraft.net&sz=64'">
                             <div class="flex-1 min-w-0">
                                 <h3 class="text-base font-black text-white group-hover:text-[#E74C3C]">ExtremeCraft</h3>
                                 <p class="text-xs text-gray-500 font-mono">extremecraft.net</p>
@@ -1181,7 +1197,7 @@
 
                     <div data-tipo="nopremium" class="srv-card bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col justify-between hover:border-[#3498DB] transition group">
                         <div class="flex items-start gap-3 mb-3">
-                            <span class="text-3xl">🌀</span>
+                            <img src="https://api.mcsrvstat.us/icon/play.fadecloud.com" class="w-12 h-12 rounded-xl object-cover shrink-0" onerror="this.src='https://www.google.com/s2/favicons?domain=fadecloud.com&sz=64'">
                             <div class="flex-1 min-w-0">
                                 <h3 class="text-base font-black text-white group-hover:text-[#3498DB]">FadeCloud</h3>
                                 <p class="text-xs text-gray-500 font-mono">play.fadecloud.com</p>
@@ -1198,7 +1214,7 @@
 
                     <div data-tipo="nopremium" class="srv-card bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col justify-between hover:border-[#F39C12] transition group">
                         <div class="flex items-start gap-3 mb-3">
-                            <span class="text-3xl">🏆</span>
+                            <img src="https://api.mcsrvstat.us/icon/play.minesuperior.com" class="w-12 h-12 rounded-xl object-cover shrink-0" onerror="this.src='https://www.google.com/s2/favicons?domain=minesuperior.com&sz=64'">
                             <div class="flex-1 min-w-0">
                                 <h3 class="text-base font-black text-white group-hover:text-[#F39C12]">MineSuperior</h3>
                                 <p class="text-xs text-gray-500 font-mono">play.minesuperior.com</p>
@@ -1210,6 +1226,60 @@
                             <div class="flex items-center gap-2">
                                 <span id="ping-minesuperior" class="text-[10px] font-mono text-gray-600">...</span>
                                 <button onclick="autoJoinServer('play.minesuperior.com')" class="bg-[#2A2A2A] hover:bg-[#F39C12] hover:text-black text-[#F39C12] font-bold py-1.5 px-4 rounded transition text-sm">Auto-Join</button></div>
+                        </div>
+                    </div>
+
+                    <div data-tipo="nopremium" data-modo="pvp" class="srv-card bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col justify-between hover:border-[#E74C3C] transition group">
+                        <div class="flex items-start gap-3 mb-3">
+                            <img src="https://api.mcsrvstat.us/icon/play.redpvp.com.ar" class="w-12 h-12 rounded-xl object-cover shrink-0" onerror="this.src='https://www.google.com/s2/favicons?domain=redpvp.com.ar&sz=64'">
+                            <div class="flex-1 min-w-0">
+                                <h3 class="text-base font-black text-white group-hover:text-[#E74C3C]">RedPVP</h3>
+                                <p class="text-xs text-gray-500 font-mono">play.redpvp.com.ar</p>
+                                <p class="text-xs text-gray-400 mt-1">Facciones, Survival, KitPvP. Comunidad hispanohablante. 1.8–1.21</p>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-[10px] font-black px-2 py-0.5 rounded bg-green-900/40 text-[#2ECC71]">🔓 Premium + No-Premium</span>
+                            <div class="flex items-center gap-2">
+                                <span id="ping-redpvp" class="text-[10px] font-mono text-gray-600">...</span>
+                                <button onclick="autoJoinServer('play.redpvp.com.ar')" class="bg-[#2A2A2A] hover:bg-[#E74C3C] hover:text-white text-[#E74C3C] font-bold py-1.5 px-4 rounded transition text-sm">Auto-Join</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div data-tipo="nopremium" data-modo="mini-games" class="srv-card bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col justify-between hover:border-[#9B59B6] transition group">
+                        <div class="flex items-start gap-3 mb-3">
+                            <img src="https://api.mcsrvstat.us/icon/minebolt.net" class="w-12 h-12 rounded-xl object-cover shrink-0" onerror="this.src='https://www.google.com/s2/favicons?domain=minebolt.net&sz=64'">
+                            <div class="flex-1 min-w-0">
+                                <h3 class="text-base font-black text-white group-hover:text-[#9B59B6]">Minebolt</h3>
+                                <p class="text-xs text-gray-500 font-mono">minebolt.net</p>
+                                <p class="text-xs text-gray-400 mt-1">Mini-games, SkyBlock, BedWars. Comunidad hispanohablante. 1.8–1.21</p>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-[10px] font-black px-2 py-0.5 rounded bg-green-900/40 text-[#2ECC71]">🔓 Premium + No-Premium</span>
+                            <div class="flex items-center gap-2">
+                                <span id="ping-minebolt" class="text-[10px] font-mono text-gray-600">...</span>
+                                <button onclick="autoJoinServer('minebolt.net')" class="bg-[#2A2A2A] hover:bg-[#9B59B6] hover:text-white text-[#9B59B6] font-bold py-1.5 px-4 rounded transition text-sm">Auto-Join</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div data-tipo="nopremium" data-modo="survival" class="srv-card bg-[#181818] border border-[#2A2A2A] rounded-xl p-5 flex flex-col justify-between hover:border-[#1ABC9C] transition group">
+                        <div class="flex items-start gap-3 mb-3">
+                            <img src="https://api.mcsrvstat.us/icon/play.rhomc.com" class="w-12 h-12 rounded-xl object-cover shrink-0" onerror="this.src='https://www.google.com/s2/favicons?domain=rhomc.com&sz=64'">
+                            <div class="flex-1 min-w-0">
+                                <h3 class="text-base font-black text-white group-hover:text-[#1ABC9C]">RhoMC</h3>
+                                <p class="text-xs text-gray-500 font-mono">play.rhomc.com</p>
+                                <p class="text-xs text-gray-400 mt-1">Survival, Facciones, RPG. Comunidad hispanohablante. 1.8–1.21</p>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-[10px] font-black px-2 py-0.5 rounded bg-green-900/40 text-[#2ECC71]">🔓 Premium + No-Premium</span>
+                            <div class="flex items-center gap-2">
+                                <span id="ping-rhomc" class="text-[10px] font-mono text-gray-600">...</span>
+                                <button onclick="autoJoinServer('play.rhomc.com')" class="bg-[#2A2A2A] hover:bg-[#1ABC9C] hover:text-black text-[#1ABC9C] font-bold py-1.5 px-4 rounded transition text-sm">Auto-Join</button>
+                            </div>
                         </div>
                     </div>
 
@@ -1709,7 +1779,7 @@
                         </select>
                         <button onclick="aplicarSkinImportada()" id="btn-imp-aplicar" disabled class="bg-[#2ECC71] hover:bg-[#27AE60] disabled:bg-[#2A2A2A] disabled:text-gray-600 text-black font-black py-3 rounded transition text-sm">↑ Aplicar</button>
                         <p id="imp-skin-msg" class="text-xs text-gray-400 min-h-[1rem]"></p>
-                        <p class="text-xs text-gray-500 mt-auto">Cuentas Premium: la skin se sube a Mojang automáticamente.</p>
+                        <p class="text-xs text-gray-500 mt-auto">Sin Premium: se aplica en el juego y en todos tus servidores locales (SkinsRestorer). Premium con sesión Mojang: se sube a la cuenta oficial.</p>
                         <div id="imp-skin-preview-wrap" class="hidden flex-col items-center gap-3 mt-2">
                             <canvas id="imp-skin-canvas" width="160" height="290" class="rounded-lg" style="background:linear-gradient(135deg,#0a0a0a,#1a1a1a)"></canvas>
                             <p class="text-xs text-gray-500">Vista previa</p>
@@ -3104,6 +3174,43 @@
         </div>
         <!-- FIN VISTA HERRAMIENTAS -->
 
+        <!-- ══ VISTA BIBLIOTECA ══════════════════════════════════════════════ -->
+        <div id="vista-biblioteca" class="vista-seccion absolute inset-0 flex-col overflow-hidden" style="display:none">
+            <div class="px-6 py-4 flex items-center justify-between shrink-0">
+                <h1 class="text-2xl font-black">Biblioteca</h1>
+                <div class="flex items-center gap-2">
+                    <button onclick="importarMrpackLocal()" class="text-gray-400 hover:text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-[#2A2A2A] transition border border-[#2A2A2A] hover:border-[#3A3A3A]">📦 Importar .mrpack</button>
+                    <button onclick="cambiarPestaña('mods','Mods');setTimeout(()=>{try{setModTipo('modpack')}catch(e){}},120)" class="text-gray-400 hover:text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-[#2A2A2A] transition border border-[#2A2A2A] hover:border-[#3A3A3A]">🔍 Explorar modpacks</button>
+                    <button onclick="abrirCrearInstancia()" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black px-4 py-2 rounded-xl text-sm transition">+ Crear instancia</button>
+                </div>
+            </div>
+            <div class="px-5 pb-0 flex items-center gap-1 shrink-0 flex-wrap border-b border-[#2A2A2A]">
+                <button onclick="bibFiltrar('todas')" id="bib-tab-todas" class="bib-tab px-4 py-2.5 text-sm font-bold border-b-2 -mb-px transition text-[#2ECC71] border-[#2ECC71]">Todas las instancias</button>
+                <button onclick="bibFiltrar('modpack')" id="bib-tab-modpack" class="bib-tab px-4 py-2.5 text-sm font-bold border-b-2 -mb-px transition text-gray-500 hover:text-white border-transparent">Modpacks</button>
+                <button onclick="bibFiltrar('personalizada')" id="bib-tab-personalizada" class="bib-tab px-4 py-2.5 text-sm font-bold border-b-2 -mb-px transition text-gray-500 hover:text-white border-transparent">Personalizadas</button>
+                <button onclick="bibFiltrar('externa')" id="bib-tab-externa" class="bib-tab px-4 py-2.5 text-sm font-bold border-b-2 -mb-px transition text-gray-500 hover:text-white border-transparent">Externas</button>
+                <div class="flex-1"></div>
+                <div class="flex items-center bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl px-3 py-1.5 gap-2 w-52 mb-2">
+                    <span class="text-gray-600 text-sm shrink-0 select-none">&#128269;</span>
+                    <input type="text" id="bib-buscar" placeholder="Buscar..." oninput="bibRenderFiltrado()" class="bg-transparent text-white outline-none text-sm flex-1 placeholder-gray-600">
+                </div>
+                <div class="flex items-center gap-1 mb-2 shrink-0">
+                    <button id="bib-view-grid" onclick="bibSetView('grid')" class="w-8 h-8 flex items-center justify-center rounded-lg bg-[#2ECC71] text-black text-base transition" title="Grilla">⊞</button>
+                    <button id="bib-view-list" onclick="bibSetView('list')" class="w-8 h-8 flex items-center justify-center rounded-lg bg-[#1A1A1A] border border-[#2A2A2A] text-gray-400 hover:text-white text-base transition" title="Lista">☰</button>
+                </div>
+                <select id="bib-sort" onchange="bibRenderFiltrado()" class="bg-[#1A1A1A] border border-[#2A2A2A] text-gray-300 px-3 py-1.5 rounded-xl outline-none text-sm cursor-pointer mb-2">
+                    <option value="reciente">Reciente</option>
+                    <option value="nombre">Nombre</option>
+                    <option value="version">Versión MC</option>
+                    <option value="tiempo">Tiempo jugado</option>
+                    <option value="tipo">Tipo</option>
+                </select>
+            </div>
+            <div id="bib-grid" class="flex-1 overflow-y-auto p-5">
+                <p class="text-gray-500 text-sm animate-pulse">Cargando biblioteca...</p>
+            </div>
+        </div>
+
     </main>
     <!-- MUSIC PLAYER BAR -->
     <div id="music-bar" class="hidden fixed bottom-0 left-0 right-0 z-[150] bg-[#0D0D0D] border-t border-[#2A2A2A] flex items-center gap-4 px-5 py-2.5 shadow-2xl">
@@ -3120,6 +3227,217 @@
             <button onclick="mbarControl('next')" class="text-gray-400 hover:text-white transition text-lg px-1">⏭</button>
         </div>
         <button onclick="document.getElementById('music-bar').classList.add('hidden')" class="text-gray-600 hover:text-white ml-2 transition text-lg">✕</button>
+    </div>
+
+    <!-- ══ MODAL CREAR INSTANCIA ══════════════════════════════════════════ -->
+    <div id="modal-crear-instancia" class="hidden absolute inset-0 z-[160] bg-black/85 flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-[#121212] w-[700px] max-w-[95vw] max-h-[92vh] rounded-xl border border-[#2A2A2A] flex flex-col shadow-2xl overflow-hidden">
+            <div class="p-4 border-b border-[#2A2A2A] flex justify-between items-center shrink-0">
+                <h2 class="text-xl font-black">✨ Crear instancia</h2>
+                <button type="button" onclick="cerrarCrearInstancia()" class="text-gray-400 hover:text-white text-2xl leading-none w-8 h-8 flex items-center justify-center rounded hover:bg-[#2A2A2A] transition">✕</button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-5 flex flex-col gap-5">
+                <!-- Icono + Nombre + Loader -->
+                <div class="flex gap-4 items-start">
+                    <div class="shrink-0 flex flex-col items-center gap-1">
+                        <div id="ci-icon-box" onclick="document.getElementById('ci-icon-input').click()" class="w-24 h-24 bg-[#181818] border-2 border-dashed border-[#2A2A2A] rounded-xl flex items-center justify-center cursor-pointer hover:border-[#2ECC71] transition overflow-hidden relative select-none" title="Clic para subir imagen">
+                            <span id="ci-icon-initials" class="text-3xl font-black text-gray-600 pointer-events-none">?</span>
+                            <img id="ci-icon-img" class="hidden absolute inset-0 w-full h-full object-cover rounded-xl pointer-events-none" src="" alt="">
+                        </div>
+                        <p class="text-[10px] text-gray-600">Clic para icono</p>
+                        <input type="file" id="ci-icon-input" accept="image/*" class="hidden" onchange="ciIconFileChanged(this)">
+                    </div>
+                    <div class="flex-1 flex flex-col gap-3">
+                        <div>
+                            <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Nombre</label>
+                            <input type="text" id="ci-nombre" placeholder="Mi instancia..." class="mt-1 w-full bg-[#1E1E1E] border border-[#333] text-white px-3 py-2.5 rounded-lg outline-none text-sm focus:border-[#2ECC71]" oninput="ciActualizarInicial()">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Loader</label>
+                            <div class="flex flex-wrap gap-1.5 mt-1.5">
+                                <button type="button" onclick="ciSelLoader('Vanilla')" id="ci-l-Vanilla" class="ci-loader-btn px-3 py-1.5 rounded text-xs font-bold bg-[#2ECC71] text-black transition">Vanilla</button>
+                                <button type="button" onclick="ciSelLoader('Fabric')" id="ci-l-Fabric" class="ci-loader-btn px-3 py-1.5 rounded text-xs font-bold bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">Fabric</button>
+                                <button type="button" onclick="ciSelLoader('Forge')" id="ci-l-Forge" class="ci-loader-btn px-3 py-1.5 rounded text-xs font-bold bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">Forge</button>
+                                <button type="button" onclick="ciSelLoader('NeoForge')" id="ci-l-NeoForge" class="ci-loader-btn px-3 py-1.5 rounded text-xs font-bold bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">NeoForge</button>
+                                <button type="button" onclick="ciSelLoader('Quilt')" id="ci-l-Quilt" class="ci-loader-btn px-3 py-1.5 rounded text-xs font-bold bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] transition">Quilt</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Selector versión MC -->
+                <div>
+                    <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Versión de Minecraft</label>
+                    <div class="flex items-center gap-3 mt-2 mb-2 flex-wrap">
+                        <input type="text" id="ci-ver-buscar" placeholder="Buscar versión... (ej: 1.21)" oninput="ciFiltrarVersiones()" class="flex-1 min-w-[140px] bg-[#1E1E1E] border border-[#333] text-white px-3 py-2 rounded-lg outline-none text-sm focus:border-[#2ECC71]">
+                        <label class="flex items-center gap-1.5 text-xs text-gray-400 cursor-pointer shrink-0">
+                            <input type="checkbox" id="ci-snap-cb" onchange="ciFiltrarVersiones()" class="accent-[#2ECC71]"> Snapshots
+                        </label>
+                    </div>
+                    <div class="bg-[#0A0A0A] border border-[#2A2A2A] rounded-xl overflow-hidden">
+                        <div class="grid grid-cols-3 text-[10px] font-black text-gray-500 uppercase tracking-widest px-4 py-2 bg-[#181818] border-b border-[#2A2A2A]">
+                            <span>Versión</span><span>Publicada</span><span>Tipo</span>
+                        </div>
+                        <div id="ci-ver-lista" class="max-h-52 overflow-y-auto">
+                            <p class="text-xs text-gray-500 text-center py-6 animate-pulse">Cargando versiones...</p>
+                        </div>
+                    </div>
+                    <p id="ci-ver-sel" class="text-xs text-gray-500 mt-1.5">Sin versión seleccionada</p>
+                </div>
+            </div>
+            <div class="p-4 border-t border-[#2A2A2A] flex justify-between items-center gap-3 shrink-0">
+                <p id="ci-error" class="text-xs text-[#E74C3C] font-bold flex-1"></p>
+                <button type="button" onclick="cerrarCrearInstancia()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold px-5 py-2.5 rounded-lg text-sm transition">Cancelar</button>
+                <button type="button" id="ci-crear-btn" onclick="ciConfirmar()" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black px-5 py-2.5 rounded-lg text-sm transition">✓ Crear</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ MODAL DETALLE INSTANCIA ════════════════════════════════════════ -->
+    <div id="modal-inst-detalle" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center backdrop-blur-sm" style="z-index:5000" onclick="cerrarInstanciaDetalle()">
+        <div class="bg-[#1A1A1A] w-[900px] max-w-[95vw] rounded-xl border border-[#2A2A2A] flex flex-col shadow-2xl overflow-hidden" style="max-height:88vh" onclick="event.stopPropagation()">
+            <div class="px-6 py-5 flex items-center gap-4 shrink-0">
+                <div id="mid-icon" class="w-16 h-16 rounded-xl overflow-hidden bg-[#121212] border border-[#2A2A2A] flex items-center justify-center shrink-0 text-2xl font-black"></div>
+                <div class="flex-1 min-w-0">
+                    <h2 id="mid-nombre" class="text-xl font-black text-white truncate"></h2>
+                    <p id="mid-meta" class="text-sm text-gray-400 mt-0.5"></p>
+                </div>
+                <button id="mid-add-mods-btn" onclick="midAgregarMods()" class="hidden bg-[#2A2A2A] hover:bg-[#3A3A3A] text-gray-300 hover:text-white font-black px-4 py-2.5 rounded-xl flex items-center gap-2 text-sm transition shrink-0">+ Mods</button>
+                <button id="mid-play-btn" onclick="bibJugar(_midInstActual)" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black px-5 py-2.5 rounded-xl flex items-center gap-2 text-sm transition shrink-0">▶ Jugar</button>
+                <button id="mid-settings-btn" onclick="abrirInstanciaSettings()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-gray-300 hover:text-white w-10 h-10 rounded-xl flex items-center justify-center text-lg transition shrink-0" title="Configuración">⚙</button>
+                <button onclick="cerrarInstanciaDetalle()" class="text-gray-500 hover:text-white w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#2A2A2A] transition text-lg">✕</button>
+            </div>
+            <div class="flex px-6 border-b border-[#2A2A2A] shrink-0">
+                <button onclick="midTab('contenido')" id="mid-tab-contenido" class="mid-tab px-4 py-3 text-sm font-bold text-[#2ECC71] border-b-2 border-[#2ECC71] -mb-px transition">📦 Contenido</button>
+                <button onclick="midTab('archivos')" id="mid-tab-archivos" class="mid-tab px-4 py-3 text-sm font-bold text-gray-500 hover:text-white border-b-2 border-transparent -mb-px transition">🗂 Archivos</button>
+            </div>
+            <div class="flex-1 min-h-0 flex flex-col">
+                <div id="mid-panel-contenido" class="flex flex-col flex-1 min-h-0">
+                    <div class="px-4 pt-3 pb-2 shrink-0">
+                        <div class="flex items-center bg-[#111] border border-[#2A2A2A] rounded-xl px-3 py-2 gap-2">
+                            <span class="text-gray-600 select-none">&#128269;</span>
+                            <input id="mid-content-q" type="text" placeholder="Buscar proyectos..." oninput="_midRender()" class="bg-transparent text-white text-sm flex-1 outline-none placeholder-gray-600">
+                            <span id="mid-content-count" class="text-[10px] text-gray-600 shrink-0"></span>
+                        </div>
+                    </div>
+                    <div class="flex gap-1.5 px-4 pb-2 shrink-0 flex-wrap">
+                        <button onclick="_midSetFilter('all')" id="mid-cf-all" class="mid-cf px-3 py-1.5 rounded-full text-xs font-black bg-[#2ECC71] text-black transition">Todos</button>
+                        <button onclick="_midSetFilter('mods')" id="mid-cf-mods" class="mid-cf px-3 py-1.5 rounded-full text-xs font-bold bg-[#222] text-gray-400 hover:text-white transition">Mods</button>
+                        <button onclick="_midSetFilter('shaders')" id="mid-cf-shaders" class="mid-cf px-3 py-1.5 rounded-full text-xs font-bold bg-[#222] text-gray-400 hover:text-white transition">Shaders</button>
+                        <button onclick="_midSetFilter('rp')" id="mid-cf-rp" class="mid-cf px-3 py-1.5 rounded-full text-xs font-bold bg-[#222] text-gray-400 hover:text-white transition">Resource Packs</button>
+                        <button onclick="_midSetFilter('dp')" id="mid-cf-dp" class="mid-cf px-3 py-1.5 rounded-full text-xs font-bold bg-[#222] text-gray-400 hover:text-white transition">Datapacks</button>
+                    </div>
+                    <div class="grid px-4 py-1 text-[9px] font-black text-gray-600 uppercase tracking-wider border-y border-[#1E1E1E] shrink-0" style="grid-template-columns:1fr 140px 72px">
+                        <span>Proyecto</span><span>Versión</span><span class="text-right">Acciones</span>
+                    </div>
+                    <div id="mid-contenido-inner" class="flex-1 overflow-y-auto min-h-0"></div>
+                    <div id="mid-stats-bar" class="px-4 py-2 border-t border-[#1E1E1E] flex gap-4 text-[10px] text-gray-500 shrink-0 flex-wrap"></div>
+                </div>
+                <div id="mid-panel-archivos" class="flex-1 overflow-y-auto p-5 hidden space-y-2">
+                    <button onclick="pywebview.api.open_instance_folder(_midInstActual?.mc_version,_midInstActual?.motor,'mods')" class="flex items-center gap-3 w-full bg-[#181818] hover:bg-[#222] border border-[#2A2A2A] rounded-xl p-4 text-left transition group">
+                        <span class="text-2xl">📁</span>
+                        <div><p class="font-bold text-sm group-hover:text-[#2ECC71] transition">Carpeta de mods</p><p class="text-xs text-gray-500">Abrir carpeta mods/ en el explorador</p></div>
+                    </button>
+                    <button onclick="pywebview.api.open_instance_folder(_midInstActual?.mc_version,_midInstActual?.motor,'')" class="flex items-center gap-3 w-full bg-[#181818] hover:bg-[#222] border border-[#2A2A2A] rounded-xl p-4 text-left transition group">
+                        <span class="text-2xl">📂</span>
+                        <div><p class="font-bold text-sm group-hover:text-[#2ECC71] transition">Carpeta de la instancia</p><p class="text-xs text-gray-500">Abrir la carpeta raíz de la instancia</p></div>
+                    </button>
+                    <button onclick="bibEliminar(_midInstActual)" id="mid-del-btn" class="flex items-center gap-3 w-full bg-[#181818] hover:bg-[#E74C3C]/10 border border-[#2A2A2A] hover:border-[#E74C3C]/30 rounded-xl p-4 text-left transition group">
+                        <span class="text-2xl">🗑</span>
+                        <div><p class="font-bold text-sm text-gray-400 group-hover:text-[#E74C3C] transition">Eliminar instancia</p><p class="text-xs text-gray-600">Borra todos los archivos permanentemente</p></div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ MODAL SETTINGS INSTANCIA ══════════════════════════════════════ -->
+    <div id="modal-inst-settings" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center backdrop-blur-sm" style="z-index:9000" onclick="cerrarInstanciaSettings()">
+        <div class="bg-[#121212] w-[640px] max-w-[95vw] rounded-xl border border-[#2A2A2A] flex flex-col shadow-2xl overflow-hidden" style="max-height:88vh" onclick="event.stopPropagation()">
+            <div class="px-5 py-3.5 border-b border-[#2A2A2A] flex items-center gap-3 shrink-0">
+                <div id="mis-icon-hdr" class="w-7 h-7 rounded-lg overflow-hidden bg-[#181818] flex items-center justify-center shrink-0 text-xs font-black"></div>
+                <p class="text-sm font-black text-white truncate flex-1"><span id="mis-nombre-breadcrumb"></span> <span class="text-gray-600 font-normal">› Configuración</span></p>
+                <button onclick="cerrarInstanciaSettings()" class="text-gray-500 hover:text-white w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#2A2A2A] transition">✕</button>
+            </div>
+            <div class="flex flex-1 overflow-hidden">
+                <div class="w-44 border-r border-[#2A2A2A] p-2 flex flex-col gap-0.5 shrink-0 bg-[#0D0D0D]">
+                    <button onclick="misTab('general')" id="mis-nav-general" class="mis-nav text-left px-3 py-2 rounded-lg text-sm font-bold text-white bg-[#2A2A2A] transition">General</button>
+                    <button onclick="misTab('instalacion')" id="mis-nav-instalacion" class="mis-nav text-left px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-[#1E1E1E] transition">Instalación</button>
+                    <button onclick="misTab('java')" id="mis-nav-java" class="mis-nav text-left px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-[#1E1E1E] transition">Java y memoria</button>
+                    <button onclick="misTab('herramientas')" id="mis-nav-herramientas" class="mis-nav text-left px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-[#1E1E1E] transition">Herramientas</button>
+                </div>
+                <div class="flex-1 overflow-y-auto p-5">
+                    <div id="mis-panel-general" class="space-y-5">
+                        <div>
+                            <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5">Nombre</label>
+                            <input type="text" id="mis-nombre-input" class="w-full bg-[#1E1E1E] border border-[#333] text-white px-3 py-2.5 rounded-xl text-sm outline-none focus:border-[#2ECC71]">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1.5">Icono</label>
+                            <div class="flex items-center gap-4">
+                                <div id="mis-icon-preview" onclick="document.getElementById('mis-icon-input').click()" class="w-20 h-20 rounded-xl overflow-hidden bg-[#181818] border-2 border-dashed border-[#333] flex items-center justify-center cursor-pointer hover:border-[#2ECC71] transition text-xl font-black"></div>
+                                <div class="space-y-1.5">
+                                    <button onclick="document.getElementById('mis-icon-input').click()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white text-xs font-bold px-4 py-2 rounded-xl transition">Cambiar imagen</button>
+                                    <p class="text-[10px] text-gray-600">PNG / JPG recomendado</p>
+                                </div>
+                            </div>
+                            <input type="file" id="mis-icon-input" accept="image/*" class="hidden" onchange="misIconCambiar(this)">
+                        </div>
+                        <button onclick="misGuardarGeneral()" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black px-5 py-2.5 rounded-xl text-sm transition">Guardar cambios</button>
+                    </div>
+                    <div id="mis-panel-instalacion" class="hidden space-y-5">
+                        <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl divide-y divide-[#2A2A2A]">
+                            <div class="flex items-center justify-between px-4 py-3">
+                                <span class="text-sm text-gray-400">Plataforma</span>
+                                <span id="mis-platform" class="text-sm font-bold text-white"></span>
+                            </div>
+                            <div class="flex items-center justify-between px-4 py-3">
+                                <span class="text-sm text-gray-400">Versión del juego</span>
+                                <span id="mis-mc-ver" class="text-sm font-bold text-white"></span>
+                            </div>
+                        </div>
+                        <div id="mis-modpack-section" class="hidden space-y-3">
+                            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Modpack instalado</p>
+                            <div class="bg-[#181818] border border-[#2A2A2A] rounded-xl p-4 flex items-center gap-3">
+                                <div id="mis-mp-icon" class="w-12 h-12 rounded-xl bg-[#121212] border border-[#2A2A2A] flex items-center justify-center overflow-hidden shrink-0 font-black text-sm"></div>
+                                <div class="flex-1 min-w-0"><p id="mis-mp-nombre" class="font-black text-sm text-white truncate"></p><p id="mis-mp-ver" class="text-xs text-gray-500"></p></div>
+                            </div>
+                            <button onclick="misReparar()" class="flex items-center gap-2 bg-[#E74C3C]/10 hover:bg-[#E74C3C]/20 text-[#E74C3C] border border-[#E74C3C]/30 font-bold px-4 py-2.5 rounded-xl text-sm transition">🔧 Re-instalar modpack</button>
+                        </div>
+                        <div id="mis-ver-section" class="hidden space-y-2">
+                            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Cambiar versión del modpack</p>
+                            <p class="text-xs text-gray-600">Ingresar la nueva versión del modpack (no la de Minecraft).</p>
+                            <div class="flex gap-2">
+                                <input type="text" id="mis-nueva-ver" placeholder="ej: 2.0.0" class="flex-1 bg-[#1E1E1E] border border-[#333] text-white px-3 py-2 rounded-xl text-sm outline-none focus:border-[#3498DB]">
+                                <button onclick="misCambiarVersion()" class="bg-[#3498DB] hover:bg-[#2980B9] text-white font-bold px-4 py-2 rounded-xl text-sm transition">Cambiar</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="mis-panel-java" class="hidden space-y-4">
+                        <p class="text-sm text-gray-500">Los ajustes de Java y RAM se configuran globalmente.</p>
+                        <button onclick="cerrarInstanciaSettings();abrirAjustes()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold px-5 py-2.5 rounded-xl text-sm transition">⚙ Abrir configuración global</button>
+                    </div>
+                    <div id="mis-panel-herramientas" class="hidden space-y-5">
+                        <div>
+                            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Duplicar instancia</p>
+                            <p class="text-xs text-gray-600 mb-2">Copia todos los archivos a una nueva instancia independiente.</p>
+                            <div class="flex gap-2">
+                                <input type="text" id="mis-dup-nombre" placeholder="Nombre de la copia..." class="flex-1 bg-[#1E1E1E] border border-[#333] text-white px-3 py-2 rounded-xl text-sm outline-none focus:border-[#2ECC71]">
+                                <button onclick="misDuplicar()" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-bold px-4 py-2 rounded-xl text-sm transition whitespace-nowrap">📋 Duplicar</button>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Backups</p>
+                                <button onclick="misCrearBackup()" id="mis-backup-btn" class="bg-[#3498DB] hover:bg-[#2980B9] text-white font-bold px-3 py-1.5 rounded-xl text-xs transition">💾 Crear backup</button>
+                            </div>
+                            <div id="mis-backups-lista" class="space-y-1.5 max-h-52 overflow-y-auto">
+                                <p class="text-xs text-gray-600">Abrí esta pestaña para ver los backups.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -3197,7 +3515,7 @@
             if (_loginBtnsHabilitados) return;
             _loginBtnsHabilitados = true;
             const ms = document.getElementById('btn-ms-login');
-            if (ms) { ms.disabled = false; ms.className = 'bg-[#0078D4] hover:bg-[#106EBE] text-white font-bold text-lg py-4 w-80 rounded-md shadow-lg transition mb-4'; ms.innerText = 'Login con Microsoft (Premium)'; }
+            if (ms) { ms.disabled = false; ms.className = 'group flex items-center justify-center gap-3 bg-[#0078D4] hover:bg-[#106EBE] text-white font-bold text-base py-3.5 w-80 rounded-lg shadow-lg transition mb-4'; ms.innerHTML = '<svg class="w-5 h-5 shrink-0" viewBox="0 0 23 23" aria-hidden="true"><rect x="1" y="1" width="10" height="10" fill="#f25022"/><rect x="12" y="1" width="10" height="10" fill="#7fba00"/><rect x="1" y="12" width="10" height="10" fill="#00a4ef"/><rect x="12" y="12" width="10" height="10" fill="#ffb900"/></svg><span>Login con Microsoft (Premium)</span>'; }
             const g = document.getElementById('btn-guest-login');
             if (g) { g.disabled = false; g.className = 'bg-[#2A2A2A] hover:bg-[#3A3A3A] px-4 py-3 rounded-md font-bold transition'; }
         }
@@ -3908,7 +4226,7 @@
             lista = lista.filter(it => {
                 const nv = (it.nombre_visible || it.archivo || '').toLowerCase();
                 const okQ = !q || nv.includes(q);
-                const okV = !fv || nv.includes(fv);
+                const okV = !fv || nv.includes(fv) || (it.mc_version || '').toLowerCase().includes(fv);
                 return okQ && okV;
             });
             box.innerHTML = '';
@@ -3920,9 +4238,15 @@
                 const row = document.createElement('div');
                 row.className = 'flex flex-wrap items-center justify-between gap-2 bg-[#121212] px-3 py-2 rounded border border-[#2A2A2A]';
                 const activo = it.estado === 'Activo';
+                const parcial = it.estado === 'Parcial';
                 const mundo = it.mundo ? `<span class="text-[10px] text-gray-500">Mundo: ${it.mundo}</span>` : '';
-                row.innerHTML = `<div class="flex-1 min-w-0"><span class="font-mono text-xs break-all">${it.nombre_visible || it.archivo}</span> ${mundo}</div>
-                    <span class="text-[10px] px-2 py-0.5 rounded shrink-0 ${activo ? 'bg-[#2ECC71]/20 text-[#2ECC71]' : 'bg-gray-700 text-gray-400'}">${it.estado}</span>
+                const esModpack = window._gestorSub === 'modpacks';
+                const extraInfo = esModpack
+                    ? `<span class="text-[10px] text-gray-500 block">${[it.mc_version, it.motor].filter(Boolean).join(' · ')}${it.total_files != null ? ' · ' + it.total_files + ' archivos' : ''}</span>`
+                    : '';
+                const estadoColor = activo ? 'bg-[#2ECC71]/20 text-[#2ECC71]' : parcial ? 'bg-[#F39C12]/20 text-[#F39C12]' : 'bg-gray-700 text-gray-400';
+                row.innerHTML = `<div class="flex-1 min-w-0"><span class="font-mono text-xs break-all">${it.nombre_visible || it.archivo}</span>${extraInfo} ${mundo}</div>
+                    <span class="text-[10px] px-2 py-0.5 rounded shrink-0 ${estadoColor}">${it.estado}</span>
                     <button type="button" class="text-xs font-bold text-[#3498DB] hover:underline shrink-0">Alternar</button>`;
                 row.querySelector('button').onclick = async () => {
                     const sV = document.getElementById('panel-version-sel');
@@ -3944,7 +4268,7 @@
         async function gestorAbrirCarpetaActual() {
             const sV = document.getElementById('panel-version-sel');
             const sL = document.getElementById('panel-loader-sel');
-            const map = { mods: 'mods', resourcepacks: 'resourcepacks', shaders: 'shaderpacks', datapacks: 'datapacks' };
+            const map = { mods: 'mods', resourcepacks: 'resourcepacks', shaders: 'shaderpacks', datapacks: 'datapacks', modpacks: 'mods' };
             const sub = map[window._gestorSub] || 'mods';
             if (!sV || !sL) return;
             await pywebview.api.open_instance_folder(sV.value, sL.value, sub);
@@ -4292,6 +4616,7 @@
             if (idVista === 'herramientas') { herTab('estadisticas'); pingTodosServidores(); }
             if (idVista === 'servidores') { initServerCards(); pingTodosServidores(); }
             if (idVista === 'mods') { buscarTiendaActual(); tiendaCargarVers(); cargarFeaturedMods(); setTimeout(autoCheckModUpdates, 2500); }
+            if (idVista === 'biblioteca') { cargarBiblioteca(); }
         }
 
         // ── Categorías dinámicas por tipo de proyecto ─────────────────────
@@ -4551,7 +4876,7 @@
             if (mundoSel) mundoSel.classList.toggle('hidden', tipo !== 'datapack');
             if (hint) {
                 hint.textContent = tipo === 'datapack'
-                    ? 'Se instala en world/datapacks del servidor'
+                    ? 'En el modal: instancia (mundo local) o Datapack (servidor) → world/datapacks (.zip)'
                     : 'Plugins → carpeta plugins/ del servidor';
             }
             if (envSec) envSec.style.display = ['mod','resourcepack','modpack','datapack'].includes(tipo) ? '' : 'none';
@@ -4937,8 +5262,9 @@
             { combo: 'Ctrl+2',  accion: 'Ir a Servidores',   fn: () => cambiarPestaña('servidores','Servidores') },
             { combo: 'Ctrl+3',  accion: 'Ir a Versiones',    fn: () => cambiarPestaña('versiones','Versiones') },
             { combo: 'Ctrl+4',  accion: 'Ir a Skins',        fn: () => cambiarPestaña('skins','Skins') },
-            { combo: 'Ctrl+5',  accion: 'Ir a Mods',         fn: () => cambiarPestaña('mods','Mods') },
-            { combo: 'Ctrl+6',  accion: 'Ir a Extras',       fn: () => cambiarPestaña('herramientas','Extras') },
+            { combo: 'Ctrl+5',  accion: 'Ir a Biblioteca',  fn: () => cambiarPestaña('biblioteca','Biblioteca') },
+            { combo: 'Ctrl+6',  accion: 'Ir a Mods',         fn: () => cambiarPestaña('mods','Mods') },
+            { combo: 'Ctrl+7',  accion: 'Ir a Extras',       fn: () => cambiarPestaña('herramientas','Extras') },
             { combo: 'Ctrl+J',  accion: 'Jugar última versión', fn: () => { try { inicioLanzarUltima(); } catch(e){} } },
             { combo: 'Ctrl+L',  accion: 'Abrir tienda de mods',   fn: () => cambiarPestaña('mods','Mods') },
             { combo: 'Ctrl+,',  accion: 'Abrir Ajustes',     fn: () => { try { abrirAjustes(); } catch(e){} } },
@@ -4948,7 +5274,7 @@
 
         function cerrarModalesAbiertos() {
             try {
-                const ids = ['settings-modal','modal-atajos','modal-changelog','modal-onboarding','modal-offline-info','modal-import-modpack'];
+                const ids = ['settings-modal','modal-atajos','modal-changelog','modal-onboarding','modal-offline-info','modal-import-modpack','modal-crear-instancia','modal-inst-detalle','modal-inst-settings'];
                 ids.forEach(id => { const el = document.getElementById(id); if (el && !el.classList.contains('hidden')) el.classList.add('hidden'); });
             } catch(e) {}
         }
@@ -5525,14 +5851,11 @@
         // --- FIN AUTO-UPDATE ---
 
         async function autoJoinServer(ip) {
-            const v = document.getElementById('panel-version-sel').value;
-            const l = document.getElementById('panel-loader-sel').value;
-            if (!v) { cambiarPestaña('versiones', 'Versiones'); return; }
+            const d = await pywebview.api.get_ultima_version_jugada();
+            if (!d || !d.version) { alert('Seleccioná primero una versión en la pestaña Versiones.'); cambiarPestaña('versiones', 'Versiones'); return; }
+            const v = d.version; const l = d.motor || 'Vanilla';
             const javaOk = await preflightJava(v);
             if (!javaOk) return;
-            const btn = document.getElementById('btn-launch-game');
-            if (btn) { btn.innerText = 'Conectando...'; btn.classList.replace('bg-[#2ECC71]', 'bg-gray-600'); btn.disabled = true; }
-            cambiarPestaña('versiones', 'Versiones');
             await pywebview.api.lanzar_juego(v, l, ip);
         }
 
@@ -6370,6 +6693,30 @@
             return t === 'resourcepack' || t === 'shader';
         }
 
+        function _imodPickZipFile(files, soloZip = false) {
+            if (!files || !files.length) return null;
+            const zips = files.filter(f =>
+                String(f.filename || f.fileName || '').toLowerCase().endsWith('.zip'));
+            if (zips.length) return zips.find(f => f.primary) || zips[0];
+            return soloZip ? null : (files.find(f => f.primary) || files[0]);
+        }
+
+        function _imodVersionConDatapackZip(compatible) {
+            const conZip = (compatible || []).filter(v =>
+                (v.files || []).some(f =>
+                    String(f.filename || f.fileName || '').toLowerCase().endsWith('.zip')));
+            if (!conZip.length) return null;
+            const soloMc = conZip.find(v => {
+                const loaders = (v.loaders || []).map(l => String(l).toLowerCase());
+                return loaders.length === 1 && loaders[0] === 'minecraft';
+            });
+            return soloMc || conZip[0];
+        }
+
+        function _imodEsDatapackServidor() {
+            return _normalizarTipoTienda(_imodTipo) === 'datapack' && _imodSelectedPlat === 'datapack';
+        }
+
         function _syncImodMotor() {
             const activeMotor = (document.getElementById('panel-loader-sel') || {}).value || '';
             const sel = document.getElementById('imod-motor');
@@ -6429,8 +6776,22 @@
             const platLabel = document.getElementById('imod-plat-label');
             const platSection = document.getElementById('imod-plat-section');
             if (_normalizarTipoTienda(_imodTipo) === 'datapack') {
-                if (platSection) platSection.classList.add('hidden');
-                imodSelectDatapackVer(ver);
+                if (platSection) platSection.classList.remove('hidden');
+                const srvRow = document.getElementById('imod-servidor-row');
+                if (srvRow) srvRow.classList.add('hidden');
+                document.getElementById('imod-perfil-row').classList.add('hidden');
+                const loaders = ['fabric', 'forge', 'neoforge', 'quilt', 'datapack'];
+                document.getElementById('imod-plat-btns').innerHTML = loaders.map(l => {
+                    const label = l === 'datapack' ? 'Datapack (servidor)' : (_LOADER_DISPLAY[l] || l);
+                    return `<button onclick="imodSelectPlat('${l}')" data-plat="${l}"
+                        class="imod-plat-chip px-4 py-2 rounded-lg text-sm font-bold border transition
+                            bg-[#1E1E1E] border-[#333] text-gray-300 hover:border-[#2ECC71] hover:text-white">${label}</button>`;
+                }).join('');
+                platBtn.disabled = false;
+                platBtn.className = 'w-full flex items-center gap-3 px-4 py-3 hover:bg-[#1A1A1A] transition text-left';
+                platLabel.textContent = 'Instalar en instancia o en servidor local';
+                platLabel.className = 'flex-1 text-sm text-gray-400';
+                document.getElementById('imod-file-info').classList.add('hidden');
                 return;
             }
             if (_esContenidoInstancia(_imodTipo)) {
@@ -6478,13 +6839,15 @@
                 if (matchL) setTimeout(() => imodSelectPlat(matchL, activaLoader), 50);
             }
         }
-        function imodSelectPlat(plat, motorOverride) {
+        async function imodSelectPlat(plat, motorOverride) {
             _imodSelectedPlat = plat;
             const platLabel = document.getElementById('imod-plat-label');
-            platLabel.textContent = 'Platform: ' + (_LOADER_DISPLAY[plat.toLowerCase()] || plat);
+            const platL = plat.toLowerCase();
+            const platDisplay = platL === 'datapack' ? 'Datapack (servidor local)' : (_LOADER_DISPLAY[platL] || plat);
+            platLabel.textContent = 'Plataforma: ' + platDisplay;
             platLabel.className = 'flex-1 text-sm text-white font-bold';
             document.querySelectorAll('#imod-plat-btns button').forEach(b => {
-                const active = b.dataset.plat === plat.toLowerCase();
+                const active = b.dataset.plat === platL;
                 b.className = `imod-plat-chip px-4 py-2 rounded-lg text-sm font-bold border transition ` +
                     (active ? 'bg-[#2ECC71] border-[#2ECC71] text-black' :
                               'bg-[#1E1E1E] border-[#333] text-gray-300 hover:border-[#2ECC71] hover:text-white');
@@ -6492,7 +6855,63 @@
             _imodPlatPanelOpen = false;
             document.getElementById('imod-plat-panel').classList.add('hidden');
             document.getElementById('imod-plat-arrow').textContent = '▼';
-            const platL = plat.toLowerCase();
+
+            const srvRow = document.getElementById('imod-servidor-row');
+            const perfilRow = document.getElementById('imod-perfil-row');
+            const perfilLbl = document.querySelector('#imod-perfil-row label');
+
+            if (_normalizarTipoTienda(_imodTipo) === 'datapack' && platL === 'datapack') {
+                if (srvRow) srvRow.classList.remove('hidden');
+                if (perfilRow) perfilRow.classList.add('hidden');
+                await poblarSelectoresServidorTienda('imod-srv-select', 'imod-mundo-select');
+                const compatible = _imodVersionsData.filter(v => v.game_versions.includes(_imodSelectedVer));
+                const match = _imodVersionConDatapackZip(compatible);
+                if (!match) {
+                    document.getElementById('imod-file-info').classList.add('hidden');
+                    alert('No hay datapack .zip para Minecraft ' + _imodSelectedVer + '.\nEste proyecto puede ser solo mod (NeoForge/Fabric .jar).');
+                    return;
+                }
+                const file = _imodPickZipFile(match.files, true);
+                if (!file) {
+                    document.getElementById('imod-file-info').classList.add('hidden');
+                    alert('El release seleccionado no tiene archivo .zip de datapack.');
+                    return;
+                }
+                _imodSelectedVersionId = match.id;
+                document.getElementById('imod-fname').textContent = file.filename;
+                document.getElementById('imod-fmeta').textContent = `${match.version_number} · ${(file.size/1048576).toFixed(2)} MB · servidor (.zip)`;
+                document.getElementById('imod-file-info').classList.remove('hidden');
+                return;
+            }
+
+            if (_normalizarTipoTienda(_imodTipo) === 'datapack') {
+                if (srvRow) srvRow.classList.add('hidden');
+                if (perfilRow) perfilRow.classList.remove('hidden');
+                if (perfilLbl) perfilLbl.textContent = 'Instalar en instancia (mundo local)';
+                const compatible = _imodVersionsData.filter(v => v.game_versions.includes(_imodSelectedVer));
+                let match = _imodVersionConDatapackZip(compatible);
+                if (!match) {
+                    document.getElementById('imod-file-info').classList.add('hidden');
+                    alert('No hay versión .zip de este datapack para ' + platDisplay);
+                    return;
+                }
+                const file = _imodPickZipFile(match.files, true);
+                if (!file) {
+                    document.getElementById('imod-file-info').classList.add('hidden');
+                    alert('El release no tiene .zip de datapack.');
+                    return;
+                }
+                _imodSelectedVersionId = match.id;
+                document.getElementById('imod-fname').textContent = file.filename;
+                document.getElementById('imod-fmeta').textContent = `${match.version_number} · ${(file.size/1048576).toFixed(2)} MB · instancia`;
+                await poblarPerfilesInstanciaTienda(_imodSelectedVer);
+                const perfilSel = document.getElementById('imod-perfil-select');
+                if (motorOverride && perfilSel) perfilSel.value = motorOverride;
+                window._imodInstanceMotor = perfilSel ? perfilSel.value : motorOverride;
+                document.getElementById('imod-file-info').classList.remove('hidden');
+                return;
+            }
+
             const match = _imodVersionsData.find(v =>
                 v.game_versions.includes(_imodSelectedVer) &&
                 (v.loaders || []).some(l => String(l).toLowerCase() === platL));
@@ -6511,22 +6930,8 @@
             perfilSel.innerHTML = perfiles.map(p=>`<option value="${p}">${p}</option>`).join('');
             if (motorOverride && perfiles.includes(motorOverride)) perfilSel.value = motorOverride;
             window._imodInstanceMotor = motorOverride || null;
+            if (perfilLbl) perfilLbl.textContent = 'Perfil de instancia';
             document.getElementById('imod-perfil-row').classList.remove('hidden');
-            document.getElementById('imod-file-info').classList.remove('hidden');
-        }
-
-        function imodSelectDatapackVer(ver) {
-            if (!ver || !_imodVersionsData) return;
-            const compatible = _imodVersionsData.filter(v => v.game_versions.includes(ver));
-            const match = compatible.find(v => v.files && v.files.length) || compatible[0];
-            if (!match) return;
-            _imodSelectedVer = ver;
-            _imodSelectedPlat = 'minecraft';
-            _imodSelectedVersionId = match.id;
-            const file = match.files.find(f => f.primary) || match.files[0];
-            document.getElementById('imod-fname').textContent = file.filename;
-            document.getElementById('imod-fmeta').textContent = `${match.version_number} · ${(file.size/1048576).toFixed(2)} MB`;
-            document.getElementById('imod-perfil-row').classList.add('hidden');
             document.getElementById('imod-file-info').classList.remove('hidden');
         }
 
@@ -6607,9 +7012,8 @@
             const srvRow = el('imod-servidor-row');
             const platSec = el('imod-plat-section');
             if (_imodTipo === 'datapack') {
-                if (srvRow) srvRow.classList.remove('hidden');
-                if (platSec) platSec.classList.add('hidden');
-                await poblarSelectoresServidorTienda('imod-srv-select', 'imod-mundo-select');
+                if (srvRow) srvRow.classList.add('hidden');
+                if (platSec) platSec.classList.remove('hidden');
             } else if (_esContenidoInstancia(_imodTipo)) {
                 if (srvRow) srvRow.classList.add('hidden');
                 if (platSec) platSec.classList.add('hidden');
@@ -6748,18 +7152,27 @@
             instalandoEl.classList.remove('hidden');
             let carpetaSrv = null, mundo = null;
             if (_imodTipo === 'datapack') {
-                carpetaSrv = (document.getElementById('imod-srv-select')||{}).value || _tiendaSrvCarpeta || '';
-                mundo = (document.getElementById('imod-mundo-select')||{}).value || '';
-                if (!carpetaSrv) {
-                    alert('Seleccioná un servidor local en la tienda o en el modal.');
-                    instalandoEl.classList.add('hidden');
-                    return;
+                if (_imodEsDatapackServidor()) {
+                    carpetaSrv = (document.getElementById('imod-srv-select')||{}).value || _tiendaSrvCarpeta || '';
+                    mundo = (document.getElementById('imod-mundo-select')||{}).value || '';
+                    if (!carpetaSrv) {
+                        alert('Seleccioná un servidor local de la lista.');
+                        instalandoEl.classList.add('hidden');
+                        return;
+                    }
+                    motor = 'datapack';
+                } else {
+                    motor = (perfilSel && perfilSel.value)
+                        || window._imodInstanceMotor
+                        || (document.getElementById('panel-loader-sel') || {}).value
+                        || 'Vanilla';
+                    carpetaSrv = null;
                 }
             }
             let result;
             if (_imodSource === 'curseforge') {
                 result = await pywebview.api.instalar_mod_curseforge(
-                    _imodProjectId, _imodSelectedVersionId, _imodTipo, _imodSelectedVer, motor);
+                    _imodProjectId, _imodSelectedVersionId, _imodTipo, _imodSelectedVer, motor, carpetaSrv, mundo);
             } else {
                 result = await pywebview.api.instalar_mod_desde_modrinth(
                     _imodProjectId, _imodSelectedVersionId, _imodTipo, _imodSelectedVer, motor, carpetaSrv, mundo);
@@ -7240,7 +7653,7 @@
             if (btn) btn.disabled = true;
             try {
                 const user = await pywebview.api.get_usuario();
-                if (user && user.premium) {
+                if (user && user.sesion_mojang) {
                     const r = await pywebview.api.subir_skin_premium(_impSkinPath, variante);
                     if (msg) {
                         if (r.ok) {
@@ -7256,7 +7669,7 @@
                     }
                 } else {
                     if (msg) { msg.textContent = '⏳ Aplicando skin localmente...'; msg.className = 'text-xs text-gray-400 min-h-[1rem]'; }
-                    const ro = await pywebview.api.aplicar_skin_offline(_impSkinPath);
+                    const ro = await pywebview.api.aplicar_skin_offline(_impSkinPath, variante);
                     if (msg) {
                         if (ro.ok) {
                             msg.textContent = '✅ ' + (ro.msg || 'Skin aplicada. ¡Abrí el juego para verla!');
@@ -7322,7 +7735,7 @@
                 if (msg) { msg.textContent = '⏳ Aplicando...'; }
                 const user = await pywebview.api.get_usuario();
                 const path = r.path || r.ruta;
-                if (user && user.premium) {
+                if (user && user.sesion_mojang) {
                     const ru = await pywebview.api.subir_skin_premium(path, variante);
                     if (ru && ru.ok) {
                         if (msg) { msg.textContent = '✅ Skin aplicada en Mojang. Reiniciá el juego.'; msg.className = 'text-xs text-[#2ECC71] min-h-[1rem]'; }
@@ -7330,7 +7743,7 @@
                         msg.textContent = '✗ ' + (ru && ru.error || 'Error al subir.'); msg.className = 'text-xs text-red-400 min-h-[1rem]';
                     }
                 } else {
-                    const ro = await pywebview.api.aplicar_skin_offline(path);
+                    const ro = await pywebview.api.aplicar_skin_offline(path, variante);
                     if (ro && ro.ok) {
                         if (msg) { msg.textContent = '✅ ' + (ro.msg || 'Aplicada localmente.'); msg.className = 'text-xs text-[#2ECC71] min-h-[1rem]'; }
                     } else if (msg) {
@@ -7519,24 +7932,46 @@
         }
 
         async function skinDescargar() {
-            // Descarga la skin actual al disco usando endpoint backend.
             const url = window._skinUrl;
             const nombre = window._skinNombre || 'skin';
             if (!url) return;
+            const msg = document.getElementById('skin-aplicar-msg');
+            const variante = document.getElementById('skin-variante-sel')?.value || 'classic';
             try {
+                if (msg) { msg.textContent = '⏳ Descargando...'; msg.className = 'text-xs text-gray-400 w-full'; }
                 const r = await pywebview.api.guardar_skin(url, nombre);
-                const msg = document.getElementById('skin-aplicar-msg');
-                if (r && r.ok) {
+                if (!r || !r.ok) {
                     if (msg) {
-                        msg.textContent = '✅ Descargada en ~/Paraguacraft_Skins/' + nombre + '.png';
-                        msg.className = 'text-xs text-[#2ECC71] w-full';
+                        msg.textContent = '❌ ' + (r && r.error || 'Error al descargar');
+                        msg.className = 'text-xs text-[#E74C3C] w-full';
+                    }
+                    return;
+                }
+                const user = await pywebview.api.get_usuario();
+                if (user && user.sesion_mojang && r.path) {
+                    if (msg) msg.textContent = '⬆️ Subiendo a Mojang...';
+                    const ru = await pywebview.api.subir_skin_premium(r.path, variante);
+                    if (msg) {
+                        msg.textContent = ru.ok
+                            ? '✅ Descargada y subida a Mojang.'
+                            : '✅ Guardada en ~/Paraguacraft_Skins. Error Mojang: ' + (ru.error || '');
+                        msg.className = 'text-xs ' + (ru.ok ? 'text-[#2ECC71]' : 'text-[#F39C12]') + ' w-full';
+                    }
+                } else if (r.path) {
+                    if (msg) msg.textContent = '⏳ Aplicando en juego y servidores locales...';
+                    const ro = await pywebview.api.aplicar_skin_offline(r.path, variante);
+                    if (msg) {
+                        msg.textContent = ro.ok
+                            ? '✅ ' + (ro.msg || 'Descargada y aplicada.')
+                            : '✅ Guardada en ~/Paraguacraft_Skins. ' + (ro.error || '');
+                        msg.className = 'text-xs ' + (ro.ok ? 'text-[#2ECC71]' : 'text-[#F39C12]') + ' w-full';
                     }
                 } else if (msg) {
-                    msg.textContent = '❌ ' + (r && r.error || 'Error al descargar');
-                    msg.className = 'text-xs text-[#E74C3C] w-full';
+                    msg.textContent = '✅ Descargada en ~/Paraguacraft_Skins/' + nombre + '.png';
+                    msg.className = 'text-xs text-[#2ECC71] w-full';
                 }
             } catch(e) {
-                console.error('[skin download]', e);
+                if (msg) { msg.textContent = '❌ ' + e; msg.className = 'text-xs text-[#E74C3C] w-full'; }
             }
         }
 
@@ -7566,7 +8001,7 @@
                 if (msg) msg.textContent = '✅ Skin guardada.';
                 const user = await pywebview.api.get_usuario();
                 const variante = document.getElementById('skin-variante-sel')?.value || 'classic';
-                if (user && user.premium && r.path) {
+                if (user && user.sesion_mojang && r.path) {
                     if (msg) msg.textContent = '⬆️ Subiendo skin a Mojang...';
                     const ru = await pywebview.api.subir_skin_premium(r.path, variante);
                     if (msg) msg.textContent = ru.ok
@@ -7574,7 +8009,7 @@
                         : '⚠️ Guardada localmente. Error al subir: ' + (ru.error || '');
                 } else if (r.path) {
                     if (msg) msg.textContent = '⏳ Aplicando skin localmente...';
-                    const ro = await pywebview.api.aplicar_skin_offline(r.path);
+                    const ro = await pywebview.api.aplicar_skin_offline(r.path, variante);
                     if (msg) msg.textContent = ro.ok
                         ? '✅ ' + (ro.msg || 'Skin aplicada. ¡Abrí el juego para verla!')
                         : '⚠️ Guardada en ~/Paraguacraft_Skins. Error al aplicar: ' + (ro.error || '');
@@ -9576,8 +10011,15 @@
             const msg = document.getElementById('skin-gen-msg');
             msg.textContent = 'Aplicando...';
             try {
-                const r = await pywebview.api.aplicar_skin_generada();
-                msg.textContent = r.ok ? '✅ Skin aplicada en .minecraft' : '❌ ' + r.error;
+                const user = await pywebview.api.get_usuario();
+                const r = await pywebview.api.aplicar_skin_generada('classic');
+                if (r.ok) {
+                    msg.textContent = user && user.sesion_mojang
+                        ? '✅ Skin subida a Mojang.'
+                        : ('✅ ' + (r.msg || 'Skin aplicada en juego y servidores locales.'));
+                } else {
+                    msg.textContent = '❌ ' + r.error;
+                }
             } catch(e) { msg.textContent = '❌ ' + e; }
         }
 
@@ -10299,12 +10741,43 @@
             if (!box) return;
             try {
                 const d = await pywebview.api.get_noticias_minecraft();
-                if (!d.ok || !d.noticias.length) { box.innerHTML = ''; return; }
-                box.innerHTML = d.noticias.slice(0,3).map(n => `
-                <div class="bg-[#181818]/80 backdrop-blur-sm border border-[#2A2A2A] rounded-xl overflow-hidden hover:border-[#2ECC71] transition cursor-pointer flex-1 min-w-0" onclick="pywebview.api.notificar_windows('Abriendo noticia','${(n.titulo||'').replace(/'/g,'')}')">
-                    ${n.imagen ? `<img src="${n.imagen}" class="w-full h-24 object-cover" onerror="this.src='https://via.placeholder.com/400x200/2A2A2A/FFFFFF?text=Minecraft'">` : ''}
-                    <div class="p-3"><p class="font-black text-xs text-white line-clamp-2">${n.titulo}</p><p class="text-[10px] text-gray-500 mt-1">${n.categoria} · ${n.fecha}</p></div>
-                </div>`).join('');
+                if (!d.ok || !d.noticias.length) { box.innerHTML = '<p class="text-xs text-gray-600 py-2">Sin noticias disponibles.</p>'; return; }
+                box.innerHTML = d.noticias.slice(0,6).map(n => {
+                    const url = (n.url || 'https://www.minecraft.net/en-us/articles').replace(/'/g, "\\'");
+                    return `<div class="flex-shrink-0 w-52 bg-[#181818]/90 backdrop-blur-sm border border-[#2A2A2A] rounded-xl overflow-hidden hover:border-[#2ECC71] transition cursor-pointer group" onclick="pywebview.api.abrir_url_navegador('${url}')">
+                        ${n.imagen ? `<div class="h-28 overflow-hidden"><img src="${n.imagen}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" onerror="this.parentElement.remove()"></div>` : ''}
+                        <div class="p-3">
+                            <span class="text-[9px] font-black text-[#2ECC71] uppercase tracking-widest">${n.categoria || 'Minecraft'}</span>
+                            <p class="font-black text-xs text-white mt-0.5 line-clamp-2 leading-snug group-hover:text-[#2ECC71] transition">${n.titulo}</p>
+                            <p class="text-[10px] text-gray-600 mt-1.5">${n.fecha}</p>
+                        </div>
+                    </div>`;
+                }).join('');
+            } catch(e) { if (box) box.innerHTML = ''; }
+            cargarModrinthDescubrir();
+        }
+
+        async function cargarModrinthDescubrir() {
+            const box = document.getElementById('inicio-modrinth');
+            if (!box) return;
+            try {
+                const r = await fetch('https://api.modrinth.com/v2/search?limit=8&index=downloads&facets=[["project_type:mod"]]', {
+                    headers: { 'User-Agent': 'Paraguacraft-Launcher/2.0' }
+                });
+                const data = await r.json();
+                const hits = (data.hits || []).slice(0, 8);
+                if (!hits.length) { box.innerHTML = ''; return; }
+                box.innerHTML = hits.map(m => `
+                    <div class="flex-shrink-0 w-44 bg-[#181818]/90 backdrop-blur-sm border border-[#2A2A2A] rounded-xl overflow-hidden hover:border-[#2ECC71] transition cursor-pointer group" onclick="cambiarPestaña('mods','Mods')">
+                        <div class="h-20 bg-[#111] flex items-center justify-center">
+                            ${m.icon_url ? `<img src="${m.icon_url}" class="w-12 h-12 rounded-xl object-cover" onerror="this.outerHTML='<span class=&quot;text-2xl&quot;>📦</span>'">` : '<span class="text-2xl">📦</span>'}
+                        </div>
+                        <div class="p-2.5">
+                            <p class="font-black text-xs text-white truncate group-hover:text-[#2ECC71] transition">${m.title}</p>
+                            <p class="text-[10px] text-gray-500 mt-0.5 line-clamp-2 leading-snug">${m.description}</p>
+                            <p class="text-[9px] text-gray-600 mt-1.5">${(m.downloads/1e6).toFixed(1)}M descargas</p>
+                        </div>
+                    </div>`).join('');
             } catch(e) { if (box) box.innerHTML = ''; }
         }
 
@@ -10371,9 +10844,9 @@
                 ['extremecraft.net', 'ping-extremecraft'],
                 ['play.fadecloud.com', 'ping-fadecloud'],
                 ['play.minesuperior.com', 'ping-minesuperior'],
-                ['play.redpvp.net', 'ping-redpvp'],
-                ['play.minebolt.com', 'ping-minebolt'],
-                ['rhomc.com', 'ping-rhomc'],
+                ['play.redpvp.com.ar', 'ping-redpvp'],
+                ['minebolt.net', 'ping-minebolt'],
+                ['play.rhomc.com', 'ping-rhomc'],
             ];
             servidores.forEach(([ip, id]) => pingServidor(ip, id));
         }
@@ -10388,14 +10861,17 @@
             'ping-extremecraft':{ip:'extremecraft.net',          modo:'survival'},
             'ping-fadecloud':   {ip:'play.fadecloud.com',        modo:'mini-games'},
             'ping-minesuperior':{ip:'play.minesuperior.com',     modo:'survival'},
+            'ping-redpvp':      {ip:'play.redpvp.com.ar',         modo:'pvp'},
+            'ping-minebolt':    {ip:'minebolt.net',                modo:'mini-games'},
+            'ping-rhomc':       {ip:'play.rhomc.com',             modo:'survival'},
         };
         const _newSrvCards = [
-            {id:'redpvp',   emoji:'🔴', color:'#E74C3C', nombre:'RedPVP',   ip:'play.redpvp.net',
-             desc:'El más grande en español. Factions, BedWars, SkyWars, PvP. 1.8+',  tipo:'nopremium', modo:'pvp'},
-            {id:'minebolt', emoji:'⚡', color:'#F39C12', nombre:'Minebolt', ip:'play.minebolt.com',
-             desc:'Hispano popular. SkyBlock, SkyWars, BedWars, Lifesteal. 1.8+',      tipo:'nopremium', modo:'mini-games'},
-            {id:'rhomc',    emoji:'🌿', color:'#2ECC71', nombre:'RhoMC',    ip:'rhomc.com',
-             desc:'Comunidad hispana. Survival, Prison, Factions. No-Premium bienvenido.', tipo:'nopremium', modo:'survival'},
+            {id:'redpvp',   emoji:'🔴', color:'#E74C3C', nombre:'RedPVP',   ip:'play.redpvp.com.ar',
+             desc:'Facciones, Survival, KitPvP. Comunidad hispanohablante. 1.8–1.21',  tipo:'nopremium', modo:'pvp'},
+            {id:'minebolt', emoji:'⚡', color:'#9B59B6', nombre:'Minebolt', ip:'minebolt.net',
+             desc:'Mini-games, SkyBlock, BedWars. Comunidad hispanohablante. 1.8–1.21', tipo:'nopremium', modo:'mini-games'},
+            {id:'rhomc',    emoji:'🌿', color:'#1ABC9C', nombre:'RhoMC',    ip:'play.rhomc.com',
+             desc:'Survival, Facciones, RPG. Comunidad hispanohablante. 1.8–1.21',     tipo:'nopremium', modo:'survival'},
         ];
         let _srvCardsInited = false;
         function initServerCards() {
@@ -10629,7 +11105,7 @@
 
         async function buscarCurseForgeAPI() {
             const q = document.getElementById('buscador-mods').value || '';
-            const _cfTipoMap = {mod:'mods',resourcepack:'resourcepacks',shader:'shaders',modpack:'modpacks',datapack:'mods'};
+            const _cfTipoMap = {mod:'mods',resourcepack:'resourcepacks',shader:'shaders',modpack:'modpacks',datapack:'datapacks'};
             const t = _cfTipoMap[_modTipoActual] || 'mods';
             const ver = (document.getElementById('filtro-version')||{}).value || '';
             const sort = (document.getElementById('filtro-sort')||{}).value || 'relevance';
@@ -10738,9 +11214,8 @@
             const srvRow = el('imod-servidor-row');
             const platSec = el('imod-plat-section');
             if (_imodTipo === 'datapack') {
-                if (srvRow) srvRow.classList.remove('hidden');
-                if (platSec) platSec.classList.add('hidden');
-                await poblarSelectoresServidorTienda('imod-srv-select', 'imod-mundo-select');
+                if (srvRow) srvRow.classList.add('hidden');
+                if (platSec) platSec.classList.remove('hidden');
             } else if (_esContenidoInstancia(_imodTipo)) {
                 if (srvRow) srvRow.classList.add('hidden');
                 if (platSec) platSec.classList.add('hidden');
@@ -11452,6 +11927,669 @@
                 }
             } catch(e) {}
         }
+
+        // ══ BIBLIOTECA ═══════════════════════════════════════════════════════
+        let _bibData = [];
+        let _bibFiltro = 'todas';
+        let _bibMcVers = [];
+        let _bibView = 'grid';
+
+        function bibSetView(v) {
+            _bibView = v;
+            const on = 'w-8 h-8 flex items-center justify-center rounded-lg text-base transition bg-[#2ECC71] text-black';
+            const off = 'w-8 h-8 flex items-center justify-center rounded-lg text-base transition bg-[#1A1A1A] border border-[#2A2A2A] text-gray-400 hover:text-white';
+            const g = document.getElementById('bib-view-grid');
+            const l = document.getElementById('bib-view-list');
+            if (g) g.className = v === 'grid' ? on : off;
+            if (l) l.className = v === 'list' ? on : off;
+            bibRenderFiltrado();
+        }
+
+        async function cargarBiblioteca() {
+            const grid = document.getElementById('bib-grid');
+            if (grid) grid.innerHTML = '<p class="text-gray-500 text-sm animate-pulse">Cargando biblioteca...</p>';
+            try {
+                const r = await pywebview.api.listar_biblioteca();
+                _bibData = (r && r.instancias) ? r.instancias : [];
+                bibRenderFiltrado();
+                // Repair missing modpack icons in the background; reload if any were fixed
+                pywebview.api.reparar_iconos_modpacks().then(res => {
+                    if (res && res.fixed > 0) cargarBiblioteca();
+                }).catch(() => {});
+            } catch(e) {
+                if (grid) grid.innerHTML = '<p class="text-red-400 text-sm">Error al cargar la biblioteca.</p>';
+            }
+        }
+
+        function bibFiltrar(tipo) {
+            _bibFiltro = tipo;
+            document.querySelectorAll('.bib-tab').forEach(b => {
+                const on = b.id === 'bib-tab-' + tipo;
+                b.className = 'bib-tab px-4 py-2.5 text-sm font-bold border-b-2 -mb-px transition ' +
+                    (on ? 'text-[#2ECC71] border-[#2ECC71]' : 'text-gray-500 hover:text-white border-transparent');
+            });
+            bibRenderFiltrado();
+        }
+
+        function bibRenderFiltrado() {
+            const grid = document.getElementById('bib-grid');
+            if (!grid) return;
+            const q = (document.getElementById('bib-buscar')?.value || '').toLowerCase();
+            const sort = document.getElementById('bib-sort')?.value || 'nombre';
+            let lista = _bibData.filter(it => {
+                const matchQ = !q || (it.nombre||'').toLowerCase().includes(q) || (it.mc_version||'').includes(q);
+                let matchF = true;
+                if (_bibFiltro === 'modpack') matchF = it.tipo === 'modpack';
+                else if (_bibFiltro === 'personalizada') matchF = it.tipo === 'personalizada';
+                else if (_bibFiltro === 'externa') matchF = it.fuente !== 'paraguacraft';
+                return matchQ && matchF;
+            });
+            lista.sort((a,b) => {
+                if (sort === 'reciente') return (b.last_played||'').localeCompare(a.last_played||'');
+                if (sort === 'tiempo')   return (b.total_playtime||0) - (a.total_playtime||0);
+                if (sort === 'version')  return (a.mc_version||'').localeCompare(b.mc_version||'');
+                if (sort === 'tipo')     return (a.tipo||'').localeCompare(b.tipo||'');
+                return (a.nombre||'').localeCompare(b.nombre||'');
+            });
+            if (!lista.length) {
+                const ext = _bibFiltro === 'externa';
+                grid.innerHTML = `<div class="flex flex-col items-center justify-center h-64 gap-3 text-center">
+                    <span class="text-6xl">${ext ? '🔗' : '📭'}</span>
+                    <p class="text-gray-300 font-black text-lg">${ext ? 'Sin launchers externos detectados' : ('Sin instancias' + (_bibFiltro !== 'todas' ? ' en esta categoría' : ''))}</p>
+                    <p class="text-gray-600 text-sm max-w-sm">${ext ? 'Se buscan instancias de: Modrinth App, ATLauncher, Prism Launcher, MultiMC, Minecraft oficial, SKLauncher y TLauncher.' : 'Creá una instancia o descargá un modpack desde la tienda.'}</p>
+                    ${!ext ? '<button onclick="abrirCrearInstancia()" class="bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black px-5 py-2.5 rounded-xl text-sm transition mt-1">+ Crear instancia</button>' : ''}
+                </div>`;
+                return;
+            }
+            grid.innerHTML = '';
+            const wrap = document.createElement('div');
+            if (_bibView === 'list') {
+                wrap.className = 'flex flex-col gap-1.5';
+            } else {
+                wrap.className = 'grid gap-2';
+                wrap.style.gridTemplateColumns = 'repeat(auto-fill,minmax(260px,1fr))';
+            }
+            lista.forEach(inst => wrap.appendChild(_bibCard(inst)));
+            grid.appendChild(wrap);
+        }
+
+        function _bibIconHtml(inst, size) {
+            const sz = size === 'lg' ? 'text-4xl' : size === 'sm' ? 'text-sm' : 'text-xl';
+            if (inst.icono_b64) return `<img src="${inst.icono_b64}" class="w-full h-full object-cover" alt="" onerror="this.style.display='none'">`;
+            if (inst.icono_emoji) return `<span class="${sz}">${inst.icono_emoji}</span>`;
+            const words = (inst.nombre || '?').trim().split(/\s+/);
+            const initials = words.slice(0,2).map(w => (w[0]||'').toUpperCase()).join('') || '?';
+            const palette = ['#2ECC71','#3498DB','#9B59B6','#E74C3C','#F39C12','#1ABC9C','#E67E22'];
+            const color = palette[(inst.nombre||'').length % palette.length];
+            return `<span class="${sz} font-black" style="color:${color}">${initials}</span>`;
+        }
+
+        function _bibCard(inst) {
+            const card = document.createElement('div');
+            const isList = _bibView === 'list';
+            card.className = 'bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl flex items-center gap-3 hover:border-[#2ECC71]/50 hover:bg-[#232323] transition cursor-pointer group select-none relative overflow-hidden' + (isList ? ' px-4 py-2.5' : ' p-3');
+            const pt = inst.total_playtime > 0
+                ? (inst.total_playtime >= 3600
+                    ? Math.floor(inst.total_playtime/3600) + 'h ' + Math.floor((inst.total_playtime%3600)/60) + 'm'
+                    : Math.floor(inst.total_playtime/60) + 'm')
+                : '';
+            const runDot = inst.running
+                ? '<span class="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-[#2ECC71] shadow-[0_0_6px_#2ECC71] animate-pulse pointer-events-none"></span>'
+                : '';
+            const iconSz = isList ? 'w-10 h-10' : 'w-14 h-14';
+            card.innerHTML = `${runDot}
+                <div class="${iconSz} rounded-xl flex items-center justify-center shrink-0 overflow-hidden bg-[#121212] border border-[#2A2A2A]">${_bibIconHtml(inst)}</div>
+                <div class="flex-1 min-w-0">
+                    <p class="font-black text-sm text-white truncate group-hover:text-[#2ECC71] transition">${inst.nombre || 'Sin nombre'}</p>
+                    <p class="text-xs text-gray-500 mt-0.5 truncate">🎮 ${inst.motor || 'Vanilla'} ${inst.mc_version || '?'}${pt ? ' · ' + pt : ''}</p>
+                    ${inst.fuente !== 'paraguacraft' ? `<p class="text-[10px] text-gray-600 mt-0.5 truncate">${inst.fuente}</p>` : ''}
+                </div>
+                ${inst.fuente === 'paraguacraft' ? '<button class="bib-play-btn opacity-0 group-hover:opacity-100 shrink-0 bg-[#2ECC71] hover:bg-[#27AE60] text-black w-9 h-9 rounded-xl flex items-center justify-center text-base font-black transition shadow-lg" title="Jugar">▶</button>' : ''}`;
+            const pb = card.querySelector('.bib-play-btn');
+            if (pb) pb.addEventListener('click', e => { e.stopPropagation(); bibJugar(inst); });
+            card.addEventListener('click', () => abrirInstanciaDetalle(inst));
+            return card;
+        }
+
+        async function bibJugar(inst) {
+            if (!inst) return;
+            try {
+                const sV = document.getElementById('panel-version-sel');
+                const sL = document.getElementById('panel-loader-sel');
+                if (sV) sV.value = inst.mc_version || '';
+                if (sL) sL.value = inst.motor || '';
+                await pywebview.api.lanzar_juego(inst.mc_version, inst.motor, '');
+            } catch(e) { try { showToast('Error al lanzar: ' + e, '#E74C3C', 3000); } catch(_){} }
+        }
+
+        async function bibEliminar(inst) {
+            if (!inst || !confirm(`¿Eliminar "${inst.nombre}"?\nSe borrarán permanentemente todos sus archivos.`)) return;
+            const r = await pywebview.api.eliminar_instancia(inst.folder);
+            if (r && r.ok) {
+                try { showToast('Instancia eliminada', '#2ECC71', 2000); } catch(_) {}
+                cerrarInstanciaDetalle();
+                cerrarInstanciaSettings();
+                cargarBiblioteca();
+            } else {
+                try { showToast('Error: ' + (r?.error || 'desconocido'), '#E74C3C', 3500); } catch(_) {}
+            }
+        }
+
+        // ── DETALLE INSTANCIA ─────────────────────────────────────────────────
+        let _midInstActual = null;
+
+        function abrirInstanciaDetalle(inst) {
+            _midInstActual = inst;
+            const m = document.getElementById('modal-inst-detalle');
+            if (!m) return;
+            document.getElementById('mid-icon').innerHTML = _bibIconHtml(inst, 'lg');
+            document.getElementById('mid-nombre').textContent = inst.nombre || 'Sin nombre';
+            const pt = inst.total_playtime > 0
+                ? ' · ' + (inst.total_playtime >= 3600
+                    ? Math.floor(inst.total_playtime/3600) + 'h jugadas'
+                    : Math.floor(inst.total_playtime/60) + 'min jugados')
+                : '';
+            document.getElementById('mid-meta').textContent = (inst.motor||'Vanilla') + ' ' + (inst.mc_version||'?') + (inst.fuente !== 'paraguacraft' ? ' · ' + inst.fuente : '') + pt;
+            const pb = document.getElementById('mid-play-btn');
+            if (pb) {
+                if (inst.fuente === 'paraguacraft') {
+                    pb.className = 'bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black px-5 py-2.5 rounded-xl flex items-center gap-2 text-sm transition shrink-0';
+                    pb.disabled = false; pb.textContent = '▶ Jugar';
+                } else {
+                    pb.className = 'bg-[#2A2A2A] text-gray-500 font-black px-5 py-2.5 rounded-xl flex items-center gap-2 text-sm shrink-0 cursor-not-allowed';
+                    pb.disabled = true; pb.textContent = 'Externo';
+                }
+            }
+            const addBtn = document.getElementById('mid-add-mods-btn');
+            if (addBtn) addBtn.classList.toggle('hidden', inst.fuente !== 'paraguacraft');
+            const sb = document.getElementById('mid-settings-btn');
+            if (sb) sb.style.display = inst.fuente === 'paraguacraft' ? '' : 'none';
+            const db = document.getElementById('mid-del-btn');
+            if (db) db.style.display = inst.fuente === 'paraguacraft' ? '' : 'none';
+            m.classList.remove('hidden');
+            midTab('contenido');
+            midCargarContenido(inst);
+        }
+
+        function cerrarInstanciaDetalle() {
+            document.getElementById('modal-inst-detalle')?.classList.add('hidden');
+        }
+
+        function midTab(tab) {
+            ['contenido','archivos'].forEach(t => {
+                const btn = document.getElementById('mid-tab-' + t);
+                const panel = document.getElementById('mid-panel-' + t);
+                const on = t === tab;
+                if (btn) btn.className = 'mid-tab px-4 py-3 text-sm font-bold border-b-2 -mb-px transition ' + (on ? 'text-[#2ECC71] border-[#2ECC71]' : 'text-gray-500 hover:text-white border-transparent');
+                if (panel) panel.classList.toggle('hidden', !on);
+            });
+        }
+
+        let _midAllContent = [];
+        let _midContentFilter = 'all';
+
+        async function midCargarContenido(inst) {
+            const el = document.getElementById('mid-contenido-inner');
+            const statsBar = document.getElementById('mid-stats-bar');
+            if (!el) return;
+            _midAllContent = [];
+            _midContentFilter = 'all';
+            _midSetFilter('all');
+            const q = document.getElementById('mid-content-q');
+            if (q) q.value = '';
+            if (statsBar) statsBar.innerHTML = '';
+            if (inst.fuente !== 'paraguacraft') {
+                el.innerHTML = `<div class="flex flex-col items-center justify-center py-20 gap-3 text-center">
+                    <span class="text-5xl">🔗</span>
+                    <p class="text-gray-300 font-black">Instancia de ${inst.fuente||'otro launcher'}</p>
+                    <p class="text-gray-600 text-sm max-w-xs">Para gestionar su contenido, abrí ${inst.fuente||'el launcher original'}.</p></div>`;
+                return;
+            }
+            el.innerHTML = '<p class="text-gray-500 text-sm text-center py-10 animate-pulse">Cargando contenido...</p>';
+            try {
+                const [rM, rS, rR, rD] = await Promise.all([
+                    pywebview.api.get_instance_content(inst.mc_version, inst.motor, 'mods'),
+                    pywebview.api.get_instance_content(inst.mc_version, inst.motor, 'shaders'),
+                    pywebview.api.get_instance_content(inst.mc_version, inst.motor, 'resourcepacks'),
+                    pywebview.api.get_instance_content(inst.mc_version, inst.motor, 'datapacks'),
+                ]);
+                const toArr = r => Array.isArray(r) ? r : (r?.mods ?? []);
+                _midAllContent = [
+                    ...toArr(rM).map(it => ({...it, categoria:'mods'})),
+                    ...toArr(rS).map(it => ({...it, categoria:'shaders'})),
+                    ...toArr(rR).map(it => ({...it, categoria:'rp'})),
+                    ...toArr(rD).map(it => ({...it, categoria:'dp'})),
+                ];
+                _midRender();
+                _midUpdateStats();
+            } catch(e) {
+                el.innerHTML = '<p class="text-red-400 text-sm text-center py-8">Error al cargar contenido.</p>';
+            }
+        }
+
+        function midAgregarMods() {
+            if (!_midInstActual) return;
+            cerrarInstanciaDetalle();
+            cambiarPestaña('mods','Mods');
+        }
+
+        function _midSetFilter(f) {
+            _midContentFilter = f;
+            ['all','mods','shaders','rp','dp'].forEach(cat => {
+                const btn = document.getElementById('mid-cf-' + cat);
+                if (!btn) return;
+                const on = cat === f;
+                btn.className = 'mid-cf px-3 py-1.5 rounded-full text-xs font-black transition ' +
+                    (on ? 'bg-[#2ECC71] text-black' : 'bg-[#222] text-gray-400 hover:text-white');
+            });
+            _midRender();
+        }
+
+        function _midRender() {
+            const el = document.getElementById('mid-contenido-inner');
+            if (!el) return;
+            const q = (document.getElementById('mid-content-q')?.value || '').toLowerCase();
+            const lista = _midAllContent.filter(it => {
+                if (_midContentFilter !== 'all' && it.categoria !== _midContentFilter) return false;
+                if (q && !(it.nombre_visible||it.archivo||'').toLowerCase().includes(q)) return false;
+                return true;
+            });
+            const countEl = document.getElementById('mid-content-count');
+            if (countEl) countEl.textContent = lista.length ? lista.length + ' proyecto' + (lista.length !== 1 ? 's' : '') : '';
+            if (!lista.length) {
+                el.innerHTML = `<div class="flex flex-col items-center py-16 gap-2 text-center">
+                    <span class="text-4xl">📭</span>
+                    <p class="text-gray-500 text-sm">${_midAllContent.length ? 'Sin resultados' : 'Sin contenido instalado'}</p>
+                </div>`;
+                if (!_midAllContent.length) {
+                    const btn = document.createElement('button');
+                    btn.className = 'mt-2 bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black px-4 py-2 rounded-xl text-xs transition';
+                    btn.textContent = 'Explorar tienda';
+                    btn.addEventListener('click', () => { cerrarInstanciaDetalle(); cambiarPestaña('mods','Mods'); });
+                    el.firstElementChild?.appendChild(btn);
+                }
+                return;
+            }
+            el.innerHTML = lista.map((it, idx) => {
+                const nombre = it.nombre_visible || it.archivo || '?';
+                const ic = it.icono_b64
+                    ? `<img src="${it.icono_b64}" class="w-full h-full object-cover" alt="">`
+                    : `<span class="text-[10px] font-black text-gray-500">${nombre.slice(0,2).toUpperCase()}</span>`;
+                const active = it.estado === 'Activo';
+                return `<div class="grid items-center px-3 py-2 hover:bg-[#1A1A1A] transition" style="grid-template-columns:1fr 140px 72px" data-idx="${idx}">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <div class="w-8 h-8 rounded-md bg-[#111] border border-[#2A2A2A] overflow-hidden flex items-center justify-center shrink-0">${ic}</div>
+                        <div class="min-w-0"><p class="text-xs font-bold text-white truncate">${nombre}</p><p class="text-[10px] text-gray-600 truncate">${it.archivo||''}</p></div>
+                    </div>
+                    <div class="min-w-0 px-1"><p class="text-xs text-gray-400 truncate">${it.version_mod||'–'}</p></div>
+                    <div class="flex items-center justify-end gap-1.5">
+                        <button class="mid-toggle relative w-9 h-5 rounded-full shrink-0 transition-colors ${active?'bg-[#2ECC71]':'bg-[#333]'}" title="${active?'Desactivar':'Activar'}">
+                            <span class="absolute w-4 h-4 bg-white rounded-full shadow" style="top:2px;left:${active?'18px':'2px'};transition:left 0.15s ease"></span>
+                        </button>
+                        <button class="mid-menu text-gray-500 hover:text-white w-6 h-6 flex items-center justify-center rounded hover:bg-[#2A2A2A] transition text-base leading-none">⋮</button>
+                    </div>
+                </div>`;
+            }).join('');
+            el.querySelectorAll('.mid-toggle').forEach(btn => {
+                const idx = parseInt(btn.closest('[data-idx]').dataset.idx);
+                btn.addEventListener('click', () => _midToggle(lista[idx].archivo, lista[idx].categoria));
+            });
+            el.querySelectorAll('.mid-menu').forEach(btn => {
+                const idx = parseInt(btn.closest('[data-idx]').dataset.idx);
+                btn.addEventListener('click', e => _midMenu(e, lista[idx].archivo, lista[idx].categoria));
+            });
+        }
+
+        async function _midToggle(archivo, categoria) {
+            if (!_midInstActual) return;
+            const tipoApi = {mods:'mods', shaders:'shaders', rp:'resourcepacks', dp:'datapacks'}[categoria] || categoria;
+            try {
+                await pywebview.api.toggle_instance_content(_midInstActual.mc_version, _midInstActual.motor, tipoApi, archivo);
+                const item = _midAllContent.find(it => it.archivo === archivo && it.categoria === categoria);
+                if (item) {
+                    item.estado = item.estado === 'Activo' ? 'Desactivado' : 'Activo';
+                    item.archivo = item.estado === 'Activo'
+                        ? item.archivo.replace('.disabled','')
+                        : (item.archivo.endsWith('.disabled') ? item.archivo : item.archivo + '.disabled');
+                }
+                _midRender();
+            } catch(e) { try { showToast('Error al cambiar estado', '#E74C3C', 2000); } catch(_){} }
+        }
+
+        function _midMenu(event, archivo, categoria) {
+            event.stopPropagation();
+            if (!_midInstActual) return;
+            const folderMap = {mods:'mods', shaders:'shaderpacks', rp:'resourcepacks', dp:'datapacks'};
+            pywebview.api.open_instance_folder(_midInstActual.mc_version, _midInstActual.motor, folderMap[categoria] || 'mods');
+        }
+
+        function _midUpdateStats() {
+            const bar = document.getElementById('mid-stats-bar');
+            if (!bar) return;
+            const nm = _midAllContent.filter(it=>it.categoria==='mods').length;
+            const ns = _midAllContent.filter(it=>it.categoria==='shaders').length;
+            const nr = _midAllContent.filter(it=>it.categoria==='rp').length;
+            const nd = _midAllContent.filter(it=>it.categoria==='dp').length;
+            bar.innerHTML = `<span>📦 ${nm} Mod${nm!==1?'s':''}</span><span>✨ ${ns} Shader${ns!==1?'s':''}</span><span>🎨 ${nr} Resource Pack${nr!==1?'s':''}</span>${nd ? `<span>📜 ${nd} Datapack${nd!==1?'s':''}</span>` : ''}`;
+        }
+
+        // ── SETTINGS INSTANCIA ────────────────────────────────────────────────
+        let _misInstActual = null;
+        let _misNewIconB64 = '';
+
+        function abrirInstanciaSettings() {
+            _misInstActual = _midInstActual;
+            if (!_misInstActual || _misInstActual.fuente !== 'paraguacraft') return;
+            _misNewIconB64 = '';
+            const m = document.getElementById('modal-inst-settings');
+            if (!m) return;
+            const isModpack = _misInstActual.tipo === 'modpack';
+            document.getElementById('mis-nombre-breadcrumb').textContent = _misInstActual.nombre || '';
+            document.getElementById('mis-icon-hdr').innerHTML = _bibIconHtml(_misInstActual, 'sm');
+            document.getElementById('mis-nombre-input').value = _misInstActual.nombre || '';
+            document.getElementById('mis-icon-preview').innerHTML = _bibIconHtml(_misInstActual, 'lg');
+            document.getElementById('mis-platform').textContent = _misInstActual.motor || 'Vanilla';
+            document.getElementById('mis-mc-ver').textContent = _misInstActual.mc_version || '?';
+            const mpSec = document.getElementById('mis-modpack-section');
+            if (mpSec) {
+                mpSec.classList.toggle('hidden', !isModpack);
+                if (isModpack) {
+                    document.getElementById('mis-mp-icon').innerHTML = _bibIconHtml(_misInstActual);
+                    document.getElementById('mis-mp-nombre').textContent = _misInstActual.nombre || 'Modpack';
+                    document.getElementById('mis-mp-ver').textContent = _misInstActual.mc_version || '';
+                }
+            }
+            const verSec = document.getElementById('mis-ver-section');
+            if (verSec) {
+                verSec.classList.toggle('hidden', !isModpack);
+                if (isModpack) document.getElementById('mis-nueva-ver').value = _misInstActual.mc_version || '';
+            }
+            document.getElementById('mis-icon-input').value = '';
+            m.classList.remove('hidden');
+            misTab('general');
+        }
+
+        function cerrarInstanciaSettings() {
+            document.getElementById('modal-inst-settings')?.classList.add('hidden');
+        }
+
+        function misTab(tab) {
+            ['general','instalacion','java','herramientas'].forEach(t => {
+                const nav = document.getElementById('mis-nav-' + t);
+                const panel = document.getElementById('mis-panel-' + t);
+                const on = t === tab;
+                if (nav) nav.className = 'mis-nav text-left px-3 py-2 rounded-lg text-sm font-bold transition ' + (on ? 'text-white bg-[#2A2A2A]' : 'text-gray-400 hover:text-white hover:bg-[#1E1E1E]');
+                if (panel) panel.classList.toggle('hidden', !on);
+            });
+            if (tab === 'herramientas') misCargarBackups();
+        }
+
+        async function misGuardarGeneral() {
+            if (!_misInstActual) return;
+            const newNombre = (document.getElementById('mis-nombre-input')?.value || '').trim();
+            if (!newNombre) { try { showToast('El nombre no puede estar vacío', '#E74C3C', 2500); } catch(_){} return; }
+            const r = await pywebview.api.actualizar_instancia_nombre(_misInstActual.folder, newNombre, _misNewIconB64 || '');
+            if (r && r.ok) {
+                _misInstActual.nombre = newNombre;
+                if (_misNewIconB64) _misInstActual.icono_b64 = _misNewIconB64;
+                document.getElementById('mid-nombre').textContent = newNombre;
+                document.getElementById('mis-nombre-breadcrumb').textContent = newNombre;
+                try { showToast('✓ Guardado', '#2ECC71', 2000); } catch(_){}
+                cargarBiblioteca();
+            } else { try { showToast('Error: ' + (r?.error||'?'), '#E74C3C', 3000); } catch(_){} }
+        }
+
+        function misIconCambiar(input) {
+            const file = input.files?.[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = e => {
+                _misNewIconB64 = e.target.result;
+                const ip = document.getElementById('mis-icon-preview');
+                if (ip) ip.innerHTML = `<img src="${_misNewIconB64}" class="w-full h-full object-cover" alt="">`;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function misCambiarVersion() {
+            if (!_misInstActual) return;
+            const nv = (document.getElementById('mis-nueva-ver')?.value || '').trim();
+            if (!nv) return;
+            if (!confirm(`¿Cambiar "${_misInstActual.nombre}" a Minecraft ${nv}?\nLos mods podrían no ser compatibles.`)) return;
+            const r = await pywebview.api.actualizar_instancia_version(_misInstActual.folder, nv);
+            if (r && r.ok) {
+                _misInstActual.mc_version = nv;
+                document.getElementById('mid-meta').textContent = (_misInstActual.motor||'Vanilla') + ' ' + nv;
+                document.getElementById('mis-mc-ver').textContent = nv;
+                try { showToast('Versión actualizada a ' + nv, '#2ECC71', 2500); } catch(_){}
+                cargarBiblioteca();
+            } else { try { showToast('Error: ' + (r?.error||'?'), '#E74C3C', 3000); } catch(_){} }
+        }
+
+        async function misReparar() {
+            try { showToast('Re-instalación próximamente disponible', '#F39C12', 2500); } catch(_){}
+        }
+
+        async function misDuplicar() {
+            const nombre = (document.getElementById('mis-dup-nombre')?.value || '').trim();
+            if (!nombre) { try { showToast('Escribí un nombre para la copia', '#E67E22', 2500); } catch(_){} return; }
+            if (!_misInstActual) return;
+            const btn = document.querySelector('[onclick="misDuplicar()"]');
+            if (btn) { btn.disabled = true; btn.textContent = 'Duplicando...'; }
+            try {
+                const r = await pywebview.api.duplicar_instancia(_misInstActual.folder, nombre);
+                if (r && r.ok) {
+                    try { showToast('✓ Duplicada como "' + nombre + '"', '#2ECC71', 3000); } catch(_){}
+                    document.getElementById('mis-dup-nombre').value = '';
+                    cargarBiblioteca();
+                } else {
+                    try { showToast('Error: ' + (r?.error || 'desconocido'), '#E74C3C', 3500); } catch(_){}
+                }
+            } finally {
+                if (btn) { btn.disabled = false; btn.innerHTML = '📋 Duplicar'; }
+            }
+        }
+
+        async function misCrearBackup() {
+            if (!_misInstActual) return;
+            const btn = document.getElementById('mis-backup-btn');
+            if (btn) { btn.disabled = true; btn.textContent = 'Creando...'; }
+            try {
+                const r = await pywebview.api.crear_backup_instancia(_misInstActual.folder);
+                if (r && r.ok) {
+                    try { showToast(`✓ Backup creado (${r.size_mb} MB)`, '#2ECC71', 3000); } catch(_){}
+                    misCargarBackups();
+                } else {
+                    try { showToast('Error: ' + (r?.error || 'desconocido'), '#E74C3C', 3500); } catch(_){}
+                }
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = '💾 Crear backup'; }
+            }
+        }
+
+        async function misCargarBackups() {
+            if (!_misInstActual) return;
+            const lista = document.getElementById('mis-backups-lista');
+            if (!lista) return;
+            lista.innerHTML = '<p class="text-xs text-gray-600 animate-pulse">Cargando...</p>';
+            try {
+                const r = await pywebview.api.listar_backups_instancia(_misInstActual.folder);
+                const backups = r?.backups || [];
+                if (!backups.length) {
+                    lista.innerHTML = '<p class="text-xs text-gray-600">Sin backups todavía. Creá uno con el botón de arriba.</p>';
+                    return;
+                }
+                lista.innerHTML = backups.map(b => `
+                    <div class="flex items-center gap-2 bg-[#111] rounded-xl px-3 py-2 border border-[#2A2A2A]">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-xs font-bold text-white">${b.fecha}</p>
+                            <p class="text-[10px] text-gray-500">${b.size_mb} MB</p>
+                        </div>
+                        <button data-bk="${b.name}" class="mis-bk-restore text-xs bg-[#2A2A2A] hover:bg-[#3498DB] hover:text-white text-gray-400 px-2.5 py-1 rounded-lg transition font-bold">Restaurar</button>
+                    </div>`).join('');
+                lista.querySelectorAll('.mis-bk-restore').forEach(btn => {
+                    btn.addEventListener('click', () => misRestaurarBackup(btn.dataset.bk));
+                });
+            } catch(e) {
+                lista.innerHTML = '<p class="text-xs text-red-400">Error al cargar backups.</p>';
+            }
+        }
+
+        async function misRestaurarBackup(backupName) {
+            if (!_misInstActual || !confirm(`¿Restaurar backup "${backupName}"?\nSe reemplazarán TODOS los archivos actuales de la instancia.`)) return;
+            const r = await pywebview.api.restaurar_backup_instancia(_misInstActual.folder, backupName);
+            if (r && r.ok) {
+                try { showToast('✓ Instancia restaurada', '#2ECC71', 3000); } catch(_){}
+                cerrarInstanciaSettings();
+                cargarBiblioteca();
+            } else {
+                try { showToast('Error: ' + (r?.error || 'desconocido'), '#E74C3C', 3500); } catch(_){}
+            }
+        }
+
+        // ── CREAR INSTANCIA ───────────────────────────────────────────────────
+        let _ciLoader = 'Vanilla';
+        let _ciVerSel = '';
+        let _ciIconB64 = '';
+
+        async function abrirCrearInstancia() {
+            _ciLoader = 'Vanilla'; _ciVerSel = ''; _ciIconB64 = '';
+            const m = document.getElementById('modal-crear-instancia');
+            if (!m) return;
+            document.getElementById('ci-nombre').value = '';
+            document.getElementById('ci-icon-initials').textContent = '?';
+            document.getElementById('ci-icon-initials').style.display = '';
+            document.getElementById('ci-icon-img').classList.add('hidden');
+            document.getElementById('ci-icon-img').src = '';
+            document.getElementById('ci-ver-buscar').value = '';
+            document.getElementById('ci-snap-cb').checked = false;
+            document.getElementById('ci-ver-sel').textContent = 'Sin versión seleccionada';
+            document.getElementById('ci-ver-sel').className = 'text-xs text-gray-500 mt-1.5';
+            document.getElementById('ci-error').textContent = '';
+            document.getElementById('ci-icon-input').value = '';
+            ciSelLoader('Vanilla');
+            m.classList.remove('hidden');
+            if (!_bibMcVers.length) await ciCargarVersiones();
+            else ciFiltrarVersiones();
+        }
+
+        function cerrarCrearInstancia() {
+            document.getElementById('modal-crear-instancia')?.classList.add('hidden');
+        }
+
+        async function ciCargarVersiones() {
+            const lista = document.getElementById('ci-ver-lista');
+            if (lista) lista.innerHTML = '<p class="text-xs text-gray-500 text-center py-6 animate-pulse">Cargando versiones de Mojang...</p>';
+            try {
+                const r = await pywebview.api.get_mojang_versions();
+                _bibMcVers = (r && r.versions && r.versions.length) ? r.versions : [];
+                if (!_bibMcVers.length) {
+                    if (lista) lista.innerHTML = '<div class="flex flex-col items-center gap-2 py-6"><p class="text-xs text-yellow-400 text-center">No se pudo obtener las versiones.<br>Verificá tu conexión a internet.</p><button onclick="ciCargarVersiones()" class="text-xs bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white px-3 py-1.5 rounded-lg transition">Reintentar</button></div>';
+                } else {
+                    ciFiltrarVersiones();
+                }
+            } catch(e) {
+                if (lista) lista.innerHTML = '<div class="flex flex-col items-center gap-2 py-6"><p class="text-xs text-red-400 text-center">Error al conectar con Mojang.</p><button onclick="ciCargarVersiones()" class="text-xs bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white px-3 py-1.5 rounded-lg transition">Reintentar</button></div>';
+            }
+        }
+
+        function ciFiltrarVersiones() {
+            const lista = document.getElementById('ci-ver-lista');
+            if (!lista) return;
+            const q = (document.getElementById('ci-ver-buscar')?.value || '').toLowerCase();
+            const showSnap = document.getElementById('ci-snap-cb')?.checked;
+            const vers = _bibMcVers.filter(v => {
+                if (!showSnap && v.type !== 'release') return false;
+                return !q || v.id.toLowerCase().includes(q);
+            });
+            lista.innerHTML = vers.slice(0, 100).map(v => {
+                const sel = _ciVerSel === v.id;
+                const d = v.releaseTime ? new Date(v.releaseTime).toLocaleDateString('es',{day:'2-digit',month:'2-digit',year:'numeric'}) : '–';
+                const tl = v.type === 'release' ? 'Release' : v.type === 'snapshot' ? 'Snapshot' : (v.type || '–');
+                return `<button onclick="ciSelVer('${v.id}')" class="grid grid-cols-3 w-full px-4 py-2 text-left text-xs hover:bg-[#2A2A2A] transition ${sel ? 'bg-[#2ECC71]/15 text-[#2ECC71] font-bold' : 'text-gray-300'}">
+                    <span>${v.id}</span><span class="text-gray-500">${d}</span><span class="text-gray-500">${tl}</span></button>`;
+            }).join('') || '<p class="text-xs text-gray-600 text-center py-4">Sin resultados</p>';
+        }
+
+        function ciSelVer(id) {
+            _ciVerSel = id;
+            const lbl = document.getElementById('ci-ver-sel');
+            if (lbl) { lbl.textContent = '✓ Seleccionada: ' + id; lbl.className = 'text-xs text-[#2ECC71] font-bold mt-1.5'; }
+            ciFiltrarVersiones();
+        }
+
+        function ciSelLoader(loader) {
+            _ciLoader = loader;
+            document.querySelectorAll('.ci-loader-btn').forEach(b => {
+                const on = b.id === 'ci-l-' + loader;
+                b.className = 'ci-loader-btn px-3 py-1.5 rounded text-xs font-bold transition ' + (on ? 'bg-[#2ECC71] text-black' : 'bg-[#2A2A2A] text-white hover:bg-[#3A3A3A]');
+            });
+        }
+
+        function ciActualizarInicial() {
+            if (_ciIconB64) return;
+            const nombre = document.getElementById('ci-nombre')?.value || '';
+            const words = nombre.trim().split(/\s+/);
+            const initials = words.slice(0,2).map(w => (w[0]||'').toUpperCase()).join('') || '?';
+            const el = document.getElementById('ci-icon-initials');
+            if (el) el.textContent = initials || '?';
+        }
+
+        function ciIconFileChanged(input) {
+            const file = input.files?.[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = e => {
+                _ciIconB64 = e.target.result;
+                const img = document.getElementById('ci-icon-img');
+                const ini = document.getElementById('ci-icon-initials');
+                if (img) { img.src = _ciIconB64; img.classList.remove('hidden'); }
+                if (ini) ini.style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function ciConfirmar() {
+            const nombre = (document.getElementById('ci-nombre')?.value || '').trim();
+            const errEl = document.getElementById('ci-error');
+            if (!nombre) { if (errEl) errEl.textContent = 'El nombre es requerido'; return; }
+            if (!_ciVerSel) { if (errEl) errEl.textContent = 'Seleccioná una versión de Minecraft'; return; }
+            if (errEl) errEl.textContent = '';
+            const btn = document.getElementById('ci-crear-btn');
+            if (btn) { btn.disabled = true; btn.textContent = '⏳ Creando...'; }
+            try {
+                const r = await pywebview.api.crear_instancia_personalizada(nombre, _ciVerSel, _ciLoader, _ciIconB64);
+                if (r && r.ok) {
+                    cerrarCrearInstancia();
+                    try { showToast('¡Instancia "' + nombre + '" creada!', '#2ECC71', 3000); } catch(_) {}
+                    cargarBiblioteca();
+                } else {
+                    if (errEl) errEl.textContent = (r && r.error) || 'Error desconocido';
+                }
+            } catch(e) {
+                if (errEl) errEl.textContent = String(e);
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = '✓ Crear'; }
+            }
+        }
+
+        // ── BOTONES LATERALES DEL MOUSE (retroceder / avanzar) ────────────────
+        document.addEventListener('mousedown', e => {
+            if (e.button === 3) {
+                e.preventDefault();
+                e.stopPropagation();
+                const settingsOpen = document.getElementById('modal-inst-settings') && !document.getElementById('modal-inst-settings').classList.contains('hidden');
+                if (settingsOpen) { cerrarInstanciaSettings(); return; }
+                const detalleOpen = document.getElementById('modal-inst-detalle') && !document.getElementById('modal-inst-detalle').classList.contains('hidden');
+                if (detalleOpen) { cerrarInstanciaDetalle(); return; }
+                cerrarModalesAbiertos();
+            } else if (e.button === 4) {
+                e.preventDefault();
+                e.stopPropagation();
+                const detalleOpen = document.getElementById('modal-inst-detalle') && !document.getElementById('modal-inst-detalle').classList.contains('hidden');
+                if (detalleOpen) { abrirInstanciaSettings(); return; }
+            }
+        }, true);
 
         // --- FIN EXTRAS ---
     </script>

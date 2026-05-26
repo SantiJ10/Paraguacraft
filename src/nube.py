@@ -1,4 +1,5 @@
 import os
+import re
 import pymongo
 from pymongo.errors import ConnectionFailure
 
@@ -10,6 +11,46 @@ try:
 except (ImportError, AttributeError):
     MONGO_USER = ""
     MONGO_PASS = ""
+
+def _extraer_resource_packs_options(texto):
+    """Devuelve lista ordenada de entradas entre comillas en resourcePacks:."""
+    if not texto:
+        return []
+    packs, vistos = [], set()
+    for linea in texto.splitlines():
+        if not linea.startswith("resourcePacks:"):
+            continue
+        for m in re.finditer(r'"((?:[^"\\]|\\.)*)"', linea):
+            tok = m.group(1)
+            if tok not in vistos:
+                vistos.add(tok)
+                packs.append(tok)
+    return packs
+
+
+def _fusionar_options_txt(local_txt, cloud_txt):
+    """Une resourcePacks de local + nube sin pisar selección del jugador en el juego."""
+    if not cloud_txt:
+        return local_txt
+    if not local_txt:
+        return cloud_txt
+    local_lines = local_txt.splitlines(keepends=True)
+    cloud_lines = cloud_txt.splitlines(keepends=True)
+    local_packs = _extraer_resource_packs_options(local_txt)
+    cloud_packs = _extraer_resource_packs_options(cloud_txt)
+    merged = []
+    vistos = set()
+    for p in local_packs + cloud_packs:
+        if p not in vistos:
+            vistos.add(p)
+            merged.append(p)
+    if not merged:
+        return local_txt
+    out_lines = [l for l in local_lines if not l.startswith("resourcePacks:")]
+    packs_json = ",".join(f'"{p}"' for p in merged)
+    out_lines.append(f"resourcePacks:[{packs_json}]\n")
+    return "".join(out_lines)
+
 
 class GestorNube:
     def __init__(self):
@@ -62,10 +103,18 @@ class GestorNube:
                 print(f"[{usuario}] Perfil nuevo, no hay datos en la nube todavía.")
                 return False 
             
-            # Escribimos los archivos en la compu
+            # Escribimos options fusionando con local (no pisar resource packs del juego)
             if "options_txt" in perfil:
+                local_txt = ""
+                if os.path.exists(options_path):
+                    try:
+                        with open(options_path, "r", encoding="utf-8", errors="ignore") as f:
+                            local_txt = f.read()
+                    except OSError:
+                        pass
+                merged = _fusionar_options_txt(local_txt, perfil["options_txt"])
                 with open(options_path, "w", encoding="utf-8") as f:
-                    f.write(perfil["options_txt"])
+                    f.write(merged)
                     
             if "servers_dat" in perfil:
                 with open(servers_path, "wb") as f:

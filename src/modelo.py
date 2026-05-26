@@ -1080,3 +1080,80 @@ class GestorContenidoInstancia:
     def alternar_datapack(game_dir, mundo, nombre_archivo):
         dp = os.path.join(game_dir, "saves", mundo, "datapacks")
         return GestorContenidoInstancia._alternar_disabled_en_carpeta(dp, nombre_archivo)
+
+    @staticmethod
+    def listar_modpacks(base):
+        import json as _jm
+        registry_path = os.path.join(base, "_paragua_modpacks.json")
+        if not os.path.exists(registry_path):
+            return []
+        try:
+            with open(registry_path, "r", encoding="utf-8") as _rf:
+                registry = _jm.load(_rf)
+            salida = []
+            for pack_id, pack in registry.items():
+                files = pack.get("files") or []
+                activos = sum(
+                    1 for fp in files
+                    if os.path.exists(os.path.join(base, fp.replace("/", os.sep)))
+                )
+                desactivados = sum(
+                    1 for fp in files
+                    if os.path.exists(os.path.join(base, fp.replace("/", os.sep) + ".disabled"))
+                )
+                total = activos + desactivados
+                if total == 0 or desactivados == 0:
+                    estado = "Activo"
+                elif activos == 0:
+                    estado = "Desactivado"
+                else:
+                    estado = "Parcial"
+                salida.append({
+                    "archivo": pack_id,
+                    "nombre_visible": pack.get("name", pack_id),
+                    "estado": estado,
+                    "mc_version": pack.get("mc_version", ""),
+                    "motor": pack.get("motor", ""),
+                    "total_files": total,
+                    "mundo": "",
+                })
+            return salida
+        except Exception:
+            return []
+
+    @staticmethod
+    def toggle_modpack(base, pack_id):
+        import json as _jm
+        registry_path = os.path.join(base, "_paragua_modpacks.json")
+        if not os.path.exists(registry_path):
+            return False
+        try:
+            with open(registry_path, "r", encoding="utf-8") as _rf:
+                registry = _jm.load(_rf)
+            if pack_id not in registry:
+                return False
+            files = registry[pack_id].get("files") or []
+            any_active = any(
+                os.path.exists(os.path.join(base, fp.replace("/", os.sep)))
+                for fp in files
+            )
+            for fp in files:
+                full = os.path.join(base, fp.replace("/", os.sep))
+                if any_active:
+                    if os.path.exists(full):
+                        try:
+                            os.rename(full, full + ".disabled")
+                        except Exception:
+                            pass
+                else:
+                    if os.path.exists(full + ".disabled"):
+                        try:
+                            os.rename(full + ".disabled", full)
+                        except Exception:
+                            pass
+            registry[pack_id]["estado"] = "Desactivado" if any_active else "Activo"
+            with open(registry_path, "w", encoding="utf-8") as _wf:
+                _jm.dump(registry, _wf, ensure_ascii=False, indent=2)
+            return True
+        except Exception:
+            return False

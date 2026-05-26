@@ -45,7 +45,7 @@ except Exception:
     log = logging.getLogger("paraguacraft.main")
     _LOG_PATH = ""
 
-VERSION = "6.0.0"  # Actualizar en cada release
+VERSION = "6.3.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 # Opcional: URL de Cloudflare Pages con latest.json (sin rate limits, CDN global)
 # Formato del JSON: {"version":"5.2.0", "download_url":"...", "size_bytes":0, "notes":"..."}
@@ -199,6 +199,7 @@ class Api:
         self.ms_data = None
         self.rpc = None
         self.hilo_juego_activo = False
+        self._ms_auto_refresh_started = False
         # Handle del subprocess de Minecraft activo (None si no hay juego corriendo).
         # Lo seteamos vía callback `on_process_started` desde core.lanzar_minecraft.
         self._mc_proc = None
@@ -306,6 +307,9 @@ class Api:
                     self.ms_data = json.load(f)
                     self.config_actual["usuario"] = f"{self.ms_data['name']} [PREMIUM]"
                     self.config_actual["is_premium"] = True
+                # Refrescar token al arrancar y arrancar auto-refresh
+                threading.Thread(target=self._refresh_ms_token, daemon=True).start()
+                self._iniciar_auto_refresh_ms()
             except Exception:
                 pass
 
@@ -497,7 +501,7 @@ class Api:
     def elegir_java_path(self):
         try:
             result = webview.windows[0].create_file_dialog(
-                webview.OPEN_DIALOG,
+                webview.FileDialog.OPEN,
                 allow_multiple=False,
                 file_types=("Ejecutable Java (*.exe)", "*.exe")
             )
@@ -525,7 +529,38 @@ class Api:
         return {"ok": True}
 
     def get_usuario(self):
-        return {"nombre": self.config_actual.get("usuario", "Invitado"), "premium": self.config_actual.get("is_premium", False)}
+        return {
+            "nombre": self.config_actual.get("usuario", "Invitado"),
+            "premium": self.config_actual.get("is_premium", False),
+            "sesion_mojang": bool(self.ms_data),
+        }
+
+    def _puede_subir_skin_mojang(self):
+        return bool(self.ms_data)
+
+    def _iniciar_auto_refresh_ms(self):
+        """Lanza un hilo daemon que refresca el access_token de MS cada 50 min.
+        Los tokens de Microsoft expiran a los 60 min; refrescando proactivamente
+        se evita que la sesión quede expirada al volver a jugar.
+        Solo lanza un hilo — múltiples llamadas son idempotentes.
+        """
+        if self._ms_auto_refresh_started:
+            return
+        self._ms_auto_refresh_started = True
+        def _loop():
+            while True:
+                time.sleep(50 * 60)  # 50 minutos
+                if not self.ms_data or not self.ms_data.get("refresh_token"):
+                    continue
+                try:
+                    ok = self._refresh_ms_token()
+                    if ok:
+                        log.info("[MS AutoRefresh] Token refrescado automáticamente.")
+                    else:
+                        log.warning("[MS AutoRefresh] Falló el refresco automático del token.")
+                except Exception as e:
+                    log.warning("[MS AutoRefresh] Error: %s", e)
+        threading.Thread(target=_loop, daemon=True, name="ms-auto-refresh").start()
 
     def _refresh_ms_token(self):
         """Refresca el access_token de MS usando el refresh_token persistido.
@@ -661,6 +696,8 @@ class Api:
             ms_data = dict(ms_data)
             ms_data["ms_client_id"] = CLIENT_ID
         self.ms_data = ms_data
+        # Arrancar auto-refresh si aún no está corriendo
+        self._iniciar_auto_refresh_ms()
         nombre_premium = f"{self.ms_data['name']} [PREMIUM]"
         self.config_actual["usuario"] = nombre_premium
         self.config_actual["is_premium"] = True
@@ -1280,7 +1317,11 @@ class Api:
             if not v or not m:
                 return {'ok': False, 'error': 'No hay versi\u00f3n activa seleccionada'}
             sub_map = {'mods': 'mods', 'resourcepacks': 'resourcepacks', 'shaders': 'shaderpacks', 'datapacks': 'datapacks'}
-            carpeta = os.path.join(self._dir_instancia(v, m), sub_map.get(tipo, 'mods'))
+            base = self._dir_instancia(v, m)
+            if (tipo or '').lower() == 'datapacks':
+                carpeta = self._ruta_datapacks_cliente(base)
+            else:
+                carpeta = os.path.join(base, sub_map.get(tipo, 'mods'))
             os.makedirs(carpeta, exist_ok=True)
             dest = os.path.join(carpeta, os.path.basename(ruta))
             shutil.copy2(ruta, dest)
@@ -1321,6 +1362,8 @@ class Api:
                 ]
             if cat == "datapacks":
                 return GestorContenidoInstancia.listar_datapacks(base)
+            if cat == "modpacks":
+                return GestorContenidoInstancia.listar_modpacks(base)
             return []
         except Exception as e:
             log.error("get_instance_content: %s", e, exc_info=True)
@@ -1337,11 +1380,24 @@ class Api:
                 GestorLocalMods.alternar_estado_mod(mods_dir, nombre_archivo)
                 return True
             if cat == "resourcepacks":
-                return GestorContenidoInstancia.alternar_resourcepack(os.path.join(base, "resourcepacks"), nombre_archivo)
+                rp_dir = os.path.join(base, "resourcepacks")
+                ok = GestorContenidoInstancia.alternar_resourcepack(rp_dir, nombre_archivo)
+                if ok:
+                    visible = (
+                        nombre_archivo[:-9]
+                        if nombre_archivo.endswith(".disabled")
+                        else nombre_archivo
+                    )
+                    activar = nombre_archivo.endswith(".disabled")
+                    from core import sincronizar_resourcepack_options
+                    sincronizar_resourcepack_options(base, visible, activar)
+                return ok
             if cat == "shaders":
                 return GestorContenidoInstancia.alternar_shaderpack(os.path.join(base, "shaderpacks"), nombre_archivo)
             if cat == "datapacks" and mundo:
                 return GestorContenidoInstancia.alternar_datapack(base, mundo, nombre_archivo)
+            if cat == "modpacks":
+                return GestorContenidoInstancia.toggle_modpack(base, nombre_archivo)
             return False
         except Exception as e:
             log.error("toggle_instance_content: %s", e, exc_info=True)
@@ -1868,6 +1924,21 @@ class Api:
                         _ram_gb = json.load(_f2).get("ram_gb") or self.config_actual.get("ram_asignada", 4)
                 except Exception:
                     _ram_gb = self.config_actual.get("ram_asignada", 4)
+                # Guardar last_played en la instancia
+                try:
+                    from core import carpeta_instancia_paraguacraft as _cia_lp
+                    import minecraft_launcher_lib as _mcl_lp
+                    _lp_p = os.path.join(_mcl_lp.utils.get_minecraft_directory(), "instancias", _cia_lp(version, motor), "_paragua_instance.json")
+                    _lp_d = {}
+                    if os.path.exists(_lp_p):
+                        with open(_lp_p, "r", encoding="utf-8") as _f_lp:
+                            try: _lp_d = json.load(_f_lp)
+                            except Exception: pass
+                    _lp_d["last_played"] = datetime.datetime.now().isoformat(timespec="seconds")
+                    with open(_lp_p, "w", encoding="utf-8") as _f_lp:
+                        json.dump(_lp_d, _f_lp, ensure_ascii=False)
+                except Exception:
+                    pass
                 _extra_jvm = []
                 try:
                     with open(_icp) as _f_jvm:
@@ -2018,6 +2089,22 @@ class Api:
                         daemon=True
                     ).start()
                 _seg = int(time.time() - _t0)
+                # Actualizar playtime total en la instancia
+                if _seg > 0:
+                    try:
+                        from core import carpeta_instancia_paraguacraft as _cia_pt
+                        import minecraft_launcher_lib as _mcl_pt
+                        _pt_p = os.path.join(_mcl_pt.utils.get_minecraft_directory(), "instancias", _cia_pt(version, motor), "_paragua_instance.json")
+                        _pt_d = {}
+                        if os.path.exists(_pt_p):
+                            with open(_pt_p, "r", encoding="utf-8") as _f_pt:
+                                try: _pt_d = json.load(_f_pt)
+                                except Exception: pass
+                        _pt_d["total_playtime"] = _pt_d.get("total_playtime", 0) + _seg
+                        with open(_pt_p, "w", encoding="utf-8") as _f_pt:
+                            json.dump(_pt_d, _f_pt, ensure_ascii=False)
+                    except Exception:
+                        pass
                 if _seg > 10:
                     try:
                         from core import carpeta_instancia_paraguacraft as _cia2
@@ -2271,6 +2358,559 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    # ── Biblioteca de instancias ───────────────────────────────────────────
+    def get_mojang_versions(self):
+        """Lista completa de versiones de Minecraft con tipo y fecha para el picker."""
+        _HDR = {"User-Agent": "Paraguacraft-Launcher/2.0"}
+        _MANIFEST_URLS = [
+            "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json",
+            "https://launchermeta.mojang.com/mc/game/version_manifest.json",
+        ]
+        # Primary: direct Mojang manifest (fastest, most up-to-date)
+        for url in _MANIFEST_URLS:
+            try:
+                r = requests.get(url, headers=_HDR, timeout=10)
+                if r.status_code == 200:
+                    data = r.json()
+                    versiones = data.get("versions", [])
+                    if versiones:
+                        return {
+                            "ok": True,
+                            "versions": [
+                                {"id": v["id"], "type": v.get("type", "release"), "releaseTime": v.get("releaseTime", "")}
+                                for v in versiones
+                            ],
+                        }
+            except Exception:
+                continue
+        # Fallback: minecraft_launcher_lib
+        try:
+            import minecraft_launcher_lib
+            versiones = minecraft_launcher_lib.utils.get_version_list()
+            if versiones:
+                return {
+                    "ok": True,
+                    "versions": [
+                        {"id": v["id"], "type": v.get("type", "release"), "releaseTime": v.get("releaseTime", "")}
+                        for v in versiones
+                    ],
+                }
+        except Exception as e:
+            log.error("get_mojang_versions: %s", e, exc_info=True)
+        return {"ok": False, "error": "No se pudo obtener la lista de versiones", "versions": []}
+
+    def listar_biblioteca(self):
+        """Lista instancias Paraguacraft + detecta launchers externos (Modrinth, ATLauncher, Prism)."""
+        try:
+            import json as _j
+            import base64 as _b64
+            import re as _re
+            import minecraft_launcher_lib as _mcl
+            mc_dir = _mcl.utils.get_minecraft_directory()
+            resultado = []
+
+            # 1) Instancias propias
+            inst_dir = os.path.join(mc_dir, "instancias")
+            if os.path.isdir(inst_dir):
+                for entry in sorted(os.listdir(inst_dir)):
+                    entry_path = os.path.join(inst_dir, entry)
+                    if not os.path.isdir(entry_path) or not entry.startswith("Paraguacraft_"):
+                        continue
+                    m = _re.match(r"^Paraguacraft_(\d+(?:\.\d+){0,2})_(.+)$", entry)
+                    if not m:
+                        continue
+                    mc_ver = m.group(1)
+                    motor = _re.sub(r"\s+", " ", m.group(2).replace("Plus", "+").replace("_", " ").strip())
+                    cfg = {}
+                    cfg_path = os.path.join(entry_path, "_paragua_instance.json")
+                    if os.path.exists(cfg_path):
+                        try:
+                            with open(cfg_path, "r", encoding="utf-8") as _f:
+                                cfg = _j.load(_f)
+                        except Exception:
+                            pass
+                    nombre = cfg.get("nombre") or cfg.get("name") or f"{mc_ver} \u00b7 {motor}"
+                    tipo = "personalizada"
+                    modpack_name = ""
+                    for mp_file in ("_paragua_modpacks.json", "_paragua_mrpack.json"):
+                        mp_path = os.path.join(entry_path, mp_file)
+                        if not os.path.exists(mp_path) or modpack_name:
+                            continue
+                        try:
+                            with open(mp_path, "r", encoding="utf-8") as _f:
+                                mp = _j.load(_f)
+                            if mp_file.endswith("modpacks.json"):
+                                first = next(iter(mp.values()), {})
+                                modpack_name = first.get("name", "")
+                            else:
+                                modpack_name = mp.get("name", "")
+                            if modpack_name:
+                                tipo = "modpack"
+                        except Exception:
+                            pass
+                    if modpack_name:
+                        nombre = modpack_name
+                    icono_b64 = ""
+                    icon_path = cfg.get("icon_image", "")
+                    if not icon_path or not os.path.isfile(icon_path):
+                        fallback = os.path.join(entry_path, "_paragua_icon.png")
+                        if os.path.isfile(fallback):
+                            icon_path = fallback
+                    if icon_path and os.path.isfile(icon_path):
+                        try:
+                            with open(icon_path, "rb") as _f:
+                                icono_b64 = "data:image/png;base64," + _b64.b64encode(_f.read()).decode()
+                        except Exception:
+                            pass
+                    _gs = getattr(self, "_game_status", {})
+                    _running = bool(_gs.get("running") and _gs.get("version") == mc_ver and _gs.get("motor", "").replace(" ", "_") == motor)
+                    resultado.append({
+                        "id": entry, "folder": entry, "nombre": nombre,
+                        "mc_version": mc_ver, "motor": motor, "tipo": tipo,
+                        "fuente": "paraguacraft",
+                        "icono_b64": icono_b64, "icono_emoji": cfg.get("icon_emoji", "") or "",
+                        "last_played": cfg.get("last_played", "") or "",
+                        "total_playtime": cfg.get("total_playtime", 0) or 0,
+                        "running": _running,
+                    })
+
+            # 2) Modrinth App
+            try:
+                mr_dir = os.path.join(os.environ.get("APPDATA", ""), "com.modrinth.theseus", "profiles")
+                if os.path.isdir(mr_dir):
+                    for pname in sorted(os.listdir(mr_dir)):
+                        ppath = os.path.join(mr_dir, pname)
+                        pcfg_p = os.path.join(ppath, "profile.json")
+                        if not os.path.isdir(ppath) or not os.path.exists(pcfg_p):
+                            continue
+                        try:
+                            with open(pcfg_p, "r", encoding="utf-8") as _f:
+                                pcfg = _j.load(_f)
+                            motor = (pcfg.get("loader") or "vanilla").capitalize()
+                            icono_b64 = ""
+                            ip = pcfg.get("icon_path") or ""
+                            if ip and os.path.isfile(ip):
+                                try:
+                                    with open(ip, "rb") as _f:
+                                        icono_b64 = "data:image/png;base64," + _b64.b64encode(_f.read()).decode()
+                                except Exception:
+                                    pass
+                            resultado.append({
+                                "id": "modrinth_" + pname, "folder": ppath,
+                                "nombre": pcfg.get("name", pname),
+                                "mc_version": pcfg.get("game_version", ""), "motor": motor,
+                                "tipo": "modpack", "fuente": "Modrinth App",
+                                "icono_b64": icono_b64, "icono_emoji": "",
+                            })
+                        except Exception:
+                            continue
+            except Exception:
+                pass
+
+            # 3) ATLauncher
+            try:
+                at_dir = os.path.join(os.environ.get("APPDATA", ""), "ATLauncher", "instances")
+                if os.path.isdir(at_dir):
+                    for iname in sorted(os.listdir(at_dir)):
+                        ipath = os.path.join(at_dir, iname)
+                        at_cfg_p = os.path.join(ipath, "instance.json")
+                        if not os.path.isdir(ipath) or not os.path.exists(at_cfg_p):
+                            continue
+                        try:
+                            with open(at_cfg_p, "r", encoding="utf-8") as _f:
+                                acfg = _j.load(_f)
+                            ld = acfg.get("launcher", {}) or {}
+                            motor = ((ld.get("loaderVersion") or {}).get("type") or "vanilla").capitalize()
+                            resultado.append({
+                                "id": "atlauncher_" + iname, "folder": ipath,
+                                "nombre": ld.get("name", iname),
+                                "mc_version": ld.get("version", "") or acfg.get("id", ""),
+                                "motor": motor, "tipo": "atlauncher", "fuente": "ATLauncher",
+                                "icono_b64": "", "icono_emoji": "",
+                            })
+                        except Exception:
+                            continue
+            except Exception:
+                pass
+
+            # 4) Prism Launcher / MultiMC
+            try:
+                for prism_dir in [
+                    os.path.join(os.environ.get("APPDATA", ""), "PrismLauncher", "instances"),
+                    os.path.join(os.environ.get("APPDATA", ""), "MultiMC", "instances"),
+                ]:
+                    if not os.path.isdir(prism_dir):
+                        continue
+                    src = "Prism Launcher" if "Prism" in prism_dir else "MultiMC"
+                    for iname in sorted(os.listdir(prism_dir)):
+                        ipath = os.path.join(prism_dir, iname)
+                        cfg_p = os.path.join(ipath, "instance.cfg")
+                        if not os.path.isdir(ipath) or not os.path.exists(cfg_p):
+                            continue
+                        try:
+                            nombre, mc_ver = iname, ""
+                            with open(cfg_p, "r", encoding="utf-8", errors="ignore") as _f:
+                                for line in _f:
+                                    if line.startswith("name="):
+                                        nombre = line.split("=", 1)[1].strip()
+                                    elif line.startswith("IntendedVersion="):
+                                        mc_ver = line.split("=", 1)[1].strip()
+                            resultado.append({
+                                "id": src.lower().replace(" ", "_") + "_" + iname, "folder": ipath,
+                                "nombre": nombre, "mc_version": mc_ver, "motor": "Vanilla",
+                                "tipo": "prism", "fuente": src,
+                                "icono_b64": "", "icono_emoji": "",
+                            })
+                        except Exception:
+                            continue
+            except Exception:
+                pass
+
+            # 5) Official Minecraft Launcher (profiles.json)
+            try:
+                mc_launcher_dir = os.path.join(os.environ.get("APPDATA", ""), ".minecraft")
+                profiles_path = os.path.join(mc_launcher_dir, "launcher_profiles.json")
+                if os.path.isfile(profiles_path):
+                    with open(profiles_path, "r", encoding="utf-8") as _f:
+                        lp = _j.load(_f)
+                    for pid, prof in (lp.get("profiles") or {}).items():
+                        ptype = prof.get("type", "")
+                        if ptype in ("latest-release", "latest-snapshot"):
+                            continue
+                        nombre = prof.get("name", pid)
+                        lv = prof.get("lastVersionId", "")
+                        mc_ver = lv.split("-")[0] if lv else ""
+                        motor = "Vanilla"
+                        if "fabric" in lv.lower():
+                            motor = "Fabric"
+                        elif "forge" in lv.lower():
+                            motor = "Forge"
+                        icono_b64 = ""
+                        ic = prof.get("icon", "")
+                        if ic and ic.startswith("data:"):
+                            icono_b64 = ic
+                        resultado.append({
+                            "id": "mc_" + pid, "folder": mc_launcher_dir,
+                            "nombre": nombre, "mc_version": mc_ver, "motor": motor,
+                            "tipo": "personalizada", "fuente": "Minecraft Oficial",
+                            "icono_b64": icono_b64, "icono_emoji": "",
+                        })
+            except Exception:
+                pass
+
+            # 6) SKLauncher
+            try:
+                for sk_dir in [
+                    os.path.join(os.environ.get("APPDATA", ""), "SKLauncher", "instances"),
+                    os.path.join(os.environ.get("APPDATA", ""), "sklauncher", "instances"),
+                ]:
+                    if not os.path.isdir(sk_dir):
+                        continue
+                    for iname in sorted(os.listdir(sk_dir)):
+                        ipath = os.path.join(sk_dir, iname)
+                        if not os.path.isdir(ipath):
+                            continue
+                        resultado.append({
+                            "id": "sk_" + iname, "folder": ipath,
+                            "nombre": iname, "mc_version": "", "motor": "Vanilla",
+                            "tipo": "personalizada", "fuente": "SKLauncher",
+                            "icono_b64": "", "icono_emoji": "",
+                        })
+            except Exception:
+                pass
+
+            # 7) TLauncher
+            try:
+                for tl_dir in [
+                    os.path.join(os.environ.get("APPDATA", ""), ".tlauncher", "instances"),
+                    os.path.join(os.environ.get("APPDATA", ""), "TLauncher", "instances"),
+                ]:
+                    if not os.path.isdir(tl_dir):
+                        continue
+                    for iname in sorted(os.listdir(tl_dir)):
+                        ipath = os.path.join(tl_dir, iname)
+                        if not os.path.isdir(ipath):
+                            continue
+                        resultado.append({
+                            "id": "tl_" + iname, "folder": ipath,
+                            "nombre": iname, "mc_version": "", "motor": "Vanilla",
+                            "tipo": "personalizada", "fuente": "TLauncher",
+                            "icono_b64": "", "icono_emoji": "",
+                        })
+            except Exception:
+                pass
+
+            return {"ok": True, "instancias": resultado}
+        except Exception as e:
+            log.error("listar_biblioteca: %s", e, exc_info=True)
+            return {"ok": False, "error": str(e), "instancias": []}
+
+    def actualizar_instancia_nombre(self, folder, nombre, icono_b64=""):
+        """Actualiza el nombre (y opcionalmente el icono) de una instancia Paraguacraft."""
+        import json as _j
+        import base64 as _b64
+        try:
+            import minecraft_launcher_lib as _mcl
+            mc_dir = _mcl.utils.get_minecraft_directory()
+            if not folder or not str(folder).startswith("Paraguacraft_"):
+                return {"ok": False, "error": "Solo instancias propias de Paraguacraft"}
+            inst_path = os.path.join(mc_dir, "instancias", folder)
+            if not os.path.isdir(inst_path):
+                return {"ok": False, "error": "Instancia no encontrada"}
+            cfg_path = os.path.join(inst_path, "_paragua_instance.json")
+            cfg = {}
+            if os.path.exists(cfg_path):
+                try:
+                    with open(cfg_path, "r", encoding="utf-8") as _f:
+                        cfg = _j.load(_f)
+                except Exception:
+                    pass
+            cfg["nombre"] = nombre.strip()
+            if icono_b64:
+                _raw = icono_b64.split(",", 1)[-1] if "," in icono_b64 else icono_b64
+                try:
+                    raw = _b64.b64decode(_raw)
+                    img_path = os.path.join(inst_path, "_paragua_icon.png")
+                    try:
+                        from PIL import Image
+                        import io as _io
+                        im = Image.open(_io.BytesIO(raw))
+                        if im.mode != "RGBA":
+                            im = im.convert("RGBA")
+                        im.thumbnail((128, 128), Image.LANCZOS)
+                        im.save(img_path, "PNG")
+                    except Exception:
+                        with open(img_path, "wb") as _f:
+                            _f.write(raw)
+                    cfg["icon_image"] = img_path
+                except Exception:
+                    pass
+            with open(cfg_path, "w", encoding="utf-8") as _f:
+                _j.dump(cfg, _f, ensure_ascii=False, indent=2)
+            return {"ok": True}
+        except Exception as e:
+            log.error("actualizar_instancia_nombre: %s", e, exc_info=True)
+            return {"ok": False, "error": str(e)}
+
+    def actualizar_instancia_version(self, folder, nueva_version):
+        """Actualiza la versión de MC registrada en el metadata de una instancia."""
+        import json as _j
+        try:
+            import minecraft_launcher_lib as _mcl
+            mc_dir = _mcl.utils.get_minecraft_directory()
+            if not folder or not str(folder).startswith("Paraguacraft_"):
+                return {"ok": False, "error": "Solo instancias propias de Paraguacraft"}
+            inst_path = os.path.join(mc_dir, "instancias", folder)
+            if not os.path.isdir(inst_path):
+                return {"ok": False, "error": "Instancia no encontrada"}
+            cfg_path = os.path.join(inst_path, "_paragua_instance.json")
+            cfg = {}
+            if os.path.exists(cfg_path):
+                try:
+                    with open(cfg_path, "r", encoding="utf-8") as _f:
+                        cfg = _j.load(_f)
+                except Exception:
+                    pass
+            cfg["mc_version"] = nueva_version.strip()
+            with open(cfg_path, "w", encoding="utf-8") as _f:
+                _j.dump(cfg, _f, ensure_ascii=False, indent=2)
+            return {"ok": True}
+        except Exception as e:
+            log.error("actualizar_instancia_version: %s", e, exc_info=True)
+            return {"ok": False, "error": str(e)}
+
+    def crear_instancia_personalizada(self, nombre, mc_version, motor, icono_b64=""):
+        """Crea una nueva instancia personalizada con carpeta e icono opcionales."""
+        import json as _j
+        import base64 as _b64
+        import datetime
+        try:
+            from core import carpeta_instancia_paraguacraft
+            import minecraft_launcher_lib as _mcl
+            nombre = (nombre or "").strip()
+            mc_version = (mc_version or "").strip()
+            motor = (motor or "Vanilla").strip()
+            if not nombre:
+                return {"ok": False, "error": "El nombre es requerido"}
+            if not mc_version:
+                return {"ok": False, "error": "La versi\u00f3n de Minecraft es requerida"}
+            mc_dir = _mcl.utils.get_minecraft_directory()
+            folder = carpeta_instancia_paraguacraft(mc_version, motor)
+            inst_dir = os.path.join(mc_dir, "instancias", folder)
+            os.makedirs(inst_dir, exist_ok=True)
+            cfg_path = os.path.join(inst_dir, "_paragua_instance.json")
+            cfg = {}
+            if os.path.exists(cfg_path):
+                try:
+                    with open(cfg_path, "r", encoding="utf-8") as _f:
+                        cfg = _j.load(_f)
+                except Exception:
+                    pass
+            cfg.update({"nombre": nombre, "mc_version": mc_version, "motor": motor,
+                        "source": "personalizada",
+                        "created_at": datetime.datetime.now().isoformat(timespec="seconds")})
+            if icono_b64:
+                _raw = icono_b64.split(",", 1)[-1] if "," in icono_b64 else icono_b64
+                try:
+                    raw = _b64.b64decode(_raw)
+                    img_path = os.path.join(inst_dir, "_paragua_icon.png")
+                    try:
+                        from PIL import Image
+                        import io as _io
+                        im = Image.open(_io.BytesIO(raw))
+                        if im.mode != "RGBA":
+                            im = im.convert("RGBA")
+                        im.thumbnail((128, 128), Image.LANCZOS)
+                        im.save(img_path, "PNG")
+                    except Exception:
+                        with open(img_path, "wb") as _f:
+                            _f.write(raw)
+                    cfg["icon_image"] = img_path
+                except Exception:
+                    pass
+            with open(cfg_path, "w", encoding="utf-8") as _f:
+                _j.dump(cfg, _f, ensure_ascii=False, indent=2)
+            return {"ok": True, "folder": folder, "mc_version": mc_version, "motor": motor}
+        except Exception as e:
+            log.error("crear_instancia_personalizada: %s", e, exc_info=True)
+            return {"ok": False, "error": str(e)}
+
+    def eliminar_instancia(self, folder):
+        """Elimina permanentemente una instancia Paraguacraft por nombre de carpeta."""
+        import shutil
+        try:
+            import minecraft_launcher_lib as _mcl
+            mc_dir = _mcl.utils.get_minecraft_directory()
+            if not folder or not str(folder).startswith("Paraguacraft_"):
+                return {"ok": False, "error": "Solo se pueden eliminar instancias propias de Paraguacraft"}
+            inst_path = os.path.join(mc_dir, "instancias", folder)
+            if not os.path.isdir(inst_path):
+                return {"ok": False, "error": "Instancia no encontrada"}
+            shutil.rmtree(inst_path)
+            return {"ok": True}
+        except Exception as e:
+            log.error("eliminar_instancia: %s", e, exc_info=True)
+            return {"ok": False, "error": str(e)}
+
+    def duplicar_instancia(self, folder, nuevo_nombre):
+        """Duplica una instancia Paraguacraft completa con un nuevo nombre."""
+        import shutil, json as _j, re as _re, datetime
+        try:
+            import minecraft_launcher_lib as _mcl
+            mc_dir = _mcl.utils.get_minecraft_directory()
+            if not folder or not str(folder).startswith("Paraguacraft_"):
+                return {"ok": False, "error": "Solo instancias Paraguacraft"}
+            src = os.path.join(mc_dir, "instancias", folder)
+            if not os.path.isdir(src):
+                return {"ok": False, "error": "Instancia no encontrada"}
+            m = _re.match(r"^Paraguacraft_(\d+(?:\.\d+){0,2})_(.+)$", folder)
+            mc_ver = m.group(1) if m else "0"
+            safe = _re.sub(r'[^\w\-]', '_', nuevo_nombre.strip())[:28]
+            new_folder = f"Paraguacraft_{mc_ver}_{safe}"
+            dst = os.path.join(mc_dir, "instancias", new_folder)
+            if os.path.exists(dst):
+                return {"ok": False, "error": "Ya existe una instancia con ese nombre"}
+            shutil.copytree(src, dst)
+            cfg_path = os.path.join(dst, "_paragua_instance.json")
+            cfg = {}
+            if os.path.exists(cfg_path):
+                with open(cfg_path, "r", encoding="utf-8") as _f:
+                    try: cfg = _j.load(_f)
+                    except Exception: pass
+            cfg["nombre"] = nuevo_nombre.strip()
+            cfg["created_at"] = datetime.datetime.now().isoformat(timespec="seconds")
+            cfg.pop("last_played", None)
+            cfg["total_playtime"] = 0
+            with open(cfg_path, "w", encoding="utf-8") as _f:
+                _j.dump(cfg, _f, ensure_ascii=False, indent=2)
+            return {"ok": True, "folder": new_folder}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def crear_backup_instancia(self, folder):
+        """Crea un backup ZIP de la instancia en paraguacraft_backups/."""
+        import zipfile, datetime
+        try:
+            import minecraft_launcher_lib as _mcl
+            mc_dir = _mcl.utils.get_minecraft_directory()
+            if not folder or not str(folder).startswith("Paraguacraft_"):
+                return {"ok": False, "error": "Solo instancias Paraguacraft"}
+            src = os.path.join(mc_dir, "instancias", folder)
+            if not os.path.isdir(src):
+                return {"ok": False, "error": "Instancia no encontrada"}
+            backups_dir = os.path.join(mc_dir, "paraguacraft_backups")
+            os.makedirs(backups_dir, exist_ok=True)
+            ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_name = f"{folder}_{ts}.zip"
+            backup_path = os.path.join(backups_dir, backup_name)
+            with zipfile.ZipFile(backup_path, "w", zipfile.ZIP_DEFLATED, compresslevel=5) as zf:
+                for root, dirs, files in os.walk(src):
+                    for fname in files:
+                        fpath = os.path.join(root, fname)
+                        zf.write(fpath, os.path.relpath(fpath, src))
+            size_mb = round(os.path.getsize(backup_path) / 1024 / 1024, 1)
+            return {"ok": True, "backup": backup_name, "size_mb": size_mb}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def listar_backups_instancia(self, folder):
+        """Lista los backups ZIP disponibles de una instancia."""
+        import datetime
+        try:
+            import minecraft_launcher_lib as _mcl
+            backups_dir = os.path.join(_mcl.utils.get_minecraft_directory(), "paraguacraft_backups")
+            if not os.path.isdir(backups_dir):
+                return {"ok": True, "backups": []}
+            prefix = folder + "_"
+            backups = []
+            for fname in sorted(os.listdir(backups_dir), reverse=True):
+                if not (fname.startswith(prefix) and fname.endswith(".zip")):
+                    continue
+                fpath = os.path.join(backups_dir, fname)
+                size_mb = round(os.path.getsize(fpath) / 1024 / 1024, 1)
+                ts_str = fname[len(prefix):-4]
+                fecha = ts_str
+                try:
+                    dt = datetime.datetime.strptime(ts_str, "%Y%m%d_%H%M%S")
+                    fecha = dt.strftime("%d/%m/%Y %H:%M")
+                except Exception:
+                    pass
+                backups.append({"name": fname, "fecha": fecha, "size_mb": size_mb})
+            return {"ok": True, "backups": backups}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def restaurar_backup_instancia(self, folder, backup_name):
+        """Restaura una instancia desde un backup ZIP (reemplaza la carpeta actual)."""
+        import zipfile, shutil
+        try:
+            import minecraft_launcher_lib as _mcl
+            mc_dir = _mcl.utils.get_minecraft_directory()
+            if not folder or not str(folder).startswith("Paraguacraft_"):
+                return {"ok": False, "error": "Solo instancias Paraguacraft"}
+            backups_dir = os.path.join(mc_dir, "paraguacraft_backups")
+            backup_path = os.path.join(backups_dir, backup_name)
+            if not os.path.isfile(backup_path):
+                return {"ok": False, "error": "Backup no encontrado"}
+            dst = os.path.join(mc_dir, "instancias", folder)
+            if os.path.isdir(dst):
+                shutil.rmtree(dst)
+            os.makedirs(dst, exist_ok=True)
+            with zipfile.ZipFile(backup_path, "r") as zf:
+                zf.extractall(dst)
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def is_game_running_for_instance(self, mc_version, motor):
+        """True si hay un juego Minecraft activo para esa versión/motor."""
+        gs = getattr(self, "_game_status", {})
+        return {"running": bool(
+            gs.get("running") and
+            str(gs.get("version", "")) == str(mc_version) and
+            str(gs.get("motor", "")) == str(motor)
+        )}
+
     # ── Perfiles personalizados (instancias nombradas con icono) ──────────
     def listar_perfiles_personalizados(self):
         """Devuelve la lista guardada en config_actual['perfiles_personalizados']."""
@@ -2379,7 +3019,7 @@ class Api:
         try:
             import base64 as _b64m
             result = webview.windows[0].create_file_dialog(
-                webview.OPEN_DIALOG,
+                webview.FileDialog.OPEN,
                 allow_multiple=False,
                 file_types=("Imágenes (*.png;*.jpg;*.jpeg;*.webp)", "Todos los archivos (*.*)")
             )
@@ -2390,6 +3030,74 @@ class Api:
                 raw = f.read()
             return {"ok": True, "b64": _b64m.b64encode(raw).decode("ascii"),
                     "filename": os.path.basename(path)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def reparar_iconos_modpacks(self):
+        """Descarga los iconos faltantes de modpacks ya instalados desde Modrinth."""
+        import json as _jreg, base64 as _b64
+        try:
+            import minecraft_launcher_lib as _mcl
+            mine_dir = _mcl.utils.get_minecraft_directory()
+            inst_dir = os.path.join(mine_dir, "instancias")
+            fixed = 0
+            if not os.path.isdir(inst_dir):
+                return {"ok": True, "fixed": 0}
+            _HDR = {"User-Agent": "Paraguacraft-Launcher/2.0"}
+            for entry in os.listdir(inst_dir):
+                entry_path = os.path.join(inst_dir, entry)
+                if not os.path.isdir(entry_path) or not entry.startswith("Paraguacraft_"):
+                    continue
+                icon_file = os.path.join(entry_path, "_paragua_icon.png")
+                if os.path.isfile(icon_file):
+                    continue
+                registry_path = os.path.join(entry_path, "_paragua_modpacks.json")
+                if not os.path.isfile(registry_path):
+                    continue
+                try:
+                    with open(registry_path, "r", encoding="utf-8") as _f:
+                        registry = _jreg.load(_f)
+                    project_id = next(iter(registry), None)
+                    if not project_id:
+                        continue
+                    proj_r = requests.get(
+                        f"https://api.modrinth.com/v2/project/{project_id}",
+                        headers=_HDR, timeout=10)
+                    if proj_r.status_code != 200:
+                        continue
+                    icon_url = proj_r.json().get("icon_url", "")
+                    if not icon_url:
+                        continue
+                    ir = requests.get(icon_url, timeout=10, headers=_HDR)
+                    if ir.status_code != 200:
+                        continue
+                    raw = ir.content
+                    try:
+                        from PIL import Image
+                        import io as _io
+                        im = Image.open(_io.BytesIO(raw))
+                        if im.mode != "RGBA":
+                            im = im.convert("RGBA")
+                        im.thumbnail((128, 128), Image.LANCZOS)
+                        im.save(icon_file, "PNG")
+                    except Exception:
+                        with open(icon_file, "wb") as _f:
+                            _f.write(raw)
+                    cfg_path = os.path.join(entry_path, "_paragua_instance.json")
+                    cfg_data = {}
+                    if os.path.exists(cfg_path):
+                        with open(cfg_path, "r", encoding="utf-8") as _f:
+                            try:
+                                cfg_data = _jreg.load(_f)
+                            except Exception:
+                                pass
+                    cfg_data["icon_image"] = icon_file
+                    with open(cfg_path, "w", encoding="utf-8") as _f:
+                        _jreg.dump(cfg_data, _f, ensure_ascii=False)
+                    fixed += 1
+                except Exception:
+                    continue
+            return {"ok": True, "fixed": fixed}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
@@ -4831,34 +5539,53 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
-    def aplicar_skin_offline(self, skin_path):
-        """Copia la skin a todas las instancias Paraguacraft para usuarios offline."""
+    def aplicar_skin_offline(self, skin_path, variante="classic"):
+        """Skin no premium: cliente (resource pack) + todos los servidores locales (SkinsRestorer)."""
         try:
             if not os.path.isfile(skin_path):
                 return {"ok": False, "error": "Archivo no encontrado"}
             import minecraft_launcher_lib as _mcl_sk
             mc_dir = _mcl_sk.utils.get_minecraft_directory()
-            pack_name = "ParaguacraftBrandPack"
-            applied = 0
+            variante = (variante or "classic").strip().lower()
+            applied_dirs = set()
             instancias_root = os.path.join(mc_dir, "instancias")
             if os.path.isdir(instancias_root):
                 for inst in os.listdir(instancias_root):
-                    pack_path = os.path.join(instancias_root, inst, "resourcepacks", pack_name)
-                    if not os.path.isdir(pack_path):
+                    game_dir = os.path.join(instancias_root, inst)
+                    if not os.path.isdir(game_dir):
                         continue
-                    wide = os.path.join(pack_path, "assets", "minecraft", "textures", "entity", "player", "wide")
-                    slim = os.path.join(pack_path, "assets", "minecraft", "textures", "entity", "player", "slim")
-                    old  = os.path.join(pack_path, "assets", "minecraft", "textures", "entity")
-                    for d in [wide, slim, old]:
-                        os.makedirs(d, exist_ok=True)
-                    shutil.copy2(skin_path, os.path.join(wide, "steve.png"))
-                    shutil.copy2(skin_path, os.path.join(slim, "alex.png"))
-                    shutil.copy2(skin_path, os.path.join(old,  "steve.png"))
-                    applied += 1
+                    self._aplicar_skin_en_game_dir(game_dir, skin_path, variante)
+                    applied_dirs.add(game_dir)
+            v = (self.config_actual or {}).get("ultima_version", "").strip()
+            m = (self.config_actual or {}).get("ultimo_motor", "").strip()
+            if v and m:
+                try:
+                    from core import carpeta_instancia_paraguacraft
+                    folder = carpeta_instancia_paraguacraft(v, m)
+                    game_dir = os.path.join(mc_dir, "instancias", folder)
+                    if os.path.isdir(game_dir):
+                        self._aplicar_skin_en_game_dir(game_dir, skin_path, variante)
+                        applied_dirs.add(game_dir)
+                except Exception:
+                    pass
+            applied = len(applied_dirs)
             skin_store = os.path.join(mc_dir, "paraguacraft_offline_skin.png")
             shutil.copy2(skin_path, skin_store)
-            msg = f"Skin aplicada a {applied} instancia(s)." if applied else "Skin guardada. Se aplicará al iniciar el juego."
-            return {"ok": True, "msg": msg}
+            srv_sk = self._sincronizar_skin_servidores_locales(skin_path)
+            n_srv = len(self._carpetas_servidores_locales())
+            msg = (
+                f"Skin aplicada en {applied} instancia(s) de juego."
+                if applied
+                else "Skin guardada: se aplica al abrir el juego."
+            )
+            if n_srv:
+                msg += (
+                    f" Servidores locales ({n_srv}): SkinsRestorer actualizado en {srv_sk} carpeta(s)."
+                    if srv_sk
+                    else f" Servidores locales ({n_srv}): sin carpeta SkinsRestorer aún (instalá el plugin/mod al crear el server)."
+                )
+            msg += " Reentrá al mundo/servidor para verla en multijugador."
+            return {"ok": True, "msg": msg, "instancias": applied, "servidor_sync": srv_sk}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
@@ -4871,10 +5598,10 @@ class Api:
             with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
                 tmp.write(r.content)
                 tmp_path = tmp.name
-            if self.ms_data:
+            if self._puede_subir_skin_mojang():
                 result = self.subir_skin_premium(tmp_path, variante)
             else:
-                result = self.aplicar_skin_offline(tmp_path)
+                result = self.aplicar_skin_offline(tmp_path, variante)
             try: os.remove(tmp_path)
             except Exception: pass
             return result
@@ -4932,7 +5659,7 @@ class Api:
     def seleccionar_archivo_generico(self, extension='*.jar;*.zip', titulo='Seleccionar archivo'):
         try:
             result = webview.windows[0].create_file_dialog(
-                webview.OPEN_DIALOG,
+                webview.FileDialog.OPEN,
                 allow_multiple=False,
                 file_types=(f'Archivos ({extension})', 'Todos los archivos (*.*)')
             )
@@ -4944,7 +5671,7 @@ class Api:
         try:
             import base64
             result = webview.windows[0].create_file_dialog(
-                webview.OPEN_DIALOG,
+                webview.FileDialog.OPEN,
                 allow_multiple=False,
                 file_types=('Imágenes PNG (*.png)', 'Todos los archivos (*.*)')
             )
@@ -5105,6 +5832,64 @@ class Api:
                 shutil.rmtree(tmp_dir)
             except Exception:
                 pass
+            # Guardar registro de modpacks instalados
+            try:
+                import json as _jreg
+                registry_path = os.path.join(base, "_paragua_modpacks.json")
+                registry = {}
+                if os.path.exists(registry_path):
+                    with open(registry_path, "r", encoding="utf-8") as _rf:
+                        registry = _jreg.load(_rf)
+                pack_name = ver_info.get("name", mrpack_name)
+                registry[project_id] = {
+                    "name": pack_name,
+                    "project_id": project_id,
+                    "version_id": version_id,
+                    "mc_version": version_mc,
+                    "motor": motor,
+                    "files": [fe.get("path", "") for fe in files_list if fe.get("path")],
+                    "estado": "Activo",
+                }
+                with open(registry_path, "w", encoding="utf-8") as _wf:
+                    _jreg.dump(registry, _wf, ensure_ascii=False, indent=2)
+            except Exception:
+                pass
+            # Guardar icono del modpack desde Modrinth
+            try:
+                proj_r = requests.get(
+                    f"https://api.modrinth.com/v2/project/{project_id}",
+                    headers=_HDR, timeout=10)
+                if proj_r.status_code == 200:
+                    icon_url = proj_r.json().get("icon_url", "")
+                    if icon_url:
+                        ir = requests.get(icon_url, timeout=10, headers=_HDR)
+                        if ir.status_code == 200:
+                            icon_path = os.path.join(base, "_paragua_icon.png")
+                            raw = ir.content
+                            try:
+                                from PIL import Image
+                                import io as _io
+                                im = Image.open(_io.BytesIO(raw))
+                                if im.mode != "RGBA":
+                                    im = im.convert("RGBA")
+                                im.thumbnail((128, 128), Image.LANCZOS)
+                                im.save(icon_path, "PNG")
+                            except Exception:
+                                with open(icon_path, "wb") as _f:
+                                    _f.write(raw)
+                            cfg_path = os.path.join(base, "_paragua_instance.json")
+                            cfg_data = {}
+                            if os.path.exists(cfg_path):
+                                with open(cfg_path, "r", encoding="utf-8") as _f:
+                                    try:
+                                        cfg_data = _json.load(_f)
+                                    except Exception:
+                                        pass
+                            cfg_data["icon_image"] = icon_path
+                            with open(cfg_path, "w", encoding="utf-8") as _f:
+                                _json.dump(cfg_data, _f, ensure_ascii=False)
+            except Exception:
+                pass
             self._mod_dl_progress = {"pct": 100, "nombre": mrpack_name, "estado": "¡Listo!"}
             return {
                 "ok": True,
@@ -5120,7 +5905,7 @@ class Api:
         """Abre file dialog para que el usuario elija un .mrpack local."""
         try:
             result = webview.windows[0].create_file_dialog(
-                webview.OPEN_DIALOG,
+                webview.FileDialog.OPEN,
                 allow_multiple=False,
                 file_types=("Modrinth Modpack (*.mrpack)", "Archivo ZIP (*.zip)", "Todos los archivos (*.*)")
             )
@@ -5297,6 +6082,28 @@ class Api:
                     _json.dump(meta, _mf, ensure_ascii=False, indent=2)
             except Exception:
                 pass
+            # 5) Guardar registro de modpacks
+            try:
+                import json as _jreg
+                registry_path = os.path.join(base, "_paragua_modpacks.json")
+                registry = {}
+                if os.path.exists(registry_path):
+                    with open(registry_path, "r", encoding="utf-8") as _rf:
+                        registry = _jreg.load(_rf)
+                pack_key = pack_name or os.path.basename(ruta_archivo)
+                registry[pack_key] = {
+                    "name": pack_key,
+                    "project_id": "",
+                    "version_id": index.get("versionId", ""),
+                    "mc_version": mc_ver,
+                    "motor": motor,
+                    "files": [e.get("path", "") for e in files_list if e.get("path")],
+                    "estado": "Activo",
+                }
+                with open(registry_path, "w", encoding="utf-8") as _wf:
+                    _jreg.dump(registry, _wf, ensure_ascii=False, indent=2)
+            except Exception:
+                pass
 
             self._mod_dl_progress = {"pct": 100, "nombre": pack_name, "estado": "¡Listo!"}
             log.info("[mrpack] Importado '%s' (%s · %s) → %d/%d archivos, %d errores",
@@ -5316,6 +6123,155 @@ class Api:
         except Exception as e:
             log.error("importar_mrpack_archivo: %s", e, exc_info=True)
             return {"ok": False, "error": str(e)}
+
+    @staticmethod
+    def _elegir_archivo_modrinth(files, tipo="mod"):
+        """Datapacks: solo .zip (nunca .jar de NeoForge/Fabric)."""
+        if not files:
+            return None
+        zips = [
+            f for f in files
+            if (f.get("filename") or "").lower().endswith(".zip")
+        ]
+        if (tipo or "").lower() == "datapack":
+            if not zips:
+                return None
+            return next((f for f in zips if f.get("primary")), zips[0])
+        if zips:
+            return next((f for f in zips if f.get("primary")), zips[0])
+        return next((f for f in files if f.get("primary")), files[0])
+
+    @staticmethod
+    def _version_modrinth_datapack_zip(versiones):
+        """Elige release Modrinth que tenga datapack .zip (no puerto NeoForge .jar)."""
+        candidatos = []
+        for vd in versiones or []:
+            archivo = Api._elegir_archivo_modrinth(vd.get("files", []), "datapack")
+            if archivo:
+                candidatos.append((vd, archivo))
+        if not candidatos:
+            return None, None
+        for vd, ar in candidatos:
+            loaders = {str(x).lower() for x in (vd.get("loaders") or [])}
+            if loaders <= {"minecraft"} or loaders == {"minecraft"}:
+                return vd, ar
+        return candidatos[0]
+
+    def _ruta_datapacks_cliente(self, game_dir, mundo=None):
+        """Minecraft Java: datapacks viven en saves/<mundo>/datapacks/."""
+        saves = os.path.join(game_dir, "saves")
+        mundo = (mundo or "").strip()
+        if mundo:
+            dp = os.path.join(saves, mundo, "datapacks")
+            os.makedirs(dp, exist_ok=True)
+            return dp
+        if os.path.isdir(saves):
+            mundos = []
+            for name in os.listdir(saves):
+                world = os.path.join(saves, name)
+                if os.path.isfile(os.path.join(world, "level.dat")):
+                    mundos.append(name)
+            mundos.sort(
+                key=lambda n: os.path.getmtime(os.path.join(saves, n)),
+                reverse=True,
+            )
+            if mundos:
+                dp = os.path.join(saves, mundos[0], "datapacks")
+                os.makedirs(dp, exist_ok=True)
+                return dp
+        dp = os.path.join(saves, "world", "datapacks")
+        os.makedirs(dp, exist_ok=True)
+        return dp
+
+    def _carpetas_servidores_locales(self):
+        """Todas las carpetas de servidores creados/importados en el launcher."""
+        carpetas, vistos = [], set()
+        for s in (getattr(self, "config_actual", None) or {}).get("srv_lista", []):
+            c = (s.get("carpeta") or "").strip()
+            if c and os.path.isdir(c) and c not in vistos:
+                vistos.add(c)
+                carpetas.append(c)
+        srv = (getattr(self, "_servidor_carpeta", None) or "").strip()
+        if srv and os.path.isdir(srv) and srv not in vistos:
+            carpetas.append(srv)
+        return carpetas
+
+    @staticmethod
+    def _copiar_skin_texturas_pack(pack_path, skin_path, variante="classic"):
+        wide = os.path.join(pack_path, "assets", "minecraft", "textures", "entity", "player", "wide")
+        slim = os.path.join(pack_path, "assets", "minecraft", "textures", "entity", "player", "slim")
+        old = os.path.join(pack_path, "assets", "minecraft", "textures", "entity")
+        for d in (wide, slim, old):
+            os.makedirs(d, exist_ok=True)
+        shutil.copy2(skin_path, os.path.join(wide, "steve.png"))
+        shutil.copy2(skin_path, os.path.join(slim, "alex.png"))
+        shutil.copy2(skin_path, os.path.join(old, "steve.png"))
+
+    @staticmethod
+    def _rebuild_brand_pack_zip(game_dir, pack_name="ParaguacraftBrandPack"):
+        pack_dir = os.path.join(game_dir, "resourcepacks", pack_name)
+        zip_path = os.path.join(game_dir, "resourcepacks", pack_name + ".zip")
+        if not os.path.isdir(pack_dir):
+            return False
+        import zipfile
+        try:
+            if os.path.isfile(zip_path):
+                os.remove(zip_path)
+            with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+                for root, _dirs, files in os.walk(pack_dir):
+                    for fn in files:
+                        if fn.startswith("."):
+                            continue
+                        src = os.path.join(root, fn)
+                        arc = os.path.relpath(src, pack_dir).replace("\\", "/")
+                        zf.write(src, arc)
+            return True
+        except OSError:
+            return False
+
+    def _aplicar_skin_en_game_dir(self, game_dir, skin_path, variante="classic"):
+        pack_name = "ParaguacraftBrandPack"
+        pack_path = os.path.join(game_dir, "resourcepacks", pack_name)
+        os.makedirs(pack_path, exist_ok=True)
+        mcmeta = os.path.join(pack_path, "pack.mcmeta")
+        if not os.path.isfile(mcmeta):
+            with open(mcmeta, "w", encoding="utf-8") as f:
+                f.write('{"pack":{"pack_format":34,"description":"Paraguacraft"}}\n')
+        self._copiar_skin_texturas_pack(pack_path, skin_path, variante)
+        self._rebuild_brand_pack_zip(game_dir, pack_name)
+        try:
+            from core import sincronizar_resourcepack_options
+            usa_zip = os.path.isfile(os.path.join(game_dir, "resourcepacks", pack_name + ".zip"))
+            visible = pack_name + (".zip" if usa_zip else "")
+            sincronizar_resourcepack_options(game_dir, visible, True)
+        except Exception:
+            pass
+        return True
+
+    def _sincronizar_skin_servidores_locales(self, skin_path):
+        """Copia la skin a SkinsRestorer en todos los servidores locales (Paper/Fabric)."""
+        usuario = (getattr(self, "config_actual", None) or {}).get("usuario", "").strip()
+        if not usuario or not os.path.isfile(skin_path):
+            return 0
+        aplicadas = 0
+        rutas_sr = (
+            os.path.join("plugins", "SkinsRestorer", "skins"),
+            os.path.join("plugins", "SkinsRestorer", "Skins"),
+            os.path.join("config", "skinsrestorer", "skins"),
+            os.path.join("config", "SkinsRestorer", "skins"),
+            os.path.join("mods", "skinsrestorer", "skins"),
+        )
+        for carpeta in self._carpetas_servidores_locales():
+            for rel in rutas_sr:
+                dest_dir = os.path.join(carpeta, rel)
+                try:
+                    os.makedirs(dest_dir, exist_ok=True)
+                    dest = os.path.join(dest_dir, usuario + ".png")
+                    shutil.copy2(skin_path, dest)
+                    aplicadas += 1
+                except OSError:
+                    pass
+        return aplicadas
 
     def _ruta_mundo_servidor(self, carpeta_server, mundo=None):
         """Resuelve carpeta world/ del servidor (level-name en server.properties)."""
@@ -5397,7 +6353,7 @@ class Api:
             motor_inst = self._motor_para_instancia(
                 motor, version_mc, getattr(self, "config_actual", None) or {})
             folder = ""
-            if tipo == "datapack" and (carpeta_server or self._servidor_carpeta):
+            if tipo == "datapack" and carpeta_server:
                 world_dir, err = self._ruta_mundo_servidor(carpeta_server, mundo)
                 if err:
                     return {"ok": False, "error": err}
@@ -5405,10 +6361,13 @@ class Api:
             else:
                 folder = carpeta_instancia_paraguacraft(version_mc.strip(), motor_inst)
                 base = os.path.join(mine_dir, "instancias", folder)
-                tipo_mapa = {"mod": "mods", "resourcepack": "resourcepacks",
-                             "shader": "shaderpacks", "datapack": "datapacks",
-                             "modpack": "mods", "plugin": "plugins"}
-                dest_dir = os.path.join(base, tipo_mapa.get(tipo, "mods"))
+                if tipo == "datapack":
+                    dest_dir = self._ruta_datapacks_cliente(base, mundo)
+                else:
+                    tipo_mapa = {"mod": "mods", "resourcepack": "resourcepacks",
+                                 "shader": "shaderpacks", "datapack": "datapacks",
+                                 "modpack": "mods", "plugin": "plugins"}
+                    dest_dir = os.path.join(base, tipo_mapa.get(tipo, "mods"))
             os.makedirs(dest_dir, exist_ok=True)
 
             motor_mr = motor if tipo == "mod" else motor_inst
@@ -5436,17 +6395,33 @@ class Api:
                     return
                 visitados.add(pid_or_slug)
                 try:
+                    primary = None
                     if ver_id_explicito:
                         url = f"https://api.modrinth.com/v2/version/{ver_id_explicito}"
                         r = requests.get(url, timeout=10,
                                          headers={"User-Agent": PARAGUA_HTTP_UA})
                         r.raise_for_status()
                         version_data = r.json()
+                        if tipo == "datapack":
+                            primary = self._elegir_archivo_modrinth(
+                                version_data.get("files", []), "datapack")
+                            if not primary:
+                                proj_id = version_data.get("project_id") or pid_or_slug
+                                params = {"game_versions": f'["{version_mc.strip()}"]'}
+                                r2 = requests.get(
+                                    f"https://api.modrinth.com/v2/project/{proj_id}/version",
+                                    params=params, timeout=10,
+                                    headers={"User-Agent": PARAGUA_HTTP_UA})
+                                r2.raise_for_status()
+                                version_data, primary = self._version_modrinth_datapack_zip(
+                                    r2.json())
                     else:
                         # Buscar version compatible (versión MC + loader)
                         params = {"game_versions": f'["{version_mc.strip()}"]'}
                         if tipo == "mod":
                             params["loaders"] = f'["{loader_mr}"]'
+                        elif tipo == "datapack":
+                            params["loaders"] = '["minecraft"]'
                         url = f"https://api.modrinth.com/v2/project/{pid_or_slug}/version"
                         r = requests.get(url, params=params, timeout=10,
                                          headers={"User-Agent": PARAGUA_HTTP_UA})
@@ -5456,15 +6431,42 @@ class Api:
                             errores.append({"slug": pid_or_slug,
                                             "error": "Sin versión compatible"})
                             return
-                        version_data = versiones[0]
+                        if tipo == "datapack":
+                            version_data, primary = self._version_modrinth_datapack_zip(
+                                versiones)
+                            if not version_data or not primary:
+                                errores.append({
+                                    "slug": pid_or_slug,
+                                    "error": (
+                                        f"No hay datapack .zip para Minecraft "
+                                        f"{version_mc.strip()} (solo hay ports .jar de mods)"
+                                    ),
+                                })
+                                return
+                        else:
+                            version_data = versiones[0]
+                            primary = None
                 except requests.RequestException as _re:
                     errores.append({"slug": pid_or_slug, "error": f"Red: {_re}"})
                     return
 
-                files = version_data.get("files", [])
-                primary = next((f for f in files if f.get("primary")), files[0] if files else None)
+                if primary is None:
+                    files = version_data.get("files", [])
+                    primary = self._elegir_archivo_modrinth(files, tipo)
                 if not primary:
-                    errores.append({"slug": pid_or_slug, "error": "Sin archivo primario"})
+                    if tipo == "datapack":
+                        errores.append({
+                            "slug": pid_or_slug,
+                            "error": "Este release no incluye .zip de datapack",
+                        })
+                    else:
+                        errores.append({"slug": pid_or_slug, "error": "Sin archivo primario"})
+                    return
+                if tipo == "datapack" and not (primary.get("filename") or "").lower().endswith(".zip"):
+                    errores.append({
+                        "slug": pid_or_slug,
+                        "error": "Solo se instalan datapacks en formato .zip",
+                    })
                     return
 
                 filename = primary["filename"]
@@ -5489,18 +6491,19 @@ class Api:
                     if exp_sha1:
                         ya_instalados_sha1.add(exp_sha1.lower())
 
-                # T2: dependencias requeridas
-                for dep in version_data.get("dependencies", []):
-                    if dep.get("dependency_type") != "required":
-                        continue
-                    dep_pid = dep.get("project_id")
-                    dep_vid = dep.get("version_id")
-                    if dep_pid or dep_vid:
-                        self._mod_dl_progress = {
-                            "pct": 0, "nombre": filename,
-                            "estado": f"Resolviendo dependencia de {filename}..."}
-                        _resolver_e_instalar(dep_pid or dep_vid, dep_vid,
-                                             profundidad + 1)
+                # T2: dependencias requeridas (no en datapacks: suelen ser .jar de loader)
+                if tipo != "datapack":
+                    for dep in version_data.get("dependencies", []):
+                        if dep.get("dependency_type") != "required":
+                            continue
+                        dep_pid = dep.get("project_id")
+                        dep_vid = dep.get("version_id")
+                        if dep_pid or dep_vid:
+                            self._mod_dl_progress = {
+                                "pct": 0, "nombre": filename,
+                                "estado": f"Resolviendo dependencia de {filename}..."}
+                            _resolver_e_instalar(dep_pid or dep_vid, dep_vid,
+                                                 profundidad + 1)
 
             self._mod_dl_progress = {"pct": 0, "nombre": "", "estado": "Iniciando..."}
             _resolver_e_instalar(project_id, version_id, 0)
@@ -6112,6 +7115,9 @@ class Api:
         ("extremecraft.net",         25565),
         ("play.fadecloud.com",       25565),
         ("play.minesuperior.com",    25565),
+        ("play.redpvp.com.ar",       25565),
+        ("minebolt.net",             25565),
+        ("play.rhomc.com",           25565),
     ]
 
     def get_jugadores_online_global(self):
@@ -7586,7 +8592,7 @@ class Api:
         try:
             import base64
             result = webview.windows[0].create_file_dialog(
-                webview.OPEN_DIALOG,
+                webview.FileDialog.OPEN,
                 allow_multiple=False,
                 file_types=(
                     'Imágenes y videos (*.png;*.jpg;*.jpeg;*.gif;*.mp4;*.webm)',
@@ -7798,7 +8804,7 @@ class Api:
             game_id = 432  # Minecraft
             class_map = {"mods": 6, "mod": 6, "resourcepacks": 12, "resourcepack": 12,
                          "shaders": 6552, "shader": 6552, "modpacks": 4471, "modpack": 4471,
-                         "datapack": 6, "datapacks": 6}
+                         "datapack": 6945, "datapacks": 6945}
             class_id = class_map.get(tipo, 6)
             # CF sortField: 1=Featured, 2=Popularity, 3=LastUpdated, 4=Name, 6=TotalDownloads
             sort_map = {"relevance": 2, "downloads": 6, "newest": 4, "updated": 3, "follows": 2}
@@ -7977,7 +8983,8 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e), "versions": []}
 
-    def instalar_mod_curseforge(self, project_id, file_id, tipo, version, motor):
+    def instalar_mod_curseforge(self, project_id, file_id, tipo, version, motor,
+                                carpeta_server=None, mundo=None):
         try:
             if not (self._CF_API_KEY or "").strip():
                 return {"ok": False, "error": "Configurá la API key de CurseForge en la tienda (botón CF)."}
@@ -7990,6 +8997,17 @@ class Api:
             file_data = r.json().get("data", {})
             url = file_data.get("downloadUrl") or ""
             filename = file_data.get("fileName") or f"cf_{file_id}.jar"
+            _tipo_cf = {"mods": "mod", "resourcepacks": "resourcepack", "shaders": "shader",
+                        "modpacks": "modpack", "datapacks": "datapack"}.get(
+                (tipo or "").lower(), (tipo or "mod").lower())
+            if _tipo_cf == "datapack" and not filename.lower().endswith(".zip"):
+                return {
+                    "ok": False,
+                    "error": (
+                        f"El archivo '{filename}' no es un datapack .zip. "
+                        "Elegí el release de tipo Data Pack en CurseForge."
+                    ),
+                }
             if not url:
                 _fid = int(file_id)
                 url = f"https://edge.forgecdn.net/files/{_fid // 1000}/{_fid % 1000}/{filename}"
@@ -8000,12 +9018,23 @@ class Api:
             _tipo = {"mods": "mod", "resourcepacks": "resourcepack", "shaders": "shader",
                      "modpacks": "modpack", "datapacks": "datapack"}.get(
                 (tipo or "").lower(), (tipo or "mod").lower())
-            carpeta_tipo = {"mod": "mods", "resourcepack": "resourcepacks",
-                            "shader": "shaderpacks", "modpack": "mods",
-                            "datapack": "datapacks"}.get(_tipo, "mods")
-            folder = carpeta_instancia_paraguacraft(version.strip(), motor_inst)
-            dest = os.path.join(_mcl.utils.get_minecraft_directory(), "instancias",
-                                folder, carpeta_tipo)
+            mine_dir = _mcl.utils.get_minecraft_directory()
+            folder = ""
+            if _tipo == "datapack" and carpeta_server:
+                world_dir, err = self._ruta_mundo_servidor(carpeta_server, mundo)
+                if err:
+                    return {"ok": False, "error": err}
+                dest = os.path.join(world_dir, "datapacks")
+            else:
+                folder = carpeta_instancia_paraguacraft(version.strip(), motor_inst)
+                base = os.path.join(mine_dir, "instancias", folder)
+                if _tipo == "datapack":
+                    dest = self._ruta_datapacks_cliente(base, mundo)
+                else:
+                    carpeta_tipo = {"mod": "mods", "resourcepack": "resourcepacks",
+                                    "shader": "shaderpacks", "modpack": "mods",
+                                    "datapack": "datapacks"}.get(_tipo, "mods")
+                    dest = os.path.join(base, carpeta_tipo)
             os.makedirs(dest, exist_ok=True)
             ruta = os.path.join(dest, filename)
             res = _descargar_archivo_modrinth(
@@ -10764,16 +11793,15 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
-    def aplicar_skin_generada(self):
+    def aplicar_skin_generada(self, variante="classic"):
         try:
             out_path = os.path.join(os.path.expanduser("~"), "AppData", "Roaming",
                                     ".minecraft", "paraguacraft_skin_gen.png")
             if not os.path.exists(out_path):
                 return {"ok": False, "error": "Skin no generada aún."}
-            dest = os.path.join(os.path.expanduser("~"), "AppData", "Roaming",
-                                ".minecraft", "paraguacraft_skin_aplicada.png")
-            shutil.copy2(out_path, dest)
-            return {"ok": True, "ruta": dest.replace("\\", "/")}
+            if self._puede_subir_skin_mojang():
+                return self.subir_skin_premium(out_path, variante)
+            return self.aplicar_skin_offline(out_path, variante)
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
@@ -11008,7 +12036,7 @@ class Api:
     def elegir_archivo_zip(self):
         try:
             result = webview.windows[0].create_file_dialog(
-                webview.OPEN_DIALOG,
+                webview.FileDialog.OPEN,
                 allow_multiple=False,
                 file_types=('ZIP files (*.zip)', 'All files (*.*)')
             )
