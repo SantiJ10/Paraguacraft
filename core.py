@@ -8,6 +8,7 @@ import platform
 import json
 import sys
 import hashlib
+import re
 import threading
 import contextlib
 from datetime import datetime as _dt
@@ -186,6 +187,111 @@ def aplicar_delta_patch(ruta_archivo_viejo, ruta_parche, ruta_archivo_nuevo):
     except Exception as e:
         print(f"Error en la reconstrucción binaria (Delta Patch): {e}")
         return False
+
+def _es_resource_pack_sistema(entrada):
+    e = (entrada or "").strip().strip('"')
+    if e == "vanilla":
+        return True
+    if e.startswith("file/ParaguacraftBrandPack"):
+        return True
+    if e.startswith("file/Pack_Graficos_Minimos"):
+        return True
+    return False
+
+
+def _leer_resource_packs_usuario(lineas):
+    """Extrae packs del jugador ya presentes en options.txt (sin sistema)."""
+    packs = []
+    vistos = set()
+    for linea in lineas:
+        if not linea.startswith("resourcePacks:"):
+            continue
+        for m in re.finditer(r'"((?:[^"\\]|\\.)*)"', linea):
+            inner = m.group(1)
+            if _es_resource_pack_sistema(inner):
+                continue
+            token = f'"{inner}"'
+            if token not in vistos:
+                vistos.add(token)
+                packs.append(token)
+    return packs
+
+
+def _leer_todos_resource_packs(lineas):
+    packs = []
+    vistos = set()
+    for linea in lineas:
+        if not linea.startswith("resourcePacks:"):
+            continue
+        for m in re.finditer(r'"((?:[^"\\]|\\.)*)"', linea):
+            token = f'"{m.group(1)}"'
+            if token not in vistos:
+                vistos.add(token)
+                packs.append(token)
+    return packs
+
+
+def sincronizar_resourcepack_options(game_dir, nombre_visible, activar):
+    """Al activar/desactivar un pack en el gestor, actualiza options.txt."""
+    if not nombre_visible or nombre_visible.startswith("."):
+        return False
+    if nombre_visible in ("ParaguacraftBrandPack", "ParaguacraftBrandPack.zip"):
+        return True
+    if nombre_visible.startswith("Pack_Graficos"):
+        return True
+    options_path = os.path.join(game_dir, "options.txt")
+    lineas = []
+    if os.path.isfile(options_path):
+        with open(options_path, "r", encoding="utf-8", errors="ignore") as f:
+            lineas = f.readlines()
+    packs = _leer_todos_resource_packs(lineas)
+    if not packs:
+        packs = ['"vanilla"']
+    inner = f"file/{nombre_visible}"
+    entrada = f'"{inner}"'
+    packs = [
+        p for p in packs
+        if p.strip('"') != inner and not p.strip('"').endswith("/" + nombre_visible)
+    ]
+    if activar:
+        if entrada not in packs:
+            idx = len(packs)
+            for i, p in enumerate(packs):
+                if _es_resource_pack_sistema(p.strip('"')) and p != '"vanilla"':
+                    idx = i
+                    break
+            packs.insert(idx, entrada)
+    lineas = [l for l in lineas if not l.startswith("resourcePacks:")]
+    if any(not l.startswith("texturepack:") for l in lineas) or activar or packs:
+        lineas.append(f'resourcePacks:[{",".join(packs)}]\n')
+    try:
+        with open(options_path, "w", encoding="utf-8") as f:
+            f.writelines(lineas)
+        return True
+    except OSError:
+        return False
+
+
+def _resource_packs_desde_carpeta(rp_dir, pack_sistema="ParaguacraftBrandPack"):
+    """Packs habilitados en resourcepacks/ (sin .disabled) para sincronizar con options."""
+    if not os.path.isdir(rp_dir):
+        return []
+    packs = []
+    vistos = set()
+    for name in sorted(os.listdir(rp_dir)):
+        if name.startswith(".") or name == pack_sistema:
+            continue
+        if name.endswith(".disabled"):
+            continue
+        full = os.path.join(rp_dir, name)
+        if not (os.path.isfile(full) or os.path.isdir(full)):
+            continue
+        token = f'"file/{name}"'
+        if token not in vistos:
+            vistos.add(token)
+            packs.append(token)
+    return packs
+
 
 def inyectar_logos_paraguacraft(game_dir, version, graficos_minimos, progress_callback=None):
     def _cb(msg):
@@ -473,44 +579,62 @@ def inyectar_logos_paraguacraft(game_dir, version, graficos_minimos, progress_ca
         import zipfile as _zf_pack
         zip_path = os.path.join(game_dir, "resourcepacks", pack_name + ".zip")
         try:
-            if os.path.exists(zip_path): os.remove(zip_path)
-        except Exception: pass
+            if os.path.exists(zip_path):
+                os.remove(zip_path)
+        except Exception:
+            pass
         try:
             with _zf_pack.ZipFile(zip_path, 'w', _zf_pack.ZIP_DEFLATED) as _zf:
-                _zf.writestr("pack.mcmeta", mcmeta_str.encode("utf-8"))
-                for _fname in ["minecraft.png", "mojangstudios.png", "edition.png"]:
-                    _src = os.path.join(textures_gui_title_dir, _fname)
-                    if os.path.exists(_src):
-                        _zf.write(_src, f"assets/minecraft/textures/gui/title/{_fname}")
-            _cb(f"[Logo] ZIP creado: {pack_name}.zip")
+                for root, _dirs, files in os.walk(pack_dir):
+                    for _fname in files:
+                        if _fname.startswith("."):
+                            continue
+                        _src = os.path.join(root, _fname)
+                        _arc = os.path.relpath(_src, pack_dir).replace("\\", "/")
+                        _zf.write(_src, _arc)
+            _cb(f"[Logo] ZIP creado: {pack_name}.zip (con skins/logos)")
         except Exception as _ze:
             _cb(f"[Logo] Error ZIP: {_ze}")
 
     options_path = os.path.join(game_dir, "options.txt")
+    rp_dir = os.path.join(game_dir, "resourcepacks")
     lineas = []
     if os.path.exists(options_path):
-        with open(options_path, "r") as f: lineas = f.readlines()
-    
+        with open(options_path, "r", encoding="utf-8", errors="ignore") as f:
+            lineas = f.readlines()
+
+    # Solo lo que el jugador guardó en options.txt (p. ej. packs activados en el menú del juego).
+    packs_usuario = _leer_resource_packs_usuario(lineas)
+
     lineas = [l for l in lineas if not l.startswith("resourcePacks:")]
-    lineas = [l for l in lineas if not l.startswith("incompatibleResourcePacks:")]
     lineas = [l for l in lineas if not l.startswith("texturepack:")]
-    
+
     if version_mayor < 6:
         if aplica_marca_menu:
             lineas.append(f'texturepack:{pack_name}.zip\n')
     elif version_mayor < 13:
-        packs = []
-        if graficos_minimos: packs.append('"Pack_Graficos_Minimos.zip"')
-        if aplica_marca_menu: packs.append(f'"{pack_name}"')
-        if len(packs) > 0: lineas.append(f'resourcePacks:[{",".join(packs)}]\n')
+        packs = list(packs_usuario)
+        if graficos_minimos:
+            g = '"Pack_Graficos_Minimos.zip"'
+            if g not in packs:
+                packs.append(g)
+        if aplica_marca_menu:
+            b = f'"{pack_name}"'
+            if b not in packs:
+                packs.append(b)
+        if packs:
+            lineas.append(f'resourcePacks:[{",".join(packs)}]\n')
     else:
         packs = ['"vanilla"']
-        if graficos_minimos: packs.append('"file/Pack_Graficos_Minimos.zip"')
+        packs.extend(packs_usuario)
+        if graficos_minimos:
+            g = '"file/Pack_Graficos_Minimos.zip"'
+            if g not in packs:
+                packs.append(g)
         if aplica_marca_menu:
-            if usa_nuevo_schema:
-                packs.append(f'"file/{pack_name}.zip"')
-            else:
-                packs.append(f'"file/{pack_name}"')
+            b = f'"file/{pack_name}.zip"' if usa_nuevo_schema else f'"file/{pack_name}"'
+            if b not in packs:
+                packs.append(b)
         lineas.append(f'resourcePacks:[{",".join(packs)}]\n')
     
     with open(options_path, "w") as f: f.writelines(lineas)
@@ -1447,6 +1571,15 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
     instalar_mods_por_motor(game_dir, version_base, motor_elegido, progress_callback, lan_distancia, minecraft_directory)
         
     instalar_extras_graficos(game_dir, version_base, progress_callback, optimizar)
+
+    options_txt_path = os.path.join(game_dir, "options.txt")
+    servers_dat_path = os.path.join(game_dir, "servers.dat")
+    if GestorNube is not None:
+        try:
+            GestorNube().descargar_datos(username, options_txt_path, servers_dat_path)
+        except Exception:
+            pass
+
     inyectar_logos_paraguacraft(game_dir, version_base, optimizar, progress_callback)
     inyectar_splash_paraguacraft(game_dir, version_base, motor_elegido, progress_callback)
 
@@ -1595,18 +1728,6 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
         # Versión moderna de OpenGL para MC 1.17+
         entorno.setdefault("MESA_GL_VERSION_OVERRIDE", "4.6")
         entorno.setdefault("MESA_GLSL_VERSION_OVERRIDE", "460")
-
-    options_txt_path = os.path.join(game_dir, "options.txt")
-    servers_dat_path = os.path.join(game_dir, "servers.dat")
-
-    if GestorNube is not None:
-        try:
-            import threading as _threading
-            _threading.Thread(
-                target=lambda: GestorNube().descargar_datos(username, options_txt_path, servers_dat_path),
-                daemon=True).start()
-        except Exception:
-            pass
 
     if progress_callback:
         progress_callback("¡Abriendo Paraguacraft!")

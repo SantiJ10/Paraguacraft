@@ -4,7 +4,7 @@
 
 **Launcher completo de Minecraft, desarrollado en Python con interfaz web moderna.**
 
-[![Version](https://img.shields.io/badge/versi%C3%B3n-6.1.0-2ECC71?style=flat-square)](https://github.com/SantiJ10/Paraguacraft/releases)
+[![Version](https://img.shields.io/badge/versi%C3%B3n-6.3.0-2ECC71?style=flat-square)](https://github.com/SantiJ10/Paraguacraft/releases)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![License](https://img.shields.io/badge/licencia-MIT-blue?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/plataforma-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)](https://github.com/SantiJ10/Paraguacraft/releases)
@@ -64,6 +64,7 @@ Paraguacraft es un launcher de Minecraft completamente personalizado, desarrolla
 - **Log interno del launcher** accesible desde la UI (rotado automáticamente, máx. 15 MB)
 
 ### 🛡️ Estabilidad y robustez
+- **Auto-refresh de sesión Microsoft**: hilo daemon que refresca el token cada 50 minutos — evita la expiración frecuente (tokens expiran a los 60 min). Arranca al cargar sesión y tras cada login
 - **Sesión Microsoft refresh sincrónico**: el token se refresca antes de lanzar Minecraft, evitando kicks por `Invalid session` en servers anti-cheat (Hypixel, CubeCraft)
 - **Username consistente con Mojang**: el launcher prioriza el `name` real de la cuenta MS sobre el cacheado en config
 - **Descarga atómica de mods**: cada `.jar` se baja a `.part`, se valida con SHA-1 contra Modrinth y recién entonces se renombra al destino. Ante MITM, corrupción o truncado, el `.part` se borra automáticamente
@@ -127,9 +128,10 @@ Paraguacraft es un launcher de Minecraft completamente personalizado, desarrolla
 - **Logging estructurado** con archivo rotatorio (`paraguacraft_debug.log`) para diagnóstico remoto
 - **Timeouts reforzados** en todas las llamadas HTTP para evitar cuelgues silenciosos
 - Notificaciones nativas de Windows
-- Noticias de Minecraft en la pantalla de inicio
+- **Noticias interactivas en Inicio**: cards con imagen oficial, categoría, fecha y enlace a Minecraft.net. Datos en tiempo real desde la API de Mojang
+- **Sección Modrinth en Inicio**: los 8 mods más descargados con ícono, descripción y contador de descargas
 - Contador de jugadores online en tiempo real
-- Ping en vivo a servidores populares
+- Ping en vivo a servidores populares (Hypixel, CubeCraft, Wynncraft, Minemen, JartexNetwork, ExtremeCraft, FadeCloud, MineSuperior, RedPVP, Minebolt, RhoMC)
 
 ### 🖥️ Compatibilidad Windows
 - Compatible con **Windows 10 y 11** en todas las ediciones (Home, Pro, Enterprise, LTSC)
@@ -237,6 +239,23 @@ Paraguacraft/
 ---
 
 ## 📝 Changelog
+
+### v6.3.0
+- **Noticias interactivas en Inicio**: cards con imagen, categoría, fecha y enlace a Minecraft.net (API Mojang en tiempo real)
+- **Sección Modrinth en Inicio**: 8 mods más descargados con ícono, descripción y descargas
+- **Íconos reales de servidores**: `mcsrvstat.us` para todos los cards de servidores públicos
+- **3 servidores nuevos**: RedPVP, Minebolt, RhoMC con Auto-Join, ping y badge No-Premium
+- **Auto-refresh sesión MS**: token refrescado cada 50 min en background — sin expiración frecuente
+- **Auto-Join mejorado**: usa la última versión jugada sin requerir ir a Versiones primero
+- **Quick Play**: eliminado `sticky` que causaba overlap con la navbar
+- **Login overlay**: fondo con `main_banner.png` + botón MS con ícono SVG oficial
+
+### v6.2.0
+- **Versiones Mojang en picker**: carga completa desde `piston-meta.mojang.com` con fallback a `minecraft-launcher-lib` — ya no aparece vacío
+
+### v6.1.0
+- **Panel Versiones rediseñado**: grid de instancias con imagen, motor, última vez jugada, botones por card
+- **Wizard de primera vez**: guía paso a paso al abrir el launcher por primera vez
 
 ### v6.0.0
 - **Login Microsoft unificado**: un botón → modal con navegador + QR; código copiable; QR solo a `microsoft.com/link`

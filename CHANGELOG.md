@@ -3,7 +3,50 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
-<<<<<<< HEAD
+## [6.3.0] - 2026-05-26
+
+### ✨ Novedades
+- **Noticias interactivas en Inicio**: cards con imagen oficial, categoría, fecha y enlace directo a las noticias de Minecraft. Datos en tiempo real desde la API de Mojang.
+- **Sección "Descubrí en Modrinth"**: row horizontal con los 8 mods más descargados de Modrinth (ícono, nombre, descripción, descargas). Clic abre la tienda de mods del launcher.
+- **Íconos reales de servidores**: todos los cards de Servidores Públicos y Quick Play ahora usan `api.mcsrvstat.us/icon/{ip}` — el ícono real del servidor Minecraft, no un favicon genérico.
+- **Servidores nuevos**: RedPVP (`play.redpvp.com.ar`), Minebolt (`minebolt.net`) y RhoMC (`play.rhomc.com`) agregados con íconos, descripción, badge No-Premium, ping en tiempo real y Auto-Join.
+- **Auto-refresh de sesión Microsoft**: hilo daemon que refresca el `access_token` cada 50 minutos — evita la expiración frecuente (tokens expiran a los 60 min). Arranca al cargar sesión guardada y tras cada login exitoso. Guard flag para prevenir hilos duplicados.
+
+### 🔧 Mejoras
+- **Quick Play**: eliminada la posición `sticky` que causaba superposición visual con la navbar al scrollear.
+- **Auto-Join**: ahora usa `get_ultima_version_jugada()` en vez de leer el selector de versiones (que podía estar vacío). Funciona desde Servidores Públicos sin necesidad de ir a Versiones primero.
+- **Login Microsoft UI**: fondo del overlay de login reemplazado por `main_banner.png` con gradiente oscuro. Botón de Microsoft con ícono SVG oficial.
+- **Ping tracker**: RedPVP, Minebolt y RhoMC agregados a `_SERVIDORES_GLOBAL` para ping en tiempo real.
+- **Refresco de token al arrancar**: si hay sesión guardada, se lanza un refresh inmediato en background al iniciar el launcher.
+
+### 🐛 Arreglos
+- IPs incorrectas de RedPVP/Minebolt/RhoMC en `pingTodosServidores` y `_newSrvCards` corregidas.
+- `_iniciar_auto_refresh_ms` idempotente: múltiples llamadas no generan hilos duplicados.
+
+---
+
+## [6.2.0] - 2026-05-24
+
+### ✨ Novedades
+- **Versiones Mojang en "Crear instancia"**: el picker de versiones ahora carga la lista completa desde `piston-meta.mojang.com` con fallback a `minecraft-launcher-lib`. Ya no aparece vacío.
+
+### 🔧 Mejoras
+- Fallback a múltiples URLs de manifest de versiones para mayor robustez.
+
+---
+
+## [6.1.0] - 2026-05-23
+
+### ✨ Novedades
+- **Panel "Versiones" completamente rediseñado**: grid de instancias con imagen de versión, último motor, última vez jugada, botones Jugar/Gestionar/Eliminar por card.
+- **Wizard de primera vez**: guía paso a paso al abrir el launcher por primera vez (bienvenida → cuenta → versión recomendada → listo).
+
+### 🔧 Mejoras
+- Indicadores de sesión mejorados en el header.
+- Transiciones y animaciones refinadas en la UI.
+
+---
+
 ## [6.0.0] - 2026-05-22
 
 ### ✨ Novedades
@@ -55,8 +98,6 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ---
 
-=======
->>>>>>> 5e62d720d56f2129240ec588e1b161ca4c8070be
 ## [5.7.0] - 2026-05-18
 
 ### 🐛 Fixes críticos
