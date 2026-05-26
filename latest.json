@@ -1,8 +1,8 @@
 {
   "version": "6.3.0",
   "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v6.3.0/Paraguacraft.exe",
-  "size_bytes": 53431299,
-  "sha256": "c4d986f32f442eddf4aff8fa470ee80ef53345361108897581cdf806515d4a9a",
+  "size_bytes": 53431989,
+  "sha256": "f0d17e1e8c3504b28a106510edcc05b4cba1d1ba3fa4b8e03d94d080016c7d2c",
   "notes": "- Noticias interactivas en Inicio con imagenes oficiales y links a Minecraft.net\n- Seccion Modrinth en Inicio: 8 mods mas descargados\n- Iconos reales de servidores (mcsrvstat.us) en Quick Play y Servidores Publicos\n- 3 servidores nuevos: RedPVP, Minebolt, RhoMC con Auto-Join y ping\n- Auto-refresh de sesion Microsoft cada 50 min (evita expiracion frecuente)\n- Auto-Join usa la ultima version jugada (ya no requiere ir a Versiones primero)\n- Quick Play: eliminado overlap visual con la navbar"
 }
 
