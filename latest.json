@@ -1,8 +1,8 @@
 {
-  "version": "6.5.0",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v6.5.0/Paraguacraft.exe",
-  "size_bytes": 53435709,
-  "sha256": "998fb391b9ebf8f24f23c36dd316433e0079cd674357f5b1f2779d5780164c79",
-  "notes": "- Instancias y modpacks se lanzan correctamente desde la Biblioteca (boton ▶ y ▶ Jugar)\n- Spinner de lanzamiento persiste hasta que el juego se cierra y se resetea solo\n- Servidor Fabric: inicia correctamente con fabric-server-launch.jar\n- Plugins/mods en servidores Fabric se instalan en /mods en lugar de /plugins\n- Proteccion contra sobreescritura silenciosa al crear instancias con el mismo motor/version\n- Nuevo selector de version del loader Fabric por instancia (Biblioteca → ⚙ → Instalacion)\n- Badge 'corriendo' en tarjetas de biblioteca corregido para motores multi-palabra (Fabric + Iris)"
+  "version": "6.6.0",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v6.6.0/Paraguacraft.exe",
+  "size_bytes": 53544420,
+  "sha256": "4ee5151d95cab065617a50472f0004b0d63e73bb5b2583d21d8507cb44cd1e48",
+  "notes": "- Bot Discord: todas las llamadas RCON ahora corren en hilos separados (asyncio.to_thread) — el bot ya no se desconecta cuando el servidor MC esta caido\n- Bot Discord: comando !partido y herramienta buscar_proximo_partido con fallback a busqueda web cuando la API no tiene el partido\n- Bot Discord: cache de API de futbol ya no guarda errores ni respuestas vacias por 60 minutos\n- Bot Discord: nuevos aliases de equipos (boca juniors, paris saint germain, etc.)"
 }
 

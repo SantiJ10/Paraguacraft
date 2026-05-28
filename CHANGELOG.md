@@ -3,6 +3,17 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [6.6.0] - 2026-05-28
+
+### 🤖 Bot Discord
+
+- **RCON no bloquea más el event loop**: todas las llamadas a `MCRcon` (vigilar jugadores, `!partido`, `!estado`, `!cmd`, `!dia`, `!noche`, `!sol`, `!kick`, `!ban`, `!op`, `!dificultad`, `!gamemode`, `!tp`, `!tpall`, `!anuncio`, `!guardar`) ahora corren en `asyncio.to_thread()`. El heartbeat de Discord ya no se bloquea cuando el servidor MC está caído o tarda en responder.
+- **`!partido` y `buscar_proximo_partido` con fallback web**: si la API de fútbol no tiene registrado el partido (o devuelve vacío), el bot busca automáticamente en DuckDuckGo y muestra los resultados con embed.
+- **Caché de API de fútbol corregida**: respuestas vacías ya no se guardan por 60 minutos — expiran en 2 min para reintentarse pronto. Los errores de API (rate limit, acceso denegado) directamente no se cachean.
+- **Aliases de equipos ampliados**: `boca juniors`, `paris saint germain`, `paris sg`, `paris saint-germain` agregados al diccionario de alias para búsquedas más robustas.
+
+---
+
 ## [6.5.0] - 2026-05-26
 
 ### 🐛 Arreglos

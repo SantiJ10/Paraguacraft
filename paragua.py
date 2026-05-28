@@ -45,7 +45,7 @@ except Exception:
     log = logging.getLogger("paraguacraft.main")
     _LOG_PATH = ""
 
-VERSION = "6.5.0"  # Actualizar en cada release
+VERSION = "6.6.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 # Opcional: URL de Cloudflare Pages con latest.json (sin rate limits, CDN global)
 # Formato del JSON: {"version":"5.2.0", "download_url":"...", "size_bytes":0, "notes":"..."}
@@ -196,6 +196,8 @@ class Api:
         # RLock permite re-entrar desde el mismo hilo (ej: _guardar dentro de
         # un método que ya tomó el lock externamente).
         self._config_lock = threading.RLock()
+        self._ms_refresh_lock = threading.Lock()   # un solo hilo refresca a la vez
+        self._ms_last_refresh_ts = 0               # epoch del último refresh exitoso
         self.ms_data = None
         self.rpc = None
         self.hilo_juego_activo = False
@@ -562,31 +564,90 @@ class Api:
                     log.warning("[MS AutoRefresh] Error: %s", e)
         threading.Thread(target=_loop, daemon=True, name="ms-auto-refresh").start()
 
-    def _refresh_ms_token(self):
-        """Refresca el access_token de MS usando el refresh_token persistido.
+    def _cerrar_sesion_ms_silencioso(self):
+        """Limpia sesión MS muerta (sin tocar la ventana). Llama evaluate_js solo para
+        actualizar los labels de usuario — sin restore/show/minimize."""
+        log.warning("[MS] Sesión definitivamente inválida — limpiando automáticamente.")
+        self.ms_data = None
+        self.config_actual["is_premium"] = False
+        self.config_actual["usuario"] = "Invitado"
+        threading.Thread(target=self._guardar, daemon=True).start()
+        try:
+            if os.path.exists(self.ruta_sesion):
+                os.remove(self.ruta_sesion)
+        except Exception:
+            pass
+        def _ui():
+            import time as _t; _t.sleep(0.2)
+            try:
+                import webview as _wv
+                if _wv.windows:
+                    _wv.windows[0].evaluate_js(
+                        "try{actualizarUiUsuario('Invitado',false);}catch(_){}"
+                        "try{document.getElementById('nav-username')&&"
+                        "(document.getElementById('nav-username').innerText='Invitado');}catch(_){}")
+            except Exception:
+                pass
+        threading.Thread(target=_ui, daemon=True).start()
 
-        Devuelve True si refrescó OK, False si falló. Sin sesión → True (no-op).
-        IMPORTANTE: usar `_validar_sesion_ms_blocking()` antes de lanzar MC
-        para servers premium — esto es solo el refresh "best effort" del
-        background.
+    def _refresh_ms_token(self):
+        """Refresca la sesión MS completa con lock para evitar race conditions.
+        1. Adquiere _ms_refresh_lock → solo un hilo refresca a la vez.
+        2. Si hubo un refresh exitoso en los últimos 55 min, lo saltea (ya está fresco).
+        3. Llama al endpoint de Microsoft y guarda el nuevo refresh_token rotado.
+        4. Rehace la cadena Xbox Live → XSTS → Minecraft.
+
+        Devuelve True si OK o no era necesario, False si falló.
         """
         if not self.ms_data:
             return True
-        try:
-            from minecraft_launcher_lib.microsoft_account import refresh_authorization_token
-            cid = self.ms_data.get("ms_client_id", CLIENT_ID)
-            redirect = REDIRECT_URI if cid == CLIENT_ID else None
-            new_data = refresh_authorization_token(
-                cid, None, redirect, self.ms_data["refresh_token"])
-            if new_data and "access_token" in new_data:
+        old_refresh = self.ms_data.get("refresh_token", "")
+        if not old_refresh:
+            log.warning("[MS Refresh] No hay refresh_token guardado.")
+            return False
+        with self._ms_refresh_lock:
+            # Re-leer refresh token ya dentro del lock (otro hilo pudo haberlo rotado)
+            old_refresh = self.ms_data.get("refresh_token", "") if self.ms_data else ""
+            if not old_refresh:
+                return False
+            # Si ya se refrescó hace menos de 55 min no hace falta volver a hacerlo
+            if time.time() - self._ms_last_refresh_ts < 55 * 60:
+                log.info("[MS Refresh] Token fresco (refrescado hace %.0f min), saltando.",
+                         (time.time() - self._ms_last_refresh_ts) / 60)
+                return True
+            try:
+                cid = self.ms_data.get("ms_client_id", CLIENT_ID)
+                # Paso 1: refrescar el token OAuth de Microsoft directamente
+                r = requests.post(
+                    "https://login.microsoftonline.com/consumers/oauth2/v2.0/token",
+                    data={
+                        "client_id":     cid,
+                        "grant_type":    "refresh_token",
+                        "refresh_token": old_refresh,
+                        "scope":         "XboxLive.signin offline_access",
+                    },
+                    timeout=20)
+                if r.status_code != 200:
+                    log.warning("[MS Refresh] Token endpoint devolvió %d: %s",
+                                r.status_code, r.text[:200])
+                    return False
+                oauth = r.json()
+                new_ms_access  = oauth.get("access_token", "")
+                new_ms_refresh = oauth.get("refresh_token", old_refresh)  # guardar el rotado
+                if not new_ms_access:
+                    log.warning("[MS Refresh] Respuesta sin access_token: %s", oauth)
+                    return False
+                # Paso 2: cadena completa Xbox Live → XSTS → Minecraft
+                new_data = self._ms_login_desde_tokens(new_ms_access, new_ms_refresh)
                 self.ms_data.update(new_data)
                 with open(self.ruta_sesion, "w") as f:
                     json.dump(self.ms_data, f)
+                self._ms_last_refresh_ts = time.time()
+                log.info("[MS Refresh] Sesión renovada OK para %s.", self.ms_data.get("name"))
                 return True
-            return False
-        except Exception as e:
-            log.warning("[MS Refresh] Error al refrescar token: %s", e)
-            return False
+            except Exception as e:
+                log.warning("[MS Refresh] Error al refrescar token: %s", e)
+                return False
 
     def _validar_sesion_ms_blocking(self, timeout=8):
         """Valida que el access_token siga siendo aceptado por Mojang
@@ -624,12 +685,13 @@ class Api:
                 return {"ok": True, "name": profile.get("name"),
                         "uuid": profile.get("id")}
             if r.status_code in (401, 403):
-                # Token vencido / inválido → intentar refresh
-                log.info("[MS Validate] Token vencido (%d), refrescando...", r.status_code)
+                # Token vencido / inválido → esperar a que el startup refresh termine
+                # (evita race condition donde ambos usan el mismo refresh token)
+                log.info("[MS Validate] Token vencido (%d), esperando lock de refresh...", r.status_code)
                 if not self._refresh_ms_token():
+                    self._cerrar_sesion_ms_silencioso()
                     return {"ok": False,
-                            "error": "Token de Microsoft vencido y no se pudo refrescar. "
-                                     "Cerrá sesión y volvé a iniciar."}
+                            "error": "Sesión Microsoft vencida. Iniciá sesión nuevamente desde el menú."}
                 # Reintentar con el token nuevo
                 r2 = requests.get(
                     "https://api.minecraftservices.com/minecraft/profile",
@@ -648,9 +710,9 @@ class Api:
                         pass
                     return {"ok": True, "name": profile.get("name"),
                             "uuid": profile.get("id")}
+                self._cerrar_sesion_ms_silencioso()
                 return {"ok": False,
-                        "error": f"Sesión MS inválida tras refresh (HTTP {r2.status_code}). "
-                                 f"Cerrá sesión y volvé a iniciar."}
+                        "error": "Sesión Microsoft vencida. Iniciá sesión nuevamente desde el menú."}
             return {"ok": False,
                     "error": f"Mojang respondió HTTP {r.status_code}. Intentá de nuevo."}
         except requests.RequestException as e:
@@ -664,6 +726,10 @@ class Api:
         try:
             from minecraft_launcher_lib.microsoft_account import get_login_url
             url = get_login_url(CLIENT_ID, REDIRECT_URI)
+            # Forzar selector de cuenta: evita que MS redirija directo a
+            # oauth20_desktop.srf?removed=true cuando hay sesión cerrada previa
+            sep = '&' if '?' in url else '?'
+            url = f"{url}{sep}prompt=select_account"
             try:
                 webbrowser.open(url)
             except Exception:
@@ -1837,10 +1903,10 @@ class Api:
             if now - _last_ui_update[0] >= 0.4:
                 _last_ui_update[0] = now
                 _js = f"actualizarEstadoPanel({json.dumps(str(msg))})"
-                threading.Thread(
-                    target=lambda: webview.windows[0].evaluate_js(_js),
-                    daemon=True
-                ).start()
+                def _eval_safe(_j=_js):
+                    try: webview.windows[0].evaluate_js(_j)
+                    except Exception: pass
+                threading.Thread(target=_eval_safe, daemon=True).start()
 
         def _log_launch(msg):
             for _ld in [
@@ -5543,6 +5609,65 @@ class Api:
             "creando": self._servidor_creando,
         }
 
+
+    def obtener_info_skin(self, username=None, uuid=None):
+        """Devuelve skin_url, cape_url y model ('classic'|'slim') para un jugador.
+
+        Si no se pasa username/uuid, usa la cuenta MS activa del launcher.
+        Usa la Session Server API de Mojang → datos 100% precisos.
+        """
+        import base64 as _b64, json as _j2
+        try:
+            if not uuid and not username:
+                if self.ms_data:
+                    uuid     = self.ms_data.get("id")
+                    username = self.ms_data.get("name", "")
+                else:
+                    return {"ok": False, "error": "Sin sesión y sin username"}
+
+            # Resolver username → uuid si solo tenemos nombre
+            if username and not uuid:
+                r = requests.get(
+                    f"https://api.mojang.com/users/profiles/minecraft/{username}",
+                    timeout=8)
+                if r.status_code in (204, 404):
+                    return {"ok": False, "error": f"Jugador '{username}' no encontrado"}
+                r.raise_for_status()
+                data = r.json()
+                uuid     = data.get("id", "")
+                username = data.get("name", username)
+
+            # Perfil con texturas
+            r = requests.get(
+                f"https://sessionserver.mojang.com/session/minecraft/profile/{uuid}",
+                timeout=8)
+            r.raise_for_status()
+            profile = r.json()
+            name = profile.get("name", username or "?")
+
+            tex_prop = next(
+                (p for p in profile.get("properties", []) if p["name"] == "textures"),
+                None)
+            if not tex_prop:
+                return {"ok": True, "name": name, "uuid": uuid,
+                        "skin_url": None, "cape_url": None, "model": "classic"}
+
+            decoded  = _j2.loads(_b64.b64decode(tex_prop["value"]).decode("utf-8"))
+            textures = decoded.get("textures", {})
+            skin_info = textures.get("SKIN", {})
+            cape_info = textures.get("CAPE", {})
+            model = "slim" if skin_info.get("metadata", {}).get("model") == "slim" else "classic"
+
+            return {
+                "ok":       True,
+                "name":     name,
+                "uuid":     uuid,
+                "skin_url": skin_info.get("url"),
+                "cape_url": cape_info.get("url"),
+                "model":    model,
+            }
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
 
     def guardar_skin(self, skin_url, nombre="skin"):
         import re
