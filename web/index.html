@@ -17,7 +17,7 @@
             npx tailwindcss -i input.css -o web/assets/tailwind.min.css --minify
     -->
     <link rel="stylesheet" href="assets/tailwind.min.css">
-    <script src="https://unpkg.com/skinview3d@2.1.1/bundles/skinview3d.browser.js"></script>
+    <script src="assets/skinview3d.bundle.js"></script>
     <style>
         /* Font stack global con fallback explícito para emojis al final.
            Sin esto, emojis dentro de spans heredados del body pueden renderizar
@@ -119,7 +119,7 @@
     </div>
 
     <!-- Login Microsoft (estilo ATLauncher, estilo Paraguacraft) -->
-    <div id="ms-login-modal" class="hidden absolute inset-0 z-[210] bg-black/85 flex items-center justify-center backdrop-blur-sm">
+    <div id="ms-login-modal" class="hidden fixed inset-0 flex items-center justify-center" style="z-index:10010;background:rgba(0,0,0,0.85);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)">
         <div class="bg-[#1A1A1A] border border-[#2A2A2A] rounded-2xl w-[400px] max-w-[94vw] shadow-2xl overflow-hidden">
             <div class="flex items-center justify-between px-5 py-4 border-b border-[#2A2A2A]">
                 <h3 class="font-black text-white text-base">Iniciar sesión con Microsoft</h3>
@@ -691,7 +691,7 @@
     </div>
 
     <!-- WIZARD DE PRIMERA VEZ -->
-    <div id="wizard-modal" class="absolute inset-0 z-[400] bg-black/95 hidden flex items-center justify-center backdrop-blur-md">
+    <div id="wizard-modal" class="fixed inset-0 items-center justify-center" style="display:none;z-index:10000;background:rgba(8,8,8,0.97);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)">
         <div class="bg-[#0F0F0F] w-[640px] max-h-[90vh] rounded-2xl border border-[#2ECC71]/30 shadow-[0_0_60px_rgba(46,204,113,0.15)] flex flex-col overflow-hidden">
             <!-- Indicator (mejorado: barras + nombres por paso) -->
             <div class="px-8 pt-6 pb-2">
@@ -766,7 +766,7 @@
                 <p class="text-sm text-gray-400">Elegí cómo querés iniciar sesión. Podés cambiarlo después en Ajustes.</p>
                 <div class="grid grid-cols-2 gap-3">
                     <button onclick="wizardLoginMicrosoft()" class="bg-[#181818] hover:border-[#3498DB] border-2 border-[#2A2A2A] rounded-xl p-5 transition text-left flex flex-col gap-2 group">
-                        <div class="flex items-center gap-2"><span class="text-3xl">🟦</span><span class="font-black text-white">Microsoft</span></div>
+                        <div class="flex items-center gap-2"><svg class="w-7 h-7 shrink-0" viewBox="0 0 23 23" aria-hidden="true"><rect x="1" y="1" width="10" height="10" fill="#f25022"/><rect x="12" y="1" width="10" height="10" fill="#7fba00"/><rect x="1" y="12" width="10" height="10" fill="#00a4ef"/><rect x="12" y="12" width="10" height="10" fill="#ffb900"/></svg><span class="font-black text-white">Microsoft</span></div>
                         <p class="text-[11px] text-gray-500 leading-snug">Cuenta premium oficial. Acceso a servidores online, skin oficial, multiplayer público.</p>
                         <span class="text-[10px] text-[#3498DB] font-bold mt-auto group-hover:underline">Iniciar sesión →</span>
                     </button>
@@ -3657,7 +3657,8 @@
             try { if ((await pywebview.api.get_settings()).config.auto_update_check !== false) setTimeout(verificarActualizaciones, 3000); } catch(e) { setTimeout(verificarActualizaciones, 3000); }
             setTimeout(cargarDatosInicio, 500);
             setTimeout(initExtras, 800);
-            setTimeout(() => { try { wizardComprobarYAbrir(); } catch(e) {} }, 1500);
+            // Esperar a que se vaya el splash (3150ms) antes de chequear el wizard
+            setTimeout(() => { try { wizardComprobarYAbrir(); } catch(e) {} }, 3500);
             verificarModoOffline();
             setInterval(verificarModoOffline, 60000);
         }
@@ -4620,7 +4621,7 @@
             if (btn) btn.classList.add('border-b-2', 'border-[#2ECC71]', 'pb-1', 'text-white');
             const bread = document.getElementById("breadcrumb");
             if (bread) bread.innerText = ruta;
-            if (idVista === 'skins' && !_skinCatLoaded) buscarCatalogoSkins();
+            if (idVista === 'skins') { if (!_skinCatLoaded) buscarCatalogoSkins(); cargarMiSkinActual(); }
             if (idVista === 'herramientas') { herTab('estadisticas'); pingTodosServidores(); }
             if (idVista === 'servidores') { initServerCards(); pingTodosServidores(); }
             if (idVista === 'mods') { buscarTiendaActual(); tiendaCargarVers(); cargarFeaturedMods(); setTimeout(autoCheckModUpdates, 2500); }
@@ -6459,8 +6460,10 @@
             const v = document.getElementById('panel-version-sel').value;
             const l = document.getElementById('panel-loader-sel').value;
             if (!v) { alert('Seleccioná una versión primero.'); return; }
+            const btn = document.getElementById('btn-launch-game');
+            if (btn) { btn.innerText = 'Iniciando...'; btn.classList.replace('bg-[#2ECC71]', 'bg-gray-600'); btn.disabled = true; }
             const javaOk = await preflightJava(v);
-            if (!javaOk) return;  // Usuario canceló
+            if (!javaOk) { resetLaunchButton(); return; }
             _lanzarJuegoReal(v, l);
         }
 
@@ -7540,7 +7543,7 @@
         // --- SKINS CATÁLOGO ---
         let _skinCatLoaded = false;
         let _skinCatPageNum = 1;
-        const _skinCatPageSize = 10;
+        const _skinCatPageSize = 15;
         const _skinCatPlayers = [
             'Dream','Technoblade','Notch','jeb_','Dinnerbone','Grumm','MrBeast',
             'xNestorio','Quackity','TommyInnit','Tubbo','Wilbur_Soot','Philza',
@@ -7584,17 +7587,42 @@
             }
 
             grid.innerHTML = '';
-            players.forEach(name => {
+            players.forEach((name, idx) => {
+                const globalIdx = q ? idx : (_skinCatPageNum - 1) * _skinCatPageSize + idx;
                 grid.innerHTML += `
-                <div class="flex flex-col items-center gap-2 bg-[#181818] border border-[#2A2A2A] rounded-xl p-3 hover:border-[#2ECC71] transition cursor-pointer group" onclick="aplicarSkinDesdeNombre('${name}')">
-                    <img src="https://minotar.net/armor/body/${name}/100.png" class="h-24 object-contain" loading="lazy" onerror="this.src='https://minotar.net/armor/body/Steve/100.png'">
-                    <span class="text-xs font-bold text-gray-300 group-hover:text-[#2ECC71] truncate w-full text-center">${name}</span>
+                <div class="relative bg-[#181818] border border-[#2A2A2A] rounded-xl overflow-hidden hover:border-[#2ECC71] transition cursor-pointer group select-none"
+                     onclick="skinCatVerJugador('${name}')">
+                    <span class="absolute top-1.5 left-2 text-[10px] font-bold text-gray-600 z-10">#${globalIdx+1}</span>
+                    <div class="w-full flex items-end justify-center" style="height:160px;background:linear-gradient(180deg,#0d1520 0%,#111 100%)">
+                        <img src="https://minotar.net/armor/body/${name}/160.png"
+                             style="height:148px;object-fit:contain;object-position:bottom"
+                             loading="lazy" onerror="this.src='https://minotar.net/armor/body/Steve/160.png'">
+                    </div>
+                    <div class="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span class="text-white font-black text-sm px-2 text-center">${name}</span>
+                        <div class="flex gap-1.5">
+                            <button class="bg-[#2ECC71] text-black font-bold text-xs px-3 py-1.5 rounded-lg"
+                                onclick="event.stopPropagation(); skinCatVerJugador('${name}')">&#128065; Ver 3D</button>
+                            <button class="bg-[#333] text-white text-xs px-3 py-1.5 rounded-lg border border-[#555]"
+                                onclick="event.stopPropagation(); aplicarSkinDesdeNombre('${name}')">&#11015; Aplicar</button>
+                        </div>
+                    </div>
+                    <div class="px-2 py-1.5 bg-[#111] border-t border-[#222]">
+                        <p class="text-[11px] font-bold text-gray-300 truncate text-center">${name}</p>
+                    </div>
                 </div>`;
             });
 
             _skinCatLoaded = true;
             const lbl = document.getElementById('skin-cat-lbl');
             if (lbl) lbl.textContent = q ? 'Búsqueda: ' + q : 'Página ' + _skinCatPageNum;
+        }
+
+        function skinCatVerJugador(nombre) {
+            const buscEl = document.getElementById('buscador-skin');
+            if (buscEl) buscEl.value = nombre;
+            skinTab('jugador');
+            actualizarVistaSkin();
         }
 
         function skinCatPage(dir) {
@@ -7641,8 +7669,13 @@
                             try {
                                 if (window._impViewer) { try { window._impViewer.dispose(); } catch(e){} window._impViewer = null; }
                                 window._impViewer = new skinview3d.SkinViewer({ canvas, width: 160, height: 290, skin: previewUrl });
-                                window._impViewer.autoRotate = true;
-                                window._impViewer.autoRotateSpeed = 1;
+                                window._impViewer.autoRotate = false;
+                                try {
+                                    const ctrl = skinview3d.createOrbitControls(window._impViewer);
+                                    ctrl.enableRotate = true; ctrl.enableZoom = true; ctrl.enablePan = false;
+                                    ctrl.minPolarAngle = 0; ctrl.maxPolarAngle = Math.PI; ctrl.rotateSpeed = 0.6;
+                                } catch(_) {}
+                                canvas.style.cursor = 'grab';
                             } catch(e) {
                                 const ctx = canvas.getContext('2d');
                                 const img = new Image();
@@ -7715,8 +7748,13 @@
             try {
                 if (_impUrlViewer) { try { _impUrlViewer.dispose(); } catch(e){} _impUrlViewer = null; }
                 _impUrlViewer = new skinview3d.SkinViewer({ canvas, width: 160, height: 290, skin: url });
-                _impUrlViewer.autoRotate = true;
-                _impUrlViewer.autoRotateSpeed = 1;
+                _impUrlViewer.autoRotate = false;
+                try {
+                    const ctrl = skinview3d.createOrbitControls(_impUrlViewer);
+                    ctrl.enableRotate = true; ctrl.enableZoom = true; ctrl.enablePan = false;
+                    ctrl.minPolarAngle = 0; ctrl.maxPolarAngle = Math.PI; ctrl.rotateSpeed = 0.6;
+                } catch(_) {}
+                canvas.style.cursor = 'grab';
                 const variante = document.getElementById('imp-skin-url-variante')?.value || 'classic';
                 try { _impUrlViewer.playerObject.skin.slim = (variante === 'slim'); } catch(e) {}
             } catch(e) {
@@ -7785,19 +7823,57 @@
 
         async function actualizarVistaSkin() {
             const nombre  = ((document.getElementById('buscador-skin') || {}).value || '').trim() || 'Steve';
-            // Crafatar respeta el slim hint y soporta capas; minotar es fallback
-            // si Crafatar cae. Empezamos con minotar para mantener compatibilidad.
-            const skinUrl = `https://minotar.net/skin/${nombre}`;
-            window._skinUrl = skinUrl;
             window._skinNombre = nombre;
-            const headImg = document.getElementById('skin-head-render');
             const nomLbl  = document.getElementById('skin-jugador-nombre');
             const urlLbl  = document.getElementById('skin-url-lbl');
+            const headImg = document.getElementById('skin-head-render');
             const canvas  = document.getElementById('skin-3d-canvas');
-            if (headImg) { headImg.style.display = 'block'; headImg.src = `https://minotar.net/helm/${nombre}/128.png`; }
-            if (nomLbl)  nomLbl.innerText = nombre;
+            const capeBtn = document.getElementById('btn-skin-cape');
+            if (nomLbl) nomLbl.textContent = nombre + ' · cargando...';
+
+            // Siempre usar minotar para el renderer (CORS-safe en pywebview).
+            // Backend solo para detectar modelo slim/classic y UUID para la capa.
+            let skinUrl = `https://minotar.net/skin/${encodeURIComponent(nombre)}`;
+            let capaUrl = null, isSlim = false;
+            try {
+                const info = await pywebview.api.obtener_info_skin(nombre, null);
+                if (info && info.ok) {
+                    isSlim = info.model === 'slim';
+                    // Capa via Crafatar por UUID (CORS-safe)
+                    capaUrl = (info.cape_url && info.uuid)
+                        ? `https://crafatar.com/capes/${info.uuid}?overlay`
+                        : null;
+                    if (info.name && nomLbl) nomLbl.textContent = info.name;
+                } else if (nomLbl) nomLbl.textContent = nombre;
+            } catch(e) {
+                if (nomLbl) nomLbl.textContent = nombre;
+            }
+            window._skinUrl  = skinUrl;
+            window._skinSlim = isSlim;
+            if (headImg) headImg.src = `https://minotar.net/helm/${encodeURIComponent(nombre)}/128.png`;
             if (urlLbl)  urlLbl.innerText = skinUrl;
-            if (!canvas || typeof skinview3d === 'undefined') return;
+            // Actualizar botón modelo
+            const slimBtn = document.getElementById('btn-skin-slim');
+            if (slimBtn) slimBtn.textContent = isSlim ? '👗 Alex' : '👕 Steve';
+            if (!canvas) return;
+            // Esperar hasta 5s si skinview3d todavía está descargando del CDN
+            let _wait = 0;
+            while (typeof skinview3d === 'undefined' && _wait < 50) {
+                await new Promise(r => setTimeout(r, 100));
+                _wait++;
+            }
+            if (typeof skinview3d === 'undefined') {
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0,0,canvas.width,canvas.height);
+                    ctx.fillStyle = '#E74C3C'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
+                    ctx.fillText('No se pudo cargar', canvas.width/2, canvas.height/2 - 10);
+                    ctx.fillText('skinview3d (CDN)', canvas.width/2, canvas.height/2 + 8);
+                    ctx.fillStyle = '#888'; ctx.font = '10px sans-serif';
+                    ctx.fillText('Verificá tu conexión', canvas.width/2, canvas.height/2 + 28);
+                }
+                return;
+            }
             try {
                 if (window._skinViewer) { try { window._skinViewer.dispose(); } catch(e){} window._skinViewer = null; }
                 const v = new skinview3d.SkinViewer({
@@ -7809,21 +7885,68 @@
                 window._skinViewer = v;
                 v.autoRotate = window._skinAutoRot;
                 v.autoRotateSpeed = 0.8;
-                // Asegurar que controls (drag + zoom) estén activos
+                // Crear OrbitControls manualmente (API de skinview3d 2.2.1)
                 try {
-                    if (v.controls) {
-                        v.controls.enableRotate = true;
-                        v.controls.enableZoom = true;
-                        v.controls.enablePan = false;
-                    }
-                } catch(e) {}
+                    const ctrl = skinview3d.createOrbitControls(v);
+                    ctrl.enableRotate = true;
+                    ctrl.enableZoom   = true;
+                    ctrl.enablePan    = false;
+                    ctrl.minPolarAngle = 0;
+                    ctrl.maxPolarAngle = Math.PI;
+                    ctrl.rotateSpeed = 0.6;
+                    ctrl.zoomSpeed   = 0.8;
+                    v._orbitCtrl = ctrl;
+                    canvas.style.cursor = 'grab';
+                } catch(eC) { console.warn('[skin] createOrbitControls falló:', eC); }
                 // Variante (slim/classic)
-                try { v.playerObject.skin.slim = !!window._skinSlim; } catch(e) {}
+                try { v.playerObject.skin.slim = isSlim; } catch(e) {}
                 // Aplicar pose actual
                 _applySkinPose(window._skinPose);
-                // Capa (si está activa, intentar cargarla — Mojang via minotar no expone, dejamos opcional)
-                if (window._skinCape) _trySkinCargarCapa();
-            } catch(e) { console.error('Skin 3D error:', e); }
+                // Capa: cargar automáticamente si el jugador la tiene
+                if (capaUrl) {
+                    window._skinCape = true;
+                    if (capeBtn) { capeBtn.textContent = '🦸 Capa ✓'; capeBtn.disabled = false; }
+                    try { v.loadCape(capaUrl); } catch(e) {}
+                } else {
+                    window._skinCape = false;
+                    if (capeBtn) { capeBtn.textContent = '🦸 Sin capa'; capeBtn.disabled = true; capeBtn.style.opacity = '0.4'; }
+                    try { v.loadCape(null); } catch(e) {}
+                }
+            } catch(e) {
+                console.error('Skin 3D error:', e);
+                try {
+                    const ctx = canvas.getContext('2d');
+                    if (ctx) {
+                        ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0,0,canvas.width,canvas.height);
+                        ctx.fillStyle = '#E74C3C'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
+                        ctx.fillText('Error al renderizar 3D', canvas.width/2, 30);
+                        ctx.fillStyle = '#aaa'; ctx.font = '10px monospace';
+                        const msg = String(e && e.message || e || 'desconocido');
+                        // word-wrap simple
+                        const words = msg.split(' '); let line = '', y = 55;
+                        for (const w of words) {
+                            const test = line + w + ' ';
+                            if (ctx.measureText(test).width > canvas.width - 16) {
+                                ctx.fillText(line, canvas.width/2, y); line = w + ' '; y += 14;
+                            } else line = test;
+                        }
+                        ctx.fillText(line, canvas.width/2, y);
+                    }
+                } catch(_) {}
+            }
+        }
+
+        async function cargarMiSkinActual() {
+            // Pre-rellena el input con el nombre del usuario logueado, pero NO
+            // cambia de pestaña (el catálogo sigue siendo el default al entrar).
+            try {
+                const usuario = await pywebview.api.get_usuario();
+                if (usuario && usuario.nombre && usuario.nombre !== 'Invitado') {
+                    const nombre = usuario.nombre.replace(' [PREMIUM]', '').trim();
+                    const buscEl = document.getElementById('buscador-skin');
+                    if (buscEl && !buscEl.value) buscEl.value = nombre;
+                }
+            } catch(e) {}
         }
 
         function _applySkinPose(pose) {
@@ -7921,14 +8044,15 @@
         }
 
         function skin3DToggleCape() {
-            window._skinCape = !window._skinCape;
-            const btn = document.getElementById('btn-skin-cape');
             if (!window._skinViewer) return;
+            const btn = document.getElementById('btn-skin-cape');
+            if (btn && btn.disabled) return; // no hay capa disponible
+            window._skinCape = !window._skinCape;
             if (window._skinCape) {
                 if (btn) btn.textContent = '🦸 Capa ✓';
                 _trySkinCargarCapa();
             } else {
-                if (btn) btn.textContent = '🦸 Capa';
+                if (btn) btn.textContent = '🦸 Capa ✘';
                 try { window._skinViewer.loadCape(null); } catch(e) {}
             }
         }
@@ -8788,16 +8912,26 @@
             } catch(e) { console.warn('[Wizard] check falló:', e); }
         }
         function wizardAbrir() {
-            _wizPaso = 1;
-            wizardActualizarUI();
-            const m = document.getElementById('wizard-modal');
-            m.classList.remove('hidden');
-            m.style.display = 'flex';
+            try {
+                _wizPaso = 1;
+                const m = document.getElementById('wizard-modal');
+                if (!m) { console.error('[Wizard] #wizard-modal no existe en el DOM'); return; }
+                // Forzar visible: limpiar cualquier hidden + display inline
+                m.classList.remove('hidden');
+                m.style.setProperty('display', 'flex', 'important');
+                wizardActualizarUI();
+                console.log('[Wizard] Abierto (paso ' + _wizPaso + ')');
+            } catch(e) {
+                console.error('[Wizard] Error al abrir:', e);
+                alert('Error al abrir el wizard: ' + e.message);
+            }
         }
         function wizardCerrar() {
             const m = document.getElementById('wizard-modal');
-            m.classList.add('hidden');
-            m.style.display = 'none';
+            if (m) {
+                m.classList.add('hidden');
+                m.style.setProperty('display', 'none', 'important');
+            }
             if (_wizJavaPoll) { clearInterval(_wizJavaPoll); _wizJavaPoll = null; }
             _wizCuentaDetenerPoll();
         }
@@ -8952,7 +9086,9 @@
         // PASO 3: cuenta
         let _wizCuentaPoll = null;
         function wizardLoginMicrosoft() {
-            if (typeof loginMicrosoft === 'function') loginMicrosoft();
+            // Solo abrir el modal de login MS (con opciones QR/navegador).
+            // No disparar automáticamente el navegador — el usuario elige.
+            if (typeof abrirLoginMicrosoft === 'function') abrirLoginMicrosoft();
             const info = document.getElementById('wiz-cuenta-info');
             if (info) {
                 info.textContent = '⏳ Completá el login en la ventana de Microsoft que se abrió...';
@@ -8964,6 +9100,8 @@
         }
         function _wizCuentaIniciarPoll() {
             if (_wizCuentaPoll) return;
+            const inicio = Date.now();
+            const TIMEOUT_MS = 5 * 60 * 1000; // 5 minutos
             _wizCuentaPoll = setInterval(async () => {
                 if (_wizPaso !== 3) { _wizCuentaDetenerPoll(); return; }
                 try {
@@ -8971,10 +9109,35 @@
                     const u = (r && r.config && r.config.usuario) || '';
                     const prem = !!(r && r.config && r.config.is_premium);
                     if (prem && u && u !== 'Invitado') {
+                        // Cerrar el modal de Microsoft si quedó abierto
+                        try { if (typeof cerrarLoginMicrosoft === 'function') cerrarLoginMicrosoft(); } catch(_) {}
                         const info = document.getElementById('wiz-cuenta-info');
                         if (info) {
                             info.textContent = `✅ Sesión Microsoft iniciada como ${u}`;
                             info.className = 'bg-[#2ECC71]/10 border border-[#2ECC71]/30 rounded-lg p-3 text-xs text-[#2ECC71] font-bold';
+                            info.classList.remove('hidden');
+                        }
+                        _wizCuentaDetenerPoll();
+                        return;
+                    }
+                    // Detectar si el usuario cerró el modal sin loguearse
+                    const modal = document.getElementById('ms-login-modal');
+                    const modalCerrado = modal && modal.classList.contains('hidden');
+                    if (modalCerrado && Date.now() - inicio > 3000) {
+                        const info = document.getElementById('wiz-cuenta-info');
+                        if (info) {
+                            info.textContent = '⚠️ Login cancelado. Probá de nuevo o continuá como invitado.';
+                            info.className = 'bg-[#F39C12]/10 border border-[#F39C12]/30 rounded-lg p-3 text-xs text-[#F39C12] font-bold';
+                            info.classList.remove('hidden');
+                        }
+                        _wizCuentaDetenerPoll();
+                        return;
+                    }
+                    if (Date.now() - inicio > TIMEOUT_MS) {
+                        const info = document.getElementById('wiz-cuenta-info');
+                        if (info) {
+                            info.textContent = '❌ Tiempo de espera agotado. Intentá de nuevo.';
+                            info.className = 'bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-xs text-red-400 font-bold';
                             info.classList.remove('hidden');
                         }
                         _wizCuentaDetenerPoll();
@@ -9049,12 +9212,17 @@
         let _preflightContinuar = null;  // callback to fire after install
         let _preflightMajor = 21;
         let _preflightPoll = null;
+        const _preflightCache = {};
+        const _PREFLIGHT_TTL = 5 * 60 * 1000;
 
         async function preflightJava(version) {
             // Devuelve true si Java sirve, false si el usuario canceló.
             // Si no sirve, abre modal y espera resolución.
             try {
+                const cached = _preflightCache[version];
+                if (cached && (Date.now() - cached.ts) < _PREFLIGHT_TTL && cached.sirve) return true;
                 const r = await pywebview.api.verificar_java_para_version(version);
+                if (r && r.sirve) _preflightCache[version] = { sirve: true, ts: Date.now() };
                 if (!r || !r.ok) return true;  // En caso de error, dejamos pasar (no bloqueamos)
                 if (r.sirve) return true;
                 _preflightMajor = r.major_requerido || 21;
