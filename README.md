@@ -240,6 +240,19 @@ Paraguacraft/
 
 ## 📝 Changelog
 
+### v6.5.0
+- **Lanzamiento desde Biblioteca**: instancias y modpacks inician correctamente al presionar ▶ en la tarjeta o ▶ Jugar en el detalle — spinner persiste hasta que el juego se cierra (timeout 60 min para modpacks pesados)
+- **Servidor Fabric**: `iniciar_servidor` detecta y usa `fabric-server-launch.jar` correctamente; antes intentaba `server.jar` que no existe en Fabric
+- **Plugins en servidor Fabric**: instalación de mods/plugins apunta a `/mods` en vez de `/plugins` (afectaba Geyser, listado, eliminación, toggle y subida)
+- **Badge "corriendo" en Biblioteca**: corregida comparación de motor que nunca matcheaba para motores con espacios (ej: `Fabric + Iris`)
+- **Protección contra sobreescritura de instancias**: avisa si ya existe una instancia con distinto nombre para la misma versión/motor en vez de sobreescribir silenciosamente
+- **Selector de versión del loader Fabric por instancia**: en Biblioteca → ⚙ Configuración → Instalación; útil cuando un modpack requiere una versión específica del loader
+
+### v6.4.0
+- **Nombre de modpacks Modrinth**: los modpacks instalados (ej: Fabulously Optimized) ahora muestran su título real en vez del string de versión (ej: "6.3.0-beta.4")
+- **Guardar nombre en Biblioteca**: editar el nombre de una instancia desde Biblioteca → ⚙ Configuración ahora persiste correctamente entre reinicios
+- **Botón ▶ en tarjeta de instancia**: muestra spinner de carga, valida Java con `preflightJava` antes de lanzar y restaura el estado del botón al terminar el juego
+
 ### v6.3.0
 - **Noticias interactivas en Inicio**: cards con imagen, categoría, fecha y enlace a Minecraft.net (API Mojang en tiempo real)
 - **Sección Modrinth en Inicio**: 8 mods más descargados con ícono, descripción y descargas
