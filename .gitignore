@@ -21,3 +21,5 @@ paraguacraft_session.json
 paraguacraft_sessions.json
 paraguacraft_stats.json
 *_original.html
+# Local Netlify folder
+.netlify
