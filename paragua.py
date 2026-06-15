@@ -3785,6 +3785,130 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e), "resultados": resultados}
 
+    # ── Cliente dedicado Paraguacraft PvP (1.8.9 Forge + OptiFine HD U M5) ─────
+    def _descargar_mods_cliente_pvp(self, mods_dir):
+        """Descarga el cliente PvP + OptiFine HD U M5 a mods_dir.
+        Fuente principal: archivos versionados en el repo (GitHub raw).
+        Fallback: copia local bundleada junto al launcher (clientes/paraguacraft-pvp).
+        Verifica SHA-1 para no dejar JARs corruptos en la instancia."""
+        import hashlib as _hl
+        base_url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/clientes/paraguacraft-pvp/"
+        _app_base = sys._MEIPASS if getattr(sys, "frozen", False) else os.path.dirname(os.path.abspath(__file__))
+        local_dir = os.path.join(_app_base, "clientes", "paraguacraft-pvp")
+        archivos = [
+            ("ParaguacraftPvP-1.0.0.jar", "2ba02048210a4c674c3f0d31338a7b4be0c625e0"),
+            ("OptiFine_1.8.9_HD_U_M5.jar", "d362d58a28f5373b141b9e426e8e160638bfafcd"),
+        ]
+        os.makedirs(mods_dir, exist_ok=True)
+        resultados = []
+        for fname, sha1_exp in archivos:
+            dest = os.path.join(mods_dir, fname)
+            if os.path.exists(dest) and (not sha1_exp or _sha1_de_archivo(dest) == sha1_exp):
+                resultados.append(f"✅ {fname} (ya estaba)")
+                continue
+            data = None
+            try:
+                r = requests.get(base_url + fname, timeout=120,
+                                 headers={"User-Agent": PARAGUA_HTTP_UA})
+                if r.status_code == 200 and r.content:
+                    data = r.content
+            except Exception:
+                data = None
+            if data is None:
+                local_src = os.path.join(local_dir, fname)
+                if os.path.exists(local_src):
+                    try:
+                        with open(local_src, "rb") as _f:
+                            data = _f.read()
+                    except OSError:
+                        data = None
+            if data is None:
+                resultados.append(f"⚠️ No se pudo obtener {fname}")
+                continue
+            if sha1_exp and _hl.sha1(data).hexdigest() != sha1_exp:
+                resultados.append(f"⚠️ {fname}: checksum SHA-1 inválido (descarga corrupta)")
+                continue
+            with open(dest, "wb") as _f:
+                _f.write(data)
+            resultados.append(f"✅ {fname} instalado")
+        return resultados
+
+    def preparar_cliente_pvp(self):
+        """Instala todo lo necesario para el cliente Paraguacraft PvP:
+        Minecraft 1.8.9 + Forge 1.8.9, una instancia aislada propia y, dentro de su
+        carpeta mods/, el cliente PvP + OptiFine 1.8.9 HD U M5. Idempotente."""
+        import minecraft_launcher_lib as _mcl
+        from core import (carpeta_instancia_paraguacraft as _cia, _asegurar_java_runtime,
+                          _java_exe_para_mc, CLIENTE_PVP_MOTOR, CLIENTE_PVP_VERSION)
+        ver = CLIENTE_PVP_VERSION
+        motor = CLIENTE_PVP_MOTOR
+        mc_dir = _mcl.utils.get_minecraft_directory()
+        resultados = []
+        try:
+            # 1) Base vanilla 1.8.9 (requerida por el instalador de Forge)
+            try:
+                _mcl.install.install_minecraft_version(ver, mc_dir, callback={"setStatus": lambda s: None})
+                resultados.append(f"✅ Minecraft {ver} (base) listo")
+            except Exception as _be:
+                resultados.append(f"⚠️ Base {ver}: {_be}")
+            # 2) Java runtime bundled + Forge 1.8.9
+            _asegurar_java_runtime(ver, mc_dir, None)
+            java_exe = _java_exe_para_mc(mc_dir)
+            java_bin = os.path.dirname(java_exe) if java_exe != "java" else ""
+            orig_path = os.environ.get("PATH", "")
+            if java_bin and java_bin not in orig_path:
+                os.environ["PATH"] = java_bin + os.pathsep + orig_path
+            try:
+                versions_dir = os.path.join(mc_dir, "versions")
+                ya_forge = False
+                if os.path.isdir(versions_dir):
+                    for v in os.listdir(versions_dir):
+                        if (ver in v and "forge" in v.lower() and "neoforge" not in v.lower()
+                                and os.path.exists(os.path.join(versions_dir, v, v + ".json"))):
+                            ya_forge = True
+                            break
+                if ya_forge:
+                    resultados.append(f"✅ Forge {ver} ya instalado")
+                else:
+                    forge_ver = _mcl.forge.find_forge_version(ver)
+                    if forge_ver:
+                        try:
+                            _mcl.forge.install_forge_version(forge_ver, mc_dir, java=java_exe, callback={"setStatus": lambda s: None})
+                        except TypeError:
+                            _mcl.forge.install_forge_version(forge_ver, mc_dir, callback={"setStatus": lambda s: None})
+                        resultados.append(f"✅ Forge {ver} instalado")
+                    else:
+                        resultados.append(f"⚠️ Forge no disponible para {ver}")
+            finally:
+                os.environ["PATH"] = orig_path
+            # 3) Instancia aislada + config
+            carpeta = os.path.join(mc_dir, "instancias", _cia(ver, motor))
+            mods_dir = os.path.join(carpeta, "mods")
+            os.makedirs(mods_dir, exist_ok=True)
+            cfg_path = os.path.join(carpeta, "_paragua_instance.json")
+            cfg = {}
+            if os.path.exists(cfg_path):
+                try:
+                    with open(cfg_path) as _f:
+                        cfg = json.load(_f)
+                except Exception:
+                    cfg = {}
+            cfg.update({"mc_version": ver, "loader": "forge", "cliente": "paraguacraft-pvp"})
+            cfg.setdefault("ram_gb", self.config_actual.get("ram_asignada", 4))
+            with open(cfg_path, "w", encoding="utf-8") as _f:
+                json.dump(cfg, _f, ensure_ascii=False)
+            # 4) Cliente PvP + OptiFine HD U M5 dentro de la instancia
+            resultados.extend(self._descargar_mods_cliente_pvp(mods_dir))
+            return {"ok": True, "version": ver, "motor": motor,
+                    "instancia": _cia(ver, motor), "resultados": resultados}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "resultados": resultados}
+
+    def lanzar_cliente_pvp(self, server_ip=""):
+        """Lanza el cliente Paraguacraft PvP usando su instancia dedicada."""
+        from core import CLIENTE_PVP_MOTOR, CLIENTE_PVP_VERSION
+        return self.lanzar_juego(CLIENTE_PVP_VERSION, CLIENTE_PVP_MOTOR, server_ip)
+
     # ── Exportar instancia ────────────────────────────────────────────────────
     def exportar_instancia(self, carpeta):
         import zipfile, datetime
