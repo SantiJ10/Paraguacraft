@@ -165,6 +165,14 @@ def inyectar_splash_paraguacraft(game_dir, version_base, motor_elegido, progress
     # ── Forge / NeoForge: no se inyecta nada (Forge no soporta config de splash vía TOML) ──
 
 
+# ── Cliente dedicado Paraguacraft PvP (1.8.9 Forge + OptiFine HD U M5) ──────────
+# Motor "virtual": se comporta como Forge a nivel de instalación/lanzamiento, pero
+# tiene su propia instancia aislada (Paraguacraft_1.8.9_Paraguacraft_PvP) y sus
+# mods (cliente PvP + OptiFine) los inyecta paragua.preparar_cliente_pvp().
+CLIENTE_PVP_MOTOR = "Paraguacraft PvP"
+CLIENTE_PVP_VERSION = "1.8.9"
+
+
 def carpeta_instancia_paraguacraft(version_base, motor_elegido):
     """Mismo criterio en todo el launcher (logs, mods, RPC)."""
     nombre_limpio_motor = motor_elegido.replace(" ", "_").replace("+", "Plus")
@@ -844,6 +852,11 @@ def instalar_mods_por_motor(game_dir, version, motor_elegido, progress_callback,
     motor_lower = motor_elegido.lower()
     headers = {"User-Agent": "ParaguacraftLauncher/2.1"}
 
+    # Cliente dedicado Paraguacraft PvP: sus mods (cliente + OptiFine) los gestiona
+    # preparar_cliente_pvp(); no descargamos nada de Modrinth acá.
+    if "paraguacraft pvp" in motor_lower:
+        return
+
     if motor_lower == "vanilla" or motor_lower.startswith("optifine") or "neoforge" in motor_lower or ("forge" in motor_lower and "neo" not in motor_lower and "fabric" not in motor_lower and "iris" not in motor_lower and "optifine" not in motor_lower):
         return
 
@@ -1328,6 +1341,9 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
     motor_lower = motor_elegido.lower()
     if "neoforge" in motor_lower:
         tipo_cliente_base = "NeoForge"
+    elif "paraguacraft pvp" in motor_lower:
+        # Cliente dedicado: base Forge 1.8.9 (los mods PvP + OptiFine ya están en la instancia).
+        tipo_cliente_base = "Forge"
     elif "quilt" in motor_lower:
         tipo_cliente_base = "Quilt"
     elif "fabric" in motor_lower:
