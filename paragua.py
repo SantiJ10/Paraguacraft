@@ -45,7 +45,7 @@ except Exception:
     log = logging.getLogger("paraguacraft.main")
     _LOG_PATH = ""
 
-VERSION = "6.7.0"  # Actualizar en cada release
+VERSION = "6.8.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 # Opcional: URL de Cloudflare Pages con latest.json (sin rate limits, CDN global)
 # Formato del JSON: {"version":"5.2.0", "download_url":"...", "size_bytes":0, "notes":"..."}

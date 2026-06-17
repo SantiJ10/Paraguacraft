@@ -1,6 +1,6 @@
 [Setup]
 AppName=Paraguacraft
-AppVersion=6.7.0
+AppVersion=6.8.0
 AppPublisher=Jaful
 DefaultDirName={autopf}\Paraguacraft
 DefaultGroupName=Paraguacraft
@@ -10,7 +10,7 @@ SetupIconFile=C:\Users\San\Documents\Amin\Paraguacraft\iconomc.ico
 Compression=lzma2/ultra
 SolidCompression=yes
 OutputDir=C:\Users\San\Documents\Amin\Paraguacraft
-OutputBaseFilename=Instalar_Paraguacraft_v6.7.0
+OutputBaseFilename=Instalar_Paraguacraft_v6.8.0
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"

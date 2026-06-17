@@ -1636,16 +1636,6 @@
                             <select id="panel-loader-sel" class="bg-[#121212] border border-[#2A2A2A] text-white p-2 rounded outline-none w-full text-sm font-bold cursor-pointer"><option value="Vanilla">Vanilla</option></select>
                         </div>
                     </div>
-                    <!-- Cliente dedicado Paraguacraft PvP (1.8.9 Forge + OptiFine HD U M5) -->
-                    <div class="mb-3 rounded-xl border border-[#E74C3C]/50 bg-gradient-to-br from-[#E74C3C]/10 to-transparent p-3">
-                        <div class="flex items-center justify-between mb-1">
-                            <h4 class="font-black text-[#E74C3C] text-sm">⚔ Cliente Paraguacraft PvP</h4>
-                            <span class="text-[10px] bg-[#2A2A2A] text-gray-400 px-2 py-0.5 rounded font-mono">1.8.9 · Forge</span>
-                        </div>
-                        <p class="text-[11px] text-gray-400 leading-snug mb-2">HUD/GUI custom + OptiFine HD U M5, en su propia instancia.</p>
-                        <button id="btn-cliente-pvp" onclick="descargarYJugarClientePvp()" class="w-full bg-[#E74C3C] hover:bg-[#C0392B] text-white font-black py-2 rounded transition text-xs">⬇ Descargar y Jugar</button>
-                        <p id="cliente-pvp-estado" class="text-center text-[10px] text-gray-500 mt-1 min-h-[12px]"></p>
-                    </div>
                     <div id="panel-launch-row" class="flex gap-2 mt-3 pb-2">
                         <button id="btn-launch-game" onclick="dispararJuego()" class="flex-1 bg-[#2ECC71] hover:bg-[#27AE60] text-black font-black py-3 rounded shadow-[0_0_15px_rgba(46,204,113,0.2)] transition transform hover:scale-[1.01]">▶ JUGAR</button>
                         <button id="btn-stop-mc" onclick="cerrarMinecraft(false)" oncontextmenu="event.preventDefault(); cerrarMinecraft(true); return false;" class="hidden bg-[#E74C3C] hover:bg-[#C0392B] text-white font-black px-3 py-3 rounded transition" title="Cerrar Minecraft (clic derecho = forzar)">🛑</button>
@@ -5728,33 +5718,6 @@
             } catch(e) {
                 if (prog) prog.classList.add('hidden');
                 if (res) { res.classList.remove('hidden'); res.innerHTML = `<p class="text-xs text-red-400">❌ ${e}</p>`; }
-            }
-        }
-        async function descargarYJugarClientePvp() {
-            const btn = document.getElementById('btn-cliente-pvp');
-            const est = document.getElementById('cliente-pvp-estado');
-            const _reset = () => { if (btn) { btn.disabled = false; btn.textContent = '⬇ Descargar y Jugar'; } };
-            if (btn) { btn.disabled = true; btn.textContent = '⏳ Preparando...'; }
-            if (est) est.textContent = 'Instalando 1.8.9 + Forge + OptiFine HD U M5...';
-            try {
-                const r = await pywebview.api.preparar_cliente_pvp();
-                if (!r || !r.ok) {
-                    if (est) est.textContent = '❌ ' + ((r && r.error) || 'Error al preparar');
-                    _reset();
-                    return;
-                }
-                if (est) est.textContent = '✅ Cliente listo, lanzando...';
-                const vs = document.getElementById('panel-version-sel');
-                const ls = document.getElementById('panel-loader-sel');
-                if (vs) { if (![...vs.options].some(o => o.value === '1.8.9')) vs.add(new Option('1.8.9', '1.8.9')); vs.value = '1.8.9'; }
-                if (ls) { if (![...ls.options].some(o => o.value === 'Paraguacraft PvP')) ls.add(new Option('Paraguacraft PvP', 'Paraguacraft PvP')); ls.value = 'Paraguacraft PvP'; }
-                const javaOk = await preflightJava('1.8.9');
-                if (!javaOk) { _reset(); return; }
-                _lanzarJuegoReal('1.8.9', 'Paraguacraft PvP');
-                _reset();
-            } catch (e) {
-                if (est) est.textContent = '❌ ' + e;
-                _reset();
             }
         }
         function gestorInstRamLabel(val) {
