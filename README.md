@@ -4,7 +4,7 @@
 
 **Launcher completo de Minecraft, desarrollado en Python con interfaz web moderna.**
 
-[![Version](https://img.shields.io/badge/versi%C3%B3n-6.6.0-2ECC71?style=flat-square)](https://github.com/SantiJ10/Paraguacraft/releases)
+[![Version](https://img.shields.io/badge/versi%C3%B3n-6.7.0-2ECC71?style=flat-square)](https://github.com/SantiJ10/Paraguacraft/releases)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![License](https://img.shields.io/badge/licencia-MIT-blue?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/plataforma-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)](https://github.com/SantiJ10/Paraguacraft/releases)
@@ -24,7 +24,8 @@ Paraguacraft es un launcher de Minecraft completamente personalizado, desarrolla
 ## ✨ Características
 
 ### 🎮 Juego
-- Soporte para **Vanilla, Fabric, Forge, Quilt, NeoForge y Fabric + Iris**
+- Soporte para **Vanilla, Fabric, Forge, Quilt, NeoForge, Fabric + Iris y PvP (1.8.9)**
+- **Cliente Paraguacraft PvP (1.8.9)**: loader dedicado que instala Forge `11.15.1.2318`, OptiFine HD U M5 y el mod cliente con HUD/GUI custom — descarga automática desde GitHub con verificación SHA-1
 - Múltiples instancias independientes por versión y loader
 - Quick Play: conectar directamente a un servidor al iniciar
 - Discord Rich Presence (RPC) en tiempo real
@@ -197,7 +198,7 @@ El ejecutable queda en `dist/Paraguacraft.exe`.
 3. Recompilar CSS (si hubo cambios en index.html)
 4. pyinstaller Paraguacraft.spec --noconfirm
 5. certutil -hashfile dist\Paraguacraft.exe SHA256
-6. Actualizar latest.json (version, download_url, sha256)
+6. Actualizar latest.json (version, download_url del **Instalar_Paraguacraft_vX.exe**, sha256 del instalador)
 7. Compilar instalador en Inno Setup
 8. Crear GitHub Release → subir Paraguacraft.exe + instalador
 9. Cloudflare Pages → subir latest.json actualizado
@@ -239,6 +240,19 @@ Paraguacraft/
 ---
 
 ## 📝 Changelog
+
+### v6.7.0
+- **Loader PvP (1.8.9)**: nuevo perfil en el selector de versiones que instala Forge `11.15.1.2318`, OptiFine HD U M5 y `ParaguacraftPvP-1.0.0.jar` en la instancia aislada `Paraguacraft_1.8.9_PvP`
+- **Descarga remota del cliente PvP**: el mod se baja desde `bundled/pvp` en GitHub (con fallback a release `pvp-client-1.0.0`), se valida con SHA-1 y se cachea en `.minecraft/Paraguacraft_cache/pvp/`
+- **Panel Cliente Paraguacraft PvP**: preparar, jugar y reparar el bundle competitivo desde Versiones sin tocar carpetas manualmente
+- **Preset PvP Solo**: el asistente de hardware apunta a `1.8.9 · PvP` e instala todo el stack automáticamente
+- **Reparar loader PvP**: reinstala Forge fijo + mods del cliente en un clic
+
+### v6.6.0
+- **Bot Discord**: RCON en hilos separados (`asyncio.to_thread`) — el bot no se desconecta cuando el servidor MC está caído
+- **`!partido` con fallback web**: si la API de fútbol no tiene el partido, busca en DuckDuckGo y muestra resultados
+- **Caché de API de fútbol corregida**: errores y respuestas vacías ya no se guardan por 60 minutos
+- **Aliases de equipos ampliados**: `boca juniors`, `paris saint germain`, etc.
 
 ### v6.5.0
 - **Lanzamiento desde Biblioteca**: instancias y modpacks inician correctamente al presionar ▶ en la tarjeta o ▶ Jugar en el detalle — spinner persiste hasta que el juego se cierra (timeout 60 min para modpacks pesados)
