@@ -45,7 +45,7 @@ except Exception:
     log = logging.getLogger("paraguacraft.main")
     _LOG_PATH = ""
 
-VERSION = "6.6.0"  # Actualizar en cada release
+VERSION = "6.7.0"  # Actualizar en cada release
 GITHUB_REPO = "SantiJ10/Paraguacraft"  # usuario/repo en GitHub
 # Opcional: URL de Cloudflare Pages con latest.json (sin rate limits, CDN global)
 # Formato del JSON: {"version":"5.2.0", "download_url":"...", "size_bytes":0, "notes":"..."}
@@ -1319,9 +1319,11 @@ class Api:
             loaders.append("Fabric")
         if minor >= 16:
             loaders.append("Fabric + Iris")
+        if v == "1.8.9":
+            loaders.append("PvP")
 
-        # orden estable: Vanilla, OptiFine, Forge, Fabric, Fabric + Iris
-        orden = ["Vanilla", "OptiFine", "Forge", "NeoForge", "Fabric", "Fabric + Iris"]
+        # orden estable: Vanilla, OptiFine, Forge, PvP, Fabric, Fabric + Iris
+        orden = ["Vanilla", "OptiFine", "Forge", "PvP", "NeoForge", "Fabric", "Fabric + Iris"]
         vistos = set()
         out = []
         for o in orden:
@@ -3792,11 +3794,11 @@ class Api:
         Fallback: copia local bundleada junto al launcher (clientes/paraguacraft-pvp).
         Verifica SHA-1 para no dejar JARs corruptos en la instancia."""
         import hashlib as _hl
-        base_url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/clientes/paraguacraft-pvp/"
+        base_url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/bundled/pvp/"
         _app_base = sys._MEIPASS if getattr(sys, "frozen", False) else os.path.dirname(os.path.abspath(__file__))
-        local_dir = os.path.join(_app_base, "clientes", "paraguacraft-pvp")
+        local_dir = os.path.join(_app_base, "bundled", "pvp")
         archivos = [
-            ("ParaguacraftPvP-1.0.0.jar", "2ba02048210a4c674c3f0d31338a7b4be0c625e0"),
+            ("ParaguacraftPvP-1.0.0.jar", "828c1db4cf8cc583599b47c85bb9aa8fcf7b2e6f"),
             ("OptiFine_1.8.9_HD_U_M5.jar", "d362d58a28f5373b141b9e426e8e160638bfafcd"),
         ]
         os.makedirs(mods_dir, exist_ok=True)
@@ -7268,6 +7270,16 @@ class Api:
     def reparar_loader(self, version, motor):
         try:
             motor_l = (motor or '').lower()
+            if motor_l == 'pvp':
+                import minecraft_launcher_lib as _mcl
+                from core import carpeta_instancia_paraguacraft, instalar_bundle_pvp, PVP_FORGE_VERSION, PVP_MC_VERSION
+                if version.strip() != PVP_MC_VERSION:
+                    return {"ok": False, "error": f"PvP solo está disponible para {PVP_MC_VERSION}"}
+                mine_dir = _mcl.utils.get_minecraft_directory()
+                game_dir = os.path.join(mine_dir, "instancias", carpeta_instancia_paraguacraft(version, motor))
+                _mcl.forge.install_forge_version(PVP_FORGE_VERSION, mine_dir)
+                instalar_bundle_pvp(game_dir, minecraft_directory=mine_dir)
+                return {"ok": True, "msg": f"PvP reinstalado para {version} (Forge {PVP_FORGE_VERSION})"}
             if 'fabric' in motor_l:
                 import minecraft_launcher_lib as _mcl
                 from core import carpeta_instancia_paraguacraft
@@ -9863,7 +9875,7 @@ class Api:
         _map = {
             "fabric": "Fabric", "forge": "Forge", "neoforge": "NeoForge",
             "quilt": "Quilt", "iris": "Fabric + Iris", "vanilla": "Vanilla",
-            "optifine": "OptiFine",
+            "optifine": "OptiFine", "pvp": "PvP",
         }
         if ml in _map:
             return _map[ml]
@@ -9873,6 +9885,8 @@ class Api:
     def _normalizar_loader(motor):
         """Convierte el nombre de motor del launcher al loader de Modrinth."""
         _m = motor.lower()
+        if _m == "pvp":
+            return "forge"
         if "neoforge" in _m:
             return "neoforge"
         if "forge" in _m:

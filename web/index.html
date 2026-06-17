@@ -2569,9 +2569,9 @@
                         <div class="bg-[#181818] border border-[#E74C3C]/40 hover:border-[#E74C3C] rounded-xl p-4 flex flex-col gap-2 transition">
                             <div class="flex items-center justify-between">
                                 <h4 class="font-black text-[#E74C3C]">⚔ PvP Solo</h4>
-                                <span class="text-[10px] bg-[#2A2A2A] text-gray-400 px-2 py-0.5 rounded font-mono">1.8.9 · Forge</span>
+                                <span class="text-[10px] bg-[#2A2A2A] text-gray-400 px-2 py-0.5 rounded font-mono">1.8.9 · PvP</span>
                             </div>
-                            <p class="text-xs text-gray-500">Premium + No-Premium. Optifine, ToggleSneak, BetterFPS, Chunks 8, ZGC, FPS máximo.</p>
+                            <p class="text-xs text-gray-500">Forge 11.15.1.2318 + OptiFine HD U M5 + cliente Paraguacraft PvP. Perfil competitivo listo para jugar.</p>
                             <button onclick="prepararVersionPreset('pvp')" class="mt-auto bg-[#E74C3C] hover:bg-[#C0392B] text-white font-black py-2 rounded transition text-xs">Preparar versión</button>
                         </div>
                         <div class="bg-[#181818] border border-[#2ECC71]/40 hover:border-[#2ECC71] rounded-xl p-4 flex flex-col gap-2 transition">
@@ -3994,6 +3994,7 @@
                 const patch = (parts.length > 2 && /^\d+$/.test(parts[2])) ? parseInt(parts[2]) : 0;
                 if (major === 1) {
                     if (minor >= 7)  { out.push('OptiFine'); out.push('Forge'); }
+                    if (v === '1.8.9') out.push('PvP');
                     if (minor > 20 || (minor === 20 && patch >= 2)) out.push('NeoForge');
                     if (minor >= 14) { out.push('Fabric'); out.push('Quilt'); }
                     if (minor >= 16) out.push('Fabric + Iris');
@@ -5700,7 +5701,7 @@
             hwActualizarCards();
         }
         async function prepararVersionPreset(tipo) {
-            const cfg = {pvp:{ver:'1.8.9',motor:'Forge'},survival:{ver:'1.20.1',motor:'Fabric'},servidores:{ver:'1.16.5',motor:'Fabric'},modded:{ver:'1.12.2',motor:'Forge'}};
+            const cfg = {pvp:{ver:'1.8.9',motor:'PvP'},survival:{ver:'1.20.1',motor:'Fabric'},servidores:{ver:'1.16.5',motor:'Fabric'},modded:{ver:'1.12.2',motor:'Forge'}};
             const c = cfg[tipo]; if (!c) return;
             const lbl = document.getElementById('hw-perfil-progreso-lbl');
             const prog = document.getElementById('hw-perfil-progreso');
@@ -6991,7 +6992,7 @@
             document.getElementById('imod-file-info').classList.remove('hidden');
         }
 
-        const _PERFILES_LAUNCHER_FALLBACK = ['Vanilla', 'Fabric', 'Fabric + Iris', 'Forge', 'NeoForge', 'OptiFine', 'Quilt'];
+        const _PERFILES_LAUNCHER_FALLBACK = ['Vanilla', 'Fabric', 'Fabric + Iris', 'Forge', 'PvP', 'NeoForge', 'OptiFine', 'Quilt'];
 
         async function poblarPerfilesInstanciaTienda(mcVersion) {
             const perfilSel = document.getElementById('imod-perfil-select');
@@ -9822,7 +9823,7 @@
             msg.textContent = '\u23f3 Buscando e instalando mods...';
             msg.className = 'text-xs text-center text-[#F39C12] min-h-[14px]';
             try {
-                const ver = '1.8.9', motor = 'forge';
+                const ver = '1.8.9', motor = 'PvP';
                 const cr = await pywebview.api.get_carpeta_mods(ver, motor);
                 const carpeta = (typeof cr === 'string') ? cr : (cr && cr.carpeta) || '';
                 const r = await pywebview.api.instalar_mods_pvp_189(carpeta);
