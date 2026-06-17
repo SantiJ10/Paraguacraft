@@ -1,7 +1,7 @@
 {
-  "version": "6.7.0",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v6.7.0/Instalar_Paraguacraft_v6.7.0.exe",
-  "size_bytes": 52387167,
-  "sha256": "a6af2c0fd6e22eebf16b54e269dfa160fae223f0255337fda34a1e1898a758d6",
-  "notes": "- Nuevo loader PvP exclusivo para Minecraft 1.8.9: instala Forge 11.15.1.2318 + OptiFine HD U M5 + cliente Paraguacraft PvP en un solo clic\n- Descarga remota del mod ParaguacraftPvP-1.0.0.jar desde GitHub (bundled/pvp) con verificacion SHA-1 y cache global en .minecraft/Paraguacraft_cache/pvp\n- Panel Cliente Paraguacraft PvP en Versiones: preparar, jugar y reparar el perfil competitivo desde la UI\n- Preset de hardware PvP Solo actualizado (1.8.9 · PvP) con instalacion automatica del bundle completo\n- Auto-actualizacion Windows: siempre descarga el instalador Instalar_Paraguacraft_v6.7.0.exe (primera vez y updates)"
+  "version": "6.8.0",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v6.8.0/Instalar_Paraguacraft_v6.8.0.exe",
+  "size_bytes": 0,
+  "sha256": "",
+  "notes": "- UI mas limpia: se elimino la tarjeta redundante Cliente Paraguacraft PvP del panel de versiones (usar loader PvP en 1.8.9)\n- Loader PvP sigue instalando Forge 11.15.1.2318 + OptiFine HD U M5 + cliente Paraguacraft PvP desde el boton JUGAR"
 }

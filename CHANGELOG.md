@@ -3,6 +3,14 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [6.8.0] - 2026-06-17
+
+### 🔧 Mejoras
+
+- **UI del panel Versiones**: eliminada la tarjeta fija "Cliente Paraguacraft PvP" (botón "Descargar y Jugar") que se mostraba en todas las versiones aunque ya existía el loader **PvP** en 1.8.9. Ahora el flujo es: versión `1.8.9` → loader `PvP` → **JUGAR**.
+
+---
+
 ## [6.7.0] - 2026-06-17
 
 ### ✨ Novedades

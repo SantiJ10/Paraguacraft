@@ -4,7 +4,7 @@
 
 **Launcher completo de Minecraft, desarrollado en Python con interfaz web moderna.**
 
-[![Version](https://img.shields.io/badge/versi%C3%B3n-6.7.0-2ECC71?style=flat-square)](https://github.com/SantiJ10/Paraguacraft/releases)
+[![Version](https://img.shields.io/badge/versi%C3%B3n-6.8.0-2ECC71?style=flat-square)](https://github.com/SantiJ10/Paraguacraft/releases)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![License](https://img.shields.io/badge/licencia-MIT-blue?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/plataforma-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)](https://github.com/SantiJ10/Paraguacraft/releases)
@@ -240,6 +240,9 @@ Paraguacraft/
 ---
 
 ## 📝 Changelog
+
+### v6.8.0
+- **Panel de versiones más limpio**: eliminada la tarjeta redundante "Cliente Paraguacraft PvP" que aparecía en todas las versiones; el perfil PvP se usa solo desde el loader **PvP** en 1.8.9 + botón **JUGAR**
 
 ### v6.7.0
 - **Loader PvP (1.8.9)**: nuevo perfil en el selector de versiones que instala Forge `11.15.1.2318`, OptiFine HD U M5 y `ParaguacraftPvP-1.0.0.jar` en la instancia aislada `Paraguacraft_1.8.9_PvP`
