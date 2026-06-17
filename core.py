@@ -842,6 +842,197 @@ def instalar_bundle_fabric_iris_cache(minecraft_directory, game_dir, version, pr
         except Exception:
             pass
 
+PVP_MC_VERSION = "1.8.9"
+PVP_FORGE_VERSION = "1.8.9-11.15.1.2318-1.8.9"
+PVP_GITHUB_REPO = "SantiJ10/Paraguacraft"
+PVP_RELEASE_TAG = "pvp-client-1.0.0"
+PVP_MOD_FILES = [
+    {
+        "filename": "ParaguacraftPvP-1.0.0.jar",
+        "sha1": "828c1db4cf8cc583599b47c85bb9aa8fcf7b2e6f",
+    },
+    {"filename": "OptiFine_1.8.9_HD_U_M5.jar", "sha1": "d362d58a28f5373b141b9e426e8e160638bfafcd",
+     "optifine_type": "HD_U", "optifine_patch": "M5"},
+]
+
+
+def _pvp_bundle_dir():
+    if getattr(sys, "frozen", False):
+        base = sys._MEIPASS
+    else:
+        base = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base, "bundled", "pvp")
+
+
+def _sha1_archivo(path):
+    h = hashlib.sha1()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest().lower()
+
+
+def _pvp_cache_dir(minecraft_directory):
+    d = os.path.join(minecraft_directory, "Paraguacraft_cache", "pvp")
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
+def _urls_descarga_paraguacraft_pvp(filename):
+    """URLs estáticas del mod cliente (repo + release dedicado)."""
+    return [
+        f"https://raw.githubusercontent.com/{PVP_GITHUB_REPO}/main/bundled/pvp/{filename}",
+        f"https://github.com/{PVP_GITHUB_REPO}/releases/download/{PVP_RELEASE_TAG}/{filename}",
+    ]
+
+
+def _resolver_url_github_release_asset(repo, asset_name, tag=None):
+    """Busca un asset por nombre en un tag o en el último release."""
+    headers = {"User-Agent": "ParaguacraftLauncher/2.7", "Accept": "application/vnd.github+json"}
+    endpoints = []
+    if tag:
+        endpoints.append(f"https://api.github.com/repos/{repo}/releases/tags/{tag}")
+    endpoints.append(f"https://api.github.com/repos/{repo}/releases/latest")
+    for endpoint in endpoints:
+        try:
+            r = requests.get(endpoint, headers=headers, timeout=12)
+            if r.status_code != 200:
+                continue
+            for asset in r.json().get("assets", []):
+                if asset.get("name") == asset_name:
+                    return asset.get("browser_download_url")
+        except Exception:
+            pass
+    return None
+
+
+def _descargar_archivo_verificado(urls, dest, sha1_esperado, progress_callback=None, label=""):
+    """Descarga el primer URL válido y verifica SHA1 antes de dejar el archivo en dest."""
+    headers = {"User-Agent": "ParaguacraftLauncher/2.7"}
+    if isinstance(urls, str):
+        urls = [urls]
+    tmp = dest + ".tmp"
+    for url in urls:
+        if not url:
+            continue
+        try:
+            if progress_callback:
+                progress_callback(f"Descargando {label or os.path.basename(dest)}...")
+            r = requests.get(url, stream=True, headers=headers, timeout=(10, 180))
+            if r.status_code != 200:
+                continue
+            with open(tmp, "wb") as f:
+                shutil.copyfileobj(r.raw, f)
+            if sha1_esperado and _sha1_archivo(tmp) != sha1_esperado.lower():
+                try:
+                    os.remove(tmp)
+                except OSError:
+                    pass
+                continue
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            try:
+                if os.path.exists(dest):
+                    os.remove(dest)
+            except OSError:
+                pass
+            os.replace(tmp, dest)
+            return True
+        except Exception:
+            try:
+                if os.path.exists(tmp):
+                    os.remove(tmp)
+            except OSError:
+                pass
+    return False
+
+
+def _descargar_optifine_mod_jar(version_base, of_type, of_patch, dest_path, progress_callback=None):
+    import urllib.request as _ur
+    of_filename = f"OptiFine_{version_base}_{of_type}_{of_patch}.jar"
+    dl_url = f"https://bmclapi2.bangbang93.com/optifine/{version_base}/{of_type}/{of_patch}"
+    if progress_callback:
+        progress_callback(f"Descargando {of_filename}...")
+    req = _ur.Request(dl_url, headers={"User-Agent": "ParaguacraftLauncher/2.7"})
+    with _ur.urlopen(req, timeout=90) as resp, open(dest_path, "wb") as f:
+        shutil.copyfileobj(resp, f)
+
+
+def instalar_bundle_pvp(game_dir, progress_callback=None, minecraft_directory=None):
+    """Instala ParaguacraftPvP + OptiFine HD U M5 en el perfil PvP (Forge 1.8.9)."""
+    if minecraft_directory is None:
+        minecraft_directory = minecraft_launcher_lib.utils.get_minecraft_directory()
+    mods_dir = os.path.join(game_dir, "mods")
+    os.makedirs(mods_dir, exist_ok=True)
+    bundled = _pvp_bundle_dir()
+    repo_root = os.path.dirname(os.path.abspath(__file__))
+    cache_dir = _pvp_cache_dir(minecraft_directory)
+    for mod in PVP_MOD_FILES:
+        dest = os.path.join(mods_dir, mod["filename"])
+        sha1_ok = mod["sha1"].lower()
+        try:
+            if os.path.isfile(dest) and _sha1_archivo(dest) == sha1_ok:
+                continue
+        except OSError:
+            pass
+        cache_path = os.path.join(cache_dir, mod["filename"])
+        try:
+            if os.path.isfile(cache_path) and _sha1_archivo(cache_path) == sha1_ok:
+                if progress_callback:
+                    progress_callback(f"Instalando {mod['filename']} (caché)...")
+                shutil.copy2(cache_path, dest)
+                continue
+        except OSError:
+            pass
+        if mod["filename"].startswith("ParaguacraftPvP"):
+            urls = []
+            api_url = _resolver_url_github_release_asset(
+                PVP_GITHUB_REPO, mod["filename"], tag=PVP_RELEASE_TAG)
+            if api_url:
+                urls.append(api_url)
+            urls.extend(_urls_descarga_paraguacraft_pvp(mod["filename"]))
+            if _descargar_archivo_verificado(
+                    urls, dest, sha1_ok, progress_callback, mod["filename"]):
+                try:
+                    shutil.copy2(dest, cache_path)
+                except OSError:
+                    pass
+                continue
+            src = os.path.join(bundled, mod["filename"])
+            if os.path.isfile(src):
+                if progress_callback:
+                    progress_callback(f"Instalando {mod['filename']} (bundle local)...")
+                shutil.copy2(src, dest)
+                continue
+            build_src = os.path.join(repo_root, "client", "build", "libs", mod["filename"])
+            if os.path.isfile(build_src):
+                if progress_callback:
+                    progress_callback(f"Instalando {mod['filename']} (build local)...")
+                shutil.copy2(build_src, dest)
+                continue
+            if progress_callback:
+                progress_callback(
+                    f"⚠ No se pudo descargar {mod['filename']}. "
+                    f"Subí el JAR a GitHub (bundled/pvp o release {PVP_RELEASE_TAG}).")
+            continue
+        if mod.get("optifine_type"):
+            try:
+                _descargar_optifine_mod_jar(
+                    PVP_MC_VERSION, mod["optifine_type"], mod["optifine_patch"],
+                    dest, progress_callback)
+                try:
+                    if os.path.isfile(dest) and _sha1_archivo(dest) == sha1_ok:
+                        shutil.copy2(dest, cache_path)
+                except OSError:
+                    pass
+                continue
+            except Exception as e:
+                if progress_callback:
+                    progress_callback(f"No se pudo descargar {mod['filename']}: {e}")
+                continue
+        if progress_callback:
+            progress_callback(f"⚠ Falta {mod['filename']} en el bundle PvP")
+
+
 def instalar_mods_por_motor(game_dir, version, motor_elegido, progress_callback, lan_distancia=False, minecraft_directory=None):
     """Mods según add-on: Fabric solo = API; Fabric+Iris = caché global; Vanilla/Forge/OptiFine no usan Modrinth aquí."""
     if minecraft_directory is None:
@@ -852,9 +1043,12 @@ def instalar_mods_por_motor(game_dir, version, motor_elegido, progress_callback,
     motor_lower = motor_elegido.lower()
     headers = {"User-Agent": "ParaguacraftLauncher/2.1"}
 
-    # Cliente dedicado Paraguacraft PvP: sus mods (cliente + OptiFine) los gestiona
-    # preparar_cliente_pvp(); no descargamos nada de Modrinth acá.
-    if "paraguacraft pvp" in motor_lower:
+    if motor_lower == "pvp" or "paraguacraft pvp" in motor_lower:
+        if version.strip() != PVP_MC_VERSION:
+            if progress_callback:
+                progress_callback(f"PvP solo disponible para {PVP_MC_VERSION}")
+            return
+        instalar_bundle_pvp(game_dir, progress_callback, minecraft_directory)
         return
 
     if motor_lower == "vanilla" or motor_lower.startswith("optifine") or "neoforge" in motor_lower or ("forge" in motor_lower and "neo" not in motor_lower and "fabric" not in motor_lower and "iris" not in motor_lower and "optifine" not in motor_lower):
@@ -1348,6 +1542,8 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
         tipo_cliente_base = "Quilt"
     elif "fabric" in motor_lower:
         tipo_cliente_base = "Fabric"
+    elif motor_lower == "pvp":
+        tipo_cliente_base = "PvP"
     elif "forge" in motor_lower:
         tipo_cliente_base = "Forge"
     elif "optifine" in motor_lower:
@@ -1413,6 +1609,22 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
                     version_a_lanzar = v
                     version_instalada = True
                     break
+    elif tipo_cliente_base == "PvP":
+        if version_base != PVP_MC_VERSION:
+            raise RuntimeError(
+                f"El perfil PvP solo está disponible para Minecraft {PVP_MC_VERSION}."
+            )
+        _pvp_json = os.path.join(_versions_dir, PVP_FORGE_VERSION, PVP_FORGE_VERSION + ".json")
+        if os.path.exists(_pvp_json):
+            version_a_lanzar = PVP_FORGE_VERSION
+            version_instalada = True
+        else:
+            for v in sorted(_versiones_locales, reverse=True):
+                if "11.15.1.2318" in v and version_base in v:
+                    if os.path.exists(os.path.join(_versions_dir, v, v + ".json")):
+                        version_a_lanzar = v
+                        version_instalada = True
+                        break
     elif tipo_cliente_base == "NeoForge":
         _vp_nf = version_base.split(".")
         _nf_prefix = ".".join(_vp_nf[1:]) if len(_vp_nf) >= 2 else version_base
@@ -1550,6 +1762,50 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
                     )
                 version_a_lanzar = _found_forge
 
+        elif tipo_cliente_base == "PvP":
+            if version_base != PVP_MC_VERSION:
+                raise RuntimeError(
+                    f"El perfil PvP solo está disponible para Minecraft {PVP_MC_VERSION}."
+                )
+            if progress_callback:
+                progress_callback(f"Descargando Minecraft {version_base} (base para PvP)...")
+            try:
+                _install_mc_with_retry(version_base, minecraft_directory, {"setStatus": on_progress}, progress_callback)
+            except Exception as _be:
+                if progress_callback:
+                    progress_callback(f"Advertencia descargando base: {_be}")
+            _asegurar_java_runtime(version_base, minecraft_directory, progress_callback)
+            _java_exe_pvp = _java_exe_para_mc(minecraft_directory)
+            _java_bin_pvp = os.path.dirname(_java_exe_pvp) if _java_exe_pvp != "java" else ""
+            with _path_con_java(_java_bin_pvp):
+                if progress_callback:
+                    progress_callback(f"Instalando Forge {PVP_FORGE_VERSION}...")
+                try:
+                    minecraft_launcher_lib.forge.install_forge_version(
+                        PVP_FORGE_VERSION, minecraft_directory,
+                        java=_java_exe_pvp,
+                        callback={"setStatus": on_progress})
+                except TypeError:
+                    minecraft_launcher_lib.forge.install_forge_version(
+                        PVP_FORGE_VERSION, minecraft_directory,
+                        callback={"setStatus": on_progress})
+                _found_pvp = None
+                if os.path.isdir(_versions_dir):
+                    if os.path.exists(os.path.join(_versions_dir, PVP_FORGE_VERSION, PVP_FORGE_VERSION + ".json")):
+                        _found_pvp = PVP_FORGE_VERSION
+                    else:
+                        for _fv in sorted(os.listdir(_versions_dir), reverse=True):
+                            if "11.15.1.2318" in _fv and version_base in _fv:
+                                if os.path.exists(os.path.join(_versions_dir, _fv, _fv + ".json")):
+                                    _found_pvp = _fv
+                                    break
+                if not _found_pvp:
+                    raise RuntimeError(
+                        f"Forge {PVP_FORGE_VERSION} no se instaló correctamente. "
+                        f"Reintentá o borrá .minecraft/versions/{PVP_FORGE_VERSION}."
+                    )
+                version_a_lanzar = _found_pvp
+
         elif tipo_cliente_base == "OptiFine":
             of_ver = _instalar_optifine(version_base, minecraft_directory, progress_callback)
             if of_ver:
@@ -1566,7 +1822,7 @@ def lanzar_minecraft(version="1.20.4", username="Player", max_ram="4G", gc_type=
 
     # 1.5 DEPENDENCIAS: asegurar que todos los JARs de librería estén en disco.
     # install_minecraft_version es idempotente: no re-descarga lo que ya existe.
-    if tipo_cliente_base in ("OptiFine", "Forge", "NeoForge", "Fabric") and version_a_lanzar != version_base:
+    if tipo_cliente_base in ("OptiFine", "Forge", "NeoForge", "Fabric", "PvP") and version_a_lanzar != version_base:
         try:
             if progress_callback: progress_callback("Verificando dependencias del loader...")
             _install_mc_with_retry(
