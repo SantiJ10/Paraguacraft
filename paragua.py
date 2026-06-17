@@ -6921,6 +6921,28 @@ class Api:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    @staticmethod
+    def _resolver_asset_instalador(assets):
+        """Devuelve (url, sha256, size) del Instalar_Paraguacraft_v*.exe en un release."""
+        for asset in assets or []:
+            name = (asset.get("name") or "").lower()
+            if name.startswith("instalar_paraguacraft") and name.endswith(".exe"):
+                digest = (asset.get("digest") or "")
+                sha256 = digest[7:] if digest.startswith("sha256:") else ""
+                return asset.get("browser_download_url"), sha256, asset.get("size", 0)
+        return None, "", 0
+
+    @staticmethod
+    def _url_instalador_windows(version, download_url=None):
+        """Normaliza la URL de descarga al instalador Inno Setup en Windows."""
+        ver = (version or "").strip().lstrip("v").lstrip(".")
+        url = (download_url or "").strip()
+        if url and "instalar_paraguacraft" in url.lower():
+            return url
+        if ver:
+            return f"https://github.com/{GITHUB_REPO}/releases/download/v{ver}/Instalar_Paraguacraft_v{ver}.exe"
+        return url
+
     def verificar_actualizacion(self):
         def _ver_tuple(v):
             try: return tuple(int(x) for x in v.strip().lstrip("v").lstrip(".").split("."))
@@ -6935,13 +6957,27 @@ class Api:
                     data = r.json()
                     tag = data.get("version", "").strip().lstrip("v")
                     if tag and _ver_tuple(tag) > _ver_tuple(VERSION):
+                        dl_url = self._url_instalador_windows(tag, data.get("download_url"))
+                        sha256 = data.get("sha256", "")
+                        size = data.get("size_bytes", 0)
+                        if sys.platform == "win32" and dl_url and "instalar_paraguacraft" not in (data.get("download_url") or "").lower():
+                            try:
+                                rr = requests.get(
+                                    f"https://api.github.com/repos/{GITHUB_REPO}/releases/tags/v{tag}",
+                                    timeout=8, headers={"User-Agent": "Paraguacraft-Launcher"})
+                                if rr.status_code == 200:
+                                    u2, s2, sz2 = self._resolver_asset_instalador(rr.json().get("assets"))
+                                    if u2:
+                                        dl_url, sha256, size = u2, s2 or sha256, sz2 or size
+                            except Exception:
+                                pass
                         return {
                             "actualizar": True,
                             "version_actual": VERSION,
                             "version_nueva": tag,
-                            "url": data.get("download_url"),
-                            "size": data.get("size_bytes", 0),
-                            "sha256": data.get("sha256", ""),
+                            "url": dl_url,
+                            "size": size,
+                            "sha256": sha256,
                             "notas": data.get("notes", "")[:600],
                             "fuente": "cloudflare",
                         }
@@ -6961,17 +6997,26 @@ class Api:
             if not tag or "message" in data:
                 return {"actualizar": False, "version_actual": VERSION}
             if _ver_tuple(tag) > _ver_tuple(VERSION):
-                exe_url = None
-                for asset in data.get("assets", []):
-                    name = asset.get("name", "").lower()
-                    if name.endswith(".exe") and not any(kw in name for kw in ("setup", "install", "instalar")):
-                        exe_url = asset.get("browser_download_url")
-                        break
+                assets = data.get("assets", [])
+                exe_url, sha256, size = self._resolver_asset_instalador(assets)
+                if not exe_url and sys.platform == "win32":
+                    exe_url = self._url_instalador_windows(tag)
+                elif not exe_url:
+                    for asset in assets:
+                        name = asset.get("name", "").lower()
+                        if name.endswith(".exe"):
+                            exe_url = asset.get("browser_download_url")
+                            digest = asset.get("digest", "")
+                            sha256 = digest[7:] if digest.startswith("sha256:") else ""
+                            size = asset.get("size", 0)
+                            break
                 return {
                     "actualizar": True,
                     "version_actual": VERSION,
                     "version_nueva": tag,
                     "url": exe_url,
+                    "size": size,
+                    "sha256": sha256,
                     "html_url": data.get("html_url", f"https://github.com/{GITHUB_REPO}/releases/latest"),
                     "notas": data.get("body", "")[:600],
                     "fuente": "github",
@@ -6987,7 +7032,110 @@ class Api:
         if not download_url:
             return {"ok": False, "error": "Sin URL de descarga directa."}
 
-        # Detectar si el exe está en un directorio protegido (Program Files)
+        def _notify_err(msg):
+            try:
+                webview.windows[0].evaluate_js(f"_updateFailed({json.dumps(str(msg))})")
+            except Exception: pass
+
+        def _report_progress(pct, msg=""):
+            try:
+                webview.windows[0].evaluate_js(f"_updateProgress({pct}, {json.dumps(str(msg))})")
+            except Exception: pass
+
+        # Windows: siempre usar el instalador Inno Setup (primera vez y actualizaciones).
+        if sys.platform == "win32":
+            def _hilo_installer_win():
+                import hashlib as _hl
+                import ctypes as _ct
+                url = (download_url or "").strip()
+                sha = (sha256_esperado or "").strip()
+                if "instalar_paraguacraft" not in url.lower():
+                    try:
+                        rr = requests.get(
+                            f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest",
+                            timeout=10, headers={"User-Agent": "Paraguacraft-Launcher"})
+                        if rr.status_code == 200:
+                            data = rr.json()
+                            u2, s2, _ = self._resolver_asset_instalador(data.get("assets"))
+                            if u2:
+                                url = u2
+                                if s2:
+                                    sha = s2
+                            else:
+                                tag = (data.get("tag_name") or "").strip().lstrip("v").lstrip(".")
+                                url = self._url_instalador_windows(tag, url)
+                    except Exception:
+                        pass
+                if not url:
+                    _notify_err("No se encontró el instalador Instalar_Paraguacraft_v*.exe en el release.")
+                    return
+                tmp_installer = os.path.join(tempfile.gettempdir(), "Instalar_Paraguacraft_update.exe")
+                try:
+                    if self.config_actual.get("backup_saves_pre_update", True):
+                        try:
+                            _report_progress(0, "Respaldando mundos antes de actualizar...")
+                            bk = self.backup_saves_pre_update()
+                            if bk and bk.get("ok") and not bk.get("saltado"):
+                                _report_progress(0, f"Backup OK: {bk.get('archivo','')} ({bk.get('tamano_mb',0)} MB)")
+                        except Exception as _be:
+                            log.warning("[Updater] Backup pre-update falló: %s", _be)
+                    for _attempt in range(3):
+                        try:
+                            if _attempt > 0:
+                                _report_progress(0, f"Reintentando instalador ({_attempt + 1}/3)...")
+                                time.sleep(4 * _attempt)
+                                if os.path.exists(tmp_installer):
+                                    try: os.remove(tmp_installer)
+                                    except Exception: pass
+                            _report_progress(0, "Descargando instalador...")
+                            dl = requests.get(url, stream=True, timeout=(15, 180),
+                                              headers={"User-Agent": "Paraguacraft-Launcher"})
+                            if dl.status_code == 404:
+                                _notify_err("Instalador no encontrado (404). Verificá el release en GitHub.")
+                                return
+                            dl.raise_for_status()
+                            total = int(dl.headers.get("content-length", 0))
+                            downloaded = 0
+                            with open(tmp_installer, "wb") as _f:
+                                for chunk in dl.iter_content(65536):
+                                    if chunk:
+                                        _f.write(chunk)
+                                        downloaded += len(chunk)
+                                        if total > 0:
+                                            pct = min(99, int(downloaded * 100 / total))
+                                            _report_progress(pct, f"Descargando instalador... {downloaded // 1_048_576} MB")
+                            if os.path.getsize(tmp_installer) < 500_000:
+                                if _attempt < 2:
+                                    continue
+                                _notify_err("Descarga del instalador incompleta tras 3 intentos.")
+                                return
+                            if sha:
+                                h = _hl.sha256()
+                                with open(tmp_installer, "rb") as _hf:
+                                    for _chunk in iter(lambda: _hf.read(65536), b""):
+                                        h.update(_chunk)
+                                if h.hexdigest().lower() != sha.lower():
+                                    try: os.remove(tmp_installer)
+                                    except Exception: pass
+                                    if _attempt < 2:
+                                        continue
+                                    _notify_err("Hash SHA256 del instalador incorrecto. No se ejecuta.")
+                                    return
+                            _report_progress(100, "Abriendo instalador...")
+                            _ct.windll.shell32.ShellExecuteW(None, "runas", tmp_installer, None, None, 1)
+                            time.sleep(1)
+                            os._exit(0)
+                        except requests.exceptions.RequestException as _re:
+                            if _attempt == 2:
+                                _notify_err(f"Error de red descargando instalador: {str(_re)[:200]}")
+                                return
+                except Exception as _e:
+                    log.error("[Updater] Instalador Windows: %s", _e, exc_info=True)
+                    _notify_err(str(_e)[:300])
+            threading.Thread(target=_hilo_installer_win, daemon=True).start()
+            return {"ok": True}
+
+        # Otros SO: actualización in-place del portable (si el directorio es escribible).
         exe_actual = sys.executable
         exe_dir = os.path.dirname(exe_actual)
         _can_write = False
@@ -7000,20 +7148,13 @@ class Api:
             pass
 
         if not _can_write:
-            # No se puede escribir en el directorio del exe (Program Files).
-            # Buscar el instalador en el release de GitHub y lanzarlo con elevación UAC.
             def _hilo_installer():
                 try:
                     url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
                     r = requests.get(url, timeout=10, headers={"User-Agent": "Paraguacraft-Launcher"})
                     assets = r.json().get("assets", [])
                     html_url = r.json().get("html_url", f"https://github.com/{GITHUB_REPO}/releases/latest")
-                    installer_url = None
-                    for asset in assets:
-                        name = asset.get("name", "").lower()
-                        if name.endswith(".exe") and any(kw in name for kw in ("instalar", "setup", "install")):
-                            installer_url = asset.get("browser_download_url")
-                            break
+                    installer_url, _, _ = self._resolver_asset_instalador(assets)
                     if installer_url:
                         tmp_installer = os.path.join(tempfile.gettempdir(), "Paraguacraft_Setup.exe")
                         dl = requests.get(installer_url, stream=True, timeout=180,
@@ -7022,13 +7163,11 @@ class Api:
                         with open(tmp_installer, "wb") as _f:
                             for chunk in dl.iter_content(65536):
                                 if chunk: _f.write(chunk)
-                        # Lanzar instalador con UAC (runas)
                         import ctypes as _ct
                         _ct.windll.shell32.ShellExecuteW(None, "runas", tmp_installer, None, None, 1)
                         time.sleep(1)
                         os._exit(0)
                     else:
-                        # Sin instalador en el release → abrir browser
                         import webbrowser
                         webbrowser.open(html_url)
                         try:
@@ -7045,14 +7184,6 @@ class Api:
             threading.Thread(target=_hilo_installer, daemon=True).start()
             return {"ok": True}
 
-        def _notify_err(msg):
-            try:
-                webview.windows[0].evaluate_js(f"_updateFailed({json.dumps(str(msg))})")
-            except Exception: pass
-        def _report_progress(pct, msg=""):
-            try:
-                webview.windows[0].evaluate_js(f"_updateProgress({pct}, {json.dumps(str(msg))})")
-            except Exception: pass
         def _hilo():
             tmp = os.path.join(tempfile.gettempdir(), "Paraguacraft_update.exe")
             exe_actual2 = sys.executable
@@ -7086,7 +7217,7 @@ class Api:
                         r = requests.get(download_url, stream=True, timeout=(15, 120),
                                          headers={"User-Agent": "Paraguacraft-Launcher"})
                         if r.status_code == 404:
-                            _notify_err("Archivo no encontrado (404). Verificá que el release tenga Paraguacraft.exe.")
+                            _notify_err("Archivo no encontrado (404). Verificá que el release tenga el instalador.")
                             return
                         r.raise_for_status()
                         total = int(r.headers.get('content-length', 0))

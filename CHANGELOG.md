@@ -3,6 +3,24 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [6.7.0] - 2026-06-17
+
+### ✨ Novedades
+
+- **Loader PvP (solo 1.8.9)**: nuevo motor en el selector de versiones. Instala Minecraft 1.8.9 + Forge `11.15.1.2318` + OptiFine HD U M5 + mod cliente `ParaguacraftPvP-1.0.0.jar` en la instancia `Paraguacraft_1.8.9_PvP`.
+- **Descarga remota del cliente PvP**: `ParaguacraftPvP-1.0.0.jar` se obtiene desde GitHub (`bundled/pvp/` en `main`, con fallback a release `pvp-client-1.0.0`). Verificación SHA-1 y caché global en `.minecraft/Paraguacraft_cache/pvp/`.
+- **Panel Cliente Paraguacraft PvP**: en Versiones → 1.8.9, tarjeta dedicada para preparar el perfil, jugar directo y reparar loader + mods.
+- **Preset hardware PvP Solo**: asistente de rendimiento actualizado a `1.8.9 · PvP` con instalación automática del bundle completo.
+
+### 🔧 Mejoras
+
+- **OptiFine HD U M5**: descarga desde BMCL API al preparar el perfil PvP (no hace falta copiar el JAR manualmente).
+- **Reparar loader PvP**: reinstala Forge `11.15.1.2318` y vuelve a sincronizar los mods del cliente.
+- **Motores unificados**: el launcher reconoce tanto `PvP` como `Paraguacraft PvP` para la misma instancia.
+- **Auto-actualización Windows**: siempre descarga y ejecuta `Instalar_Paraguacraft_vX.exe` desde `paraguacraft.pages.dev/latest.json` (manifest apunta al instalador Inno Setup, no al portable).
+
+---
+
 ## [6.6.0] - 2026-05-28
 
 ### 🤖 Bot Discord
