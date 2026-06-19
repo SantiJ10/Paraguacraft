@@ -1,0 +1,30 @@
+[package]
+name = "paraguacraft-launcher"
+version = "0.1.0"
+description = "Paraguacraft Launcher"
+authors = ["Paraguacraft"]
+edition = "2021"
+rust-version = "1.77.2"
+
+# El binario depende de la lib (patron estandar de Tauri v2).
+[lib]
+name = "paraguacraft_launcher_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sysinfo = "0.32"
+
+[profile.release]
+# Optimizado para tamano y bajo consumo de RAM (objetivo del proyecto).
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

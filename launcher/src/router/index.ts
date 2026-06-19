@@ -1,0 +1,41 @@
+import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router";
+
+const routes: RouteRecordRaw[] = [
+  {
+    path: "/wizard",
+    name: "wizard",
+    component: () => import("@/views/WelcomeWizard.vue"),
+    meta: { fullscreen: true },
+  },
+  {
+    path: "/",
+    component: () => import("@/layouts/MainLayout.vue"),
+    children: [
+      { path: "", name: "home", component: () => import("@/views/HomeView.vue") },
+      { path: "instances", name: "instances", component: () => import("@/views/InstancesView.vue") },
+      { path: "store", name: "store", component: () => import("@/views/StoreView.vue") },
+      { path: "versions", name: "versions", component: () => import("@/views/VersionsView.vue") },
+      { path: "settings", name: "settings", component: () => import("@/views/SettingsView.vue") },
+    ],
+  },
+  { path: "/:pathMatch(.*)*", redirect: "/" },
+];
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes,
+});
+
+// Guard de onboarding: si el wizard no se completo, llevamos al usuario alli.
+router.beforeEach((to) => {
+  const done = localStorage.getItem("pc.onboarding.done") === "1";
+  if (!done && to.name !== "wizard") {
+    return { name: "wizard" };
+  }
+  if (done && to.name === "wizard") {
+    return { name: "home" };
+  }
+  return true;
+});
+
+export default router;
