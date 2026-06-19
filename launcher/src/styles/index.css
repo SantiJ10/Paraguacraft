@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html,
+  body,
+  #app {
+    height: 100%;
+    margin: 0;
+  }
+
+  body {
+    @apply bg-surface-1 text-white font-sans antialiased;
+    user-select: none;
+    overflow: hidden;
+  }
+
+  /* Scrollbar estilo launcher */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-surface-5 rounded;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-surface-6;
+  }
+}
+
+@layer components {
+  /* Tarjeta estilo Lunar/Modrinth: borde transparente que se ilumina al hover */
+  .lunar-card {
+    @apply rounded-xl border-2 border-transparent bg-surface-2 transition-all duration-200;
+  }
+  .lunar-card:hover {
+    @apply border-pc-green -translate-y-0.5 shadow-glow;
+  }
+
+  .nav-item {
+    @apply flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-400 transition-colors;
+  }
+  .nav-item:hover {
+    @apply bg-surface-3 text-white;
+  }
+  .nav-item-active {
+    @apply bg-pc-green/15 text-pc-green;
+  }
+}
+
+/* Permitir selección de texto en inputs/areas de contenido */
+input,
+textarea,
+[contenteditable="true"] {
+  user-select: text;
+}
