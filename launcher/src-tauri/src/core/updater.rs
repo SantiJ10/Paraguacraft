@@ -303,18 +303,20 @@ pub fn run_installer(path: &Path) -> AppResult<()> {
     {
         use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        let path_str = path.to_string_lossy().into_owned();
         if ext == "msi" {
             Command::new("msiexec")
-                .args(["/i", &path.to_string_lossy(), "/passive", "/norestart"])
+                .args(["/i", &path_str, "/passive", "/norestart"])
                 .creation_flags(CREATE_NO_WINDOW)
                 .spawn()
                 .map_err(|e| AppError::msg(format!("No se pudo ejecutar MSI: {e}")))?;
         } else {
-            Command::new(path)
-                .args(["/S"])
+            // `start` abre el NSIS con UI (no /S silencioso) y desacopla del launcher.
+            Command::new("cmd")
+                .args(["/C", "start", "", &path_str])
                 .creation_flags(CREATE_NO_WINDOW)
                 .spawn()
-                .map_err(|e| AppError::msg(format!("No se pudo ejecutar instalador: {e}")))?;
+                .map_err(|e| AppError::msg(format!("No se pudo abrir el instalador: {e}")))?;
         }
     }
 
@@ -367,9 +369,17 @@ pub async fn download_and_install(
     }
 
     let path = download_update(app, client, url, &name).await?;
-    emit_progress(app, "install", 0.0, "Iniciando instalador…");
+    emit_progress(app, "install", 0.0, "Abriendo instalador…");
     run_installer(&path)?;
-    emit_progress(app, "install", 1.0, "Instalador lanzado. Cerrá el launcher para completar.");
+    emit_progress(app, "install", 1.0, "Instalador abierto. Seguí el asistente en pantalla.");
+
+    // Cerrar el launcher para liberar el .exe en uso (el setup reinstala encima).
+    let app_handle = app.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_millis(600)).await;
+        app_handle.exit(0);
+    });
+
     Ok(())
 }
 

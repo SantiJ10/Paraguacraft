@@ -13,6 +13,7 @@ permissions:
 env:
   CI: true
   CARGO_PROFILE_RELEASE_STRIP: "false"
+  CARGO_BUILD_JOBS: "2"
 
 jobs:
   build-windows:
@@ -50,12 +51,25 @@ jobs:
         working-directory: launcher
         run: node scripts/rename-windows-installer.mjs
 
+      - name: Patch latest.json (hash + size)
+        working-directory: launcher
+        run: node scripts/patch-latest-json.mjs
+
+      - name: Verify release artifacts
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem "launcher/src-tauri/target/release/bundle/nsis/Instalar_Paraguacraft_*.exe" | Select-Object -First 1
+          if (-not $exe) { throw "Instalador no encontrado" }
+          if ($exe.Length -lt 4000000) { throw "Instalador demasiado chico ($($exe.Length) bytes)" }
+          if (-not (Test-Path "latest.json")) { throw "latest.json no generado" }
+          Write-Host "OK: $($exe.Name) ($($exe.Length) bytes)"
+
       - uses: actions/upload-artifact@v4
         with:
           name: windows
           path: |
             launcher/src-tauri/target/release/bundle/nsis/Instalar_Paraguacraft_*.exe
-            launcher/src-tauri/target/release/bundle/nsis/*setup*.exe
+            latest.json
           if-no-files-found: error
 
   publish:
@@ -68,11 +82,16 @@ jobs:
           path: artifacts
           merge-multiple: true
 
+      - name: List artifacts
+        run: find artifacts -type f -ls
+
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           generate_release_notes: true
-          files: artifacts/**/*
-          fail_on_unmatched_files: false
+          files: |
+            artifacts/**/Instalar_Paraguacraft_*.exe
+            artifacts/**/latest.json
+          fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

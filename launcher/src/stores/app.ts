@@ -90,11 +90,23 @@ export const useAppStore = defineStore("app", () => {
   async function installUpdate() {
     if (!updateInfo.value?.updateAvailable) return;
     updating.value = true;
-    updateProgress.value = { phase: "check", progress: 0, message: "Buscando actualización…" };
+    updateProgress.value = { phase: "check", progress: 0, message: "Preparando actualización…" };
     try {
       await initUpdateEvents();
 
-      // 1) tauri-plugin-updater (releases con latest.json firmado)
+      // Instalador NSIS completo (Instalar_Paraguacraft_v*.exe): descarga + abre setup.
+      if (updateInfo.value.inAppInstall) {
+        updateProgress.value = { phase: "download", progress: 0, message: "Descargando instalador…" };
+        await api.downloadAndInstallLauncherUpdate();
+        updateProgress.value = {
+          phase: "install",
+          progress: 1,
+          message: "Instalador abierto. Seguí el asistente en pantalla.",
+        };
+        return;
+      }
+
+      // Parches incrementales firmados (solo si hay createUpdaterArtifacts + latest.json Tauri).
       if (isTauri()) {
         try {
           const { check } = await import("@tauri-apps/plugin-updater");
@@ -115,15 +127,8 @@ export const useAppStore = defineStore("app", () => {
             return;
           }
         } catch {
-          // Sin pubkey/latest.json firmado: continuar con fallback GitHub.
+          // Sin artefactos firmados en el release.
         }
-      }
-
-      // 2) Fallback: descargar instalador del release de GitHub
-      if (updateInfo.value.inAppInstall) {
-        await api.downloadAndInstallLauncherUpdate();
-        updateProgress.value = { phase: "install", progress: 1, message: "Instalador iniciado. Podés cerrar el launcher." };
-        return;
       }
 
       await openUpdateDownload();
