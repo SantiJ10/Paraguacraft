@@ -13,7 +13,10 @@ const conf = JSON.parse(
   fs.readFileSync(path.join(root, "src-tauri/tauri.conf.json"), "utf8"),
 );
 const version = conf.version;
-const nsisDir = path.join(root, "src-tauri/target/release/bundle/nsis");
+const targetRoot = process.env.CARGO_TARGET_DIR
+  ? path.join(process.env.CARGO_TARGET_DIR, "release")
+  : path.join(root, "src-tauri/target/release");
+const nsisDir = path.join(targetRoot, "bundle/nsis");
 const target = `Instalar_Paraguacraft_v${version}.exe`;
 
 if (!fs.existsSync(nsisDir)) {

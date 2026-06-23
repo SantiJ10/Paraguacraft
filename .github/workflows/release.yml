@@ -1,5 +1,4 @@
 # Compila Win/Mac/Linux y publica en GitHub Releases.
-# Disparadores: tag v* o botón "Run workflow" en Actions.
 name: Release
 
 on:
@@ -10,6 +9,12 @@ on:
 
 permissions:
   contents: write
+
+env:
+  CI: true
+  # Evita OOM en runners de GitHub (LTO + codegen-units=1 es muy pesado en CI).
+  CARGO_PROFILE_RELEASE_LTO: "false"
+  CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
 
 jobs:
   build-windows:
@@ -22,21 +27,26 @@ jobs:
           cache: npm
           cache-dependency-path: launcher/package-lock.json
       - uses: dtolnay/rust-toolchain@stable
-      - uses: swatinem/rust-cache@v2
-        with:
-          workspaces: launcher/src-tauri
       - run: npm ci
         working-directory: launcher
       - run: npm run tauri:build
         working-directory: launcher
-        env:
-          CI: true
+      - name: Locate Windows installer
+        id: win
+        shell: bash
+        run: |
+          exe=$(find launcher/src-tauri/target -path '*/bundle/nsis/*.exe' 2>/dev/null | head -1)
+          if [ -z "$exe" ]; then
+            echo "No se encontró instalador NSIS"
+            find launcher/src-tauri/target -name '*.exe' 2>/dev/null || true
+            exit 1
+          fi
+          echo "path=$exe" >> "$GITHUB_OUTPUT"
+          echo "Instalador: $exe"
       - uses: actions/upload-artifact@v4
         with:
           name: windows
-          path: |
-            launcher/src-tauri/target/release/bundle/nsis/Instalar_Paraguacraft_v*.exe
-            launcher/src-tauri/target/release/bundle/msi/*.msi
+          path: ${{ steps.win.outputs.path }}
 
   build-macos:
     runs-on: macos-latest
@@ -48,21 +58,17 @@ jobs:
           cache: npm
           cache-dependency-path: launcher/package-lock.json
       - uses: dtolnay/rust-toolchain@stable
-      - uses: swatinem/rust-cache@v2
-        with:
-          workspaces: launcher/src-tauri
       - run: npm ci
         working-directory: launcher
       - run: npm run build && npx tauri build
         working-directory: launcher
-        env:
-          CI: true
       - uses: actions/upload-artifact@v4
         with:
           name: macos
           path: |
             launcher/src-tauri/target/release/bundle/dmg/*.dmg
             launcher/src-tauri/target/release/bundle/macos/*.app.tar.gz
+          if-no-files-found: error
 
   build-linux:
     runs-on: ubuntu-22.04
@@ -74,9 +80,6 @@ jobs:
           cache: npm
           cache-dependency-path: launcher/package-lock.json
       - uses: dtolnay/rust-toolchain@stable
-      - uses: swatinem/rust-cache@v2
-        with:
-          workspaces: launcher/src-tauri
       - name: deps
         run: |
           sudo apt-get update
@@ -85,14 +88,13 @@ jobs:
         working-directory: launcher
       - run: npm run build && npx tauri build
         working-directory: launcher
-        env:
-          CI: true
       - uses: actions/upload-artifact@v4
         with:
           name: linux
           path: |
             launcher/src-tauri/target/release/bundle/appimage/*.AppImage
             launcher/src-tauri/target/release/bundle/deb/*.deb
+          if-no-files-found: error
 
   publish:
     needs: [build-windows, build-macos, build-linux]
