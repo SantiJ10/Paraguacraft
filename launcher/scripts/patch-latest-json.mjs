@@ -7,6 +7,7 @@ import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
 import { fileURLToPath } from "url";
+import { resolveNsisDir } from "./lib/resolve-nsis-dir.mjs";
 
 const launcherRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const repoRoot = path.join(launcherRoot, "..");
@@ -16,16 +17,9 @@ const conf = JSON.parse(
 const version = conf.version;
 const latestPath = path.join(repoRoot, "latest.json");
 
-function targetReleaseDir() {
-  const targetRoot = process.env.CARGO_TARGET_DIR
-    ? path.join(process.env.CARGO_TARGET_DIR, "release")
-    : path.join(launcherRoot, "src-tauri/target/release");
-  return path.join(targetRoot, "bundle/nsis");
-}
-
 function findInstaller() {
-  const nsisDir = targetReleaseDir();
-  if (!fs.existsSync(nsisDir)) return null;
+  const nsisDir = resolveNsisDir(launcherRoot);
+  if (!nsisDir) return null;
   const name = `Instalar_Paraguacraft_v${version}.exe`;
   const full = path.join(nsisDir, name);
   return fs.existsSync(full) ? full : null;

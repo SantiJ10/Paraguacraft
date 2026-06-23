@@ -12,7 +12,7 @@
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "npm run build && tauri build && node scripts/rename-windows-installer.mjs && node scripts/patch-latest-json.mjs",
-    "release:windows:ci": "tauri build --config src-tauri/tauri.ci.windows.conf.json && node scripts/rename-windows-installer.mjs && node scripts/patch-latest-json.mjs"
+    "release:windows:ci": "tauri build --verbose --config src-tauri/tauri.ci.windows.conf.json && node scripts/rename-windows-installer.mjs && node scripts/patch-latest-json.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.1.1",
