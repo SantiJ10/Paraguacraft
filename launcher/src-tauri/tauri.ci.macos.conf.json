@@ -1,0 +1,11 @@
+{
+  "build": {
+    "beforeBuildCommand": ""
+  },
+  "bundle": {
+    "targets": ["dmg"],
+    "macOS": {
+      "signingIdentity": null
+    }
+  }
+}

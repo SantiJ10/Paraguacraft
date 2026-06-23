@@ -12,6 +12,7 @@ permissions:
 
 env:
   CI: true
+  CARGO_PROFILE_RELEASE_STRIP: "false"
 
 jobs:
   build:
@@ -21,10 +22,13 @@ jobs:
         include:
           - os: windows-latest
             platform: windows
+            tauri_config: src-tauri/tauri.ci.windows.conf.json
           - os: macos-latest
             platform: macos
+            tauri_config: src-tauri/tauri.ci.macos.conf.json
           - os: ubuntu-22.04
             platform: linux
+            tauri_config: src-tauri/tauri.ci.linux.conf.json
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -37,8 +41,6 @@ jobs:
           cache-dependency-path: launcher/package-lock.json
 
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - uses: swatinem/rust-cache@v2
         with:
@@ -51,7 +53,6 @@ jobs:
           sudo apt-get install -y \
             libwebkit2gtk-4.1-dev \
             libappindicator3-dev \
-            libayatana-appindicator3-dev \
             librsvg2-dev \
             patchelf \
             libfuse2 \
@@ -70,8 +71,7 @@ jobs:
 
       - name: Build Tauri bundles
         working-directory: launcher
-        shell: bash
-        run: npx tauri build --verbose --config '{"build":{"beforeBuildCommand":""}}'
+        run: npx tauri build --verbose --config ${{ matrix.tauri_config }}
 
       - name: Rename Windows installer
         if: matrix.platform == 'windows'
@@ -93,9 +93,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: macos
-          path: |
-            launcher/src-tauri/target/release/bundle/dmg/*.dmg
-            launcher/src-tauri/target/release/bundle/macos/*.app.tar.gz
+          path: launcher/src-tauri/target/release/bundle/dmg/*.dmg
           if-no-files-found: error
 
       - name: Upload Linux bundles
