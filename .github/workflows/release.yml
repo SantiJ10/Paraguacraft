@@ -1,4 +1,4 @@
-# Release Windows: un solo comando npm → instalador + latest.json → GitHub Release.
+# Release Windows: npm ci → tauri NSIS → latest.json → GitHub Release.
 name: Release
 
 on:
@@ -19,7 +19,7 @@ env:
   CARGO_PROFILE_RELEASE_STRIP: "false"
   CARGO_PROFILE_RELEASE_LTO: "false"
   CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
-  CARGO_BUILD_JOBS: "2"
+  CARGO_BUILD_JOBS: "1"
 
 jobs:
   build-windows:
@@ -35,34 +35,34 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - uses: swatinem/rust-cache@v2
-        with:
-          workspaces: launcher/src-tauri -> target
+      - name: Install frontend dependencies
+        working-directory: launcher
+        run: npm ci
 
-      - name: Build release (frontend + Tauri + latest.json)
+      - name: Build release (Tauri NSIS + latest.json)
         working-directory: launcher
         env:
           CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
-        run: |
-          npm ci
-          npm run release:windows:ci
+        run: npm run release:windows:ci
 
       - name: Verify release artifacts
         shell: pwsh
         run: |
-          $exe = Get-ChildItem "launcher/src-tauri/target/release/bundle/nsis/Instalar_Paraguacraft_*.exe" | Select-Object -First 1
-          if (-not $exe) { throw "Instalador no encontrado" }
+          $exe = Get-ChildItem "launcher/src-tauri/target" -Recurse -Filter "Instalar_Paraguacraft_*.exe" -ErrorAction SilentlyContinue |
+            Where-Object { $_.DirectoryName -match 'bundle[\\/]nsis' } |
+            Select-Object -First 1
+          if (-not $exe) { throw "Instalador no encontrado bajo launcher/src-tauri/target" }
           if ($exe.Length -lt 4000000) { throw "Instalador demasiado chico ($($exe.Length) bytes)" }
           if (-not (Test-Path "latest.json")) { throw "latest.json no generado" }
           $json = Get-Content "latest.json" -Raw | ConvertFrom-Json
           if ($json.sha256.Length -ne 64) { throw "latest.json sin sha256 valido" }
-          Write-Host "OK: $($exe.Name) ($($exe.Length) bytes) sha256=$($json.sha256)"
+          Write-Host "OK: $($exe.FullName) ($($exe.Length) bytes) sha256=$($json.sha256)"
 
       - uses: actions/upload-artifact@v4
         with:
           name: windows
           path: |
-            launcher/src-tauri/target/release/bundle/nsis/Instalar_Paraguacraft_*.exe
+            launcher/src-tauri/target/**/bundle/nsis/Instalar_Paraguacraft_*.exe
             latest.json
           if-no-files-found: error
 
