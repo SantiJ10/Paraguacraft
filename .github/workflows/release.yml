@@ -42,6 +42,8 @@ jobs:
 
       - name: Build Tauri bundles
         working-directory: launcher
+        env:
+          CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
         run: npx tauri build --verbose --config src-tauri/tauri.ci.windows.conf.json
 
       - name: Rename Windows installer

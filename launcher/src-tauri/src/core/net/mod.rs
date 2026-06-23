@@ -68,6 +68,40 @@ fn emit(app: &AppHandle, id: &str, label: &str, progress: f64, status: &str) {
     );
 }
 
+fn is_retryable_status(status: reqwest::StatusCode) -> bool {
+    status.as_u16() == 429 || status.as_u16() == 502 || status.as_u16() == 503 || status.as_u16() == 504
+}
+
+async fn with_retries<F, Fut, T>(mut op: F) -> AppResult<T>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = AppResult<T>>,
+{
+    const MAX: u32 = 3;
+    let mut last = None;
+    for attempt in 0..MAX {
+        match op().await {
+            Ok(v) => return Ok(v),
+            Err(e) => {
+                let retry = match &e {
+                    AppError::Http(http) => {
+                        http.is_timeout()
+                            || http.is_connect()
+                            || http.status().map(is_retryable_status).unwrap_or(false)
+                    }
+                    _ => false,
+                };
+                last = Some(e);
+                if !retry || attempt + 1 >= MAX {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(400 * (attempt as u64 + 1))).await;
+            }
+        }
+    }
+    Err(last.unwrap_or_else(|| AppError::msg("Error de red")))
+}
+
 /// Descarga un archivo de forma atomica y verificada. Devuelve bytes escritos
 /// (0 si se reuso por skip).
 pub async fn download_one(client: &reqwest::Client, item: &DownloadItem) -> AppResult<u64> {
@@ -84,22 +118,28 @@ pub async fn download_one(client: &reqwest::Client, item: &DownloadItem) -> AppR
         std::fs::create_dir_all(parent)?;
     }
 
-    let resp = client.get(&item.url).send().await?.error_for_status()?;
-    let bytes = resp.bytes().await?;
+    let url = item.url.clone();
+    let dest = item.dest.clone();
+    let sha1 = item.sha1.clone();
+    let bytes = with_retries(|| async {
+        let resp = client.get(&url).send().await?.error_for_status()?;
+        Ok(resp.bytes().await?.to_vec())
+    })
+    .await?;
 
-    if let Some(expected) = &item.sha1 {
+    if let Some(expected) = &sha1 {
         let got = sha1_hex(&bytes);
         if !got.eq_ignore_ascii_case(expected) {
             return Err(AppError::msg(format!(
                 "SHA-1 invalido para {} (esperado {expected}, obtenido {got})",
-                item.dest.display()
+                dest.display()
             )));
         }
     }
 
-    let tmp = item.dest.with_extension("part");
+    let tmp = dest.with_extension("part");
     std::fs::write(&tmp, &bytes)?;
-    std::fs::rename(&tmp, &item.dest)?;
+    std::fs::rename(&tmp, &dest)?;
     Ok(bytes.len() as u64)
 }
 
@@ -164,16 +204,24 @@ pub async fn download_all(
 
 /// Descarga un recurso a memoria (JSON/metadata). No toca disco.
 pub async fn fetch_bytes(client: &reqwest::Client, url: &str) -> AppResult<Vec<u8>> {
-    let resp = client.get(url).send().await?.error_for_status()?;
-    Ok(resp.bytes().await?.to_vec())
+    let u = url.to_string();
+    with_retries(|| async {
+        let resp = client.get(&u).send().await?.error_for_status()?;
+        Ok(resp.bytes().await?.to_vec())
+    })
+    .await
 }
 
 pub async fn fetch_json<T: serde::de::DeserializeOwned>(
     client: &reqwest::Client,
     url: &str,
 ) -> AppResult<T> {
-    let resp = client.get(url).send().await?.error_for_status()?;
-    Ok(resp.json::<T>().await?)
+    let u = url.to_string();
+    with_retries(|| async {
+        let resp = client.get(&u).send().await?.error_for_status()?;
+        Ok(resp.json::<T>().await?)
+    })
+    .await
 }
 
 /// Percent-encoding minimo para querystrings (facets de Modrinth, etc.).
