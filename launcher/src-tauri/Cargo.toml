@@ -64,9 +64,9 @@ windows-sys = { version = "0.59", features = [
 ] }
 
 [profile.release]
-# Optimizado para tamano y bajo consumo de RAM (objetivo del proyecto).
+# Optimizado para tamano; thin LTO + codegen-units=16 compila en CI sin OOM.
 panic = "abort"
-codegen-units = 1
-lto = true
+codegen-units = 16
+lto = "thin"
 opt-level = "s"
 strip = true
