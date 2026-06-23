@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="furnace-body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9a9a9a"/>
+      <stop offset="1" stop-color="#6e6e6e"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="20" height="20" rx="3" fill="url(#furnace-body)"/>
+  <rect x="7" y="8" width="10" height="9" rx="1" fill="#333"/>
+  <rect x="8" y="12" width="8" height="4" fill="#ff6a1a"/>
+  <rect x="8" y="10" width="8" height="2" fill="#ffb347" opacity="0.85"/>
+</svg>

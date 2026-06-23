@@ -2,421 +2,98 @@
 
 # Paraguacraft Launcher
 
-**Launcher completo de Minecraft, desarrollado en Python con interfaz web moderna.**
+Launcher de Minecraft — **6.9.0+** en Tauri + Rust + Vue 3.
 
-[![Version](https://img.shields.io/badge/versi%C3%B3n-6.8.0-2ECC71?style=flat-square)](https://github.com/SantiJ10/Paraguacraft/releases)
-[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
-[![License](https://img.shields.io/badge/licencia-MIT-blue?style=flat-square)](LICENSE)
-[![Platform](https://img.shields.io/badge/plataforma-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)](https://github.com/SantiJ10/Paraguacraft/releases)
-
-[**Descargar**](https://github.com/SantiJ10/Paraguacraft/releases/latest) · [**Reportar bug**](https://github.com/SantiJ10/Paraguacraft/issues) · [**Changelog**](#-changelog)
+[**Descargar**](https://github.com/SantiJ10/Paraguacraft/releases/latest) · [**Web**](https://paraguacraft.pages.dev) · [**Issues**](https://github.com/SantiJ10/Paraguacraft/issues)
 
 </div>
 
 ---
 
-## ¿Qué es Paraguacraft?
+## Repo
 
-Paraguacraft es un launcher de Minecraft completamente personalizado, desarrollado en Python con una interfaz web construida sobre HTML, TailwindCSS y JavaScript. Permite gestionar versiones, mods, skins, servidores y mucho más desde un único lugar, sin depender del launcher oficial de Mojang.
+Este proyecto vive en [github.com/SantiJ10/Paraguacraft](https://github.com/SantiJ10/Paraguacraft).  
+La landing está en [paraguacraft-web](https://github.com/SantiJ10/paraguacraft-web) (Cloudflare Pages).
 
----
+## Desarrollo
 
-## ✨ Características
-
-### 🎮 Juego
-- Soporte para **Vanilla, Fabric, Forge, Quilt, NeoForge, Fabric + Iris y PvP (1.8.9)**
-- **Cliente Paraguacraft PvP (1.8.9)**: loader dedicado que instala Forge `11.15.1.2318`, OptiFine HD U M5 y el mod cliente con HUD/GUI custom — descarga automática desde GitHub con verificación SHA-1
-- Múltiples instancias independientes por versión y loader
-- Quick Play: conectar directamente a un servidor al iniciar
-- Discord Rich Presence (RPC) en tiempo real
-- Cuentas **Premium (Microsoft/Mojang)** y modo **Offline**
-- **Login Microsoft unificado**: un botón con logo MS → modal con navegador o código QR (`microsoft.com/link`), copia automática del código
-- Ventana **maximizada al iniciar** automáticamente
-- Restauración del estado de ventana correcto al cerrar Minecraft
-
-### 🛒 Tienda de Mods
-- Búsqueda e instalación desde **Modrinth** y **CurseForge**
-- Mods, shaders, resource packs, datapacks y modpacks
-- **Data packs y plugins** instalables directo en **servidores locales** (`world/datapacks` y `plugins/`) con selector de servidor y mundo
-- **Tienda de plugins** (Hangar + Modrinth) para servidores Paper/Fabric
-- Filtrado por loader y versión de Minecraft
-- Detección de mods conflictivos en la instancia activa
-- **Auto-check de actualizaciones** al abrir la sección (vía hash SHA-512 contra Modrinth)
-- **Configuración de API Key de CurseForge** integrada en la UI (sin editar archivos)
-- Acceso directo desde el botón 🧩 del panel de juego
-- **Importación de modpacks `.mrpack` locales** con detección automática de versión y loader, verificación SHA-1 y aplicación de `overrides/`
-
-### 🖼️ Skins
-- Visor 3D con animaciones (caminar, rotar, modelos Alex/Steve)
-- Catálogo de skins de jugadores populares
-- Importación desde archivo local `.png`
-- Subida directa a Mojang para cuentas Premium
-
-### 🔧 Rendimiento y herramientas
-- **Java Optimizer**: configura RAM y flags JVM según el hardware detectado
-- **Game Mode**: suspende procesos del sistema para maximizar FPS
-- **Turbo Mode**: optimización agresiva de recursos
-- **Smart RAM**: ajuste dinámico de memoria asignada a Minecraft
-- **Benchmark integrado** con métricas en tiempo real
-- **Overlay en juego**: estadísticas de rendimiento sin salir de MC (errores visibles en la UI; overlay de teclas más estable)
-- **Centro de Diagnóstico**: 45+ patrones de error, lectura de 5 archivos de log, auto-fixes con un clic
-- **Auto-diagnóstico**: al crashear Minecraft, el launcher navega y escanea automáticamente
-- **Reporte de bugs con un clic**: empaqueta logs, crash reports, info del sistema y config (redactada) en un ZIP listo para adjuntar en GitHub Issues
-- **Log interno del launcher** accesible desde la UI (rotado automáticamente, máx. 15 MB)
-
-### 🛡️ Estabilidad y robustez
-- **Auto-refresh de sesión Microsoft**: hilo daemon que refresca el token cada 50 minutos — evita la expiración frecuente (tokens expiran a los 60 min). Arranca al cargar sesión y tras cada login
-- **Sesión Microsoft refresh sincrónico**: el token se refresca antes de lanzar Minecraft, evitando kicks por `Invalid session` en servers anti-cheat (Hypixel, CubeCraft)
-- **Username consistente con Mojang**: el launcher prioriza el `name` real de la cuenta MS sobre el cacheado en config
-- **Descarga atómica de mods**: cada `.jar` se baja a `.part`, se valida con SHA-1 contra Modrinth y recién entonces se renombra al destino. Ante MITM, corrupción o truncado, el `.part` se borra automáticamente
-- **Crash analyzer endurecido**: filtro `ERROR_MARKERS` con `^\s+at\s` (multilínea) reduce ~80% los falsos positivos en logs de Forge sin perder detección de errores reales (`OutOfMemoryError`, `NoClassDefFoundError`, etc.)
-- **`estado_minecraft` con cleanup automático**: el botón "🛑 Cerrar Minecraft" desaparece correctamente tras un cierre normal
-- **Smoke test suite**: 34 secciones automatizadas que cubren imports, sesión MS, descarga atómica, crash analyzer, JSONs servidor, regresión Hypixel premium
-
-### 🤖 Inteligencia Artificial (Gemini)
-- Asistente de chat sobre Minecraft
-- Generador de comandos por descripción en lenguaje natural
-- Generador de modpacks inteligente (sugiere e instala mods automáticamente)
-
-### 🎵 Música
-- **Spotify integrado**: controles, portada, progreso de reproducción
-- **Radio YouTube**: búsqueda y reproducción de playlists y videos
-- Música ambiental de Minecraft con control de volumen
-- Barra de música persistente en toda la interfaz
-
-### 🌐 Servidor local
-- Creación y configuración automática de servidores **Paper**, **Spigot**, **Fabric**
-- Soporte para **Geyser** (jugadores Bedrock en servidores Java)
-- Túnel público con **playit.gg** — sin abrir puertos ni configurar router
-  - Detección automática de la dirección Java desde el log del agente
-  - Soporte de dirección Bedrock personalizada con **persistencia entre reinicios**
-  - La dirección se guarda por servidor en `_paragua_srv.json`
-- **Aikar G1GC flags** aplicados automáticamente a Paper/Vanilla/Fabric: TPS estable garantizado en sesiones de 4 hs+ sin lagazos progresivos. Perfil "lite" automático para heap <4 GB
-- Consola en tiempo real con colores por nivel de log
-- **Filtros en consola**: chips `Todo / INFO / WARN / ERROR / Chat` + buscador libre
-- **Stop graceful con escalada**: timeout 45s + SIGTERM + SIGKILL para servers grandes con muchos jugadores
-- **Cleanup automático al cerrar el launcher** (`atexit`): el servidor recibe `stop` y playit termina limpiamente, sin dejar procesos huérfanos
-- Reinicio automático programado por horas
-- Sistema de **whitelist**, **ops** y **bans** integrado con escritura **atómica** (`tempfile + os.replace + fsync`) — los JSONs (`ops.json`, `whitelist.json`, `banned-players.json`) ya no se corrompen ante crashes ni escrituras concurrentes (UI + bot Discord)
-- **Bot Discord integrado**: 9 slash commands (`/server-start`, `/server-stop`, `/server-restart`, `/whitelist add|remove|list`, `/op add|remove`, `/ban add|remove`)
-- Edición de `server.properties` desde la UI con escritura atómica
-- **Importar carpeta de servidor** ya existente (otra PC o backup) con detección de versión y tipo
-- **Actualizaciones de plugins** del servidor desde la UI
-
-### 💾 Instancias y mundos
-- Backup y restauración de mundos
-- **Backup automático pre-actualización**: comprime tus mundos a `pre_update_backups/` antes de aplicar cualquier update del launcher (toggle en el modal de update + listado en pestaña Backup)
-- Compartir instancias por código (mods, versión y config)
-- Importar instancias de otros jugadores
-- **Importar desde TLauncher / SKLauncher** (o carpeta `.minecraft`): mundos, mods, resource packs, shaders, `options.txt` y `servers.dat` con tutorial en Extras
-- Activar/desactivar mods sin borrarlos
-- Visualizador de screenshots
-
-### 🎨 Personalización
-- Fondo del launcher configurable: imágenes, GIFs o videos
-- Modo compacto
-- Perfiles de hardware (baja/media/alta gama) con mods preconfigurados
-- **Configs Comunidad**: catálogo público de configuraciones (`options.txt`, Sodium, Iris, OptiFine, `servers.dat`) compartidas por la comunidad. Búsqueda por tipo, instalación con un clic en cualquier instancia (con backup `.paragua_bak` automático) y aporte propio vía issue de GitHub prellenado
-- **Atajos de teclado globales**: `Ctrl+1..6` para navegar, `Ctrl+J` jugar, `Ctrl+L` tienda de mods, `Ctrl+,` ajustes, `Ctrl+/` ver todos los atajos
-
-### 🔄 Sistema
-- **Auto-actualización** vía GitHub Releases con barra de progreso en tiempo real
-- Verificación de integridad **SHA256** del ejecutable descargado
-- Manifest de actualización vía **Cloudflare Pages** (sin rate limits)
-- Fallback a GitHub API si Cloudflare no está disponible
-- **Modal de changelog** al actualizar, con parser Markdown embebido
-- **Modo sin conexión explicativo**: badge clickeable que muestra qué funciona y qué no sin internet
-- **Logging estructurado** con archivo rotatorio (`paraguacraft_debug.log`) para diagnóstico remoto
-- **Timeouts reforzados** en todas las llamadas HTTP para evitar cuelgues silenciosos
-- Notificaciones nativas de Windows
-- **Noticias interactivas en Inicio**: cards con imagen oficial, categoría, fecha y enlace a Minecraft.net. Datos en tiempo real desde la API de Mojang
-- **Sección Modrinth en Inicio**: los 8 mods más descargados con ícono, descripción y contador de descargas
-- Contador de jugadores online en tiempo real
-- Ping en vivo a servidores populares (Hypixel, CubeCraft, Wynncraft, Minemen, JartexNetwork, ExtremeCraft, FadeCloud, MineSuperior, RedPVP, Minebolt, RhoMC)
-
-### 🖥️ Compatibilidad Windows
-- Compatible con **Windows 10 y 11** en todas las ediciones (Home, Pro, Enterprise, LTSC)
-- **WebView2 Runtime**: detección e instalación automática con diálogo amigable al usuario
-- El instalador también gestiona WebView2 como prerequisito automático
-- **Long Paths** (>260 caracteres) habilitado automáticamente para modpacks pesados
-- CSS compilado localmente (sin dependencia de CDN) para entornos con firewall corporativo
-
-### 🖥️ Compatibilidad GPU / OpenGL (PCs viejas)
-Para equipos con GPU sin OpenGL 3.2+ (errores tipo *"OpenGL not supported"*, pantalla negra, crash al iniciar MC 1.17+):
-- **Diagnóstico automático**: detecta GPUs vía WMIC + versión OpenGL real (parse de logs de MC + contexto WGL dummy con ctypes)
-- **Mesa3D integrado**: descarga el último release de [pal1000/mesa-dist-win](https://github.com/pal1000/mesa-dist-win) y lo aplica automáticamente al runtime de Java de Minecraft
-- **3 modos de renderizado**:
-  - 🐌 **Software (llvmpipe)**: renderiza con CPU, funciona en cualquier PC
-  - ⭐ **DirectX 12 (d3d12)**: traduce OpenGL → DX12, rápido en GPUs con DX12
-  - 🟣 **Vulkan (zink)**: traduce OpenGL → Vulkan en GPUs modernas
-- **Forzar GPU dedicada** en laptops híbridas (NVIDIA Optimus / AMD switchable) vía `HKCU\...\DirectX\UserGpuPreferences`
-- **Recomendador de versión MC** según OpenGL detectado
-- 100% reversible: el toggle a "Sistema" elimina los DLLs inyectados sin tocar otros launchers
-
----
-
-## 🚀 Instalación
-
-### Opción 1 — Instalador (recomendado)
-
-Descargá el instalador `.exe` desde [Releases](https://github.com/SantiJ10/Paraguacraft/releases/latest) y ejecutalo. Instala para todos los usuarios del equipo. No requiere Python.
-
-### Opción 2 — Desde el código fuente
-
-**Requisitos:** Python 3.10+, pip
-
-```bash
-git clone https://github.com/SantiJ10/Paraguacraft.git
-cd Paraguacraft
-pip install -r requirements.txt
-python paragua.py
+```powershell
+cd launcher
+npm install
+npm run tauri:dev
 ```
 
----
+Solo la UI (sin Rust): `npm run dev` → http://127.0.0.1:1420
 
-## 🏗️ Compilar el ejecutable
+## Compilar en Windows (local)
 
-```bash
-pip install pyinstaller
-
-# 1. Compilar el CSS de Tailwind (necesario si modificaste el HTML)
-powershell -command "Invoke-WebRequest -Uri 'https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.17/tailwindcss-windows-x64.exe' -OutFile 'tailwindcss.exe'"
-.\tailwindcss.exe --content web/index.html -o web/assets/tailwind.min.css --minify
-del tailwindcss.exe
-
-# 2. Compilar el ejecutable
-pyinstaller Paraguacraft.spec --noconfirm
+```powershell
+cd launcher
+npm run tauri:build
 ```
 
-El ejecutable queda en `dist/Paraguacraft.exe`.
+Instalador: `launcher/src-tauri/target/release/bundle/nsis/Instalar_Paraguacraft_v6.9.0.exe`
 
-### Proceso de release
+## Compilar con GitHub Actions (Win + Mac + Linux)
 
-```
-1. Actualizar VERSION en paragua.py
-2. Actualizar AppVersion y OutputBaseFilename en script_mc.iss
-3. Recompilar CSS (si hubo cambios en index.html)
-4. pyinstaller Paraguacraft.spec --noconfirm
-5. certutil -hashfile dist\Paraguacraft.exe SHA256
-6. Actualizar latest.json (version, download_url del **Instalar_Paraguacraft_vX.exe**, sha256 del instalador)
-7. Compilar instalador en Inno Setup
-8. Crear GitHub Release → subir Paraguacraft.exe + instalador
-9. Cloudflare Pages → subir latest.json actualizado
-```
+El workflow está en `.github/workflows/release.yml`. Necesitás subir el código a GitHub primero.
 
----
+**Opción A — desde un tag (recomendado para releases):**
 
-## 📁 Estructura del proyecto
-
-```
-Paraguacraft/
-├── paragua.py              # Backend principal (API pywebview)
-├── core.py                 # Lógica de lanzamiento de Minecraft
-├── web/
-│   ├── index.html          # Interfaz web completa
-│   └── assets/
-│       └── tailwind.min.css  # CSS compilado localmente (Tailwind JIT)
-├── src/                    # Módulos auxiliares
-├── Paraguacraft.spec       # Configuración de PyInstaller
-├── script_mc.iss           # Script Inno Setup (instalador)
-├── latest.json             # Manifest de actualización (subir a Cloudflare Pages)
-└── requirements.txt        # Dependencias Python
+```powershell
+git add .
+git commit -m "6.9.0"
+git push origin main
+git tag v6.9.0
+git push origin v6.9.0
 ```
 
----
+**Opción B — manual:** en GitHub → **Actions** → **Release** → **Run workflow**.  
+Sube artefactos en la pestaña del run (no crea release; para publicar usá la opción A con tag).
 
-## 🛠️ Stack tecnológico
+Cuando termine (~15–25 min la primera vez), en **Releases** vas a ver:
 
-| Capa | Tecnología |
-|------|-----------|
-| Backend | Python 3, pywebview, requests, psutil |
-| Frontend | HTML5, TailwindCSS (compilado local), JavaScript |
-| Empaquetado | PyInstaller + Inno Setup |
-| CDN updates | Cloudflare Pages (manifest) + GitHub Releases (binarios) |
-| APIs externas | Modrinth, CurseForge, Mojang, Gemini AI, Spotify, YouTube |
-| Minecraft | minecraft-launcher-lib |
-| Túnel público | playit.gg |
+| SO | Archivo |
+|----|---------|
+| Windows | `Instalar_Paraguacraft_v6.9.0.exe` |
+| macOS | `.dmg` |
+| Linux | `.AppImage`, `.deb` |
 
----
+Después actualizá `latest.json` con el hash del `.exe`:
 
-## 📝 Changelog
+```powershell
+certutil -hashfile "launcher\src-tauri\target\release\bundle\nsis\Instalar_Paraguacraft_v6.9.0.exe" SHA256
+```
 
-### v6.8.0
-- **Panel de versiones más limpio**: eliminada la tarjeta redundante "Cliente Paraguacraft PvP" que aparecía en todas las versiones; el perfil PvP se usa solo desde el loader **PvP** en 1.8.9 + botón **JUGAR**
+(Si solo compilaste en Actions, descargá el `.exe` del release y corré lo mismo.)
 
-### v6.7.0
-- **Loader PvP (1.8.9)**: nuevo perfil en el selector de versiones que instala Forge `11.15.1.2318`, OptiFine HD U M5 y `ParaguacraftPvP-1.0.0.jar` en la instancia aislada `Paraguacraft_1.8.9_PvP`
-- **Descarga remota del cliente PvP**: el mod se baja desde `bundled/pvp` en GitHub (con fallback a release `pvp-client-1.0.0`), se valida con SHA-1 y se cachea en `.minecraft/Paraguacraft_cache/pvp/`
-- **Panel Cliente Paraguacraft PvP**: preparar, jugar y reparar el bundle competitivo desde Versiones sin tocar carpetas manualmente
-- **Preset PvP Solo**: el asistente de hardware apunta a `1.8.9 · PvP` e instala todo el stack automáticamente
-- **Reparar loader PvP**: reinstala Forge fijo + mods del cliente en un clic
+Campos: `version`, `download_url`, `sha256`, `size_bytes`. Mismo archivo en `web-site/public/latest.json` para la web.
 
-### v6.6.0
-- **Bot Discord**: RCON en hilos separados (`asyncio.to_thread`) — el bot no se desconecta cuando el servidor MC está caído
-- **`!partido` con fallback web**: si la API de fútbol no tiene el partido, busca en DuckDuckGo y muestra resultados
-- **Caché de API de fútbol corregida**: errores y respuestas vacías ya no se guardan por 60 minutos
-- **Aliases de equipos ampliados**: `boca juniors`, `paris saint germain`, etc.
+## Qué subir a GitHub (launcher)
 
-### v6.5.0
-- **Lanzamiento desde Biblioteca**: instancias y modpacks inician correctamente al presionar ▶ en la tarjeta o ▶ Jugar en el detalle — spinner persiste hasta que el juego se cierra (timeout 60 min para modpacks pesados)
-- **Servidor Fabric**: `iniciar_servidor` detecta y usa `fabric-server-launch.jar` correctamente; antes intentaba `server.jar` que no existe en Fabric
-- **Plugins en servidor Fabric**: instalación de mods/plugins apunta a `/mods` en vez de `/plugins` (afectaba Geyser, listado, eliminación, toggle y subida)
-- **Badge "corriendo" en Biblioteca**: corregida comparación de motor que nunca matcheaba para motores con espacios (ej: `Fabric + Iris`)
-- **Protección contra sobreescritura de instancias**: avisa si ya existe una instancia con distinto nombre para la misma versión/motor en vez de sobreescribir silenciosamente
-- **Selector de versión del loader Fabric por instancia**: en Biblioteca → ⚙ Configuración → Instalación; útil cuando un modpack requiere una versión específica del loader
+Solo lo que el launcher usa en runtime o en CI:
 
-### v6.4.0
-- **Nombre de modpacks Modrinth**: los modpacks instalados (ej: Fabulously Optimized) ahora muestran su título real en vez del string de versión (ej: "6.3.0-beta.4")
-- **Guardar nombre en Biblioteca**: editar el nombre de una instancia desde Biblioteca → ⚙ Configuración ahora persiste correctamente entre reinicios
-- **Botón ▶ en tarjeta de instancia**: muestra spinner de carga, valida Java con `preflightJava` antes de lanzar y restaura el estado del botón al terminar el juego
+```
+.github/workflows/release.yml
+.gitignore
+launcher/                 # código Tauri
+bundled/pvp/              # jars del cliente PvP (descarga desde raw.githubusercontent)
+latest.json
+CHANGELOG.md
+LICENSE
+README.md
+version.txt
+```
 
-### v6.3.0
-- **Noticias interactivas en Inicio**: cards con imagen, categoría, fecha y enlace a Minecraft.net (API Mojang en tiempo real)
-- **Sección Modrinth en Inicio**: 8 mods más descargados con ícono, descripción y descargas
-- **Íconos reales de servidores**: `mcsrvstat.us` para todos los cards de servidores públicos
-- **3 servidores nuevos**: RedPVP, Minebolt, RhoMC con Auto-Join, ping y badge No-Premium
-- **Auto-refresh sesión MS**: token refrescado cada 50 min en background — sin expiración frecuente
-- **Auto-Join mejorado**: usa la última versión jugada sin requerir ir a Versiones primero
-- **Quick Play**: eliminado `sticky` que causaba overlap con la navbar
-- **Login overlay**: fondo con `main_banner.png` + botón MS con ícono SVG oficial
+**No hace falta** en el repo del launcher: `web-site/` (va a paraguacraft-web), `botamin/`, `OneConfig/`, builds viejos de Python, `launcher/dist/`, `node_modules/`, `target/`.
 
-### v6.2.0
-- **Versiones Mojang en picker**: carga completa desde `piston-meta.mojang.com` con fallback a `minecraft-launcher-lib` — ya no aparece vacío
+El mod PvP (`client/`) podés dejarlo en este repo o en otro; el launcher lo baja desde `bundled/pvp/` o releases.
 
-### v6.1.0
-- **Panel Versiones rediseñado**: grid de instancias con imagen, motor, última vez jugada, botones por card
-- **Wizard de primera vez**: guía paso a paso al abrir el launcher por primera vez
+## Actualizaciones
 
-### v6.0.0
-- **Login Microsoft unificado**: un botón → modal con navegador + QR; código copiable; QR solo a `microsoft.com/link`
-- **Data packs en servidor local**: selector servidor/mundo → `world/datapacks`
-- **Plugins en servidor local**: tienda con selector de servidor destino
-- **Importar desde TLauncher / SKLauncher** con tutorial en Extras → Importar launcher
-- **Overlays más estables**: sin `bind_all` global, errores visibles, mejor cierre de `pynput`
+- **Web y usuarios 6.8.x:** leen `https://paraguacraft.pages.dev/latest.json`.
+- **Launcher Tauri:** busca releases en GitHub; prioriza `Instalar_Paraguacraft_*.exe` en versiones ≥ 6.9.0.
 
-### v5.9.0
-- **Tienda de plugins** (Hangar + Modrinth) con instalación en servidor local
-- **Actualizaciones de plugins** del servidor
-- **Importar carpeta de servidor** existente + detección de versión
-- **Playit**: dirección Java persistida por servidor
+## Más detalle
 
-### v5.8.0
-- **RAM servidor**: `-Xms` = `-Xmx` en modo automático (mitad de RAM del sistema, tope 8 GB)
-
-### v5.7.0
-- **🐛 Fix Hypixel/CubeCraft con sesión premium**: arreglado el `Invalid session` por token MS expirado. Ahora se refresca sincrónicamente antes de lanzar y se usa el `name` real de Mojang
-- **⚡ Aikar G1GC flags en servidor MC**: PaperMC/Vanilla/Fabric server arrancan con los 21 flags tuneados de Aikar — TPS estable 4hs+ sin lagazos progresivos. Perfil `lite` automático para heap <4 GB
-- **🛡️ Escritura atómica de JSONs servidor**: `ops.json`, `whitelist.json`, `banned-players.json` ahora usan `tempfile + os.replace + fsync` con lock. El bot Discord y la UI ya no pueden corromperlos en escrituras concurrentes
-- **🔒 Descarga de mods con verificación SHA-1**: cada `.jar` de Modrinth se baja a `.part`, se valida y recién entonces se renombra al destino. Ante MITM o corrupción, el `.part` se borra automáticamente
-- **🧹 Cleanup global con `atexit`**: si cerrás el launcher con un servidor MC o playit corriendo, se cierran graceful (servidor recibe `stop` con timeout 15s; playit `terminate`). No quedan procesos huérfanos
-- **🛑 Botón "Cerrar Minecraft" colgado**: arreglado — `estado_minecraft()` limpia automáticamente el handle del proceso muerto
-- **🔍 Crash analyzer endurecido**: regex `^\s+at\s` (multilínea) reduce ~80% los falsos positivos sin perder detección real (OOM, ClassNotFound, etc.)
-- **⏱️ `detener_servidor` con timeout 45s**: antes era 8s, insuficiente para servers con 10+ jugadores guardando mundos. Escalada graceful → SIGTERM → SIGKILL con logging por etapa
-- **🤖 Bot Discord — 9 comandos nuevos**: `/server-start`, `/server-stop`, `/server-restart`, `/whitelist add|remove|list`, `/op add|remove`, `/ban add|remove`. Toda escritura de JSON pasa por el writer atómico
-- **🧪 Smoke test suite ampliada a 34 secciones**: cubre sesión MS, descarga atómica, crash analyzer (falsos positivos + detección OOM), `estado_minecraft` cleanup, regresión Hypixel premium. Ejecutable con `.venv/Scripts/python.exe test_smoke.py`
-
-### v5.6.0
-- **🖥️ Compatibilidad GPU / OpenGL para PCs viejas**: nueva pestaña Extras → GPU/OpenGL con diagnóstico de hardware, descarga e instalación automática de Mesa3D (software / DirectX 12 / Vulkan) y forzado de GPU dedicada. Permite jugar Minecraft 1.17+ en equipos cuya GPU no soporta OpenGL 3.2+
-- **🌐 Configs Comunidad**: catálogo público de configuraciones gráficas/servidores compartidas. Buscador, filtros por tipo (sodium/iris/optifine/options/servers), instalación con un clic en cualquier instancia y backup automático `.paragua_bak`. Aportar tu config se hace vía issue de GitHub prellenado
-- **🛡️ Backup pre-actualización**: cada vez que actualizás el launcher, se comprimen automáticamente los mundos de todas las instancias a `pre_update_backups/` antes de aplicar el update (toggle on/off en el modal). Listado y acceso a la carpeta desde la pestaña Backup
-- **Bug fix**: el wizard de configuración inicial volvía a abrirse correctamente tras cerrarlo (reset de `style.display` además de `classList`)
-- Nuevos endpoints API: `gpu_diagnostico`, `gpu_compat_*`, `gpu_forzar_dedicada`, `comunidad_configs_*`, `listar_backups_pre_update`
-- Nueva variable JVM en `core.lanzar_minecraft`: parámetro `gpu_compat_mode` que inyecta `opengl32.dll` de Mesa al runtime de Java y configura `GALLIUM_DRIVER` / `MESA_LOADER_DRIVER_OVERRIDE` antes del lanzamiento
-
-### v5.5.0
-- **Importar modpacks `.mrpack`**: elegí un archivo local de Modrinth y el launcher detecta automáticamente la versión de Minecraft y el loader (Fabric/Forge/NeoForge/Quilt), descarga todos los mods con verificación SHA-1, aplica los `overrides/` y arma la instancia lista para jugar
-- **Reporte de bugs con un clic**: nuevo botón en Extras → Crash Log que empaqueta logs, crash reports, info del sistema y config (redactada, sin tokens) en un ZIP listo para GitHub Issues
-- **Atajos de teclado globales**: `Ctrl+1..6` navegación, `Ctrl+J` jugar, `Ctrl+L` tienda, `Ctrl+,` ajustes, `Ctrl+/` ver todos
-- **Changelog visible al actualizar**: modal con las novedades al detectar cambio de versión, con parser Markdown
-- **Modo sin conexión explicativo**: el badge "Sin conexión" ahora es clickeable y explica qué funciona offline
-- **Filtros en la consola del servidor**: chips `Todo / INFO / WARN / ERROR / Chat` + buscador libre
-- **Log interno del launcher**: botón `📋 Log launcher` + inclusión automática en el ZIP de reporte de bug
-- **Logging estructurado**: migrados los `print()` dispersos a `logging` con `RotatingFileHandler` (5 MB × 3 archivos) en `%APPDATA%/ParaguacraftLauncher/`
-- **Timeouts reforzados**: todas las llamadas HTTP ahora tienen `timeout` explícito para evitar cuelgues silenciosos
-
-### v5.4.0
-- **Compatibilidad total Windows 10/11**: todas las ediciones incluyendo LTSC Enterprise
-- **WebView2 auto-install**: detecta si falta WebView2, muestra diálogo amigable y lo descarga/instala automáticamente
-- Detección en HKLM y HKCU (installs por usuario y del sistema)
-- **Long Paths habilitado automáticamente** vía registro para modpacks con rutas largas
-- **Tailwind CSS local**: compilado desde el HTML con el CLI standalone, sin dependencia de CDN
-- Instalador Inno Setup detecta y descarga WebView2 como prerequisito si no está instalado
-
-### v5.3.0
-- **Sistema de auto-actualización reescrito** con barra de progreso en tiempo real
-- Progreso real de descarga basado en `Content-Length` (MB descargados / MB totales)
-- **Verificación SHA256** del ejecutable descargado antes de instalar
-- **Manifest vía Cloudflare Pages** (`latest.json`) como fuente primaria sin rate limits
-- Fallback automático a GitHub Releases API si Cloudflare no responde
-- 3 reintentos automáticos con espera progresiva ante errores de red
-- Estrategia 1: rename in-process (sin UAC)
-- Estrategia 2: PowerShell con 10 reintentos (fallback si el exe está bloqueado)
-- Botón "Descargar manual" inline al fallar (sin alertas molestas)
-- `cerrarModalUpdate()` resetea correctamente el estado de la barra
-
-### v5.2.0
-- Tienda de mods y sistema de servidores estabilizado
-- Correcciones generales de rendimiento
-
-### v5.1.0
-- Mejoras en el sistema de diagnóstico de crashes
-- Optimizaciones de UI
-
-### v5.0.0
-- **Auto-maximize**: la ventana del launcher inicia maximizada via parámetro nativo de pywebview
-- **Restaurar estado de ventana**: al cerrar Minecraft, la ventana vuelve al estado previo (maximizada si lo estaba)
-- **Auto-diagnóstico de crashes**: al detectar un crash, navega automáticamente a Extras → Crash Log y escanea
-- **CF API Key UI**: configuración de API Key de CurseForge desde dentro del launcher con guía paso a paso
-- **Auto-check de actualizaciones de mods**: escanea los JARs por SHA-512 contra Modrinth al abrir la tienda
-- **Botón 🧩 Mods** en la fila de lanzamiento para acceso rápido a la tienda
-- **Botón "Buscar en tienda"** dentro del Gestor de Instancia → Contenido
-- Corrección de bugs: `_cargar_config`/`_guardar_config` inexistentes en `aplicar_fix`
-- Corrección: `inst_path` indefinido cuando `motor` era vacío en `analizar_crash_log`
-- CF 403 devuelve mensaje explícito para detección correcta en el frontend
-
-### v4.8.0
-- **Centro de Diagnóstico** expandido: 45+ patrones de error de inicio y en juego
-- Lectura de 5 fuentes de log: `latest.log`, `debug.log`, crash reports, `launch_debug.log`, `hs_err_pid*.log`
-- Auto-fixes: aumentar RAM, eliminar duplicados/OptiFine/shaders/JARs corruptos, flags JVM
-- Botón 📄 Log inicio para leer `launch_debug.log` directamente
-- Patrones nuevos: `UnsupportedClassVersionError`, JVM crash, sesión expirada, OpenGL, exit codes
-
-### v4.7.0
-- Instalador Inno Setup configurado para instalación **global** (todos los usuarios, `Program Files`)
-- Versión bumpeada para nueva distribución
-
-### v4.6.0
-- **Servidor → playit.gg**: detección automática de dirección Java desde el log del agente
-- **Bedrock**: soporte de dirección personalizada con persistencia entre reinicios y reaperturas de la app
-- La dirección Bedrock se carga desde `_paragua_srv.json` al iniciar el túnel, incluso antes que el servidor
-- La fila Bedrock en la UI ahora se muestra también cuando hay una dirección guardada (aunque el server no sea Geyser)
-- Eliminado el spam de debug `[PLAYIT][API]` de la consola
-- Correcciones de indentación y sintaxis en la función `_probe_tuneles`
-
-### v3.0.0
-- Soporte completo para **Fabric + Iris** en la tienda de mods
-- Corrección del spinner infinito en instalación de mods (Modrinth y CurseForge)
-- Fondo personalizado ahora reemplaza correctamente el banner de inicio
-- El modal de instalación pre-selecciona automáticamente el loader activo
-
-### v2.9.0
-- Sistema de fondo personalizado: imágenes, GIFs y videos
-- Streaming de video vía endpoint HTTP local con soporte de Range requests
-
-### v2.8.0
-- Tienda dual Modrinth/CurseForge
-- Analizador de crash logs con IA (Gemini)
-- Compartir instancias por código
-- Spotify y YouTube Radio integrados
-
----
-
-## 📄 Licencia
-
-Este proyecto está bajo la licencia MIT. Ver [LICENSE](LICENSE) para más detalles.
-
----
-
-<div align="center">
-Hecho con ❤️ para la comunidad de Minecraft hispanohablante
-</div>
+Ver [`launcher/README.md`](launcher/README.md).

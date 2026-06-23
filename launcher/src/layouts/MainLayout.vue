@@ -1,23 +1,35 @@
 <script setup lang="ts">
 import { onMounted } from "vue";
 import Sidebar from "@/components/layout/Sidebar.vue";
+import TopBar from "@/components/layout/TopBar.vue";
 import StatusBar from "@/components/layout/StatusBar.vue";
 import AiPanel from "@/components/layout/AiPanel.vue";
+import MusicPlayer from "@/components/layout/MusicPlayer.vue";
+import MusicOverlay from "@/components/layout/MusicOverlay.vue";
+import UpdateBanner from "@/components/layout/UpdateBanner.vue";
 import { useAppStore } from "@/stores/app";
 import { useAccountsStore } from "@/stores/accounts";
 import { useInstancesStore } from "@/stores/instances";
 import { useSettingsStore } from "@/stores/settings";
+import { useDownloadsStore } from "@/stores/downloads";
+import { useMusicStore } from "@/stores/music";
 
 const app = useAppStore();
 const accounts = useAccountsStore();
 const instances = useInstancesStore();
 const settings = useSettingsStore();
+const downloads = useDownloadsStore();
+const music = useMusicStore();
 
-onMounted(() => {
+onMounted(async () => {
   app.loadHardware();
+  app.initGameEvents();
+  await settings.load();
+  app.checkUpdate();
   accounts.load();
   instances.load();
-  settings.load();
+  downloads.initEvents();
+  void music.init();
 });
 </script>
 
@@ -25,6 +37,8 @@ onMounted(() => {
   <div class="flex flex-1 overflow-hidden">
     <Sidebar />
     <div class="relative flex flex-1 flex-col overflow-hidden">
+      <UpdateBanner />
+      <TopBar />
       <main class="flex-1 overflow-y-auto">
         <RouterView v-slot="{ Component }">
           <Transition name="fade" mode="out-in">
@@ -34,6 +48,8 @@ onMounted(() => {
       </main>
       <StatusBar />
       <AiPanel />
+      <MusicPlayer />
+      <MusicOverlay />
     </div>
   </div>
 </template>

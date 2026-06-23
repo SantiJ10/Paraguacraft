@@ -1,16 +1,18 @@
 <script setup lang="ts">
+import launcherIcon from "@/assets/launcher-icon.png";
+
 const features = [
   { icon: "\u26A1", title: "Rendimiento extremo", desc: "RAM minima y CPU suspendida al jugar." },
   { icon: "\uD83E\uDDE9", title: "Todos los loaders", desc: "Vanilla, Forge, Fabric, NeoForge, OptiFine, Quilt." },
   { icon: "\uD83D\uDED2", title: "Tienda integrada", desc: "Modrinth + CurseForge en un solo lugar." },
-  { icon: "\uD83E\uDD16", title: "Asistente IA", desc: "Diagnostico de crashes y ayuda en todo el launcher." },
+  { icon: "\uD83E\uDD16", title: "Paraguabot", desc: "Diagnostico de crashes y ayuda en todo el launcher." },
 ];
 </script>
 
 <template>
   <div class="flex flex-col items-center text-center">
-    <div class="mb-5 flex h-20 w-20 items-center justify-center rounded-2xl bg-pc-green/15">
-      <span class="h-8 w-8 rounded-md bg-pc-green"></span>
+    <div class="mb-5 flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-pc-green/10 ring-1 ring-pc-green/25">
+      <img :src="launcherIcon" alt="Paraguacraft" class="h-14 w-14 object-contain" />
     </div>
     <h1 class="text-3xl font-black tracking-tight">Bienvenido a Paraguacraft</h1>
     <p class="mt-2 max-w-md text-gray-400">

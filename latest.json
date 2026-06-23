@@ -1,7 +1,7 @@
 {
-  "version": "6.8.0",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v6.8.0/Instalar_Paraguacraft_v6.8.0.exe",
-  "size_bytes": 52388609,
-  "sha256": "3af963e410bfedf0d5cfb22f421dbe55cb6fb53117fe920c2e6496746dbdbcfd",
-  "notes": "- UI mas limpia: se elimino la tarjeta redundante Cliente Paraguacraft PvP del panel de versiones (usar loader PvP en 1.8.9)\n- Loader PvP sigue instalando Forge 11.15.1.2318 + OptiFine HD U M5 + cliente Paraguacraft PvP desde el boton JUGAR"
+  "version": "6.9.0",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v6.9.0/Instalar_Paraguacraft_v6.9.0.exe",
+  "size_bytes": 0,
+  "sha256": "REEMPLAZAR_TRAS_COMPILAR",
+  "notes": "- Paraguacraft Launcher reescrito en Tauri v2 + Rust + Vue 3\n- 0% CPU en segundo plano al jugar; descargas async con verificación SHA-1\n- Tienda Modrinth + CurseForge, modpacks .mrpack, plugins/datapacks en servidores locales\n- Diagnóstico de crashes con IA, servidores Playit.gg, auto-update integrado\n- Mismo instalador Instalar_Paraguacraft_v*.exe: usuarios 6.8.x migran desde el launcher Python"
 }

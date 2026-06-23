@@ -1,0 +1,18 @@
+{
+  "required": true,
+  "minVersion": "0.7.11",
+  "package": "com.paraguacraft.pvp.mixins",
+  "compatibilityLevel": "JAVA_8",
+  "refmap": "mixins.paraguacraft.refmap.json",
+  "mixins": [
+    "MixinGuiIngame",
+    "MixinItemRenderer",
+    "MixinRendererLivingEntity"
+  ],
+  "client": [
+    "MixinDisplayTitle"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

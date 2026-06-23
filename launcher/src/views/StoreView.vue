@@ -1,19 +1,28 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
-import { api } from "@/lib/ipc";
-import type { ContentType, StoreItem } from "@/lib/types";
+import { onMounted, ref, watch } from "vue";
+import { api, openUrl } from "@/lib/ipc";
+import type { ContentProvider, ContentType, StoreItem } from "@/lib/types";
 import SearchInput from "@/components/common/SearchInput.vue";
 import BaseButton from "@/components/common/BaseButton.vue";
+import InstallStoreModal from "@/components/store/InstallStoreModal.vue";
 import { useDownloadsStore } from "@/stores/downloads";
 import { formatNumber } from "@/composables/useFormat";
 
 const downloads = useDownloadsStore();
+
 const query = ref("");
 const items = ref<StoreItem[]>([]);
-const typeFilter = ref<ContentType | "all">("all");
+const loading = ref(false);
+const error = ref<string | null>(null);
+const provider = ref<ContentProvider>("modrinth");
+const typeFilter = ref<ContentType>("mod");
+/** Mods CF bloqueados por distribución: id → URL del proyecto */
+const distributionBlocked = ref<Record<string, { url: string; name: string }>>({});
 
-const tabs: Array<{ id: ContentType | "all"; label: string }> = [
-  { id: "all", label: "Todo" },
+const installOpen = ref(false);
+const installItem = ref<StoreItem | null>(null);
+
+const tabs: Array<{ id: ContentType; label: string }> = [
   { id: "mod", label: "Mods" },
   { id: "modpack", label: "Modpacks" },
   { id: "resourcepack", label: "Resource packs" },
@@ -22,14 +31,41 @@ const tabs: Array<{ id: ContentType | "all"; label: string }> = [
   { id: "plugin", label: "Plugins" },
 ];
 
-async function refresh() {
-  items.value = await api.searchStore(query.value);
-}
 onMounted(refresh);
 
-const filtered = computed(() =>
-  typeFilter.value === "all" ? items.value : items.value.filter((i) => i.type === typeFilter.value),
-);
+async function refresh() {
+  loading.value = true;
+  error.value = null;
+  try {
+    items.value = await api.searchStore({
+      provider: provider.value,
+      query: query.value,
+      projectType: typeFilter.value,
+    });
+  } catch (e) {
+    error.value = String(e);
+    items.value = [];
+  } finally {
+    loading.value = false;
+  }
+}
+
+watch([provider, typeFilter], refresh);
+
+function openInstall(item: StoreItem) {
+  installItem.value = item;
+  installOpen.value = true;
+}
+
+async function openManualDownload(item: StoreItem) {
+  const blocked = distributionBlocked.value[item.id];
+  const url = blocked?.url ?? item.projectUrl;
+  if (url) await openUrl(url);
+}
+
+function providerLabel(p: ContentProvider): string {
+  return p === "modrinth" ? "Modrinth" : "CurseForge";
+}
 
 function providerBadge(p: string) {
   return p === "modrinth"
@@ -41,10 +77,26 @@ function providerBadge(p: string) {
 <template>
   <div class="p-8">
     <h1 class="text-2xl font-bold">Tienda</h1>
-    <p class="text-sm text-gray-500">Mods, modpacks, shaders y mas desde Modrinth y CurseForge</p>
+    <p class="text-sm text-gray-500">
+      Explora mods, packs y más desde Modrinth y CurseForge. Al instalar, elegirás versión, plataforma e instancia.
+    </p>
 
-    <div class="my-5 flex items-center gap-3">
-      <div class="flex-1"><SearchInput v-model="query" placeholder="Buscar contenido..." @keyup.enter="refresh" /></div>
+    <div class="my-5 flex flex-wrap items-center gap-3">
+      <div class="flex overflow-hidden rounded-lg border border-surface-3">
+        <button
+          v-for="p in (['modrinth', 'curseforge'] as ContentProvider[])"
+          :key="p"
+          class="px-3 py-2 text-sm font-semibold transition-colors"
+          :class="provider === p ? 'bg-surface-4 text-white' : 'text-gray-400 hover:text-white'"
+          @click="provider = p"
+        >
+          {{ providerLabel(p) }}
+        </button>
+      </div>
+
+      <div class="min-w-[220px] flex-1">
+        <SearchInput v-model="query" placeholder="Buscar en todo el catálogo..." @keyup.enter="refresh" />
+      </div>
       <BaseButton variant="secondary" @click="refresh">Buscar</BaseButton>
     </div>
 
@@ -60,32 +112,47 @@ function providerBadge(p: string) {
       </button>
     </div>
 
+    <p v-if="error" class="mb-4 rounded-lg bg-red-500/10 px-4 py-2 text-sm text-red-400">{{ error }}</p>
+    <p v-if="loading" class="text-sm text-gray-500">Buscando…</p>
+    <p v-else-if="!items.length" class="text-sm text-gray-500">
+      Sin resultados. Probá otra búsqueda o cambiá de categoría.
+    </p>
+
     <div class="grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3">
-      <article
-        v-for="item in filtered"
-        :key="item.id"
-        class="lunar-card flex gap-4 p-4"
-      >
-        <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-surface-4 text-2xl">
-          {{ item.title[0] }}
+      <article v-for="item in items" :key="item.id" class="lunar-card flex gap-4 p-4">
+        <div class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-4 text-2xl">
+          <img v-if="item.iconUrl" :src="item.iconUrl" :alt="item.title" class="h-full w-full object-cover" />
+          <span v-else>{{ item.title[0] }}</span>
         </div>
         <div class="min-w-0 flex-1">
           <div class="flex items-center gap-2">
             <h3 class="truncate font-bold">{{ item.title }}</h3>
             <span class="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase" :class="providerBadge(item.provider)">
-              {{ item.provider }}
+              {{ providerLabel(item.provider) }}
             </span>
           </div>
           <p class="text-xs text-gray-500">por {{ item.author }}</p>
           <p class="mt-1 line-clamp-2 text-sm text-gray-400">{{ item.description }}</p>
-          <div class="mt-2 flex items-center justify-between">
+          <div class="mt-2 flex flex-wrap items-center justify-between gap-2">
             <span class="text-xs text-gray-500">
-              {{ formatNumber(item.downloads) }} descargas &middot; {{ formatNumber(item.followers) }} seguidores
+              {{ formatNumber(item.downloads) }} descargas &middot; {{ formatNumber(item.follows) }} seguidores
             </span>
-            <BaseButton size="sm" @click="downloads.enqueueDemo(`Descargando ${item.title}`)">Instalar</BaseButton>
+            <div class="flex flex-wrap gap-2">
+              <BaseButton size="sm" @click="openInstall(item)">Instalar</BaseButton>
+              <BaseButton
+                v-if="distributionBlocked[item.id] || item.projectUrl"
+                size="sm"
+                variant="secondary"
+                @click="openManualDownload(item)"
+              >
+                Descargar manualmente
+              </BaseButton>
+            </div>
           </div>
         </div>
       </article>
     </div>
+
+    <InstallStoreModal v-model:open="installOpen" :item="installItem" @installed="downloads.initEvents()" />
   </div>
 </template>

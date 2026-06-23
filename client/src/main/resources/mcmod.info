@@ -1,0 +1,16 @@
+[
+{
+  "modid": "paraguacraftpvp",
+  "name": "Paraguacraft PvP Client",
+  "description": "Cliente QoL enfocado en rendimiento y PvP.",
+  "version": "${version}",
+  "mcversion": "${mcversion}",
+  "url": "",
+  "updateUrl": "",
+  "authorList": ["Santi"],
+  "credits": "Paraguacraft Network",
+  "logoFile": "",
+  "screenshots": [],
+  "dependencies": []
+}
+]

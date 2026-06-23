@@ -16,12 +16,15 @@ export function formatPlaytime(minutes: number): string {
 
 export function formatRelative(iso: string | null): string {
   if (!iso) return "Nunca";
-  const diff = Date.now() - new Date(iso).getTime();
+  const ts = new Date(iso).getTime();
+  if (Number.isNaN(ts)) return "Nunca";
+  const diff = Date.now() - ts;
   const day = 86_400_000;
   if (diff < 3_600_000) return "Hace poco";
   if (diff < day) return "Hoy";
   if (diff < 2 * day) return "Ayer";
-  return `Hace ${Math.floor(diff / day)} dias`;
+  const days = Math.floor(diff / day);
+  return days === 1 ? "Hace 1 dia" : `Hace ${days} dias`;
 }
 
 export function formatRam(mb: number): string {

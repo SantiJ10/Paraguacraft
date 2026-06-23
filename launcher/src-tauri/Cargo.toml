@@ -1,6 +1,6 @@
 [package]
 name = "paraguacraft-launcher"
-version = "0.1.0"
+version = "6.9.0"
 description = "Paraguacraft Launcher"
 authors = ["Paraguacraft"]
 edition = "2021"
@@ -13,13 +13,55 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+image = { version = "0.25", default-features = false, features = ["png"] }
+zip = { version = "2", default-features = false, features = ["deflate"] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-shell = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-process = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sysinfo = "0.32"
+# HTTP async con rustls (sin OpenSSL): descargas Java/Temurin y auth Microsoft.
+reqwest = { version = "0.12", default-features = false, features = [
+  "rustls-tls",
+  "json",
+  "stream",
+  "multipart",
+] }
+futures-util = "0.3"
+# Runtime: reutilizamos el de Tauri; habilitamos utilidades para el motor de descargas.
+tokio = { version = "1", features = ["time", "io-util", "sync", "fs", "macros"] }
+# Backups + extraccion de runtimes Java.
+zip = { version = "2", default-features = false, features = ["deflate"] }
+flate2 = "1"
+tar = "0.4"
+# Hashing para verificacion de descargas y UUID offline.
+sha1 = "0.10"
+sha2 = "0.10"
+md-5 = "0.10"
+hex = "0.4"
+base64 = "0.22"
+urlencoding = "2"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
+discord-rich-presence = "1.1"
+# Rutas multiplataforma + manejo de errores.
+dirs = "5"
+thiserror = "1"
+uuid = { version = "1", features = ["v3", "v4"] }
+dotenvy = "0.15"
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-updater = "2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = [
+  "Win32_Foundation",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_UI_Shell",
+] }
 
 [profile.release]
 # Optimizado para tamano y bajo consumo de RAM (objetivo del proyecto).

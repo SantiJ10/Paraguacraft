@@ -1,5 +1,22 @@
 <script setup lang="ts">
+import { onMounted, watch } from "vue";
 import TitleBar from "@/components/layout/TitleBar.vue";
+import { useSettingsStore } from "@/stores/settings";
+import { applyAccentTheme } from "@/composables/useAccent";
+
+const settings = useSettingsStore();
+
+onMounted(async () => {
+  await settings.load();
+  applyAccentTheme(settings.settings?.accent ?? "green");
+});
+
+watch(
+  () => settings.settings?.accent,
+  (accent) => {
+    if (accent) applyAccentTheme(accent);
+  },
+);
 </script>
 
 <template>

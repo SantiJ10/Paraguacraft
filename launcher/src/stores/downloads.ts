@@ -1,14 +1,39 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import type { DownloadTask } from "@/lib/types";
+import { isTauri } from "@/lib/ipc";
 
-// Store de la cola de descargas. En Fase 3 los eventos llegan via Tauri events
-// desde el motor `tokio`; en Fase 1 simulamos progreso para validar la UI.
+// Cola de descargas. En Tauri los eventos llegan via `download://progress`
+// emitidos por el backend (p. ej. la descarga de Temurin). En navegador suelto
+// se puede simular progreso con `enqueueDemo` para validar la UI.
 export const useDownloadsStore = defineStore("downloads", () => {
   const tasks = ref<DownloadTask[]>([]);
+  let listening = false;
 
   const active = computed(() => tasks.value.filter((t) => t.status === "downloading"));
   const hasActivity = computed(() => active.value.length > 0);
+
+  function applyProgress(p: DownloadTask) {
+    const idx = tasks.value.findIndex((t) => t.id === p.id);
+    if (idx >= 0) tasks.value[idx] = p;
+    else tasks.value.push(p);
+
+    if (p.status === "done" || p.status === "error") {
+      setTimeout(() => {
+        tasks.value = tasks.value.filter((t) => t.id !== p.id);
+      }, 2500);
+    }
+  }
+
+  /** Suscribe a los eventos de progreso del backend (idempotente). */
+  async function initEvents() {
+    if (listening || !isTauri()) return;
+    listening = true;
+    const { listen } = await import("@tauri-apps/api/event");
+    await listen<DownloadTask>("download://progress", (event) => {
+      applyProgress(event.payload);
+    });
+  }
 
   function enqueueDemo(label: string) {
     const task: DownloadTask = {
@@ -33,5 +58,5 @@ export const useDownloadsStore = defineStore("downloads", () => {
     }, 500);
   }
 
-  return { tasks, active, hasActivity, enqueueDemo };
+  return { tasks, active, hasActivity, initEvents, applyProgress, enqueueDemo };
 });
