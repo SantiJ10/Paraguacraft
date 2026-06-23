@@ -129,9 +129,16 @@ pub async fn import_modrinth(
     }
     let (loader, loader_version) = detect_loader(deps);
 
-    // 3) Crear instancia local.
+    // 3) Crear instancia local e instalar loader antes de bajar mods (falla rapido si Forge/Fabric no aplica).
     let inst = profiles::create(&name, &mc, &loader, &loader_version, "\u{1F4E6}", 4096)?;
     let dest = instances::instance_dir(&inst.id);
+
+    let version_id =
+        crate::core::loaders::install_loader(app, client, &mc, &loader, &loader_version).await?;
+    if let Some(mut meta) = instances::read_meta(&inst.id) {
+        meta.version_id = Some(version_id.clone());
+        let _ = instances::write_meta(&inst.id, &meta);
+    }
 
     // 4) Descargar archivos del index a sus rutas.
     let mut items = Vec::new();
@@ -148,14 +155,6 @@ pub async fn import_modrinth(
 
     // 5) Aplicar overrides.
     apply_overrides(&bytes, &dest)?;
-
-    // 6) Instalar el loader para dejarla jugable y fijar version_id.
-    let version_id =
-        crate::core::loaders::install_loader(app, client, &mc, &loader, &loader_version).await?;
-    if let Some(mut meta) = instances::read_meta(&inst.id) {
-        meta.version_id = Some(version_id);
-        let _ = instances::write_meta(&inst.id, &meta);
-    }
 
     instances::read_meta(&inst.id)
         .map(|m| m.into_instance(&inst.id, &dest))
@@ -193,6 +192,13 @@ pub async fn import_by_version_id(
     let inst = profiles::create(&name, &mc, &loader, &loader_version, "\u{1F4E6}", 4096)?;
     let dest = instances::instance_dir(&inst.id);
 
+    let version_id_installed =
+        crate::core::loaders::install_loader(app, client, &mc, &loader, &loader_version).await?;
+    if let Some(mut meta) = instances::read_meta(&inst.id) {
+        meta.version_id = Some(version_id_installed.clone());
+        let _ = instances::write_meta(&inst.id, &meta);
+    }
+
     let mut items = Vec::new();
     if let Some(file_list) = index["files"].as_array() {
         for f in file_list {
@@ -205,13 +211,6 @@ pub async fn import_by_version_id(
     }
     net::download_all(client, items, 12, app, "mrpack-import", &format!("Modpack {name}")).await?;
     apply_overrides(&bytes, &dest)?;
-
-    let version_id_installed =
-        crate::core::loaders::install_loader(app, client, &mc, &loader, &loader_version).await?;
-    if let Some(mut meta) = instances::read_meta(&inst.id) {
-        meta.version_id = Some(version_id_installed);
-        let _ = instances::write_meta(&inst.id, &meta);
-    }
 
     instances::read_meta(&inst.id)
         .map(|m| m.into_instance(&inst.id, &dest))

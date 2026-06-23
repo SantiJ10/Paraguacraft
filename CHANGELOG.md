@@ -3,6 +3,14 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.0.0] - 2026-06-19
+
+### Fixed
+- PvP 1.8.9: OptiFine y cliente desde `bundled/pvp` en GitHub (sin depender de optifine.net).
+- Lanzamiento Java 8: flags JVM compatibles; resolución de Java para instaladores Forge/OptiFine.
+- Modpacks Modrinth: reintentos en red, User-Agent correcto, loader instalado antes de bajar mods.
+- CurseForge: API key embebida en builds de release (CI + compile-time).
+
 ## [6.9.0] - 2026-06-22
 
 ### 🚀 Lanzamiento mayor — Paraguacraft Launcher (Tauri v2)
