@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="chest-wood" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#b8894a"/>
+      <stop offset="1" stop-color="#8f6530"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="20" height="20" rx="3" fill="url(#chest-wood)"/>
+  <rect x="2" y="11" width="20" height="3" fill="#6b4a22"/>
+  <rect x="10" y="9" width="4" height="5" rx="0.5" fill="#c0c0c0"/>
+  <rect x="11" y="10.5" width="2" height="2" rx="0.3" fill="#888"/>
+</svg>

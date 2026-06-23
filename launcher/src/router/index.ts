@@ -13,8 +13,20 @@ const routes: RouteRecordRaw[] = [
     children: [
       { path: "", name: "home", component: () => import("@/views/HomeView.vue") },
       { path: "instances", name: "instances", component: () => import("@/views/InstancesView.vue") },
+      {
+        path: "instances/:id",
+        name: "instance-detail",
+        component: () => import("@/views/InstanceDetailView.vue"),
+      },
       { path: "store", name: "store", component: () => import("@/views/StoreView.vue") },
+      { path: "skins", name: "skins", component: () => import("@/views/SkinsView.vue") },
       { path: "versions", name: "versions", component: () => import("@/views/VersionsView.vue") },
+      { path: "servers", name: "servers", component: () => import("@/views/ServersView.vue") },
+      {
+        path: "servers/:id",
+        name: "server-detail",
+        component: () => import("@/views/ServerDetailView.vue"),
+      },
       { path: "settings", name: "settings", component: () => import("@/views/SettingsView.vue") },
     ],
   },

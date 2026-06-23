@@ -1,23 +1,26 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Paraguacraft Launcher",
-  "version": "0.1.0",
+  "productName": "Paraguacraft",
+  "version": "6.9.0",
   "identifier": "gg.paraguacraft.launcher",
   "build": {
     "beforeDevCommand": "npm run dev",
-    "devUrl": "http://localhost:1420",
+    "devUrl": "http://127.0.0.1:1420",
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Paraguacraft Launcher",
         "width": 1180,
         "height": 740,
         "minWidth": 940,
         "minHeight": 600,
         "resizable": true,
+        "maximized": true,
+        "fullscreen": false,
         "decorations": false,
         "transparent": false,
         "center": true
@@ -27,8 +30,20 @@
       "csp": null
     }
   },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEJBNUVFMzc3MDY0QTBEQTgKUldTb0RVb0dkK05ldXNSbWdraDhHMnhOaCtQS1hDOURJOGE3NWFDNlFVM1ZZenhRVUlsaVMxeGQK",
+      "endpoints": [
+        "https://github.com/SantiJ10/Paraguacraft/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": false,
     "targets": "all",
     "icon": [
       "icons/32x32.png",

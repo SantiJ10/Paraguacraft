@@ -1,25 +1,25 @@
 <script setup lang="ts">
 import type { Instance } from "@/lib/types";
+import InstanceIcon from "@/components/instance/InstanceIcon.vue";
 import { formatPlaytime, formatRelative } from "@/composables/useFormat";
 
 defineProps<{ instance: Instance; selected?: boolean }>();
-defineEmits<{ (e: "play"): void; (e: "select"): void }>();
+defineEmits<{ (e: "play"): void; (e: "open"): void }>();
 </script>
 
 <template>
   <div
     class="lunar-card group cursor-pointer overflow-hidden"
     :class="selected ? '!border-pc-green' : ''"
-    @click="$emit('select')"
+    @click="$emit('open')"
   >
     <div class="flex items-center gap-3 p-4">
-      <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-surface-4 text-2xl font-emoji">
-        {{ instance.icon }}
-      </div>
+      <InstanceIcon :icon="instance.icon" size="md" />
       <div class="min-w-0 flex-1">
         <p class="truncate font-semibold">{{ instance.name }}</p>
         <p class="text-xs text-gray-500">
           {{ instance.mcVersion }} &middot; <span class="capitalize">{{ instance.loader.replace("-", " ") }}</span>
+          <span v-if="instance.modCount"> &middot; {{ instance.modCount }} mods</span>
         </p>
       </div>
     </div>

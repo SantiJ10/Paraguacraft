@@ -5,7 +5,6 @@ import { fileURLToPath, URL } from "node:url";
 // Tauri espera un puerto fijo y falla si no está disponible.
 const host = process.env.TAURI_DEV_HOST;
 
-// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [vue()],
   resolve: {
@@ -13,12 +12,10 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
-  // Evita que Vite oculte errores de Rust.
-  clearScreen: false,
   server: {
     port: 1420,
     strictPort: true,
-    host: host || false,
+    host: host || "127.0.0.1",
     hmr: host
       ? {
           protocol: "ws",
@@ -27,8 +24,8 @@ export default defineConfig({
         }
       : undefined,
     watch: {
-      // Tauri maneja su propio watcher sobre src-tauri.
       ignored: ["**/src-tauri/**"],
     },
   },
+  clearScreen: false,
 });

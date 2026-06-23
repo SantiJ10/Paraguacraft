@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bedrock-top" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3a3a3a"/>
+      <stop offset="1" stop-color="#2a2a2a"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="20" height="20" rx="3" fill="url(#bedrock-top)"/>
+  <path opacity="0.45" fill="#1a1a1a" d="M3 7h5V6H3v1zm14 0h4V6h-4v1zM5 11h8v-1H5v1zm12 3h3v-1h-3v1zM7 16h6v-1H7v1zm9 2h2v-1h-2v1z"/>
+  <path opacity="0.35" fill="#555" d="M4 5h3V4H4v1zm13 0h5V4h-5v1zM6 14h4v-1H6v1zm10 4h5v-1h-5v1z"/>
+</svg>

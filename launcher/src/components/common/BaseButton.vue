@@ -20,7 +20,7 @@ const classes = computed(() => {
     lg: "px-6 py-3.5 text-base",
   }[props.size];
   const variants = {
-    primary: "bg-pc-green text-black hover:bg-pc-green-hover shadow-glow",
+    primary: "bg-pc-green text-black hover:bg-pc-green-hover",
     secondary: "bg-surface-5 text-white hover:bg-surface-6",
     ghost: "bg-transparent text-gray-300 hover:bg-surface-3 hover:text-white",
     ai: "bg-pc-ai text-white hover:bg-pc-ai-dark shadow-glow-ai",

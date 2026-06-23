@@ -47,7 +47,7 @@ export const mockInstances: Instance[] = [
   {
     id: "inst-1",
     name: "Paraguacraft PvP",
-    icon: "\u2694\uFE0F",
+    icon: "mc:diamond",
     mcVersion: "1.8.9",
     loader: "paraguacraft-pvp",
     loaderVersion: "11.15.1.2318",
@@ -60,7 +60,7 @@ export const mockInstances: Instance[] = [
   {
     id: "inst-2",
     name: "Fabric + Iris 1.21.1",
-    icon: "\uD83C\uDF0C",
+    icon: "mc:enchanting_table",
     mcVersion: "1.21.1",
     loader: "fabric-iris",
     loaderVersion: "0.16.5",
@@ -73,7 +73,7 @@ export const mockInstances: Instance[] = [
   {
     id: "inst-3",
     name: "All The Mods 9",
-    icon: "\uD83E\uDDF1",
+    icon: "mc:bedrock",
     mcVersion: "1.20.1",
     loader: "neoforge",
     loaderVersion: "47.1.106",
@@ -86,7 +86,7 @@ export const mockInstances: Instance[] = [
   {
     id: "inst-4",
     name: "Vanilla 1.21.4",
-    icon: "\uD83D\uDFE9",
+    icon: "mc:dirt",
     mcVersion: "1.21.4",
     loader: "vanilla",
     loaderVersion: "-",
@@ -119,7 +119,7 @@ export const mockLoaders: LoaderInfo[] = [
   { id: "optifine", name: "OptiFine", description: "Optimizacion + shaders clasicos.", versions: ["HD U I7", "HD U I6"] },
 ];
 
-const titles: Array<[string, StoreItem["type"], StoreItem["provider"], string]> = [
+const titles: Array<[string, StoreItem["projectType"], StoreItem["provider"], string]> = [
   ["Sodium", "mod", "modrinth", "Rendimiento de render extremo."],
   ["Iris Shaders", "mod", "modrinth", "Soporte de shaders para Fabric."],
   ["Fabric API", "mod", "modrinth", "Dependencia base de mods Fabric."],
@@ -134,7 +134,7 @@ const titles: Array<[string, StoreItem["type"], StoreItem["provider"], string]> 
   ["Create", "mod", "curseforge", "Mecanica y automatizacion."],
 ];
 
-export const mockStoreItems: StoreItem[] = titles.map(([title, type, provider, desc], i) => ({
+export const mockStoreItems: StoreItem[] = titles.map(([title, projectType, provider, desc], i) => ({
   id: `item-${i}`,
   slug: title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
   title,
@@ -142,9 +142,8 @@ export const mockStoreItems: StoreItem[] = titles.map(([title, type, provider, d
   description: desc,
   iconUrl: "",
   downloads: Math.floor(50_000 + Math.random() * 80_000_000),
-  followers: Math.floor(1_000 + Math.random() * 500_000),
-  type,
+  follows: Math.floor(1_000 + Math.random() * 500_000),
+  projectType,
   provider,
   categories: ["optimization", "utility", "adventure"].slice(0, (i % 3) + 1),
-  loaders: i % 2 === 0 ? ["fabric", "quilt"] : ["forge", "neoforge"],
 }));

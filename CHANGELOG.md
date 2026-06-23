@@ -3,6 +3,31 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [6.9.0] - 2026-06-22
+
+### 🚀 Lanzamiento mayor — Paraguacraft Launcher (Tauri v2)
+
+Reescritura completa del launcher: **Rust + Tauri v2 + Vue 3**. Cliente multiplataforma de grado comercial.
+
+#### Rendimiento
+- **0% CPU en segundo plano** mientras jugás: el runtime apaga red, caches y hilos al lanzar Minecraft.
+- **Descargas async ultrarrápidas** con Rust (`reqwest`), concurrencia acotada, SHA-1 y escritura atómica.
+- **Optimización automática** de RAM/JVM según hardware (gama baja, media y alta).
+
+#### Tienda y contenido
+- Tienda nativa **Modrinth + CurseForge** (mods, modpacks, shaders, resource packs, datapacks, plugins).
+- **Modpacks `.mrpack`**: crea instancia completa (index, overrides, loader).
+- **Plugins** → servidores locales (`plugins/` o `mods/`); **datapacks** → instancia o servidor + mundo.
+- Modpacks filtran **versión MC y loader reales** del proyecto (ej. Fabulously Optimized = Fabric, Zombie Invade = Forge).
+
+#### Servidores y extras
+- Servidores locales Paper/Fabric/Forge + **Playit.gg invisible**.
+- **Diagnóstico de crashes con IA** al salir del juego.
+- Instancias aisladas (PvP 1.8.9, modpacks pesados).
+- Auto-update integrado (`tauri-plugin-updater` + fallback GitHub Releases).
+
+---
+
 ## [6.8.0] - 2026-06-17
 
 ### 🔧 Mejoras

@@ -1,25 +1,67 @@
+# --- Build / artefactos ---
 dist/
 build/
 *.spec
-__pycache__/
-*.pyc
-paraguacraft_config.json
-Logs/
-*.exe
 *.log
 *.gz
+Logs/
+logs/
+Instalar_Paraguacraft_v*.exe
+Paraguacraft.exe
+
+# --- Python (legacy) ---
+__pycache__/
+*.py[cod]
+venv/
+.venv/
 secrets.py
 credentials.py
+paraguacraft_config.json
+paraguacraft_session.json
+paraguacraft_sessions.json
+paraguacraft_stats.json
+paraguacraft_backups/
+_smoke_inst/
 
-# Archivos temporales de desarrollo/debug
+# --- Tauri / Node (launcher) ---
+launcher/node_modules/
+launcher/dist/
+launcher/dist-ssr/
+launcher/src-tauri/target/
+launcher/.env
+launcher/.env.local
+launcher/src-tauri/updater.key
+
+# --- Web (va a repo paraguacraft-web) ---
+web-site/node_modules/
+web-site/dist/
+web-site/.astro/
+
+# --- Minecraft / Forge dev ---
+client/.gradle/
+client/eclipse/
+client/build/
+client/run/
+client/out/
+.mixin.out/
+*.jar
+!bundled/pvp/*.jar
+!client/src/**/*.jar
+
+# --- Datos locales / IDE ---
+OneConfig/
+.netlify
+config/
+botamin/
+.idea/
+.vscode/
+*.local
+.DS_Store
+Thumbs.db
+bash.exe.stackdump
+
+# --- Temporales ---
 _*.py
 check_*.py
 fix_*.py
 restore_*.py
-paragua_anterior.py
-paraguacraft_session.json
-paraguacraft_sessions.json
-paraguacraft_stats.json
-*_original.html
-# Local Netlify folder
-.netlify

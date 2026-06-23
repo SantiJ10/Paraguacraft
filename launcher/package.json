@@ -1,6 +1,6 @@
 {
   "name": "paraguacraft-launcher",
-  "version": "0.1.0",
+  "version": "6.9.0",
   "private": true,
   "type": "module",
   "description": "Paraguacraft Launcher - cliente de Minecraft Java multiplataforma (Tauri v2 + Vue 3)",
@@ -10,12 +10,16 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "npm run build && tauri build && node scripts/rename-windows-installer.mjs",
+    "tauri:build:signed": "npm run build && tauri build --config src-tauri/tauri.signed.conf.json && node scripts/rename-windows-installer.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.1.1",
+    "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-shell": "^2.0.1",
+    "@tauri-apps/plugin-updater": "^2.10.1",
     "pinia": "^2.2.6",
+    "skinview3d": "^3.4.2",
     "vue": "^3.5.13",
     "vue-router": "^4.4.5"
   },

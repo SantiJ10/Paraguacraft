@@ -15,7 +15,15 @@ async function toggleMaximize() {
   if (isTauri()) (await win()).toggleMaximize();
 }
 async function close() {
-  if (isTauri()) (await win()).close();
+  if (isTauri()) {
+    const { api } = await import("@/lib/ipc");
+    try {
+      await api.shutdownBackgroundServices();
+    } catch {
+      /* best effort */
+    }
+    (await win()).close();
+  }
 }
 </script>
 
@@ -25,7 +33,7 @@ async function close() {
     class="flex h-9 shrink-0 items-center justify-between border-b border-surface-3 bg-surface-0 pl-3 pr-1 select-none"
   >
     <div data-tauri-drag-region class="flex items-center gap-2 pointer-events-none">
-      <span class="h-2.5 w-2.5 rounded-sm bg-pc-green"></span>
+      <img src="/favicon.png" alt="" class="h-4 w-4 rounded-sm pointer-events-none" />
       <span class="text-xs font-bold tracking-widest text-gray-300">PARAGUACRAFT</span>
       <span class="text-[10px] font-semibold tracking-wider text-pc-green">LAUNCHER</span>
     </div>

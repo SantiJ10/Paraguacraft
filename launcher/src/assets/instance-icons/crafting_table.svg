@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="craft-top" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#cfaf6b"/>
+      <stop offset="1" stop-color="#a88a4a"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="20" height="20" rx="3" fill="url(#craft-top)"/>
+  <path fill="#8b6b35" d="M6 7h12v1H6zm0 4h12v1H6zm0 4h12v1H6z"/>
+  <path fill="#6b5028" d="M9 7v9H8V7h1zm4 0v9h-1V7h1zm4 0v9h-1V7h1z"/>
+  <rect x="5" y="18" width="14" height="2" fill="#7a5c32"/>
+</svg>

@@ -23,3 +23,10 @@ pnpm-debug.log*
 
 # Rust / Tauri
 src-tauri/target
+
+# Secretos locales (API keys)
+.env
+.env.local
+
+# Claves de firma del auto-updater (commitear solo la .pub)
+src-tauri/updater.key

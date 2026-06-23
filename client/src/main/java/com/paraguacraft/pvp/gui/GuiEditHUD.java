@@ -1,0 +1,111 @@
+package com.paraguacraft.pvp.gui;
+
+import net.minecraft.client.gui.GuiScreen;
+import net.minecraft.client.gui.ScaledResolution;
+import com.paraguacraft.pvp.modules.ModConfig;
+
+public class GuiEditHUD extends GuiScreen {
+    private int dragging = -1; 
+    private int dragX = 0, dragY = 0;
+
+    @Override
+    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
+        this.drawDefaultBackground();
+        this.drawCenteredString(this.fontRendererObj, "\u00A7lModo Edicion Paraguacraft", this.width / 2, 20, 0x00E5FF);
+        this.drawCenteredString(this.fontRendererObj, "\u00A77Arrastra las cajas celestes", this.width / 2, 35, 0xFFFFFF);
+
+        ScaledResolution sr = new ScaledResolution(mc);
+
+        // Cajas Originales
+        if (ModConfig.showFPS) drawRect(ModConfig.fpsX - 2, ModConfig.fpsY - 2, ModConfig.fpsX + 55, ModConfig.fpsY + 10, 0x4400E5FF);
+        if (ModConfig.showPing) drawRect(ModConfig.pingX - 2, ModConfig.pingY - 2, ModConfig.pingX + 60, ModConfig.pingY + 10, 0x4400E5FF);
+        if (ModConfig.showCPS) drawRect(ModConfig.cpsX - 2, ModConfig.cpsY - 2, ModConfig.cpsX + 50, ModConfig.cpsY + 10, 0x4400E5FF);
+        if (ModConfig.showKeystrokes) drawRect(ModConfig.keysX - 2, ModConfig.keysY - 2, ModConfig.keysX + 68, ModConfig.keysY + 68, 0x4400E5FF);
+        if (ModConfig.showArmor) drawRect(ModConfig.armorX - 2, ModConfig.armorY - 2, ModConfig.armorX + 45, ModConfig.armorY + 65, 0x4400E5FF);
+        if (ModConfig.showPotions) drawRect(ModConfig.potionX - 2, ModConfig.potionY - 2, ModConfig.potionX + 120, ModConfig.potionY + 40, 0x4400E5FF);
+        if (ModConfig.showCoords) drawRect(ModConfig.coordsX - 2, ModConfig.coordsY - 2, ModConfig.coordsX + 100, ModConfig.coordsY + 10, 0x4400E5FF);
+        
+        // --- CAJAS DE LOS MÓDULOS PREMIUM ---
+        
+        // 1. Held Item Mod (Caja más grande para que entre la espada y textos)
+        if (ModConfig.showHeldItem) drawRect(ModConfig.heldX - 2, ModConfig.heldY - 2, ModConfig.heldX + 130, ModConfig.heldY + 40, 0x4400E5FF);
+        
+        // 2. Server HUD (Solo si es multiplayer)
+        if (ModConfig.showServerHUD && !mc.isIntegratedServerRunning()) {
+            drawRect(ModConfig.serverX - 2, ModConfig.serverY - 2, ModConfig.serverX + 150, ModConfig.serverY + 24, 0x4400E5FF);
+        }
+        
+        // 3. Brújula Gráfica Central (Ancho de 200px centrado)
+        if (ModConfig.showCompass) {
+            int compassX = (sr.getScaledWidth() / 2) - 100;
+            drawRect(compassX - 2, ModConfig.compassY - 2, compassX + 202, ModConfig.compassY + 22, 0x4400E5FF);
+        }
+
+        super.drawScreen(mouseX, mouseY, partialTicks);
+    }
+
+    @Override
+    protected void mouseClicked(int mouseX, int mouseY, int mouseButton) {
+        if (mouseButton == 0) {
+            ScaledResolution sr = new ScaledResolution(mc);
+
+            if (ModConfig.showFPS && isHover(mouseX, mouseY, ModConfig.fpsX, ModConfig.fpsY, 55, 10)) {
+                dragging = 0; dragX = mouseX - ModConfig.fpsX; dragY = mouseY - ModConfig.fpsY;
+            } else if (ModConfig.showPing && isHover(mouseX, mouseY, ModConfig.pingX, ModConfig.pingY, 60, 10)) {
+                dragging = 1; dragX = mouseX - ModConfig.pingX; dragY = mouseY - ModConfig.pingY;
+            } else if (ModConfig.showCPS && isHover(mouseX, mouseY, ModConfig.cpsX, ModConfig.cpsY, 50, 10)) {
+                dragging = 2; dragX = mouseX - ModConfig.cpsX; dragY = mouseY - ModConfig.cpsY;
+            } else if (ModConfig.showKeystrokes && isHover(mouseX, mouseY, ModConfig.keysX, ModConfig.keysY, 68, 68)) {
+                dragging = 3; dragX = mouseX - ModConfig.keysX; dragY = mouseY - ModConfig.keysY;
+            } else if (ModConfig.showArmor && isHover(mouseX, mouseY, ModConfig.armorX, ModConfig.armorY, 45, 65)) {
+                dragging = 4; dragX = mouseX - ModConfig.armorX; dragY = mouseY - ModConfig.armorY;
+            } else if (ModConfig.showPotions && isHover(mouseX, mouseY, ModConfig.potionX, ModConfig.potionY, 120, 40)) {
+                dragging = 5; dragX = mouseX - ModConfig.potionX; dragY = mouseY - ModConfig.potionY;
+            } else if (ModConfig.showCoords && isHover(mouseX, mouseY, ModConfig.coordsX, ModConfig.coordsY, 100, 10)) {
+                dragging = 6; dragX = mouseX - ModConfig.coordsX; dragY = mouseY - ModConfig.coordsY;
+            
+            // --- CLIC EN MÓDULOS PREMIUM ---
+            } else if (ModConfig.showHeldItem && isHover(mouseX, mouseY, ModConfig.heldX, ModConfig.heldY, 130, 40)) {
+                dragging = 7; dragX = mouseX - ModConfig.heldX; dragY = mouseY - ModConfig.heldY; 
+            } else if (ModConfig.showServerHUD && !mc.isIntegratedServerRunning() && isHover(mouseX, mouseY, ModConfig.serverX, ModConfig.serverY, 150, 24)) {
+                dragging = 8; dragX = mouseX - ModConfig.serverX; dragY = mouseY - ModConfig.serverY; 
+            } else if (ModConfig.showCompass) {
+                int compassX = (sr.getScaledWidth() / 2) - 100;
+                if (isHover(mouseX, mouseY, compassX, ModConfig.compassY, 200, 20)) {
+                    dragging = 9; dragX = 0; dragY = mouseY - ModConfig.compassY; // Brújula solo se mueve en Y
+                }
+            }
+        }
+    }
+
+    @Override
+    protected void mouseClickMove(int mouseX, int mouseY, int clickedMouseButton, long timeSinceLastClick) {
+        if (dragging == 0) { ModConfig.fpsX = mouseX - dragX; ModConfig.fpsY = mouseY - dragY; }
+        else if (dragging == 1) { ModConfig.pingX = mouseX - dragX; ModConfig.pingY = mouseY - dragY; }
+        else if (dragging == 2) { ModConfig.cpsX = mouseX - dragX; ModConfig.cpsY = mouseY - dragY; }
+        else if (dragging == 3) { ModConfig.keysX = mouseX - dragX; ModConfig.keysY = mouseY - dragY; }
+        else if (dragging == 4) { ModConfig.armorX = mouseX - dragX; ModConfig.armorY = mouseY - dragY; }
+        else if (dragging == 5) { ModConfig.potionX = mouseX - dragX; ModConfig.potionY = mouseY - dragY; }
+        else if (dragging == 6) { ModConfig.coordsX = mouseX - dragX; ModConfig.coordsY = mouseY - dragY; }
+        
+        // --- MOVIMIENTO MÓDULOS PREMIUM ---
+        else if (dragging == 7) { ModConfig.heldX = mouseX - dragX; ModConfig.heldY = mouseY - dragY; } 
+        else if (dragging == 8) { ModConfig.serverX = mouseX - dragX; ModConfig.serverY = mouseY - dragY; } 
+        else if (dragging == 9) { ModConfig.compassY = mouseY - dragY; } // Brújula solo mueve Y
+    }
+
+    @Override
+    protected void mouseReleased(int mouseX, int mouseY, int state) { dragging = -1; }
+
+    @Override
+    public void onGuiClosed() {
+        ModConfig.save();
+    }
+
+    private boolean isHover(int mx, int my, int x, int y, int w, int h) {
+        return mx >= x && mx <= x + w && my >= y && my <= y + h;
+    }
+    
+    @Override
+    public boolean doesGuiPauseGame() { return false; }
+}

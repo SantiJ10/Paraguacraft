@@ -5,6 +5,10 @@
 @layer base {
   :root {
     color-scheme: dark;
+    --pc-accent: #2ecc71;
+    --pc-accent-hover: #27ae60;
+    --pc-accent-dark: #1a7a40;
+    --pc-accent-glow: 0 10px 25px -5px rgba(46, 204, 113, 0.25);
   }
 
   html,
@@ -56,7 +60,39 @@
   }
 }
 
-/* Permitir selección de texto en inputs/areas de contenido */
+/* Acento morado (Paraguabot) */
+[data-accent="ai"] .text-pc-green {
+  color: #9b59b6;
+}
+[data-accent="ai"] .bg-pc-green {
+  background-color: #9b59b6;
+}
+[data-accent="ai"] .border-pc-green {
+  border-color: #9b59b6;
+}
+[data-accent="ai"] .bg-pc-green\/15,
+[data-accent="ai"] .bg-pc-green\/10,
+[data-accent="ai"] .bg-pc-green\/5,
+[data-accent="ai"] .bg-pc-green\/20 {
+  background-color: rgb(155 89 182 / 0.15);
+}
+[data-accent="ai"] .hover\:bg-pc-green:hover {
+  background-color: #8e44ad;
+}
+[data-accent="ai"] .shadow-glow {
+  box-shadow: 0 10px 25px -5px rgba(155, 89, 182, 0.25);
+}
+[data-accent="ai"] .accent-pc-green {
+  accent-color: #9b59b6;
+}
+[data-accent="ai"] .lunar-card:hover {
+  border-color: #9b59b6;
+  box-shadow: 0 10px 25px -5px rgba(155, 89, 182, 0.25);
+}
+[data-accent="ai"] .nav-item-active {
+  background-color: rgb(155 89 182 / 0.15);
+  color: #9b59b6;
+}
 input,
 textarea,
 [contenteditable="true"] {

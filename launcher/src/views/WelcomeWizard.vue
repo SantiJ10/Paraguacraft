@@ -35,8 +35,9 @@ async function finish() {
   }
   if (wizard.data.accountType === "offline" && wizard.data.offlineName.trim()) {
     await accounts.load();
-    accounts.addOffline(wizard.data.offlineName.trim());
+    await accounts.addOffline(wizard.data.offlineName.trim());
   }
+  await settings.save();
   wizard.complete();
   router.push({ name: "home" });
 }
