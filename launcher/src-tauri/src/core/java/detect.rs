@@ -1,10 +1,9 @@
 //! Deteccion de instalaciones de Java (espeja `detectar_javas` del Python).
 //!
-//! Recoge rutas candidatas del sistema, las verifica y deduplica. El escaneo es
-//! puntual (no hay watcher): el resultado se cachea en `AppState` y solo se
-//! recalcula bajo demanda.
+//! Recoge rutas candidatas del sistema, las verifica y deduplica por JDK
+//! (no por binario: evita duplicar java.exe + javaw.exe del mismo JRE).
 
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::core::paths;
@@ -23,28 +22,53 @@ pub fn detect_all() -> Vec<JavaInstallation> {
         candidates_unix()
     };
 
-    let mut seen: HashSet<String> = HashSet::new();
-    let mut out: Vec<JavaInstallation> = Vec::new();
+    let mut by_jdk: HashMap<String, JavaInstallation> = HashMap::new();
 
     for (path, source) in candidates {
-        let canon = std::fs::canonicalize(&path)
-            .map(|p| p.to_string_lossy().to_lowercase())
-            .unwrap_or_else(|_| path.to_string_lossy().to_lowercase());
-        if !seen.insert(canon) {
+        let Some(info) = verify(&path, &source) else {
             continue;
-        }
-        if let Some(info) = verify(&path, &source) {
-            out.push(info);
-        }
+        };
+        let root = jdk_root(&path);
+        by_jdk
+            .entry(root)
+            .and_modify(|existing| {
+                if prefer_installation(&info, existing) {
+                    *existing = info.clone();
+                }
+            })
+            .or_insert(info);
     }
 
-    // Orden: fuente preferida primero, luego version mas alta.
+    let mut out: Vec<JavaInstallation> = by_jdk.into_values().collect();
     out.sort_by(|a, b| {
         rank(&a.source)
             .cmp(&rank(&b.source))
             .then(b.version_major.cmp(&a.version_major))
     });
     out
+}
+
+fn jdk_root(path: &Path) -> String {
+    path.parent()
+        .and_then(|bin| bin.parent())
+        .map(|home| home.to_string_lossy().to_lowercase())
+        .unwrap_or_else(|| path.to_string_lossy().to_lowercase())
+}
+
+fn prefer_installation(candidate: &JavaInstallation, current: &JavaInstallation) -> bool {
+    if cfg!(target_os = "windows") {
+        let c_javaw = candidate.path.to_ascii_lowercase().contains("javaw.exe");
+        let cur_javaw = current.path.to_ascii_lowercase().contains("javaw.exe");
+        if c_javaw && !cur_javaw {
+            return true;
+        }
+        if cur_javaw && !c_javaw {
+            return false;
+        }
+    }
+    rank(&candidate.source) < rank(&current.source)
+        || (rank(&candidate.source) == rank(&current.source)
+            && candidate.version_major > current.version_major)
 }
 
 fn rank(source: &str) -> u8 {
@@ -76,7 +100,6 @@ fn push_bins(dir: &Path, source: &str, out: &mut Vec<(PathBuf, String)>) {
 fn candidates_windows() -> Vec<(PathBuf, String)> {
     let mut out: Vec<(PathBuf, String)> = Vec::new();
 
-    // Marcas conocidas bajo Program Files.
     let brands = [
         "Java",
         "Eclipse Adoptium",
@@ -101,19 +124,15 @@ fn candidates_windows() -> Vec<(PathBuf, String)> {
         }
     }
 
-    // Runtimes del launcher oficial de Mojang.
     let mc_runtime = paths::default_minecraft_dir().join("runtime");
     collect_recursive(&mc_runtime, "mojang", 6, &mut out);
 
-    // JAVA_HOME.
     if let Ok(jh) = std::env::var("JAVA_HOME") {
         push_bins(&Path::new(&jh).join("bin"), "java_home", &mut out);
     }
 
-    // Java descargado por nosotros.
     collect_recursive(&paths::java_dir(), "paraguacraft", 5, &mut out);
 
-    // PATH.
     if let Some(p) = which_java() {
         out.push((p, "path".into()));
     }
@@ -148,7 +167,6 @@ fn candidates_unix() -> Vec<(PathBuf, String)> {
     out
 }
 
-/// Recorre `root` hasta `max_depth` buscando binarios de Java.
 fn collect_recursive(root: &Path, source: &str, max_depth: usize, out: &mut Vec<(PathBuf, String)>) {
     fn walk(dir: &Path, source: &str, depth: usize, max: usize, out: &mut Vec<(PathBuf, String)>) {
         if depth > max {
@@ -173,7 +191,11 @@ fn collect_recursive(root: &Path, source: &str, max_depth: usize, out: &mut Vec<
 }
 
 fn which_java() -> Option<PathBuf> {
-    let bin = if cfg!(target_os = "windows") { "java.exe" } else { "java" };
+    let bin = if cfg!(target_os = "windows") {
+        "java.exe"
+    } else {
+        "java"
+    };
     let path_var = std::env::var_os("PATH")?;
     for dir in std::env::split_paths(&path_var) {
         let p = dir.join(bin);

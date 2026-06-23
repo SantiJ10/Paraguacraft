@@ -284,6 +284,9 @@ pub async fn install_vanilla(
 
     if let Some(comp) = java::mojang::component_from_version_id(id) {
         let _ = java::mojang::ensure_runtime(app, client, &comp).await;
+    } else if java::required_for_mc(id) == 8 {
+        // 1.8.x no trae javaVersion en el JSON; precargar jre-legacy oficial.
+        let _ = java::mojang::ensure_runtime(app, client, "jre-legacy").await;
     }
 
     Ok(())

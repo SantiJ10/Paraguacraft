@@ -22,8 +22,8 @@ pub enum JavaRole {
 
 fn source_rank(source: &str) -> u8 {
     match source.split(':').next().unwrap_or(source) {
-        "mojang" => 0,
-        "paraguacraft" => 1,
+        "paraguacraft" => 0,
+        "mojang" => 1,
         "java_home" => 2,
         "path" => 3,
         _ => 4,
@@ -162,7 +162,25 @@ pub async fn ensure_launch_java(
     Ok(format_path(Path::new(&path), JavaRole::Launch))
 }
 
-/// Java para instaladores de loaders (Forge, etc.).
+/// Java para instaladores de loaders (Forge, etc.). Descarga Temurin si falta.
+pub async fn ensure_installer_java(
+    app: &AppHandle,
+    state: &AppState,
+    mc_version: &str,
+) -> AppResult<PathBuf> {
+    if let Ok(p) = resolve_sync(mc_version, None, None, JavaRole::Installer) {
+        return Ok(p);
+    }
+    let required = required_for_mc(mc_version);
+    if let Some(p) = adoptium::find_installed(required) {
+        return Ok(format_path(&p, JavaRole::Installer));
+    }
+    let (http, _guard) = state.net_scope();
+    let path = adoptium::download(app, &http, required, false).await?;
+    Ok(format_path(Path::new(&path), JavaRole::Installer))
+}
+
+/// Java para instaladores (sync, sin descarga). Preferí `ensure_installer_java`.
 pub fn resolve_installer_java(mc_version: &str) -> AppResult<PathBuf> {
     resolve_sync(mc_version, None, None, JavaRole::Installer)
 }

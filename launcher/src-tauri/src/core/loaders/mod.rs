@@ -165,7 +165,7 @@ pub fn loader_version_from_version_id(loader: &str, version_id: &str, mc: &str) 
             .strip_prefix("quilt-loader-")?
             .strip_suffix(&mc_suffix)
             .map(String::from),
-        "forge" => version_id
+        "forge" | "paraguacraft-pvp" => version_id
             .strip_prefix(&format!("{mc}-forge-"))
             .map(String::from),
         "neoforge" => version_id
@@ -219,7 +219,7 @@ pub fn find_version_id_for_loader(mc: &str, loader: &str) -> Option<String> {
             "quilt" if name.starts_with("quilt-loader-") && name.ends_with(&mc_suffix) => {
                 loader_version_from_version_id(&kind, &name, mc)
             }
-            "forge" if name.starts_with(&format!("{mc}-forge-")) => {
+            "forge" | "paraguacraft-pvp" if name.starts_with(&format!("{mc}-forge-")) => {
                 loader_version_from_version_id(&kind, &name, mc)
             }
             "neoforge" if name.starts_with(&format!("{mc}-neoforge-")) => {
@@ -315,9 +315,13 @@ pub fn parse_maven_versions(xml: &str) -> Vec<String> {
     out
 }
 
-/// Elige Java para instaladores de loaders según la versión de MC.
-pub fn installer_java(mc_version: &str) -> AppResult<PathBuf> {
-    crate::core::java::resolve::resolve_installer_java(mc_version)
+/// Elige Java para instaladores de loaders según la versión de MC (descarga Temurin si falta).
+pub async fn installer_java(
+    app: &AppHandle,
+    state: &crate::state::AppState,
+    mc_version: &str,
+) -> AppResult<PathBuf> {
+    crate::core::java::resolve::ensure_installer_java(app, state, mc_version).await
 }
 
 /// Ejecuta un instalador headless y espera a que termine (en spawn_blocking).

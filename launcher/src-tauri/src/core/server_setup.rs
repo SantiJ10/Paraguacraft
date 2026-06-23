@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use serde_json::Value;
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 use crate::core::loaders::{self, forge};
 use crate::core::net::{self, DownloadItem};
@@ -248,7 +248,8 @@ async fn setup_forge(
     )
     .await?;
 
-    let java = loaders::installer_java(mc)?;
+    let state = app.state::<crate::state::AppState>();
+    let java = loaders::installer_java(app, &state, mc).await?;
     run_forge_installer(java, tmp.clone(), dir).await?;
     let _ = std::fs::remove_file(&tmp);
 

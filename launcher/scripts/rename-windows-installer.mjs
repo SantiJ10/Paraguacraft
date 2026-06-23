@@ -1,8 +1,8 @@
 /**
- * Renombra/copia el instalador NSIS de Tauri al nombre unificado de Paraguacraft:
+ * Copia el instalador NSIS de Tauri al nombre unificado de Paraguacraft:
  * Instalar_Paraguacraft_v{version}.exe
  *
- * Mismo nombre que usaba el launcher Python → migración transparente vía latest.json.
+ * Elige el setup de la versión actual (evita instaladores viejos en la misma carpeta).
  */
 import fs from "fs";
 import path from "path";
@@ -24,21 +24,34 @@ if (!fs.existsSync(nsisDir)) {
   process.exit(0);
 }
 
-const candidates = fs
+const setups = fs
   .readdirSync(nsisDir)
-  .filter((f) => f.toLowerCase().endsWith(".exe") && f !== target);
+  .filter((f) => f.toLowerCase().endsWith(".exe") && f.toLowerCase().includes("setup"))
+  .map((f) => {
+    const full = path.join(nsisDir, f);
+    return { name: f, full, size: fs.statSync(full).size };
+  })
+  .sort((a, b) => b.size - a.size);
 
-const setup =
-  candidates.find((f) => f.toLowerCase().includes("setup")) ?? candidates[0];
-
-if (!setup) {
-  console.error("[rename-installer] No hay .exe en", nsisDir);
+if (setups.length === 0) {
+  console.error("[rename-installer] No hay *setup*.exe en", nsisDir);
   process.exit(1);
 }
 
-const src = path.join(nsisDir, setup);
-const dest = path.join(nsisDir, target);
+// Preferir nombre que contenga la versión del manifest; si no, el más grande (build actual).
+const versionNeedle = version.replace(/\./g, "_");
+const setup =
+  setups.find((s) => s.name.includes(version) || s.name.includes(versionNeedle)) ??
+  setups[0];
 
-fs.copyFileSync(src, dest);
+const dest = path.join(nsisDir, target);
+fs.copyFileSync(setup.full, dest);
+
 console.log(`[rename-installer] Listo: ${target}`);
-console.log(`[rename-installer] Origen: ${setup}`);
+console.log(`[rename-installer] Origen: ${setup.name} (${setup.size} bytes)`);
+
+if (setup.size < 4_000_000) {
+  console.warn(
+    "[rename-installer] AVISO: el instalador pesa menos de 4 MB — puede ser un build incompleto.",
+  );
+}

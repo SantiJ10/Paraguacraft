@@ -37,6 +37,8 @@ pub struct JvmCtx {
     pub gc: String,
     pub extra_args: Vec<String>,
     pub java_path: PathBuf,
+    /// Major detectado (8, 17, 21…) para elegir flags compatibles.
+    pub java_major: u32,
 }
 
 fn cp_sep() -> &'static str {
@@ -278,40 +280,50 @@ fn extract_native_jar(jar: &Path, dest: &Path) -> AppResult<()> {
     Ok(())
 }
 
-/// JVM args propios (RAM + GC estilo Aikar), espejo de `core.lanzar_minecraft`.
+/// JVM args (RAM + GC). Java 8 no soporta flags Aikar/AlwaysPreTouch (Java 9+).
 fn build_jvm_ram_gc(jvm: &JvmCtx) -> Vec<String> {
+    let xms = (jvm.ram_mb / 4).max(512).min(jvm.ram_mb);
     let mut args = vec![
         format!("-Xmx{}M", jvm.ram_mb),
-        format!("-Xms{}M", jvm.ram_mb),
-        "-XX:+UnlockExperimentalVMOptions".into(),
-        "-XX:+DisableExplicitGC".into(),
-        "-XX:+AlwaysPreTouch".into(),
+        format!("-Xms{}M", xms),
     ];
-    match jvm.gc.as_str() {
-        "ZGC" => args.push("-XX:+UseZGC".into()),
-        "Shenandoah" => args.push("-XX:+UseShenandoahGC".into()),
-        // G1GC / Auto => flags Aikar.
-        _ => args.extend(
-            [
-                "-XX:+UseG1GC",
-                "-XX:G1NewSizePercent=30",
-                "-XX:G1MaxNewSizePercent=40",
-                "-XX:G1HeapRegionSize=8M",
-                "-XX:G1ReservePercent=20",
-                "-XX:G1HeapWastePercent=5",
-                "-XX:G1MixedGCCountTarget=4",
-                "-XX:InitiatingHeapOccupancyPercent=15",
-                "-XX:G1MixedGCLiveThresholdPercent=90",
-                "-XX:G1RSetUpdatingPauseTimePercent=5",
-                "-XX:SurvivorRatio=32",
-                "-XX:+PerfDisableSharedMem",
-                "-XX:MaxTenuringThreshold=1",
-            ]
-            .iter()
-            .map(|s| s.to_string()),
-        ),
+
+    if jvm.java_major <= 8 {
+        args.push("-XX:+UseG1GC".into());
+        args.push("-XX:+UnlockExperimentalVMOptions".into());
+        args.push("-XX:MaxGCPauseMillis=200".into());
+        args.push("-XX:+DisableExplicitGC".into());
+    } else {
+        args.extend([
+            "-XX:+UnlockExperimentalVMOptions".into(),
+            "-XX:+DisableExplicitGC".into(),
+            "-XX:+AlwaysPreTouch".into(),
+        ]);
+        match jvm.gc.as_str() {
+            "ZGC" if jvm.java_major >= 15 => args.push("-XX:+UseZGC".into()),
+            "Shenandoah" if jvm.java_major >= 12 => args.push("-XX:+UseShenandoahGC".into()),
+            _ => args.extend(
+                [
+                    "-XX:+UseG1GC",
+                    "-XX:G1NewSizePercent=30",
+                    "-XX:G1MaxNewSizePercent=40",
+                    "-XX:G1HeapRegionSize=8M",
+                    "-XX:G1ReservePercent=20",
+                    "-XX:G1HeapWastePercent=5",
+                    "-XX:G1MixedGCCountTarget=4",
+                    "-XX:InitiatingHeapOccupancyPercent=15",
+                    "-XX:G1MixedGCLiveThresholdPercent=90",
+                    "-XX:G1RSetUpdatingPauseTimePercent=5",
+                    "-XX:SurvivorRatio=32",
+                    "-XX:+PerfDisableSharedMem",
+                    "-XX:MaxTenuringThreshold=1",
+                ]
+                .iter()
+                .map(|s| s.to_string()),
+            ),
+        }
     }
-    // Extra del usuario (override). Dedup de -Xmx/-Xms/-Xss.
+
     for a in &jvm.extra_args {
         if a.starts_with("-Xmx") || a.starts_with("-Xms") {
             args.retain(|x| !x.starts_with(&a[..4]));
@@ -427,7 +439,13 @@ pub fn spawn_game(
     cmd.current_dir(instance_dir);
     no_console(&mut cmd);
     cmd.spawn()
-        .map_err(|e| AppError::msg(format!("No se pudo iniciar Java: {e}")))
+        .map_err(|e| {
+            let preview: String = args.iter().take(8).cloned().collect::<Vec<_>>().join(" ");
+            AppError::msg(format!(
+                "No se pudo iniciar Java ({}): {e}. Args: {preview}…",
+                java.display()
+            ))
+        })
 }
 
 /// Emite `game://started`.

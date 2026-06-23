@@ -135,7 +135,7 @@ fn classify(combined: &str, exit_code: i32, log_empty: bool) -> DiagnosisCore {
         return DiagnosisCore {
             category: "launch_early",
             message: "Minecraft no llegó a iniciar (cierre inmediato).".into(),
-            hint: "Verificá Java en Ajustes → Java, reinstalá la versión desde Versiones, y desactivá antivirus que bloquee javaw.".into(),
+            hint: "Verificá Java en Ajustes → Java (1.8.9 requiere Java 8). Si usás flags JVM personalizados, probá quitarlos. Reinstalá la versión desde Versiones.".into(),
         };
     }
 
