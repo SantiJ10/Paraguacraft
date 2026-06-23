@@ -20,6 +20,7 @@ import type {
   ExtrasStatus,
   DeviceCodeStart,
   DownloadTask,
+  FavoriteServer,
   AiAssistResponse,
   ApplySkinResult,
   ServerProfile,
@@ -488,6 +489,18 @@ export const api = {
     return invokeReal<Instance>("import_mrpack_version", { versionId });
   },
 
+  async importCfpack(source: string, mc: string): Promise<Instance> {
+    return invokeReal<Instance>("import_cfpack", { source, mc });
+  },
+
+  async importCfpackVersion(modId: string, fileId: string): Promise<Instance> {
+    return invokeReal<Instance>("import_cfpack_version", { modId, fileId });
+  },
+
+  async pickAndImportCfpackZip(): Promise<Instance> {
+    return invokeReal<Instance>("pick_and_import_cfpack_zip");
+  },
+
   async listInstanceWorlds(instanceId: string): Promise<WorldInfo[]> {
     return invokeReal<WorldInfo[]>("list_instance_worlds", { instanceId });
   },
@@ -501,8 +514,11 @@ export const api = {
   },
 
   // --- Lanzamiento (Fase 3) ---
-  async launchInstance(instanceId: string): Promise<number> {
-    return invokeReal<number>("launch_instance", { instanceId });
+  async launchInstance(instanceId: string, serverAddress?: string | null): Promise<number> {
+    return invokeReal<number>("launch_instance", {
+      instanceId,
+      serverAddress: serverAddress ?? null,
+    });
   },
 
   async getBedrockStatus(): Promise<BedrockStatus> {
@@ -563,6 +579,42 @@ export const api = {
 
   async reinstallInstanceLoader(id: string): Promise<Instance> {
     return invokeReal<Instance>("reinstall_instance_loader", { id });
+  },
+
+  async repairInstance(id: string): Promise<ServerRepairReport> {
+    return invokeReal<ServerRepairReport>("repair_instance", { id });
+  },
+
+  async getInstanceLog(id: string, maxLines = 400): Promise<string[]> {
+    return invokeReal<string[]>("get_instance_log", { id, maxLines });
+  },
+
+  async removeInstanceContent(id: string, path: string): Promise<void> {
+    await invokeReal<void>("remove_instance_content", { id, path });
+  },
+
+  async revealInstanceContent(id: string, path: string): Promise<void> {
+    await invokeReal<void>("reveal_instance_content", { id, path });
+  },
+
+  async pickAndAddInstanceContent(id: string, folder: string): Promise<number> {
+    return invokeReal<number>("pick_and_add_instance_content", { id, folder });
+  },
+
+  async pickAndExportInstance(id: string): Promise<string> {
+    return invokeReal<string>("pick_and_export_instance", { id });
+  },
+
+  async listFavoriteServers(): Promise<FavoriteServer[]> {
+    return invokeReal<FavoriteServer[]>("list_favorite_servers");
+  },
+
+  async addFavoriteServer(name: string, address: string, notes?: string | null): Promise<FavoriteServer> {
+    return invokeReal<FavoriteServer>("add_favorite_server", { name, address, notes: notes ?? null });
+  },
+
+  async removeFavoriteServer(id: string): Promise<void> {
+    await invokeReal<void>("remove_favorite_server", { id });
   },
 
   async getDownloads(): Promise<DownloadTask[]> {

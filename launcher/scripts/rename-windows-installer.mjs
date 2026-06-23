@@ -20,8 +20,8 @@ const nsisDir = path.join(targetRoot, "bundle/nsis");
 const target = `Instalar_Paraguacraft_v${version}.exe`;
 
 if (!fs.existsSync(nsisDir)) {
-  console.warn("[rename-installer] Carpeta NSIS no encontrada (¿build incompleto?).");
-  process.exit(0);
+  console.error("[rename-installer] Carpeta NSIS no encontrada:", nsisDir);
+  process.exit(1);
 }
 
 const setups = fs

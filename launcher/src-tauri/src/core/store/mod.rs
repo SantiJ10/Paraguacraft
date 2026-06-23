@@ -5,6 +5,7 @@
 //! **Instalación:** sigue filtrando por mc+loader de la instancia destino (Regla 1).
 
 pub mod autoupdate;
+pub mod cfpack;
 pub mod curseforge;
 pub mod destinations;
 pub mod modrinth;

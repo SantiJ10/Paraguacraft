@@ -7,7 +7,7 @@ import InstanceCard from "@/components/common/InstanceCard.vue";
 import SearchInput from "@/components/common/SearchInput.vue";
 import BaseButton from "@/components/common/BaseButton.vue";
 import NewInstanceModal from "@/components/instance/NewInstanceModal.vue";
-import ImportMrpackModal from "@/components/instance/ImportMrpackModal.vue";
+import ImportModpackModal from "@/components/instance/ImportModpackModal.vue";
 import { isTauri } from "@/lib/ipc";
 import type { Instance, InstanceSource } from "@/lib/types";
 
@@ -69,7 +69,7 @@ async function play(inst: Instance) {
         <BaseButton variant="secondary" :disabled="instances.scanning || !isTauri()" @click="instances.scan()">
           {{ instances.scanning ? "Escaneando..." : "Detectar otros launchers" }}
         </BaseButton>
-        <BaseButton variant="secondary" @click="showImport = true">Importar .mrpack</BaseButton>
+        <BaseButton variant="secondary" @click="showImport = true">Importar modpack</BaseButton>
         <BaseButton @click="showNew = true">+ Nueva instancia</BaseButton>
       </div>
     </div>
@@ -104,6 +104,6 @@ async function play(inst: Instance) {
     <p v-else class="py-16 text-center text-gray-500">No hay instancias que coincidan.</p>
 
     <NewInstanceModal v-if="showNew" @close="showNew = false" />
-    <ImportMrpackModal v-if="showImport" @close="showImport = false" />
+    <ImportModpackModal v-if="showImport" @close="showImport = false" />
   </div>
 </template>

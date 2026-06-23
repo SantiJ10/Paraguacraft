@@ -137,11 +137,11 @@ export const useAppStore = defineStore("app", () => {
     }
   }
 
-  async function launch(instanceId: string, name: string) {
+  async function launch(instanceId: string, name: string, serverAddress?: string | null) {
     await initGameEvents();
     setLaunch("preparing", `Preparando ${name}…`);
     try {
-      await api.launchInstance(instanceId);
+      await api.launchInstance(instanceId, serverAddress);
       if (launchPhase.value === "preparing") setLaunch("launching", `Lanzando ${name}…`);
     } catch (e) {
       setLaunch("idle", "Listo para jugar");

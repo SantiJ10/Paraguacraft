@@ -295,6 +295,82 @@ pub async fn install_file_id(
     }
 }
 
+pub async fn get_file_metadata(
+    client: &reqwest::Client,
+    key: &str,
+    mod_id: &str,
+    file_id: &str,
+) -> AppResult<Value> {
+    let resp = get_json(client, &format!("{API}/mods/{mod_id}/files/{file_id}"), key).await?;
+    Ok(resp["data"].clone())
+}
+
+pub fn file_download_url(file: &Value) -> String {
+    let filename = file["fileName"].as_str().unwrap_or("download.jar");
+    let fid = file["id"].as_u64().unwrap_or(0);
+    match file["downloadUrl"].as_str() {
+        Some(u) if !u.is_empty() => u.to_string(),
+        _ => edge_url(fid, filename),
+    }
+}
+
+pub fn file_sha1(file: &Value) -> Option<String> {
+    file["hashes"]
+        .as_array()
+        .and_then(|a| a.iter().find(|h| h["algo"].as_u64() == Some(1)))
+        .and_then(|h| h["value"].as_str())
+        .map(String::from)
+}
+
+pub async fn resolve_modpack_id(
+    client: &reqwest::Client,
+    key: &str,
+    source: &str,
+) -> AppResult<String> {
+    let s = source.trim();
+    if s.chars().all(|c| c.is_ascii_digit()) {
+        return Ok(s.to_string());
+    }
+    if let Some(idx) = s.find("curseforge.com/minecraft/modpacks/") {
+        let slug = s[idx + "curseforge.com/minecraft/modpacks/".len()..]
+            .split(['/', '?', '#'])
+            .next()
+            .unwrap_or(s);
+        let url = format!(
+            "{API}/mods/search?gameId={GAME_ID}&classId=4471&slug={}",
+            net::url_encode(slug)
+        );
+        let resp = get_json(client, &url, key).await?;
+        let data = resp["data"].as_array().cloned().unwrap_or_default();
+        if let Some(m) = data.first() {
+            return Ok(m["id"].as_u64().unwrap_or(0).to_string());
+        }
+    }
+    Err(AppError::msg("Proyecto CurseForge no encontrado"))
+}
+
+pub async fn list_mod_files(
+    client: &reqwest::Client,
+    key: &str,
+    mod_id: &str,
+    mc_filter: &str,
+) -> AppResult<Vec<Value>> {
+    let mut url = format!("{API}/mods/{mod_id}/files?pageSize=20");
+    if !mc_filter.is_empty() {
+        url.push_str(&format!("&gameVersion={}", net::url_encode(mc_filter)));
+    }
+    let resp = get_json(client, &url, key).await?;
+    Ok(resp["data"].as_array().cloned().unwrap_or_default())
+}
+
+pub async fn mod_name(client: &reqwest::Client, key: &str, mod_id: &str) -> AppResult<String> {
+    let resp = get_json(client, &format!("{API}/mods/{mod_id}"), key).await?;
+    Ok(resp["data"]["name"]
+        .as_str()
+        .unwrap_or("Modpack")
+        .to_string())
+}
+
 fn edge_url(file_id: u64, filename: &str) -> String {
     let s = file_id.to_string();
     let (a, b) = if s.len() >= 4 {

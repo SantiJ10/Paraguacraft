@@ -303,6 +303,8 @@ export interface DownloadTask {
   progress: number; // 0-100
   status: DownloadStatus;
   speed: string;
+  error?: string | null;
+  failedFile?: string | null;
 }
 
 export interface AppSettings {
@@ -406,6 +408,14 @@ export interface InstanceContentItem {
   sizeBytes: number;
   sha1: string | null;
   enabled: boolean;
+}
+
+export interface FavoriteServer {
+  id: string;
+  name: string;
+  address: string;
+  notes?: string | null;
+  createdAt: number;
 }
 
 export interface AiMessage {

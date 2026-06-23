@@ -110,6 +110,7 @@ async fn spawn_for_instance(
     mc: String,
     loader: String,
     settings: &AppSettings,
+    server_address: Option<String>,
 ) -> AppResult<u32> {
     if settings.deep_clean_on_launch {
         let _ = crate::core::extras::maintenance::run("both");
@@ -178,6 +179,10 @@ async fn spawn_for_instance(
     };
 
     let (args, java) = launch::build_command(&launch_id, &game_dir, &auth, &jvm, resolution)?;
+    let mut args = args;
+    if let Some(addr) = server_address.filter(|s| !s.trim().is_empty()) {
+        launch::append_server_join(&mut args, addr.trim());
+    }
     let child = launch::spawn_game(&java, &args, &game_dir)?;
     let pid = child.id();
 
@@ -264,6 +269,7 @@ async fn launch_external(
         mc,
         loader,
         &settings,
+        None,
     )
     .await
 }
@@ -276,6 +282,7 @@ pub async fn launch_instance(
     app: AppHandle,
     state: State<'_, AppState>,
     instance_id: String,
+    server_address: Option<String>,
 ) -> AppResult<u32> {
     if instance_id.starts_with("ext::") {
         return launch_external(&app, &state, &instance_id).await;
@@ -328,6 +335,7 @@ pub async fn launch_instance(
         mc,
         loader,
         &settings,
+        server_address,
     )
     .await
 }
