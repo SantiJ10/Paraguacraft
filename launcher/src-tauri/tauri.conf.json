@@ -32,6 +32,7 @@
   },
   "plugins": {
     "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEJBNUVFMzc3MDY0QTBEQTgKUldTb0RVb0dkK05ldXNSbWdraDhHMnhOaCtQS1hDOURJOGE3NWFDNlFVM1ZZenhRVUlsaVMxeGQK",
       "endpoints": [
         "https://github.com/SantiJ10/Paraguacraft/releases/latest/download/latest.json"
       ],
@@ -44,9 +45,6 @@
     "active": true,
     "createUpdaterArtifacts": false,
     "targets": "all",
-    "macOS": {
-      "signingIdentity": "-"
-    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
