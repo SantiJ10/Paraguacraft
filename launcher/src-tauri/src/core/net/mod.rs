@@ -55,7 +55,15 @@ fn file_matches_sha1(path: &Path, expected: &str) -> bool {
     }
 }
 
-fn emit(app: &AppHandle, id: &str, label: &str, progress: f64, status: &str) {
+fn emit(
+    app: &AppHandle,
+    id: &str,
+    label: &str,
+    progress: f64,
+    status: &str,
+    error: Option<&str>,
+    failed_file: Option<&str>,
+) {
     let _ = app.emit(
         "download://progress",
         DownloadProgress {
@@ -64,8 +72,14 @@ fn emit(app: &AppHandle, id: &str, label: &str, progress: f64, status: &str) {
             progress,
             status: status.to_string(),
             speed: String::new(),
+            error: error.map(String::from),
+            failed_file: failed_file.map(String::from),
         },
     );
+}
+
+fn emit_simple(app: &AppHandle, id: &str, label: &str, progress: f64, status: &str) {
+    emit(app, id, label, progress, status, None, None);
 }
 
 fn is_retryable_status(status: reqwest::StatusCode) -> bool {
@@ -177,7 +191,7 @@ pub async fn download_all(
     let done = Arc::new(AtomicUsize::new(0));
     let concurrency = concurrency.clamp(1, 32);
 
-    emit(app, group_id, label, 0.0, "downloading");
+    emit_simple(app, group_id, label, 0.0, "downloading");
 
     let mut stream = stream::iter(items.into_iter().map(|item| {
         let client = client.clone();
@@ -186,10 +200,27 @@ pub async fn download_all(
         let group = group_id.to_string();
         let label = label.to_string();
         async move {
+            let file_label = item
+                .dest
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_else(|| item.url.clone());
             let res = download_one(&client, &item).await;
             let n = done.fetch_add(1, Ordering::SeqCst) + 1;
             let pct = (n as f64 / total as f64) * 100.0;
-            emit(&app, &group, &label, pct, "downloading");
+            if let Err(ref e) = res {
+                emit(
+                    &app,
+                    &group,
+                    &label,
+                    pct,
+                    "error",
+                    Some(&e.to_string()),
+                    Some(&file_label),
+                );
+            } else {
+                emit_simple(&app, &group, &label, pct, "downloading");
+            }
             res.map(|_| ())
         }
     }))
@@ -198,7 +229,7 @@ pub async fn download_all(
     while let Some(res) = stream.next().await {
         res?;
     }
-    emit(app, group_id, label, 100.0, "done");
+    emit_simple(app, group_id, label, 100.0, "done");
     Ok(())
 }
 

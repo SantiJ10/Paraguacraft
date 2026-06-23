@@ -187,3 +187,84 @@ pub async fn reinstall_instance_loader(
     let dir = instances::instance_dir(&id);
     Ok(meta.into_instance(&id, &dir))
 }
+
+#[tauri::command]
+pub async fn repair_instance(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, crate::state::AppState>,
+    id: String,
+) -> AppResult<crate::core::server_repair::ServerRepairReport> {
+    let (http, _net) = state.net_scope();
+    crate::core::instance_repair::repair(&app, &http, &id).await
+}
+
+#[tauri::command]
+pub fn get_instance_log(id: String, max_lines: Option<usize>) -> AppResult<Vec<String>> {
+    crate::core::instance_repair::read_log_lines(&id, max_lines.unwrap_or(200))
+}
+
+#[tauri::command]
+pub fn remove_instance_content(id: String, path: String) -> AppResult<()> {
+    instances::content::remove(&id, &path)
+}
+
+#[tauri::command]
+pub fn reveal_instance_content(id: String, path: String) -> AppResult<()> {
+    instances::content::reveal(&id, &path)
+}
+
+#[tauri::command]
+pub async fn pick_and_add_instance_content(
+    app: tauri::AppHandle,
+    id: String,
+    folder: String,
+) -> AppResult<u32> {
+    use tauri_plugin_dialog::DialogExt;
+
+    let picked = app
+        .dialog()
+        .file()
+        .add_filter("Mods / packs", &["jar", "zip"])
+        .blocking_pick_files();
+
+    let Some(files) = picked else {
+        return Err(crate::error::AppError::msg("No se seleccionó ningún archivo"));
+    };
+
+    let paths: Vec<std::path::PathBuf> = files
+        .into_iter()
+        .filter_map(|f| f.into_path().ok())
+        .collect();
+    instances::content::add_files(&id, &folder, &paths)
+}
+
+#[tauri::command]
+pub async fn pick_and_export_instance(
+    app: tauri::AppHandle,
+    id: String,
+) -> AppResult<String> {
+    use tauri_plugin_dialog::DialogExt;
+
+    let meta = instances::ensure_meta(&id)?;
+    let safe_name = meta
+        .name
+        .chars()
+        .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+        .collect::<String>();
+    let default = format!("{safe_name}_export.zip");
+
+    let picked = app
+        .dialog()
+        .file()
+        .set_file_name(&default)
+        .add_filter("Zip", &["zip"])
+        .blocking_save_file();
+
+    let Some(file) = picked else {
+        return Err(crate::error::AppError::msg("Exportación cancelada"));
+    };
+    let path = file
+        .into_path()
+        .map_err(|e| crate::error::AppError::msg(format!("Ruta inválida: {e}")))?;
+    instances::export::export_to(&id, &path)
+}

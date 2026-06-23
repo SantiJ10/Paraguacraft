@@ -10,6 +10,7 @@ import { useSkinsStore } from "@/stores/skins";
 import BaseButton from "@/components/common/BaseButton.vue";
 import InstanceCard from "@/components/common/InstanceCard.vue";
 import InstanceIcon from "@/components/instance/InstanceIcon.vue";
+import FavoriteServersPanel from "@/components/home/FavoriteServersPanel.vue";
 import { formatPlaytime } from "@/composables/useFormat";
 import type { Instance } from "@/lib/types";
 
@@ -120,17 +121,21 @@ async function play(inst: { id: string; name: string }) {
       </div>
     </section>
 
-    <section class="flex-1 border-t border-surface-3 bg-surface-1 p-8">
-      <h2 class="mb-4 text-lg font-bold">Jugados recientemente</h2>
-      <div class="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4">
-        <InstanceCard
-          v-for="inst in instances.recent"
-          :key="inst.id"
-          :instance="inst"
-          :selected="inst.id === instances.selectedId"
-          @open="openInstance(inst)"
-          @play="play(inst)"
-        />
+    <section class="flex-1 border-t border-surface-3 bg-surface-1 p-8 space-y-8">
+      <FavoriteServersPanel />
+
+      <div>
+        <h2 class="mb-4 text-lg font-bold">Jugados recientemente</h2>
+        <div class="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4">
+          <InstanceCard
+            v-for="inst in instances.recent"
+            :key="inst.id"
+            :instance="inst"
+            :selected="inst.id === instances.selectedId"
+            @open="openInstance(inst)"
+            @play="play(inst)"
+          />
+        </div>
       </div>
     </section>
   </div>

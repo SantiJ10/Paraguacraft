@@ -11,17 +11,28 @@ export const useDownloadsStore = defineStore("downloads", () => {
   let listening = false;
 
   const active = computed(() => tasks.value.filter((t) => t.status === "downloading"));
-  const hasActivity = computed(() => active.value.length > 0);
+  const failed = computed(() => tasks.value.filter((t) => t.status === "error"));
+  const hasActivity = computed(() => active.value.length > 0 || failed.value.length > 0);
+
+  function normalizeTask(p: DownloadTask): DownloadTask {
+    const raw = p as DownloadTask & { failed_file?: string | null };
+    return {
+      ...p,
+      failedFile: p.failedFile ?? raw.failed_file ?? null,
+    };
+  }
 
   function applyProgress(p: DownloadTask) {
-    const idx = tasks.value.findIndex((t) => t.id === p.id);
-    if (idx >= 0) tasks.value[idx] = p;
-    else tasks.value.push(p);
+    const task = normalizeTask(p);
+    const idx = tasks.value.findIndex((t) => t.id === task.id);
+    if (idx >= 0) tasks.value[idx] = task;
+    else tasks.value.push(task);
 
-    if (p.status === "done" || p.status === "error") {
+    const delay = task.status === "error" ? 12000 : 2500;
+    if (task.status === "done" || task.status === "error") {
       setTimeout(() => {
-        tasks.value = tasks.value.filter((t) => t.id !== p.id);
-      }, 2500);
+        tasks.value = tasks.value.filter((t) => t.id !== task.id);
+      }, delay);
     }
   }
 
@@ -58,5 +69,5 @@ export const useDownloadsStore = defineStore("downloads", () => {
     }, 500);
   }
 
-  return { tasks, active, hasActivity, initEvents, applyProgress, enqueueDemo };
+  return { tasks, active, failed, hasActivity, initEvents, applyProgress, enqueueDemo };
 });

@@ -427,6 +427,17 @@ pub fn build_command(
     Ok((cmd, java))
 }
 
+/// Agrega `--server` / `--port` para conectar directo a un servidor multijugador.
+pub fn append_server_join(args: &mut Vec<String>, address: &str) {
+    let (host, port) = crate::core::favorites::parse_address(address);
+    args.push("--server".into());
+    args.push(host);
+    if let Some(p) = port {
+        args.push("--port".into());
+        args.push(p.to_string());
+    }
+}
+
 /// Lanza el proceso sin consola. Devuelve el handle (para esperar su salida).
 pub fn spawn_game(
     java: &Path,

@@ -5,15 +5,16 @@ import { useInstancesStore } from "@/stores/instances";
 import { useAppStore } from "@/stores/app";
 import { useDownloadsStore } from "@/stores/downloads";
 import { api } from "@/lib/ipc";
-import type { InstanceContentItem, InstanceMeta, GcType, Instance } from "@/lib/types";
+import type { InstanceContentItem, InstanceMeta, GcType, Instance, ServerRepairReport } from "@/lib/types";
 import BaseButton from "@/components/common/BaseButton.vue";
 import BackupsModal from "@/components/instance/BackupsModal.vue";
 import InstanceIcon from "@/components/instance/InstanceIcon.vue";
 import InstanceIconPicker from "@/components/instance/InstanceIconPicker.vue";
 import { resolveInstanceIcon } from "@/lib/instanceIcons";
 import { formatPlaytime, formatRelative } from "@/composables/useFormat";
+import SearchInput from "@/components/common/SearchInput.vue";
 
-type TabId = "content" | "files" | "settings";
+type TabId = "content" | "files" | "logs" | "settings";
 
 const route = useRoute();
 const router = useRouter();
@@ -30,7 +31,15 @@ const error = ref<string | null>(null);
 const message = ref<string | null>(null);
 const launching = ref(false);
 const updating = ref(false);
+const repairing = ref(false);
+const repairReport = ref<ServerRepairReport | null>(null);
 const showBackups = ref(false);
+const logLines = ref<string[]>([]);
+const logLoading = ref(false);
+const contentSearch = ref("");
+const contentKind = ref<"all" | "mod" | "resourcepack" | "shader">("all");
+const contentBusy = ref(false);
+const exporting = ref(false);
 
 const instanceId = computed(() => String(route.params.id ?? ""));
 const instance = computed(() => instances.instances.find((i) => i.id === instanceId.value) ?? null);
@@ -60,6 +69,7 @@ const displayInstance = computed((): Instance | null => {
 const tabs: Array<{ id: TabId; label: string }> = [
   { id: "content", label: "Contenido" },
   { id: "files", label: "Archivos" },
+  { id: "logs", label: "Logs" },
   { id: "settings", label: "Configuración" },
 ];
 
@@ -77,6 +87,36 @@ const editName = ref("");
 const editIcon = ref("");
 const gcOptions: GcType[] = ["Auto", "G1GC", "ZGC", "Shenandoah"];
 const maxRam = computed(() => (app.hardware?.ramGb ?? 16) * 1024);
+
+const ramPresets = [
+  { id: "casual", label: "Casual", hint: "8 GB · PvP / vanilla" },
+  { id: "normal", label: "Normal", hint: "16 GB · mods livianos" },
+  { id: "modpack", label: "Modpack", hint: "32 GB · packs pesados" },
+  { id: "auto", label: "Auto", hint: "Según tu hardware" },
+] as const;
+
+function clampRam(mb: number): number {
+  return Math.max(1024, Math.min(maxRam.value, mb));
+}
+
+function ramForPreset(id: (typeof ramPresets)[number]["id"]): number {
+  const hw = app.hardware;
+  switch (id) {
+    case "casual":
+      return clampRam(2560);
+    case "normal":
+      return clampRam(4096);
+    case "modpack":
+      return clampRam(8192);
+    case "auto":
+      return clampRam(hw?.recommendedRamMb ?? 4096);
+  }
+}
+
+function applyRamPreset(id: (typeof ramPresets)[number]["id"]) {
+  ramMb.value = ramForPreset(id);
+  autoManaged.value = id === "auto";
+}
 
 async function loadAll() {
   loading.value = true;
@@ -141,7 +181,12 @@ onMounted(() => {
 
 watch(instanceId, () => {
   tab.value = "content";
+  repairReport.value = null;
   void loadAll();
+});
+
+watch(tab, (t) => {
+  if (t === "logs") void loadLogs();
 });
 
 async function play() {
@@ -278,6 +323,59 @@ async function backToAuto() {
   }
 }
 
+async function repairInstance() {
+  if (!confirm("¿Reparar instancia? Se verificará Minecraft, el loader y se moverán JARs corruptos.")) return;
+  repairing.value = true;
+  error.value = null;
+  repairReport.value = null;
+  try {
+    await downloads.initEvents();
+    repairReport.value = await api.repairInstance(instanceId.value);
+    message.value =
+      repairReport.value.fixedCount > 0
+        ? `Reparación completada: ${repairReport.value.fixedCount} corrección(es).`
+        : "Análisis completado. Revisá los avisos abajo.";
+    await instances.load(true);
+    content.value = await api.listInstanceContent(instanceId.value);
+    await loadAll();
+  } catch (e) {
+    error.value = String(e);
+  } finally {
+    repairing.value = false;
+  }
+}
+
+function repairSeverityClass(severity: string) {
+  if (severity === "fixed") return "border-pc-green/40 bg-pc-green/10 text-pc-green";
+  if (severity === "warning") return "border-amber-500/40 bg-amber-500/10 text-amber-200";
+  if (severity === "error") return "border-red-500/40 bg-red-500/10 text-red-300";
+  return "border-surface-4 bg-surface-3 text-gray-400";
+}
+
+async function loadLogs() {
+  logLoading.value = true;
+  try {
+    logLines.value = await api.getInstanceLog(instanceId.value, 500);
+  } catch (e) {
+    logLines.value = [`Error al leer log: ${e}`];
+  } finally {
+    logLoading.value = false;
+  }
+}
+
+async function refreshLogs() {
+  await loadLogs();
+}
+
+async function copyLog() {
+  try {
+    await navigator.clipboard.writeText(logLines.value.join("\n"));
+    message.value = "Log copiado al portapapeles.";
+  } catch (e) {
+    error.value = String(e);
+  }
+}
+
 async function duplicateInst() {
   if (!instance.value) return;
   try {
@@ -308,14 +406,69 @@ async function importExternal() {
 }
 
 const contentByFolder = computed(() => {
+  const q = contentSearch.value.trim().toLowerCase();
   const map = new Map<string, InstanceContentItem[]>();
   for (const item of content.value) {
+    if (contentKind.value !== "all" && item.kind !== contentKind.value) continue;
+    if (q && !item.name.toLowerCase().includes(q)) continue;
     const list = map.get(item.folder) ?? [];
     list.push(item);
     map.set(item.folder, list);
   }
   return map;
 });
+
+const contentKindTabs = [
+  { id: "all" as const, label: "Todo" },
+  { id: "mod" as const, label: "Mods" },
+  { id: "resourcepack" as const, label: "Resource packs" },
+  { id: "shader" as const, label: "Shaders" },
+];
+
+async function removeContent(item: InstanceContentItem) {
+  if (!confirm(`¿Eliminar "${item.name}"?`)) return;
+  try {
+    await api.removeInstanceContent(instanceId.value, item.path);
+    content.value = await api.listInstanceContent(instanceId.value);
+    message.value = `"${item.name}" eliminado.`;
+  } catch (e) {
+    error.value = String(e);
+  }
+}
+
+async function revealContent(item: InstanceContentItem) {
+  try {
+    await api.revealInstanceContent(instanceId.value, item.path);
+  } catch (e) {
+    error.value = String(e);
+  }
+}
+
+async function addContentFiles(folder: "mods" | "resourcepacks" | "shaderpacks") {
+  contentBusy.value = true;
+  try {
+    const n = await api.pickAndAddInstanceContent(instanceId.value, folder);
+    message.value = `${n} archivo(s) agregados.`;
+    content.value = await api.listInstanceContent(instanceId.value);
+  } catch (e) {
+    error.value = String(e);
+  } finally {
+    contentBusy.value = false;
+  }
+}
+
+async function exportInstance() {
+  exporting.value = true;
+  error.value = null;
+  try {
+    const path = await api.pickAndExportInstance(instanceId.value);
+    message.value = `Instancia exportada: ${path}`;
+  } catch (e) {
+    error.value = String(e);
+  } finally {
+    exporting.value = false;
+  }
+}
 </script>
 
 <template>
@@ -347,8 +500,41 @@ const contentByFolder = computed(() => {
             Importar a Paraguacraft
           </BaseButton>
           <BaseButton v-else variant="secondary" @click="showBackups = true">Backups</BaseButton>
+          <BaseButton
+            v-if="!isExternal"
+            variant="secondary"
+            :disabled="repairing || launching"
+            title="Reinstala Minecraft, loader y mueve JARs corruptos"
+            @click="repairInstance"
+          >
+            {{ repairing ? "Reparando…" : "Reparar" }}
+          </BaseButton>
         </div>
       </header>
+
+      <div
+        v-if="repairReport?.items.length"
+        class="mb-4 space-y-2 rounded-xl border border-surface-4 bg-surface-2 p-4"
+      >
+        <h2 class="text-sm font-bold">
+          Reparación de instancia
+          <span class="ml-2 font-normal text-gray-500">
+            {{ repairReport.fixedCount }} arreglado(s) · {{ repairReport.warningCount }} aviso(s)
+          </span>
+        </h2>
+        <ul class="max-h-48 space-y-2 overflow-y-auto text-sm">
+          <li
+            v-for="(item, i) in repairReport.items"
+            :key="i"
+            class="rounded-lg border px-3 py-2"
+            :class="repairSeverityClass(item.severity)"
+          >
+            <p class="font-semibold">{{ item.title }}</p>
+            <p class="mt-0.5 text-xs opacity-90">{{ item.detail }}</p>
+            <p v-if="item.path" class="mt-1 truncate font-mono text-[10px] opacity-70">{{ item.path }}</p>
+          </li>
+        </ul>
+      </div>
 
       <p v-if="isExternal" class="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-200">
         Instancia detectada en otro launcher. Podes jugarla, instalar mods desde la tienda o importarla a Paraguacraft.
@@ -372,20 +558,42 @@ const contentByFolder = computed(() => {
 
       <!-- Contenido -->
       <section v-if="tab === 'content'" class="space-y-4">
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="w-56"><SearchInput v-model="contentSearch" placeholder="Buscar mod o pack…" /></div>
+          <div class="flex flex-wrap gap-1">
+            <button
+              v-for="k in contentKindTabs"
+              :key="k.id"
+              type="button"
+              class="rounded-full px-3 py-1 text-xs font-semibold transition-colors"
+              :class="contentKind === k.id ? 'bg-pc-green text-black' : 'bg-surface-3 text-gray-400 hover:text-white'"
+              @click="contentKind = k.id"
+            >
+              {{ k.label }}
+            </button>
+          </div>
+        </div>
+
         <div class="flex flex-wrap gap-2">
           <BaseButton size="sm" variant="secondary" :disabled="updating" @click="updateContent">
             {{ updating ? "Actualizando…" : "Actualizar mods" }}
+          </BaseButton>
+          <BaseButton size="sm" variant="secondary" :disabled="contentBusy" @click="addContentFiles('mods')">
+            + Agregar mods
           </BaseButton>
           <BaseButton size="sm" variant="secondary" @click="goStore">Explorar tienda</BaseButton>
         </div>
 
         <p v-if="!content.length" class="rounded-xl border border-dashed border-surface-4 py-16 text-center text-gray-500">
-          No hay mods ni packs instalados. Usa la tienda o arrastra archivos a la carpeta de la instancia.
+          No hay mods ni packs instalados. Usa la tienda o «Agregar mods».
+        </p>
+        <p v-else-if="!contentByFolder.size" class="rounded-xl border border-dashed border-surface-4 py-10 text-center text-gray-500">
+          Nada coincide con el filtro.
         </p>
 
         <div v-for="[folder, items] in contentByFolder" :key="folder" class="rounded-xl border border-surface-4 bg-surface-2">
           <h3 class="border-b border-surface-3 px-4 py-2 text-xs font-bold uppercase tracking-wider text-gray-500">
-            {{ folder }}
+            {{ folder }} · {{ items.length }}
           </h3>
           <ul class="divide-y divide-surface-3">
             <li
@@ -401,13 +609,29 @@ const contentByFolder = computed(() => {
                   <span v-if="item.sha1"> · {{ item.sha1.slice(0, 8) }}…</span>
                 </p>
               </div>
-              <button
-                class="rounded-lg px-3 py-1 text-xs font-semibold transition-colors"
-                :class="item.enabled ? 'bg-surface-4 text-gray-300 hover:bg-red-900/40 hover:text-red-300' : 'bg-pc-green/20 text-pc-green'"
-                @click="toggleItem(item)"
-              >
-                {{ item.enabled ? "Desactivar" : "Activar" }}
-              </button>
+              <div class="flex shrink-0 gap-1">
+                <button
+                  class="rounded-lg px-2 py-1 text-xs text-gray-400 hover:bg-surface-4 hover:text-white"
+                  title="Mostrar en carpeta"
+                  @click="revealContent(item)"
+                >
+                  📁
+                </button>
+                <button
+                  class="rounded-lg px-2 py-1 text-xs text-gray-400 hover:bg-red-900/40 hover:text-red-300"
+                  title="Eliminar"
+                  @click="removeContent(item)"
+                >
+                  🗑
+                </button>
+                <button
+                  class="rounded-lg px-3 py-1 text-xs font-semibold transition-colors"
+                  :class="item.enabled ? 'bg-surface-4 text-gray-300 hover:bg-amber-900/40 hover:text-amber-200' : 'bg-pc-green/20 text-pc-green'"
+                  @click="toggleItem(item)"
+                >
+                  {{ item.enabled ? "Desactivar" : "Activar" }}
+                </button>
+              </div>
             </li>
           </ul>
         </div>
@@ -421,6 +645,32 @@ const contentByFolder = computed(() => {
           Abrí la carpeta para agregar mods, resource packs o editar archivos manualmente.
         </p>
         <BaseButton @click="openFolder">Abrir carpeta</BaseButton>
+      </section>
+
+      <!-- Logs -->
+      <section v-else-if="tab === 'logs'" class="rounded-xl border border-surface-4 bg-surface-2 p-6">
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <h2 class="text-lg font-bold">latest.log</h2>
+          <div class="flex gap-2">
+            <BaseButton size="sm" variant="secondary" :disabled="logLoading" @click="refreshLogs">
+              {{ logLoading ? "Cargando…" : "Actualizar" }}
+            </BaseButton>
+            <BaseButton size="sm" variant="secondary" :disabled="!logLines.length" @click="copyLog">
+              Copiar
+            </BaseButton>
+          </div>
+        </div>
+        <p class="mb-4 text-xs text-gray-500">
+          Últimas líneas del log de Minecraft. Si algo falla al jugar, copiá esto para diagnosticar.
+        </p>
+        <pre
+          v-if="logLoading"
+          class="rounded-lg bg-surface-3 p-4 text-sm text-gray-500"
+        >Cargando log…</pre>
+        <pre
+          v-else
+          class="max-h-[28rem] overflow-auto rounded-lg bg-black/40 p-4 font-mono text-xs leading-relaxed text-gray-300"
+        >{{ logLines.join("\n") }}</pre>
       </section>
 
       <!-- Configuración (solo instancias locales) -->
@@ -495,12 +745,34 @@ const contentByFolder = computed(() => {
           </p>
 
           <div class="space-y-4">
+            <div>
+              <span class="mb-2 block text-sm text-gray-300">Presets de RAM</span>
+              <div class="flex flex-wrap gap-2">
+                <button
+                  v-for="preset in ramPresets"
+                  :key="preset.id"
+                  type="button"
+                  class="rounded-lg border px-3 py-2 text-left text-xs transition-colors"
+                  :class="
+                    (preset.id === 'auto' && autoManaged) ||
+                    (preset.id !== 'auto' && !autoManaged && ramMb === ramForPreset(preset.id))
+                      ? 'border-pc-green bg-pc-green/15 text-pc-green'
+                      : 'border-surface-5 bg-surface-3 text-gray-400 hover:border-surface-4 hover:text-white'
+                  "
+                  @click="applyRamPreset(preset.id)"
+                >
+                  <span class="block font-semibold">{{ preset.label }}</span>
+                  <span class="block text-[10px] opacity-80">{{ preset.hint }}</span>
+                </button>
+              </div>
+            </div>
+
             <label class="block">
               <span class="mb-1 flex justify-between text-sm text-gray-300">
                 <span>Memoria RAM</span>
                 <span class="font-semibold text-pc-green">{{ (ramMb / 1024).toFixed(1) }} GB</span>
               </span>
-              <input v-model.number="ramMb" type="range" min="1024" :max="maxRam" step="512" class="w-full accent-pc-green" />
+              <input v-model.number="ramMb" type="range" min="1024" :max="maxRam" step="512" class="w-full accent-pc-green" @input="autoManaged = false" />
             </label>
 
             <label class="block">
@@ -545,6 +817,9 @@ const contentByFolder = computed(() => {
         <div class="rounded-xl border border-surface-4 bg-surface-2 p-6">
           <h2 class="mb-4 text-lg font-bold">General</h2>
           <div class="flex flex-wrap gap-2">
+            <BaseButton variant="secondary" :disabled="exporting" @click="exportInstance">
+              {{ exporting ? "Exportando…" : "Exportar instancia" }}
+            </BaseButton>
             <BaseButton variant="secondary" @click="duplicateInst">Duplicar instancia</BaseButton>
             <BaseButton variant="ghost" class="!text-red-400" @click="deleteInst">Eliminar instancia</BaseButton>
           </div>

@@ -124,6 +124,53 @@ pub async fn import_mrpack_version(
 }
 
 #[tauri::command]
+pub async fn import_cfpack(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    source: String,
+    mc: String,
+) -> AppResult<Instance> {
+    let key = keys::curseforge_api_key();
+    let (http, _net) = state.net_scope();
+    store::cfpack::import_from_project(&app, &http, &key, &source, &mc).await
+}
+
+#[tauri::command]
+pub async fn import_cfpack_version(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    mod_id: String,
+    file_id: String,
+) -> AppResult<Instance> {
+    let key = keys::curseforge_api_key();
+    let (http, _net) = state.net_scope();
+    store::cfpack::import_by_file_id(&app, &http, &key, &mod_id, &file_id).await
+}
+
+#[tauri::command]
+pub async fn pick_and_import_cfpack_zip(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<Instance> {
+    use tauri_plugin_dialog::DialogExt;
+
+    let picked = app
+        .dialog()
+        .file()
+        .add_filter("Modpack CurseForge", &["zip"])
+        .blocking_pick_file();
+    let Some(file) = picked else {
+        return Err(crate::error::AppError::msg("No se seleccionó ningún archivo"));
+    };
+    let path = file
+        .into_path()
+        .map_err(|e| crate::error::AppError::msg(format!("Ruta inválida: {e}")))?;
+    let key = keys::curseforge_api_key();
+    let (http, _net) = state.net_scope();
+    store::cfpack::import_from_zip_path(&app, &http, &key, &path).await
+}
+
+#[tauri::command]
 pub fn list_instance_worlds(instance_id: String) -> AppResult<Vec<WorldInfo>> {
     destinations::list_instance_worlds(&instance_id)
 }

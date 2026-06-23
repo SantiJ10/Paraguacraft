@@ -5,6 +5,7 @@ pub mod bedrock;
 pub mod cleanup;
 pub mod diagnostics;
 pub mod extras;
+pub mod favorites;
 pub mod hardware;
 pub mod instances;
 pub mod java;

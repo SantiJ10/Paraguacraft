@@ -1,4 +1,4 @@
-# Release Windows only. Mac/Linux: compilar localmente cuando haga falta.
+# Release Windows: un solo comando npm → instalador + latest.json → GitHub Release.
 name: Release
 
 on:
@@ -7,12 +7,18 @@ on:
       - "v*"
   workflow_dispatch:
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
 env:
   CI: true
   CARGO_PROFILE_RELEASE_STRIP: "false"
+  CARGO_PROFILE_RELEASE_LTO: "false"
+  CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
   CARGO_BUILD_JOBS: "2"
 
 jobs:
@@ -33,29 +39,13 @@ jobs:
         with:
           workspaces: launcher/src-tauri -> target
 
-      - name: Install frontend dependencies
-        working-directory: launcher
-        run: npm ci
-
-      - name: Build frontend
-        working-directory: launcher
-        run: npm run build
-
-      - name: Build Tauri bundles
+      - name: Build release (frontend + Tauri + latest.json)
         working-directory: launcher
         env:
           CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
-          CARGO_PROFILE_RELEASE_LTO: "false"
-          CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
-        run: npx tauri build --verbose --config src-tauri/tauri.ci.windows.conf.json
-
-      - name: Rename Windows installer
-        working-directory: launcher
-        run: node scripts/rename-windows-installer.mjs
-
-      - name: Patch latest.json (hash + size)
-        working-directory: launcher
-        run: node scripts/patch-latest-json.mjs
+        run: |
+          npm ci
+          npm run release:windows:ci
 
       - name: Verify release artifacts
         shell: pwsh
@@ -64,7 +54,9 @@ jobs:
           if (-not $exe) { throw "Instalador no encontrado" }
           if ($exe.Length -lt 4000000) { throw "Instalador demasiado chico ($($exe.Length) bytes)" }
           if (-not (Test-Path "latest.json")) { throw "latest.json no generado" }
-          Write-Host "OK: $($exe.Name) ($($exe.Length) bytes)"
+          $json = Get-Content "latest.json" -Raw | ConvertFrom-Json
+          if ($json.sha256.Length -ne 64) { throw "latest.json sin sha256 valido" }
+          Write-Host "OK: $($exe.Name) ($($exe.Length) bytes) sha256=$($json.sha256)"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -84,16 +76,18 @@ jobs:
           path: artifacts
           merge-multiple: true
 
-      - name: List artifacts
-        run: find artifacts -type f -ls
+      - name: Flatten artifacts for release
+        run: |
+          mkdir -p release
+          find artifacts -name 'Instalar_Paraguacraft_*.exe' -exec cp {} release/ \;
+          find artifacts -name 'latest.json' -exec cp {} release/latest.json \;
+          ls -la release/
 
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           generate_release_notes: true
-          files: |
-            artifacts/**/Instalar_Paraguacraft_*.exe
-            artifacts/**/latest.json
+          files: release/*
           fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

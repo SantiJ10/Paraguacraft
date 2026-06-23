@@ -255,4 +255,8 @@ pub struct DownloadProgress {
     pub progress: f64,
     pub status: String,
     pub speed: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub failed_file: Option<String>,
 }

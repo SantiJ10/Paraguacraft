@@ -43,6 +43,8 @@ fn emit(app: &AppHandle, id: &str, label: &str, progress: f64, status: &str) {
             progress,
             status: status.to_string(),
             speed: String::new(),
+            error: None,
+            failed_file: None,
         },
     );
 }

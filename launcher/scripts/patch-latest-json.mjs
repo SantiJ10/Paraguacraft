@@ -5,6 +5,7 @@
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
+import { execSync } from "child_process";
 import { fileURLToPath } from "url";
 
 const launcherRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -48,6 +49,29 @@ latest.version = version;
 latest.download_url = `https://github.com/SantiJ10/Paraguacraft/releases/download/v${version}/Instalar_Paraguacraft_v${version}.exe`;
 latest.size_bytes = size_bytes;
 latest.sha256 = sha256;
+
+// Formato dual: fallback manual (sha256) + plugin updater Tauri cuando haya firma.
+latest.platforms = {
+  "windows-x86_64": {
+    url: latest.download_url,
+    signature: latest.signature ?? "",
+  },
+};
+
+if (process.env.TAURI_SIGNING_PRIVATE_KEY) {
+  try {
+    const sig = execSync(`npx tauri signer sign "${exePath}"`, {
+      cwd: launcherRoot,
+      env: { ...process.env },
+      encoding: "utf8",
+    }).trim();
+    latest.signature = sig;
+    latest.platforms["windows-x86_64"].signature = sig;
+    console.log("[patch-latest-json] Firma minisign generada");
+  } catch (e) {
+    console.warn("[patch-latest-json] No se pudo firmar:", e?.message ?? e);
+  }
+}
 
 fs.writeFileSync(latestPath, `${JSON.stringify(latest, null, 2)}\n`, "utf8");
 

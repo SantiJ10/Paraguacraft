@@ -417,11 +417,12 @@ async function loadModVersions() {
   selectedVersionId.value = "";
   try {
     if (isModpack.value) {
+      const ext = props.item.provider === "curseforge" ? ".zip" : ".mrpack";
       modVersions.value = projectVersions.value.filter(
         (v) =>
           v.gameVersions.includes(mcVersion.value) &&
           versionHasLoader(v, loaderId.value) &&
-          v.filename.endsWith(".mrpack"),
+          v.filename.toLowerCase().endsWith(ext),
       );
     } else {
       modVersions.value = await api.listStoreVersions({
@@ -478,7 +479,12 @@ async function install() {
     await downloads.initEvents();
 
     if (isModpack.value) {
-      const inst = await api.importMrpackVersion(selectedVersionId.value);
+      let inst;
+      if (props.item.provider === "curseforge") {
+        inst = await api.importCfpackVersion(props.item.id, selectedVersionId.value);
+      } else {
+        inst = await api.importMrpackVersion(selectedVersionId.value);
+      }
       installedModpackName.value = inst.name;
       await instances.load(true);
       emit("installed");
@@ -567,7 +573,8 @@ function serverTypeLabel(t: string): string {
                 <h3 class="truncate text-lg font-bold">Instalar {{ item.title }}</h3>
                 <p class="text-xs text-gray-500">por {{ item.author }}</p>
                 <p v-if="isModpack" class="mt-0.5 text-[11px] text-pc-green">
-                  Se creará una instancia nueva con el modpack completo (.mrpack)
+                  Se creará una instancia nueva
+                  {{ item.provider === 'curseforge' ? '(.zip CurseForge)' : '(.mrpack Modrinth)' }}
                 </p>
                 <p v-else-if="isPlugin" class="mt-0.5 text-[11px] text-gray-500">
                   Se instala en plugins/ o mods/ del servidor local
@@ -642,7 +649,7 @@ function serverTypeLabel(t: string): string {
               </select>
               <p v-if="!wizardMcVersions.length" class="text-sm text-amber-400">
                 <template v-if="isModpack">
-                  Este modpack no tiene releases .mrpack en el canal seleccionado.
+                  Este modpack no tiene releases compatibles en el canal seleccionado.
                 </template>
                 <template v-else>No hay versiones en este canal.</template>
               </p>

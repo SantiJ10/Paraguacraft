@@ -150,6 +150,95 @@ pub fn open_folder(id: &str) -> AppResult<()> {
     open_in_file_manager(&dir)
 }
 
+pub fn remove(id: &str, rel_path: &str) -> AppResult<()> {
+    let base = game_dir_for(id).ok_or_else(|| AppError::msg("Instancia no encontrada"))?;
+    let rel = rel_path.replace('\\', "/");
+    if rel.contains("..") {
+        return Err(AppError::msg("Ruta invalida"));
+    }
+    let path = base.join(&rel);
+    if !path.exists() {
+        return Err(AppError::msg("Archivo no encontrado"));
+    }
+    if path.is_dir() {
+        std::fs::remove_dir_all(&path)?;
+    } else {
+        std::fs::remove_file(&path)?;
+    }
+    Ok(())
+}
+
+pub fn reveal(id: &str, rel_path: &str) -> AppResult<()> {
+    let base = game_dir_for(id).ok_or_else(|| AppError::msg("Instancia no encontrada"))?;
+    let rel = rel_path.replace('\\', "/");
+    if rel.contains("..") {
+        return Err(AppError::msg("Ruta invalida"));
+    }
+    let path = base.join(&rel);
+    if !path.exists() {
+        return Err(AppError::msg("Archivo no encontrado"));
+    }
+    reveal_in_file_manager(&path)
+}
+
+pub fn add_files(id: &str, folder: &str, sources: &[PathBuf]) -> AppResult<u32> {
+    let base = game_dir_for(id).ok_or_else(|| AppError::msg("Instancia no encontrada"))?;
+    let dest_dir = match folder {
+        "mods" | "resourcepacks" | "shaderpacks" => base.join(folder),
+        other => return Err(AppError::msg(format!("Carpeta no soportada: {other}"))),
+    };
+    std::fs::create_dir_all(&dest_dir)?;
+    let mut copied = 0u32;
+    for src in sources {
+        if !src.is_file() {
+            continue;
+        }
+        let ext = src.extension().and_then(|e| e.to_str()).unwrap_or("");
+        if ext != "jar" && ext != "zip" {
+            continue;
+        }
+        let name = src
+            .file_name()
+            .ok_or_else(|| AppError::msg("Nombre invalido"))?;
+        let dest = dest_dir.join(name);
+        std::fs::copy(src, &dest)?;
+        copied += 1;
+    }
+    if copied == 0 {
+        return Err(AppError::msg("No se copió ningún archivo .jar/.zip válido"));
+    }
+    Ok(copied)
+}
+
+fn reveal_in_file_manager(path: &Path) -> AppResult<()> {
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("explorer")
+            .arg("/select,")
+            .arg(path)
+            .spawn()
+            .map_err(|e| AppError::msg(format!("No se pudo abrir el explorador: {e}")))?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg("-R")
+            .arg(path)
+            .spawn()
+            .map_err(|e| AppError::msg(format!("No se pudo revelar el archivo: {e}")))?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        if let Some(parent) = path.parent() {
+            std::process::Command::new("xdg-open")
+                .arg(parent)
+                .spawn()
+                .map_err(|e| AppError::msg(format!("No se pudo abrir la carpeta: {e}")))?;
+        }
+    }
+    Ok(())
+}
+
 fn open_in_file_manager(path: &Path) -> AppResult<()> {
     #[cfg(target_os = "windows")]
     {

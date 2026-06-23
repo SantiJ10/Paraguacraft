@@ -1,7 +1,7 @@
 {
-  "version": "7.0.1",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.0.1/Instalar_Paraguacraft_v7.0.1.exe",
+  "version": "7.0.2",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.0.2/Instalar_Paraguacraft_v7.0.2.exe",
   "size_bytes": 5175504,
   "sha256": "a21c6f3520471aad606b818f691ffdc01618b1464d77014a749b9e17608163aa",
-  "notes": "- Fix auto-update: abre el instalador NSIS y cierra el launcher correctamente\n- PvP 1.8.9: cliente y OptiFine desde bundled/pvp (GitHub)\n- Fix lanzamiento Java 8, Modrinth/modpacks robustos, CurseForge embebido"
+  "notes": "- Reparar instancia, visor de logs y presets RAM\n- Gestor de mods por instancia, modpacks CurseForge .zip, exportar instancia\n- Servidores favoritos con join directo, feedback de descargas mejorado\n- CI release unificado y latest.json con firma opcional"
 }
