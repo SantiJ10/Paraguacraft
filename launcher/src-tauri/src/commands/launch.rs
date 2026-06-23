@@ -160,11 +160,15 @@ async fn spawn_for_instance(
         settings.java_path.as_deref(),
     )
     .await?;
+    let java_major = crate::core::java::verify::verify(&java_path, "launch")
+        .map(|j| j.version_major)
+        .unwrap_or_else(|| crate::core::java::required_for_mc(&mc));
     let jvm = JvmCtx {
         ram_mb: ram,
         gc,
         extra_args,
         java_path,
+        java_major,
     };
 
     let resolution = if settings.papa_mode {

@@ -1,4 +1,4 @@
-# Compila Win/Mac/Linux y publica en GitHub Releases.
+# Release Windows only. Mac/Linux: compilar localmente cuando haga falta.
 name: Release
 
 on:
@@ -15,22 +15,8 @@ env:
   CARGO_PROFILE_RELEASE_STRIP: "false"
 
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            platform: windows
-            tauri_config: src-tauri/tauri.ci.windows.conf.json
-          - os: macos-latest
-            platform: macos
-            tauri_config: src-tauri/tauri.ci.macos.conf.json
-          - os: ubuntu-22.04
-            platform: linux
-            tauri_config: src-tauri/tauri.ci.linux.conf.json
-
-    runs-on: ${{ matrix.os }}
+  build-windows:
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -46,21 +32,6 @@ jobs:
         with:
           workspaces: launcher/src-tauri -> target
 
-      - name: Install Linux dependencies
-        if: matrix.platform == 'linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf \
-            libfuse2 \
-            libgtk-3-dev \
-            build-essential \
-            libssl-dev \
-            libxdo-dev
-
       - name: Install frontend dependencies
         working-directory: launcher
         run: npm ci
@@ -71,16 +42,13 @@ jobs:
 
       - name: Build Tauri bundles
         working-directory: launcher
-        run: npx tauri build --verbose --config ${{ matrix.tauri_config }}
+        run: npx tauri build --verbose --config src-tauri/tauri.ci.windows.conf.json
 
       - name: Rename Windows installer
-        if: matrix.platform == 'windows'
         working-directory: launcher
         run: node scripts/rename-windows-installer.mjs
 
-      - name: Upload Windows installer
-        if: matrix.platform == 'windows'
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: windows
           path: |
@@ -88,26 +56,8 @@ jobs:
             launcher/src-tauri/target/release/bundle/nsis/*setup*.exe
           if-no-files-found: error
 
-      - name: Upload macOS bundles
-        if: matrix.platform == 'macos'
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos
-          path: launcher/src-tauri/target/release/bundle/dmg/*.dmg
-          if-no-files-found: error
-
-      - name: Upload Linux bundles
-        if: matrix.platform == 'linux'
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux
-          path: |
-            launcher/src-tauri/target/release/bundle/appimage/*.AppImage
-            launcher/src-tauri/target/release/bundle/deb/*.deb
-          if-no-files-found: error
-
   publish:
-    needs: build
+    needs: build-windows
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:

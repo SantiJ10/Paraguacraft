@@ -5,7 +5,7 @@ use std::io::Read;
 use std::path::Path;
 
 use serde_json::Value;
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 use crate::core::net::{self, DownloadItem};
 use crate::core::paths;
@@ -206,7 +206,8 @@ pub async fn install(
         return install_legacy(app, client, &full, &jar).await;
     }
 
-    let java = super::installer_java(mc)?;
+    let state = app.state::<crate::state::AppState>();
+    let java = super::installer_java(app, &state, mc).await?;
     let mc_dir = paths::default_minecraft_dir();
     std::fs::create_dir_all(&mc_dir)?;
     super::run_installer(

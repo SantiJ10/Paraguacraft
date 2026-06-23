@@ -4,7 +4,7 @@
 use std::path::Path;
 
 use serde_json::Value;
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 use crate::core::net::{self, DownloadItem};
 use crate::core::paths;
@@ -139,7 +139,8 @@ pub async fn install(
     .await?;
 
     // El instalador de OptiFine (clase optifine.Installer) crea la version.
-    let java = super::installer_java(mc)?;
+    let state = app.state::<crate::state::AppState>();
+    let java = super::installer_java(app, &state, mc).await?;
     let mc_dir = paths::default_minecraft_dir();
     super::run_installer(
         java,

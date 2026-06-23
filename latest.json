@@ -1,7 +1,7 @@
 {
   "version": "6.9.0",
   "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v6.9.0/Instalar_Paraguacraft_v6.9.0.exe",
-  "size_bytes": 2823146,
-  "sha256": "1699e22f301faf4bca3b8c6e1c345c10e4064f9bd9848d42ae37ec3b7f87edfe",
+  "size_bytes": 5084268,
+  "sha256": "a21de05ef86f0d970fedc24ab00cc2270c9556a9b878c7e1d171177ea8059a43",
   "notes": "- Paraguacraft Launcher reescrito en Tauri v2 + Rust + Vue 3\n- 0% CPU en segundo plano al jugar; descargas async con verificación SHA-1\n- Tienda Modrinth + CurseForge, modpacks .mrpack, plugins/datapacks en servidores locales\n- Diagnóstico de crashes con IA, servidores Playit.gg, auto-update integrado\n- Mismo instalador Instalar_Paraguacraft_v*.exe: usuarios 6.8.x migran desde el launcher Python"
 }
