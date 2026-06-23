@@ -3,6 +3,13 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.0.1] - 2026-06-19
+
+### Fixed
+- Auto-update: abre el instalador NSIS visible (ya no usa `relaunch` del plugin ni `/S` silencioso).
+- Auto-update: cierra el launcher tras lanzar el setup para permitir reinstalar.
+- CI release: genera `latest.json` con hash real y lo sube al release automáticamente.
+
 ## [7.0.0] - 2026-06-19
 
 ### Fixed
