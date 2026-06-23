@@ -20,6 +20,10 @@ env:
   CARGO_PROFILE_RELEASE_LTO: "false"
   CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
   CARGO_BUILD_JOBS: "1"
+  # crates.io a veces corta HTTP/2 en runners de GitHub (curl 55/56).
+  CARGO_NET_RETRY: "10"
+  CARGO_NET_TIMEOUT: "300"
+  CARGO_HTTP_MULTIPLEXING: "false"
 
 jobs:
   build-windows:
@@ -35,15 +39,48 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: launcher/src-tauri -> target
+          cache-on-failure: true
+
       - name: Install frontend dependencies
         working-directory: launcher
         run: npm ci
 
+      - name: Prefetch Rust dependencies
+        working-directory: launcher/src-tauri
+        shell: pwsh
+        run: |
+          $max = 3
+          for ($i = 1; $i -le $max; $i++) {
+            cargo fetch --locked
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host "cargo fetch OK (attempt $i)"
+              exit 0
+            }
+            Write-Host "cargo fetch failed (attempt $i/$max), retrying in 20s..."
+            Start-Sleep -Seconds 20
+          }
+          throw "cargo fetch failed after $max attempts"
+
       - name: Build release (Tauri NSIS + latest.json)
         working-directory: launcher
+        shell: pwsh
         env:
           CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
-        run: npm run release:windows:ci
+        run: |
+          $max = 2
+          for ($i = 1; $i -le $max; $i++) {
+            npm run release:windows:ci
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host "release build OK (attempt $i)"
+              exit 0
+            }
+            Write-Host "release build failed (attempt $i/$max), retrying in 30s..."
+            Start-Sleep -Seconds 30
+          }
+          throw "release build failed after $max attempts"
 
       - name: Verify release artifacts
         shell: pwsh
