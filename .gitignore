@@ -51,7 +51,7 @@ client/out/
 # --- Datos locales / IDE ---
 OneConfig/
 .netlify
-config/
+/config/
 botamin/
 .idea/
 .vscode/
