@@ -3,11 +3,11 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "descripcion": "Cliente PvP 2.0.0 — HUD/GUI Lunar + resource packs + badge sync.",
+  "descripcion": "Cliente PvP 2.0.0 â€” HUD/GUI Lunar + resource packs + badge sync.",
   "mods": [
     {
       "filename": "ParaguacraftPvP-2.0.0.jar",
-      "sha1": "884adecbbad63b9c5159bf3d15ca5d2c46085792"
+      "sha1": "9607dc02a00911d61fa55c3e6c2db9ac4cd7f847"
     },
     {
       "filename": "OptiFine_1.8.9_HD_U_M5.jar",
