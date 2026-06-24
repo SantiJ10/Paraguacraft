@@ -13,6 +13,7 @@ import {
   findInstanceForVersion,
   type VersionCardModel,
 } from "@/lib/versionCatalog";
+import { normalizeLoaderId } from "@/lib/loaders";
 import { useAccountsStore } from "@/stores/accounts";
 import { useAppStore } from "@/stores/app";
 import { useDownloadsStore } from "@/stores/downloads";
@@ -65,17 +66,14 @@ const filteredCards = computed(() => {
 const linkedInstance = computed((): import("@/lib/types").Instance | null => {
   if (!selectedCard.value || selectedCard.value.kind === "bedrock") return null;
   if (selectedCard.value.kind === "installed") {
+    const want = normalizeLoaderId(selectedLoaderId.value);
     return (
-      selectedCard.value.instances?.find((i) => i.mcVersion === mcVersion.value) ??
-      selectedCard.value.instances?.[0] ??
-      null
+      selectedCard.value.instances?.find(
+        (i) => i.mcVersion === mcVersion.value && normalizeLoaderId(i.loader) === want,
+      ) ?? null
     );
   }
-  return (
-    findInstanceForVersion(instances.instances, mcVersion.value, selectedLoaderId.value)
-    ?? findInstanceForVersion(instances.instances, mcVersion.value)
-    ?? null
-  );
+  return findInstanceForVersion(instances.instances, mcVersion.value, selectedLoaderId.value) ?? null;
 });
 
 const premiumLocked = computed(

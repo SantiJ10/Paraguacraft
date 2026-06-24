@@ -48,6 +48,21 @@ pub fn normalize(loader: &str) -> String {
     }
 }
 
+/// Etiqueta legible para UI / Discord RPC.
+pub fn display_label(loader: &str) -> String {
+    match normalize(loader).as_str() {
+        "fabric-iris" => "Fabric + Iris".into(),
+        "paraguacraft-pvp" => "Paraguacraft PvP".into(),
+        "fabric" => "Fabric".into(),
+        "quilt" => "Quilt".into(),
+        "forge" => "Forge".into(),
+        "neoforge" => "NeoForge".into(),
+        "optifine" => "OptiFine".into(),
+        "vanilla" => "Vanilla".into(),
+        other => other.to_string(),
+    }
+}
+
 /// Loader efectivo para filtrar la tienda (fabric-iris usa mods de Fabric).
 pub fn store_loader(loader: &str) -> String {
     match normalize(loader).as_str() {
@@ -172,6 +187,23 @@ pub fn loader_version_from_version_id(loader: &str, version_id: &str, mc: &str) 
             .strip_prefix(&format!("{mc}-neoforge-"))
             .map(String::from),
         _ => None,
+    }
+}
+
+/// ¿El `version_id` instalado corresponde al loader pedido (no mezclar vanilla con Fabric, etc.)?
+pub fn version_id_matches_loader(loader: &str, version_id: &str, mc: &str) -> bool {
+    let kind = normalize(loader);
+    let mc_suffix = format!("-{mc}");
+    match kind.as_str() {
+        "vanilla" => version_id == mc,
+        "fabric" | "fabric-iris" => {
+            version_id.starts_with("fabric-loader-") && version_id.ends_with(&mc_suffix)
+        }
+        "quilt" => version_id.starts_with("quilt-loader-") && version_id.ends_with(&mc_suffix),
+        "forge" | "paraguacraft-pvp" => version_id.starts_with(&format!("{mc}-forge-")),
+        "neoforge" => version_id.starts_with(&format!("{mc}-neoforge-")),
+        "optifine" => version_id.contains(mc) && version_id.to_lowercase().contains("optifine"),
+        _ => false,
     }
 }
 
@@ -365,6 +397,31 @@ pub fn find_installed_version_id(needles: &[&str]) -> Option<String> {
         }
     }
     best
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn version_id_matches_loader_vanilla_vs_fabric() {
+        assert!(version_id_matches_loader("vanilla", "1.21.11", "1.21.11"));
+        assert!(!version_id_matches_loader(
+            "vanilla",
+            "fabric-loader-0.19.3-1.21.11",
+            "1.21.11"
+        ));
+        assert!(version_id_matches_loader(
+            "fabric-iris",
+            "fabric-loader-0.19.3-1.21.11",
+            "1.21.11"
+        ));
+        assert!(!version_id_matches_loader(
+            "fabric",
+            "1.21.11",
+            "1.21.11"
+        ));
+    }
 }
 
 #[cfg(target_os = "windows")]

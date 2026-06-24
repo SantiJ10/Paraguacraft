@@ -145,6 +145,7 @@ pub fn resolve_meta(folder: &str) -> Option<InstanceMeta> {
 
 /// Completa loader/version desde `_paragua_instance.json` o perfiles en `versions/`.
 fn enrich_legacy_meta(folder: &str, meta: &mut InstanceMeta) {
+    meta.loader = crate::core::loaders::normalize(&meta.loader);
     let dir = instance_dir(folder);
     let legacy_path = dir.join("_paragua_instance.json");
     if let Ok(raw) = std::fs::read_to_string(&legacy_path) {
@@ -190,7 +191,18 @@ fn enrich_legacy_meta(folder: &str, meta: &mut InstanceMeta) {
         }
     }
 
-    if meta.version_id.as_ref().is_none_or(|v| crate::core::versions::read_local_json(v).is_none()) {
+    if let Some(vid) = meta.version_id.clone() {
+        if !crate::core::loaders::version_id_matches_loader(&meta.loader, &vid, &meta.mc_version)
+            || crate::core::versions::read_local_json(&vid).is_none()
+        {
+            meta.version_id = None;
+        }
+    }
+
+    if meta.version_id.as_ref().is_none_or(|v| {
+        crate::core::versions::read_local_json(v).is_none()
+            || !crate::core::loaders::version_id_matches_loader(&meta.loader, v, &meta.mc_version)
+    }) {
         if let Some(vid) =
             crate::core::loaders::find_version_id_for_loader(&meta.mc_version, &meta.loader)
         {
@@ -205,7 +217,7 @@ fn enrich_legacy_meta(folder: &str, meta: &mut InstanceMeta) {
                 }
             }
         }
-    } else if meta.loader_version.is_empty() {
+    } else     if meta.loader_version.is_empty() {
         if let Some(vid) = meta.version_id.clone() {
             if let Some(lv) = crate::core::loaders::loader_version_from_version_id(
                 &meta.loader,
@@ -216,6 +228,58 @@ fn enrich_legacy_meta(folder: &str, meta: &mut InstanceMeta) {
             }
         }
     }
+
+    repair_meta_from_mods(folder, meta);
+}
+
+/// Corrige instancias cuyo `mcVersion` se infirió mal (p. ej. carpeta `Prueba_Paraguacraft`).
+fn repair_meta_from_mods(folder: &str, meta: &mut InstanceMeta) {
+    if looks_like_mc_version(&meta.mc_version) {
+        return;
+    }
+    let mods_dir = instance_dir(folder).join("mods");
+    let Ok(entries) = std::fs::read_dir(&mods_dir) else {
+        return;
+    };
+    let mut has_pvp_client = false;
+    let mut has_optifine_189 = false;
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().to_lowercase();
+        if name.starts_with("paraguacraftpvp") && name.ends_with(".jar") {
+            has_pvp_client = true;
+        }
+        if name.contains("optifine") && name.contains("1.8.9") {
+            has_optifine_189 = true;
+        }
+    }
+    if !has_pvp_client && !has_optifine_189 {
+        return;
+    }
+    meta.mc_version = crate::core::loaders::pvp::MC.into();
+    meta.loader = "pvp".into();
+    if meta.loader_version.is_empty() {
+        meta.loader_version = crate::core::loaders::pvp::FORGE_VERSION.into();
+    }
+    meta.icon = icon_for_loader("pvp");
+    if meta.version_id.as_ref().is_none_or(|v| {
+        crate::core::versions::read_local_json(v).is_none()
+            || !crate::core::loaders::version_id_matches_loader(&meta.loader, v, &meta.mc_version)
+    }) {
+        if let Some(vid) =
+            crate::core::loaders::find_version_id_for_loader(&meta.mc_version, &meta.loader)
+        {
+            meta.version_id = Some(vid);
+        }
+    }
+}
+
+fn looks_like_mc_version(ver: &str) -> bool {
+    let v = ver.trim();
+    if v.is_empty() {
+        return false;
+    }
+    let first = v.chars().next().unwrap_or('0');
+    first.is_ascii_digit() || v.starts_with("26.") || v.contains("snapshot")
 }
 
 /// Asegura `paraguacraft.json` en instancias legacy (carpeta existe, JSON ausente).
@@ -234,10 +298,18 @@ pub fn ensure_meta(folder: &str) -> crate::error::AppResult<InstanceMeta> {
     enrich_legacy_meta(folder, &mut meta);
     let disk = read_meta(folder);
     let needs_write = disk.is_none()
+        || disk
+            .as_ref()
+            .map(|d| crate::core::loaders::normalize(&d.loader) != meta.loader)
+            .unwrap_or(false)
         || disk.as_ref().map(|d| d.loader_version.is_empty()).unwrap_or(false)
             && !meta.loader_version.is_empty()
         || disk.as_ref().map(|d| d.version_id.is_none()).unwrap_or(false)
-            && meta.version_id.is_some();
+            && meta.version_id.is_some()
+        || disk
+            .as_ref()
+            .map(|d| !looks_like_mc_version(&d.mc_version) && looks_like_mc_version(&meta.mc_version))
+            .unwrap_or(false);
     let icon_changed = sync_loader_icon(&mut meta);
     if needs_write || icon_changed {
         write_meta(folder, &meta)?;

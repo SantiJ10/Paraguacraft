@@ -1,12 +1,12 @@
 {
-  "version": "7.0.2",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.0.2/Instalar_Paraguacraft_v7.0.2.exe",
-  "size_bytes": 5253874,
-  "sha256": "985478d52909737cbd597cf376a81778c3494ebe6124b6bc454651f9bbf78db9",
-  "notes": "- Reparar instancia, visor de logs y presets RAM\n- Gestor de mods por instancia, modpacks CurseForge .zip, exportar instancia\n- Servidores favoritos con join directo, feedback de descargas mejorado\n- CI release unificado y latest.json con firma opcional",
+  "version": "7.0.3",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.0.3/Instalar_Paraguacraft_v7.0.3.exe",
+  "size_bytes": 5225035,
+  "sha256": "4ebef68200f0887e5cc3c7c05d7501de4401482cbe34f070c0aca652a4591821",
+  "notes": "- PvP Client 2.0.0: descarga automática desde GitHub releases\n- 9 texture packs PvP + catálogo remoto; fallback local de mods\n- Reparación de meta PvP en instancias importadas",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.0.2/Instalar_Paraguacraft_v7.0.2.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.0.3/Instalar_Paraguacraft_v7.0.3.exe",
       "signature": ""
     }
   }

@@ -49,12 +49,19 @@ async fn resolve_launch_id(
     instance_id: &str,
 ) -> AppResult<String> {
     let loader = loaders::normalize(loader);
+    // Siempre asegurar vanilla base (idempotente; corrige libraries/ incompletas).
+    versions::install_vanilla(app, http, mc).await?;
     if let Some(v) = meta.version_id.clone() {
-        if versions::read_local_json(&v).is_some() {
+        let profile_ok = versions::read_local_json(&v).is_some()
+            && loaders::version_id_matches_loader(&loader, &v, mc);
+        if profile_ok {
             if loader == "vanilla" && !versions::jar_path(&v).is_file() {
                 versions::install_vanilla(app, http, mc).await?;
+            } else {
+                return Ok(v);
             }
-            return Ok(v);
+        } else {
+            meta.version_id = None;
         }
     }
     if loader != "vanilla" {
@@ -180,10 +187,15 @@ async fn spawn_for_instance(
 
     let (args, java) = launch::build_command(&launch_id, &game_dir, &auth, &jvm, resolution)?;
     let mut args = args;
-    if let Some(addr) = server_address.filter(|s| !s.trim().is_empty()) {
+    if let Some(addr) = server_address.as_deref().filter(|s| !s.trim().is_empty()) {
         launch::append_server_join(&mut args, addr.trim());
     }
-    let child = launch::spawn_game(&java, &args, &game_dir)?;
+    let has_pg_rpc = settings.discord_rpc && launch::has_paraguacraft_pvp_mod(&game_dir);
+    let mut launch_env: Vec<(&str, &str)> = Vec::new();
+    if has_pg_rpc {
+        launch_env.push(("PARAGUACRAFT_LAUNCHER_RPC", "1"));
+    }
+    let child = launch::spawn_game(&java, &args, &game_dir, &launch_env)?;
     let pid = child.id();
 
     let _ = crate::core::extras::java_priority::set_level(
@@ -195,13 +207,17 @@ async fn spawn_for_instance(
     );
 
     if settings.discord_rpc {
-        crate::core::extras::discord_rpc::set_playing(
-            &auth.username,
-            &mc,
-            &loader,
-            settings.discord_rpc_version,
-            settings.discord_rpc_time,
-        );
+        if has_pg_rpc {
+            crate::core::extras::discord_rpc::disconnect();
+        } else {
+            crate::core::extras::discord_rpc::set_playing(
+                &auth.username,
+                &mc,
+                &loader,
+                settings.discord_rpc_version,
+                settings.discord_rpc_time,
+            );
+        }
     }
 
     launch::emit_started(app, instance_id, pid);
@@ -212,6 +228,10 @@ async fn spawn_for_instance(
         mc.clone(),
         auth.username.clone(),
         loader.clone(),
+        game_dir.clone(),
+        server_address.clone(),
+        settings.clone(),
+        has_pg_rpc,
     );
 
     state.shutdown_network();
@@ -252,6 +272,14 @@ async fn launch_external(
             version_hint,
             &mut meta,
             instance_id,
+        )
+        .await?;
+        let merged = launch::load_merged(&launch_id)?;
+        versions::ensure_merged_libraries(
+            app,
+            &http,
+            &merged,
+            &format!("Dependencias {mc}"),
         )
         .await?;
         let auth = resolve_auth(&http).await?;
@@ -307,6 +335,15 @@ pub async fn launch_instance(
             None,
             &mut meta,
             &instance_id,
+        )
+        .await?;
+
+        let merged = launch::load_merged(&launch_id)?;
+        versions::ensure_merged_libraries(
+            &app,
+            &http,
+            &merged,
+            &format!("Dependencias {mc}"),
         )
         .await?;
 

@@ -45,6 +45,21 @@ fn cp_sep() -> &'static str {
     if cfg!(target_os = "windows") { ";" } else { ":" }
 }
 
+/// Resuelve el id vanilla raiz (ej. `1.21.11`) siguiendo `inheritsFrom`.
+pub fn resolve_version_chain_base_id(id: &str) -> String {
+    let mut current = id.to_string();
+    loop {
+        let Some(json) = versions::read_local_json(&current) else {
+            return current;
+        };
+        if let Some(parent) = json["inheritsFrom"].as_str() {
+            current = parent.to_string();
+        } else {
+            return current;
+        }
+    }
+}
+
 /// Carga el JSON de una version mergeando `inheritsFrom` recursivamente.
 pub fn load_merged(id: &str) -> AppResult<Value> {
     let mut json = versions::read_local_json(id)
@@ -195,59 +210,108 @@ fn build_classpath(merged: &Value, base_id: &str) -> Vec<PathBuf> {
 }
 
 /// Extrae los natives (DLL/SO/DYLIB) de las libs al directorio dado.
+/// Extrae a carpeta temporal primero para no borrar natives válidos si falla la descarga.
 fn extract_natives(merged: &Value, natives_dir: &Path) -> AppResult<()> {
-    let libs_root = paths::default_minecraft_dir().join("libraries");
-    if natives_dir.exists() {
-        let _ = std::fs::remove_dir_all(natives_dir);
-    }
-    std::fs::create_dir_all(natives_dir)?;
+    let temp = natives_dir.with_extension("tmp_extract");
+    let _ = std::fs::remove_dir_all(&temp);
+    std::fs::create_dir_all(&temp)?;
 
     let Some(libs) = merged["libraries"].as_array() else {
         return Ok(());
     };
+    let mut missing_jars = 0u32;
     for lib in libs {
-        if let Some(rules) = lib.get("rules") {
-            if !versions::rules_allow(rules) {
-                continue;
+        if let Some(jar) = versions::native_jar_path(lib) {
+            if jar.is_file() {
+                extract_native_jar(&jar, &temp)?;
+            } else {
+                missing_jars += 1;
             }
         }
-        let name = lib["name"].as_str().unwrap_or("");
-        // Caso A: lib clasificada como native via mapa "natives".
-        let mut native_jar: Option<PathBuf> = None;
-        if let Some(natives) = lib.get("natives") {
-            if let Some(key) = natives.get(versions::os_name()).and_then(|k| k.as_str()) {
-                let arch = if cfg!(target_pointer_width = "64") { "64" } else { "32" };
-                let key = key.replace("${arch}", arch);
-                if let Some(c) = lib["downloads"].get("classifiers").and_then(|c| c.get(&key)) {
-                    if let Some(path) = c["path"].as_str() {
-                        native_jar = Some(libs_root.join(path));
-                    }
+    }
+
+    if natives_dir_has_binaries(&temp) {
+        if natives_dir.exists() {
+            let _ = std::fs::remove_dir_all(natives_dir);
+        }
+        std::fs::rename(&temp, natives_dir).or_else(|_| {
+            std::fs::create_dir_all(natives_dir)?;
+            for entry in std::fs::read_dir(&temp)?.flatten() {
+                let dest = natives_dir.join(entry.file_name());
+                if entry.path().is_file() {
+                    std::fs::copy(entry.path(), dest)?;
                 }
             }
-        }
-        // Caso B: artifact cuyo coordinate es ":natives-<os>".
-        if native_jar.is_none() && name.contains(":natives-") {
-            if name.contains(&format!("natives-{}", short_os())) {
-                if let Some(path) = lib["downloads"]["artifact"]["path"].as_str() {
-                    native_jar = Some(libs_root.join(path));
-                }
-            }
-        }
-        if let Some(jar) = native_jar {
-            extract_native_jar(&jar, natives_dir)?;
+            let _ = std::fs::remove_dir_all(&temp);
+            Ok::<(), std::io::Error>(())
+        })?;
+    } else {
+        let _ = std::fs::remove_dir_all(&temp);
+        if !natives_dir_has_binaries(natives_dir) && missing_jars > 0 {
+            return Err(AppError::msg(format!(
+                "Faltan JARs de natives en libraries/ ({missing_jars} ausentes). \
+                 Usá Reparar instancia para volver a descargar las dependencias."
+            )));
         }
     }
     Ok(())
 }
 
-fn short_os() -> &'static str {
-    if cfg!(target_os = "windows") {
-        "windows"
+fn natives_dir_has_binaries(dir: &Path) -> bool {
+    let ext = if cfg!(target_os = "windows") {
+        "dll"
     } else if cfg!(target_os = "macos") {
-        "macos"
+        "dylib"
     } else {
-        "linux"
+        "so"
+    };
+    std::fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .any(|e| {
+            e.path()
+                .extension()
+                .and_then(|x| x.to_str())
+                .is_some_and(|x| x == ext)
+        })
+}
+
+fn validate_natives(natives_dir: &Path, mc_base_id: &str) -> AppResult<()> {
+    if !natives_dir_has_binaries(natives_dir) {
+        return Err(AppError::msg(format!(
+            "Faltan librerías nativas (LWJGL) para Minecraft {mc_base_id}. \
+             Usá Reparar instancia o reinstalá la versión desde el launcher."
+        )));
     }
+    Ok(())
+}
+
+const NATIVE_JVM_PREFIXES: &[&str] = &[
+    "-Djava.library.path=",
+    "-Dorg.lwjgl.librarypath=",
+    "-Dorg.lwjgl.system.SharedLibraryExtractPath=",
+    "-Djna.tmpdir=",
+    "-Dio.netty.native.workdir=",
+];
+
+fn is_native_jvm_arg(arg: &str) -> bool {
+    NATIVE_JVM_PREFIXES.iter().any(|p| arg.starts_with(p))
+}
+
+fn push_native_jvm_args(cmd: &mut Vec<String>, natives_dir: &Path) {
+    let p = natives_dir.to_string_lossy().to_string();
+    cmd.push(format!("-Djava.library.path={p}"));
+    cmd.push(format!("-Dorg.lwjgl.librarypath={p}"));
+    cmd.push(format!("-Dorg.lwjgl.system.SharedLibraryExtractPath={p}"));
+    cmd.push(format!("-Djna.tmpdir={p}"));
+    cmd.push(format!("-Dio.netty.native.workdir={p}"));
+}
+
+fn natives_dir_from_args(args: &[String]) -> Option<PathBuf> {
+    args.iter()
+        .find(|a| a.starts_with("-Djava.library.path="))
+        .map(|a| PathBuf::from(a.trim_start_matches("-Djava.library.path=")))
 }
 
 fn extract_native_jar(jar: &Path, dest: &Path) -> AppResult<()> {
@@ -342,7 +406,7 @@ pub fn build_command(
     resolution: Option<(u32, u32)>,
 ) -> AppResult<(Vec<String>, PathBuf)> {
     let merged = load_merged(launch_id)?;
-    let base_id = merged["id"].as_str().unwrap_or(launch_id).to_string();
+    let base_id = resolve_version_chain_base_id(launch_id);
 
     let cp = build_classpath(&merged, &base_id);
     let cp_str = cp
@@ -353,6 +417,7 @@ pub fn build_command(
 
     let natives_dir = versions::versions_dir().join(&base_id).join("natives");
     extract_natives(&merged, &natives_dir)?;
+    validate_natives(&natives_dir, &base_id)?;
 
     let assets_root = paths::default_minecraft_dir().join("assets");
     let asset_index = merged["assetIndex"]["id"]
@@ -395,19 +460,26 @@ pub fn build_command(
     // 1) JVM RAM/GC propios.
     cmd.extend(build_jvm_ram_gc(jvm));
 
-    // 2) JVM args del perfil (modernos) o defaults (legacy).
+    // 2) Natives antes que Fabric/Sodium (preLaunch carga LWJGL al iniciar).
+    push_native_jvm_args(&mut cmd, &natives_dir);
+
+    // 3) JVM args del perfil (modernos) o defaults (legacy).
     if merged.get("arguments").and_then(|a| a.get("jvm")).is_some() {
-        cmd.extend(collect_arg_array(&merged["arguments"]["jvm"], &map));
+        for arg in collect_arg_array(&merged["arguments"]["jvm"], &map) {
+            if is_native_jvm_arg(&arg) {
+                continue;
+            }
+            cmd.push(arg);
+        }
     } else {
-        cmd.push(format!("-Djava.library.path={}", natives_dir.to_string_lossy()));
         cmd.push("-cp".into());
         cmd.push(cp_str.clone());
     }
 
-    // 3) Main class.
+    // 4) Main class.
     cmd.push(main_class);
 
-    // 4) Game args.
+    // 5) Game args.
     if let Some(mca) = merged["minecraftArguments"].as_str() {
         for tok in mca.split_whitespace() {
             cmd.push(subst(tok, &map));
@@ -443,11 +515,36 @@ pub fn spawn_game(
     java: &Path,
     args: &[String],
     instance_dir: &Path,
+    extra_env: &[(&str, &str)],
 ) -> AppResult<std::process::Child> {
     std::fs::create_dir_all(instance_dir)?;
     let mut cmd = Command::new(java);
-    cmd.args(args);
     cmd.current_dir(instance_dir);
+
+    for (key, value) in extra_env {
+        cmd.env(key, value);
+    }
+
+    if let Some(natives) = natives_dir_from_args(args) {
+        prepend_native_path_env(&mut cmd, &natives);
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let arg_file = instance_dir.join(".paraguacraft-java-args.txt");
+        write_java_arg_file(&arg_file, args)?;
+        let at = arg_file.to_string_lossy();
+        if at.contains(' ') {
+            cmd.arg(format!("@\"{at}\""));
+        } else {
+            cmd.arg(format!("@{at}"));
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        cmd.args(args);
+    }
+
     no_console(&mut cmd);
     cmd.spawn()
         .map_err(|e| {
@@ -457,6 +554,54 @@ pub fn spawn_game(
                 java.display()
             ))
         })
+}
+
+#[cfg(target_os = "windows")]
+fn write_java_arg_file(path: &Path, args: &[String]) -> AppResult<()> {
+    let mut buf = String::new();
+    for arg in args {
+        if arg.contains([' ', '\t', '"']) {
+            let escaped = arg.replace('\\', "\\\\").replace('"', "\\\"");
+            buf.push('"');
+            buf.push_str(&escaped);
+            buf.push('"');
+        } else {
+            buf.push_str(arg);
+        }
+        buf.push('\n');
+    }
+    std::fs::write(path, buf)?;
+    Ok(())
+}
+
+#[cfg(not(target_os = "windows"))]
+fn write_java_arg_file(_path: &Path, _args: &[String]) -> AppResult<()> {
+    Ok(())
+}
+
+fn prepend_native_path_env(cmd: &mut Command, natives_dir: &Path) {
+    let native = natives_dir.to_string_lossy();
+    let path = std::env::var("PATH").unwrap_or_default();
+    #[cfg(target_os = "windows")]
+    let merged = format!("{native};{path}");
+    #[cfg(not(target_os = "windows"))]
+    let merged = format!("{native}:{path}");
+    cmd.env("PATH", merged);
+}
+
+/// Instancia con mod Paraguacraft PvP (RPC in-game toma el control).
+pub fn has_paraguacraft_pvp_mod(game_dir: &Path) -> bool {
+    let mods = game_dir.join("mods");
+    let Ok(entries) = std::fs::read_dir(&mods) else {
+        return false;
+    };
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().to_lowercase();
+        if name.starts_with("paraguacraftpvp") && name.ends_with(".jar") {
+            return true;
+        }
+    }
+    false
 }
 
 /// Emite `game://started`.
@@ -475,12 +620,30 @@ pub fn watch_exit(
     mut child: std::process::Child,
     mc_version: String,
     username: String,
-    _loader: String,
+    loader: String,
+    game_dir: PathBuf,
+    launch_server: Option<String>,
+    settings: crate::models::AppSettings,
+    game_rpc_handoff: bool,
 ) {
     let started = std::time::Instant::now();
     let pid = child.id();
     let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     window_title::watch_window_title(pid, &mc_version, stop.clone());
+
+    if settings.discord_rpc && !game_rpc_handoff {
+        crate::core::extras::game_presence::watch(
+            crate::core::extras::game_presence::PresenceCtx {
+                username: username.clone(),
+                mc_version: mc_version.clone(),
+                loader: loader.clone(),
+                game_dir: game_dir.clone(),
+                launch_server: launch_server.clone(),
+                settings: settings.clone(),
+            },
+            stop.clone(),
+        );
+    }
 
     tauri::async_runtime::spawn_blocking(move || {
         let status = child.wait().ok();
@@ -526,3 +689,62 @@ fn no_console(cmd: &mut Command) {
 
 #[cfg(not(target_os = "windows"))]
 fn no_console(_cmd: &mut Command) {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn fabric_launch_sets_natives_library_path() {
+        let launch_id = "fabric-loader-0.19.3-1.21.11";
+        if versions::read_local_json(launch_id).is_none() {
+            eprintln!("skip: fabric profile not installed");
+            return;
+        }
+        let natives = versions::versions_dir()
+            .join("1.21.11")
+            .join("natives");
+        let auth = AuthCtx {
+            username: "test".into(),
+            uuid: "0".repeat(32),
+            access_token: "0".into(),
+            user_type: "legacy".into(),
+        };
+        let jvm = JvmCtx {
+            ram_mb: 2048,
+            gc: "Auto".into(),
+            extra_args: vec![],
+            java_path: PathBuf::from("java"),
+            java_major: 21,
+        };
+        let inst = paths::instances_dir().join("Paraguacraft_1.21.11_fabric-iris");
+        let (args, _) = build_command(launch_id, &inst, &auth, &jvm, None).expect("build_command");
+        let lib_args: Vec<_> = args
+            .iter()
+            .filter(|a| a.starts_with("-Djava.library.path="))
+            .collect();
+        assert_eq!(
+            lib_args.len(),
+            1,
+            "expected one library path, got {lib_args:?} in {} args",
+            args.len()
+        );
+        let lwjgl_path = args
+            .iter()
+            .find(|a| a.starts_with("-Dorg.lwjgl.librarypath="))
+            .expect("org.lwjgl.librarypath");
+        assert_eq!(
+            lib_args[0].trim_start_matches("-Djava.library.path="),
+            lwjgl_path.trim_start_matches("-Dorg.lwjgl.librarypath=")
+        );
+        let expected = natives.to_string_lossy().to_string();
+        assert!(
+            lib_args[0].ends_with(&expected.replace('/', "\\")) || lib_args[0].contains("1.21.11\\natives"),
+            "bad library path: {}",
+            lib_args[0]
+        );
+        eprintln!("library path arg: {}", lib_args[0]);
+        eprintln!("first 15 args: {:?}", &args[..args.len().min(15)]);
+    }
+}

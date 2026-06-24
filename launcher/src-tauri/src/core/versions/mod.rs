@@ -82,8 +82,12 @@ pub async fn list_versions(client: &reqwest::Client) -> AppResult<Vec<MinecraftV
 /// Asegura el JSON de la version (lo baja del manifest si falta) y lo devuelve.
 pub async fn ensure_version_json(client: &reqwest::Client, id: &str) -> AppResult<Value> {
     let path = version_json_path(id);
-    if let Some(v) = crate::config::read_json::<Value>(&path) {
-        return Ok(v);
+    if path.is_file() {
+        if let Some(v) = crate::config::read_json::<Value>(&path) {
+            if !version_json_needs_refresh(&v) {
+                return Ok(v);
+            }
+        }
     }
     let manifest = fetch_manifest(client).await?;
     let entry = manifest["versions"]
@@ -98,6 +102,23 @@ pub async fn ensure_version_json(client: &reqwest::Client, id: &str) -> AppResul
     }
     std::fs::write(&path, &bytes)?;
     Ok(v)
+}
+
+/// JSON cacheado incompleto (launcher legacy): re-descargar desde Mojang.
+fn version_json_needs_refresh(v: &Value) -> bool {
+    let Some(libs) = v.get("libraries").and_then(|l| l.as_array()) else {
+        return true;
+    };
+    if libs.is_empty() {
+        return true;
+    }
+    // Si ninguna librería trae `downloads`, el manifiesto está obsoleto.
+    !libs.iter().any(|lib| {
+        lib.get("downloads")
+            .map(|d| !d.is_null() && (d.get("artifact").is_some() || d.get("classifiers").is_some()))
+            .unwrap_or(false)
+            || lib.get("url").and_then(|u| u.as_str()).is_some_and(|s| !s.is_empty())
+    })
 }
 
 /// Evalua las `rules` de una libreria/argumento para el SO actual.
@@ -127,49 +148,237 @@ fn natives_key(lib: &Value) -> Option<String> {
     Some(key.replace("${arch}", arch))
 }
 
-/// Junta las libraries (artifact + natives) que aplican al SO actual.
-/// Devuelve (items_de_descarga).
-pub fn collect_library_items(version_json: &Value) -> Vec<DownloadItem> {
+/// ¿El classifier maven `:natives-*` corresponde al SO y arquitectura actuales?
+/// Evita mezclar p. ej. `natives-windows-x86` con `natives-windows` (64-bit).
+pub fn native_classifier_matches(classifier: &str) -> bool {
+    #[cfg(all(target_os = "windows", target_arch = "aarch64"))]
+    {
+        return matches!(
+            classifier,
+            "natives-windows-arm64" | "natives-windows-aarch64"
+        );
+    }
+    #[cfg(all(target_os = "windows", target_pointer_width = "64"))]
+    {
+        return classifier == "natives-windows";
+    }
+    #[cfg(all(target_os = "windows", target_pointer_width = "32"))]
+    {
+        return matches!(classifier, "natives-windows" | "natives-windows-x86");
+    }
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    {
+        return matches!(
+            classifier,
+            "natives-linux-arm64" | "natives-linux-aarch_64" | "natives-arm64"
+        );
+    }
+    #[cfg(all(target_os = "linux", target_pointer_width = "64"))]
+    {
+        return classifier == "natives-linux";
+    }
+    #[cfg(all(target_os = "linux", target_pointer_width = "32"))]
+    {
+        return matches!(classifier, "natives-linux" | "natives-linux-x86");
+    }
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    {
+        return matches!(
+            classifier,
+            "natives-macos-arm64" | "natives-osx-arm64"
+        );
+    }
+    #[cfg(all(target_os = "macos", target_pointer_width = "64"))]
+    {
+        return matches!(classifier, "natives-macos" | "natives-osx");
+    }
+    false
+}
+
+/// Extrae el classifier `:natives-*` de un coordinate maven, si aplica.
+pub fn native_classifier_from_coord(name: &str) -> Option<&str> {
+    let classifier = name.split(':').nth(3)?;
+    classifier.starts_with("natives-").then_some(classifier)
+}
+
+/// Item de descarga para una entrada de `libraries` (moderna o legacy Forge).
+pub fn library_download_item(lib: &Value) -> Option<DownloadItem> {
+    if let Some(rules) = lib.get("rules") {
+        if !rules_allow(rules) {
+            return None;
+        }
+    }
     let libs_root = paths::default_minecraft_dir().join("libraries");
-    let mut items = Vec::new();
-    let Some(libs) = version_json["libraries"].as_array() else {
-        return items;
-    };
-    for lib in libs {
-        if let Some(rules) = lib.get("rules") {
-            if !rules_allow(rules) {
-                continue;
+    let name = lib["name"].as_str().unwrap_or("");
+    if let Some(classifier) = native_classifier_from_coord(name) {
+        if !native_classifier_matches(classifier) {
+            return None;
+        }
+    }
+    if lib["clientreq"].as_bool() == Some(false) {
+        return None;
+    }
+
+    if let Some(artifact) = lib["downloads"].get("artifact") {
+        if let (Some(path), Some(url)) = (artifact["path"].as_str(), artifact["url"].as_str()) {
+            if !url.is_empty() {
+                return Some(
+                    DownloadItem::new(url, libs_root.join(path))
+                        .with_sha1(artifact["sha1"].as_str().map(String::from)),
+                );
             }
         }
-        let downloads = &lib["downloads"];
-        // Artefacto principal.
-        if let Some(artifact) = downloads.get("artifact") {
-            if let (Some(path), Some(url)) =
-                (artifact["path"].as_str(), artifact["url"].as_str())
+    }
+
+    if let Some(key) = natives_key(lib) {
+        if let Some(classifier) = lib["downloads"].get("classifiers").and_then(|c| c.get(&key)) {
+            if let (Some(path), Some(url)) = (classifier["path"].as_str(), classifier["url"].as_str())
             {
                 if !url.is_empty() {
-                    items.push(
-                        DownloadItem::new(url, libs_root.join(path))
-                            .with_sha1(artifact["sha1"].as_str().map(String::from)),
-                    );
-                }
-            }
-        }
-        // Natives del SO actual.
-        if let Some(key) = natives_key(lib) {
-            if let Some(classifier) = downloads.get("classifiers").and_then(|c| c.get(&key)) {
-                if let (Some(path), Some(url)) =
-                    (classifier["path"].as_str(), classifier["url"].as_str())
-                {
-                    items.push(
+                    return Some(
                         DownloadItem::new(url, libs_root.join(path))
                             .with_sha1(classifier["sha1"].as_str().map(String::from)),
                     );
                 }
             }
         }
+        if let Some(name) = lib.get("name").and_then(|n| n.as_str()) {
+            return maven_library_item(name, Some(&key), lib);
+        }
+    }
+
+    if lib.get("downloads").is_none() || lib["downloads"].is_null() {
+        if let Some(name) = lib.get("name").and_then(|n| n.as_str()) {
+            return maven_library_item(name, native_classifier_from_coord(name), lib);
+        }
+    }
+
+    None
+}
+
+fn maven_library_item(name: &str, classifier: Option<&str>, lib: &Value) -> Option<DownloadItem> {
+    let libs_root = paths::default_minecraft_dir().join("libraries");
+    let coord = match classifier {
+        Some(c) => format!("{name}:{c}"),
+        None => name.to_string(),
+    };
+    let rel = maven_to_path(&coord)?;
+    let dest = libs_root.join(&rel);
+    let base = lib["url"].as_str().unwrap_or("https://libraries.minecraft.net/");
+    let url = format!(
+        "{}/{}",
+        base.trim_end_matches('/'),
+        rel.to_string_lossy().replace('\\', "/")
+    );
+    let sha1 = lib["checksums"]
+        .as_array()
+        .and_then(|a| a.first())
+        .and_then(|x| x.as_str())
+        .or_else(|| lib["downloads"]["artifact"]["sha1"].as_str())
+        .map(String::from);
+    Some(DownloadItem::new(url, dest).with_sha1(sha1))
+}
+
+/// Ruta local del JAR de natives para una librería (si aplica a este SO).
+pub fn native_jar_path(lib: &Value) -> Option<PathBuf> {
+    let libs_root = paths::default_minecraft_dir().join("libraries");
+    if let Some(rules) = lib.get("rules") {
+        if !rules_allow(rules) {
+            return None;
+        }
+    }
+    let name = lib["name"].as_str().unwrap_or("");
+
+    if let Some(natives) = lib.get("natives") {
+        if let Some(key) = natives.get(os_name()).and_then(|k| k.as_str()) {
+            let arch = if cfg!(target_pointer_width = "64") {
+                "64"
+            } else {
+                "32"
+            };
+            let key = key.replace("${arch}", arch);
+            if let Some(c) = lib["downloads"].get("classifiers").and_then(|c| c.get(&key)) {
+                if let Some(path) = c["path"].as_str() {
+                    return Some(libs_root.join(path));
+                }
+            }
+            if let Some(name) = lib.get("name").and_then(|n| n.as_str()) {
+                let coord = format!("{name}:{key}");
+                if let Some(rel) = maven_to_path(&coord) {
+                    return Some(libs_root.join(rel));
+                }
+            }
+        }
+    }
+
+    if let Some(classifier) = native_classifier_from_coord(name) {
+        if native_classifier_matches(classifier) {
+            if let Some(path) = lib["downloads"]["artifact"]["path"].as_str() {
+                return Some(libs_root.join(path));
+            }
+            if let Some(rel) = maven_to_path(name) {
+                return Some(libs_root.join(rel));
+            }
+        }
+    }
+    None
+}
+
+/// Junta las libraries (artifact + natives) que aplican al SO actual.
+/// Devuelve (items_de_descarga).
+pub fn collect_library_items(version_json: &Value) -> Vec<DownloadItem> {
+    let mut items = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    let Some(libs) = version_json["libraries"].as_array() else {
+        return items;
+    };
+    for lib in libs {
+        if let Some(item) = library_download_item(lib) {
+            let key = item.dest.to_string_lossy().to_string();
+            if seen.insert(key) {
+                items.push(item);
+            }
+        }
     }
     items
+}
+
+/// Descarga librerías faltantes de un perfil mergeado (vanilla + loader).
+pub async fn ensure_merged_libraries(
+    app: &AppHandle,
+    client: &reqwest::Client,
+    merged: &Value,
+    label: &str,
+) -> AppResult<()> {
+    let mut items = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    if let Some(libs) = merged["libraries"].as_array() {
+        for lib in libs {
+            if let Some(item) = library_download_item(lib) {
+                let key = item.dest.to_string_lossy().to_string();
+                if seen.insert(key) {
+                    items.push(item);
+                }
+            }
+        }
+    }
+    if items.is_empty() {
+        return Ok(());
+    }
+    let conc = net::concurrency_from_settings();
+    net::download_all(client, items, conc, app, "ensure-libraries", label).await
+}
+
+#[cfg(test)]
+mod native_classifier_tests {
+    use super::*;
+
+    #[test]
+    fn windows_64_rejects_x86_natives() {
+        assert!(native_classifier_matches("natives-windows"));
+        assert!(!native_classifier_matches("natives-windows-x86"));
+        assert!(!native_classifier_matches("natives-windows-arm64"));
+    }
 }
 
 /// Construye los items de descarga de assets a partir del index.

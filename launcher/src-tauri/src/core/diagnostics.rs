@@ -186,7 +186,13 @@ fn classify(combined: &str, exit_code: i32, log_empty: bool) -> DiagnosisCore {
             "Revisá mods incompatibles con la versión/loader. Probá quitar el último mod agregado."
         );
     }
-    if low.contains("glfw")
+    if low.contains("failed to locate library") && low.contains("lwjgl") {
+        hit!(
+            "natives",
+            "Faltan librerías nativas de LWJGL (lwjgl.dll).",
+            "Usá Reparar instancia en el menú de la instancia, o reinstalá Minecraft base desde Versiones."
+        );
+    } else if low.contains("glfw")
         || low.contains("pixel format")
         || (low.contains("opengl") && low.contains("version"))
         || low.contains("lwjgl")

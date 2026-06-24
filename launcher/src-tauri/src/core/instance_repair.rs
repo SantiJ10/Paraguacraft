@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use tauri::AppHandle;
 
 use crate::core::instances::{self, profiles};
+use crate::core::launch;
 use crate::core::loaders;
 use crate::core::server_repair::{ServerRepairItem, ServerRepairReport};
 use crate::core::versions;
@@ -71,6 +72,33 @@ pub async fn repair(
                 format!("Perfil activo: {version_id}"),
                 None,
             );
+            if let Ok(merged) = launch::load_merged(&version_id) {
+                if let Err(e) = versions::ensure_merged_libraries(
+                    app,
+                    client,
+                    &merged,
+                    &format!("Dependencias {}", meta.mc_version),
+                )
+                .await
+                {
+                    push_warning(
+                        &mut report,
+                        "Algunas librerías no se pudieron verificar",
+                        e.to_string(),
+                        None,
+                    );
+                } else {
+                    let base = launch::resolve_version_chain_base_id(&version_id);
+                    let natives = versions::versions_dir().join(&base).join("natives");
+                    let _ = fs::remove_dir_all(&natives);
+                    push_fixed(
+                        &mut report,
+                        "Natives LWJGL",
+                        "Se volverán a extraer al iniciar el juego.",
+                        Some(natives),
+                    );
+                }
+            }
         }
         Err(e) => {
             push_error(

@@ -336,6 +336,30 @@ async fn setup_paper_plugins(
         let _ = download_geyser_plugin(client, app, "geyser", "paper", &plugins.join("Geyser-Spigot.jar")).await;
         let _ = download_geyser_plugin(client, app, "floodgate", "paper", &plugins.join("Floodgate-Spigot.jar")).await;
     }
+
+    if mc.starts_with("1.8") {
+        let _ = ensure_paraguacraft_badges_plugin(client, &plugins.join("ParaguacraftBadges.jar")).await;
+    }
+    Ok(())
+}
+
+async fn ensure_paraguacraft_badges_plugin(
+    client: &reqwest::Client,
+    dest: &Path,
+) -> AppResult<()> {
+    if dest.is_file() && dest.metadata().map(|m| m.len()).unwrap_or(0) > 1_000 {
+        return Ok(());
+    }
+    let url = "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/bundled/server/ParaguacraftBadges-1.0.0.jar";
+    if let Some(parent) = dest.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let tmp = dest.with_extension("part");
+    net::download_one(client, &DownloadItem::new(url.to_string(), tmp.clone())).await?;
+    if dest.exists() {
+        let _ = std::fs::remove_file(dest);
+    }
+    std::fs::rename(&tmp, dest).map_err(|e| AppError::msg(format!("ParaguacraftBadges: {e}")))?;
     Ok(())
 }
 

@@ -3,6 +3,29 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.0.3] - 2026-06-24
+
+### Added
+- **Paraguacraft PvP Client 2.0.0**: descarga automática desde release `pvp-client-2.0.0` (Forge 1.8.9 + OptiFine + mod 2.0.0).
+- **Texture packs PvP**: catálogo remoto + release `pvp-packs-1.0` en GitHub (9 packs); Faithful y Tightfault vía Modrinth.
+- **Fallback local** de mods PvP: `%APPDATA%/ParaguacraftLauncher/bundled/pvp` si GitHub no responde.
+- Scripts `publish-pvp-client.ps1` y `publish-pvp-packs.ps1` (GitHub CLI, detecta `gh` sin PATH).
+
+### Changed
+- Manifest y catálogo PvP actualizados a 2.0.0 (`clientes/paraguacraft-pvp/`).
+- Reparación de instancias: corrige meta PvP inferida incorrectamente desde nombre de carpeta.
+
+### Fixed
+- Descarga del mod PvP fallaba con HTTP 404 en PCs nuevas (release inexistente en GitHub).
+
+## [7.0.2] - 2026-06-23
+
+### Added
+- Reparar instancia, visor de logs y presets RAM.
+- Gestor de mods por instancia, modpacks CurseForge `.zip`, exportar instancia.
+- Servidores favoritos con join directo, feedback de descargas mejorado.
+- CI release unificado y `latest.json` con firma opcional.
+
 ## [7.0.1] - 2026-06-19
 
 ### Fixed
