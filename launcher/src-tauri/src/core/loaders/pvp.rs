@@ -1,8 +1,9 @@
 //! Preset **Paraguacraft PvP** (solo Minecraft 1.8.9).
 //!
-//! Instala Forge 11.15.1.2318 y descarga desde GitHub (`bundled/pvp` + release):
-//! - ParaguacraftPvP-1.0.0.jar
-//! - OptiFine_1.8.9_HD_U_M5.jar
+//! Instala Forge 11.15.1.2318 y obtiene mods PvP desde (en orden):
+//! 1. Instancia / caché local (SHA1 verificado)
+//! 2. `bundled/pvp/` junto al repo o en `%APPDATA%/ParaguacraftLauncher/bundled/pvp`
+//! 3. GitHub (`clientes/paraguacraft-pvp`, `bundled/pvp`, release `pvp-client-2.0.0`)
 
 use std::path::{Path, PathBuf};
 
@@ -19,9 +20,9 @@ use super::forge;
 pub const MC: &str = "1.8.9";
 pub const FORGE_VERSION: &str = "11.15.1.2318";
 const GITHUB_REPO: &str = "SantiJ10/Paraguacraft";
-const RELEASE_TAG: &str = "pvp-client-1.0.0";
-const PVP_CLIENT_JAR: &str = "ParaguacraftPvP-1.0.0.jar";
-const PVP_CLIENT_SHA1: &str = "c0bbee47a923afa2b90af9eb4e08c417d519a19b";
+const RELEASE_TAG: &str = "pvp-client-2.0.0";
+const PVP_CLIENT_JAR: &str = "ParaguacraftPvP-2.0.0.jar";
+const PVP_CLIENT_SHA1: &str = "50d07195dc9acbe30b0e723fffddfa992845f568";
 const OPTIFINE_SHA1: &str = "d362d58a28f5373b141b9e426e8e160638bfafcd";
 
 struct PvpMod {
@@ -81,9 +82,61 @@ fn file_sha1(path: &Path) -> Option<String> {
     Some(net::sha1_hex(&bytes))
 }
 
-/// URLs publicas de assets PvP (todos los usuarios descargan desde GitHub).
+/// Carpetas locales donde puede haber JARs PvP (sin internet).
+fn local_bundled_dirs() -> Vec<PathBuf> {
+    let mut dirs = Vec::new();
+    if let Ok(custom) = std::env::var("PARAGUACRAFT_BUNDLED_PVP") {
+        dirs.push(PathBuf::from(custom));
+    }
+    dirs.push(paths::data_dir().join("bundled").join("pvp"));
+    if let Ok(exe) = std::env::current_exe() {
+        let mut dir = exe.parent().map(Path::to_path_buf);
+        for _ in 0..8 {
+            let Some(mut d) = dir else { break };
+            dirs.push(d.join("bundled").join("pvp"));
+            if !d.pop() {
+                break;
+            }
+            dir = Some(d);
+        }
+    }
+    dirs
+}
+
+fn copy_verified(src: &Path, dest: &Path, sha1_expected: &str, label: &str) -> AppResult<()> {
+    if file_sha1(src).as_deref() != Some(sha1_expected) {
+        return Err(AppError::msg(format!("{label} local corrupto o desactualizado")));
+    }
+    if let Some(parent) = dest.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    if dest.exists() {
+        let _ = std::fs::remove_file(dest);
+    }
+    std::fs::copy(src, dest)
+        .map_err(|e| AppError::msg(format!("No se pudo copiar {label}: {e}")))?;
+    Ok(())
+}
+
+/// Copia desde `bundled/pvp` local si el SHA1 coincide.
+fn try_local_bundled(filename: &str, sha1_expected: &str, dest: &Path) -> AppResult<bool> {
+    for dir in local_bundled_dirs() {
+        let src = dir.join(filename);
+        if !src.is_file() {
+            continue;
+        }
+        if file_sha1(&src).as_deref() == Some(sha1_expected) {
+            copy_verified(&src, dest, sha1_expected, filename)?;
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+/// URLs publicas de assets PvP (canónico: `clientes/paraguacraft-pvp/` en GitHub).
 fn bundled_pvp_urls(filename: &str) -> Vec<String> {
     vec![
+        format!("https://raw.githubusercontent.com/{GITHUB_REPO}/main/clientes/paraguacraft-pvp/{filename}"),
         format!("https://raw.githubusercontent.com/{GITHUB_REPO}/main/bundled/pvp/{filename}"),
         format!("https://github.com/{GITHUB_REPO}/releases/download/{RELEASE_TAG}/{filename}"),
     ]
@@ -161,9 +214,10 @@ async fn ensure_bundled_asset(
         .await
         .map_err(|_| {
             AppError::msg(format!(
-                "No se pudo descargar {filename} desde GitHub. \
-                 Verifica tu conexion o descargalo manualmente desde \
-                 https://github.com/{GITHUB_REPO}/tree/main/bundled/pvp"
+                "No se pudo obtener {filename}. Coloca el archivo en \
+                 %APPDATA%\\ParaguacraftLauncher\\bundled\\pvp\\ o en bundled/pvp del proyecto, \
+                 o publicalo en GitHub (release {RELEASE_TAG}). \
+                 Manifest: https://github.com/{GITHUB_REPO}/tree/main/clientes/paraguacraft-pvp"
             ))
         })
 }
@@ -183,6 +237,11 @@ async fn ensure_mod(
     let cache_path = cache.join(mod_def.filename);
     if file_sha1(&cache_path).as_deref() == Some(mod_def.sha1) {
         let _ = std::fs::copy(&cache_path, &dest);
+        return Ok(());
+    }
+
+    if try_local_bundled(mod_def.filename, mod_def.sha1, &dest)? {
+        let _ = std::fs::copy(&dest, &cache_path);
         return Ok(());
     }
 
