@@ -1,4 +1,5 @@
 import type { Instance, MinecraftVersion, VersionChannel } from "@/lib/types";
+import { normalizeLoaderId } from "@/lib/loaders";
 
 /** Tarjetas destacadas estilo Lunar (PARAGUA X.X). */
 export const FEATURED_VERSION_KEYS = [
@@ -211,10 +212,11 @@ export function findInstanceForVersion(
   mcVersion: string,
   loader?: string,
 ): Instance | undefined {
+  const want = loader ? normalizeLoaderId(loader) : undefined;
   return instances.find((i) => {
     if (i.source !== "paraguacraft") return false;
     if (i.mcVersion !== mcVersion) return false;
-    if (loader && i.loader !== loader) return false;
+    if (want && normalizeLoaderId(i.loader) !== want) return false;
     return true;
   });
 }

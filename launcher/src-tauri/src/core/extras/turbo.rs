@@ -1,5 +1,6 @@
 //! Modo Turbo: DNS gaming + cierre de apps que consumen ancho de banda.
 
+use crate::models::AppSettings;
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -21,6 +22,8 @@ pub fn is_active() -> bool {
 }
 
 pub fn activate() -> crate::error::AppResult<Vec<String>> {
+    let settings: AppSettings = crate::config::read_json(&crate::core::paths::config_file())
+        .unwrap_or_default();
     let mut msgs = Vec::new();
 
     #[cfg(windows)]
@@ -49,6 +52,9 @@ pub fn activate() -> crate::error::AppResult<Vec<String>> {
 
     let mut killed = Vec::new();
     for app in KILL_APPS {
+        if *app == "Discord.exe" && settings.discord_rpc {
+            continue;
+        }
         let mut cmd = Command::new("taskkill");
         cmd.args(["/F", "/IM", app]);
         hide(&mut cmd);

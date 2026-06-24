@@ -6,7 +6,7 @@ use std::time::Duration;
 
 /// Inicia un hilo que renombra la ventana del proceso Java mientras el juego corre.
 pub fn watch_window_title(pid: u32, mc_version: &str, stop: Arc<AtomicBool>) {
-    let title = format!("Paraguacraft {mc_version}");
+    let title = format!("Paraguacraft PvP Client {mc_version}");
     std::thread::spawn(move || {
         while !stop.load(Ordering::Relaxed) {
             #[cfg(target_os = "windows")]

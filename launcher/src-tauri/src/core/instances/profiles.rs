@@ -35,11 +35,12 @@ pub fn create(
     if name.is_empty() {
         return Err(AppError::msg("El nombre no puede estar vacio"));
     }
+    let loader = crate::core::loaders::normalize(loader);
     // Carpeta unica.
-    let mut folder = folder_for(mc_version, loader);
+    let mut folder = folder_for(mc_version, &loader);
     let mut n = 2;
     while instance_dir(&folder).exists() {
-        folder = format!("{}_{n}", folder_for(mc_version, loader));
+        folder = format!("{}_{n}", folder_for(mc_version, &loader));
         n += 1;
     }
     let dir = instance_dir(&folder);
@@ -50,10 +51,10 @@ pub fn create(
         icon: if icon.trim().starts_with("custom:") {
             icon.to_string()
         } else {
-            super::icon_for_loader(loader)
+            super::icon_for_loader(&loader)
         },
         mc_version: mc_version.to_string(),
-        loader: loader.to_string(),
+        loader,
         loader_version: loader_version.to_string(),
         source: "paraguacraft".into(),
         ram_mb: if ram_mb == 0 { 4096 } else { ram_mb },
@@ -150,7 +151,7 @@ pub fn set_loader(id: &str, loader: &str, loader_version: &str) -> AppResult<Ins
     let mut meta = read_meta(id)
         .or_else(|| super::resolve_meta(id))
         .ok_or_else(|| AppError::msg("Sin metadata"))?;
-    meta.loader = loader.trim().to_string();
+    meta.loader = crate::core::loaders::normalize(loader);
     meta.loader_version = loader_version.trim().to_string();
     meta.version_id = None;
     super::sync_loader_icon(&mut meta);

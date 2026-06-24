@@ -1,6 +1,7 @@
 //! Extras de rendimiento (Game Mode, Turbo, mantenimiento, Discord RPC).
 
 pub mod discord_rpc;
+pub mod game_presence;
 pub mod game_mode;
 pub mod java_priority;
 pub mod maintenance;

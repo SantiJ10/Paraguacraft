@@ -7,6 +7,8 @@ use discord_rich_presence::activity::{Activity, Timestamps};
 use discord_rich_presence::DiscordIpc;
 use discord_rich_presence::DiscordIpcClient;
 
+use crate::core::loaders;
+
 const APP_ID: &str = "1487516329631154206";
 
 static CLIENT: Mutex<Option<DiscordIpcClient>> = Mutex::new(None);
@@ -47,7 +49,7 @@ pub fn disconnect() {
 
 pub fn set_launcher_idle(username: &str) {
     update(
-        "En el launcher",
+        "Paraguacraft",
         &format!("Conectado como {username}"),
         true,
         true,
@@ -56,25 +58,44 @@ pub fn set_launcher_idle(username: &str) {
 
 pub fn set_browsing(username: &str) {
     update(
-        "Explorando el launcher",
-        &format!("Conectado como {username}"),
+        "Paraguacraft",
+        &format!("Explorando · {username}"),
         true,
         true,
     );
 }
 
-pub fn set_playing(username: &str, mc_version: &str, loader: &str, show_version: bool, show_time: bool) {
-    let state = if show_version {
-        format!("{mc_version} · {loader}")
+/// RPC al iniciar el juego (antes de detectar mundo/servidor).
+pub fn set_playing(
+    username: &str,
+    mc_version: &str,
+    loader: &str,
+    show_version: bool,
+    show_time: bool,
+) {
+    set_playing_session(username, mc_version, loader, None, show_version, show_time);
+}
+
+/// Formato: `{user} - {version} - {loader}` + `Multijugador: ip` / `Un Jugador: mundo`.
+pub fn set_playing_session(
+    username: &str,
+    mc_version: &str,
+    loader: &str,
+    mode_line: Option<&str>,
+    show_version: bool,
+    show_time: bool,
+) {
+    let loader_label = loaders::display_label(loader);
+    let details = if show_version {
+        format!("{username} - {mc_version} - {loader_label}")
     } else {
-        "Jugando Minecraft".into()
+        format!("{username} - {loader_label}")
     };
-    update(
-        &state,
-        &format!("Jugando como {username}"),
-        show_time,
-        show_version,
-    );
+    let state = mode_line
+        .filter(|s| !s.is_empty())
+        .unwrap_or("Cargando…")
+        .to_string();
+    update(&details, &state, show_time, show_version);
 }
 
 pub fn set_bedrock_playing(username: &str, show_time: bool) {
