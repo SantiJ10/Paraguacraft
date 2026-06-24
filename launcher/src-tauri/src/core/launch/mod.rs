@@ -648,7 +648,7 @@ pub fn watch_exit(
     tauri::async_runtime::spawn_blocking(move || {
         let status = child.wait().ok();
         stop.store(true, std::sync::atomic::Ordering::Relaxed);
-        let exit_code = status.and_then(|s| s.code()).unwrap_or(-1);
+        let mut exit_code = status.and_then(|s| s.code()).unwrap_or(-1);
         let minutes = (started.elapsed().as_secs() / 60) as u64;
         if let Some(mut meta) = instances::read_meta(&instance_id) {
             meta.total_play_minutes = meta.total_play_minutes.saturating_add(minutes);
@@ -659,6 +659,14 @@ pub fn watch_exit(
         } else {
             None
         };
+        // Forge 1.8.9 suele devolver 1 al cerrar normalmente; no marcar como crash.
+        if exit_code != 0 {
+            if let Some(ref d) = diagnosis {
+                if d.category == "clean_exit" {
+                    exit_code = 0;
+                }
+            }
+        }
         let payload = serde_json::json!({
             "instanceId": instance_id,
             "minutes": minutes,

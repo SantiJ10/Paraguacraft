@@ -39,13 +39,31 @@ fn read_tail(path: &Path, max: usize) -> String {
 }
 
 fn latest_crash_report(dir: &Path) -> Option<(String, String)> {
+    latest_crash_report_for_log(dir, None)
+}
+
+/// Solo usa crash-reports de la misma sesión que `latest.log` (evita falsos positivos viejos).
+fn latest_crash_report_for_log(dir: &Path, log_path: Option<&Path>) -> Option<(String, String)> {
+    let log_modified = log_path
+        .and_then(|p| std::fs::metadata(p).ok()?.modified().ok());
     let entries = std::fs::read_dir(dir).ok()?;
     let mut files: Vec<_> = entries
         .flatten()
         .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("txt"))
+        .filter_map(|e| {
+            let modified = e.metadata().ok()?.modified().ok()?;
+            if let Some(log_m) = log_modified {
+                // Ignorar reports de sesiones anteriores (ej. mixin roto de ayer).
+                if log_m.duration_since(modified).unwrap_or_default() > std::time::Duration::from_secs(30 * 60)
+                {
+                    return None;
+                }
+            }
+            Some((e, modified))
+        })
         .collect();
-    files.sort_by_key(|e| e.metadata().and_then(|m| m.modified()).ok());
-    let last = files.last()?;
+    files.sort_by_key(|(_, m)| *m);
+    let (last, _) = files.last()?;
     let name = last.file_name().to_string_lossy().to_string();
     let content = std::fs::read_to_string(last.path()).ok()?;
     Some((name, content))
@@ -74,10 +92,16 @@ fn extract_error_lines(text: &str) -> Vec<String> {
             || low.contains("[error]")
             || low.contains(" fatal ")
             || low.contains("modloadingexception")
-            || low.contains("crash report")
+            || (low.contains("crash report")
+                && !line.contains("SplashProgress")
+                && !line.contains("Loading screen debug info"))
             || low.contains("the game crashed")
             || low.contains("process exited with exit code")
         {
+            // Forge imprime un "crash report" falso al cargar la pantalla de splash.
+            if low.contains("this is not a error") || low.contains("this is not an error") {
+                continue;
+            }
             lines.push(line.to_string());
         }
     }
@@ -250,6 +274,21 @@ fn classify(combined: &str, exit_code: i32, log_empty: bool) -> DiagnosisCore {
         };
     }
 
+    // Forge 1.8.9 a veces sale con código 1 aunque el cierre fue normal ("Stopping!").
+    if exit_code == 1
+        && (low.contains("stopping!")
+            || low.contains("this is not a error")
+            || low.contains("loading screen debug info"))
+        && !low.contains("mixin apply failed")
+        && !low.contains("unable to launch")
+    {
+        return DiagnosisCore {
+            category: "clean_exit",
+            message: "El juego cerró con código 1 pero el log indica cierre normal.".into(),
+            hint: "Si llegaste al menú o al servidor, podés ignorar este aviso.".into(),
+        };
+    }
+
     DiagnosisCore {
         category: "generic",
         message: format!("Minecraft terminó con código {exit_code}."),
@@ -286,7 +325,7 @@ pub fn analyze_paths(log_path: &Path, crash_dir: &Path, exit_code: i32) -> Crash
     let log_empty = log_tail.trim().len() < 40;
 
     let crash = if crash_dir.is_dir() {
-        latest_crash_report(crash_dir)
+        latest_crash_report_for_log(crash_dir, Some(log_path))
     } else {
         None
     };

@@ -1,4 +1,4 @@
-# Paraguacraft Launcher v7.0.3
+# Paraguacraft Launcher v7.0.4
 
 Stack: **Tauri 2**, **Vue 3**, **Rust**.
 

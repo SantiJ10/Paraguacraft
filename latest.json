@@ -1,12 +1,12 @@
 {
-  "version": "7.0.3",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.0.3/Instalar_Paraguacraft_v7.0.3.exe",
-  "size_bytes": 5225035,
-  "sha256": "4ebef68200f0887e5cc3c7c05d7501de4401482cbe34f070c0aca652a4591821",
-  "notes": "- PvP Client 2.0.0: descarga automática desde GitHub releases\n- 9 texture packs PvP + catálogo remoto; fallback local de mods\n- Reparación de meta PvP en instancias importadas",
+  "version": "7.0.4",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.0.4/Instalar_Paraguacraft_v7.0.4.exe",
+  "size_bytes": 5224153,
+  "sha256": "15a8650b6e224487b487177a4a3617109a7f92ddf1108b755e42e059df5f0b3f",
+  "notes": "- Fix crash falso Forge 1.8.9 y Paraguabot\n- PvP Client 2.0.0 + texture packs desde GitHub releases",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.0.3/Instalar_Paraguacraft_v7.0.3.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.0.4/Instalar_Paraguacraft_v7.0.4.exe",
       "signature": ""
     }
   }

@@ -3,6 +3,13 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.0.4] - 2026-06-24
+
+### Fixed
+- **Paraguabot / crash falso**: ignora el "Crash Report" de la pantalla de carga de Forge 1.8.9 (no es un error real).
+- No usa crash-reports viejos de sesiones anteriores al diagnosticar.
+- Forge 1.8.9 que cierra con código 1 pero log `Stopping!` ya no marca "El juego terminó con error".
+
 ## [7.0.3] - 2026-06-24
 
 ### Added

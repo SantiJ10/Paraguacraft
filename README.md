@@ -2,7 +2,7 @@
 
 # Paraguacraft Launcher
 
-Launcher de Minecraft — **7.0.3** en Tauri + Rust + Vue 3.
+Launcher de Minecraft — **7.0.4** en Tauri + Rust + Vue 3.
 
 [**Descargar**](https://github.com/SantiJ10/Paraguacraft/releases/latest) · [**Web**](https://paraguacraft.pages.dev) · [**Issues**](https://github.com/SantiJ10/Paraguacraft/issues)
 
@@ -32,7 +32,7 @@ cd launcher
 npm run tauri:build
 ```
 
-Instalador: `launcher/src-tauri/target/release/bundle/nsis/Instalar_Paraguacraft_v7.0.3.exe`
+Instalador: `launcher/src-tauri/target/release/bundle/nsis/Instalar_Paraguacraft_v7.0.4.exe`
 
 ## Compilar con GitHub Actions (Win + Mac + Linux)
 
