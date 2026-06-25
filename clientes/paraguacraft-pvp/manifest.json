@@ -1,5 +1,7 @@
 {
   "id": "paraguacraft-pvp",
+  "client_version": "2.0.0",
+  "release_tag": "pvp-client-2.0.0",
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
