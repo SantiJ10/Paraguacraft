@@ -3,6 +3,13 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.1.2] - 2026-06-25
+
+### Fixed
+- **JVM PvP 1.8.9**: flags G1 solo compatibles con Java 8 (evita «Could not create the Java Virtual Machine» en PCs con mucha RAM).
+- Sin `-Xmx`/`-Xms` duplicados del perfil Forge cuando aplica preset PvP.
+- Verificación SHA del mod PvP: solo acepta el hash del manifest (fuerza actualización del JAR viejo).
+
 ## [7.1.1] - 2026-06-19
 
 ### Added
