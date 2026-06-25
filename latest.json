@@ -1,8 +1,8 @@
 {
   "version": "7.1.1",
   "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.1.1/Instalar_Paraguacraft_v7.1.1.exe",
-  "size_bytes": 11279002,
-  "sha256": "ad27c28436c4dcb309a998c57c87ac5a0499e11fabfd954e513f67a050f27de6",
+  "size_bytes": 11320932,
+  "sha256": "9c2d031695c2a2625451df6c361c8b3d609d7cac7af2e7570d67e08b7c8f4f02",
   "notes": "- Cliente PvP 2.0.0 recompilado (HUD/GUI Lunar, perfiles, keybinds, optimizaciones)\n- Fix auto-update: manifest remoto manda sobre JAR embebido\n- JAR PvP 2.0.0 embebido actualizado para offline",
   "platforms": {
     "windows-x86_64": {
