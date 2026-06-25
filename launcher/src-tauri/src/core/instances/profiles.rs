@@ -36,6 +36,15 @@ pub fn create(
         return Err(AppError::msg("El nombre no puede estar vacio"));
     }
     let loader = crate::core::loaders::normalize(loader);
+    let default_ram = if ram_mb == 0 {
+        if loader == "paraguacraft-pvp" && mc_version == "1.8.9" {
+            crate::core::hardware::recommend_pvp_189_ram_mb(crate::core::hardware::detect().ram_gb)
+        } else {
+            4096
+        }
+    } else {
+        ram_mb
+    };
     // Carpeta unica.
     let mut folder = folder_for(mc_version, &loader);
     let mut n = 2;
@@ -57,7 +66,7 @@ pub fn create(
         loader,
         loader_version: loader_version.to_string(),
         source: "paraguacraft".into(),
-        ram_mb: if ram_mb == 0 { 4096 } else { ram_mb },
+        ram_mb: default_ram,
         total_play_minutes: 0,
         last_played: None,
         version_id: None,

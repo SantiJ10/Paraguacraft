@@ -9,20 +9,24 @@ import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import com.paraguacraft.pvp.gui.CustomMainMenu;
 import com.paraguacraft.pvp.gui.GuiBackgroundHandler;
 import com.paraguacraft.pvp.hud.HUDOverlay;
+import com.paraguacraft.pvp.core.OptifinePreset;
+import com.paraguacraft.pvp.core.PerformanceConfig;
+import com.paraguacraft.pvp.core.ModConfigApply;
+import com.paraguacraft.pvp.core.DiscordPresenceHandler;
+import com.paraguacraft.pvp.core.HardwarePreset;
+import com.paraguacraft.pvp.modules.ModConfig;
 import com.paraguacraft.pvp.modules.QoLManager;
-import com.paraguacraft.pvp.animations.CustomItemRenderer;
+import com.paraguacraft.pvp.network.BadgeNetHandler;
 import net.minecraftforge.client.event.GuiOpenEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraft.client.gui.GuiMainMenu;
-import net.minecraft.client.Minecraft;
-import java.lang.reflect.Field;
 
 @Mod(modid = ParaguacraftPvP.MODID, name = ParaguacraftPvP.NAME, version = ParaguacraftPvP.VERSION, acceptedMinecraftVersions = "[1.8.9]")
 public class ParaguacraftPvP {
 
     public static final String MODID = "paraguacraftpvp";
     public static final String NAME = "Paraguacraft PvP Client";
-    public static final String VERSION = "1.0.0";
+    public static final String VERSION = "2.0.0";
 
     @Mod.Instance(MODID)
     public static ParaguacraftPvP instance;
@@ -33,31 +37,19 @@ public class ParaguacraftPvP {
 
     @EventHandler
     public void init(FMLInitializationEvent event) {
-        // Registramos todos los modulos en el Bus de Eventos
+        ModConfig.load();
+        ModConfigApply.onStartup();
+        HardwarePreset.applyIfEnabled();
+        PerformanceConfig.applyParticleLimitsFromMode();
+        OptifinePreset.applyIfEnabled();
         MinecraftForge.EVENT_BUS.register(this);
         MinecraftForge.EVENT_BUS.register(new HUDOverlay());
         MinecraftForge.EVENT_BUS.register(new QoLManager());
         MinecraftForge.EVENT_BUS.register(new GuiBackgroundHandler());
         MinecraftForge.EVENT_BUS.register(new com.paraguacraft.pvp.modules.VisualsManager());
-
-        // Inyeccion de las animaciones 1.7
-        try {
-            Minecraft mc = Minecraft.getMinecraft();
-            Field renderField = null;
-            try {
-                renderField = mc.entityRenderer.getClass().getDeclaredField("itemRenderer");
-            } catch (NoSuchFieldException e) {
-                renderField = mc.entityRenderer.getClass().getDeclaredField("field_71415_G");
-            }
-            if (renderField != null) {
-                renderField.setAccessible(true);
-                renderField.set(mc.entityRenderer, new CustomItemRenderer(mc));
-                System.out.println("[Paraguacraft] Animaciones 1.7 inyectadas correctamente!");
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            System.out.println("[Paraguacraft] Error al inyectar animaciones 1.7");
-        }
+        MinecraftForge.EVENT_BUS.register(new BadgeNetHandler());
+        MinecraftForge.EVENT_BUS.register(new DiscordPresenceHandler());
+        System.out.println("[Paraguacraft V2] Fase C/D — perf, perfiles, keybinds, pantallas carga");
     }
 
     @EventHandler

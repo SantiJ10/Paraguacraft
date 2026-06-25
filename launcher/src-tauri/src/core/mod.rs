@@ -31,6 +31,7 @@ pub mod server_console;
 pub mod server_hangar;
 pub mod server_properties;
 pub mod server_setup;
+pub mod server_manager;
 pub mod server_repair;
 pub mod instance_repair;
 pub mod servers;

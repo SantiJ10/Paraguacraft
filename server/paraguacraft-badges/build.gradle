@@ -1,0 +1,23 @@
+apply plugin: 'java'
+
+group = 'com.paraguacraft'
+version = '1.0.0'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+    maven { url 'https://hub.spigotmc.org/nexus/content/repositories/snapshots/' }
+}
+
+dependencies {
+    compile('org.spigotmc:spigot-api:1.8.8-R0.1-SNAPSHOT') {
+        exclude group: 'net.md-5', module: 'bungeecord-chat'
+    }
+}
+
+jar {
+    baseName = 'ParaguacraftBadges'
+    version = project.version
+}

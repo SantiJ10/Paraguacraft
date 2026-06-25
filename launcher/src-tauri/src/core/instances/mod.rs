@@ -230,6 +230,27 @@ fn enrich_legacy_meta(folder: &str, meta: &mut InstanceMeta) {
     }
 
     repair_meta_from_mods(folder, meta);
+    demote_noncanonical_pvp_label(folder, meta);
+}
+
+/// Instancias manuales con mods PvP no deben aparecer como cliente oficial en Versiones.
+fn demote_noncanonical_pvp_label(folder: &str, meta: &mut InstanceMeta) {
+    if crate::core::loaders::normalize(&meta.loader) != "paraguacraft-pvp" {
+        return;
+    }
+    let mc = if looks_like_mc_version(&meta.mc_version) {
+        meta.mc_version.as_str()
+    } else {
+        crate::core::loaders::pvp::MC
+    };
+    let canonical = folder_for(mc, "paraguacraft-pvp");
+    if folder != canonical && !folder.starts_with(&format!("{canonical}_")) {
+        meta.loader = "forge".into();
+        if meta.loader_version.is_empty() {
+            meta.loader_version = crate::core::loaders::pvp::FORGE_VERSION.into();
+        }
+        meta.icon = icon_for_loader("forge");
+    }
 }
 
 /// Corrige instancias cuyo `mcVersion` se infirió mal (p. ej. carpeta `Prueba_Paraguacraft`).
@@ -256,11 +277,16 @@ fn repair_meta_from_mods(folder: &str, meta: &mut InstanceMeta) {
         return;
     }
     meta.mc_version = crate::core::loaders::pvp::MC.into();
-    meta.loader = "pvp".into();
+    // Carpetas de prueba/manual (p. ej. Prueba_Paraguacraft) no deben reemplazar la instancia PvP oficial.
+    let canonical = folder_for(&meta.mc_version, "paraguacraft-pvp");
+    if folder != canonical && !folder.starts_with(&format!("{canonical}_")) {
+        return;
+    }
+    meta.loader = "paraguacraft-pvp".into();
     if meta.loader_version.is_empty() {
         meta.loader_version = crate::core::loaders::pvp::FORGE_VERSION.into();
     }
-    meta.icon = icon_for_loader("pvp");
+    meta.icon = icon_for_loader("paraguacraft-pvp");
     if meta.version_id.as_ref().is_none_or(|v| {
         crate::core::versions::read_local_json(v).is_none()
             || !crate::core::loaders::version_id_matches_loader(&meta.loader, v, &meta.mc_version)

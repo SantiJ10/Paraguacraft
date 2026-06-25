@@ -265,7 +265,7 @@ fn detect_gpu_name() -> Option<String> {
 }
 
 /// Devuelve (RAM recomendada en MB, GC recomendado) segun la RAM total.
-fn recommend(ram_gb: f64) -> (u32, &'static str) {
+pub fn recommend(ram_gb: f64) -> (u32, &'static str) {
     let ram_mb = if ram_gb <= 8.0 {
         ((ram_gb * 1024.0 * 0.45) as u32).min(4096)
     } else if ram_gb <= 16.0 {
@@ -278,6 +278,11 @@ fn recommend(ram_gb: f64) -> (u32, &'static str) {
     let ram_mb = ((ram_mb + 256) / 512 * 512).max(2048);
     let gc = if ram_gb >= 16.0 { "ZGC" } else { "G1GC" };
     (ram_mb, gc)
+}
+
+/// RAM sugerida al crear instancia 1.8.9 PvP (tope 4 GB).
+pub fn recommend_pvp_189_ram_mb(ram_gb: f64) -> u32 {
+    crate::core::launch::pvp_jvm::resolve_ram_mb(ram_gb)
 }
 
 #[cfg(test)]

@@ -171,12 +171,16 @@ async fn spawn_for_instance(
     let java_major = crate::core::java::verify::verify(&java_path, "launch")
         .map(|j| j.version_major)
         .unwrap_or_else(|| crate::core::java::required_for_mc(&mc));
+    let hw = crate::core::hardware::detect();
     let jvm = JvmCtx {
         ram_mb: ram,
         gc,
         extra_args,
         java_path,
         java_major,
+        mc_version: mc.clone(),
+        loader: loader.clone(),
+        system_ram_gb: hw.ram_gb,
     };
 
     let resolution = if settings.papa_mode {
@@ -195,7 +199,7 @@ async fn spawn_for_instance(
     if has_pg_rpc {
         launch_env.push(("PARAGUACRAFT_LAUNCHER_RPC", "1"));
     }
-    let child = launch::spawn_game(&java, &args, &game_dir, &launch_env)?;
+    let child = launch::spawn_game(&java, &args, &game_dir, &launch_env, java_major)?;
     let pid = child.id();
 
     let _ = crate::core::extras::java_priority::set_level(

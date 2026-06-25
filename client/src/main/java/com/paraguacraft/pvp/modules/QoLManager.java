@@ -18,19 +18,16 @@ public class QoLManager {
 
     private final Minecraft mc = Minecraft.getMinecraft();
     
-    public static boolean toggleSprintActive = true; 
-    public static boolean fullbrightActive = true; 
-
-    private KeyBinding toggleSprintKey;
-    private KeyBinding fullbrightKey;
-    private KeyBinding menuKey;
+    public static KeyBinding toggleSprintKey;
+    public static KeyBinding fullbrightKey;
+    public static KeyBinding menuKey;
     public static KeyBinding editHudKey;
 
     public QoLManager() {
-        toggleSprintKey = new KeyBinding("Toggle Sprint", Keyboard.KEY_V, "Paraguacraft PvP");
-        fullbrightKey = new KeyBinding("Fullbright", Keyboard.KEY_G, "Paraguacraft PvP");
-        menuKey = new KeyBinding("Mod Menu", Keyboard.KEY_RSHIFT, "Paraguacraft PvP");
-        editHudKey = new KeyBinding("Editar HUD", Keyboard.KEY_RCONTROL, "Paraguacraft PvP"); 
+        toggleSprintKey = new KeyBinding("Toggle Sprint", ModConfig.keyToggleSprint, "Paraguacraft PvP");
+        fullbrightKey = new KeyBinding("Fullbright", ModConfig.keyFullbright, "Paraguacraft PvP");
+        menuKey = new KeyBinding("Mod Menu", ModConfig.keyMenu, "Paraguacraft PvP");
+        editHudKey = new KeyBinding("Editar HUD", ModConfig.keyEditHud, "Paraguacraft PvP");
         
         ClientRegistry.registerKeyBinding(toggleSprintKey);
         ClientRegistry.registerKeyBinding(fullbrightKey);
@@ -41,16 +38,18 @@ public class QoLManager {
     @SubscribeEvent
     public void onKeyInput(KeyInputEvent event) {
         if (toggleSprintKey.isPressed()) {
-            toggleSprintActive = !toggleSprintActive;
-            sendMessage("Toggle Sprint: " + (toggleSprintActive ? "\u00A7aON" : "\u00A7cOFF"));
+            ModConfig.toggleSprintActive = !ModConfig.toggleSprintActive;
+            ModConfig.save();
+            sendMessage("Toggle Sprint: " + (ModConfig.toggleSprintActive ? "\u00A7aON" : "\u00A7cOFF"));
         }
         
         if (fullbrightKey.isPressed()) {
-            fullbrightActive = !fullbrightActive;
-            if (!fullbrightActive) {
+            ModConfig.fullbrightActive = !ModConfig.fullbrightActive;
+            if (!ModConfig.fullbrightActive) {
                 mc.gameSettings.gammaSetting = 1.0F; 
             }
-            sendMessage("Fullbright: " + (fullbrightActive ? "\u00A7aON" : "\u00A7cOFF"));
+            ModConfig.save();
+            sendMessage("Fullbright: " + (ModConfig.fullbrightActive ? "\u00A7aON" : "\u00A7cOFF"));
         }
 
         if (menuKey.isPressed()) {
@@ -67,11 +66,11 @@ public class QoLManager {
     public void onClientTick(ClientTickEvent event) {
         if (mc.thePlayer == null) return;
 
-        if (toggleSprintActive && mc.currentScreen == null) {
+        if (ModConfig.toggleSprintActive && mc.currentScreen == null) {
             KeyBinding.setKeyBindState(mc.gameSettings.keyBindSprint.getKeyCode(), true);
         }
 
-        if (fullbrightActive && mc.gameSettings.gammaSetting < 100.0F) {
+        if (ModConfig.fullbrightActive && mc.gameSettings.gammaSetting < 100.0F) {
             mc.gameSettings.gammaSetting = 100.0F;
         }
     }

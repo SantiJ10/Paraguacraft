@@ -1,7 +1,6 @@
 package com.paraguacraft.pvp.hud;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
@@ -16,6 +15,9 @@ import net.minecraft.potion.PotionEffect;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import com.paraguacraft.pvp.hud.HudDraw;
+import com.paraguacraft.pvp.gui.theme.TextUtil;
+import com.paraguacraft.pvp.gui.theme.UiTheme;
 import com.paraguacraft.pvp.modules.ModConfig;
 import java.util.Collection;
 import java.util.ArrayList;
@@ -31,6 +33,7 @@ import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.Display;
 import org.lwjgl.opengl.GL11;
+import com.paraguacraft.pvp.core.ModConfigApply;
 
 public class HUDOverlay extends Gui {
     private final Minecraft mc = Minecraft.getMinecraft();
@@ -45,37 +48,28 @@ public class HUDOverlay extends Gui {
     public void onRender(RenderGameOverlayEvent.Text event) {
         if (!ModConfig.loaded) {
             ModConfig.load();
-            ModConfig.loaded = true;
-            if (ModConfig.borderlessWindow) {
-                try {
-                    System.setProperty("org.lwjgl.opengl.Window.undecorated", "true");
-                    Display.setDisplayMode(Display.getDesktopDisplayMode());
-                    Display.setLocation(0, 0);
-                } catch (Exception e) {}
-            } else {
-                 Display.setResizable(true);
-            }
+            ModConfigApply.onStartup();
         }
         
         if (mc.gameSettings.showDebugInfo || mc.thePlayer == null) return;
-        FontRenderer fr = mc.fontRendererObj;
 
-        // HUD Clásicos transparentes
-        if (ModConfig.showFPS) fr.drawStringWithShadow("FPS: \u00A7f" + Minecraft.getDebugFPS(), ModConfig.fpsX, ModConfig.fpsY, colorParagua);
+        if (ModConfig.showFPS) {
+            HudDraw.labeled("FPS: ", String.valueOf(Minecraft.getDebugFPS()), ModConfig.fpsX, ModConfig.fpsY);
+        }
         if (ModConfig.showPing) {
             int ping = 0;
             if (mc.getNetHandler() != null && mc.getNetHandler().getPlayerInfo(mc.thePlayer.getUniqueID()) != null) {
                 ping = mc.getNetHandler().getPlayerInfo(mc.thePlayer.getUniqueID()).getResponseTime();
             }
-            fr.drawStringWithShadow("Ping: \u00A7f" + (ping < 0 ? 0 : ping) + " ms", ModConfig.pingX, ModConfig.pingY, colorParagua);
+            HudDraw.labeled("Ping: ", (ping < 0 ? 0 : ping) + " ms", ModConfig.pingX, ModConfig.pingY);
         }
         if (ModConfig.showCPS) {
             calculateCPS();
-            fr.drawStringWithShadow("CPS: \u00A7f" + leftClicks.size(), ModConfig.cpsX, ModConfig.cpsY, colorParagua);
+            HudDraw.labeled("CPS: ", String.valueOf(leftClicks.size()), ModConfig.cpsX, ModConfig.cpsY);
         }
         if (ModConfig.showCoords) {
-            String coords = String.format("X: %.0f Y: %.0f Z: %.0f", mc.thePlayer.posX, mc.thePlayer.posY, mc.thePlayer.posZ);
-            fr.drawStringWithShadow(coords, ModConfig.coordsX, ModConfig.coordsY, colorParagua);
+            String coords = String.format("X: %.0f  Y: %.0f  Z: %.0f", mc.thePlayer.posX, mc.thePlayer.posY, mc.thePlayer.posZ);
+            HudDraw.text(coords, ModConfig.coordsX, ModConfig.coordsY, UiTheme.ACCENT);
         }
         
         if (ModConfig.showKeystrokes) drawKeystrokes();
@@ -135,8 +129,8 @@ public class HUDOverlay extends Gui {
                 else if (isIntercardinal) color = 0xFFFFFFFF; // Blanco
                 else color = 0xFFAAAAAA; // Gris claro para números
 
-                int textW = mc.fontRendererObj.getStringWidth(markerText);
-                mc.fontRendererObj.drawStringWithShadow(markerText, (int)(px - (textW / 2)), y + 6, color);
+                int textW = HudDraw.width(markerText);
+                HudDraw.text(markerText, px - textW / 2f, y + 6, color);
             }
         }
         
@@ -175,8 +169,8 @@ public class HUDOverlay extends Gui {
             if (effect.getAmplifier() > 0) name += " " + (effect.getAmplifier() + 1);
             String duration = Potion.getDurationString(effect);
 
-            mc.fontRendererObj.drawStringWithShadow("\u00A7f" + name, x + 22, y + 1, 0xFFFFFF); // Blanco
-            mc.fontRendererObj.drawStringWithShadow("\u00A77" + duration, x + 22, y + 11, 0xFFFFFF); // Gris
+            HudDraw.text(name, x + 22, y + 1, UiTheme.TEXT);
+            HudDraw.text(duration, x + 22, y + 11, UiTheme.TEXT_DIM);
             
             yOffset += 24; // Espacio para la siguiente poción
         }
@@ -203,11 +197,8 @@ public class HUDOverlay extends Gui {
         int textX = x + 20;
         int textY = y + 4;
 
-        String displayName = held.getDisplayName();
-        if (held.isItemEnchanted()) {
-            displayName = "\u00A7b" + displayName; // Cian
-        }
-        mc.fontRendererObj.drawStringWithShadow(displayName, textX, textY, 0xFFFFFF);
+        String displayName = TextUtil.stripColor(held.getDisplayName());
+        HudDraw.text(displayName, textX, textY, held.isItemEnchanted() ? UiTheme.ACCENT : UiTheme.TEXT);
         textY += 10;
 
         Map<Integer, Integer> enchants = EnchantmentHelper.getEnchantments(held);
@@ -217,8 +208,7 @@ public class HUDOverlay extends Gui {
                 if (ench != null) {
                     String enchName = ench.getTranslatedName(entry.getValue());
                     String roman = enchName.replaceAll(" 1$", " I").replaceAll(" 2$", " II").replaceAll(" 3$", " III").replaceAll(" 4$", " IV").replaceAll(" 5$", " V");
-                    
-                    mc.fontRendererObj.drawStringWithShadow("\u00A77" + roman, textX, textY, 0xFFFFFF); // Gris
+                    HudDraw.text(TextUtil.stripColor(roman), textX, textY, UiTheme.TEXT_DIM);
                     textY += 10;
                 }
             }
@@ -306,7 +296,7 @@ public class HUDOverlay extends Gui {
         GlStateManager.popMatrix();
 
         // 4. IP Limpia sin rectángulos
-        mc.fontRendererObj.drawStringWithShadow("\u00A7f" + ip, x + 20, y + 4, 0xFFFFFF); 
+        HudDraw.text(ip, x + 20, y + 4, UiTheme.TEXT);
     }
 
     // ============================================================
@@ -330,7 +320,7 @@ public class HUDOverlay extends Gui {
         int fg = pressed ? 0x000000 : 0xFFFFFF;
         Gui.drawRect(x, y, x + w, y + h, bg);
         String name = Keyboard.getKeyName(key.getKeyCode());
-        mc.fontRendererObj.drawStringWithShadow(name, x + w / 2 - mc.fontRendererObj.getStringWidth(name) / 2, y + h / 2 - 4, fg);
+        HudDraw.centered(name, x + w / 2f, y + h / 2f - 4, fg);
     }
 
     private void drawMouseKey(int x, int y, int w, int h, int button, String name) {
@@ -338,7 +328,7 @@ public class HUDOverlay extends Gui {
         int bg = pressed ? 0x88FFFFFF : 0x88000000;
         int fg = pressed ? 0x000000 : 0xFFFFFF;
         Gui.drawRect(x, y, x + w, y + h, bg);
-        mc.fontRendererObj.drawStringWithShadow(name, x + w / 2 - mc.fontRendererObj.getStringWidth(name) / 2, y + h / 2 - 4, fg);
+        HudDraw.centered(name, x + w / 2f, y + h / 2f - 4, fg);
     }
 
     private void drawArmorStatus() {
@@ -354,10 +344,9 @@ public class HUDOverlay extends Gui {
                     int maxDam = stack.getMaxDamage();
                     int currDam = stack.getItemDamage();
                     int percent = (maxDam > 0) ? (int) (((maxDam - currDam) * 100.0F) / maxDam) : 100;
-                    String colorCode = "\u00A7a"; 
-                    if (percent < 25) colorCode = "\u00A7c"; else if (percent < 50) colorCode = "\u00A7e"; 
-                    String text = colorCode + percent + "%";
-                    mc.fontRendererObj.drawStringWithShadow(text, ModConfig.armorX + 22 - mc.fontRendererObj.getStringWidth(text), y + 4, 0xFFFFFF);
+                    String text = percent + "%";
+                    int color = percent < 25 ? 0xFFFF5555 : (percent < 50 ? 0xFFFFCC55 : 0xFF55FF55);
+                    HudDraw.text(text, ModConfig.armorX + 22 - HudDraw.width(text), y + 4, color);
                 }
                 GlStateManager.enableDepth();
                 GlStateManager.enableLighting();

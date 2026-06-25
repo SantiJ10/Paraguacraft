@@ -1,12 +1,26 @@
-//! Renombra la ventana del juego a «Paraguacraft X.X.X» (espejo de `_hilo_ninja_renombrar`).
+//! Renombra la ventana del juego mientras corre (espejo de `_hilo_ninja_renombrar`).
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::core::loaders;
+
+/// Título de ventana según versión y loader.
+/// - `paraguacraft-pvp` + 1.8.9 → «Paraguacraft PvP»
+/// - resto → «Paraguacraft {versión}» (p. ej. «Paraguacraft 1.21.11»)
+pub fn title_for_launch(mc_version: &str, loader: &str) -> String {
+    let loader = loaders::normalize(loader);
+    if loader == "paraguacraft-pvp" && mc_version == "1.8.9" {
+        "Paraguacraft PvP".into()
+    } else {
+        format!("Paraguacraft {mc_version}")
+    }
+}
+
 /// Inicia un hilo que renombra la ventana del proceso Java mientras el juego corre.
-pub fn watch_window_title(pid: u32, mc_version: &str, stop: Arc<AtomicBool>) {
-    let title = format!("Paraguacraft PvP Client {mc_version}");
+pub fn watch_window_title(pid: u32, mc_version: &str, loader: &str, stop: Arc<AtomicBool>) {
+    let title = title_for_launch(mc_version, loader);
     std::thread::spawn(move || {
         while !stop.load(Ordering::Relaxed) {
             #[cfg(target_os = "windows")]
@@ -49,7 +63,10 @@ fn rename_windows_for_pid(pid: u32, new_title: &str) {
         let mut buf = vec![0u16; (len + 1) as usize];
         GetWindowTextW(hwnd, buf.as_mut_ptr(), buf.len() as i32);
         let current = String::from_utf16_lossy(&buf[..len as usize]);
-        if !current.contains("Minecraft") || current.contains("Paraguacraft") {
+        if current == ctx.title {
+            return TRUE;
+        }
+        if !current.contains("Minecraft") && !current.contains("Paraguacraft") {
             return TRUE;
         }
         let wide: Vec<u16> = OsStr::new(&ctx.title).encode_wide().chain(Some(0)).collect();

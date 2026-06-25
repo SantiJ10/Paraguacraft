@@ -9,6 +9,7 @@
 //! caches: queda en ~0% CPU y RAM minima mientras el juego corre.
 
 pub mod window_title;
+pub mod pvp_jvm;
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -39,6 +40,10 @@ pub struct JvmCtx {
     pub java_path: PathBuf,
     /// Major detectado (8, 17, 21…) para elegir flags compatibles.
     pub java_major: u32,
+    pub mc_version: String,
+    pub loader: String,
+    /// RAM total del sistema (GB), para presets PvP por gama.
+    pub system_ram_gb: f64,
 }
 
 fn cp_sep() -> &'static str {
@@ -345,7 +350,22 @@ fn extract_native_jar(jar: &Path, dest: &Path) -> AppResult<()> {
 }
 
 /// JVM args (RAM + GC). Java 8 no soporta flags Aikar/AlwaysPreTouch (Java 9+).
+fn merge_extra_jvm_args(args: &mut Vec<String>, extra: &[String]) {
+    for a in extra {
+        if a.starts_with("-Xmx") || a.starts_with("-Xms") {
+            args.retain(|x| !x.starts_with("-Xmx") && !x.starts_with("-Xms"));
+        }
+        args.push(a.clone());
+    }
+}
+
 fn build_jvm_ram_gc(jvm: &JvmCtx) -> Vec<String> {
+    if pvp_jvm::applies(&jvm.loader, &jvm.mc_version, jvm.java_major) {
+        let mut args = pvp_jvm::build_jvm_args(jvm.system_ram_gb);
+        merge_extra_jvm_args(&mut args, &jvm.extra_args);
+        return args;
+    }
+
     let xms = (jvm.ram_mb / 4).max(512).min(jvm.ram_mb);
     let mut args = vec![
         format!("-Xmx{}M", jvm.ram_mb),
@@ -388,12 +408,7 @@ fn build_jvm_ram_gc(jvm: &JvmCtx) -> Vec<String> {
         }
     }
 
-    for a in &jvm.extra_args {
-        if a.starts_with("-Xmx") || a.starts_with("-Xms") {
-            args.retain(|x| !x.starts_with(&a[..4]));
-        }
-        args.push(a.clone());
-    }
+    merge_extra_jvm_args(&mut args, &jvm.extra_args);
     args
 }
 
@@ -511,11 +526,15 @@ pub fn append_server_join(args: &mut Vec<String>, address: &str) {
 }
 
 /// Lanza el proceso sin consola. Devuelve el handle (para esperar su salida).
+///
+/// En Windows, `@args.txt` solo funciona desde Java 9+. Minecraft 1.8–1.16 usa Java 8:
+/// ahí hay que pasar los argumentos en la línea de comandos.
 pub fn spawn_game(
     java: &Path,
     args: &[String],
     instance_dir: &Path,
     extra_env: &[(&str, &str)],
+    java_major: u32,
 ) -> AppResult<std::process::Child> {
     std::fs::create_dir_all(instance_dir)?;
     let mut cmd = Command::new(java);
@@ -529,19 +548,23 @@ pub fn spawn_game(
         prepend_native_path_env(&mut cmd, &natives);
     }
 
+    // Siempre guardamos el argfile para depuración (Paraguabot / soporte).
+    let arg_file = instance_dir.join(".paraguacraft-java-args.txt");
+    let _ = write_java_arg_file(&arg_file, args);
+
     #[cfg(target_os = "windows")]
-    {
-        let arg_file = instance_dir.join(".paraguacraft-java-args.txt");
-        write_java_arg_file(&arg_file, args)?;
+    let use_arg_file = java_major >= 9;
+    #[cfg(not(target_os = "windows"))]
+    let use_arg_file = false;
+
+    if use_arg_file {
         let at = arg_file.to_string_lossy();
         if at.contains(' ') {
             cmd.arg(format!("@\"{at}\""));
         } else {
             cmd.arg(format!("@{at}"));
         }
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
+    } else {
         cmd.args(args);
     }
 
@@ -629,7 +652,7 @@ pub fn watch_exit(
     let started = std::time::Instant::now();
     let pid = child.id();
     let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-    window_title::watch_window_title(pid, &mc_version, stop.clone());
+    window_title::watch_window_title(pid, &mc_version, &loader, stop.clone());
 
     if settings.discord_rpc && !game_rpc_handoff {
         crate::core::extras::game_presence::watch(
@@ -725,6 +748,9 @@ mod tests {
             extra_args: vec![],
             java_path: PathBuf::from("java"),
             java_major: 21,
+            mc_version: "1.21.11".into(),
+            loader: "fabric".into(),
+            system_ram_gb: 16.0,
         };
         let inst = paths::instances_dir().join("Paraguacraft_1.21.11_fabric-iris");
         let (args, _) = build_command(launch_id, &inst, &auth, &jvm, None).expect("build_command");

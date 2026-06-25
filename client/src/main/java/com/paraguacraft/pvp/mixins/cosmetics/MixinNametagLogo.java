@@ -1,0 +1,72 @@
+package com.paraguacraft.pvp.mixins.cosmetics;
+
+import com.paraguacraft.pvp.cosmetics.NametagLogoRenderer;
+import com.paraguacraft.pvp.modules.ModConfig;
+import com.paraguacraft.pvp.network.BadgeRegistry;
+import com.paraguacraft.pvp.network.BadgeProtocol;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.entity.Render;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.player.EntityPlayer;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+/**
+ * Insignia Paraguacraft en nametags — local + jugadores sincronizados vía plugin.
+ * {@code renderLivingLabel} vive en {@link Render} (1.8.9), no en RendererLivingEntity.
+ */
+@Mixin(Render.class)
+public class MixinNametagLogo {
+
+    @Inject(
+        method = "renderLivingLabel(Lnet/minecraft/entity/Entity;Ljava/lang/String;DDDI)V",
+        at = @At(
+            value = "INVOKE",
+            target = "Lnet/minecraft/client/gui/FontRenderer;drawString(Ljava/lang/String;III)I",
+            shift = At.Shift.AFTER
+        ),
+        require = 0
+    )
+    private void paraguacraft$drawNametagLogo(
+        Entity entity,
+        String label,
+        double x,
+        double y,
+        double z,
+        int maxDistance,
+        CallbackInfo ci
+    ) {
+        if (!(entity instanceof EntityPlayer)) {
+            return;
+        }
+        EntityPlayer player = (EntityPlayer) entity;
+        Minecraft mc = Minecraft.getMinecraft();
+        boolean isLocal = player == mc.thePlayer;
+
+        if (isLocal) {
+            if (!ModConfig.showNametagLogo) {
+                return;
+            }
+            NametagLogoRenderer.drawLeftOfName(mc.getRenderManager().getFontRenderer(), label);
+            return;
+        }
+
+        if (!ModConfig.showNametagLogoOthers) {
+            return;
+        }
+        if (!BadgeRegistry.hasBadge(player.getUniqueID())) {
+            return;
+        }
+        byte badge = BadgeRegistry.getBadge(player.getUniqueID());
+        if (badge == BadgeProtocol.BADGE_NONE) {
+            return;
+        }
+        NametagLogoRenderer.drawLeftOfName(
+            mc.getRenderManager().getFontRenderer(),
+            label,
+            badge
+        );
+    }
+}
