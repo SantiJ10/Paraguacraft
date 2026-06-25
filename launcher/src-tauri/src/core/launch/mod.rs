@@ -479,9 +479,14 @@ pub fn build_command(
     push_native_jvm_args(&mut cmd, &natives_dir);
 
     // 3) JVM args del perfil (modernos) o defaults (legacy).
+    let pvp_jvm_preset = pvp_jvm::applies(&jvm.loader, &jvm.mc_version, jvm.java_major);
     if merged.get("arguments").and_then(|a| a.get("jvm")).is_some() {
         for arg in collect_arg_array(&merged["arguments"]["jvm"], &map) {
             if is_native_jvm_arg(&arg) {
+                continue;
+            }
+            // Evitar -Xmx/-Xms duplicados del perfil Forge cuando ya aplicó preset PvP.
+            if pvp_jvm_preset && (arg.starts_with("-Xmx") || arg.starts_with("-Xms")) {
                 continue;
             }
             cmd.push(arg);

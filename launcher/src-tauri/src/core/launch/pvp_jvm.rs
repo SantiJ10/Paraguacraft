@@ -42,6 +42,7 @@ pub fn resolve_ram_mb(ram_gb: f64) -> u32 {
 
 fn g1_flags_baja() -> Vec<&'static str> {
     vec![
+        "-XX:+UnlockExperimentalVMOptions",
         "-XX:+UseG1GC",
         "-XX:MaxGCPauseMillis=20",
         "-XX:G1NewSizePercent=20",
@@ -50,20 +51,16 @@ fn g1_flags_baja() -> Vec<&'static str> {
     ]
 }
 
+/// Flags compatibles con **Java 8** (sin opciones añadidas en Java 9+, p. ej. G1MixedGCCountTarget).
 fn g1_flags_media_alta() -> Vec<&'static str> {
     vec![
+        "-XX:+UnlockExperimentalVMOptions",
         "-XX:+UseG1GC",
         "-XX:MaxGCPauseMillis=50",
         "-XX:G1NewSizePercent=30",
-        "-XX:G1MaxNewSizePercent=40",
-        "-XX:G1HeapRegionSize=8M",
         "-XX:G1ReservePercent=20",
-        "-XX:G1HeapWastePercent=5",
-        "-XX:G1MixedGCCountTarget=4",
-        "-XX:InitiatingHeapOccupancyPercent=15",
         "-XX:MaxTenuringThreshold=1",
-        "-XX:SurvivorRatio=32",
-        "-XX:+PerfDisableSharedMem",
+        "-XX:+DisableExplicitGC",
     ]
 }
 
@@ -74,7 +71,6 @@ pub fn build_jvm_args(ram_gb: f64) -> Vec<String> {
     let mut args = vec![
         format!("-Xms{ram_mb}M"),
         format!("-Xmx{ram_mb}M"),
-        "-XX:+DisableExplicitGC".into(),
     ];
     let flags = match tier {
         Tier::Baja => g1_flags_baja(),

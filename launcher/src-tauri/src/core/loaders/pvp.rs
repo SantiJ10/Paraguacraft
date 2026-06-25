@@ -188,16 +188,21 @@ fn resolve_sha(app: &AppHandle, filename: &str, remote_sha: &str) -> String {
     remote_sha.to_string()
 }
 
-fn sha_matches(path: &Path, expected: &str, filename: &str) -> bool {
+fn sha_matches(path: &Path, expected: &str, _filename: &str) -> bool {
     let Some(got) = file_sha1(path) else {
         return false;
     };
-    if got.eq_ignore_ascii_case(expected) {
+    got.eq_ignore_ascii_case(expected)
+}
+
+/// Igual que `sha_matches` pero acepta el SHA embebido de respaldo (solo para copias locales).
+fn sha_matches_or_fallback(path: &Path, expected: &str, filename: &str) -> bool {
+    if sha_matches(path, expected, filename) {
         return true;
     }
     if let Some((_, fb)) = FALLBACK_MODS.iter().find(|(f, _)| *f == filename) {
-        if got.eq_ignore_ascii_case(fb) {
-            return true;
+        if let Some(got) = file_sha1(path) {
+            return got.eq_ignore_ascii_case(fb);
         }
     }
     false
@@ -223,7 +228,7 @@ fn try_local_bundled(
     let Some(src) = find_local_file(app, filename) else {
         return Ok(false);
     };
-    if !sha_matches(&src, sha_expected, filename) {
+    if !sha_matches_or_fallback(&src, sha_expected, filename) {
         return Ok(false);
     }
     copy_to_dest(&src, dest)?;
