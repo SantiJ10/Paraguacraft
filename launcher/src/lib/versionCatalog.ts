@@ -207,16 +207,29 @@ export function matchMcGroup(mcVersion: string, cardId: string): boolean {
   return mcVersion === cardId || mcVersion.startsWith(`${cardId}.`) || groupKey(mcVersion) === cardId;
 }
 
+/** Carpeta estándar que crea el launcher al instalar Paraguacraft PvP. */
+export function canonicalPvpInstanceId(mcVersion: string): string {
+  return `Paraguacraft_${mcVersion}_PvP`;
+}
+
 export function findInstanceForVersion(
   instances: Instance[],
   mcVersion: string,
   loader?: string,
 ): Instance | undefined {
   const want = loader ? normalizeLoaderId(loader) : undefined;
-  return instances.find((i) => {
+  const matches = instances.filter((i) => {
     if (i.source !== "paraguacraft") return false;
     if (i.mcVersion !== mcVersion) return false;
     if (want && normalizeLoaderId(i.loader) !== want) return false;
     return true;
   });
+  if (want === "paraguacraft-pvp" && matches.length) {
+    const canonicalId = canonicalPvpInstanceId(mcVersion);
+    const official = matches.find((i) => i.id === canonicalId || i.id.startsWith(`${canonicalId}_`));
+    if (official) return official;
+    // Sin instancia oficial: no reutilizar carpetas de prueba (Prueba_Paraguacraft, etc.).
+    return undefined;
+  }
+  return matches[0];
 }

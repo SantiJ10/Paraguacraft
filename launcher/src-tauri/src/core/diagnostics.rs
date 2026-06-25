@@ -216,11 +216,38 @@ fn classify(combined: &str, exit_code: i32, log_empty: bool) -> DiagnosisCore {
             "Faltan librerías nativas de LWJGL (lwjgl.dll).",
             "Usá Reparar instancia en el menú de la instancia, o reinstalá Minecraft base desde Versiones."
         );
-    } else if low.contains("glfw")
+    }
+    let scoreboard_npe = low.contains("scoreboard.func_965")
+        || low.contains("scoreboard.remove")
+        || (low.contains("nullpointerexception")
+            && (low.contains("s3bpacketscoreboardobjective")
+                || low.contains("s3epacketteams")
+                || low.contains("scoreboard")));
+    if scoreboard_npe {
+        if low.contains("stopping!") || exit_code == 0 {
+            hit!(
+                "clean_exit",
+                "El juego cerró normalmente. Los avisos de scoreboard en Hypixel son inofensivos.",
+                "Actualizá Paraguacraft PvP a la última versión del mod si siguen apareciendo en el log."
+            );
+        }
+        hit!(
+            "hypixel_scoreboard",
+            "Errores de scoreboard en servidores (Hypixel). No suelen crashear el juego.",
+            "Actualizá el cliente Paraguacraft PvP. Si el juego sigue jugable, podés ignorar estos mensajes."
+        );
+    }
+    let gpu_failure = low.contains("glfw")
+        && (low.contains("failed") || low.contains("error") || low.contains("exception"))
         || low.contains("pixel format")
-        || (low.contains("opengl") && low.contains("version"))
-        || low.contains("lwjgl")
-    {
+        || (low.contains("opengl")
+            && (low.contains("failed") || low.contains("error") || low.contains("exception")))
+        || (low.contains("lwjgl")
+            && (low.contains("failed to")
+                || low.contains("unable to")
+                || low.contains("exception")
+                || low.contains("error")));
+    if gpu_failure {
         hit!(
             "gpu",
             "Falló la inicialización gráfica (OpenGL/GLFW/LWJGL).",

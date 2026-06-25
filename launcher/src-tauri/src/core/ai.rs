@@ -65,6 +65,11 @@ pub fn suggestions_for_category(category: &str) -> Vec<String> {
             "Verifica compatibilidad MC + loader.".into(),
         ],
         "gpu" => vec!["Actualiza drivers NVIDIA/AMD/Intel.".into()],
+        "hypixel_scoreboard" => vec![
+            "Actualizá Paraguacraft PvP desde Versiones → Instalar.".into(),
+            "Si el juego funciona, podés ignorar esos mensajes en el log.".into(),
+        ],
+        "clean_exit" => vec!["No hace falta actualizar drivers si el juego cerró bien.".into()],
         "java_version" => vec!["Instala Temurin 17 o 21 en Ajustes → Java.".into()],
         "network" => vec!["Revisa firewall o VPN.".into()],
         "install" => vec![

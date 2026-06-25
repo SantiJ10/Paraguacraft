@@ -1,0 +1,6 @@
+name: ParaguacraftBadges
+main: com.paraguacraft.badges.ParaguacraftBadgesPlugin
+version: 1.0.0
+api-version: 1.8
+author: Paraguacraft
+description: Sincroniza insignias del cliente Paraguacraft PvP entre jugadores.

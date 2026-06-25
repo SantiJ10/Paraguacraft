@@ -1,0 +1,121 @@
+{
+  "mappings": {
+    "com/paraguacraft/pvp/mixins/client/MixinGuiDownloadTerrain": {
+      "Lnet/minecraft/client/gui/GuiScreen;drawDefaultBackground()V": "Lnet/minecraft/client/gui/GuiScreen;func_146276_q_()V",
+      "drawScreen": "Lnet/minecraft/client/gui/GuiDownloadTerrain;func_73863_a(IIF)V",
+      "Lnet/minecraft/client/gui/GuiScreen;drawCenteredString(Lnet/minecraft/client/gui/FontRenderer;Ljava/lang/String;III)V": "Lnet/minecraft/client/gui/GuiScreen;func_73732_a(Lnet/minecraft/client/gui/FontRenderer;Ljava/lang/String;III)V"
+    },
+    "com/paraguacraft/pvp/mixins/performance/MixinEffectRenderer": {
+      "addEffect": "Lnet/minecraft/client/particle/EffectRenderer;func_78873_a(Lnet/minecraft/client/particle/EntityFX;)V"
+    },
+    "com/paraguacraft/pvp/mixins/MixinRendererLivingEntity": {
+      "setBrightness": "Lnet/minecraft/client/renderer/entity/RendererLivingEntity;func_177092_a(Lnet/minecraft/entity/EntityLivingBase;FZ)Z"
+    },
+    "com/paraguacraft/pvp/mixins/cosmetics/MixinNametagLogo": {
+      "renderLivingLabel(Lnet/minecraft/entity/Entity;Ljava/lang/String;DDDI)V": "Lnet/minecraft/client/renderer/entity/Render;func_147906_a(Lnet/minecraft/entity/Entity;Ljava/lang/String;DDDI)V",
+      "Lnet/minecraft/client/gui/FontRenderer;drawString(Ljava/lang/String;III)I": "Lnet/minecraft/client/gui/FontRenderer;func_78276_b(Ljava/lang/String;III)I"
+    },
+    "com/paraguacraft/pvp/mixins/MixinItemRenderer": {
+      "renderFireInFirstPerson": "Lnet/minecraft/client/renderer/ItemRenderer;func_78442_d(F)V",
+      "renderItemInFirstPerson": "Lnet/minecraft/client/renderer/ItemRenderer;func_78440_a(F)V"
+    },
+    "com/paraguacraft/pvp/mixins/client/MixinGuiConnecting": {
+      "Lnet/minecraft/client/gui/GuiScreen;drawDefaultBackground()V": "Lnet/minecraft/client/gui/GuiScreen;func_146276_q_()V",
+      "drawScreen": "Lnet/minecraft/client/multiplayer/GuiConnecting;func_73863_a(IIF)V",
+      "Lnet/minecraft/client/gui/GuiScreen;drawCenteredString(Lnet/minecraft/client/gui/FontRenderer;Ljava/lang/String;III)V": "Lnet/minecraft/client/gui/GuiScreen;func_73732_a(Lnet/minecraft/client/gui/FontRenderer;Ljava/lang/String;III)V"
+    },
+    "com/paraguacraft/pvp/mixins/performance/MixinMinecraft": {
+      "loadWorld(Lnet/minecraft/client/multiplayer/WorldClient;Ljava/lang/String;)V": "Lnet/minecraft/client/Minecraft;func_71353_a(Lnet/minecraft/client/multiplayer/WorldClient;Ljava/lang/String;)V"
+    },
+    "com/paraguacraft/pvp/mixins/MixinGuiIngame": {
+      "renderScoreboard": "Lnet/minecraft/client/gui/GuiIngame;func_180475_a(Lnet/minecraft/scoreboard/ScoreObjective;Lnet/minecraft/client/gui/ScaledResolution;)V",
+      "Lnet/minecraft/client/gui/FontRenderer;drawString(Ljava/lang/String;III)I": "Lnet/minecraft/client/gui/FontRenderer;func_78276_b(Ljava/lang/String;III)I"
+    },
+    "com/paraguacraft/pvp/mixins/animations/MixinEntityLivingBaseSwing": {
+      "getSwingProgress": "Lnet/minecraft/entity/EntityLivingBase;func_70678_g(F)F"
+    },
+    "com/paraguacraft/pvp/mixins/performance/MixinRenderManager": {
+      "shouldRender": "Lnet/minecraft/client/renderer/entity/RenderManager;func_178635_a(Lnet/minecraft/entity/Entity;Lnet/minecraft/client/renderer/culling/ICamera;DDD)Z"
+    }
+  },
+  "data": {
+    "notch": {
+      "com/paraguacraft/pvp/mixins/client/MixinGuiDownloadTerrain": {
+        "Lnet/minecraft/client/gui/GuiScreen;drawDefaultBackground()V": "Laxu;c()V",
+        "drawScreen": "Laxs;a(IIF)V",
+        "Lnet/minecraft/client/gui/GuiScreen;drawCenteredString(Lnet/minecraft/client/gui/FontRenderer;Ljava/lang/String;III)V": "Laxu;a(Lavn;Ljava/lang/String;III)V"
+      },
+      "com/paraguacraft/pvp/mixins/performance/MixinEffectRenderer": {
+        "addEffect": "Lbec;a(Lbeb;)V"
+      },
+      "com/paraguacraft/pvp/mixins/MixinRendererLivingEntity": {
+        "setBrightness": "Lbjl;a(Lpr;FZ)Z"
+      },
+      "com/paraguacraft/pvp/mixins/cosmetics/MixinNametagLogo": {
+        "renderLivingLabel(Lnet/minecraft/entity/Entity;Ljava/lang/String;DDDI)V": "Lbiv;a(Lpk;Ljava/lang/String;DDDI)V",
+        "Lnet/minecraft/client/gui/FontRenderer;drawString(Ljava/lang/String;III)I": "Lavn;a(Ljava/lang/String;III)I"
+      },
+      "com/paraguacraft/pvp/mixins/MixinItemRenderer": {
+        "renderFireInFirstPerson": "Lbfn;f(F)V",
+        "renderItemInFirstPerson": "Lbfn;a(F)V"
+      },
+      "com/paraguacraft/pvp/mixins/client/MixinGuiConnecting": {
+        "Lnet/minecraft/client/gui/GuiScreen;drawDefaultBackground()V": "Laxu;c()V",
+        "drawScreen": "Lawz;a(IIF)V",
+        "Lnet/minecraft/client/gui/GuiScreen;drawCenteredString(Lnet/minecraft/client/gui/FontRenderer;Ljava/lang/String;III)V": "Laxu;a(Lavn;Ljava/lang/String;III)V"
+      },
+      "com/paraguacraft/pvp/mixins/performance/MixinMinecraft": {
+        "loadWorld(Lnet/minecraft/client/multiplayer/WorldClient;Ljava/lang/String;)V": "Lave;a(Lbdb;Ljava/lang/String;)V"
+      },
+      "com/paraguacraft/pvp/mixins/MixinGuiIngame": {
+        "renderScoreboard": "Lavo;a(Lauk;Lavr;)V",
+        "Lnet/minecraft/client/gui/FontRenderer;drawString(Ljava/lang/String;III)I": "Lavn;a(Ljava/lang/String;III)I"
+      },
+      "com/paraguacraft/pvp/mixins/animations/MixinEntityLivingBaseSwing": {
+        "getSwingProgress": "Lpr;l(F)F"
+      },
+      "com/paraguacraft/pvp/mixins/performance/MixinRenderManager": {
+        "shouldRender": "Lbiu;a(Lpk;Lbia;DDD)Z"
+      }
+    },
+    "searge": {
+      "com/paraguacraft/pvp/mixins/client/MixinGuiDownloadTerrain": {
+        "Lnet/minecraft/client/gui/GuiScreen;drawDefaultBackground()V": "Lnet/minecraft/client/gui/GuiScreen;func_146276_q_()V",
+        "drawScreen": "Lnet/minecraft/client/gui/GuiDownloadTerrain;func_73863_a(IIF)V",
+        "Lnet/minecraft/client/gui/GuiScreen;drawCenteredString(Lnet/minecraft/client/gui/FontRenderer;Ljava/lang/String;III)V": "Lnet/minecraft/client/gui/GuiScreen;func_73732_a(Lnet/minecraft/client/gui/FontRenderer;Ljava/lang/String;III)V"
+      },
+      "com/paraguacraft/pvp/mixins/performance/MixinEffectRenderer": {
+        "addEffect": "Lnet/minecraft/client/particle/EffectRenderer;func_78873_a(Lnet/minecraft/client/particle/EntityFX;)V"
+      },
+      "com/paraguacraft/pvp/mixins/MixinRendererLivingEntity": {
+        "setBrightness": "Lnet/minecraft/client/renderer/entity/RendererLivingEntity;func_177092_a(Lnet/minecraft/entity/EntityLivingBase;FZ)Z"
+      },
+      "com/paraguacraft/pvp/mixins/cosmetics/MixinNametagLogo": {
+        "renderLivingLabel(Lnet/minecraft/entity/Entity;Ljava/lang/String;DDDI)V": "Lnet/minecraft/client/renderer/entity/Render;func_147906_a(Lnet/minecraft/entity/Entity;Ljava/lang/String;DDDI)V",
+        "Lnet/minecraft/client/gui/FontRenderer;drawString(Ljava/lang/String;III)I": "Lnet/minecraft/client/gui/FontRenderer;func_78276_b(Ljava/lang/String;III)I"
+      },
+      "com/paraguacraft/pvp/mixins/MixinItemRenderer": {
+        "renderFireInFirstPerson": "Lnet/minecraft/client/renderer/ItemRenderer;func_78442_d(F)V",
+        "renderItemInFirstPerson": "Lnet/minecraft/client/renderer/ItemRenderer;func_78440_a(F)V"
+      },
+      "com/paraguacraft/pvp/mixins/client/MixinGuiConnecting": {
+        "Lnet/minecraft/client/gui/GuiScreen;drawDefaultBackground()V": "Lnet/minecraft/client/gui/GuiScreen;func_146276_q_()V",
+        "drawScreen": "Lnet/minecraft/client/multiplayer/GuiConnecting;func_73863_a(IIF)V",
+        "Lnet/minecraft/client/gui/GuiScreen;drawCenteredString(Lnet/minecraft/client/gui/FontRenderer;Ljava/lang/String;III)V": "Lnet/minecraft/client/gui/GuiScreen;func_73732_a(Lnet/minecraft/client/gui/FontRenderer;Ljava/lang/String;III)V"
+      },
+      "com/paraguacraft/pvp/mixins/performance/MixinMinecraft": {
+        "loadWorld(Lnet/minecraft/client/multiplayer/WorldClient;Ljava/lang/String;)V": "Lnet/minecraft/client/Minecraft;func_71353_a(Lnet/minecraft/client/multiplayer/WorldClient;Ljava/lang/String;)V"
+      },
+      "com/paraguacraft/pvp/mixins/MixinGuiIngame": {
+        "renderScoreboard": "Lnet/minecraft/client/gui/GuiIngame;func_180475_a(Lnet/minecraft/scoreboard/ScoreObjective;Lnet/minecraft/client/gui/ScaledResolution;)V",
+        "Lnet/minecraft/client/gui/FontRenderer;drawString(Ljava/lang/String;III)I": "Lnet/minecraft/client/gui/FontRenderer;func_78276_b(Ljava/lang/String;III)I"
+      },
+      "com/paraguacraft/pvp/mixins/animations/MixinEntityLivingBaseSwing": {
+        "getSwingProgress": "Lnet/minecraft/entity/EntityLivingBase;func_70678_g(F)F"
+      },
+      "com/paraguacraft/pvp/mixins/performance/MixinRenderManager": {
+        "shouldRender": "Lnet/minecraft/client/renderer/entity/RenderManager;func_178635_a(Lnet/minecraft/entity/Entity;Lnet/minecraft/client/renderer/culling/ICamera;DDD)Z"
+      }
+    }
+  }
+}

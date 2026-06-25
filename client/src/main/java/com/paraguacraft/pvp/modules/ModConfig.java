@@ -1,5 +1,7 @@
 package com.paraguacraft.pvp.modules;
 
+import com.paraguacraft.pvp.core.PerformanceConfig;
+import com.paraguacraft.pvp.core.OptifinePreset;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -25,12 +27,20 @@ public class ModConfig {
     public static boolean isSneakingToggled = false; 
     public static boolean showArmorPercentage = true;
     public static boolean borderlessWindow = false;
+    public static boolean toggleSprintActive = true;
+    public static boolean fullbrightActive = true;
+
+    public static int keyMenu = org.lwjgl.input.Keyboard.KEY_RSHIFT;
+    public static int keyEditHud = org.lwjgl.input.Keyboard.KEY_RCONTROL;
+    public static int keyToggleSprint = org.lwjgl.input.Keyboard.KEY_V;
+    public static int keyFullbright = org.lwjgl.input.Keyboard.KEY_G;
 
     // --- NUEVOS MÓDULOS PREMIUM (Corrección Lunar Style) ---
     public static boolean showHeldItem = true; // Reemplaza a 'showHeldEnchants'
     public static boolean showServerHUD = true; // Reemplaza a 'showServerIP'
     public static boolean showCompass = true; // Reemplaza a 'showDirection'
-    
+    public static boolean showNametagLogo = true;
+    public static boolean showNametagLogoOthers = true;
     // Coordenadas Iniciales Acomodadas
     public static int fpsX = 5, fpsY = 5;
     public static int pingX = 5, pingY = 15;
@@ -67,12 +77,22 @@ public class ModConfig {
             props.setProperty("toggleSneak", String.valueOf(toggleSneak));
             props.setProperty("showArmorPercentage", String.valueOf(showArmorPercentage));
             props.setProperty("borderlessWindow", String.valueOf(borderlessWindow));
+            props.setProperty("toggleSprintActive", String.valueOf(toggleSprintActive));
+            props.setProperty("fullbrightActive", String.valueOf(fullbrightActive));
+            props.setProperty("keyMenu", String.valueOf(keyMenu));
+            props.setProperty("keyEditHud", String.valueOf(keyEditHud));
+            props.setProperty("keyToggleSprint", String.valueOf(keyToggleSprint));
+            props.setProperty("keyFullbright", String.valueOf(keyFullbright));
             
             // Booleanos Nuevos
             props.setProperty("showHeldItem", String.valueOf(showHeldItem));
             props.setProperty("showServerHUD", String.valueOf(showServerHUD));
             props.setProperty("showCompass", String.valueOf(showCompass));
-
+            props.setProperty("showNametagLogo", String.valueOf(showNametagLogo));
+            props.setProperty("showNametagLogoOthers", String.valueOf(showNametagLogoOthers));
+            props.setProperty("boostFps", String.valueOf(PerformanceConfig.boostFps));
+            props.setProperty("oldAnimations", String.valueOf(PerformanceConfig.oldAnimations));
+            PerformanceConfig.saveToProperties(props);
             // Coordenadas
             props.setProperty("fpsX", String.valueOf(fpsX));
             props.setProperty("fpsY", String.valueOf(fpsY));
@@ -121,11 +141,23 @@ public class ModConfig {
             toggleSneak = Boolean.parseBoolean(props.getProperty("toggleSneak", String.valueOf(toggleSneak)));
             showArmorPercentage = Boolean.parseBoolean(props.getProperty("showArmorPercentage", String.valueOf(showArmorPercentage)));
             borderlessWindow = Boolean.parseBoolean(props.getProperty("borderlessWindow", String.valueOf(borderlessWindow)));
+            toggleSprintActive = Boolean.parseBoolean(props.getProperty("toggleSprintActive", String.valueOf(toggleSprintActive)));
+            fullbrightActive = Boolean.parseBoolean(props.getProperty("fullbrightActive", String.valueOf(fullbrightActive)));
+            keyMenu = Integer.parseInt(props.getProperty("keyMenu", String.valueOf(keyMenu)));
+            keyEditHud = Integer.parseInt(props.getProperty("keyEditHud", String.valueOf(keyEditHud)));
+            keyToggleSprint = Integer.parseInt(props.getProperty("keyToggleSprint", String.valueOf(keyToggleSprint)));
+            keyFullbright = Integer.parseInt(props.getProperty("keyFullbright", String.valueOf(keyFullbright)));
             
             // Booleanos Nuevos
             showHeldItem = Boolean.parseBoolean(props.getProperty("showHeldItem", String.valueOf(showHeldItem)));
             showServerHUD = Boolean.parseBoolean(props.getProperty("showServerHUD", String.valueOf(showServerHUD)));
             showCompass = Boolean.parseBoolean(props.getProperty("showCompass", String.valueOf(showCompass)));
+            showNametagLogo = Boolean.parseBoolean(props.getProperty("showNametagLogo", String.valueOf(showNametagLogo)));
+            showNametagLogoOthers = Boolean.parseBoolean(props.getProperty("showNametagLogoOthers", String.valueOf(showNametagLogoOthers)));
+            PerformanceConfig.loadFromProperties(props);
+            if (PerformanceConfig.boostFps && PerformanceConfig.applyVanillaPreset) {
+                OptifinePreset.applyIfEnabled();
+            }
 
             fpsX = Integer.parseInt(props.getProperty("fpsX", String.valueOf(fpsX)));
             fpsY = Integer.parseInt(props.getProperty("fpsY", String.valueOf(fpsY)));

@@ -126,13 +126,17 @@ pub async fn ensure_launch_java(
     meta_override: Option<&str>,
     settings_override: Option<&str>,
 ) -> AppResult<PathBuf> {
-    let user_override = meta_override
-        .filter(|s| !s.is_empty())
-        .or_else(|| settings_override.filter(|s| !s.is_empty()));
-
-    if let Some(p) = user_override {
+    // Override por instancia: el usuario eligió Java para esta versión.
+    if let Some(p) = meta_override.filter(|s| !s.is_empty()) {
         validate_override(p, mc_version)?;
         return Ok(format_path(Path::new(p), JavaRole::Launch));
+    }
+
+    // Override global: solo si es compatible (p. ej. Java 21 no aplica a 1.8.9).
+    if let Some(p) = settings_override.filter(|s| !s.is_empty()) {
+        if validate_override(p, mc_version).is_ok() {
+            return Ok(format_path(Path::new(p), JavaRole::Launch));
+        }
     }
 
     // Runtime oficial Mojang (descarga si falta).

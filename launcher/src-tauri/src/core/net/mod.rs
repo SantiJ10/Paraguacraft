@@ -10,7 +10,7 @@
 //!     en idle desde `AppState::net_end` cuando termina el grupo.
 
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use futures_util::stream::{self, StreamExt};
@@ -53,6 +53,18 @@ fn file_matches_sha1(path: &Path, expected: &str) -> bool {
         Ok(bytes) => sha1_hex(&bytes).eq_ignore_ascii_case(expected),
         Err(_) => false,
     }
+}
+
+/// Mojang publica SHA-1 incorrectos en natives legacy (1.8–1.12). Aceptar si tamaño plausible.
+fn legacy_library_sha1_soft_ok(dest: &Path, size: usize) -> bool {
+    if size < 512 {
+        return false;
+    }
+    let p = dest.to_string_lossy().replace('\\', "/").to_lowercase();
+    (p.contains("lwjgl") && p.contains("natives"))
+        || p.contains("lwjgl-platform")
+        || p.contains("net/java/jinput")
+        || p.contains("net/java/jutils")
 }
 
 fn emit(
@@ -143,7 +155,7 @@ pub async fn download_one(client: &reqwest::Client, item: &DownloadItem) -> AppR
 
     if let Some(expected) = &sha1 {
         let got = sha1_hex(&bytes);
-        if !got.eq_ignore_ascii_case(expected) {
+        if !got.eq_ignore_ascii_case(expected) && !legacy_library_sha1_soft_ok(&dest, bytes.len()) {
             return Err(AppError::msg(format!(
                 "SHA-1 invalido para {} (esperado {expected}, obtenido {got})",
                 dest.display()
@@ -155,6 +167,83 @@ pub async fn download_one(client: &reqwest::Client, item: &DownloadItem) -> AppR
     std::fs::write(&tmp, &bytes)?;
     std::fs::rename(&tmp, &dest)?;
     Ok(bytes.len() as u64)
+}
+
+const DRIVE_FOLDER_ID: &str = "1kiGI_iWfoiAxDAHfnhlHya-MxYs7Fwbt";
+
+/// GET GitHub; si falla y `filename` es `.zip`, fallback a Google Drive directo.
+pub async fn download_github_or_drive(
+    client: &reqwest::Client,
+    github_url: &str,
+    filename: &str,
+    dest: impl Into<PathBuf>,
+    sha1: Option<String>,
+) -> AppResult<u64> {
+    let dest = dest.into();
+    match download_one(
+        client,
+        &DownloadItem::new(github_url, dest.clone()).with_sha1(sha1.clone()),
+    )
+    .await
+    {
+        Ok(n) if dest.is_file() => return Ok(n),
+        _ => {
+            let _ = std::fs::remove_file(dest.with_extension("part"));
+        }
+    }
+    if !filename.to_lowercase().ends_with(".zip") {
+        return Err(AppError::msg(format!("No se pudo descargar {filename} desde GitHub")));
+    }
+    let drive_id = resolve_drive_file_id(client, filename).await?;
+    let drive_url = format!("https://drive.google.com/uc?export=download&id={drive_id}");
+    download_one(
+        client,
+        &DownloadItem::new(drive_url, dest).with_sha1(sha1),
+    )
+    .await
+}
+
+async fn resolve_drive_file_id(client: &reqwest::Client, filename: &str) -> AppResult<String> {
+    let folder_url = format!("https://drive.google.com/drive/folders/{DRIVE_FOLDER_ID}");
+    let html = String::from_utf8_lossy(&fetch_bytes(client, &folder_url).await?).into_owned();
+    let needle = filename.to_lowercase().replace(' ', "-");
+    for cap in regex_lite_drive_rows(&html) {
+        if cap.0.to_lowercase().replace(' ', "-") == needle {
+            return Ok(cap.1);
+        }
+    }
+    Err(AppError::msg(format!("Drive: no se encontro {filename}")))
+}
+
+fn regex_lite_drive_rows(html: &str) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    let mut rest = html;
+    while let Some(i) = rest.find("aria-label=\"") {
+        rest = &rest[i + 14..];
+        let Some(end) = rest.find('"') else { break };
+        let label = &rest[..end];
+        if !label.ends_with(".zip") {
+            continue;
+        }
+        let name = label.split_whitespace().next().unwrap_or(label).to_string();
+        let chunk = &rest[..rest.len().min(800)];
+        if let Some(ssk) = chunk.find("ssk='5:") {
+            let after = &chunk[ssk + 6..];
+            if let Some(colon) = after.find(':') {
+                let raw = &after[colon + 1..];
+                if let Some(q) = raw.find('\'') {
+                    let mut id = raw[..q].to_string();
+                    if let Some(pos) = id.rfind("-0-") {
+                        id.truncate(pos);
+                    }
+                    if id.len() > 20 {
+                        out.push((name, id));
+                    }
+                }
+            }
+        }
+    }
+    out
 }
 
 /// Concurrencia de descargas: setting del usuario (0 = auto según hardware).
@@ -189,7 +278,14 @@ pub async fn download_all(
         return Ok(());
     }
     let done = Arc::new(AtomicUsize::new(0));
-    let concurrency = concurrency.clamp(1, 32);
+    let last_emit_pct = Arc::new(AtomicU32::new(0));
+    let concurrency = if total > 400 {
+        concurrency.clamp(1, 8)
+    } else if total > 100 {
+        concurrency.clamp(1, 12)
+    } else {
+        concurrency.clamp(1, 32)
+    };
 
     emit_simple(app, group_id, label, 0.0, "downloading");
 
@@ -197,6 +293,7 @@ pub async fn download_all(
         let client = client.clone();
         let app = app.clone();
         let done = done.clone();
+        let last_emit_pct = last_emit_pct.clone();
         let group = group_id.to_string();
         let label = label.to_string();
         async move {
@@ -208,18 +305,25 @@ pub async fn download_all(
             let res = download_one(&client, &item).await;
             let n = done.fetch_add(1, Ordering::SeqCst) + 1;
             let pct = (n as f64 / total as f64) * 100.0;
-            if let Err(ref e) = res {
-                emit(
-                    &app,
-                    &group,
-                    &label,
-                    pct,
-                    "error",
-                    Some(&e.to_string()),
-                    Some(&file_label),
-                );
-            } else {
-                emit_simple(&app, &group, &label, pct, "downloading");
+            let pct_i = pct.floor() as u32;
+            let should_emit = res.is_err()
+                || n == total
+                || pct_i > last_emit_pct.load(Ordering::Relaxed);
+            if should_emit {
+                last_emit_pct.store(pct_i, Ordering::Relaxed);
+                if let Err(ref e) = res {
+                    emit(
+                        &app,
+                        &group,
+                        &label,
+                        pct,
+                        "error",
+                        Some(&e.to_string()),
+                        Some(&file_label),
+                    );
+                } else {
+                    emit_simple(&app, &group, &label, pct, "downloading");
+                }
             }
             res.map(|_| ())
         }

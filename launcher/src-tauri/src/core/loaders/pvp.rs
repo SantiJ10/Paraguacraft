@@ -1,15 +1,14 @@
 //! Preset **Paraguacraft PvP** (solo Minecraft 1.8.9).
 //!
-//! Instala Forge 11.15.1.2318 y obtiene mods PvP desde (en orden):
-//! 1. Instancia / caché local (SHA1 verificado)
-//! 2. `bundled/pvp/` junto al repo o en `%APPDATA%/ParaguacraftLauncher/bundled/pvp`
-//! 3. GitHub (`clientes/paraguacraft-pvp`, `bundled/pvp`, release `pvp-client-2.0.0`)
+//! El manifest remoto (`clientes/paraguacraft-pvp/manifest.json`) define versión,
+//! release de GitHub y SHA-1. Al instalar o lanzar, se sincroniza el cliente.
 
 use std::path::{Path, PathBuf};
 
+use serde::Deserialize;
 use serde_json::Value;
-
-use tauri::AppHandle;
+use tauri::path::BaseDirectory;
+use tauri::{AppHandle, Manager};
 
 use crate::core::net::{self, DownloadItem};
 use crate::core::paths;
@@ -20,40 +19,87 @@ use super::forge;
 pub const MC: &str = "1.8.9";
 pub const FORGE_VERSION: &str = "11.15.1.2318";
 const GITHUB_REPO: &str = "SantiJ10/Paraguacraft";
-const RELEASE_TAG: &str = "pvp-client-2.0.0";
-const PVP_CLIENT_JAR: &str = "ParaguacraftPvP-2.0.0.jar";
-const PVP_CLIENT_SHA1: &str = "50d07195dc9acbe30b0e723fffddfa992845f568";
-const OPTIFINE_SHA1: &str = "d362d58a28f5373b141b9e426e8e160638bfafcd";
+const MANIFEST_URL: &str =
+    "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/clientes/paraguacraft-pvp/manifest.json";
 
-struct PvpMod {
-    filename: &'static str,
-    sha1: &'static str,
-}
+const FALLBACK_CLIENT_VERSION: &str = "2.0.0";
+const FALLBACK_RELEASE_TAG: &str = "pvp-client-2.0.0";
 
-const MODS: &[PvpMod] = &[
-    PvpMod {
-        filename: PVP_CLIENT_JAR,
-        sha1: PVP_CLIENT_SHA1,
-    },
-    PvpMod {
-        filename: "OptiFine_1.8.9_HD_U_M5.jar",
-        sha1: OPTIFINE_SHA1,
-    },
+const FALLBACK_MODS: &[(&str, &str)] = &[
+    (
+        "ParaguacraftPvP-2.0.0.jar",
+        "04aee52f1d0bc60f177d7339ef341b3c9e103bd6",
+    ),
+    (
+        "OptiFine_1.8.9_HD_U_M5.jar",
+        "d362d58a28f5373b141b9e426e8e160638bfafcd",
+    ),
 ];
 
-/// Solo 1.8.9: devuelve la version fija de Forge del cliente PvP.
+#[derive(Debug, Clone, Deserialize)]
+struct PvpManifest {
+    #[serde(default = "default_client_version")]
+    client_version: String,
+    #[serde(default)]
+    release_tag: Option<String>,
+    #[serde(default)]
+    mods: Vec<PvpModEntry>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct PvpModEntry {
+    filename: String,
+    sha1: String,
+}
+
+fn default_client_version() -> String {
+    FALLBACK_CLIENT_VERSION.into()
+}
+
+impl Default for PvpManifest {
+    fn default() -> Self {
+        Self {
+            client_version: FALLBACK_CLIENT_VERSION.into(),
+            release_tag: Some(FALLBACK_RELEASE_TAG.into()),
+            mods: FALLBACK_MODS
+                .iter()
+                .map(|(f, s)| PvpModEntry {
+                    filename: (*f).into(),
+                    sha1: (*s).into(),
+                })
+                .collect(),
+        }
+    }
+}
+
+impl PvpManifest {
+    fn release_tag(&self) -> String {
+        self.release_tag.clone().unwrap_or_else(|| {
+            format!("pvp-client-{}", self.client_version.trim())
+        })
+    }
+}
+
+async fn fetch_manifest(client: &reqwest::Client) -> PvpManifest {
+    match net::fetch_json::<PvpManifest>(client, MANIFEST_URL).await {
+        Ok(m) if !m.mods.is_empty() => m,
+        _ => PvpManifest::default(),
+    }
+}
+
+/// Versión publicada del cliente PvP (manifest remoto).
+pub async fn remote_client_version(client: &reqwest::Client) -> String {
+    fetch_manifest(client).await.client_version
+}
+
 pub async fn versions(client: &reqwest::Client, mc: &str) -> AppResult<Vec<String>> {
     if mc != MC {
         return Ok(vec![]);
     }
-    let forge_list = forge::versions(client, mc).await?;
-    if forge_list.iter().any(|v| v == FORGE_VERSION) {
-        return Ok(vec![FORGE_VERSION.into()]);
-    }
+    let _ = forge::versions(client, mc).await?;
     Ok(vec![FORGE_VERSION.into()])
 }
 
-/// Instala vanilla + Forge para el perfil PvP.
 pub async fn install(
     app: &AppHandle,
     client: &reqwest::Client,
@@ -82,9 +128,22 @@ fn file_sha1(path: &Path) -> Option<String> {
     Some(net::sha1_hex(&bytes))
 }
 
-/// Carpetas locales donde puede haber JARs PvP (sin internet).
-fn local_bundled_dirs() -> Vec<PathBuf> {
-    let mut dirs = Vec::new();
+fn resource_roots(app: &AppHandle) -> Vec<PathBuf> {
+    let mut roots = Vec::new();
+    for rel in ["bundled/pvp", "resources/bundled/pvp"] {
+        if let Ok(p) = app.path().resolve(rel, BaseDirectory::Resource) {
+            roots.push(p);
+        }
+    }
+    if let Ok(dir) = app.path().resource_dir() {
+        roots.push(dir.join("bundled").join("pvp"));
+        roots.push(dir.join("resources").join("bundled").join("pvp"));
+    }
+    roots
+}
+
+fn local_bundled_dirs(app: &AppHandle) -> Vec<PathBuf> {
+    let mut dirs = resource_roots(app);
     if let Ok(custom) = std::env::var("PARAGUACRAFT_BUNDLED_PVP") {
         dirs.push(PathBuf::from(custom));
     }
@@ -103,56 +162,101 @@ fn local_bundled_dirs() -> Vec<PathBuf> {
     dirs
 }
 
-fn copy_verified(src: &Path, dest: &Path, sha1_expected: &str, label: &str) -> AppResult<()> {
-    if file_sha1(src).as_deref() != Some(sha1_expected) {
-        return Err(AppError::msg(format!("{label} local corrupto o desactualizado")));
+fn find_local_file(app: &AppHandle, filename: &str) -> Option<PathBuf> {
+    for dir in local_bundled_dirs(app) {
+        let p = dir.join(filename);
+        if p.is_file() && p.metadata().map(|m| m.len()).unwrap_or(0) > 10_000 {
+            return Some(p);
+        }
     }
+    None
+}
+
+fn resolve_sha(app: &AppHandle, filename: &str, remote_sha: &str) -> String {
+    // El manifest remoto define la versión publicada; el embebido solo sirve como fuente de copia.
+    if !remote_sha.is_empty() {
+        return remote_sha.to_string();
+    }
+    if let Some((_, fb)) = FALLBACK_MODS.iter().find(|(f, _)| *f == filename) {
+        return (*fb).to_string();
+    }
+    if let Some(p) = find_local_file(app, filename) {
+        if let Some(s) = file_sha1(&p) {
+            return s;
+        }
+    }
+    remote_sha.to_string()
+}
+
+fn sha_matches(path: &Path, expected: &str, filename: &str) -> bool {
+    let Some(got) = file_sha1(path) else {
+        return false;
+    };
+    if got.eq_ignore_ascii_case(expected) {
+        return true;
+    }
+    if let Some((_, fb)) = FALLBACK_MODS.iter().find(|(f, _)| *f == filename) {
+        if got.eq_ignore_ascii_case(fb) {
+            return true;
+        }
+    }
+    false
+}
+
+fn copy_to_dest(src: &Path, dest: &Path) -> AppResult<()> {
     if let Some(parent) = dest.parent() {
         std::fs::create_dir_all(parent)?;
     }
     if dest.exists() {
         let _ = std::fs::remove_file(dest);
     }
-    std::fs::copy(src, dest)
-        .map_err(|e| AppError::msg(format!("No se pudo copiar {label}: {e}")))?;
+    std::fs::copy(src, dest).map_err(|e| AppError::msg(format!("No se pudo copiar {}: {e}", dest.display())))?;
     Ok(())
 }
 
-/// Copia desde `bundled/pvp` local si el SHA1 coincide.
-fn try_local_bundled(filename: &str, sha1_expected: &str, dest: &Path) -> AppResult<bool> {
-    for dir in local_bundled_dirs() {
-        let src = dir.join(filename);
-        if !src.is_file() {
-            continue;
-        }
-        if file_sha1(&src).as_deref() == Some(sha1_expected) {
-            copy_verified(&src, dest, sha1_expected, filename)?;
-            return Ok(true);
-        }
+fn try_local_bundled(
+    app: &AppHandle,
+    filename: &str,
+    sha_expected: &str,
+    dest: &Path,
+) -> AppResult<bool> {
+    let Some(src) = find_local_file(app, filename) else {
+        return Ok(false);
+    };
+    if !sha_matches(&src, sha_expected, filename) {
+        return Ok(false);
     }
-    Ok(false)
+    copy_to_dest(&src, dest)?;
+    Ok(true)
 }
 
-/// URLs publicas de assets PvP (canónico: `clientes/paraguacraft-pvp/` en GitHub).
-fn bundled_pvp_urls(filename: &str) -> Vec<String> {
+fn remote_urls(filename: &str, release_tag: &str) -> Vec<String> {
     vec![
-        format!("https://raw.githubusercontent.com/{GITHUB_REPO}/main/clientes/paraguacraft-pvp/{filename}"),
+        format!("https://github.com/{GITHUB_REPO}/releases/download/{release_tag}/{filename}"),
         format!("https://raw.githubusercontent.com/{GITHUB_REPO}/main/bundled/pvp/{filename}"),
-        format!("https://github.com/{GITHUB_REPO}/releases/download/{RELEASE_TAG}/{filename}"),
+        format!(
+            "https://raw.githubusercontent.com/{GITHUB_REPO}/main/clientes/paraguacraft-pvp/{filename}"
+        ),
     ]
 }
 
 async fn github_release_asset_url(
     client: &reqwest::Client,
     filename: &str,
+    release_tag: &str,
 ) -> Option<String> {
     for endpoint in [
-        format!("https://api.github.com/repos/{GITHUB_REPO}/releases/tags/{RELEASE_TAG}"),
+        format!("https://api.github.com/repos/{GITHUB_REPO}/releases/tags/{release_tag}"),
         format!("https://api.github.com/repos/{GITHUB_REPO}/releases/latest"),
     ] {
         let Ok(release): Result<Value, _> = net::fetch_json(client, &endpoint).await else {
             continue;
         };
+        if release["tag_name"].as_str() != Some(release_tag)
+            && endpoint.contains("latest")
+        {
+            continue;
+        }
         if let Some(assets) = release["assets"].as_array() {
             for asset in assets {
                 if asset["name"].as_str() == Some(filename) {
@@ -166,11 +270,15 @@ async fn github_release_asset_url(
 
 async fn download_verified(
     client: &reqwest::Client,
-    urls: Vec<String>,
+    mut urls: Vec<String>,
     dest: &Path,
-    sha1_expected: &str,
-    label: &str,
+    sha_expected: &str,
+    filename: &str,
+    release_tag: &str,
 ) -> AppResult<()> {
+    if let Some(u) = github_release_asset_url(client, filename, release_tag).await {
+        urls.insert(0, u);
+    }
     let tmp = dest.with_extension("part");
     for url in urls {
         if url.is_empty() {
@@ -183,83 +291,110 @@ async fn download_verified(
             let _ = std::fs::remove_file(&tmp);
             continue;
         }
-        if file_sha1(&tmp).as_deref() != Some(sha1_expected) {
+        if !sha_matches(&tmp, sha_expected, filename) {
             let _ = std::fs::remove_file(&tmp);
             continue;
-        }
-        if let Some(parent) = dest.parent() {
-            std::fs::create_dir_all(parent)?;
         }
         if dest.exists() {
             let _ = std::fs::remove_file(dest);
         }
         std::fs::rename(&tmp, dest)
-            .map_err(|e| AppError::msg(format!("No se pudo guardar {label}: {e}")))?;
+            .map_err(|e| AppError::msg(format!("No se pudo guardar {filename}: {e}")))?;
         return Ok(());
     }
-    Err(AppError::msg(format!("No se pudo descargar {label}")))
+    Err(AppError::msg(format!("No se pudo descargar {filename}")))
 }
 
-async fn ensure_bundled_asset(
-    client: &reqwest::Client,
-    filename: &str,
-    sha1_expected: &str,
-    dest: &Path,
-) -> AppResult<()> {
-    let mut urls = bundled_pvp_urls(filename);
-    if let Some(u) = github_release_asset_url(client, filename).await {
-        urls.insert(0, u);
+/// Elimina JARs PvP viejos cuando cambia el nombre (ej. 1.0.0 → 2.0.0).
+fn prune_stale_pvp_mods(mods_dir: &Path, keep: &[String]) {
+    let Ok(rd) = std::fs::read_dir(mods_dir) else {
+        return;
+    };
+    for e in rd.flatten() {
+        let name = e.file_name().to_string_lossy().to_lowercase();
+        if !name.ends_with(".jar") {
+            continue;
+        }
+        let is_pvp = name.starts_with("paraguacraftpvp") || name.starts_with("optifine_1.8.9");
+        if !is_pvp {
+            continue;
+        }
+        let keep_this = keep.iter().any(|k| k.to_lowercase() == name);
+        if !keep_this {
+            let _ = std::fs::remove_file(e.path());
+        }
     }
-    download_verified(client, urls, dest, sha1_expected, filename)
-        .await
-        .map_err(|_| {
-            AppError::msg(format!(
-                "No se pudo obtener {filename}. Coloca el archivo en \
-                 %APPDATA%\\ParaguacraftLauncher\\bundled\\pvp\\ o en bundled/pvp del proyecto, \
-                 o publicalo en GitHub (release {RELEASE_TAG}). \
-                 Manifest: https://github.com/{GITHUB_REPO}/tree/main/clientes/paraguacraft-pvp"
-            ))
-        })
 }
 
 async fn ensure_mod(
+    app: &AppHandle,
     client: &reqwest::Client,
-    mod_def: &PvpMod,
+    filename: &str,
+    sha_expected: &str,
+    release_tag: &str,
     mods_dir: &Path,
 ) -> AppResult<()> {
-    let dest = mods_dir.join(mod_def.filename);
-    if file_sha1(&dest).as_deref() == Some(mod_def.sha1) {
+    let dest = mods_dir.join(filename);
+    if sha_matches(&dest, sha_expected, filename) {
         return Ok(());
     }
 
     let cache = cache_dir();
     std::fs::create_dir_all(&cache)?;
-    let cache_path = cache.join(mod_def.filename);
-    if file_sha1(&cache_path).as_deref() == Some(mod_def.sha1) {
-        let _ = std::fs::copy(&cache_path, &dest);
+    let cache_path = cache.join(filename);
+    if sha_matches(&cache_path, sha_expected, filename) {
+        copy_to_dest(&cache_path, &dest)?;
         return Ok(());
     }
 
-    if try_local_bundled(mod_def.filename, mod_def.sha1, &dest)? {
+    if try_local_bundled(app, filename, sha_expected, &dest)? {
         let _ = std::fs::copy(&dest, &cache_path);
         return Ok(());
     }
 
-    ensure_bundled_asset(client, mod_def.filename, mod_def.sha1, &dest).await?;
+    download_verified(
+        client,
+        remote_urls(filename, release_tag),
+        &dest,
+        sha_expected,
+        filename,
+        release_tag,
+    )
+    .await
+    .map_err(|_| {
+        AppError::msg(format!(
+            "No se pudo obtener {filename} (cliente PvP). Actualizá el launcher o usá Reparar instancia."
+        ))
+    })?;
     let _ = std::fs::copy(&dest, &cache_path);
     Ok(())
 }
 
-/// Descarga ParaguacraftPvP + OptiFine en la instancia (solo fuentes remotas).
+/// Sincroniza mods PvP según el manifest remoto (versión + SHA-1).
 pub async fn install_bundle(
-    _app: &AppHandle,
+    app: &AppHandle,
     client: &reqwest::Client,
     instance_dir: &Path,
 ) -> AppResult<()> {
+    let manifest = fetch_manifest(client).await;
+    let release_tag = manifest.release_tag();
     let mods_dir = instance_dir.join("mods");
     std::fs::create_dir_all(&mods_dir)?;
-    for mod_def in MODS {
-        ensure_mod(client, mod_def, &mods_dir).await?;
+
+    let filenames: Vec<String> = manifest.mods.iter().map(|m| m.filename.clone()).collect();
+    prune_stale_pvp_mods(&mods_dir, &filenames);
+
+    for entry in &manifest.mods {
+        let sha = resolve_sha(app, &entry.filename, &entry.sha1);
+        ensure_mod(
+            app,
+            client,
+            &entry.filename,
+            &sha,
+            &release_tag,
+            &mods_dir,
+        )
+        .await?;
     }
     Ok(())
 }

@@ -46,6 +46,7 @@ client/out/
 .mixin.out/
 *.jar
 !bundled/pvp/*.jar
+bundled/pvp/resourcepacks/*.zip
 !client/src/**/*.jar
 
 # --- Datos locales / IDE ---

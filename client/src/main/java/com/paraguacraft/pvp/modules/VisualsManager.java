@@ -1,5 +1,6 @@
 package com.paraguacraft.pvp.modules;
 
+import com.paraguacraft.pvp.core.PerformanceConfig;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
 import net.minecraft.client.Minecraft;
@@ -55,9 +56,11 @@ public class VisualsManager {
     @SubscribeEvent
     public void onClientTick(ClientTickEvent event) {
         if (mc.theWorld != null) {
-            mc.theWorld.setWorldTime(6000); 
-            mc.theWorld.setRainStrength(0.0F); 
-            mc.theWorld.setThunderStrength(0.0F); 
+            mc.theWorld.setWorldTime(6000);
+            if (PerformanceConfig.boostFps) {
+                mc.theWorld.setRainStrength(0.0F);
+                mc.theWorld.setThunderStrength(0.0F);
+            }
         }
 
         // --- LA MAGIA: Toggle Sneak con tu Shift nativo ---

@@ -97,6 +97,21 @@ fn main() {
     );
 
     println!("cargo:rerun-if-changed=resources/branding");
+
+    // JARs PvP embebidos en el instalador (offline / sin depender del release remoto).
+    let repo_bundled = manifest.join("../../bundled/pvp");
+    let res_pvp = manifest.join("resources/bundled/pvp");
+    if repo_bundled.is_dir() {
+        let _ = fs::create_dir_all(&res_pvp);
+        for entry in fs::read_dir(&repo_bundled).into_iter().flatten().flatten() {
+            let p = entry.path();
+            if p.extension().and_then(|e| e.to_str()) == Some("jar") {
+                let _ = fs::copy(&p, res_pvp.join(entry.file_name()));
+            }
+        }
+        println!("cargo:rerun-if-changed=../../bundled/pvp");
+    }
+
     tauri_build::build();
 }
 

@@ -7,16 +7,18 @@
     {
       "id": "faithful",
       "title": "Faithful 32x",
-      "subtitle": "Vanilla en alta resolución · Modrinth",
+      "subtitle": "Vanilla en alta resolución",
       "badge": "32x",
-      "modrinthSlug": "faithful-32x"
+      "fileName": "faithful-32x-1.8.9.zip",
+      "sha1": "967a032e8b1224868c2684c360b41a0fc9d930ad"
     },
     {
       "id": "tightfault",
       "title": "Tightfault PvP",
-      "subtitle": "Estilo Techno · Technofault 1.8",
+      "subtitle": "Estilo Techno · Revamp",
       "badge": "16x",
-      "modrinthSlug": "technofault"
+      "fileName": "tightfault-revamp-techno.zip",
+      "sha1": "bc282865d57ea623d8d5812219e34faf25e90bf5"
     },
     {
       "id": "glorious",

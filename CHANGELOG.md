@@ -3,6 +3,39 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.1.1] - 2026-06-19
+
+### Added
+- **Cliente PvP 2.0.0** recompilado: HUD/GUI Lunar, perfiles, keybinds, resource packs, badge sync, optimizaciones Fase C/D.
+
+### Fixed
+- **Auto-update PvP**: el SHA del manifest remoto manda sobre el JAR embebido; Play descarga el cliente nuevo aunque el instalador sea viejo.
+- JAR embebido actualizado (`04aee52f…`) para instalaciones offline.
+
+## [7.1.0] - 2026-06-25
+
+### Added
+- **Cliente PvP dinámico**: versión, release y mods desde `manifest.json` remoto; elimina JARs viejos al actualizar.
+- **Perfil JVM PvP 1.8.9**: RAM/G1GC por gama de hardware (Java 8).
+
+### Changed
+- README orientado al jugador (intro, features, instalación) como la web.
+- Manifest PvP con `client_version` y `release_tag`.
+
+### Fixed
+- SHA-1 del manifest remoto vs JAR embebido; prioridad local + fallback.
+
+## [7.0.5] - 2026-06-24
+
+### Fixed
+- **Lanzamiento 1.8.9 en Windows**: Java 8 ya no usa `@args.txt` (solo Java 9+); corrige cierre instantáneo sin logs.
+- **Java por versión**: el override global en Ajustes no bloquea Java 8 en instancias 1.8.9 si tenés Java 21 para 1.21.
+- **Título de ventana**: solo «Paraguacraft PvP» en 1.8.9 PvP; otras versiones muestran «Paraguacraft X.X.X».
+
+### Changed
+- **PvP Client 2.0.0**: texture packs desde GitHub Release y Google Drive (sin Modrinth en el gestor del mod).
+- Instancias PvP oficiales (`Paraguacraft_1.8.9_PvP`) separadas de carpetas de prueba.
+
 ## [7.0.4] - 2026-06-24
 
 ### Fixed

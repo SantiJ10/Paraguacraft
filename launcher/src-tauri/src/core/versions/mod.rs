@@ -403,6 +403,9 @@ async fn collect_asset_items(
     if let Some(objects) = index_json["objects"].as_object() {
         for (_, obj) in objects {
             let Some(hash) = obj["hash"].as_str() else { continue };
+            if hash.len() < 2 {
+                continue;
+            }
             let sub = &hash[0..2];
             let dest = assets_root.join("objects").join(sub).join(hash);
             let url = format!("{RESOURCES_BASE}/{sub}/{hash}");
@@ -439,57 +442,35 @@ pub async fn install_vanilla(
     let libs = collect_library_items(&version_json);
     let assets = collect_asset_items(client, &version_json).await?;
 
-    let client_j = client.clone();
-    let app_j = app.clone();
-    let group_j = group.clone();
-    let id_j = id.to_string();
-    let jar_f = async move {
-        if jar_items.is_empty() {
-            return Ok(());
-        }
-        net::download_all(
-            &client_j,
-            jar_items,
-            4,
-            &app_j,
-            &group_j,
-            &format!("Minecraft {id_j}"),
-        )
-        .await
-    };
+    net::download_all(
+        client,
+        jar_items,
+        2,
+        app,
+        &format!("{group}-jar"),
+        &format!("Minecraft {id}"),
+    )
+    .await?;
 
-    let client_l = client.clone();
-    let app_l = app.clone();
-    let group_l = group.clone();
-    let id_l = id.to_string();
-    let libs_f = async move {
-        net::download_all(
-            &client_l,
-            libs,
-            conc,
-            &app_l,
-            &group_l,
-            &format!("Librerias {id_l}"),
-        )
-        .await
-    };
+    net::download_all(
+        client,
+        libs,
+        conc.min(12),
+        app,
+        &format!("{group}-libs"),
+        &format!("Librerias {id}"),
+    )
+    .await?;
 
-    let client_a = client.clone();
-    let app_a = app.clone();
-    let id_a = id.to_string();
-    let assets_f = async move {
-        net::download_all(
-            &client_a,
-            assets,
-            conc,
-            &app_a,
-            &group,
-            &format!("Assets {id_a}"),
-        )
-        .await
-    };
-
-    tokio::try_join!(jar_f, libs_f, assets_f)?;
+    net::download_all(
+        client,
+        assets,
+        conc.min(8),
+        app,
+        &format!("{group}-assets"),
+        &format!("Assets {id}"),
+    )
+    .await?;
 
     if let Some(comp) = java::mojang::component_from_version_id(id) {
         let _ = java::mojang::ensure_runtime(app, client, &comp).await;
