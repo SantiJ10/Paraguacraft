@@ -194,11 +194,20 @@ async fn spawn_for_instance(
     if let Some(addr) = server_address.as_deref().filter(|s| !s.trim().is_empty()) {
         launch::append_server_join(&mut args, addr.trim());
     }
-    let has_pg_rpc = settings.discord_rpc && launch::has_paraguacraft_pvp_mod(&game_dir);
-    let mut launch_env: Vec<(&str, &str)> = Vec::new();
+    let has_pvp_mod = launch::has_paraguacraft_pvp_mod(&game_dir);
+    let has_pg_rpc = settings.discord_rpc && has_pvp_mod;
+    let ipc_path_owned = crate::core::overlay_ipc::ipc_path().to_string_lossy().into_owned();
+    let mut launch_env_owned: Vec<(String, String)> = Vec::new();
     if has_pg_rpc {
-        launch_env.push(("PARAGUACRAFT_LAUNCHER_RPC", "1"));
+        launch_env_owned.push(("PARAGUACRAFT_LAUNCHER_RPC".into(), "1".into()));
     }
+    if has_pvp_mod {
+        launch_env_owned.push(("PARAGUACRAFT_OVERLAY_IPC".into(), ipc_path_owned));
+    }
+    let launch_env: Vec<(&str, &str)> = launch_env_owned
+        .iter()
+        .map(|(k, v)| (k.as_str(), v.as_str()))
+        .collect();
     let child = launch::spawn_game(&java, &args, &game_dir, &launch_env, java_major)?;
     let pid = child.id();
 
@@ -236,6 +245,7 @@ async fn spawn_for_instance(
         server_address.clone(),
         settings.clone(),
         has_pg_rpc,
+        has_pvp_mod,
     );
 
     state.shutdown_network();

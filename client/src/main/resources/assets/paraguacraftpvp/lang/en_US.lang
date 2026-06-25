@@ -1,0 +1,75 @@
+paraguacraft.menu.brand=PARAGUACRAFT
+paraguacraft.menu.subtitle=Client V2 - Mods
+paraguacraft.menu.search.placeholder=Search mods...
+paraguacraft.menu.empty=No mods in this category
+paraguacraft.menu.open=OPEN
+paraguacraft.menu.on=ON
+paraguacraft.menu.off=OFF
+paraguacraft.menu.hint=Right Shift - Mod Menu  |  Right Ctrl - Edit HUD  |  Textures - Resource Packs
+paraguacraft.menu.particles.prefix=Particles: %s
+paraguacraft.menu.hw.prefix=HW: %s
+
+paraguacraft.menu.cat.all=All
+paraguacraft.menu.cat.hud=HUD
+paraguacraft.menu.cat.pvp=PvP
+paraguacraft.menu.cat.mechanics=Mechanics
+paraguacraft.menu.cat.server=Server
+paraguacraft.menu.cat.textures=Textures
+paraguacraft.menu.cat.perf=Performance
+
+paraguacraft.menu.mod.fps=FPS
+paraguacraft.menu.mod.ping=Ping
+paraguacraft.menu.mod.cps=CPS
+paraguacraft.menu.mod.keystrokes=Keystrokes
+paraguacraft.menu.mod.coords=Coordinates
+paraguacraft.menu.mod.armor=Armor HUD
+paraguacraft.menu.mod.armor_pct=Armor %
+paraguacraft.menu.mod.potions=Potion HUD
+paraguacraft.menu.mod.held_item=Held Item
+paraguacraft.menu.mod.server_hud=Server HUD
+paraguacraft.menu.mod.compass=Compass
+paraguacraft.menu.mod.resource_packs=Resource Packs
+paraguacraft.menu.mod.nametag_logo=Nametag Logo
+paraguacraft.menu.mod.nametag_others=Logo on others
+paraguacraft.menu.mod.no_hurt_cam=No Hurt Cam
+paraguacraft.menu.mod.scoreboard=Scoreboard
+paraguacraft.menu.mod.toggle_sneak=Toggle Sneak
+paraguacraft.menu.mod.dynamic_fov=Dynamic FOV
+paraguacraft.menu.mod.borderless=Borderless
+paraguacraft.menu.mod.old_anim=Old Animations
+paraguacraft.menu.mod.boost_fps=Boost FPS
+paraguacraft.menu.mod.entity_cull=Entity Cull
+paraguacraft.menu.mod.nametag_cull=Nametag Cull
+paraguacraft.menu.mod.particles=Particles
+paraguacraft.menu.mod.block_entity=Block Entity
+paraguacraft.menu.mod.anim_cull=Anim Cull
+paraguacraft.menu.mod.memory_clean=Memory Clean
+paraguacraft.menu.mod.optifine_preset=OptiFine Preset
+paraguacraft.menu.mod.armor_stand=Armor Stand
+paraguacraft.menu.mod.item_frame=Item Frame
+paraguacraft.menu.mod.nametag_lod=Nametag LOD
+paraguacraft.menu.mod.skip_combat_fx=Skip Combat FX
+paraguacraft.menu.mod.hw_preset=HW Preset
+paraguacraft.menu.mod.profiles=Profiles
+paraguacraft.menu.mod.keybinds=Keybinds
+
+paraguacraft.menu.mod.hardware_hud=Hardware HUD
+paraguacraft.menu.mod.music_hud=Music HUD
+paraguacraft.menu.mod.tnt_countdown=TNT Countdown
+paraguacraft.menu.mod.bw_resources=BW Resources
+paraguacraft.menu.mod.item_3d=Item 3D
+
+paraguacraft.menu.options=OPTIONS
+
+paraguacraft.scoreboard.title=Scoreboard Options
+paraguacraft.scoreboard.transparent=Transparent background
+paraguacraft.scoreboard.hide_red=Hide red numbers
+paraguacraft.scoreboard.hide_stats=Hide stats (Hypixel BW)
+
+paraguacraft.bw_resources.title=BW Resources Options
+paraguacraft.bw_resources.transparent=Transparent background
+
+paraguacraft.hud.bw.iron=Iron
+paraguacraft.hud.bw.gold=Gold
+paraguacraft.hud.bw.emerald=Emerald
+paraguacraft.hud.bw.diamond=Diamond

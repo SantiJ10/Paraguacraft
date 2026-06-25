@@ -28,7 +28,7 @@ const FALLBACK_RELEASE_TAG: &str = "pvp-client-2.0.0";
 const FALLBACK_MODS: &[(&str, &str)] = &[
     (
         "ParaguacraftPvP-2.0.0.jar",
-        "04aee52f1d0bc60f177d7339ef341b3c9e103bd6",
+        "3a6bffb12aa1325c10a14342a07451d5b9821a3e",
     ),
     (
         "OptiFine_1.8.9_HD_U_M5.jar",

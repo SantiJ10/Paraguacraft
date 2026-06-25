@@ -28,6 +28,7 @@ public final class PanoramaBackground {
         FontRenderer fr = screen.mc.fontRendererObj;
 
         fillBackground(w, h);
+        ConstellationBackground.draw(w, h, partialTicks);
 
         GlStateManager.enableBlend();
         GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);

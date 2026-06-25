@@ -50,7 +50,6 @@ dependencies {
         exclude module: 'log4j-core'
     }
     embed 'net.java.dev.jna:jna:5.13.0'
-    embed 'net.java.dev.jna:jna-platform:5.13.0'
 }
 
 mixin {

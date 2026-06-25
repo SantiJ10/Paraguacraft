@@ -1,148 +1,369 @@
 package com.paraguacraft.pvp.core;
 
+import com.paraguacraft.pvp.core.win32.Win32Helper;
+import com.paraguacraft.pvp.core.win32.Win32Helper.Kernel32;
+import com.paraguacraft.pvp.core.win32.Win32Helper.MONITORINFO;
+import com.paraguacraft.pvp.core.win32.Win32Helper.RECT;
+import com.paraguacraft.pvp.core.win32.Win32Helper.User32;
+import com.paraguacraft.pvp.core.win32.Win32Helper.WndEnumProc;
 import com.paraguacraft.pvp.modules.ModConfig;
-import com.sun.jna.platform.win32.User32;
-import com.sun.jna.platform.win32.WinDef.HWND;
-import com.sun.jna.platform.win32.WinDef.RECT;
-import com.sun.jna.platform.win32.WinUser;
+import com.sun.jna.Native;
+import com.sun.jna.Pointer;
+import com.sun.jna.ptr.IntByReference;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiScreen;
 import org.lwjgl.opengl.Display;
-import org.lwjgl.opengl.DisplayMode;
+
+import java.awt.Canvas;
+import java.awt.Component;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 
 /**
- * Borderless fullscreen en caliente vía Win32 (estilo Lunar).
- * En sistemas no-Windows cae al comportamiento LWJGL básico.
+ * Borderless Win32 — solo quita caption/frame, usa monitor completo, restaura estado exacto.
  */
 public final class BorderlessWindowManager {
 
-    private static int savedWidth = 854;
-    private static int savedHeight = 480;
-    private static int savedX = 100;
-    private static int savedY = 100;
+    private static int savedWinX;
+    private static int savedWinY;
+    private static int savedWinW;
+    private static int savedWinH;
+    private static int savedClientW;
+    private static int savedClientH;
+    private static int savedStyle;
+    private static int savedExStyle;
     private static boolean saved;
+    private static boolean active;
+
+    private static int deferTicks;
+    private static int resyncTicks;
+
+    private static Method mcResize;
+    private static Method mcUpdateFramebuffer;
 
     private BorderlessWindowManager() {}
+
+    public static void scheduleApplyFromConfig() {
+        if (ModConfig.borderlessWindow) {
+            deferTicks = 40;
+        }
+    }
+
+    public static void clientTick() {
+        if (deferTicks > 0) {
+            deferTicks--;
+            if (deferTicks == 0) {
+                applyInternal(true);
+            }
+        }
+        if (resyncTicks > 0) {
+            resyncTicks--;
+            if (resyncTicks == 0) {
+                Pointer hwnd = resolveHwnd();
+                if (hwnd != null) {
+                    syncCanvas(hwnd);
+                }
+            }
+        }
+    }
 
     public static void applyFromConfig() {
         apply(ModConfig.borderlessWindow);
     }
 
     public static void apply(boolean borderless) {
-        if (!Display.isCreated()) {
+        if (!Display.isCreated() || !isWindows()) {
             return;
         }
-        if (isWindows()) {
-            applyWin32(borderless);
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc != null) {
+            mc.addScheduledTask(new Runnable() {
+                @Override
+                public void run() {
+                    applyInternal(borderless);
+                }
+            });
         } else {
-            applyFallback(borderless);
+            applyInternal(borderless);
         }
     }
 
-    private static HWND resolveHwnd() {
+    private static void applyInternal(boolean borderless) {
+        if (!Display.isCreated() || !isWindows()) {
+            return;
+        }
+        try {
+            Pointer hwnd = resolveHwnd();
+            if (hwnd == null) {
+                return;
+            }
+
+            if (borderless) {
+                enableBorderless(hwnd);
+            } else {
+                disableBorderless(hwnd);
+            }
+            resyncTicks = 5;
+        } catch (Throwable t) {
+            System.err.println("[Paraguacraft] Borderless falló: " + t.getMessage());
+            ModConfig.borderlessWindow = false;
+            active = false;
+        }
+    }
+
+    private static void enableBorderless(Pointer hwnd) {
+        if (!saved) {
+            captureSavedState(hwnd);
+        }
+
+        int style = User32.INSTANCE.GetWindowLongW(hwnd, Win32Helper.GWL_STYLE);
+        int exStyle = User32.INSTANCE.GetWindowLongW(hwnd, Win32Helper.GWL_EXSTYLE);
+        style &= ~(Win32Helper.WS_CAPTION | Win32Helper.WS_THICKFRAME | Win32Helper.WS_SYSMENU | Win32Helper.WS_MINIMIZEBOX);
+        style |= Win32Helper.WS_MAXIMIZEBOX;
+        User32.INSTANCE.SetWindowLongW(hwnd, Win32Helper.GWL_STYLE, style);
+
+        RECT mon = fullMonitorRect(hwnd);
+        int clientW = mon.right - mon.left;
+        int clientH = mon.bottom - mon.top;
+        placeWindowForClient(hwnd, mon.left, mon.top, clientW, clientH, style, exStyle);
+        syncCanvas(hwnd);
+        active = true;
+    }
+
+    private static void disableBorderless(Pointer hwnd) {
+        int style = saved ? savedStyle : Win32Helper.WS_OVERLAPPEDWINDOW;
+        int exStyle = saved ? savedExStyle : User32.INSTANCE.GetWindowLongW(hwnd, Win32Helper.GWL_EXSTYLE);
+        User32.INSTANCE.SetWindowLongW(hwnd, Win32Helper.GWL_STYLE, style);
+        User32.INSTANCE.SetWindowLongW(hwnd, Win32Helper.GWL_EXSTYLE, exStyle);
+
+        int clientW = savedClientW > 64 ? savedClientW : 854;
+        int clientH = savedClientH > 64 ? savedClientH : 480;
+        int x = saved ? savedWinX : 100;
+        int y = saved ? savedWinY : 100;
+
+        placeWindowForClient(hwnd, x, y, clientW, clientH, style, exStyle);
+
+        try {
+            Display.setLocation(x, y);
+            Display.setResizable(true);
+        } catch (Exception ignored) {
+        }
+
+        syncCanvas(hwnd);
+        saved = false;
+        active = false;
+    }
+
+    private static void placeWindowForClient(
+        Pointer hwnd, int originX, int originY, int clientW, int clientH, int style, int exStyle
+    ) {
+        RECT r = new RECT();
+        r.left = 0;
+        r.top = 0;
+        r.right = clientW;
+        r.bottom = clientH;
+        User32.INSTANCE.AdjustWindowRectEx(r, style, false, exStyle);
+        int outerW = r.right - r.left;
+        int outerH = r.bottom - r.top;
+        User32.INSTANCE.SetWindowPos(
+            hwnd,
+            null,
+            originX + r.left,
+            originY + r.top,
+            outerW,
+            outerH,
+            Win32Helper.SWP_FRAMECHANGED | Win32Helper.SWP_SHOWWINDOW | Win32Helper.SWP_NOZORDER
+        );
+    }
+
+    private static void captureSavedState(Pointer hwnd) {
+        savedStyle = User32.INSTANCE.GetWindowLongW(hwnd, Win32Helper.GWL_STYLE);
+        savedExStyle = User32.INSTANCE.GetWindowLongW(hwnd, Win32Helper.GWL_EXSTYLE);
+        RECT wr = new RECT();
+        User32.INSTANCE.GetWindowRect(hwnd, wr);
+        savedWinX = wr.left;
+        savedWinY = wr.top;
+        savedWinW = wr.right - wr.left;
+        savedWinH = wr.bottom - wr.top;
+        RECT cr = new RECT();
+        User32.INSTANCE.GetClientRect(hwnd, cr);
+        savedClientW = cr.right - cr.left;
+        savedClientH = cr.bottom - cr.top;
+        saved = true;
+    }
+
+    private static void syncCanvas(Pointer hwnd) {
+        RECT cr = new RECT();
+        User32.INSTANCE.GetClientRect(hwnd, cr);
+        int w = cr.right - cr.left;
+        int h = cr.bottom - cr.top;
+        if (w < 64 || h < 64) {
+            return;
+        }
+
+        Component parent = Display.getParent();
+        if (parent instanceof Canvas) {
+            Canvas canvas = (Canvas) parent;
+            canvas.setSize(w, h);
+            canvas.validate();
+        }
+
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc != null) {
+            resizeMc(mc, w, h);
+        }
+    }
+
+    private static void resizeMc(Minecraft mc, int w, int h) {
+        try {
+            if (mcResize == null) {
+                mcResize = Minecraft.class.getDeclaredMethod("resize", int.class, int.class);
+                mcResize.setAccessible(true);
+            }
+            mcResize.invoke(mc, w, h);
+            return;
+        } catch (Throwable ignored) {
+        }
+
+        mc.displayWidth = w;
+        mc.displayHeight = h;
+        try {
+            if (mcUpdateFramebuffer == null) {
+                mcUpdateFramebuffer = Minecraft.class.getDeclaredMethod("updateFramebufferSize");
+                mcUpdateFramebuffer.setAccessible(true);
+            }
+            mcUpdateFramebuffer.invoke(mc);
+        } catch (Throwable ignored) {
+        }
+        GuiScreen screen = mc.currentScreen;
+        if (screen != null) {
+            screen.setWorldAndResolution(mc, w, h);
+        }
+    }
+
+    private static RECT fullMonitorRect(Pointer hwnd) {
+        MONITORINFO mi = new MONITORINFO();
+        User32.INSTANCE.GetMonitorInfoW(
+            User32.INSTANCE.MonitorFromWindow(hwnd, Win32Helper.MONITOR_DEFAULTTONEAREST),
+            mi
+        );
+        return mi.rcMonitor;
+    }
+
+    private static Pointer resolveHwnd() {
+        Pointer h = hwndFromAwt();
+        if (h != null) {
+            return h;
+        }
+        h = hwndFromLwjgl();
+        if (h != null) {
+            return h;
+        }
+        return hwndFromProcess();
+    }
+
+    private static Pointer hwndFromAwt() {
+        try {
+            Component parent = Display.getParent();
+            if (parent == null) {
+                return null;
+            }
+            Method m = Component.class.getDeclaredMethod("getPeer");
+            m.setAccessible(true);
+            Object peer = m.invoke(parent);
+            if (peer == null) {
+                return null;
+            }
+            Field hwndField = findField(peer.getClass(), "hwnd");
+            if (hwndField == null) {
+                return null;
+            }
+            hwndField.setAccessible(true);
+            return handleFromObject(hwndField.get(peer));
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private static Pointer hwndFromLwjgl() {
         try {
             Object impl = Display.class.getMethod("getImplementation").invoke(null);
             if (impl == null) {
                 return null;
             }
-            java.lang.reflect.Field field = impl.getClass().getDeclaredField("hwnd");
-            field.setAccessible(true);
-            Object raw = field.get(impl);
-            long handle;
-            if (raw instanceof com.sun.jna.Pointer) {
-                handle = com.sun.jna.Pointer.nativeValue((com.sun.jna.Pointer) raw);
-            } else if (raw instanceof Number) {
-                handle = ((Number) raw).longValue();
-            } else {
-                return null;
+            Pointer h = handleFromObject(impl);
+            if (h != null) {
+                return h;
             }
-            return new HWND(com.sun.jna.Pointer.createConstant(handle));
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private static void applyWin32(boolean borderless) {
-        try {
-            HWND hwnd = resolveHwnd();
-            if (hwnd.getPointer() == null) {
-                applyFallback(borderless);
-                return;
-            }
-
-            int style = User32.INSTANCE.GetWindowLong(hwnd, WinUser.GWL_STYLE);
-            if (borderless) {
-                if (!saved) {
-                    savedWidth = Display.getWidth();
-                    savedHeight = Display.getHeight();
-                    RECT rect = new RECT();
-                    User32.INSTANCE.GetWindowRect(hwnd, rect);
-                    savedX = rect.left;
-                    savedY = rect.top;
-                    saved = true;
+            Field peerField = findField(impl.getClass(), "peer_info");
+            if (peerField != null) {
+                peerField.setAccessible(true);
+                Object peer = peerField.get(impl);
+                if (peer != null) {
+                    return handleFromObject(peer);
                 }
-
-                style &= ~(WinUser.WS_CAPTION | WinUser.WS_THICKFRAME | WinUser.WS_SYSMENU);
-                User32.INSTANCE.SetWindowLong(hwnd, WinUser.GWL_STYLE, style);
-
-                DisplayMode desktop = Display.getDesktopDisplayMode();
-                User32.INSTANCE.SetWindowPos(
-                    hwnd,
-                    null,
-                    0,
-                    0,
-                    desktop.getWidth(),
-                    desktop.getHeight(),
-                    WinUser.SWP_FRAMECHANGED | WinUser.SWP_SHOWWINDOW
-                );
-            } else {
-                style |= WinUser.WS_CAPTION | WinUser.WS_THICKFRAME
-                    | WinUser.WS_MINIMIZEBOX | WinUser.WS_MAXIMIZEBOX | WinUser.WS_SYSMENU;
-                User32.INSTANCE.SetWindowLong(hwnd, WinUser.GWL_STYLE, style);
-
-                int w = savedWidth > 0 ? savedWidth : 854;
-                int h = savedHeight > 0 ? savedHeight : 480;
-                Display.setDisplayMode(new DisplayMode(w, h));
-                User32.INSTANCE.SetWindowPos(
-                    hwnd,
-                    null,
-                    savedX,
-                    savedY,
-                    w,
-                    h,
-                    WinUser.SWP_FRAMECHANGED | WinUser.SWP_SHOWWINDOW
-                );
-                Display.setLocation(savedX, savedY);
-                Display.setResizable(true);
-            }
-        } catch (Throwable t) {
-            applyFallback(borderless);
-        }
-    }
-
-    private static void applyFallback(boolean borderless) {
-        try {
-            if (borderless) {
-                if (!saved) {
-                    savedWidth = Display.getWidth();
-                    savedHeight = Display.getHeight();
-                    saved = true;
-                }
-                System.setProperty("org.lwjgl.opengl.Window.undecorated", "true");
-                Display.setDisplayMode(Display.getDesktopDisplayMode());
-                Display.setLocation(0, 0);
-            } else {
-                System.setProperty("org.lwjgl.opengl.Window.undecorated", "false");
-                int w = savedWidth > 0 ? savedWidth : 854;
-                int h = savedHeight > 0 ? savedHeight : 480;
-                Display.setDisplayMode(new DisplayMode(w, h));
-                Display.setLocation(savedX, savedY);
-                Display.setResizable(true);
             }
         } catch (Exception ignored) {
         }
+        return null;
+    }
+
+    private static Pointer hwndFromProcess() {
+        final int pid = Kernel32.INSTANCE.GetCurrentProcessId();
+        final Pointer[] found = new Pointer[1];
+        User32.INSTANCE.EnumWindows(new WndEnumProc() {
+            @Override
+            public boolean callback(Pointer hwnd, Pointer data) {
+                IntByReference wndPid = new IntByReference();
+                User32.INSTANCE.GetWindowThreadProcessId(hwnd, wndPid);
+                if (wndPid.getValue() != pid || !User32.INSTANCE.IsWindowVisible(hwnd)) {
+                    return true;
+                }
+                char[] buf = new char[512];
+                User32.INSTANCE.GetWindowTextW(hwnd, buf, 512);
+                String title = Native.toString(buf);
+                if (title.contains("Minecraft") || title.contains("Paraguacraft")) {
+                    found[0] = hwnd;
+                    return false;
+                }
+                return true;
+            }
+        }, null);
+        return found[0];
+    }
+
+    private static Pointer handleFromObject(Object raw) {
+        if (raw == null) {
+            return null;
+        }
+        long handle;
+        if (raw instanceof Pointer) {
+            handle = Pointer.nativeValue((Pointer) raw);
+        } else if (raw instanceof Number) {
+            handle = ((Number) raw).longValue();
+        } else {
+            return null;
+        }
+        return Win32Helper.hwnd(handle);
+    }
+
+    private static Field findField(Class<?> type, String name) {
+        Class<?> c = type;
+        while (c != null) {
+            try {
+                return c.getDeclaredField(name);
+            } catch (NoSuchFieldException e) {
+                c = c.getSuperclass();
+            }
+        }
+        return null;
     }
 
     private static boolean isWindows() {
-        String os = System.getProperty("os.name", "");
-        return os.toLowerCase().contains("win");
+        return System.getProperty("os.name", "").toLowerCase().contains("win");
+    }
+
+    public static boolean isActive() {
+        return active;
     }
 }

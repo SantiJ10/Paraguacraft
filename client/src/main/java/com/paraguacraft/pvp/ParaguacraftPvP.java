@@ -12,6 +12,7 @@ import com.paraguacraft.pvp.hud.HUDOverlay;
 import com.paraguacraft.pvp.core.OptifinePreset;
 import com.paraguacraft.pvp.core.PerformanceConfig;
 import com.paraguacraft.pvp.core.ModConfigApply;
+import com.paraguacraft.pvp.core.LauncherIpcHandler;
 import com.paraguacraft.pvp.core.DiscordPresenceHandler;
 import com.paraguacraft.pvp.core.HardwarePreset;
 import com.paraguacraft.pvp.modules.ModConfig;
@@ -49,6 +50,7 @@ public class ParaguacraftPvP {
         MinecraftForge.EVENT_BUS.register(new com.paraguacraft.pvp.modules.VisualsManager());
         MinecraftForge.EVENT_BUS.register(new BadgeNetHandler());
         MinecraftForge.EVENT_BUS.register(new DiscordPresenceHandler());
+        MinecraftForge.EVENT_BUS.register(new LauncherIpcHandler());
         System.out.println("[Paraguacraft V2] Fase C/D — perf, perfiles, keybinds, pantallas carga");
     }
 

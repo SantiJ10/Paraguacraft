@@ -1,6 +1,7 @@
 package com.paraguacraft.pvp.gui;
 
 import com.paraguacraft.pvp.gui.theme.UiTheme;
+import com.paraguacraft.pvp.hud.AdvancedHud;
 import com.paraguacraft.pvp.modules.ModConfig;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.GuiScreen;
@@ -40,6 +41,14 @@ public class GuiEditHUD extends GuiScreen {
             int compassX = (sr.getScaledWidth() / 2) - 100;
             drawRect(compassX - 2, ModConfig.compassY - 2, compassX + 202, ModConfig.compassY + 22, box);
         }
+        if (ModConfig.showHardwareHud || ModConfig.showMusicHud) {
+            drawRect(ModConfig.overlayHudX - 2, ModConfig.overlayHudY - 2,
+                ModConfig.overlayHudX + ModConfig.overlayHudW, ModConfig.overlayHudY + 58, box);
+        }
+        if (ModConfig.showBedwarsResources) {
+            drawRect(ModConfig.bwResX - 2, ModConfig.bwResY - 2,
+                ModConfig.bwResX + AdvancedHud.bwPanelW(), ModConfig.bwResY + AdvancedHud.bwPanelH(), box);
+        }
 
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
@@ -71,7 +80,19 @@ public class GuiEditHUD extends GuiScreen {
                 int compassX = (sr.getScaledWidth() / 2) - 100;
                 if (isHover(mouseX, mouseY, compassX, ModConfig.compassY, 200, 20)) {
                     dragging = 9; dragX = 0; dragY = mouseY - ModConfig.compassY;
+                } else if ((ModConfig.showHardwareHud || ModConfig.showMusicHud)
+                    && isHover(mouseX, mouseY, ModConfig.overlayHudX, ModConfig.overlayHudY, ModConfig.overlayHudW, 58)) {
+                    dragging = 10; dragX = mouseX - ModConfig.overlayHudX; dragY = mouseY - ModConfig.overlayHudY;
+                } else if (ModConfig.showBedwarsResources
+                    && isHover(mouseX, mouseY, ModConfig.bwResX, ModConfig.bwResY, AdvancedHud.bwPanelW(), AdvancedHud.bwPanelH())) {
+                    dragging = 11; dragX = mouseX - ModConfig.bwResX; dragY = mouseY - ModConfig.bwResY;
                 }
+            } else if ((ModConfig.showHardwareHud || ModConfig.showMusicHud)
+                && isHover(mouseX, mouseY, ModConfig.overlayHudX, ModConfig.overlayHudY, ModConfig.overlayHudW, 58)) {
+                dragging = 10; dragX = mouseX - ModConfig.overlayHudX; dragY = mouseY - ModConfig.overlayHudY;
+            } else if (ModConfig.showBedwarsResources
+                && isHover(mouseX, mouseY, ModConfig.bwResX, ModConfig.bwResY, AdvancedHud.bwPanelW(), AdvancedHud.bwPanelH())) {
+                dragging = 11; dragX = mouseX - ModConfig.bwResX; dragY = mouseY - ModConfig.bwResY;
             }
         }
     }
@@ -88,6 +109,8 @@ public class GuiEditHUD extends GuiScreen {
         else if (dragging == 7) { ModConfig.heldX = mouseX - dragX; ModConfig.heldY = mouseY - dragY; }
         else if (dragging == 8) { ModConfig.serverX = mouseX - dragX; ModConfig.serverY = mouseY - dragY; }
         else if (dragging == 9) { ModConfig.compassY = mouseY - dragY; }
+        else if (dragging == 10) { ModConfig.overlayHudX = mouseX - dragX; ModConfig.overlayHudY = mouseY - dragY; }
+        else if (dragging == 11) { ModConfig.bwResX = mouseX - dragX; ModConfig.bwResY = mouseY - dragY; }
     }
 
     @Override
