@@ -40,6 +40,9 @@ public final class DiscordPresence {
         }
         for (int i = 0; i < 10; i++) {
             File pipe = new File("\\\\.\\pipe\\discord-ipc-" + i);
+            if (!pipe.exists()) {
+                continue;
+            }
             try {
                 pipeOut = new FileOutputStream(pipe);
                 pipeIn = new FileInputStream(pipe);

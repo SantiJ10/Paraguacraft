@@ -42,6 +42,10 @@ public final class ModProfileManager {
         mods.addProperty("noHurtCam", ModConfig.noHurtCam);
         mods.addProperty("showArmor", ModConfig.showArmor);
         mods.addProperty("showPotions", ModConfig.showPotions);
+        mods.addProperty("scoreboardEnabled", ModConfig.scoreboardEnabled);
+        mods.addProperty("scoreboardTransparentBg", ModConfig.scoreboardTransparentBg);
+        mods.addProperty("scoreboardHideRedNumbers", ModConfig.scoreboardHideRedNumbers);
+        mods.addProperty("scoreboardHideStats", ModConfig.scoreboardHideStats);
         mods.addProperty("transparentScoreboard", ModConfig.transparentScoreboard);
         mods.addProperty("dynamicFov", ModConfig.dynamicFov);
         mods.addProperty("crosshairMode", ModConfig.crosshairMode);
@@ -98,6 +102,10 @@ public final class ModProfileManager {
             ModConfig.noHurtCam = bool(m, "noHurtCam", ModConfig.noHurtCam);
             ModConfig.showArmor = bool(m, "showArmor", ModConfig.showArmor);
             ModConfig.showPotions = bool(m, "showPotions", ModConfig.showPotions);
+            ModConfig.scoreboardEnabled = bool(m, "scoreboardEnabled", ModConfig.scoreboardEnabled);
+            ModConfig.scoreboardTransparentBg = bool(m, "scoreboardTransparentBg", ModConfig.scoreboardTransparentBg);
+            ModConfig.scoreboardHideRedNumbers = bool(m, "scoreboardHideRedNumbers", ModConfig.scoreboardHideRedNumbers);
+            ModConfig.scoreboardHideStats = bool(m, "scoreboardHideStats", ModConfig.scoreboardHideStats);
             ModConfig.transparentScoreboard = bool(m, "transparentScoreboard", ModConfig.transparentScoreboard);
             ModConfig.dynamicFov = bool(m, "dynamicFov", ModConfig.dynamicFov);
             ModConfig.crosshairMode = num(m, "crosshairMode", ModConfig.crosshairMode);

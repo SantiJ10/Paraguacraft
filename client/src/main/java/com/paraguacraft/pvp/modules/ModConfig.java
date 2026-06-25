@@ -19,7 +19,11 @@ public class ModConfig {
     // Modulos V2.0 (Premium)
     public static boolean showArmor = true;
     public static boolean showPotions = true;
-    public static boolean transparentScoreboard = true;
+    public static boolean transparentScoreboard = true; // legacy read only
+    public static boolean scoreboardEnabled = true;
+    public static boolean scoreboardTransparentBg = false;
+    public static boolean scoreboardHideRedNumbers = false;
+    public static boolean scoreboardHideStats = false;
     public static boolean dynamicFov = true; 
     public static int crosshairMode = 0; 
     public static boolean showCoords = true;
@@ -41,7 +45,19 @@ public class ModConfig {
     public static boolean showCompass = true; // Reemplaza a 'showDirection'
     public static boolean showNametagLogo = true;
     public static boolean showNametagLogoOthers = true;
-    // Coordenadas Iniciales Acomodadas
+
+    // Módulo 4 — IPC + HUDs avanzados
+    public static boolean showHardwareHud = true;
+    public static boolean showMusicHud = true;
+    public static boolean showTntCountdown = true;
+    public static boolean showBedwarsResources = true;
+    public static boolean bwResTransparentBg = false;
+    public static boolean forceItem3d = true;
+    public static int overlayHudX = 5;
+    public static int overlayHudY = 260;
+    public static int overlayHudW = 118;
+    public static int bwResX = 5;
+    public static int bwResY = 320;
     public static int fpsX = 5, fpsY = 5;
     public static int pingX = 5, pingY = 15;
     public static int cpsX = 5, cpsY = 25;
@@ -70,6 +86,10 @@ public class ModConfig {
             props.setProperty("noHurtCam", String.valueOf(noHurtCam));
             props.setProperty("showArmor", String.valueOf(showArmor));
             props.setProperty("showPotions", String.valueOf(showPotions));
+            props.setProperty("scoreboardEnabled", String.valueOf(scoreboardEnabled));
+            props.setProperty("scoreboardTransparentBg", String.valueOf(scoreboardTransparentBg));
+            props.setProperty("scoreboardHideRedNumbers", String.valueOf(scoreboardHideRedNumbers));
+            props.setProperty("scoreboardHideStats", String.valueOf(scoreboardHideStats));
             props.setProperty("transparentScoreboard", String.valueOf(transparentScoreboard));
             props.setProperty("dynamicFov", String.valueOf(dynamicFov));
             props.setProperty("crosshairMode", String.valueOf(crosshairMode));
@@ -90,6 +110,17 @@ public class ModConfig {
             props.setProperty("showCompass", String.valueOf(showCompass));
             props.setProperty("showNametagLogo", String.valueOf(showNametagLogo));
             props.setProperty("showNametagLogoOthers", String.valueOf(showNametagLogoOthers));
+            props.setProperty("showHardwareHud", String.valueOf(showHardwareHud));
+            props.setProperty("showMusicHud", String.valueOf(showMusicHud));
+            props.setProperty("showTntCountdown", String.valueOf(showTntCountdown));
+            props.setProperty("showBedwarsResources", String.valueOf(showBedwarsResources));
+            props.setProperty("bwResTransparentBg", String.valueOf(bwResTransparentBg));
+            props.setProperty("forceItem3d", String.valueOf(forceItem3d));
+            props.setProperty("overlayHudX", String.valueOf(overlayHudX));
+            props.setProperty("overlayHudY", String.valueOf(overlayHudY));
+            props.setProperty("overlayHudW", String.valueOf(overlayHudW));
+            props.setProperty("bwResX", String.valueOf(bwResX));
+            props.setProperty("bwResY", String.valueOf(bwResY));
             props.setProperty("boostFps", String.valueOf(PerformanceConfig.boostFps));
             props.setProperty("oldAnimations", String.valueOf(PerformanceConfig.oldAnimations));
             PerformanceConfig.saveToProperties(props);
@@ -134,6 +165,15 @@ public class ModConfig {
             noHurtCam = Boolean.parseBoolean(props.getProperty("noHurtCam", String.valueOf(noHurtCam)));
             showArmor = Boolean.parseBoolean(props.getProperty("showArmor", String.valueOf(showArmor)));
             showPotions = Boolean.parseBoolean(props.getProperty("showPotions", String.valueOf(showPotions)));
+            if (props.containsKey("transparentScoreboard") && !props.containsKey("scoreboardEnabled")) {
+                boolean legacy = Boolean.parseBoolean(props.getProperty("transparentScoreboard"));
+                scoreboardTransparentBg = legacy;
+                scoreboardHideRedNumbers = legacy;
+            }
+            scoreboardEnabled = Boolean.parseBoolean(props.getProperty("scoreboardEnabled", String.valueOf(scoreboardEnabled)));
+            scoreboardTransparentBg = Boolean.parseBoolean(props.getProperty("scoreboardTransparentBg", String.valueOf(scoreboardTransparentBg)));
+            scoreboardHideRedNumbers = Boolean.parseBoolean(props.getProperty("scoreboardHideRedNumbers", String.valueOf(scoreboardHideRedNumbers)));
+            scoreboardHideStats = Boolean.parseBoolean(props.getProperty("scoreboardHideStats", String.valueOf(scoreboardHideStats)));
             transparentScoreboard = Boolean.parseBoolean(props.getProperty("transparentScoreboard", String.valueOf(transparentScoreboard)));
             dynamicFov = Boolean.parseBoolean(props.getProperty("dynamicFov", String.valueOf(dynamicFov)));
             crosshairMode = Integer.parseInt(props.getProperty("crosshairMode", String.valueOf(crosshairMode)));
@@ -154,6 +194,17 @@ public class ModConfig {
             showCompass = Boolean.parseBoolean(props.getProperty("showCompass", String.valueOf(showCompass)));
             showNametagLogo = Boolean.parseBoolean(props.getProperty("showNametagLogo", String.valueOf(showNametagLogo)));
             showNametagLogoOthers = Boolean.parseBoolean(props.getProperty("showNametagLogoOthers", String.valueOf(showNametagLogoOthers)));
+            showHardwareHud = Boolean.parseBoolean(props.getProperty("showHardwareHud", String.valueOf(showHardwareHud)));
+            showMusicHud = Boolean.parseBoolean(props.getProperty("showMusicHud", String.valueOf(showMusicHud)));
+            showTntCountdown = Boolean.parseBoolean(props.getProperty("showTntCountdown", String.valueOf(showTntCountdown)));
+            showBedwarsResources = Boolean.parseBoolean(props.getProperty("showBedwarsResources", String.valueOf(showBedwarsResources)));
+            bwResTransparentBg = Boolean.parseBoolean(props.getProperty("bwResTransparentBg", String.valueOf(bwResTransparentBg)));
+            forceItem3d = Boolean.parseBoolean(props.getProperty("forceItem3d", String.valueOf(forceItem3d)));
+            overlayHudX = Integer.parseInt(props.getProperty("overlayHudX", String.valueOf(overlayHudX)));
+            overlayHudY = Integer.parseInt(props.getProperty("overlayHudY", String.valueOf(overlayHudY)));
+            overlayHudW = Integer.parseInt(props.getProperty("overlayHudW", String.valueOf(overlayHudW)));
+            bwResX = Integer.parseInt(props.getProperty("bwResX", String.valueOf(bwResX)));
+            bwResY = Integer.parseInt(props.getProperty("bwResY", String.valueOf(bwResY)));
             PerformanceConfig.loadFromProperties(props);
             if (PerformanceConfig.boostFps && PerformanceConfig.applyVanillaPreset) {
                 OptifinePreset.applyIfEnabled();

@@ -9,6 +9,8 @@
     "MixinScoreboard",
     "MixinItemRenderer",
     "MixinRendererLivingEntity",
+    "MixinRenderTNTPrimed",
+    "MixinRenderEntityItem",
     "performance.MixinRenderManager",
     "performance.MixinEffectRenderer",
     "performance.MixinMinecraft",

@@ -653,11 +653,16 @@ pub fn watch_exit(
     launch_server: Option<String>,
     settings: crate::models::AppSettings,
     game_rpc_handoff: bool,
+    overlay_ipc: bool,
 ) {
     let started = std::time::Instant::now();
     let pid = child.id();
     let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     window_title::watch_window_title(pid, &mc_version, &loader, stop.clone());
+
+    if overlay_ipc {
+        crate::core::overlay_ipc::watch(stop.clone());
+    }
 
     if settings.discord_rpc && !game_rpc_handoff {
         crate::core::extras::game_presence::watch(

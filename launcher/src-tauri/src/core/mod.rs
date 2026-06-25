@@ -38,4 +38,5 @@ pub mod servers;
 pub mod skins;
 pub mod spotify;
 pub mod performance;
+pub mod overlay_ipc;
 pub mod updater;

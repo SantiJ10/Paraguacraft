@@ -11,8 +11,12 @@ import com.paraguacraft.pvp.modules.ModConfig;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiScreen;
+import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.resources.I18n;
 import org.lwjgl.input.Keyboard;
+import org.lwjgl.input.Mouse;
+import org.lwjgl.opengl.GL11;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -32,63 +36,67 @@ public class GuiParaguaMenu extends GuiScreen {
     private static final int GAP = 12;
 
     private static final String[] CATEGORY_IDS = {"all", "hud", "pvp", "mechanics", "server", "textures", "perf"};
-    private static final String[] CATEGORY_LABELS = {"Todos", "HUD", "PvP", "Mecanicas", "Servidor", "Texturas", "Rendimiento"};
 
     private int selectedCategory;
     private String searchQuery = "";
     private boolean searchFocused = true;
+    private float scrollOffset = 0f;
+    private int lastVisibleHash = 0;
     private final Map<Integer, Float> toggleAnim = new HashMap<Integer, Float>();
 
     private static final class ModEntry {
         final int id;
-        final String name;
+        final String langKey;
         final int category;
-        final String icon;
 
-        ModEntry(int id, String name, int category) {
+        ModEntry(int id, String langKey, int category) {
             this.id = id;
-            this.name = name;
+            this.langKey = langKey;
             this.category = category;
-            this.icon = name.isEmpty() ? "?" : name.substring(0, 1).toUpperCase();
         }
     }
 
     private static final ModEntry[] ALL_MODS = {
-        new ModEntry(0, "FPS", 1),
-        new ModEntry(1, "Ping", 1),
-        new ModEntry(2, "CPS", 1),
-        new ModEntry(3, "Keystrokes", 1),
-        new ModEntry(5, "Coordenadas", 1),
-        new ModEntry(6, "Armor HUD", 1),
-        new ModEntry(7, "% Armadura", 1),
-        new ModEntry(8, "Potion HUD", 1),
-        new ModEntry(12, "Held Item", 1),
-        new ModEntry(14, "Server HUD", 4),
-        new ModEntry(15, "Brújula", 1),
-        new ModEntry(16, "Resource Packs", 5),
-        new ModEntry(17, "Nametag Logo", 4),
-        new ModEntry(18, "Logo en otros", 4),
-        new ModEntry(4, "No Hurt Cam", 2),
-        new ModEntry(9, "Scoreboard", 2),
-        new ModEntry(10, "Toggle Sneak", 3),
-        new ModEntry(11, "Dynamic FOV", 3),
-        new ModEntry(13, "Borderless", 3),
-        new ModEntry(20, "Old Animations", 3),
-        new ModEntry(19, "Boost FPS", 6),
-        new ModEntry(21, "Entity Cull", 6),
-        new ModEntry(22, "Nametag Cull", 6),
-        new ModEntry(23, "Particulas", 6),
-        new ModEntry(24, "Block Entity", 6),
-        new ModEntry(25, "Anim Cull", 6),
-        new ModEntry(26, "Memory Clean", 6),
-        new ModEntry(27, "OptiFine Preset", 6),
-        new ModEntry(28, "Armor Stand", 6),
-        new ModEntry(29, "Item Frame", 6),
-        new ModEntry(30, "Nametag LOD", 6),
-        new ModEntry(31, "Skip Combat FX", 6),
-        new ModEntry(32, "HW Preset", 6),
-        new ModEntry(33, "Perfiles", 3),
-        new ModEntry(34, "Keybinds", 3),
+        new ModEntry(0, "paraguacraft.menu.mod.fps", 1),
+        new ModEntry(1, "paraguacraft.menu.mod.ping", 1),
+        new ModEntry(2, "paraguacraft.menu.mod.cps", 1),
+        new ModEntry(3, "paraguacraft.menu.mod.keystrokes", 1),
+        new ModEntry(5, "paraguacraft.menu.mod.coords", 1),
+        new ModEntry(6, "paraguacraft.menu.mod.armor", 1),
+        new ModEntry(7, "paraguacraft.menu.mod.armor_pct", 1),
+        new ModEntry(8, "paraguacraft.menu.mod.potions", 1),
+        new ModEntry(12, "paraguacraft.menu.mod.held_item", 1),
+        new ModEntry(14, "paraguacraft.menu.mod.server_hud", 4),
+        new ModEntry(15, "paraguacraft.menu.mod.compass", 1),
+        new ModEntry(16, "paraguacraft.menu.mod.resource_packs", 5),
+        new ModEntry(17, "paraguacraft.menu.mod.nametag_logo", 4),
+        new ModEntry(18, "paraguacraft.menu.mod.nametag_others", 4),
+        new ModEntry(4, "paraguacraft.menu.mod.no_hurt_cam", 2),
+        new ModEntry(9, "paraguacraft.menu.mod.scoreboard", 2),
+        new ModEntry(10, "paraguacraft.menu.mod.toggle_sneak", 3),
+        new ModEntry(11, "paraguacraft.menu.mod.dynamic_fov", 3),
+        new ModEntry(13, "paraguacraft.menu.mod.borderless", 3),
+        new ModEntry(20, "paraguacraft.menu.mod.old_anim", 3),
+        new ModEntry(19, "paraguacraft.menu.mod.boost_fps", 6),
+        new ModEntry(21, "paraguacraft.menu.mod.entity_cull", 6),
+        new ModEntry(22, "paraguacraft.menu.mod.nametag_cull", 6),
+        new ModEntry(23, "paraguacraft.menu.mod.particles", 6),
+        new ModEntry(24, "paraguacraft.menu.mod.block_entity", 6),
+        new ModEntry(25, "paraguacraft.menu.mod.anim_cull", 6),
+        new ModEntry(26, "paraguacraft.menu.mod.memory_clean", 6),
+        new ModEntry(27, "paraguacraft.menu.mod.optifine_preset", 6),
+        new ModEntry(28, "paraguacraft.menu.mod.armor_stand", 6),
+        new ModEntry(29, "paraguacraft.menu.mod.item_frame", 6),
+        new ModEntry(30, "paraguacraft.menu.mod.nametag_lod", 6),
+        new ModEntry(31, "paraguacraft.menu.mod.skip_combat_fx", 6),
+        new ModEntry(32, "paraguacraft.menu.mod.hw_preset", 6),
+        new ModEntry(33, "paraguacraft.menu.mod.profiles", 3),
+        new ModEntry(34, "paraguacraft.menu.mod.keybinds", 3),
+        new ModEntry(35, "paraguacraft.menu.mod.hardware_hud", 1),
+        new ModEntry(36, "paraguacraft.menu.mod.music_hud", 1),
+        new ModEntry(37, "paraguacraft.menu.mod.tnt_countdown", 2),
+        new ModEntry(38, "paraguacraft.menu.mod.bw_resources", 2),
+        new ModEntry(39, "paraguacraft.menu.mod.item_3d", 3),
     };
 
     @Override
@@ -117,20 +125,15 @@ public class GuiParaguaMenu extends GuiScreen {
         drawTopbar(panelX + SIDEBAR, panelY, panelW - SIDEBAR, mouseX, mouseY);
         drawModGrid(panelX + SIDEBAR, panelY + TOPBAR, panelW - SIDEBAR - 12, panelH - TOPBAR - 12, mouseX, mouseY);
 
-        fr.drawStringWithShadow(
-            "Right Shift - Mod Menu  |  Right Ctrl - Editar HUD  |  Texturas - Resource Packs",
-            panelX + 12,
-            panelY + panelH - 14,
-            UiTheme.TEXT_DIM
-        );
+        fr.drawStringWithShadow(I18n.format("paraguacraft.menu.hint"), panelX + 12, panelY + panelH - 14, UiTheme.TEXT_DIM);
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
 
     private void drawSidebar(int x, int y, int h, int mouseX, int mouseY) {
         FontRenderer fr = fr();
         Gui.drawRect(x, y, x + SIDEBAR, y + h, 0xDD080A10);
-        fr.drawStringWithShadow("PARAGUACRAFT", x + 14, y + 16, UiTheme.ACCENT);
-        fr.drawStringWithShadow("Client V2 - Mods", x + 14, y + 38, UiTheme.TEXT_DIM);
+        fr.drawStringWithShadow(I18n.format("paraguacraft.menu.brand"), x + 14, y + 16, UiTheme.ACCENT);
+        fr.drawStringWithShadow(I18n.format("paraguacraft.menu.subtitle"), x + 14, y + 38, UiTheme.TEXT_DIM);
 
         int catY = y + 64;
         for (int i = 0; i < CATEGORY_IDS.length; i++) {
@@ -143,7 +146,7 @@ public class GuiParaguaMenu extends GuiScreen {
                 Gui.drawRect(x, catY, x + SIDEBAR, catY + 28, 0x18FFFFFF);
             }
             fr.drawStringWithShadow(
-                CATEGORY_LABELS[i],
+                I18n.format("paraguacraft.menu.cat." + CATEGORY_IDS[i]),
                 x + 18,
                 catY + 9,
                 selected ? UiTheme.TEXT : UiTheme.TEXT_DIM
@@ -163,7 +166,8 @@ public class GuiParaguaMenu extends GuiScreen {
         if (searchFocused) {
             Gui.drawRect(searchX, searchY + 23, searchX + searchW, searchY + 24, UiTheme.ACCENT);
         }
-        String shown = searchQuery.isEmpty() ? "Buscar mods..." : searchQuery;
+        String placeholder = I18n.format("paraguacraft.menu.search.placeholder");
+        String shown = searchQuery.isEmpty() ? placeholder : searchQuery;
         int color = searchQuery.isEmpty() ? UiTheme.TEXT_DIM : UiTheme.TEXT;
         fr.drawStringWithShadow(shown + (searchFocused && (System.currentTimeMillis() / 500) % 2 == 0 ? "_" : ""), searchX + 8, searchY + 7, color);
     }
@@ -171,24 +175,44 @@ public class GuiParaguaMenu extends GuiScreen {
     private void drawModGrid(int x, int y, int w, int h, int mouseX, int mouseY) {
         List<ModEntry> visible = filteredMods();
         int col = Math.max(1, (w + GAP) / (CARD_W + GAP));
+        int rows = (visible.size() + col - 1) / col;
+        int contentH = rows > 0 ? rows * (CARD_H + GAP) + 8 : 0;
+        int maxScroll = Math.max(0, contentH - h);
+        int hash = visible.size() * 31 + selectedCategory * 17 + searchQuery.hashCode();
+        if (hash != lastVisibleHash) {
+            lastVisibleHash = hash;
+            scrollOffset = 0f;
+        }
+        scrollOffset = Math.max(0f, Math.min(maxScroll, scrollOffset));
+
+        ScaledResolution sr = new ScaledResolution(mc);
+        int factor = sr.getScaleFactor();
+        GL11.glEnable(GL11.GL_SCISSOR_TEST);
+        GL11.glScissor(x * factor, org.lwjgl.opengl.Display.getHeight() - (y + h) * factor, w * factor, h * factor);
+        GlStateManager.disableDepth();
+
         int cx = 0;
         int cy = 0;
         for (ModEntry mod : visible) {
             int cardX = x + 8 + cx * (CARD_W + GAP);
-            int cardY = y + 8 + cy * (CARD_H + GAP);
-            if (cardY + CARD_H > y + h) {
-                break;
+            int cardY = y + 8 + cy * (CARD_H + GAP) - (int) scrollOffset;
+            if (cardY + CARD_H >= y && cardY <= y + h) {
+                drawModCard(mod, cardX, cardY, getModState(mod.id), mouseX, mouseY);
             }
-            drawModCard(mod, cardX, cardY, getModState(mod.id), mouseX, mouseY);
             cx++;
             if (cx >= col) {
                 cx = 0;
                 cy++;
             }
         }
+
+        GL11.glDisable(GL11.GL_SCISSOR_TEST);
+        GlStateManager.enableDepth();
+
         if (visible.isEmpty()) {
             FontRenderer fr = fr();
-            fr.drawStringWithShadow("Sin mods en esta categoria", x + w / 2 - fr.getStringWidth("Sin mods en esta categoria") / 2, y + h / 2, UiTheme.TEXT_DIM);
+            String empty = I18n.format("paraguacraft.menu.empty");
+            fr.drawStringWithShadow(empty, x + w / 2 - fr.getStringWidth(empty) / 2, y + h / 2, UiTheme.TEXT_DIM);
         }
     }
 
@@ -206,13 +230,28 @@ public class GuiParaguaMenu extends GuiScreen {
         Gui.drawRect(x, y, x + CARD_W, y + 1, 0x28FFFFFF);
 
         Gui.drawRect(x + 10, y + 10, x + 42, y + 42, 0x3300E5FF);
-        fr.drawStringWithShadow(mod.icon, x + 22 - fr.getStringWidth(mod.icon) / 2, y + 18, UiTheme.ACCENT);
-        fr.drawStringWithShadow(modDisplayName(mod.id), x + 50, y + 16, isScreen || enabled ? UiTheme.TEXT : UiTheme.TEXT_DIM);
+        String display = modDisplayName(mod.id);
+        String icon = display.isEmpty() ? "?" : display.substring(0, 1).toUpperCase();
+        fr.drawStringWithShadow(icon, x + 22 - fr.getStringWidth(icon) / 2, y + 18, UiTheme.ACCENT);
+        fr.drawStringWithShadow(display, x + 50, y + 16, isScreen || enabled ? UiTheme.TEXT : UiTheme.TEXT_DIM);
 
         int toggleY = y + CARD_H - 22;
         if (isScreen) {
+            String openLbl = I18n.format("paraguacraft.menu.open");
             Gui.drawRect(x + 8, toggleY, x + CARD_W - 8, toggleY + 16, hover ? UiTheme.ACCENT : 0xFF226688);
-            fr.drawStringWithShadow("ABRIR", x + CARD_W / 2 - fr.getStringWidth("ABRIR") / 2, toggleY + 4, 0xFFFFFF);
+            fr.drawStringWithShadow(openLbl, x + CARD_W / 2 - fr.getStringWidth(openLbl) / 2, toggleY + 4, 0xFFFFFF);
+        } else if (mod.id == 9 || mod.id == 38) {
+            int half = (CARD_W - 20) / 2;
+            int optX = x + 8;
+            int togX = x + 8 + half + 4;
+            boolean hoverOpt = mouseX >= optX && mouseX <= optX + half && mouseY >= toggleY && mouseY <= toggleY + 16;
+            String opts = I18n.format("paraguacraft.menu.options");
+            Gui.drawRect(optX, toggleY, optX + half, toggleY + 16, hoverOpt ? 0xFF334455 : 0xFF223344);
+            fr.drawStringWithShadow(opts, optX + half / 2 - fr.getStringWidth(opts) / 2, toggleY + 4, 0xFFFFFF);
+            int toggleColor = lerpColor(0xFFCC4444, 0xFF22CC66, UiEasing.easeOutCubic(anim));
+            Gui.drawRect(togX, toggleY, x + CARD_W - 8, toggleY + 16, toggleColor);
+            String stateLabel = modStateLabel(mod.id, enabled);
+            fr.drawStringWithShadow(stateLabel, togX + half / 2 - fr.getStringWidth(stateLabel) / 2, toggleY + 4, 0xFFFFFF);
         } else {
             int toggleColor = lerpColor(0xFFCC4444, 0xFF22CC66, UiEasing.easeOutCubic(anim));
             Gui.drawRect(x + 8, toggleY, x + CARD_W - 8, toggleY + 16, toggleColor);
@@ -223,14 +262,14 @@ public class GuiParaguaMenu extends GuiScreen {
 
     private String modDisplayName(int id) {
         if (id == 23) {
-            return "Particulas: " + PerformanceConfig.particleMode.getLabel();
+            return I18n.format("paraguacraft.menu.particles.prefix", PerformanceConfig.particleMode.getLabel());
         }
         if (id == 32) {
-            return "HW: " + com.paraguacraft.pvp.core.HardwarePreset.getDetectedTier().name();
+            return I18n.format("paraguacraft.menu.hw.prefix", com.paraguacraft.pvp.core.HardwarePreset.getDetectedTier().name());
         }
         for (ModEntry mod : ALL_MODS) {
             if (mod.id == id) {
-                return mod.name;
+                return I18n.format(mod.langKey);
             }
         }
         return "?";
@@ -240,7 +279,7 @@ public class GuiParaguaMenu extends GuiScreen {
         if (id == 23) {
             return PerformanceConfig.particleMode.getLabel().toUpperCase();
         }
-        return enabled ? "ON" : "OFF";
+        return I18n.format(enabled ? "paraguacraft.menu.on" : "paraguacraft.menu.off");
     }
 
     private List<ModEntry> filteredMods() {
@@ -251,7 +290,7 @@ public class GuiParaguaMenu extends GuiScreen {
             }
             if (!searchQuery.isEmpty()) {
                 String label = modDisplayName(mod.id);
-                if (!TextUtil.containsIgnoreCase(mod.name, searchQuery)
+                if (!TextUtil.containsIgnoreCase(I18n.format(mod.langKey), searchQuery)
                     && !TextUtil.containsIgnoreCase(label, searchQuery)) {
                     continue;
                 }
@@ -298,8 +337,27 @@ public class GuiParaguaMenu extends GuiScreen {
         int cy = 0;
         for (ModEntry mod : visible) {
             int cardX = gridX + 8 + cx * (CARD_W + GAP);
-            int cardY = gridY + 8 + cy * (CARD_H + GAP);
-            if (mouseX >= cardX && mouseX <= cardX + CARD_W && mouseY >= cardY && mouseY <= cardY + CARD_H) {
+            int cardY = gridY + 8 + cy * (CARD_H + GAP) - (int) scrollOffset;
+            if (cardY + CARD_H >= gridY && cardY <= gridY + panelH - TOPBAR - 12
+                && mouseX >= cardX && mouseX <= cardX + CARD_W && mouseY >= cardY && mouseY <= cardY + CARD_H) {
+                if (mod.id == 9 || mod.id == 38) {
+                    int toggleY = cardY + CARD_H - 22;
+                    int half = (CARD_W - 20) / 2;
+                    int optX = cardX + 8;
+                    int togX = cardX + 8 + half + 4;
+                    if (mouseY >= toggleY && mouseY <= toggleY + 16) {
+                        if (mouseX >= optX && mouseX <= optX + half) {
+                            mc.displayGuiScreen(mod.id == 9 ? new GuiScoreboardOptions() : new GuiBwResourcesOptions());
+                            return;
+                        }
+                        if (mouseX >= togX && mouseX <= cardX + CARD_W - 8) {
+                            toggleMod(mod.id);
+                            ModConfig.save();
+                            return;
+                        }
+                    }
+                    return;
+                }
                 if (mod.id == 16) {
                     mc.displayGuiScreen(new GuiResourcePacks());
                 } else if (mod.id == 33) {
@@ -318,6 +376,34 @@ public class GuiParaguaMenu extends GuiScreen {
                 cy++;
             }
         }
+    }
+
+    @Override
+    public void handleMouseInput() throws IOException {
+        super.handleMouseInput();
+        int wheel = Mouse.getEventDWheel();
+        if (wheel == 0) {
+            return;
+        }
+        int panelX = Math.max(8, width / 2 - 420);
+        int panelY = 24;
+        int panelW = Math.min(width - 16, 840);
+        int panelH = height - 48;
+        int gridX = panelX + SIDEBAR;
+        int gridY = panelY + TOPBAR;
+        int gridW = panelW - SIDEBAR - 12;
+        int gridH = panelH - TOPBAR - 12;
+        int mx = Mouse.getEventX() * width / mc.displayWidth;
+        int my = height - Mouse.getEventY() * height / mc.displayHeight - 1;
+        if (mx < gridX || mx > gridX + gridW || my < gridY || my > gridY + gridH) {
+            return;
+        }
+        List<ModEntry> visible = filteredMods();
+        int col = Math.max(1, (gridW + GAP) / (CARD_W + GAP));
+        int rows = (visible.size() + col - 1) / col;
+        int contentH = rows > 0 ? rows * (CARD_H + GAP) + 8 : 0;
+        int maxScroll = Math.max(0, contentH - gridH);
+        scrollOffset = Math.max(0f, Math.min(maxScroll, scrollOffset - wheel * 0.25f));
     }
 
     @Override
@@ -364,7 +450,7 @@ public class GuiParaguaMenu extends GuiScreen {
             case 6: return ModConfig.showArmor;
             case 7: return ModConfig.showArmorPercentage;
             case 8: return ModConfig.showPotions;
-            case 9: return ModConfig.transparentScoreboard;
+            case 9: return ModConfig.scoreboardEnabled;
             case 10: return ModConfig.toggleSneak;
             case 11: return ModConfig.dynamicFov;
             case 12: return ModConfig.showHeldItem;
@@ -390,6 +476,11 @@ public class GuiParaguaMenu extends GuiScreen {
             case 32: return PerformanceConfig.hardwareAutoPreset;
             case 33: return true;
             case 34: return true;
+            case 35: return ModConfig.showHardwareHud;
+            case 36: return ModConfig.showMusicHud;
+            case 37: return ModConfig.showTntCountdown;
+            case 38: return ModConfig.showBedwarsResources;
+            case 39: return ModConfig.forceItem3d;
             default: return false;
         }
     }
@@ -405,7 +496,7 @@ public class GuiParaguaMenu extends GuiScreen {
             case 6: ModConfig.showArmor = !ModConfig.showArmor; break;
             case 7: ModConfig.showArmorPercentage = !ModConfig.showArmorPercentage; break;
             case 8: ModConfig.showPotions = !ModConfig.showPotions; break;
-            case 9: ModConfig.transparentScoreboard = !ModConfig.transparentScoreboard; break;
+            case 9: ModConfig.scoreboardEnabled = !ModConfig.scoreboardEnabled; break;
             case 10: ModConfig.toggleSneak = !ModConfig.toggleSneak; ModConfig.isSneakingToggled = false; break;
             case 11: ModConfig.dynamicFov = !ModConfig.dynamicFov; break;
             case 12: ModConfig.showHeldItem = !ModConfig.showHeldItem; break;
@@ -480,6 +571,11 @@ public class GuiParaguaMenu extends GuiScreen {
                 }
                 ModConfig.save();
                 break;
+            case 35: ModConfig.showHardwareHud = !ModConfig.showHardwareHud; break;
+            case 36: ModConfig.showMusicHud = !ModConfig.showMusicHud; break;
+            case 37: ModConfig.showTntCountdown = !ModConfig.showTntCountdown; break;
+            case 38: ModConfig.showBedwarsResources = !ModConfig.showBedwarsResources; break;
+            case 39: ModConfig.forceItem3d = !ModConfig.forceItem3d; break;
             default: break;
         }
     }

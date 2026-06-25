@@ -27,7 +27,7 @@ public class GuiModMenu extends GuiScreen {
 
         this.buttonList.add(new FlatButton(5, col2, startY, btnW, btnH, "Armor HUD: " + (ModConfig.showArmor ? "ON" : "OFF"), false));
         this.buttonList.add(new FlatButton(6, col2, startY + gap, btnW, btnH, "Potions HUD: " + (ModConfig.showPotions ? "ON" : "OFF"), false));
-        this.buttonList.add(new FlatButton(7, col2, startY + gap * 2, btnW, btnH, "Clear Score: " + (ModConfig.transparentScoreboard ? "ON" : "OFF"), false));
+        this.buttonList.add(new FlatButton(7, col2, startY + gap * 2, btnW, btnH, "Scoreboard: " + (ModConfig.scoreboardEnabled ? "ON" : "OFF"), false));
         this.buttonList.add(new FlatButton(8, col2, startY + gap * 3, btnW, btnH, "Mira: " + getCrosshairName(), false));
         this.buttonList.add(new FlatButton(9, col2, startY + gap * 4, btnW, btnH, "Static FOV: " + (ModConfig.dynamicFov ? "ON" : "OFF"), false));
         this.buttonList.add(new FlatButton(11, col2, startY + gap * 5, btnW, btnH, "Toggle Sneak: " + (ModConfig.toggleSneak ? "ON" : "OFF"), false));
@@ -53,7 +53,7 @@ public class GuiModMenu extends GuiScreen {
         if (button.id == 4) ModConfig.noHurtCam = !ModConfig.noHurtCam;
         if (button.id == 5) ModConfig.showArmor = !ModConfig.showArmor;
         if (button.id == 6) ModConfig.showPotions = !ModConfig.showPotions;
-        if (button.id == 7) ModConfig.transparentScoreboard = !ModConfig.transparentScoreboard;
+        if (button.id == 7) ModConfig.scoreboardEnabled = !ModConfig.scoreboardEnabled;
         if (button.id == 8) {
             ModConfig.crosshairMode++;
             if (ModConfig.crosshairMode > 4) ModConfig.crosshairMode = 0; 

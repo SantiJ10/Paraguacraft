@@ -1,12 +1,12 @@
 {
-  "version": "7.1.2",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.1.2/Instalar_Paraguacraft_v7.1.2.exe",
-  "size_bytes": 11277414,
-  "sha256": "0edcc732812610018bf7b76c31c70701f56d46391deb5f9403912d788c0deb46",
-  "notes": "- Fix JVM PvP 1.8.9: flags G1 compatibles con Java 8 (error «Could not create Java Virtual Machine»)\n- Fix SHA mod PvP: fuerza actualización del JAR viejo\n- Cliente PvP 2.0.0 + auto-update desde manifest",
+  "version": "7.1.3",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.1.3/Instalar_Paraguacraft_v7.1.3.exe",
+  "size_bytes": 0,
+  "sha256": "",
+  "notes": "- Cliente PvP 2.0.0: borderless Win32 fix, HUDs arrastrables, BW resources con fondo opcional, IPC overlay\n- Manifest PvP con SHA-1 actualizado (auto-update al lanzar)\n- Launcher 7.1.3 con bundle PvP embebido al día",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.1.2/Instalar_Paraguacraft_v7.1.2.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.1.3/Instalar_Paraguacraft_v7.1.3.exe",
       "signature": ""
     }
   }

@@ -15,6 +15,7 @@ import net.minecraft.potion.PotionEffect;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import com.paraguacraft.pvp.hud.AdvancedHud;
 import com.paraguacraft.pvp.hud.HudDraw;
 import com.paraguacraft.pvp.gui.theme.TextUtil;
 import com.paraguacraft.pvp.gui.theme.UiTheme;
@@ -79,7 +80,10 @@ public class HUDOverlay extends Gui {
         if (ModConfig.showPotions) drawPotionStatus(); 
         if (ModConfig.showHeldItem) drawHeldItemMod(); 
         if (ModConfig.showServerHUD) drawServerHUD(); 
-        if (ModConfig.showCompass) drawCompass(); 
+        if (ModConfig.showCompass) drawCompass();
+
+        AdvancedHud.drawOverlay();
+        AdvancedHud.drawBedwarsResources(mc.thePlayer);
     }
 
     // ============================================================
