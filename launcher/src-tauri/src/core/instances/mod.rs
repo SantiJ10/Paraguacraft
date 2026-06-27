@@ -345,7 +345,7 @@ pub fn ensure_meta(folder: &str) -> crate::error::AppResult<InstanceMeta> {
 
 /// Metadata de instancia detectada en otro launcher (`ext::source::key`).
 pub fn resolve_external_meta(ext_id: &str) -> Option<InstanceMeta> {
-    let inst = scan::scan_external().into_iter().find(|i| i.id == ext_id)?;
+    let inst = scan::find_external(ext_id)?;
     Some(InstanceMeta {
         name: inst.name,
         icon: icon_for_loader(&inst.loader),

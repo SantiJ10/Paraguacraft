@@ -5,6 +5,7 @@ use tauri::{AppHandle, State};
 use crate::config::keys;
 use crate::core::store::{self, destinations, InstallDestination};
 use crate::error::AppResult;
+use crate::core::servers::ServerProfile;
 use crate::models::{Instance, ServerWorldsResult, StoreItem, StoreVersion, WorldInfo};
 use crate::state::AppState;
 
@@ -145,6 +146,48 @@ pub async fn import_cfpack_version(
     let key = keys::curseforge_api_key();
     let (http, _net) = state.net_scope();
     store::cfpack::import_by_file_id(&app, &http, &key, &mod_id, &file_id).await
+}
+
+/// Instala un modpack Modrinth (.mrpack) en un servidor local Fabric/Forge nuevo.
+#[tauri::command]
+pub async fn import_mrpack_version_to_server(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    version_id: String,
+    ram_mb: Option<u32>,
+) -> AppResult<ServerProfile> {
+    let (http, _net) = state.net_scope();
+    store::server_modpack::import_mrpack_version_to_server(
+        &app,
+        &state,
+        &http,
+        &version_id,
+        ram_mb.unwrap_or(4096),
+    )
+    .await
+}
+
+/// Instala un modpack CurseForge (.zip) en un servidor local Fabric/Forge nuevo.
+#[tauri::command]
+pub async fn import_cfpack_version_to_server(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    mod_id: String,
+    file_id: String,
+    ram_mb: Option<u32>,
+) -> AppResult<ServerProfile> {
+    let key = keys::curseforge_api_key();
+    let (http, _net) = state.net_scope();
+    store::server_modpack::import_cfpack_version_to_server(
+        &app,
+        &state,
+        &http,
+        &key,
+        &mod_id,
+        &file_id,
+        ram_mb.unwrap_or(4096),
+    )
+    .await
 }
 
 #[tauri::command]

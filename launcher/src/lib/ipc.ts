@@ -186,6 +186,17 @@ export const api = {
     return delay({ logsMb: 0, crashMb: 0, mcRamMb: 0 });
   },
 
+  async getExtrasPanelData(): Promise<{ extras: ExtrasStatus; cleanup: CleanupInfo }> {
+    if (isTauri()) {
+      const [extras, cleanup] = await invokeReal<[ExtrasStatus, CleanupInfo]>("get_extras_panel_data");
+      return { extras, cleanup };
+    }
+    return delay({
+      extras: { gameModeActive: false, turboActive: false, javaPriority: "normal" },
+      cleanup: { logsMb: 0, crashMb: 0, mcRamMb: 0 },
+    });
+  },
+
   async runCleanup(kind: "logs" | "crash" | "both"): Promise<number> {
     if (isTauri()) return invokeReal<number>("run_cleanup", { kind });
     return delay(0);
@@ -489,12 +500,24 @@ export const api = {
     return invokeReal<Instance>("import_mrpack_version", { versionId });
   },
 
+  async importMrpackVersionToServer(versionId: string, ramMb?: number): Promise<ServerProfile> {
+    return invokeReal<ServerProfile>("import_mrpack_version_to_server", { versionId, ramMb });
+  },
+
   async importCfpack(source: string, mc: string): Promise<Instance> {
     return invokeReal<Instance>("import_cfpack", { source, mc });
   },
 
   async importCfpackVersion(modId: string, fileId: string): Promise<Instance> {
     return invokeReal<Instance>("import_cfpack_version", { modId, fileId });
+  },
+
+  async importCfpackVersionToServer(
+    modId: string,
+    fileId: string,
+    ramMb?: number,
+  ): Promise<ServerProfile> {
+    return invokeReal<ServerProfile>("import_cfpack_version_to_server", { modId, fileId, ramMb });
   },
 
   async pickAndImportCfpackZip(): Promise<Instance> {
@@ -630,6 +653,11 @@ export const api = {
     return invokeReal<AiAssistResponse>("ai_assist", { prompt, diagnosis: diagnosis ?? null });
   },
 
+  async syncOverlayMusic(playing: boolean, title: string, artist: string): Promise<void> {
+    if (!isTauri()) return;
+    await invokeReal<void>("sync_overlay_music", { playing, title, artist });
+  },
+
   async listServers(): Promise<ServerProfile[]> {
     if (isTauri()) return invokeReal<ServerProfile[]>("list_servers");
     return delay([]);
@@ -642,6 +670,16 @@ export const api = {
     ramMb: number;
   }): Promise<ServerProfile> {
     return invokeReal<ServerProfile>("create_server", { ...payload });
+  },
+
+  async updateServer(payload: {
+    id: string;
+    name?: string;
+    mcVersion?: string;
+    ramMb?: number;
+    port?: number;
+  }): Promise<ServerProfile> {
+    return invokeReal<ServerProfile>("update_server", { ...payload });
   },
 
   async deleteServer(id: string): Promise<void> {

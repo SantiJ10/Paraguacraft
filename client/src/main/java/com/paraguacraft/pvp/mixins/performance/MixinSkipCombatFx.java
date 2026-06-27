@@ -1,6 +1,7 @@
 package com.paraguacraft.pvp.mixins.performance;
 
 import com.paraguacraft.pvp.core.PerformanceConfig;
+import com.paraguacraft.pvp.modules.ModConfig;
 import net.minecraft.client.renderer.EntityRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -12,7 +13,7 @@ public class MixinSkipCombatFx {
 
     @Inject(method = "hurtCameraEffect", at = @At("HEAD"), cancellable = true, require = 0)
     private void paraguacraft$skipHurtCamera(float partialTicks, CallbackInfo ci) {
-        if (PerformanceConfig.skipCombatFx) {
+        if (PerformanceConfig.skipCombatFx || ModConfig.noHurtCam) {
             ci.cancel();
         }
     }

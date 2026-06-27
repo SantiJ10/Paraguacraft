@@ -234,6 +234,7 @@ async fn spawn_for_instance(
     }
 
     launch::emit_started(app, instance_id, pid);
+    let close_on_launch = settings.close_on_launch;
     launch::watch_exit(
         app.clone(),
         instance_id.to_string(),
@@ -250,6 +251,8 @@ async fn spawn_for_instance(
 
     state.shutdown_network();
     *state.java_cache.lock().unwrap() = None;
+
+    launch::apply_launch_window(app, close_on_launch);
 
     if !instance_id.starts_with("ext::") {
         meta.last_played = Some(now_secs().to_string());
@@ -389,4 +392,10 @@ pub async fn launch_instance(
         server_address,
     )
     .await
+}
+
+/// Sincroniza titulo/artista de musica al HUD in-game (IPC overlay).
+#[tauri::command]
+pub fn sync_overlay_music(playing: bool, title: String, artist: String) {
+    crate::core::overlay_ipc::set_music(playing, &title, &artist);
 }

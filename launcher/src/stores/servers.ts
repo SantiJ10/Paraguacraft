@@ -45,5 +45,17 @@ export const useServersStore = defineStore("servers", () => {
     return s;
   }
 
-  return { servers, loaded, load, upsert, create, remove, status, importFolder };
+  async function update(payload: {
+    id: string;
+    name?: string;
+    mcVersion?: string;
+    ramMb?: number;
+    port?: number;
+  }) {
+    const s = await api.updateServer(payload);
+    upsert(s);
+    return s;
+  }
+
+  return { servers, loaded, load, upsert, create, update, remove, status, importFolder };
 });

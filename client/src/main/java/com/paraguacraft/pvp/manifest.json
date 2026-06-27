@@ -1,15 +1,15 @@
-{
+﻿{
   "id": "paraguacraft-pvp",
   "client_version": "2.0.0",
   "release_tag": "pvp-client-2.0.0",
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "descripcion": "Cliente PvP 2.0.0 — borderless fix, HUDs M4, BW resources, IPC launcher.",
+  "descripcion": "Cliente PvP 2.0.0 — IPC musica in-game, no hurt cam unificado, HUD overlay.",
   "mods": [
     {
       "filename": "ParaguacraftPvP-2.0.0.jar",
-      "sha1": "3a6bffb12aa1325c10a14342a07451d5b9821a3e"
+      "sha1": "7277c611c097b32928997be6209bee91e80d4808"
     },
     {
       "filename": "OptiFine_1.8.9_HD_U_M5.jar",

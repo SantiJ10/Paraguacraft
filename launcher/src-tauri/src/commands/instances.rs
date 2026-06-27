@@ -1,13 +1,19 @@
 //! Comandos de instancias: escaneo/import, CRUD y backups.
 
-use crate::core::instances::{self, backups, importers, profiles, scan, InstanceMeta};
+use crate::core::instances::{self, backups, importers, profiles, InstanceMeta};
 use crate::error::AppResult;
 use crate::models::{BackupInfo, Instance};
 
 /// Escanea instancias locales + de otros launchers (Vanilla/Lunar/Prism/TLauncher/SK).
 #[tauri::command]
-pub fn scan_instances() -> Vec<Instance> {
-    scan::scan_all()
+pub async fn scan_instances() -> Vec<Instance> {
+    let local = instances::list_local();
+    let external = tokio::task::spawn_blocking(instances::scan::scan_external)
+        .await
+        .unwrap_or_default();
+    let mut out = local;
+    out.extend(external);
+    out
 }
 
 /// Solo las instancias del ecosistema Paraguacraft (mas rapido).

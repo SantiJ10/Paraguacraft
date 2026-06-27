@@ -4,7 +4,7 @@ import { useRouter } from "vue-router";
 import { useServersStore } from "@/stores/servers";
 import { useAppStore } from "@/stores/app";
 import { api, isTauri } from "@/lib/ipc";
-import type { ServerType } from "@/lib/types";
+import type { MinecraftVersion, ServerType } from "@/lib/types";
 import BaseButton from "@/components/common/BaseButton.vue";
 
 const SERVER_TYPES: Array<{ id: ServerType; label: string; icon: string; desc: string }> = [
@@ -42,6 +42,11 @@ const newName = ref("Mi servidor");
 const newMc = ref("1.21.1");
 const newType = ref<ServerType>("paper");
 const newRam = ref<number>(4096);
+const mcVersions = ref<MinecraftVersion[]>([]);
+
+const releaseMcVersions = computed(() =>
+  mcVersions.value.filter((v) => v.channel === "release"),
+);
 
 const ramOptions = computed(() => {
   const maxMb = app.hardware ? Math.floor(app.hardware.ramGb * 1024 * 0.75) : Infinity;
@@ -50,6 +55,11 @@ const ramOptions = computed(() => {
 
 onMounted(async () => {
   await app.loadHardware();
+  mcVersions.value = await api.getVersions();
+  newMc.value =
+    releaseMcVersions.value.find((v) => v.id === "1.21.1")?.id ??
+    releaseMcVersions.value[0]?.id ??
+    "1.21.1";
   if (ramOptions.value.length && !ramOptions.value.includes(newRam.value as (typeof SERVER_RAM_PRESETS_MB)[number])) {
     newRam.value = ramOptions.value[ramOptions.value.length - 1] ?? 4096;
   }
@@ -153,7 +163,12 @@ function openServer(id: string) {
         </label>
         <label class="text-sm">
           MC
-          <input v-model="newMc" class="mt-1 block w-28 rounded-lg border border-surface-5 bg-surface-3 px-3 py-2" />
+          <select
+            v-model="newMc"
+            class="mt-1 block min-w-[8rem] rounded-lg border border-surface-5 bg-surface-3 px-3 py-2"
+          >
+            <option v-for="v in releaseMcVersions" :key="v.id" :value="v.id">{{ v.id }}</option>
+          </select>
         </label>
         <label class="text-sm">
           RAM

@@ -1,18 +1,44 @@
 //! Escaneo de instancias de otros launchers (solo lectura).
 //!
-//! Es un escaneo puntual y barato (lecturas de directorio + algun JSON chico),
-//! sin watchers ni hilos: se ejecuta cuando la UI lo pide y vuelve a idle.
+//! El resultado se cachea en memoria para evitar re-escaneos en cada instalación
+//! desde la tienda. La UI dispara `scan_external()` (async vía `spawn_blocking`).
 
 use std::collections::HashSet;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
 
 use crate::core::paths;
 use crate::models::Instance;
 
+static EXTERNAL_CACHE: OnceLock<Mutex<Option<Vec<Instance>>>> = OnceLock::new();
+
+fn cache() -> &'static Mutex<Option<Vec<Instance>>> {
+    EXTERNAL_CACHE.get_or_init(|| Mutex::new(None))
+}
+
+pub fn set_external_cache(instances: Vec<Instance>) {
+    *cache().lock().unwrap() = Some(instances);
+}
+
+pub fn external_from_cache() -> Option<Vec<Instance>> {
+    cache().lock().unwrap().clone()
+}
+
+/// Busca una instancia externa por id; refresca el cache si no está.
+pub fn find_external(id: &str) -> Option<Instance> {
+    if let Some(cached) = external_from_cache() {
+        if let Some(i) = cached.iter().find(|i| i.id == id) {
+            return Some(i.clone());
+        }
+    }
+    let fresh = scan_external();
+    fresh.into_iter().find(|i| i.id == id)
+}
+
 /// Todas las instancias: locales (Paraguacraft) + detectadas en otros launchers.
 pub fn scan_all() -> Vec<Instance> {
     let mut out = super::list_local();
-    out.extend(scan_external());
+    out.extend(external_from_cache().unwrap_or_else(scan_external));
     out
 }
 
@@ -31,10 +57,11 @@ pub fn scan_external() -> Vec<Instance> {
         }
         match source {
             "prism" => scan_prism(&root, &mut out),
-            "lunar" => scan_simple_versions(&root, "lunar", "Lunar", &mut out),
+            "lunar" => scan_lunar(&root, &mut out),
             _ => scan_vanilla_versions(&root, source, &mut out),
         }
     }
+    set_external_cache(out.clone());
     out
 }
 
@@ -57,6 +84,7 @@ fn scan_vanilla_versions(versions_dir: &Path, source: &str, out: &mut Vec<Instan
             continue;
         }
         let loader = infer_loader(&name);
+        let game_dir = paths::default_minecraft_dir();
         out.push(Instance {
             id: ext_id(source, &name),
             name: name.clone(),
@@ -68,13 +96,13 @@ fn scan_vanilla_versions(versions_dir: &Path, source: &str, out: &mut Vec<Instan
             last_played: None,
             total_play_minutes: 0,
             ram_mb: 0,
-            mod_count: 0,
+            mod_count: super::count_mods(&game_dir),
         });
     }
 }
 
-/// Carpetas-version simples (Lunar multiver): cada subdir es una version.
-fn scan_simple_versions(root: &Path, source: &str, label: &str, out: &mut Vec<Instance>) {
+/// Lunar Client: cada subcarpeta de multiver es una versión MC.
+fn scan_lunar(root: &Path, out: &mut Vec<Instance>) {
     let Ok(entries) = std::fs::read_dir(root) else {
         return;
     };
@@ -83,20 +111,36 @@ fn scan_simple_versions(root: &Path, source: &str, label: &str, out: &mut Vec<In
             continue;
         }
         let ver = e.file_name().to_string_lossy().to_string();
+        let game_dir = lunar_version_dir(&ver);
+        let loader = infer_loader(&ver);
         out.push(Instance {
-            id: ext_id(source, &ver),
-            name: format!("{label} {ver}"),
+            id: ext_id("lunar", &ver),
+            name: format!("Lunar {ver}"),
             icon: "\u{1F319}".into(),
-            mc_version: ver.clone(),
-            loader: "vanilla".into(),
+            mc_version: extract_mc_version(&ver),
+            loader,
             loader_version: String::new(),
-            source: source.to_string(),
+            source: "lunar".into(),
             last_played: None,
             total_play_minutes: 0,
             ram_mb: 0,
-            mod_count: 0,
+            mod_count: super::count_mods(&game_dir),
         });
     }
+}
+
+/// Carpeta de juego efectiva para una versión Lunar (multiver o `.minecraft` compartido).
+pub fn lunar_version_dir(version: &str) -> PathBuf {
+    let home = dirs::home_dir().unwrap_or_default();
+    let ver_dir = home
+        .join(".lunarclient")
+        .join("offline")
+        .join("multiver")
+        .join(version);
+    if ver_dir.is_dir() {
+        return ver_dir;
+    }
+    paths::default_minecraft_dir()
 }
 
 /// Instancias Prism/PolyMC/MultiMC: `instance.cfg` + `mmc-pack.json`.

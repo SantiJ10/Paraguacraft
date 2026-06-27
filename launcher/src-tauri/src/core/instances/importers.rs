@@ -18,9 +18,7 @@ use super::{instance_dir, profiles, scan};
 const COPY_ITEMS: [&str; 5] = ["mods", "config", "resourcepacks", "shaderpacks", "options.txt"];
 
 pub fn import(ext_id: &str) -> AppResult<Instance> {
-    let inst = scan::scan_external()
-        .into_iter()
-        .find(|i| i.id == ext_id)
+    let inst = scan::find_external(ext_id)
         .ok_or_else(|| AppError::msg("Instancia externa no encontrada"))?;
 
     let local = profiles::create(
@@ -60,8 +58,9 @@ pub fn external_game_dir(ext_id: &str) -> Option<PathBuf> {
     let (source, key) = (parts[1], parts[2]);
     match source {
         "prism" => prism_game_dir(key),
-        // Vanilla, TLauncher, SK y Lunar comparten `.minecraft` global.
-        "vanilla" | "tlauncher" | "sklauncher" | "lunar" => Some(paths::default_minecraft_dir()),
+        "lunar" => Some(scan::lunar_version_dir(key)),
+        // Vanilla, TLauncher y SK comparten `.minecraft` global.
+        "vanilla" | "tlauncher" | "sklauncher" => Some(paths::default_minecraft_dir()),
         _ => Some(paths::default_minecraft_dir()),
     }
 }

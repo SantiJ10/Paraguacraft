@@ -169,6 +169,49 @@ pub fn create(name: &str, mc_version: &str, server_type: &str, ram_mb: u32) -> A
     Ok(profile)
 }
 
+/// Indica si falta preparar el JAR del servidor.
+pub fn needs_prepare(dir: &Path, server_type: &str) -> bool {
+    let Ok(kind) = crate::core::server_setup::normalize_server_type(server_type) else {
+        return true;
+    };
+    if kind == "forge" {
+        return !dir.join("run.bat").is_file()
+            && crate::core::server_setup::find_server_jar(dir, "forge").is_none();
+    }
+    !dir.join("server.jar").is_file()
+}
+
+pub fn update_profile(
+    id: &str,
+    name: Option<&str>,
+    mc_version: Option<&str>,
+    ram_mb: Option<u32>,
+    port: Option<u16>,
+) -> AppResult<ServerProfile> {
+    let mut all = load_all();
+    let idx = all
+        .iter()
+        .position(|s| s.id == id)
+        .ok_or_else(|| AppError::msg("Servidor no encontrado"))?;
+    if let Some(n) = name.map(str::trim).filter(|s| !s.is_empty()) {
+        all[idx].name = n.to_string();
+    }
+    if let Some(mc) = mc_version.map(str::trim).filter(|s| !s.is_empty()) {
+        all[idx].mc_version = mc.to_string();
+    }
+    if let Some(ram) = ram_mb {
+        all[idx].ram_mb = normalize_ram_mb(ram)?;
+    }
+    if let Some(p) = port {
+        all[idx].port = p;
+    }
+    let prof = all[idx].clone();
+    save_all(&all)?;
+    let dir = folder_for(&prof);
+    write_server_meta(&dir, &prof)?;
+    Ok(prof)
+}
+
 fn write_server_meta(dir: &Path, prof: &ServerProfile) -> AppResult<()> {
     let meta = serde_json::json!({
         "tipo": prof.server_type,
