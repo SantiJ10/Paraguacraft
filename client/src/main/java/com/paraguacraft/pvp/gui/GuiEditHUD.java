@@ -1,5 +1,6 @@
 package com.paraguacraft.pvp.gui;
 
+import com.paraguacraft.pvp.core.LauncherIpc;
 import com.paraguacraft.pvp.gui.theme.UiTheme;
 import com.paraguacraft.pvp.hud.AdvancedHud;
 import com.paraguacraft.pvp.modules.ModConfig;
@@ -42,8 +43,11 @@ public class GuiEditHUD extends GuiScreen {
             drawRect(compassX - 2, ModConfig.compassY - 2, compassX + 202, ModConfig.compassY + 22, box);
         }
         if (ModConfig.showHardwareHud || ModConfig.showMusicHud) {
+            LauncherIpc.Snapshot snap = LauncherIpc.get();
+            int oh = Math.max(58, AdvancedHud.overlayPanelHeight(snap));
+            int ow = Math.max(ModConfig.overlayHudW, AdvancedHud.overlayPanelWidth(snap));
             drawRect(ModConfig.overlayHudX - 2, ModConfig.overlayHudY - 2,
-                ModConfig.overlayHudX + ModConfig.overlayHudW, ModConfig.overlayHudY + 58, box);
+                ModConfig.overlayHudX + ow, ModConfig.overlayHudY + oh, box);
         }
         if (ModConfig.showBedwarsResources) {
             drawRect(ModConfig.bwResX - 2, ModConfig.bwResY - 2,
@@ -81,14 +85,18 @@ public class GuiEditHUD extends GuiScreen {
                 if (isHover(mouseX, mouseY, compassX, ModConfig.compassY, 200, 20)) {
                     dragging = 9; dragX = 0; dragY = mouseY - ModConfig.compassY;
                 } else if ((ModConfig.showHardwareHud || ModConfig.showMusicHud)
-                    && isHover(mouseX, mouseY, ModConfig.overlayHudX, ModConfig.overlayHudY, ModConfig.overlayHudW, 58)) {
+                    && isHover(mouseX, mouseY, ModConfig.overlayHudX, ModConfig.overlayHudY,
+                    Math.max(ModConfig.overlayHudW, AdvancedHud.overlayPanelWidth(LauncherIpc.get())),
+                    Math.max(58, AdvancedHud.overlayPanelHeight(LauncherIpc.get())))) {
                     dragging = 10; dragX = mouseX - ModConfig.overlayHudX; dragY = mouseY - ModConfig.overlayHudY;
                 } else if (ModConfig.showBedwarsResources
                     && isHover(mouseX, mouseY, ModConfig.bwResX, ModConfig.bwResY, AdvancedHud.bwPanelW(), AdvancedHud.bwPanelH())) {
                     dragging = 11; dragX = mouseX - ModConfig.bwResX; dragY = mouseY - ModConfig.bwResY;
                 }
             } else if ((ModConfig.showHardwareHud || ModConfig.showMusicHud)
-                && isHover(mouseX, mouseY, ModConfig.overlayHudX, ModConfig.overlayHudY, ModConfig.overlayHudW, 58)) {
+                && isHover(mouseX, mouseY, ModConfig.overlayHudX, ModConfig.overlayHudY,
+                Math.max(ModConfig.overlayHudW, AdvancedHud.overlayPanelWidth(LauncherIpc.get())),
+                Math.max(58, AdvancedHud.overlayPanelHeight(LauncherIpc.get())))) {
                 dragging = 10; dragX = mouseX - ModConfig.overlayHudX; dragY = mouseY - ModConfig.overlayHudY;
             } else if (ModConfig.showBedwarsResources
                 && isHover(mouseX, mouseY, ModConfig.bwResX, ModConfig.bwResY, AdvancedHud.bwPanelW(), AdvancedHud.bwPanelH())) {

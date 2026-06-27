@@ -1,12 +1,12 @@
 {
-  "version": "7.1.5",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.1.5/Instalar_Paraguacraft_v7.1.5.exe",
-  "size_bytes": 10218787,
-  "sha256": "23c0a91ca06d3fe8ccb4ba04ce9f8e60a5ae2604a331a0dc984328167fe8b1e0",
-  "notes": "- Fix: boton Siguiente bloqueado al elegir loader en la tienda (mods)\n- Launcher 7.1.5",
+  "version": "7.1.6",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.1.6/Instalar_Paraguacraft_v7.1.6.exe",
+  "size_bytes": 0,
+  "sha256": "",
+  "notes": "- Cliente PvP: caracteres espanol corregidos (Si/No sin iconos)\n- Music HUD: caratula del album, transparencia y opciones\n- IPC launcher: URL de caratula Spotify al HUD in-game\n- Launcher 7.1.6",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.1.5/Instalar_Paraguacraft_v7.1.5.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.1.6/Instalar_Paraguacraft_v7.1.6.exe",
       "signature": ""
     }
   }

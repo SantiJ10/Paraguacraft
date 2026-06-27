@@ -22,7 +22,8 @@
     "cosmetics.MixinNametagLogo"
   ],
   "client": [
-    "MixinDisplayTitle"
+    "MixinDisplayTitle",
+    "client.MixinFontRenderer"
   ],
   "injectors": {
     "defaultRequire": 0

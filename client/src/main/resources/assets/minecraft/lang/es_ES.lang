@@ -1,0 +1,9 @@
+options.on=Si
+options.off=No
+gui.yes=Si
+gui.no=No
+gui.done=Listo
+gui.cancel=Cancelar
+gui.back=Volver
+gui.toMenu=Menu principal
+addServer.enterIp=IP del servidor

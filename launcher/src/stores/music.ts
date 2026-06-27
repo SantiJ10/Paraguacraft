@@ -109,9 +109,10 @@ export const useMusicStore = defineStore("music", () => {
         active,
         spotifyNow.value.title ?? "",
         spotifyNow.value.artist ?? "",
+        spotifyNow.value.imageUrl ?? "",
       );
     } else {
-      void api.syncOverlayMusic(active, active ? label.value : "", "");
+      void api.syncOverlayMusic(active, active ? label.value : "", "", "");
     }
   }
 

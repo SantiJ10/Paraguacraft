@@ -69,6 +69,10 @@ paraguacraft.scoreboard.hide_stats=Hide stats (Hypixel BW)
 paraguacraft.bw_resources.title=BW Resources Options
 paraguacraft.bw_resources.transparent=Transparent background
 
+paraguacraft.music_hud.title=Music HUD Options
+paraguacraft.music_hud.album_art=Album cover
+paraguacraft.music_hud.alpha=Transparency
+
 paraguacraft.hud.bw.iron=Iron
 paraguacraft.hud.bw.gold=Gold
 paraguacraft.hud.bw.emerald=Emerald

@@ -653,9 +653,19 @@ export const api = {
     return invokeReal<AiAssistResponse>("ai_assist", { prompt, diagnosis: diagnosis ?? null });
   },
 
-  async syncOverlayMusic(playing: boolean, title: string, artist: string): Promise<void> {
+  async syncOverlayMusic(
+    playing: boolean,
+    title: string,
+    artist: string,
+    imageUrl?: string | null,
+  ): Promise<void> {
     if (!isTauri()) return;
-    await invokeReal<void>("sync_overlay_music", { playing, title, artist });
+    await invokeReal<void>("sync_overlay_music", {
+      playing,
+      title,
+      artist,
+      imageUrl: imageUrl ?? "",
+    });
   },
 
   async listServers(): Promise<ServerProfile[]> {

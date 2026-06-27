@@ -240,7 +240,7 @@ public class GuiParaguaMenu extends GuiScreen {
             String openLbl = I18n.format("paraguacraft.menu.open");
             Gui.drawRect(x + 8, toggleY, x + CARD_W - 8, toggleY + 16, hover ? UiTheme.ACCENT : 0xFF226688);
             fr.drawStringWithShadow(openLbl, x + CARD_W / 2 - fr.getStringWidth(openLbl) / 2, toggleY + 4, 0xFFFFFF);
-        } else if (mod.id == 9 || mod.id == 38) {
+        } else if (mod.id == 9 || mod.id == 36 || mod.id == 38) {
             int half = (CARD_W - 20) / 2;
             int optX = x + 8;
             int togX = x + 8 + half + 4;
@@ -340,14 +340,20 @@ public class GuiParaguaMenu extends GuiScreen {
             int cardY = gridY + 8 + cy * (CARD_H + GAP) - (int) scrollOffset;
             if (cardY + CARD_H >= gridY && cardY <= gridY + panelH - TOPBAR - 12
                 && mouseX >= cardX && mouseX <= cardX + CARD_W && mouseY >= cardY && mouseY <= cardY + CARD_H) {
-                if (mod.id == 9 || mod.id == 38) {
+                if (mod.id == 9 || mod.id == 36 || mod.id == 38) {
                     int toggleY = cardY + CARD_H - 22;
                     int half = (CARD_W - 20) / 2;
                     int optX = cardX + 8;
                     int togX = cardX + 8 + half + 4;
                     if (mouseY >= toggleY && mouseY <= toggleY + 16) {
                         if (mouseX >= optX && mouseX <= optX + half) {
-                            mc.displayGuiScreen(mod.id == 9 ? new GuiScoreboardOptions() : new GuiBwResourcesOptions());
+                            if (mod.id == 9) {
+                                mc.displayGuiScreen(new GuiScoreboardOptions());
+                            } else if (mod.id == 36) {
+                                mc.displayGuiScreen(new GuiMusicHudOptions());
+                            } else {
+                                mc.displayGuiScreen(new GuiBwResourcesOptions());
+                            }
                             return;
                         }
                         if (mouseX >= togX && mouseX <= cardX + CARD_W - 8) {
