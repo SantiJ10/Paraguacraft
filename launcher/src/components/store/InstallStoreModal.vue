@@ -236,6 +236,9 @@ const canNext = computed(() => {
   if (loaderRequired.value && isModpack.value && step.value === 1) {
     return modpackLoadersForMc.value.includes(loaderId.value);
   }
+  if (loaderRequired.value && isInstanceFlow.value && step.value === 1) {
+    return installLoaders.value.some((l) => l.id === loaderId.value);
+  }
   if (isModpack.value && step.value === destinationStep.value) {
     if (modpackTarget.value === "server") return modpackServerAvailable.value;
     return true;

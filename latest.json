@@ -1,12 +1,12 @@
 {
-  "version": "7.1.4",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.1.4/Instalar_Paraguacraft_v7.1.4.exe",
-  "size_bytes": 10218691,
-  "sha256": "7e4153a0857ffbaf5b0676db8f132a74de328cd397662dd47fa1e3be4d749ebd",
-  "notes": "- Launcher 7.1.4: tienda con destino local/externo/servidor, modpacks a servidor, Groq en Paraguabot\n- Servidores: auto-prepare + Java al iniciar\n- Cliente PvP 2.0.0: IPC musica in-game, no hurt cam unificado\n- Escaneo async de instancias externas (Prism, Lunar, .minecraft)",
+  "version": "7.1.5",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.1.5/Instalar_Paraguacraft_v7.1.5.exe",
+  "size_bytes": 10218787,
+  "sha256": "23c0a91ca06d3fe8ccb4ba04ce9f8e60a5ae2604a331a0dc984328167fe8b1e0",
+  "notes": "- Fix: boton Siguiente bloqueado al elegir loader en la tienda (mods)\n- Launcher 7.1.5",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.1.4/Instalar_Paraguacraft_v7.1.4.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.1.5/Instalar_Paraguacraft_v7.1.5.exe",
       "signature": ""
     }
   }
