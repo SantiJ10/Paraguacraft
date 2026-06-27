@@ -396,6 +396,6 @@ pub async fn launch_instance(
 
 /// Sincroniza titulo/artista de musica al HUD in-game (IPC overlay).
 #[tauri::command]
-pub fn sync_overlay_music(playing: bool, title: String, artist: String) {
-    crate::core::overlay_ipc::set_music(playing, &title, &artist);
+pub fn sync_overlay_music(playing: bool, title: String, artist: String, image_url: String) {
+    crate::core::overlay_ipc::set_music(playing, &title, &artist, &image_url);
 }

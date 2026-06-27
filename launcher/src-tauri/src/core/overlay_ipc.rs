@@ -13,15 +13,20 @@ use crate::core::paths;
 const MAGIC: &[u8; 4] = b"PGIP";
 const SIZE: usize = 512;
 
-static MUSIC: Mutex<(bool, String, String)> = Mutex::new((false, String::new(), String::new()));
+static MUSIC: Mutex<(bool, String, String, String)> = Mutex::new((false, String::new(), String::new(), String::new()));
 
 pub fn ipc_path() -> PathBuf {
     paths::data_dir().join("game-overlay.dat")
 }
 
-pub fn set_music(playing: bool, title: &str, artist: &str) {
+pub fn set_music(playing: bool, title: &str, artist: &str, image_url: &str) {
     if let Ok(mut g) = MUSIC.lock() {
-        *g = (playing, title.to_string(), artist.to_string());
+        *g = (
+            playing,
+            title.to_string(),
+            artist.to_string(),
+            image_url.to_string(),
+        );
     }
 }
 
@@ -43,10 +48,10 @@ pub fn write_snapshot() {
         -1.0
     };
 
-    let (music_playing, music_title, music_artist) = MUSIC
+    let (music_playing, music_title, music_artist, music_image) = MUSIC
         .lock()
-        .map(|g| (g.0, g.1.clone(), g.2.clone()))
-        .unwrap_or((false, String::new(), String::new()));
+        .map(|g| (g.0, g.1.clone(), g.2.clone(), g.3.clone()))
+        .unwrap_or((false, String::new(), String::new(), String::new()));
 
     let mut buf = [0u8; SIZE];
     buf[0..4].copy_from_slice(MAGIC);
@@ -58,6 +63,7 @@ pub fn write_snapshot() {
     buf[24] = if music_playing { 1 } else { 0 };
     write_fixed_str(&mut buf, 25, 128, &music_title);
     write_fixed_str(&mut buf, 153, 64, &music_artist);
+    write_fixed_str(&mut buf, 217, 256, &music_image);
 
     let path = ipc_path();
     if let Ok(mut f) = std::fs::File::create(&path) {

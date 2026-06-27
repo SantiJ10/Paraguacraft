@@ -49,6 +49,8 @@ public class ModConfig {
     // Módulo 4 — IPC + HUDs avanzados
     public static boolean showHardwareHud = true;
     public static boolean showMusicHud = true;
+    public static boolean showMusicAlbumArt = true;
+    public static int musicHudAlpha = 153;
     public static boolean showTntCountdown = true;
     public static boolean showBedwarsResources = true;
     public static boolean bwResTransparentBg = false;
@@ -71,7 +73,25 @@ public class ModConfig {
     public static int serverX = 5, serverY = 210; 
     public static int compassY = 10; // La brújula se alinea al centro automáticamente, solo definimos la altura
 
+    private static final int[] MUSIC_ALPHA_PRESETS = {255, 192, 128, 64};
+
     public static boolean loaded = false;
+
+    public static void cycleMusicHudAlpha() {
+        int idx = 0;
+        for (int i = 0; i < MUSIC_ALPHA_PRESETS.length; i++) {
+            if (musicHudAlpha == MUSIC_ALPHA_PRESETS[i]) {
+                idx = (i + 1) % MUSIC_ALPHA_PRESETS.length;
+                break;
+            }
+        }
+        musicHudAlpha = MUSIC_ALPHA_PRESETS[idx];
+    }
+
+    public static String musicHudAlphaLabel() {
+        int pct = Math.round(musicHudAlpha / 255f * 100f);
+        return pct + "%";
+    }
 
     public static void save() {
         try {
@@ -112,6 +132,8 @@ public class ModConfig {
             props.setProperty("showNametagLogoOthers", String.valueOf(showNametagLogoOthers));
             props.setProperty("showHardwareHud", String.valueOf(showHardwareHud));
             props.setProperty("showMusicHud", String.valueOf(showMusicHud));
+            props.setProperty("showMusicAlbumArt", String.valueOf(showMusicAlbumArt));
+            props.setProperty("musicHudAlpha", String.valueOf(musicHudAlpha));
             props.setProperty("showTntCountdown", String.valueOf(showTntCountdown));
             props.setProperty("showBedwarsResources", String.valueOf(showBedwarsResources));
             props.setProperty("bwResTransparentBg", String.valueOf(bwResTransparentBg));
@@ -196,6 +218,8 @@ public class ModConfig {
             showNametagLogoOthers = Boolean.parseBoolean(props.getProperty("showNametagLogoOthers", String.valueOf(showNametagLogoOthers)));
             showHardwareHud = Boolean.parseBoolean(props.getProperty("showHardwareHud", String.valueOf(showHardwareHud)));
             showMusicHud = Boolean.parseBoolean(props.getProperty("showMusicHud", String.valueOf(showMusicHud)));
+            showMusicAlbumArt = Boolean.parseBoolean(props.getProperty("showMusicAlbumArt", String.valueOf(showMusicAlbumArt)));
+            musicHudAlpha = Integer.parseInt(props.getProperty("musicHudAlpha", String.valueOf(musicHudAlpha)));
             showTntCountdown = Boolean.parseBoolean(props.getProperty("showTntCountdown", String.valueOf(showTntCountdown)));
             showBedwarsResources = Boolean.parseBoolean(props.getProperty("showBedwarsResources", String.valueOf(showBedwarsResources)));
             bwResTransparentBg = Boolean.parseBoolean(props.getProperty("bwResTransparentBg", String.valueOf(bwResTransparentBg)));

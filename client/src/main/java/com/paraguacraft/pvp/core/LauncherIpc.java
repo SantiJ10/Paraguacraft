@@ -20,6 +20,7 @@ public final class LauncherIpc {
         public boolean musicPlaying;
         public String musicTitle = "";
         public String musicArtist = "";
+        public String musicImageUrl = "";
         public boolean valid;
     }
 
@@ -67,6 +68,7 @@ public final class LauncherIpc {
             s.musicPlaying = bb.get(24) != 0;
             s.musicTitle = readUtf8(buf, 25, 128);
             s.musicArtist = readUtf8(buf, 153, 64);
+            s.musicImageUrl = readUtf8(buf, 217, 256);
             s.valid = true;
             last = s;
         } catch (Exception e) {
