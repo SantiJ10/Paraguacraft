@@ -14,6 +14,8 @@ use crate::core::paths;
 use crate::models::AppSettings;
 
 const ENV_CF_KEY: &str = "CURSEFORGE_API_KEY";
+const ENV_OPENAI_KEY: &str = "OPENAI_API_KEY";
+const ENV_GROQ_KEY: &str = "GROQ_API_KEY";
 
 #[derive(Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -28,6 +30,10 @@ struct AppSecretsFile {
     spotify_refresh_token: Option<String>,
     #[serde(default)]
     spotify_redirect_uri: Option<String>,
+    #[serde(default)]
+    openai_api_key: Option<String>,
+    #[serde(default)]
+    groq_api_key: Option<String>,
 }
 
 fn app_secrets_file() -> PathBuf {
@@ -164,4 +170,71 @@ pub fn save_spotify_refresh_token(token: Option<&str>) -> crate::error::AppResul
 
 pub fn spotify_credentials() -> (Option<String>, Option<String>) {
     (read_spotify_client_id(), read_spotify_client_secret())
+}
+
+/// Configuración del proveedor LLM (Groq primero, OpenAI como fallback).
+pub struct LlmConfig {
+    pub provider: &'static str,
+    pub api_key: String,
+    pub chat_url: &'static str,
+    pub model: &'static str,
+}
+
+pub fn groq_api_key() -> Option<String> {
+    if let Ok(v) = std::env::var(ENV_GROQ_KEY) {
+        let t = v.trim().to_string();
+        if !t.is_empty() {
+            return Some(t);
+        }
+    }
+    read_app_secrets()
+        .groq_api_key
+        .filter(|s| !s.trim().is_empty())
+        .map(|s| s.trim().to_string())
+}
+
+pub fn save_groq_api_key(key: &str) -> crate::error::AppResult<()> {
+    let t = key.trim();
+    let mut file = read_app_secrets();
+    file.groq_api_key = if t.is_empty() { None } else { Some(t.to_string()) };
+    config::write_secret_json(&app_secrets_file(), &file)
+}
+
+/// Groq tiene prioridad sobre OpenAI para Paraguabot.
+pub fn resolve_llm_config() -> Option<LlmConfig> {
+    if let Some(key) = groq_api_key() {
+        return Some(LlmConfig {
+            provider: "groq",
+            api_key: key,
+            chat_url: "https://api.groq.com/openai/v1/chat/completions",
+            model: "llama-3.3-70b-versatile",
+        });
+    }
+    openai_api_key().map(|key| LlmConfig {
+        provider: "openai",
+        api_key: key,
+        chat_url: "https://api.openai.com/v1/chat/completions",
+        model: "gpt-4o-mini",
+    })
+}
+
+/// API key OpenAI (env → app_secrets.json).
+pub fn openai_api_key() -> Option<String> {
+    if let Ok(v) = std::env::var(ENV_OPENAI_KEY) {
+        let t = v.trim().to_string();
+        if !t.is_empty() {
+            return Some(t);
+        }
+    }
+    read_app_secrets()
+        .openai_api_key
+        .filter(|s| !s.trim().is_empty())
+        .map(|s| s.trim().to_string())
+}
+
+pub fn save_openai_api_key(key: &str) -> crate::error::AppResult<()> {
+    let t = key.trim();
+    let mut file = read_app_secrets();
+    file.openai_api_key = if t.is_empty() { None } else { Some(t.to_string()) };
+    config::write_secret_json(&app_secrets_file(), &file)
 }

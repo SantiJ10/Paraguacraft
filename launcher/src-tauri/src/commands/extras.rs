@@ -12,6 +12,20 @@ pub fn get_extras_status() -> extras::ExtrasStatus {
 }
 
 #[tauri::command]
+pub async fn get_cleanup_info() -> crate::error::AppResult<maintenance::CleanupInfo> {
+    tauri::async_runtime::spawn_blocking(maintenance::info)
+        .await
+        .map_err(|e| crate::error::AppError::msg(format!("get_cleanup_info: {e}")))
+}
+
+#[tauri::command]
+pub async fn get_extras_panel_data() -> crate::error::AppResult<(extras::ExtrasStatus, maintenance::CleanupInfo)> {
+    tauri::async_runtime::spawn_blocking(|| (extras::status(), maintenance::info()))
+        .await
+        .map_err(|e| crate::error::AppError::msg(format!("get_extras_panel_data: {e}")))
+}
+
+#[tauri::command]
 pub fn activate_game_mode() -> AppResult<Vec<String>> {
     extras::game_mode::activate()
 }
@@ -34,11 +48,6 @@ pub fn deactivate_turbo_mode() -> AppResult<Vec<String>> {
 #[tauri::command]
 pub fn set_java_priority(level: String) -> AppResult<u32> {
     extras::java_priority::set_level(&level)
-}
-
-#[tauri::command]
-pub fn get_cleanup_info() -> maintenance::CleanupInfo {
-    maintenance::info()
 }
 
 #[tauri::command]

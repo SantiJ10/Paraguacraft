@@ -19,6 +19,10 @@ const accounts = useAccountsStore();
 const skins = useSkinsStore();
 const app = useAppStore();
 
+const pageReady = ref(false);
+const extrasLoading = ref(false);
+const javaSectionReady = ref(false);
+
 const showAddAccount = ref(false);
 const skinBusy = ref(false);
 const skinMessage = ref<string | null>(null);
@@ -29,19 +33,36 @@ const extrasBusy = ref(false);
 const extrasMessage = ref<string | null>(null);
 
 onMounted(async () => {
-  settings.load();
-  await accounts.load();
-  await skins.refresh();
-  app.loadHardware(true);
-  app.checkUpdate();
-  if (isTauri()) {
-    try {
-      extrasStatus.value = await api.getExtrasStatus();
-      cleanupInfo.value = await api.getCleanupInfo();
-    } catch {
-      /* opcional */
+  try {
+    if (!settings.settings) {
+      await settings.load();
     }
+    await Promise.all([accounts.load(), skins.refresh()]);
+    if (!app.hardware) {
+      app.loadHardware(false);
+    }
+  } finally {
+    pageReady.value = true;
   }
+
+  if (isTauri()) {
+    extrasLoading.value = true;
+    window.setTimeout(async () => {
+      try {
+        const data = await api.getExtrasPanelData();
+        extrasStatus.value = data.extras;
+        cleanupInfo.value = data.cleanup;
+      } catch {
+        /* opcional */
+      } finally {
+        extrasLoading.value = false;
+      }
+    }, 0);
+  }
+
+  window.setTimeout(() => {
+    javaSectionReady.value = true;
+  }, 120);
 });
 
 async function applyOfflineSkin() {
@@ -118,8 +139,14 @@ const javaPriorityOptions = [
 
 async function refreshExtrasStatus() {
   if (!isTauri()) return;
-  extrasStatus.value = await api.getExtrasStatus();
-  cleanupInfo.value = await api.getCleanupInfo();
+  extrasLoading.value = true;
+  try {
+    const data = await api.getExtrasPanelData();
+    extrasStatus.value = data.extras;
+    cleanupInfo.value = data.cleanup;
+  } finally {
+    extrasLoading.value = false;
+  }
 }
 
 async function toggleGameMode() {
@@ -191,7 +218,11 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
   <div class="mx-auto max-w-3xl p-8">
     <h1 class="mb-6 text-2xl font-bold">Ajustes</h1>
 
-    <template v-if="settings.settings">
+    <div v-if="!pageReady" class="space-y-4">
+      <div v-for="n in 4" :key="n" class="h-28 animate-pulse rounded-xl bg-surface-3" />
+    </div>
+
+    <template v-else-if="settings.settings">
       <!-- Rendimiento -->
       <section class="mb-6 rounded-xl border border-surface-4 bg-surface-2 p-6">
         <h2 class="mb-4 flex items-center gap-2 text-lg font-bold">
@@ -267,6 +298,8 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
           <span class="font-emoji">&#128640;</span> Extras y rendimiento
         </h2>
 
+        <div v-if="extrasLoading" class="mb-4 h-16 animate-pulse rounded-lg bg-surface-3" />
+
         <div class="mb-5 space-y-4">
           <BaseToggle
             :model-value="settings.settings.papaMode ?? false"
@@ -303,7 +336,7 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
           </label>
         </div>
 
-        <div v-if="isTauri()" class="space-y-3 border-t border-surface-4 pt-4">
+        <div v-if="isTauri() && !extrasLoading" class="space-y-3 border-t border-surface-4 pt-4">
           <div class="flex flex-wrap gap-2">
             <BaseButton
               size="sm"
@@ -503,7 +536,8 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
       </section>
 
       <!-- Java -->
-      <JavaManager />
+      <JavaManager v-if="javaSectionReady" :auto-detect="true" />
+      <div v-else class="mb-6 h-40 animate-pulse rounded-xl bg-surface-3" />
 
       <!-- Tienda -->
       <section class="rounded-xl border border-surface-4 bg-surface-2 p-6">

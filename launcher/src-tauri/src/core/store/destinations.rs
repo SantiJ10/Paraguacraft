@@ -83,6 +83,21 @@ pub fn plugin_dest_dir(server_id: &str) -> AppResult<PathBuf> {
     Ok(dest)
 }
 
+/// Carpeta `mods/` de un servidor Fabric/Forge local.
+pub fn mod_dest_dir(server_id: &str) -> AppResult<PathBuf> {
+    let prof = servers::profile_by_id(server_id)?;
+    let st = prof.server_type.as_str();
+    if !st.starts_with("fabric") && !st.starts_with("forge") {
+        return Err(AppError::msg(format!(
+            "El servidor \"{}\" no tiene carpeta mods/ (solo Fabric/Forge).",
+            prof.name
+        )));
+    }
+    let dest = servers::folder_for(&prof).join("mods");
+    std::fs::create_dir_all(&dest)?;
+    Ok(dest)
+}
+
 fn resolve_server_world_dir(server_dir: &Path, world: Option<&str>) -> AppResult<PathBuf> {
     let level = world
         .map(str::trim)

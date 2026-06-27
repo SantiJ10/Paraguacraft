@@ -36,6 +36,10 @@ const instanceId = ref("");
 const serverId = ref("");
 const worldName = ref("");
 const destination = ref<StoreInstallDestination>("instance");
+/** Destino de instalación para mods/shaders/RP: local, externo o servidor. */
+const installTarget = ref<"local" | "external" | "server">("local");
+/** Destino de modpack: instancia cliente o servidor local Fabric/Forge. */
+const modpackTarget = ref<"instance" | "server">("instance");
 const instanceWorlds = ref<WorldInfo[]>([]);
 const serverWorlds = ref<WorldInfo[]>([]);
 const modVersions = ref<StoreVersion[]>([]);
@@ -94,12 +98,15 @@ const loaderRequired = computed(
 
 const stepLabels = computed(() => {
   if (isPlugin.value) return ["Versión MC", "Servidor local", "Versión del plugin"];
-  if (isModpack.value) return ["Versión MC", "Plataforma", "Versión del modpack"];
+  if (isModpack.value) return ["Versión MC", "Plataforma", "Destino", "Versión del modpack"];
   if (isDatapack.value) {
     return ["Versión MC", "Destino", "Mundo", "Versión del datapack"];
   }
   if (loaderRequired.value) {
-    return ["Versión MC", "Plataforma", "Instancia", "Versión del mod"];
+    return ["Versión MC", "Plataforma", "Destino", "Ubicación", "Versión del mod"];
+  }
+  if (isInstanceFlow.value) {
+    return ["Versión MC", "Destino", "Ubicación", "Versión"];
   }
   return ["Versión MC", "Instancia", "Versión del mod"];
 });
@@ -171,6 +178,20 @@ const compatibleServers = computed(() => {
 const localCompatible = computed(() => compatibleInstances.value.filter((i) => !isExternal(i.id)));
 const externalCompatible = computed(() => compatibleInstances.value.filter((i) => isExternal(i.id)));
 
+const modCompatibleServers = computed(() => {
+  if (!mcVersion.value || projectType.value !== "mod") return [];
+  return servers.servers.filter((s) => {
+    if (s.mcVersion !== mcVersion.value && s.mcVersion !== "?" && s.mcVersion) return false;
+    if (s.serverType.startsWith("fabric")) return loadersCompatible("fabric", loaderId.value);
+    if (s.serverType.startsWith("forge")) return loadersCompatible("forge", loaderId.value);
+    return false;
+  });
+});
+
+const serverDestinationAvailable = computed(
+  () => projectType.value === "mod" && modCompatibleServers.value.length > 0,
+);
+
 const effectiveLoader = computed(() => {
   if (isPlugin.value) {
     const srv = servers.servers.find((s) => s.id === serverId.value);
@@ -181,23 +202,43 @@ const effectiveLoader = computed(() => {
   return loaderRequired.value ? loaderId.value : "";
 });
 
+const modpackServerAvailable = computed(() => {
+  const l = loaderId.value;
+  return l === "fabric" || l === "forge" || l === "neoforge" || l === "quilt";
+});
+
 const targetStep = computed(() => {
   if (isPlugin.value) return 1;
   if (isDatapack.value) return 2;
+  if (loaderRequired.value && isInstanceFlow.value) return 3;
+  if (isInstanceFlow.value) return 2;
+  return -1;
+});
+
+const destinationStep = computed(() => {
+  if (isModpack.value) return 2;
+  if (isDatapack.value) return 1;
   if (loaderRequired.value && isInstanceFlow.value) return 2;
   if (isInstanceFlow.value) return 1;
   return -1;
 });
-
-const destinationStep = computed(() => (isDatapack.value ? 1 : -1));
 
 const canNext = computed(() => {
   if (step.value === 0) return !!mcVersion.value;
   if (isDatapack.value && step.value === destinationStep.value) {
     return destination.value === "instance" || destination.value === "server";
   }
+  if (isInstanceFlow.value && step.value === destinationStep.value) {
+    if (installTarget.value === "local") return localCompatible.value.length > 0;
+    if (installTarget.value === "external") return externalCompatible.value.length > 0;
+    return serverDestinationAvailable.value;
+  }
   if (loaderRequired.value && isModpack.value && step.value === 1) {
     return modpackLoadersForMc.value.includes(loaderId.value);
+  }
+  if (isModpack.value && step.value === destinationStep.value) {
+    if (modpackTarget.value === "server") return modpackServerAvailable.value;
+    return true;
   }
   if (step.value === targetStep.value) {
     if (isPlugin.value) return !!serverId.value;
@@ -205,6 +246,7 @@ const canNext = computed(() => {
       if (destination.value === "server") return !!serverId.value && !!worldName.value;
       return !!instanceId.value && !!worldName.value;
     }
+    if (installTarget.value === "server") return !!serverId.value;
     return !!instanceId.value;
   }
   return false;
@@ -299,6 +341,8 @@ async function resetWizard() {
   serverId.value = "";
   worldName.value = "";
   destination.value = "instance";
+  installTarget.value = "local";
+  modpackTarget.value = "instance";
   instanceWorlds.value = [];
   serverWorlds.value = [];
   modVersions.value = [];
@@ -374,10 +418,17 @@ watch(mcVersion, async (mc) => {
   }
 });
 
-watch([compatibleInstances, () => step.value], () => {
+watch([compatibleInstances, () => step.value, installTarget], () => {
   if (step.value === targetStep.value && isInstanceFlow.value) {
-    const ok = compatibleInstances.value.some((i) => i.id === instanceId.value);
-    if (!ok) instanceId.value = compatibleInstances.value[0]?.id ?? "";
+    if (installTarget.value === "server") {
+      const ok = modCompatibleServers.value.some((s) => s.id === serverId.value);
+      if (!ok) serverId.value = modCompatibleServers.value[0]?.id ?? "";
+      return;
+    }
+    const pool =
+      installTarget.value === "external" ? externalCompatible.value : localCompatible.value;
+    const ok = pool.some((i) => i.id === instanceId.value);
+    if (!ok) instanceId.value = pool[0]?.id ?? "";
   }
 });
 
@@ -398,6 +449,21 @@ watch(serverId, () => {
   }
 });
 
+watch(installTarget, () => {
+  if (installTarget.value === "server") {
+    serverId.value = modCompatibleServers.value[0]?.id ?? "";
+  } else {
+    const pool =
+      installTarget.value === "external" ? externalCompatible.value : localCompatible.value;
+    instanceId.value = pool[0]?.id ?? "";
+  }
+});
+
+function syncInstallTargetDefault() {
+  if (localCompatible.value.length) installTarget.value = "local";
+  else if (externalCompatible.value.length) installTarget.value = "external";
+  else if (serverDestinationAvailable.value) installTarget.value = "server";
+}
 watch(destination, () => {
   worldName.value = "";
   if (destination.value === "server") {
@@ -407,6 +473,10 @@ watch(destination, () => {
     instanceId.value = compatibleInstances.value[0]?.id ?? "";
     void loadInstanceWorlds();
   }
+});
+
+watch([localCompatible, externalCompatible, modCompatibleServers], () => {
+  if (open.value && isInstanceFlow.value) syncInstallTargetDefault();
 });
 
 async function loadModVersions() {
@@ -453,6 +523,9 @@ async function nextStep() {
   }
 
   step.value = next;
+  if (isInstanceFlow.value && next === destinationStep.value) {
+    syncInstallTargetDefault();
+  }
   if (isDatapack.value && next === targetStep.value) {
     if (destination.value === "server") {
       serverId.value = compatibleServers.value[0]?.id ?? "";
@@ -479,14 +552,23 @@ async function install() {
     await downloads.initEvents();
 
     if (isModpack.value) {
-      let inst;
-      if (props.item.provider === "curseforge") {
-        inst = await api.importCfpackVersion(props.item.id, selectedVersionId.value);
+      if (modpackTarget.value === "server") {
+        const srv =
+          props.item.provider === "curseforge"
+            ? await api.importCfpackVersionToServer(props.item.id, selectedVersionId.value)
+            : await api.importMrpackVersionToServer(selectedVersionId.value);
+        installedModpackName.value = srv.name;
+        await servers.load(true);
       } else {
-        inst = await api.importMrpackVersion(selectedVersionId.value);
+        let inst;
+        if (props.item.provider === "curseforge") {
+          inst = await api.importCfpackVersion(props.item.id, selectedVersionId.value);
+        } else {
+          inst = await api.importMrpackVersion(selectedVersionId.value);
+        }
+        installedModpackName.value = inst.name;
+        await instances.load(true);
       }
-      installedModpackName.value = inst.name;
-      await instances.load(true);
       emit("installed");
       open.value = false;
       return;
@@ -499,13 +581,23 @@ async function install() {
       versionId: selectedVersionId.value,
       mc: mcVersion.value,
       loader: effectiveLoader.value,
-      instanceId: isInstanceFlow.value || (isDatapack.value && destination.value === "instance")
-        ? instanceId.value
-        : undefined,
-      destination: isDatapack.value ? destination.value : isPlugin.value ? "server" : "instance",
-      serverId: isPlugin.value || (isDatapack.value && destination.value === "server")
-        ? serverId.value
-        : undefined,
+      instanceId:
+        isInstanceFlow.value && installTarget.value !== "server"
+          ? instanceId.value
+          : isDatapack.value && destination.value === "instance"
+            ? instanceId.value
+            : undefined,
+      destination: isDatapack.value
+        ? destination.value
+        : isPlugin.value || (isInstanceFlow.value && installTarget.value === "server")
+          ? "server"
+          : "instance",
+      serverId:
+        isPlugin.value ||
+        (isDatapack.value && destination.value === "server") ||
+        (isInstanceFlow.value && installTarget.value === "server")
+          ? serverId.value
+          : undefined,
       worldName: isDatapack.value ? worldName.value : undefined,
     });
 
@@ -573,7 +665,11 @@ function serverTypeLabel(t: string): string {
                 <h3 class="truncate text-lg font-bold">Instalar {{ item.title }}</h3>
                 <p class="text-xs text-gray-500">por {{ item.author }}</p>
                 <p v-if="isModpack" class="mt-0.5 text-[11px] text-pc-green">
-                  Se creará una instancia nueva
+                  {{
+                    modpackTarget === "server"
+                      ? "Se creará un servidor local Fabric/Forge con el modpack"
+                      : "Se creará una instancia nueva"
+                  }}
                   {{ item.provider === 'curseforge' ? '(.zip CurseForge)' : '(.mrpack Modrinth)' }}
                 </p>
                 <p v-else-if="isPlugin" class="mt-0.5 text-[11px] text-gray-500">
@@ -688,6 +784,112 @@ function serverTypeLabel(t: string): string {
               </div>
             </div>
 
+            <!-- Paso: Destino modpack -->
+            <div v-else-if="isModpack && step === destinationStep" class="space-y-3">
+              <p class="text-sm text-gray-400">¿Dónde querés instalar el modpack?</p>
+              <div class="grid gap-2">
+                <button
+                  type="button"
+                  class="rounded-xl border-2 p-4 text-left transition-all"
+                  :class="
+                    modpackTarget === 'instance'
+                      ? 'border-pc-green bg-pc-green/10'
+                      : 'border-surface-4 bg-surface-3 hover:border-surface-6'
+                  "
+                  @click="modpackTarget = 'instance'"
+                >
+                  <p class="font-semibold">Instancia de juego (cliente)</p>
+                  <p class="text-xs text-gray-500">Nueva instancia Paraguacraft con mods y loader</p>
+                </button>
+                <button
+                  type="button"
+                  class="rounded-xl border-2 p-4 text-left transition-all"
+                  :class="
+                    modpackTarget === 'server'
+                      ? 'border-pc-green bg-pc-green/10'
+                      : 'border-surface-4 bg-surface-3 hover:border-surface-6'
+                  "
+                  :disabled="!modpackServerAvailable"
+                  @click="modpackTarget = 'server'"
+                >
+                  <p class="font-semibold">Servidor local</p>
+                  <p class="text-xs text-gray-500">
+                    {{
+                      modpackServerAvailable
+                        ? `Fabric/Forge · mods del lado servidor · ${loaderId}`
+                        : "Solo modpacks Fabric o Forge pueden ir a servidor"
+                    }}
+                  </p>
+                </button>
+              </div>
+            </div>
+
+            <!-- Paso: Destino (mod / shader / resourcepack) -->
+            <div v-else-if="isInstanceFlow && step === destinationStep" class="space-y-3">
+              <p class="text-sm text-gray-400">¿Dónde querés instalar este contenido?</p>
+              <div class="grid gap-2">
+                <button
+                  type="button"
+                  class="rounded-xl border-2 p-4 text-left transition-all"
+                  :class="
+                    installTarget === 'local'
+                      ? 'border-pc-green bg-pc-green/10'
+                      : 'border-surface-4 bg-surface-3 hover:border-surface-6'
+                  "
+                  :disabled="!localCompatible.length"
+                  @click="installTarget = 'local'"
+                >
+                  <p class="font-semibold">Instancia Paraguacraft</p>
+                  <p class="text-xs text-gray-500">
+                    {{ localCompatible.length ? `${localCompatible.length} compatible(s)` : "Sin instancias compatibles" }}
+                    · mods/
+                  </p>
+                </button>
+                <button
+                  type="button"
+                  class="rounded-xl border-2 p-4 text-left transition-all"
+                  :class="
+                    installTarget === 'external'
+                      ? 'border-pc-green bg-pc-green/10'
+                      : 'border-surface-4 bg-surface-3 hover:border-surface-6'
+                  "
+                  :disabled="!externalCompatible.length"
+                  @click="installTarget = 'external'"
+                >
+                  <p class="font-semibold">Otro launcher (Prism, Lunar, .minecraft)</p>
+                  <p class="text-xs text-gray-500">
+                    {{
+                      externalCompatible.length
+                        ? `${externalCompatible.length} detectada(s)`
+                        : "Usá «Escanear» en Instancias si no aparece ninguna"
+                    }}
+                  </p>
+                </button>
+                <button
+                  v-if="projectType === 'mod'"
+                  type="button"
+                  class="rounded-xl border-2 p-4 text-left transition-all"
+                  :class="
+                    installTarget === 'server'
+                      ? 'border-pc-green bg-pc-green/10'
+                      : 'border-surface-4 bg-surface-3 hover:border-surface-6'
+                  "
+                  :disabled="!serverDestinationAvailable"
+                  @click="installTarget = 'server'"
+                >
+                  <p class="font-semibold">Servidor local</p>
+                  <p class="text-xs text-gray-500">
+                    {{
+                      serverDestinationAvailable
+                        ? `Fabric/Forge · ${modCompatibleServers.length} servidor(es)`
+                        : "Requiere un servidor Fabric o Forge compatible"
+                    }}
+                    · mods/
+                  </p>
+                </button>
+              </div>
+            </div>
+
             <!-- Paso: Destino datapack -->
             <div v-else-if="isDatapack && step === destinationStep" class="space-y-3">
               <p class="text-sm text-gray-400">¿Dónde querés instalar el datapack?</p>
@@ -754,46 +956,55 @@ function serverTypeLabel(t: string): string {
               </div>
             </div>
 
-            <!-- Paso: Instancia (mods, shaders, rp) -->
+            <!-- Paso: Ubicación (mods, shaders, rp) -->
             <div v-else-if="isInstanceFlow && step === targetStep" class="space-y-3">
-              <p class="text-sm text-gray-400">
-                Elegí la instancia destino
-                <template v-if="loaderRequired"> ({{ mcVersion }} · {{ loaderId }})</template>
-                <template v-else> ({{ mcVersion }})</template>.
-              </p>
-              <p v-if="!compatibleInstances.length" class="text-sm text-amber-400">
-                No hay instancias compatibles. Creá una en Versiones/Instancias o escaneá otros launchers.
-              </p>
-
-              <template v-if="localCompatible.length">
-                <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Paraguacraft</p>
-                <div class="space-y-2">
+              <template v-if="installTarget === 'server'">
+                <p class="text-sm text-gray-400">
+                  Elegí el servidor local ({{ mcVersion }} · {{ loaderId }})
+                </p>
+                <p v-if="!modCompatibleServers.length" class="text-sm text-amber-400">
+                  No hay servidores Fabric/Forge compatibles. Creá uno en Servidores.
+                </p>
+                <div v-else class="space-y-2">
                   <button
-                    v-for="inst in localCompatible"
-                    :key="inst.id"
+                    v-for="srv in modCompatibleServers"
+                    :key="srv.id"
                     type="button"
                     class="flex w-full items-center gap-3 rounded-xl border-2 p-3 text-left transition-all"
                     :class="
-                      instanceId === inst.id
+                      serverId === srv.id
                         ? 'border-pc-green bg-pc-green/10'
                         : 'border-surface-4 bg-surface-3 hover:border-surface-6'
                     "
-                    @click="instanceId = inst.id"
+                    @click="serverId = srv.id"
                   >
-                    <span class="text-xl">{{ inst.icon || "📦" }}</span>
+                    <span class="text-xl">🖥️</span>
                     <div class="min-w-0">
-                      <p class="truncate font-semibold">{{ inst.name }}</p>
-                      <p class="text-xs text-gray-500">{{ inst.mcVersion }} · {{ inst.loader }}</p>
+                      <p class="truncate font-semibold">{{ srv.name }}</p>
+                      <p class="text-xs text-gray-500">
+                        {{ srv.mcVersion }} · {{ serverTypeLabel(srv.serverType) }} · mods/
+                      </p>
                     </div>
                   </button>
                 </div>
               </template>
 
-              <template v-if="externalCompatible.length">
-                <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Otros launchers</p>
+              <template v-else>
+                <p class="text-sm text-gray-400">
+                  Elegí la instancia destino
+                  <template v-if="loaderRequired"> ({{ mcVersion }} · {{ loaderId }})</template>
+                  <template v-else> ({{ mcVersion }})</template>
+                  · {{ installTarget === "external" ? "otro launcher" : "Paraguacraft" }}.
+                </p>
+                <p
+                  v-if="!(installTarget === 'external' ? externalCompatible : localCompatible).length"
+                  class="text-sm text-amber-400"
+                >
+                  No hay instancias compatibles. Creá una en Versiones/Instancias o escaneá otros launchers.
+                </p>
                 <div class="space-y-2">
                   <button
-                    v-for="inst in externalCompatible"
+                    v-for="inst in installTarget === 'external' ? externalCompatible : localCompatible"
                     :key="inst.id"
                     type="button"
                     class="flex w-full items-center gap-3 rounded-xl border-2 p-3 text-left transition-all"
@@ -804,11 +1015,14 @@ function serverTypeLabel(t: string): string {
                     "
                     @click="instanceId = inst.id"
                   >
-                    <span class="text-xl">{{ inst.icon || "🔗" }}</span>
+                    <span class="text-xl">{{ inst.icon || (installTarget === 'external' ? '🔗' : '📦') }}</span>
                     <div class="min-w-0">
                       <p class="truncate font-semibold">{{ inst.name }}</p>
                       <p class="text-xs text-gray-500">
-                        {{ inst.mcVersion }} · {{ inst.loader }} · {{ sourceLabel(inst.source) }}
+                        {{ inst.mcVersion }} · {{ inst.loader }}
+                        <template v-if="installTarget === 'external'">
+                          · {{ sourceLabel(inst.source) }}
+                        </template>
                       </p>
                     </div>
                   </button>
@@ -947,7 +1161,7 @@ function serverTypeLabel(t: string): string {
                 :disabled="!canInstall"
                 @click="install"
               >
-                {{ busy ? "Instalando…" : isModpack ? "Crear instancia" : "Instalar" }}
+                {{ busy ? "Instalando…" : isModpack ? (modpackTarget === "server" ? "Crear servidor" : "Crear instancia") : "Instalar" }}
               </BaseButton>
             </div>
           </footer>

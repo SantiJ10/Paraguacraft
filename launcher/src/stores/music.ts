@@ -55,7 +55,7 @@ export const useMusicStore = defineStore("music", () => {
   const volume = ref(saved.volume ?? 70);
   const launcherBackground = ref(saved.launcherBackground ?? true);
   const launcherOverlay = ref(saved.launcherOverlay ?? true);
-  const inGameOverlay = ref(saved.inGameOverlay ?? false);
+  const inGameOverlay = ref(saved.inGameOverlay ?? true);
 
   const spotifyConnected = ref(false);
   const spotifyClientId = ref(saved.spotifyClientId ?? "");
@@ -100,6 +100,26 @@ export const useMusicStore = defineStore("music", () => {
     if (inGame) return inGameOverlay.value;
     return launcherBackground.value;
   }
+
+  function syncOverlayIpc() {
+    if (!isTauri()) return;
+    const active = isPlaying.value && inGameOverlay.value;
+    if (isSpotifyMode.value && spotifyNow.value?.title) {
+      void api.syncOverlayMusic(
+        active,
+        spotifyNow.value.title ?? "",
+        spotifyNow.value.artist ?? "",
+      );
+    } else {
+      void api.syncOverlayMusic(active, active ? label.value : "", "");
+    }
+  }
+
+  watch(
+    [isPlaying, inGameOverlay, label, spotifyNow, playing, isSpotifyMode],
+    syncOverlayIpc,
+    { deep: true },
+  );
 
   function persist() {
     savePersist({
@@ -179,6 +199,7 @@ export const useMusicStore = defineStore("music", () => {
     try {
       const data = await api.spotifyNowPlaying();
       spotifyNow.value = data;
+      syncOverlayIpc();
       if (!data.ok && data.error?.includes("expirada")) {
         spotifyConnected.value = false;
         stopSpotifyPoll();

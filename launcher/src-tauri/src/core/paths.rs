@@ -93,6 +93,11 @@ pub fn external_launcher_roots() -> Vec<(&'static str, PathBuf)> {
 
     // PolyMC / MultiMC (compatibles con Prism).
     roots.push(("prism", data.join("PolyMC").join("instances")));
+    if cfg!(target_os = "windows") {
+        if let Ok(appdata) = std::env::var("APPDATA") {
+            roots.push(("prism", PathBuf::from(appdata).join("PolyMC").join("instances")));
+        }
+    }
 
     // TLauncher (usa .minecraft con versiones propias).
     roots.push(("tlauncher", default_minecraft_dir().join("versions")));

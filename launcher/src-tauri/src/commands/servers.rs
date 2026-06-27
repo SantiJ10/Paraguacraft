@@ -39,7 +39,35 @@ pub fn server_status(id: String) -> AppResult<ServerStatus> {
 }
 
 #[tauri::command]
-pub fn start_server(id: String) -> AppResult<u32> {
+pub fn update_server(
+    id: String,
+    name: Option<String>,
+    mc_version: Option<String>,
+    ram_mb: Option<u32>,
+    port: Option<u16>,
+) -> AppResult<ServerProfile> {
+    servers::update_profile(
+        &id,
+        name.as_deref(),
+        mc_version.as_deref(),
+        ram_mb,
+        port,
+    )
+}
+
+#[tauri::command]
+pub async fn start_server(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+) -> AppResult<u32> {
+    let prof = servers::profile_by_id(&id)?;
+    let dir = servers::folder_for(&prof);
+    if servers::needs_prepare(&dir, &prof.server_type) {
+        let (http, _net) = state.net_scope();
+        servers::ensure_server_jar(&app, &http, &id).await?;
+    }
+    let _ = crate::core::java::resolve::ensure_installer_java(&app, &state, &prof.mc_version).await?;
     servers::start_mc(&id)
 }
 

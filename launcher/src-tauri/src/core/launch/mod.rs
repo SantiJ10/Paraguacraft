@@ -16,7 +16,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use serde_json::Value;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 
 use crate::core::instances;
 use crate::core::paths;
@@ -640,6 +640,25 @@ pub fn emit_started(app: &AppHandle, instance_id: &str, pid: u32) {
     );
 }
 
+/// Tras lanzar el juego: minimiza o cierra el launcher según Ajustes.
+pub fn apply_launch_window(app: &AppHandle, close_on_launch: bool) {
+    if close_on_launch {
+        app.exit(0);
+        return;
+    }
+    if let Some(win) = app.get_webview_window("main") {
+        let _ = win.minimize();
+    }
+}
+
+fn restore_launch_window(app: &AppHandle) {
+    if let Some(win) = app.get_webview_window("main") {
+        let _ = win.unminimize();
+        let _ = win.show();
+        let _ = win.set_focus();
+    }
+}
+
 /// Espera (en hilo BLOQUEADO = 0% CPU, sin red) a que el juego cierre, suma el
 /// tiempo jugado y emite `game://exited`. No hay polling ni busy-loop.
 pub fn watch_exit(
@@ -706,6 +725,9 @@ pub fn watch_exit(
             "exitCode": exit_code,
             "diagnosis": diagnosis,
         });
+        if !settings.close_on_launch {
+            restore_launch_window(&app);
+        }
         let _ = app.emit("game://exited", payload.clone());
         if exit_code != 0 {
             let _ = app.emit("game://crashed", payload);

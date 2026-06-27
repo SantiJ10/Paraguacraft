@@ -10,6 +10,7 @@ pub mod curseforge;
 pub mod destinations;
 pub mod modrinth;
 pub mod mrpack;
+pub mod server_modpack;
 
 use std::path::PathBuf;
 
@@ -17,6 +18,7 @@ use tauri::AppHandle;
 
 use crate::core::instances;
 use crate::core::loaders;
+use crate::core::servers;
 use crate::error::{AppError, AppResult};
 use crate::models::{StoreItem, StoreVersion};
 
@@ -95,14 +97,11 @@ fn validate_instance(
     loader_required: bool,
 ) -> AppResult<PathBuf> {
     if instance_id.starts_with("ext::") {
-        let inst = instances::scan::scan_external()
-            .into_iter()
-            .find(|i| i.id == instance_id)
-            .ok_or_else(|| {
-                AppError::msg(
-                    "Instancia externa no encontrada. Usa «Escanear» en Instancias y reintenta.",
-                )
-            })?;
+        let inst = instances::scan::find_external(instance_id).ok_or_else(|| {
+            AppError::msg(
+                "Instancia externa no encontrada. Usa «Escanear» en Instancias y reintenta.",
+            )
+        })?;
         if inst.mc_version != mc {
             return Err(AppError::msg(format!(
                 "La instancia \"{}\" usa Minecraft {}, no {mc}.",
@@ -134,6 +133,41 @@ fn validate_instance(
         )));
     }
     Ok(instances::instance_dir(instance_id))
+}
+
+fn validate_server_mod(server_id: &str, mc: &str, loader: &str) -> AppResult<PathBuf> {
+    let prof = servers::profile_by_id(server_id)?;
+    if !prof.mc_version.is_empty()
+        && prof.mc_version != "?"
+        && prof.mc_version != mc
+    {
+        return Err(AppError::msg(format!(
+            "El servidor \"{}\" usa Minecraft {}, no {mc}.",
+            prof.name, prof.mc_version
+        )));
+    }
+    let st = prof.server_type.as_str();
+    if st.starts_with("fabric") {
+        if !loaders::loaders_compatible("fabric", loader) {
+            return Err(AppError::msg(format!(
+                "El servidor \"{}\" es Fabric; el mod requiere {loader}.",
+                prof.name
+            )));
+        }
+    } else if st.starts_with("forge") {
+        if !loaders::loaders_compatible("forge", loader) {
+            return Err(AppError::msg(format!(
+                "El servidor \"{}\" es Forge; el mod requiere {loader}.",
+                prof.name
+            )));
+        }
+    } else {
+        return Err(AppError::msg(format!(
+            "El servidor \"{}\" no acepta mods de cliente (solo Fabric/Forge). Usá plugins en servidores Paper.",
+            prof.name
+        )));
+    }
+    destinations::mod_dest_dir(server_id)
 }
 
 /// Destino de instalación desde la tienda.
@@ -182,6 +216,20 @@ fn resolve_dest_dir(
             let _ = validate_instance(iid, mc, loader, false)?;
             destinations::datapack_dest_instance(iid, dest.world_name.as_deref())
         }
+        _ if dest.kind == "server" => {
+            let sid = dest
+                .server_id
+                .as_deref()
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| AppError::msg("Seleccioná un servidor local destino."))?;
+            if project_type == "mod" {
+                validate_server_mod(sid, mc, loader)
+            } else {
+                return Err(AppError::msg(
+                    "Solo los mods pueden instalarse en un servidor local.",
+                ));
+            }
+        }
         _ => {
             let iid = dest
                 .instance_id
@@ -212,9 +260,7 @@ pub async fn install_version(
             "Los modpacks se instalan con import_mrpack_version (crean una instancia nueva).",
         ));
     }
-    let loader_required = modrinth::loader_relevant(project_type)
-        && project_type != "plugin"
-        && dest.kind != "server";
+    let loader_required = project_type == "mod";
     let dest_dir = resolve_dest_dir(project_type, &dest, mc, loader, loader_required)?;
 
     match provider {
@@ -246,9 +292,7 @@ pub async fn install(
     instance_id: &str,
 ) -> AppResult<String> {
     let (mc, loader, base) = if instance_id.starts_with("ext::") {
-        let inst = instances::scan::scan_external()
-            .into_iter()
-            .find(|i| i.id == instance_id)
+        let inst = instances::scan::find_external(instance_id)
             .ok_or_else(|| AppError::msg("Instancia externa no encontrada"))?;
         let base = instances::importers::external_game_dir(instance_id)
             .ok_or_else(|| AppError::msg("Sin carpeta de juego para instancia externa"))?;

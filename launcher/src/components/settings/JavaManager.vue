@@ -1,9 +1,14 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onMounted, ref, watch } from "vue";
 import { api, isTauri } from "@/lib/ipc";
 import { useSettingsStore } from "@/stores/settings";
 import type { JavaInstallation } from "@/lib/types";
 import BaseButton from "@/components/common/BaseButton.vue";
+
+const props = withDefaults(
+  defineProps<{ autoDetect?: boolean }>(),
+  { autoDetect: false },
+);
 
 const settings = useSettingsStore();
 const javas = ref<JavaInstallation[]>([]);
@@ -62,7 +67,20 @@ function sourceLabel(source: string) {
   return source;
 }
 
-onMounted(() => refresh(false));
+onMounted(() => {
+  if (props.autoDetect) {
+    refresh(false);
+  }
+});
+
+watch(
+  () => props.autoDetect,
+  (on) => {
+    if (on && javas.value.length === 0 && !loading.value) {
+      refresh(false);
+    }
+  },
+);
 </script>
 
 <template>
