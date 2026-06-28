@@ -5,7 +5,7 @@ import com.paraguacraft.pvp.modules.ModConfig;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiScreen;
-import net.minecraft.client.resources.I18n;
+import com.paraguacraft.pvp.core.ModLang;
 import org.lwjgl.input.Keyboard;
 
 import java.io.IOException;
@@ -19,12 +19,12 @@ public class GuiBwResourcesOptions extends GuiScreen {
         int py = height / 2 - 50;
         Gui.drawRect(px, py, px + 320, py + 100, 0xCC0A0C14);
         FontRenderer fr = fontRendererObj;
-        fr.drawStringWithShadow(I18n.format("paraguacraft.bw_resources.title"), px + 16, py + 12, UiTheme.ACCENT);
+        fr.drawStringWithShadow(ModLang.format("paraguacraft.bw_resources.title"), px + 16, py + 12, UiTheme.ACCENT);
         int rowY = py + 44;
         boolean on = ModConfig.bwResTransparentBg;
         Gui.drawRect(px + 12, rowY, px + 308, rowY + 20, 0x44000000);
-        fr.drawStringWithShadow(I18n.format("paraguacraft.bw_resources.transparent"), px + 20, rowY + 6, UiTheme.TEXT);
-        String state = I18n.format(on ? "paraguacraft.menu.on" : "paraguacraft.menu.off");
+        fr.drawStringWithShadow(ModLang.format("paraguacraft.bw_resources.transparent"), px + 20, rowY + 6, UiTheme.TEXT);
+        String state = ModLang.format(on ? "paraguacraft.menu.on" : "paraguacraft.menu.off");
         fr.drawStringWithShadow(state, px + 280 - fr.getStringWidth(state), rowY + 6, on ? 0xFF22CC66 : 0xFFCC4444);
         super.drawScreen(mouseX, mouseY, partialTicks);
     }

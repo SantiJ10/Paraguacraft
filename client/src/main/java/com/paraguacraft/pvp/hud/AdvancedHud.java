@@ -1,5 +1,6 @@
 package com.paraguacraft.pvp.hud;
 
+import com.paraguacraft.pvp.core.ModLang;
 import com.paraguacraft.pvp.core.LauncherIpc;
 import com.paraguacraft.pvp.gui.theme.TextUtil;
 import com.paraguacraft.pvp.gui.theme.UiTheme;
@@ -7,7 +8,6 @@ import com.paraguacraft.pvp.modules.ModConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.resources.I18n;
 import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
@@ -190,10 +190,10 @@ public final class AdvancedHud {
         if (!ModConfig.bwResTransparentBg) {
             Gui.drawRect(x, y, x + BW_PANEL_W, y + BW_PANEL_H, 0x88000000);
         }
-        drawBwLine(I18n.format("paraguacraft.hud.bw.iron"), iron, x + 6, y + 6);
-        drawBwLine(I18n.format("paraguacraft.hud.bw.gold"), gold, x + 6, y + 18);
-        drawBwLine(I18n.format("paraguacraft.hud.bw.emerald"), emerald, x + 6, y + 30);
-        drawBwLine(I18n.format("paraguacraft.hud.bw.diamond"), diamond, x + 6, y + 42);
+        drawBwLine(ModLang.format("paraguacraft.hud.bw.iron"), iron, x + 6, y + 6);
+        drawBwLine(ModLang.format("paraguacraft.hud.bw.gold"), gold, x + 6, y + 18);
+        drawBwLine(ModLang.format("paraguacraft.hud.bw.emerald"), emerald, x + 6, y + 30);
+        drawBwLine(ModLang.format("paraguacraft.hud.bw.diamond"), diamond, x + 6, y + 42);
         GlStateManager.disableBlend();
     }
 

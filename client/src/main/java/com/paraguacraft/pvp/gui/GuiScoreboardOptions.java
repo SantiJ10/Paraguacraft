@@ -5,7 +5,7 @@ import com.paraguacraft.pvp.modules.ModConfig;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiScreen;
-import net.minecraft.client.resources.I18n;
+import com.paraguacraft.pvp.core.ModLang;
 import org.lwjgl.input.Keyboard;
 
 import java.io.IOException;
@@ -21,13 +21,13 @@ public class GuiScoreboardOptions extends GuiScreen {
         int py = height / 2 - 80;
         Gui.drawRect(px, py, px + 320, py + 160, 0xCC0A0C14);
         FontRenderer fr = fontRendererObj;
-        fr.drawStringWithShadow(I18n.format("paraguacraft.scoreboard.title"), px + 16, py + 12, UiTheme.ACCENT);
+        fr.drawStringWithShadow(ModLang.format("paraguacraft.scoreboard.title"), px + 16, py + 12, UiTheme.ACCENT);
         for (int i = 0; i < ROWS; i++) {
             int rowY = py + 44 + i * 28;
             boolean on = rowValue(i);
             Gui.drawRect(px + 12, rowY, px + 308, rowY + 20, 0x44000000);
             fr.drawStringWithShadow(rowLabel(i), px + 20, rowY + 6, UiTheme.TEXT);
-            String state = I18n.format(on ? "paraguacraft.menu.on" : "paraguacraft.menu.off");
+            String state = ModLang.format(on ? "paraguacraft.menu.on" : "paraguacraft.menu.off");
             fr.drawStringWithShadow(state, px + 280 - fr.getStringWidth(state), rowY + 6, on ? 0xFF22CC66 : 0xFFCC4444);
         }
         super.drawScreen(mouseX, mouseY, partialTicks);
@@ -59,9 +59,9 @@ public class GuiScoreboardOptions extends GuiScreen {
 
     private static String rowLabel(int i) {
         switch (i) {
-            case 0: return I18n.format("paraguacraft.scoreboard.transparent");
-            case 1: return I18n.format("paraguacraft.scoreboard.hide_red");
-            case 2: return I18n.format("paraguacraft.scoreboard.hide_stats");
+            case 0: return ModLang.format("paraguacraft.scoreboard.transparent");
+            case 1: return ModLang.format("paraguacraft.scoreboard.hide_red");
+            case 2: return ModLang.format("paraguacraft.scoreboard.hide_stats");
             default: return "";
         }
     }
