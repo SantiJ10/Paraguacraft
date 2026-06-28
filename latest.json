@@ -1,12 +1,12 @@
 {
-  "version": "7.1.7",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.1.7/Instalar_Paraguacraft_v7.1.7.exe",
+  "version": "7.1.8",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.1.8/Instalar_Paraguacraft_v7.1.8.exe",
   "size_bytes": 0,
   "sha256": "",
-  "notes": "- Cliente PvP: traducciones es_AR/es_ES completas (recursos BW, mod menu)\n- ModLang: fallback espanol para todos los locales es_*\n- Launcher 7.1.7 con cliente PvP actualizado",
+  "notes": "- Cliente PvP: traducciones vanilla completas es_ES y es_AR embebidas\n- Objetos, menus y opciones de Minecraft en espanol\n- Launcher 7.1.8",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.1.7/Instalar_Paraguacraft_v7.1.7.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.1.8/Instalar_Paraguacraft_v7.1.8.exe",
       "signature": ""
     }
   }
