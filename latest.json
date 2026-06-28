@@ -1,12 +1,12 @@
 {
-  "version": "7.1.6",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.1.6/Instalar_Paraguacraft_v7.1.6.exe",
+  "version": "7.1.7",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.1.7/Instalar_Paraguacraft_v7.1.7.exe",
   "size_bytes": 0,
   "sha256": "",
-  "notes": "- Cliente PvP: caracteres espanol corregidos (Si/No sin iconos)\n- Music HUD: caratula del album, transparencia y opciones\n- IPC launcher: URL de caratula Spotify al HUD in-game\n- Launcher 7.1.6",
+  "notes": "- Cliente PvP: traducciones es_AR/es_ES completas (recursos BW, mod menu)\n- ModLang: fallback espanol para todos los locales es_*\n- Launcher 7.1.7 con cliente PvP actualizado",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.1.6/Instalar_Paraguacraft_v7.1.6.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.1.7/Instalar_Paraguacraft_v7.1.7.exe",
       "signature": ""
     }
   }

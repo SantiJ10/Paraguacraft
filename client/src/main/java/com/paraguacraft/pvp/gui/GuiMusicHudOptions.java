@@ -5,7 +5,7 @@ import com.paraguacraft.pvp.modules.ModConfig;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiScreen;
-import net.minecraft.client.resources.I18n;
+import com.paraguacraft.pvp.core.ModLang;
 import org.lwjgl.input.Keyboard;
 
 import java.io.IOException;
@@ -21,7 +21,7 @@ public class GuiMusicHudOptions extends GuiScreen {
         int py = height / 2 - 70;
         Gui.drawRect(px, py, px + 320, py + 140, 0xCC0A0C14);
         FontRenderer fr = fontRendererObj;
-        fr.drawStringWithShadow(I18n.format("paraguacraft.music_hud.title"), px + 16, py + 12, UiTheme.ACCENT);
+        fr.drawStringWithShadow(ModLang.format("paraguacraft.music_hud.title"), px + 16, py + 12, UiTheme.ACCENT);
         for (int i = 0; i < ROWS; i++) {
             int rowY = py + 44 + i * 28;
             Gui.drawRect(px + 12, rowY, px + 308, rowY + 20, 0x44000000);
@@ -57,8 +57,8 @@ public class GuiMusicHudOptions extends GuiScreen {
 
     private static String rowLabel(int i) {
         switch (i) {
-            case 0: return I18n.format("paraguacraft.music_hud.album_art");
-            case 1: return I18n.format("paraguacraft.music_hud.alpha");
+            case 0: return ModLang.format("paraguacraft.music_hud.album_art");
+            case 1: return ModLang.format("paraguacraft.music_hud.alpha");
             default: return "";
         }
     }
@@ -66,7 +66,7 @@ public class GuiMusicHudOptions extends GuiScreen {
     private static String rowValue(int i) {
         switch (i) {
             case 0:
-                return I18n.format(ModConfig.showMusicAlbumArt ? "paraguacraft.menu.on" : "paraguacraft.menu.off");
+                return ModLang.format(ModConfig.showMusicAlbumArt ? "paraguacraft.menu.on" : "paraguacraft.menu.off");
             case 1:
                 return ModConfig.musicHudAlphaLabel();
             default:

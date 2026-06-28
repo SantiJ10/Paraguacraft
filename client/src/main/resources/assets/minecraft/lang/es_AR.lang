@@ -1,0 +1,15 @@
+language.es_AR=Espanol (Argentina)
+language.es_ES=Espanol (Espana)
+language.es_MX=Espanol (Mexico)
+language.es_UY=Espanol (Uruguay)
+language.es_VE=Espanol (Venezuela)
+language.en_US=English (US)
+options.on=Si
+options.off=No
+gui.yes=Si
+gui.no=No
+gui.done=Listo
+gui.cancel=Cancelar
+gui.back=Volver
+gui.toMenu=Menu principal
+addServer.enterIp=IP del servidor

@@ -13,7 +13,7 @@ import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.resources.I18n;
+import com.paraguacraft.pvp.core.ModLang;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.GL11;
@@ -125,15 +125,15 @@ public class GuiParaguaMenu extends GuiScreen {
         drawTopbar(panelX + SIDEBAR, panelY, panelW - SIDEBAR, mouseX, mouseY);
         drawModGrid(panelX + SIDEBAR, panelY + TOPBAR, panelW - SIDEBAR - 12, panelH - TOPBAR - 12, mouseX, mouseY);
 
-        fr.drawStringWithShadow(I18n.format("paraguacraft.menu.hint"), panelX + 12, panelY + panelH - 14, UiTheme.TEXT_DIM);
+        fr.drawStringWithShadow(ModLang.format("paraguacraft.menu.hint"), panelX + 12, panelY + panelH - 14, UiTheme.TEXT_DIM);
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
 
     private void drawSidebar(int x, int y, int h, int mouseX, int mouseY) {
         FontRenderer fr = fr();
         Gui.drawRect(x, y, x + SIDEBAR, y + h, 0xDD080A10);
-        fr.drawStringWithShadow(I18n.format("paraguacraft.menu.brand"), x + 14, y + 16, UiTheme.ACCENT);
-        fr.drawStringWithShadow(I18n.format("paraguacraft.menu.subtitle"), x + 14, y + 38, UiTheme.TEXT_DIM);
+        fr.drawStringWithShadow(ModLang.format("paraguacraft.menu.brand"), x + 14, y + 16, UiTheme.ACCENT);
+        fr.drawStringWithShadow(ModLang.format("paraguacraft.menu.subtitle"), x + 14, y + 38, UiTheme.TEXT_DIM);
 
         int catY = y + 64;
         for (int i = 0; i < CATEGORY_IDS.length; i++) {
@@ -146,7 +146,7 @@ public class GuiParaguaMenu extends GuiScreen {
                 Gui.drawRect(x, catY, x + SIDEBAR, catY + 28, 0x18FFFFFF);
             }
             fr.drawStringWithShadow(
-                I18n.format("paraguacraft.menu.cat." + CATEGORY_IDS[i]),
+                ModLang.format("paraguacraft.menu.cat." + CATEGORY_IDS[i]),
                 x + 18,
                 catY + 9,
                 selected ? UiTheme.TEXT : UiTheme.TEXT_DIM
@@ -166,7 +166,7 @@ public class GuiParaguaMenu extends GuiScreen {
         if (searchFocused) {
             Gui.drawRect(searchX, searchY + 23, searchX + searchW, searchY + 24, UiTheme.ACCENT);
         }
-        String placeholder = I18n.format("paraguacraft.menu.search.placeholder");
+        String placeholder = ModLang.format("paraguacraft.menu.search.placeholder");
         String shown = searchQuery.isEmpty() ? placeholder : searchQuery;
         int color = searchQuery.isEmpty() ? UiTheme.TEXT_DIM : UiTheme.TEXT;
         fr.drawStringWithShadow(shown + (searchFocused && (System.currentTimeMillis() / 500) % 2 == 0 ? "_" : ""), searchX + 8, searchY + 7, color);
@@ -211,7 +211,7 @@ public class GuiParaguaMenu extends GuiScreen {
 
         if (visible.isEmpty()) {
             FontRenderer fr = fr();
-            String empty = I18n.format("paraguacraft.menu.empty");
+            String empty = ModLang.format("paraguacraft.menu.empty");
             fr.drawStringWithShadow(empty, x + w / 2 - fr.getStringWidth(empty) / 2, y + h / 2, UiTheme.TEXT_DIM);
         }
     }
@@ -237,7 +237,7 @@ public class GuiParaguaMenu extends GuiScreen {
 
         int toggleY = y + CARD_H - 22;
         if (isScreen) {
-            String openLbl = I18n.format("paraguacraft.menu.open");
+            String openLbl = ModLang.format("paraguacraft.menu.open");
             Gui.drawRect(x + 8, toggleY, x + CARD_W - 8, toggleY + 16, hover ? UiTheme.ACCENT : 0xFF226688);
             fr.drawStringWithShadow(openLbl, x + CARD_W / 2 - fr.getStringWidth(openLbl) / 2, toggleY + 4, 0xFFFFFF);
         } else if (mod.id == 9 || mod.id == 36 || mod.id == 38) {
@@ -245,7 +245,7 @@ public class GuiParaguaMenu extends GuiScreen {
             int optX = x + 8;
             int togX = x + 8 + half + 4;
             boolean hoverOpt = mouseX >= optX && mouseX <= optX + half && mouseY >= toggleY && mouseY <= toggleY + 16;
-            String opts = I18n.format("paraguacraft.menu.options");
+            String opts = ModLang.format("paraguacraft.menu.options");
             Gui.drawRect(optX, toggleY, optX + half, toggleY + 16, hoverOpt ? 0xFF334455 : 0xFF223344);
             fr.drawStringWithShadow(opts, optX + half / 2 - fr.getStringWidth(opts) / 2, toggleY + 4, 0xFFFFFF);
             int toggleColor = lerpColor(0xFFCC4444, 0xFF22CC66, UiEasing.easeOutCubic(anim));
@@ -262,14 +262,14 @@ public class GuiParaguaMenu extends GuiScreen {
 
     private String modDisplayName(int id) {
         if (id == 23) {
-            return I18n.format("paraguacraft.menu.particles.prefix", PerformanceConfig.particleMode.getLabel());
+            return ModLang.format("paraguacraft.menu.particles.prefix", PerformanceConfig.particleMode.getLabel());
         }
         if (id == 32) {
-            return I18n.format("paraguacraft.menu.hw.prefix", com.paraguacraft.pvp.core.HardwarePreset.getDetectedTier().name());
+            return ModLang.format("paraguacraft.menu.hw.prefix", com.paraguacraft.pvp.core.HardwarePreset.getDetectedTier().name());
         }
         for (ModEntry mod : ALL_MODS) {
             if (mod.id == id) {
-                return I18n.format(mod.langKey);
+                return ModLang.format(mod.langKey);
             }
         }
         return "?";
@@ -279,7 +279,7 @@ public class GuiParaguaMenu extends GuiScreen {
         if (id == 23) {
             return PerformanceConfig.particleMode.getLabel().toUpperCase();
         }
-        return I18n.format(enabled ? "paraguacraft.menu.on" : "paraguacraft.menu.off");
+        return ModLang.format(enabled ? "paraguacraft.menu.on" : "paraguacraft.menu.off");
     }
 
     private List<ModEntry> filteredMods() {
@@ -290,7 +290,7 @@ public class GuiParaguaMenu extends GuiScreen {
             }
             if (!searchQuery.isEmpty()) {
                 String label = modDisplayName(mod.id);
-                if (!TextUtil.containsIgnoreCase(I18n.format(mod.langKey), searchQuery)
+                if (!TextUtil.containsIgnoreCase(ModLang.format(mod.langKey), searchQuery)
                     && !TextUtil.containsIgnoreCase(label, searchQuery)) {
                     continue;
                 }
