@@ -18,9 +18,20 @@ public final class ScoreboardFilter {
         Pattern.compile("(?i).*\\bmode\\s*:.*"),
         Pattern.compile("(?i).*\\boverall\\s+winstreak\\s*:.*"),
         Pattern.compile("(?i).*\\bmode\\s+winstreak\\s*:.*"),
-        // Barra de progreso (solo simbolos / bloques, sin letras)
-        Pattern.compile("^[\\s\\[\\]●○◆◇▪▫|_\\-+=*#]+$"),
     };
+
+    // Rangos Unicode de los glifos que Hypixel usa para barras de progreso:
+    // Box Drawing (2500-257F), Block Elements (2580-259F), Geometric Shapes (25A0-25FF),
+    // cuadrados grandes (2B1B/2B1C) y barras verticales pesadas (2758-275A).
+    private static final String BLOCK_CHARS =
+        "\\u2500-\\u257F\\u2580-\\u259F\\u25A0-\\u25FF\\u2B1B\\u2B1C\\u2758-\\u275A";
+
+    // Linea compuesta SOLO por bloques/simbolos de barra (+ espacios, digitos, %, separadores),
+    // con al menos un glifo de bloque. Atrapa "■■■□□ 60%", cuadrados cian sueltos, etc.
+    private static final Pattern PROGRESS_BAR = Pattern.compile(
+        "^[\\s\\d%()/.,:|\\[\\]_+\\-=*#" + BLOCK_CHARS + "]*"
+        + "[" + BLOCK_CHARS + "]"
+        + "[\\s\\d%()/.,:|\\[\\]_+\\-=*#" + BLOCK_CHARS + "]*$");
 
     private ScoreboardFilter() {}
 
@@ -39,6 +50,9 @@ public final class ScoreboardFilter {
         String t = plainLine.trim();
         if (t.isEmpty()) {
             return false;
+        }
+        if (PROGRESS_BAR.matcher(t).matches()) {
+            return true;
         }
         for (Pattern p : HIDE_LINES) {
             if (p.matcher(t).matches()) {

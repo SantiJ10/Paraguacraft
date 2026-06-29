@@ -53,6 +53,8 @@ public class GuiEditHUD extends GuiScreen {
             drawRect(ModConfig.bwResX - 2, ModConfig.bwResY - 2,
                 ModConfig.bwResX + AdvancedHud.bwPanelW(), ModConfig.bwResY + AdvancedHud.bwPanelH(), box);
         }
+        if (ModConfig.reachDisplay) drawRect(ModConfig.reachDisplayX - 2, ModConfig.reachDisplayY - 2, ModConfig.reachDisplayX + 70, ModConfig.reachDisplayY + 10, box);
+        if (ModConfig.comboCounter) drawRect(ModConfig.comboDisplayX - 2, ModConfig.comboDisplayY - 2, ModConfig.comboDisplayX + 70, ModConfig.comboDisplayY + 10, box);
 
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
@@ -101,6 +103,10 @@ public class GuiEditHUD extends GuiScreen {
             } else if (ModConfig.showBedwarsResources
                 && isHover(mouseX, mouseY, ModConfig.bwResX, ModConfig.bwResY, AdvancedHud.bwPanelW(), AdvancedHud.bwPanelH())) {
                 dragging = 11; dragX = mouseX - ModConfig.bwResX; dragY = mouseY - ModConfig.bwResY;
+            } else if (ModConfig.reachDisplay && isHover(mouseX, mouseY, ModConfig.reachDisplayX, ModConfig.reachDisplayY, 70, 10)) {
+                dragging = 12; dragX = mouseX - ModConfig.reachDisplayX; dragY = mouseY - ModConfig.reachDisplayY;
+            } else if (ModConfig.comboCounter && isHover(mouseX, mouseY, ModConfig.comboDisplayX, ModConfig.comboDisplayY, 70, 10)) {
+                dragging = 13; dragX = mouseX - ModConfig.comboDisplayX; dragY = mouseY - ModConfig.comboDisplayY;
             }
         }
     }
@@ -119,6 +125,8 @@ public class GuiEditHUD extends GuiScreen {
         else if (dragging == 9) { ModConfig.compassY = mouseY - dragY; }
         else if (dragging == 10) { ModConfig.overlayHudX = mouseX - dragX; ModConfig.overlayHudY = mouseY - dragY; }
         else if (dragging == 11) { ModConfig.bwResX = mouseX - dragX; ModConfig.bwResY = mouseY - dragY; }
+        else if (dragging == 12) { ModConfig.reachDisplayX = mouseX - dragX; ModConfig.reachDisplayY = mouseY - dragY; }
+        else if (dragging == 13) { ModConfig.comboDisplayX = mouseX - dragX; ModConfig.comboDisplayY = mouseY - dragY; }
     }
 
     @Override
