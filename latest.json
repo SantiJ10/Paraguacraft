@@ -3,7 +3,7 @@
   "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.0/Instalar_Paraguacraft_v7.2.0.exe",
   "size_bytes": 10396192,
   "sha256": "89f57eac0120c1d5e2876c8844171cf1fb8b4016036a572467a0ef4e7572bddc",
-  "notes": "- Cliente PvP 2.1.0: Quick Play Hypixel, alertas chat configurables, mods Hypixel-safe\n- Chat compacto, ping rival, freelook, reach/combo HUD\n- Launcher 7.1.9",
+  "notes": "- Fix crash al iniciar Minecraft (codigo 1): mixins BedColor, Freelook y nametag\n- Cliente PvP 2.1.1 con mods Hypixel-safe\n- Launcher 7.2.0",
   "platforms": {
     "windows-x86_64": {
       "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.0/Instalar_Paraguacraft_v7.2.0.exe",
