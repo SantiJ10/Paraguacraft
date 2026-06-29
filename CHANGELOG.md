@@ -3,6 +3,15 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.2.2] - 2026-06-29
+
+### Fixed
+- **Crash codigo 1 (definitivo)**: `MixinNametagLogo` ya no usa `@ModifyVariable` (firma invalida que abortaba el arranque). El ping rival ahora se dibuja de forma aditiva a la derecha del nombre.
+
+### Changed
+- **Cliente PvP 2.1.3**.
+- El cliente PvP se sirve desde `bundled/pvp` (repo + bundle embebido), **no** desde GitHub Releases. Solo el instalador del launcher se publica como release.
+
 ## [7.2.1] - 2026-06-29
 
 ### Fixed

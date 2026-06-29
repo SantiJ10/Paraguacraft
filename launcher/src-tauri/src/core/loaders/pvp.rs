@@ -6,7 +6,6 @@
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
-use serde_json::Value;
 use tauri::path::BaseDirectory;
 use tauri::{AppHandle, Manager};
 
@@ -22,13 +21,13 @@ const GITHUB_REPO: &str = "SantiJ10/Paraguacraft";
 const MANIFEST_URL: &str =
     "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/clientes/paraguacraft-pvp/manifest.json";
 
-const FALLBACK_CLIENT_VERSION: &str = "2.1.2";
-const FALLBACK_RELEASE_TAG: &str = "pvp-client-2.1.2";
+const FALLBACK_CLIENT_VERSION: &str = "2.1.3";
+const FALLBACK_RELEASE_TAG: &str = "pvp-client-2.1.3";
 
 const FALLBACK_MODS: &[(&str, &str)] = &[
     (
-        "ParaguacraftPvP-2.1.2.jar",
-        "3d991f83d458eec7c9b3fe0c4a201425c07fedb0",
+        "ParaguacraftPvP-2.1.3.jar",
+        "87b325d8269613e98cc6143312484355190825db",
     ),
     (
         "OptiFine_1.8.9_HD_U_M5.jar",
@@ -235,9 +234,10 @@ fn try_local_bundled(
     Ok(true)
 }
 
-fn remote_urls(filename: &str, release_tag: &str) -> Vec<String> {
+fn remote_urls(filename: &str, _release_tag: &str) -> Vec<String> {
+    // El cliente PvP vive en la carpeta del repo (bundled/pvp), NO en GitHub Releases.
+    // Solo el instalador del launcher se publica como release.
     vec![
-        format!("https://github.com/{GITHUB_REPO}/releases/download/{release_tag}/{filename}"),
         format!("https://raw.githubusercontent.com/{GITHUB_REPO}/main/bundled/pvp/{filename}"),
         format!(
             "https://raw.githubusercontent.com/{GITHUB_REPO}/main/clientes/paraguacraft-pvp/{filename}"
@@ -245,45 +245,14 @@ fn remote_urls(filename: &str, release_tag: &str) -> Vec<String> {
     ]
 }
 
-async fn github_release_asset_url(
-    client: &reqwest::Client,
-    filename: &str,
-    release_tag: &str,
-) -> Option<String> {
-    for endpoint in [
-        format!("https://api.github.com/repos/{GITHUB_REPO}/releases/tags/{release_tag}"),
-        format!("https://api.github.com/repos/{GITHUB_REPO}/releases/latest"),
-    ] {
-        let Ok(release): Result<Value, _> = net::fetch_json(client, &endpoint).await else {
-            continue;
-        };
-        if release["tag_name"].as_str() != Some(release_tag)
-            && endpoint.contains("latest")
-        {
-            continue;
-        }
-        if let Some(assets) = release["assets"].as_array() {
-            for asset in assets {
-                if asset["name"].as_str() == Some(filename) {
-                    return asset["browser_download_url"].as_str().map(String::from);
-                }
-            }
-        }
-    }
-    None
-}
-
 async fn download_verified(
     client: &reqwest::Client,
-    mut urls: Vec<String>,
+    urls: Vec<String>,
     dest: &Path,
     sha_expected: &str,
     filename: &str,
-    release_tag: &str,
+    _release_tag: &str,
 ) -> AppResult<()> {
-    if let Some(u) = github_release_asset_url(client, filename, release_tag).await {
-        urls.insert(0, u);
-    }
     let tmp = dest.with_extension("part");
     for url in urls {
         if url.is_empty() {
