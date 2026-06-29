@@ -9,41 +9,20 @@ import net.minecraft.client.network.NetworkPlayerInfo;
 import net.minecraft.client.renderer.entity.Render;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.util.EnumChatFormatting;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Insignia Paraguacraft en nametags — local + jugadores sincronizados vía plugin.
- * {@code renderLivingLabel} vive en {@link Render} (1.8.9), no en RendererLivingEntity.
+ * Insignia Paraguacraft + ping rival en nametags — local y jugadores sincronizados.
+ * {@code renderLivingLabel} vive en {@link Render} (1.8.9).
+ *
+ * El ping se dibuja de forma aditiva a la derecha del nombre (sin modificar el
+ * String del nametag) para evitar inyecciones frágiles que rompían el arranque.
  */
 @Mixin(Render.class)
 public class MixinNametagLogo {
-
-    @ModifyVariable(
-        method = "renderLivingLabel(Lnet/minecraft/entity/Entity;Ljava/lang/String;DDDI)V",
-        at = @At("HEAD"),
-        ordinal = 1,
-        require = 0
-    )
-    private String paraguacraft$appendPing(Entity entity, String label) {
-        if (!ModConfig.showOpponentPing || !(entity instanceof EntityPlayer)) {
-            return label;
-        }
-        EntityPlayer player = (EntityPlayer) entity;
-        Minecraft mc = Minecraft.getMinecraft();
-        if (player == mc.thePlayer || mc.getNetHandler() == null) {
-            return label;
-        }
-        NetworkPlayerInfo info = mc.getNetHandler().getPlayerInfo(player.getUniqueID());
-        if (info == null || info.getResponseTime() < 0) {
-            return label;
-        }
-        return label + EnumChatFormatting.GRAY + " " + info.getResponseTime() + "ms";
-    }
 
     @Inject(
         method = "renderLivingLabel(Lnet/minecraft/entity/Entity;Ljava/lang/String;DDDI)V",
@@ -54,7 +33,7 @@ public class MixinNametagLogo {
         ),
         require = 0
     )
-    private void paraguacraft$drawNametagLogo(
+    private void paraguacraft$drawNametagExtras(
         Entity entity,
         String label,
         double x,
@@ -71,27 +50,33 @@ public class MixinNametagLogo {
         boolean isLocal = player == mc.thePlayer;
 
         if (isLocal) {
-            if (!ModConfig.showNametagLogo) {
-                return;
+            if (ModConfig.showNametagLogo) {
+                NametagLogoRenderer.drawLeftOfName(mc.getRenderManager().getFontRenderer(), label);
             }
-            NametagLogoRenderer.drawLeftOfName(mc.getRenderManager().getFontRenderer(), label);
             return;
         }
 
-        if (!ModConfig.showNametagLogoOthers) {
-            return;
+        if (ModConfig.showNametagLogoOthers && BadgeRegistry.hasBadge(player.getUniqueID())) {
+            byte badge = BadgeRegistry.getBadge(player.getUniqueID());
+            if (badge != BadgeProtocol.BADGE_NONE) {
+                NametagLogoRenderer.drawLeftOfName(
+                    mc.getRenderManager().getFontRenderer(),
+                    label,
+                    badge
+                );
+            }
         }
-        if (!BadgeRegistry.hasBadge(player.getUniqueID())) {
-            return;
+
+        if (ModConfig.showOpponentPing && mc.getNetHandler() != null) {
+            NetworkPlayerInfo info = mc.getNetHandler().getPlayerInfo(player.getUniqueID());
+            if (info != null && info.getResponseTime() >= 0) {
+                NametagLogoRenderer.drawRightOfName(
+                    mc.getRenderManager().getFontRenderer(),
+                    label,
+                    info.getResponseTime() + "ms",
+                    0xFFAAAAAA
+                );
+            }
         }
-        byte badge = BadgeRegistry.getBadge(player.getUniqueID());
-        if (badge == BadgeProtocol.BADGE_NONE) {
-            return;
-        }
-        NametagLogoRenderer.drawLeftOfName(
-            mc.getRenderManager().getFontRenderer(),
-            label,
-            badge
-        );
     }
 }

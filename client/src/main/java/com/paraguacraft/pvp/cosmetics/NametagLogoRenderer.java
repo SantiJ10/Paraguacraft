@@ -34,4 +34,16 @@ public final class NametagLogoRenderer {
         Gui.drawModalRectWithCustomSizedTexture(x, y, 0, 0, LOGO_SIZE, LOGO_SIZE, LOGO_SIZE, LOGO_SIZE);
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
     }
+
+    /** Dibuja texto extra (ej. ping) a la derecha del nombre, sin alterar el centrado del nametag. */
+    public static void drawRightOfName(FontRenderer font, String name, String text, int color) {
+        if (text == null || text.isEmpty()) {
+            return;
+        }
+        int x = font.getStringWidth(name) / 2 + 2;
+        GlStateManager.enableBlend();
+        GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
+        font.drawString(text, x, 0, color);
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+    }
 }

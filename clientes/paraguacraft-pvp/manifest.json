@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.2",
-  "release_tag": "pvp-client-2.1.2",
-  "descripcion": "Cliente PvP 2.1.2 — fix crash nametag/ping al iniciar, mods Hypixel-safe.",
+  "client_version": "2.1.3",
+  "release_tag": "pvp-client-2.1.3",
+  "descripcion": "Cliente PvP 2.1.3 — fix definitivo crash nametag/ping al iniciar, mods Hypixel-safe.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.2.jar",
-      "sha1": "3d991f83d458eec7c9b3fe0c4a201425c07fedb0"
+      "filename": "ParaguacraftPvP-2.1.3.jar",
+      "sha1": "87b325d8269613e98cc6143312484355190825db"
     },
     {
       "filename": "OptiFine_1.8.9_HD_U_M5.jar",
