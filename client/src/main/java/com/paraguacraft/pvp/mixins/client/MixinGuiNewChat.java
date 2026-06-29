@@ -19,21 +19,27 @@ public abstract class MixinGuiNewChat {
 
     @Shadow @Final private List<ChatLine> chatLines;
 
+    @Shadow public abstract void refreshChat();
+
     @Inject(method = "printChatMessageWithOptionalDeletion", at = @At("HEAD"), cancellable = true)
     private void paraguacraft$compactChat(IChatComponent chatComponent, int chatLineId, CallbackInfo ci) {
         if (!ModConfig.compactChat || chatComponent == null || chatLines.isEmpty()) {
             return;
         }
         ChatLine last = chatLines.get(0);
-        IChatLineAccess access = (IChatLineAccess) (Object) last;
+        IChatComponent prev = last.getChatComponent();
+        if (prev == null) {
+            return;
+        }
         String incoming = CompactChatHandler.plainText(chatComponent);
-        String previous = CompactChatHandler.plainText(access.paraguacraft$getChatComponent());
+        String previous = CompactChatHandler.plainText(prev);
         if (incoming.isEmpty() || !incoming.equals(previous)) {
             return;
         }
-        int count = CompactChatHandler.extractCount(access.paraguacraft$getChatComponent().getFormattedText()) + 1;
-        IChatComponent compacted = CompactChatHandler.withCount(access.paraguacraft$getChatComponent(), count);
-        chatLines.set(0, new ChatLine(access.paraguacraft$getUpdateCounterCreated(), compacted, access.paraguacraft$getChatLineID()));
+        int count = CompactChatHandler.extractCount(prev.getFormattedText()) + 1;
+        IChatComponent compacted = CompactChatHandler.withCount(prev, count);
+        chatLines.set(0, new ChatLine(last.getUpdatedCounter(), compacted, last.getChatLineID()));
+        refreshChat();
         ci.cancel();
     }
 }
