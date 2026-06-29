@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.0",
-  "release_tag": "pvp-client-2.1.0",
-  "descripcion": "Cliente PvP 2.1.0 — mods Hypixel-safe, Quick Play, alertas chat configurables.",
+  "client_version": "2.1.1",
+  "release_tag": "pvp-client-2.1.1",
+  "descripcion": "Cliente PvP 2.1.1 — fix crash inicio, mods Hypixel-safe, Quick Play.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.0.jar",
-      "sha1": "d07f1e6a5f4af5c34a43d140784894087b6dde52"
+      "filename": "ParaguacraftPvP-2.1.1.jar",
+      "sha1": "71db07b2ce8a0c2389d9e8f16eccf050559a8d90"
     },
     {
       "filename": "OptiFine_1.8.9_HD_U_M5.jar",

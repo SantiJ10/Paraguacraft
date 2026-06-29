@@ -26,7 +26,6 @@
     "client.MixinFontRenderer",
     "client.MixinGuiNewChat",
     "client.MixinEntityRendererFreelook",
-    "client.MixinRenderLivingLabelPing",
     "client.MixinBedColor"
   ],
   "injectors": {

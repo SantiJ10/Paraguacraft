@@ -1,14 +1,19 @@
 package com.paraguacraft.pvp.modules;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.entity.Entity;
 import org.lwjgl.input.Mouse;
 
-/** Freelook / perspective — girar cámara sin mover al personaje. */
+/** Freelook / perspective — girar camara sin mover al personaje. */
 public final class FreelookManager {
 
     public static boolean active = false;
     public static float cameraYaw;
     public static float cameraPitch;
+
+    private static float savedYaw;
+    private static float savedPitch;
+    private static boolean cameraSwapped = false;
 
     private FreelookManager() {}
 
@@ -47,5 +52,32 @@ public final class FreelookManager {
         if (cameraPitch < -90.0F) {
             cameraPitch = -90.0F;
         }
+    }
+
+    public static void applyCameraOverride(Minecraft mc) {
+        if (!ModConfig.freelookEnabled || !active || mc == null) {
+            return;
+        }
+        Entity view = mc.getRenderViewEntity();
+        if (view == null) {
+            return;
+        }
+        savedYaw = view.rotationYaw;
+        savedPitch = view.rotationPitch;
+        view.rotationYaw = cameraYaw;
+        view.rotationPitch = cameraPitch;
+        cameraSwapped = true;
+    }
+
+    public static void restoreCameraOverride(Minecraft mc) {
+        if (!cameraSwapped || mc == null) {
+            return;
+        }
+        Entity view = mc.getRenderViewEntity();
+        if (view != null) {
+            view.rotationYaw = savedYaw;
+            view.rotationPitch = savedPitch;
+        }
+        cameraSwapped = false;
     }
 }

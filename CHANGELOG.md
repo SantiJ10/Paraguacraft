@@ -3,6 +3,18 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.2.0] - 2026-06-29
+
+### Fixed
+- **Crash al iniciar Minecraft (codigo 1)**: mixins de camas coloridas y freelook reescritos con firmas correctas para 1.8.9.
+- **MixinBedColor**: ahora usa `renderBlock` con BlockPos (antes apuntaba a un metodo inexistente).
+- **Freelook**: swap temporal de rotacion en `orientCamera` en lugar de redirects de campo inestables.
+- **Ping rival**: fusionado en un solo mixin de nametag para evitar conflictos en `Render`.
+- **Alertas chat**: corregido NPE al abrir el editor de reglas.
+
+### Changed
+- Cliente PvP **2.1.1** con manifest `pvp-client-2.1.1`.
+
 ## [7.1.9] - 2026-06-29
 
 ### Added

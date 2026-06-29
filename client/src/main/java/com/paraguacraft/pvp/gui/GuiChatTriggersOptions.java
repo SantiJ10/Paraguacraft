@@ -28,12 +28,19 @@ public class GuiChatTriggersOptions extends GuiScreen {
     public void initGui() {
         ChatTriggerConfig.ensureLoaded();
         working = ChatTriggerConfig.cloneRules();
+        if (!working.isEmpty() && selected < 0) {
+            selected = 0;
+        }
         buttonList.clear();
         keywordsField = new GuiTextField(0, fontRendererObj, width / 2 - 140, height / 2 + 20, 280, 18);
         titleField = new GuiTextField(1, fontRendererObj, width / 2 - 140, height / 2 + 58, 280, 18);
         colorField = new GuiTextField(2, fontRendererObj, width / 2 - 140, height / 2 + 96, 120, 18);
         if (selected >= 0 && selected < working.size()) {
             fillFields(working.get(selected));
+        } else {
+            keywordsField.setText("");
+            titleField.setText("");
+            colorField.setText("RED");
         }
         buttonList.add(new GuiButton(1, width / 2 - 150, height - 52, 70, 20, ModLang.format("paraguacraft.triggers.add")));
         buttonList.add(new GuiButton(2, width / 2 - 72, height - 52, 70, 20, ModLang.format("paraguacraft.triggers.remove")));
@@ -77,7 +84,7 @@ public class GuiChatTriggersOptions extends GuiScreen {
             fr.drawStringWithShadow(label, px + 14, rowY + 4, rule.enabled ? UiTheme.TEXT : UiTheme.TEXT_DIM);
         }
 
-        if (selected >= 0 && selected < working.size()) {
+        if (selected >= 0 && selected < working.size() && keywordsField != null) {
             fr.drawStringWithShadow(ModLang.format("paraguacraft.triggers.keywords"), px + 12, height / 2 + 8, UiTheme.TEXT_DIM);
             keywordsField.drawTextBox();
             fr.drawStringWithShadow(ModLang.format("paraguacraft.triggers.alert_title"), px + 12, height / 2 + 46, UiTheme.TEXT_DIM);
@@ -91,9 +98,15 @@ public class GuiChatTriggersOptions extends GuiScreen {
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
-        keywordsField.mouseClicked(mouseX, mouseY, mouseButton);
-        titleField.mouseClicked(mouseX, mouseY, mouseButton);
-        colorField.mouseClicked(mouseX, mouseY, mouseButton);
+        if (keywordsField != null) {
+            keywordsField.mouseClicked(mouseX, mouseY, mouseButton);
+        }
+        if (titleField != null) {
+            titleField.mouseClicked(mouseX, mouseY, mouseButton);
+        }
+        if (colorField != null) {
+            colorField.mouseClicked(mouseX, mouseY, mouseButton);
+        }
         int px = width / 2 - 160;
         int py = height / 2 - 120;
         int listY = py + 42;
@@ -114,13 +127,13 @@ public class GuiChatTriggersOptions extends GuiScreen {
             mc.displayGuiScreen(new GuiParaguaMenu());
             return;
         }
-        if (keywordsField.textboxKeyTyped(typedChar, keyCode)) {
+        if (keywordsField != null && keywordsField.textboxKeyTyped(typedChar, keyCode)) {
             return;
         }
-        if (titleField.textboxKeyTyped(typedChar, keyCode)) {
+        if (titleField != null && titleField.textboxKeyTyped(typedChar, keyCode)) {
             return;
         }
-        if (colorField.textboxKeyTyped(typedChar, keyCode)) {
+        if (colorField != null && colorField.textboxKeyTyped(typedChar, keyCode)) {
             return;
         }
         super.keyTyped(typedChar, keyCode);
@@ -158,9 +171,15 @@ public class GuiChatTriggersOptions extends GuiScreen {
 
     @Override
     public void updateScreen() {
-        keywordsField.updateCursorCounter();
-        titleField.updateCursorCounter();
-        colorField.updateCursorCounter();
+        if (keywordsField != null) {
+            keywordsField.updateCursorCounter();
+        }
+        if (titleField != null) {
+            titleField.updateCursorCounter();
+        }
+        if (colorField != null) {
+            colorField.updateCursorCounter();
+        }
     }
 
     @Override
