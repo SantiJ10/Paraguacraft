@@ -27,7 +27,7 @@ public class ParaguacraftPvP {
 
     public static final String MODID = "paraguacraftpvp";
     public static final String NAME = "Paraguacraft PvP Client";
-    public static final String VERSION = "2.1.6";
+    public static final String VERSION = "2.1.7";
 
     @Mod.Instance(MODID)
     public static ParaguacraftPvP instance;
@@ -53,6 +53,7 @@ public class ParaguacraftPvP {
         MinecraftForge.EVENT_BUS.register(new LauncherIpcHandler());
         MinecraftForge.EVENT_BUS.register(new com.paraguacraft.pvp.modules.CombatStats());
         MinecraftForge.EVENT_BUS.register(new com.paraguacraft.pvp.modules.ChatTriggerManager());
+        net.minecraftforge.client.ClientCommandHandler.instance.registerCommand(new com.paraguacraft.pvp.command.CommandChatAlerts());
         System.out.println("[Paraguacraft V2] Fase C/D — perf, perfiles, keybinds, pantallas carga");
     }
 

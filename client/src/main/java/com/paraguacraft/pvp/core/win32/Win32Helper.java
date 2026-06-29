@@ -21,11 +21,23 @@ public final class Win32Helper {
     public static final int WS_SYSMENU = 0x00080000;
     public static final int WS_MINIMIZEBOX = 0x00020000;
     public static final int WS_MAXIMIZEBOX = 0x00010000;
+    public static final int WS_BORDER = 0x00800000;
+    public static final int WS_DLGFRAME = 0x00400000;
     public static final int WS_OVERLAPPEDWINDOW = 0x00CF0000;
+
+    // Extended styles relevantes para que Discord liste/capture la ventana y muestre el overlay.
+    public static final int WS_EX_DLGMODALFRAME = 0x00000001;
+    public static final int WS_EX_TOPMOST = 0x00000008;
+    public static final int WS_EX_TOOLWINDOW = 0x00000080;
+    public static final int WS_EX_WINDOWEDGE = 0x00000100;
+    public static final int WS_EX_CLIENTEDGE = 0x00000200;
+    public static final int WS_EX_APPWINDOW = 0x00040000;
+    public static final int WS_EX_STATICEDGE = 0x00020000;
 
     public static final int SWP_FRAMECHANGED = 0x0020;
     public static final int SWP_SHOWWINDOW = 0x0040;
     public static final int SWP_NOZORDER = 0x0004;
+    public static final int SWP_NOACTIVATE = 0x0010;
 
     public static final int MONITOR_DEFAULTTONEAREST = 2;
 
