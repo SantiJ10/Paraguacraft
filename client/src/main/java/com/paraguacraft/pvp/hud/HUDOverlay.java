@@ -20,6 +20,7 @@ import com.paraguacraft.pvp.hud.HudDraw;
 import com.paraguacraft.pvp.gui.theme.TextUtil;
 import com.paraguacraft.pvp.gui.theme.UiTheme;
 import com.paraguacraft.pvp.modules.ModConfig;
+import com.paraguacraft.pvp.modules.CombatStats;
 import java.util.Collection;
 import java.util.ArrayList;
 import java.util.List;
@@ -84,6 +85,16 @@ public class HUDOverlay extends Gui {
 
         AdvancedHud.drawOverlay();
         AdvancedHud.drawBedwarsResources(mc.thePlayer);
+        drawCombatStats();
+    }
+
+    private void drawCombatStats() {
+        if (ModConfig.reachDisplay && CombatStats.lastReach > 0.0) {
+            HudDraw.labeled("Reach: ", String.format("%.2f", CombatStats.lastReach), ModConfig.reachDisplayX, ModConfig.reachDisplayY);
+        }
+        if (ModConfig.comboCounter && CombatStats.comboCount > 0) {
+            HudDraw.labeled("Combo: ", String.valueOf(CombatStats.comboCount), ModConfig.comboDisplayX, ModConfig.comboDisplayY);
+        }
     }
 
     // ============================================================

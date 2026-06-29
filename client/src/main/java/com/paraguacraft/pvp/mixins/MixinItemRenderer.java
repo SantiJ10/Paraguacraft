@@ -2,6 +2,7 @@ package com.paraguacraft.pvp.mixins;
 
 import com.paraguacraft.pvp.animations.OldAnimations;
 import com.paraguacraft.pvp.core.PerformanceConfig;
+import com.paraguacraft.pvp.modules.ModConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.ItemRenderer;
@@ -23,7 +24,11 @@ public abstract class MixinItemRenderer {
 
     @Inject(method = "renderFireInFirstPerson", at = @At("HEAD"))
     private void paraguacraft$lowerFireOverlay(CallbackInfo ci) {
+        if (!ModConfig.lowFire) {
+            return;
+        }
         GlStateManager.translate(0.0F, -0.35F, 0.0F);
+        GlStateManager.scale(1.0F, 0.35F, 1.0F);
     }
 
     @Inject(method = "renderItemInFirstPerson", at = @At("HEAD"), cancellable = true)

@@ -1,12 +1,12 @@
 {
-  "version": "7.1.8",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.1.8/Instalar_Paraguacraft_v7.1.8.exe",
-  "size_bytes": 0,
-  "sha256": "",
-  "notes": "- Cliente PvP: traducciones vanilla completas es_ES y es_AR embebidas\n- Objetos, menus y opciones de Minecraft en espanol\n- Launcher 7.1.8",
+  "version": "7.1.9",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.1.9/Instalar_Paraguacraft_v7.1.9.exe",
+  "size_bytes": 10375793,
+  "sha256": "00d2ebaebf24245bd0dab1850277385b5ff312d80318a15e9aba0ce6cb154f67",
+  "notes": "- Cliente PvP 2.1.0: Quick Play Hypixel, alertas chat configurables, mods Hypixel-safe\n- Chat compacto, ping rival, freelook, reach/combo HUD\n- Launcher 7.1.9",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.1.8/Instalar_Paraguacraft_v7.1.8.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.1.9/Instalar_Paraguacraft_v7.1.9.exe",
       "signature": ""
     }
   }

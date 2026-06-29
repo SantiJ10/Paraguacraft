@@ -38,6 +38,23 @@ public class ModConfig {
     public static int keyEditHud = org.lwjgl.input.Keyboard.KEY_RCONTROL;
     public static int keyToggleSprint = org.lwjgl.input.Keyboard.KEY_V;
     public static int keyFullbright = org.lwjgl.input.Keyboard.KEY_G;
+    public static int keyFreelook = org.lwjgl.input.Keyboard.KEY_LMENU;
+    public static int keyQuickPlay = org.lwjgl.input.Keyboard.KEY_GRAVE;
+
+    // --- Mods PvP / Hypixel ---
+    public static boolean compactChat = true;
+    public static boolean lowFire = true;
+    public static boolean coloredBeds = true;
+    public static boolean showOpponentPing = false;
+    public static boolean chatTriggers = true;
+    public static boolean freelookEnabled = true;
+    public static boolean reachDisplay = true;
+    public static boolean comboCounter = true;
+    public static boolean itemPhysics = true;
+    public static int reachDisplayX = 5;
+    public static int reachDisplayY = 45;
+    public static int comboDisplayX = 5;
+    public static int comboDisplayY = 55;
 
     // --- NUEVOS MÓDULOS PREMIUM (Corrección Lunar Style) ---
     public static boolean showHeldItem = true; // Reemplaza a 'showHeldEnchants'
@@ -123,7 +140,22 @@ public class ModConfig {
             props.setProperty("keyEditHud", String.valueOf(keyEditHud));
             props.setProperty("keyToggleSprint", String.valueOf(keyToggleSprint));
             props.setProperty("keyFullbright", String.valueOf(keyFullbright));
-            
+            props.setProperty("keyFreelook", String.valueOf(keyFreelook));
+            props.setProperty("keyQuickPlay", String.valueOf(keyQuickPlay));
+            props.setProperty("compactChat", String.valueOf(compactChat));
+            props.setProperty("lowFire", String.valueOf(lowFire));
+            props.setProperty("coloredBeds", String.valueOf(coloredBeds));
+            props.setProperty("showOpponentPing", String.valueOf(showOpponentPing));
+            props.setProperty("chatTriggers", String.valueOf(chatTriggers));
+            props.setProperty("freelookEnabled", String.valueOf(freelookEnabled));
+            props.setProperty("reachDisplay", String.valueOf(reachDisplay));
+            props.setProperty("comboCounter", String.valueOf(comboCounter));
+            props.setProperty("itemPhysics", String.valueOf(itemPhysics));
+            props.setProperty("reachDisplayX", String.valueOf(reachDisplayX));
+            props.setProperty("reachDisplayY", String.valueOf(reachDisplayY));
+            props.setProperty("comboDisplayX", String.valueOf(comboDisplayX));
+            props.setProperty("comboDisplayY", String.valueOf(comboDisplayY));
+
             // Booleanos Nuevos
             props.setProperty("showHeldItem", String.valueOf(showHeldItem));
             props.setProperty("showServerHUD", String.valueOf(showServerHUD));
@@ -209,7 +241,22 @@ public class ModConfig {
             keyEditHud = Integer.parseInt(props.getProperty("keyEditHud", String.valueOf(keyEditHud)));
             keyToggleSprint = Integer.parseInt(props.getProperty("keyToggleSprint", String.valueOf(keyToggleSprint)));
             keyFullbright = Integer.parseInt(props.getProperty("keyFullbright", String.valueOf(keyFullbright)));
-            
+            keyFreelook = Integer.parseInt(props.getProperty("keyFreelook", String.valueOf(keyFreelook)));
+            keyQuickPlay = Integer.parseInt(props.getProperty("keyQuickPlay", String.valueOf(keyQuickPlay)));
+            compactChat = Boolean.parseBoolean(props.getProperty("compactChat", String.valueOf(compactChat)));
+            lowFire = Boolean.parseBoolean(props.getProperty("lowFire", String.valueOf(lowFire)));
+            coloredBeds = Boolean.parseBoolean(props.getProperty("coloredBeds", String.valueOf(coloredBeds)));
+            showOpponentPing = Boolean.parseBoolean(props.getProperty("showOpponentPing", String.valueOf(showOpponentPing)));
+            chatTriggers = Boolean.parseBoolean(props.getProperty("chatTriggers", String.valueOf(chatTriggers)));
+            freelookEnabled = Boolean.parseBoolean(props.getProperty("freelookEnabled", String.valueOf(freelookEnabled)));
+            reachDisplay = Boolean.parseBoolean(props.getProperty("reachDisplay", String.valueOf(reachDisplay)));
+            comboCounter = Boolean.parseBoolean(props.getProperty("comboCounter", String.valueOf(comboCounter)));
+            itemPhysics = Boolean.parseBoolean(props.getProperty("itemPhysics", String.valueOf(itemPhysics)));
+            reachDisplayX = Integer.parseInt(props.getProperty("reachDisplayX", String.valueOf(reachDisplayX)));
+            reachDisplayY = Integer.parseInt(props.getProperty("reachDisplayY", String.valueOf(reachDisplayY)));
+            comboDisplayX = Integer.parseInt(props.getProperty("comboDisplayX", String.valueOf(comboDisplayX)));
+            comboDisplayY = Integer.parseInt(props.getProperty("comboDisplayY", String.valueOf(comboDisplayY)));
+
             // Booleanos Nuevos
             showHeldItem = Boolean.parseBoolean(props.getProperty("showHeldItem", String.valueOf(showHeldItem)));
             showServerHUD = Boolean.parseBoolean(props.getProperty("showServerHUD", String.valueOf(showServerHUD)));

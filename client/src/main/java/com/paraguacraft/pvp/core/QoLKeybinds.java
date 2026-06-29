@@ -14,6 +14,8 @@ public final class QoLKeybinds {
         setCode(QoLManager.editHudKey, ModConfig.keyEditHud);
         setCode(QoLManager.toggleSprintKey, ModConfig.keyToggleSprint);
         setCode(QoLManager.fullbrightKey, ModConfig.keyFullbright);
+        setCode(QoLManager.freelookKey, ModConfig.keyFreelook);
+        setCode(QoLManager.quickPlayKey, ModConfig.keyQuickPlay);
         KeyBinding.resetKeyBindingArrayAndHash();
     }
 

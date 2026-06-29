@@ -3,11 +3,13 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "descripcion": "Cliente PvP 2.0.0 â€” HUD/GUI Lunar + resource packs + badge sync.",
+  "client_version": "2.1.0",
+  "release_tag": "pvp-client-2.1.0",
+  "descripcion": "Cliente PvP 2.1.0 — mods Hypixel-safe, Quick Play, alertas chat configurables.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.0.0.jar",
-      "sha1": "96f18f68d2aded96192538f8f1c20652059b8464"
+      "filename": "ParaguacraftPvP-2.1.0.jar",
+      "sha1": "d07f1e6a5f4af5c34a43d140784894087b6dde52"
     },
     {
       "filename": "OptiFine_1.8.9_HD_U_M5.jar",

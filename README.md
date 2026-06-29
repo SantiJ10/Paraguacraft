@@ -31,7 +31,7 @@ Incluye el **cliente oficial Paraguacraft PvP** (Forge 1.8.9 + OptiFine + mod pr
 | Área | Detalle |
 |------|---------|
 | **Rendimiento** | Motor de descargas en Rust, SHA-1, 0 % CPU al jugar, JVM/RAM automática por hardware |
-| **Paraguacraft PvP 2.0** | Forge 1.8.9, OptiFine, mod HUD/GUI, texture packs, sync de badges — **se actualiza solo** desde GitHub |
+| **Paraguacraft PvP 2.1** | Forge 1.8.9, OptiFine, mod HUD/GUI, Quick Play Hypixel, alertas chat — **se actualiza solo** desde GitHub |
 | **Tienda** | Modrinth + CurseForge, modpacks `.mrpack` y `.zip` |
 | **Instancias** | Mods por carpeta, exportar/importar, reparar, favoritos con join directo |
 | **Servidores** | Paper, Fabric, Forge + túnel Playit.gg |
@@ -55,6 +55,15 @@ Ejecutá el `.exe`. Si falta **WebView2** o **Java**, el launcher los descarga e
 - Pulsá **Iniciar el juego**.
 
 El cliente PvP se sincroniza automáticamente al instalar o lanzar (manifest + SHA-1 en GitHub). Si algo falla, usá **Reparar instancia** en el detalle de la instancia.
+
+## Compatibilidad Hypixel
+
+Los mods del cliente Paraguacraft PvP son **solo visuales y de HUD** (estilo Lunar/Badlion/OptiFine). No modifican alcance de golpe, movimiento, paquetes de red ni dan ventaja competitiva:
+
+- **Permitidos**: chat compacto, fuego bajo, camas coloridas, ping en nametag, freelook, HUD reach/combo (solo lectura), física de ítems, alertas de chat, juego rápido (`/play` manual).
+- **No incluidos**: reach hack, autoclicker, xray, macros de combate, auto-play.
+
+Reach Display y Combo Counter miden **tus** acciones locales para entrenar W-tapping; no extienden el hitbox del juego.
 
 ## Requisitos
 
