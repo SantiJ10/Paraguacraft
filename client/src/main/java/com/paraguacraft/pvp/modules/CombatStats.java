@@ -2,26 +2,31 @@ package com.paraguacraft.pvp.modules;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.EntityPlayer;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.player.AttackEntityEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
 /** Reach display y combo counter para entrenamiento PvP. */
+@SideOnly(Side.CLIENT)
 public class CombatStats {
-
-    private final Minecraft mc = Minecraft.getMinecraft();
 
     public static double lastReach = 0.0;
     public static int comboCount = 0;
     private static long lastHitTime = 0L;
+
+    private static Minecraft mc() {
+        return Minecraft.getMinecraft();
+    }
 
     @SubscribeEvent
     public void onAttack(AttackEntityEvent event) {
         if (!ModConfig.reachDisplay && !ModConfig.comboCounter) {
             return;
         }
-        if (event.entityPlayer != mc.thePlayer || event.target == null) {
+        Minecraft mc = mc();
+        if (mc.thePlayer == null || event.entityPlayer != mc.thePlayer || event.target == null) {
             return;
         }
         Entity target = event.target;
@@ -45,7 +50,8 @@ public class CombatStats {
         if (!ModConfig.comboCounter) {
             return;
         }
-        if (event.entityLiving == mc.thePlayer) {
+        Minecraft mc = mc();
+        if (mc.thePlayer != null && event.entityLiving == mc.thePlayer) {
             comboCount = 0;
         }
     }

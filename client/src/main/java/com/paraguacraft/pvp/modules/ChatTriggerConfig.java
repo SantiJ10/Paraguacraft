@@ -71,7 +71,11 @@ public final class ChatTriggerConfig {
     }
 
     private static File configFile() {
-        return new File(Minecraft.getMinecraft().mcDataDir, "paraguacraft/chat_triggers.json");
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc == null) {
+            return new File("paraguacraft/chat_triggers.json");
+        }
+        return new File(mc.mcDataDir, "paraguacraft/chat_triggers.json");
     }
 
     public static void load() {
