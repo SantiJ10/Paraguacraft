@@ -3,6 +3,15 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.2.6] - 2026-06-29
+
+### Fixed
+- **Freelook**: ahora gira SOLO la camara y no el cuerpo del jugador. El bug venia de un `@Redirect` sobre `EntityPlayerSP.setAngles` (metodo heredado de `Entity`, no se mapeaba). Se intercepta `Entity.setAngles` directamente.
+- **Freelook indetectable**: el cuerpo nunca rota, el servidor recibe la rotacion real congelada y los raytrace/interacciones usan la rotacion real (la camara solo se sobreescribe al renderizar). Camara interpolada para movimiento fluido.
+
+### Changed
+- **Cliente PvP 2.1.8**.
+
 ## [7.2.5] - 2026-06-29
 
 ### Added

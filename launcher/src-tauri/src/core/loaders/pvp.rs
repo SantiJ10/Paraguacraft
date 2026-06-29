@@ -21,13 +21,13 @@ const GITHUB_REPO: &str = "SantiJ10/Paraguacraft";
 const MANIFEST_URL: &str =
     "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/clientes/paraguacraft-pvp/manifest.json";
 
-const FALLBACK_CLIENT_VERSION: &str = "2.1.7";
-const FALLBACK_RELEASE_TAG: &str = "pvp-client-2.1.7";
+const FALLBACK_CLIENT_VERSION: &str = "2.1.8";
+const FALLBACK_RELEASE_TAG: &str = "pvp-client-2.1.8";
 
 const FALLBACK_MODS: &[(&str, &str)] = &[
     (
-        "ParaguacraftPvP-2.1.7.jar",
-        "9ad3ce2060a9b3ed57185e947eda33a5ef2a6364",
+        "ParaguacraftPvP-2.1.8.jar",
+        "aa4cf3a6c67909709078b5c0b6e771588fe0e117",
     ),
     (
         "OptiFine_1.8.9_HD_U_M5.jar",
