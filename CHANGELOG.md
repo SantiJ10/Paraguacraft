@@ -3,6 +3,15 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.2.1] - 2026-06-29
+
+### Fixed
+- **Crash codigo 1 al iniciar**: `MixinNametagLogo` fallaba al inyectar ping rival (`ModifyVariable` con firma invalida).
+- Accessor `IChatLineAccess` registrado en mixin config (chat compacto).
+
+### Changed
+- Cliente PvP **2.1.2**.
+
 ## [7.2.0] - 2026-06-29
 
 ### Fixed

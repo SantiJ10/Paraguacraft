@@ -26,11 +26,10 @@ public class MixinNametagLogo {
     @ModifyVariable(
         method = "renderLivingLabel(Lnet/minecraft/entity/Entity;Ljava/lang/String;DDDI)V",
         at = @At("HEAD"),
-        argsOnly = true,
         ordinal = 1,
         require = 0
     )
-    private String paraguacraft$appendPing(String label, Entity entity) {
+    private String paraguacraft$appendPing(Entity entity, String label) {
         if (!ModConfig.showOpponentPing || !(entity instanceof EntityPlayer)) {
             return label;
         }
