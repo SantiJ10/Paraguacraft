@@ -116,15 +116,28 @@ public final class BorderlessWindowManager {
             captureSavedState(hwnd);
         }
 
+        // 1) Quitamos TODA la decoracion (borde, barra de titulo, marco redimensionable).
         int style = User32.INSTANCE.GetWindowLongW(hwnd, Win32Helper.GWL_STYLE);
-        int exStyle = User32.INSTANCE.GetWindowLongW(hwnd, Win32Helper.GWL_EXSTYLE);
-        style &= ~(Win32Helper.WS_CAPTION | Win32Helper.WS_THICKFRAME | Win32Helper.WS_SYSMENU | Win32Helper.WS_MINIMIZEBOX);
-        style |= Win32Helper.WS_MAXIMIZEBOX;
+        style &= ~(Win32Helper.WS_CAPTION | Win32Helper.WS_THICKFRAME | Win32Helper.WS_SYSMENU
+            | Win32Helper.WS_MINIMIZEBOX | Win32Helper.WS_MAXIMIZEBOX
+            | Win32Helper.WS_BORDER | Win32Helper.WS_DLGFRAME);
         User32.INSTANCE.SetWindowLongW(hwnd, Win32Helper.GWL_STYLE, style);
 
+        // 2) ExStyle: que Discord la liste (APPWINDOW) y NO la trate como herramienta/topmost.
+        //    Sin esto: Discord no encuentra la ventana para compartir ni engancha el overlay.
+        int exStyle = User32.INSTANCE.GetWindowLongW(hwnd, Win32Helper.GWL_EXSTYLE);
+        exStyle &= ~(Win32Helper.WS_EX_DLGMODALFRAME | Win32Helper.WS_EX_CLIENTEDGE
+            | Win32Helper.WS_EX_STATICEDGE | Win32Helper.WS_EX_WINDOWEDGE
+            | Win32Helper.WS_EX_TOPMOST | Win32Helper.WS_EX_TOOLWINDOW);
+        exStyle |= Win32Helper.WS_EX_APPWINDOW;
+        User32.INSTANCE.SetWindowLongW(hwnd, Win32Helper.GWL_EXSTYLE, exStyle);
+
+        // 3) Ocupamos el monitor completo PERO 1px mas alto: evita que el DWM active el modo
+        //    "fullscreen exclusivo / independent flip", que rompe el overlay y la captura de Discord.
+        //    Asi la ventana sigue siendo borderless-windowed (compuesta) y Discord la engancha bien.
         RECT mon = fullMonitorRect(hwnd);
         int clientW = mon.right - mon.left;
-        int clientH = mon.bottom - mon.top;
+        int clientH = (mon.bottom - mon.top) + 1;
         placeWindowForClient(hwnd, mon.left, mon.top, clientW, clientH, style, exStyle);
         syncCanvas(hwnd);
         active = true;

@@ -55,37 +55,52 @@ public class HUDOverlay extends Gui {
         
         if (mc.gameSettings.showDebugInfo || mc.thePlayer == null) return;
 
-        if (ModConfig.showFPS) {
-            HudDraw.labeled("FPS: ", String.valueOf(Minecraft.getDebugFPS()), ModConfig.fpsX, ModConfig.fpsY);
-        }
-        if (ModConfig.showPing) {
-            int ping = 0;
-            if (mc.getNetHandler() != null && mc.getNetHandler().getPlayerInfo(mc.thePlayer.getUniqueID()) != null) {
-                ping = mc.getNetHandler().getPlayerInfo(mc.thePlayer.getUniqueID()).getResponseTime();
+        // Encapsulamos TODO el HUD para evitar fugas de estado GL (sky flicker en Bedwars).
+        GlStateManager.pushMatrix();
+        GlStateManager.enableBlend();
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        try {
+            if (ModConfig.showFPS) {
+                HudDraw.labeled("FPS: ", String.valueOf(Minecraft.getDebugFPS()), ModConfig.fpsX, ModConfig.fpsY);
             }
-            HudDraw.labeled("Ping: ", (ping < 0 ? 0 : ping) + " ms", ModConfig.pingX, ModConfig.pingY);
-        }
-        if (ModConfig.showCPS) {
-            calculateCPS();
-            HudDraw.labeled("CPS: ", String.valueOf(leftClicks.size()), ModConfig.cpsX, ModConfig.cpsY);
-        }
-        if (ModConfig.showCoords) {
-            String coords = String.format("X: %.0f  Y: %.0f  Z: %.0f", mc.thePlayer.posX, mc.thePlayer.posY, mc.thePlayer.posZ);
-            HudDraw.text(coords, ModConfig.coordsX, ModConfig.coordsY, UiTheme.ACCENT);
-        }
-        
-        if (ModConfig.showKeystrokes) drawKeystrokes();
-        if (ModConfig.showArmor) drawArmorStatus();
-        
-        // --- Módulos Premium (Lunar Style 100% Transparentes) ---
-        if (ModConfig.showPotions) drawPotionStatus(); 
-        if (ModConfig.showHeldItem) drawHeldItemMod(); 
-        if (ModConfig.showServerHUD) drawServerHUD(); 
-        if (ModConfig.showCompass) drawCompass();
+            if (ModConfig.showPing) {
+                int ping = 0;
+                if (mc.getNetHandler() != null && mc.getNetHandler().getPlayerInfo(mc.thePlayer.getUniqueID()) != null) {
+                    ping = mc.getNetHandler().getPlayerInfo(mc.thePlayer.getUniqueID()).getResponseTime();
+                }
+                HudDraw.labeled("Ping: ", (ping < 0 ? 0 : ping) + " ms", ModConfig.pingX, ModConfig.pingY);
+            }
+            if (ModConfig.showCPS) {
+                calculateCPS();
+                HudDraw.labeled("CPS: ", String.valueOf(leftClicks.size()), ModConfig.cpsX, ModConfig.cpsY);
+            }
+            if (ModConfig.showCoords) {
+                String coords = String.format("X: %.0f  Y: %.0f  Z: %.0f", mc.thePlayer.posX, mc.thePlayer.posY, mc.thePlayer.posZ);
+                HudDraw.text(coords, ModConfig.coordsX, ModConfig.coordsY, UiTheme.ACCENT);
+            }
 
-        AdvancedHud.drawOverlay();
-        AdvancedHud.drawBedwarsResources(mc.thePlayer);
-        drawCombatStats();
+            if (ModConfig.showKeystrokes) drawKeystrokes();
+            if (ModConfig.showArmor) drawArmorStatus();
+
+            // --- Módulos Premium (Lunar Style 100% Transparentes) ---
+            if (ModConfig.showPotions) drawPotionStatus(); 
+            if (ModConfig.showHeldItem) drawHeldItemMod(); 
+            if (ModConfig.showServerHUD) drawServerHUD(); 
+            if (ModConfig.showCompass) drawCompass();
+
+            AdvancedHud.drawOverlay();
+            AdvancedHud.drawBedwarsResources(mc.thePlayer);
+            drawCombatStats();
+        } finally {
+            // Restauración estricta del estado GL para el resto del pipeline (mundo/cielo).
+            net.minecraft.client.renderer.RenderHelper.disableStandardItemLighting();
+            GlStateManager.disableLighting();
+            GL11.glDisable(GL11.GL_SCISSOR_TEST);
+            GlStateManager.enableDepth();
+            GlStateManager.disableBlend();
+            GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+            GlStateManager.popMatrix();
+        }
     }
 
     private void drawCombatStats() {

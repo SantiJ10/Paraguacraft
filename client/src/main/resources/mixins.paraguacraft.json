@@ -26,6 +26,7 @@
     "client.MixinFontRenderer",
     "client.MixinGuiNewChat",
     "client.MixinEntityRendererFreelook",
+    "client.MixinMinecraftFreelook",
     "client.MixinBedColor"
   ],
   "injectors": {
