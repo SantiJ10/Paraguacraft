@@ -1,12 +1,12 @@
 {
-  "version": "7.2.5",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.5/Instalar_Paraguacraft_v7.2.5.exe",
-  "size_bytes": 10259431,
-  "sha256": "8be4252b0f010d83bc60b1271d6e055423423e28384799bb0159733a6bc291d8",
-  "notes": "- Cliente PvP 2.1.7: Chat Alerts (/chat alerts), borderless Discord, Combo/Reach arrastrables, scoreboard Hypixel, HUD musica\n- Fix freelook y sky flicker (OpenGL)\n- Launcher 7.2.5",
+  "version": "7.2.6",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.6/Instalar_Paraguacraft_v7.2.6.exe",
+  "size_bytes": 10260035,
+  "sha256": "690f6095e4d1985e832f2aa5f785c155c3d5616ada81ea633281f583c11a2553",
+  "notes": "- Cliente PvP 2.1.8: fix freelook (gira la camara, no el cuerpo) e indetectable (el servidor recibe la rotacion real)\n- Launcher 7.2.6",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.5/Instalar_Paraguacraft_v7.2.5.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.6/Instalar_Paraguacraft_v7.2.6.exe",
       "signature": ""
     }
   }
