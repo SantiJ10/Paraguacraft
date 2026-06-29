@@ -3,6 +3,22 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.2.4] - 2026-06-29
+
+### Fixed
+- **Crash en Hypixel/servidores (Batching chunks)**: `MixinBedColor` usaba `GlStateManager.color()` en hilos de chunk sin contexto OpenGL. Ahora tinta vertices via `WorldRenderer.color()` (seguro en ChunkRenderWorker).
+
+### Changed
+- **Cliente PvP 2.1.5**.
+
+## [7.2.3] - 2026-06-29
+
+### Fixed
+- **Crash al cargar (no llegaba al menu)**: `MixinGuiNewChat` usaba el tipo accessor `IChatLineAccess` como variable local, lo que rompia el remapeo del mixin en `GuiNewChat`. Ahora usa los getters publicos de `ChatLine` y refresca el chat con `refreshChat()`. Eliminado el accessor `IChatLineAccess`.
+
+### Changed
+- **Cliente PvP 2.1.4**.
+
 ## [7.2.2] - 2026-06-29
 
 ### Fixed

@@ -4,7 +4,7 @@
 # Solo el instalador del launcher se sube como release (v7.x.x).
 
 param(
-    [string]$Version = "2.1.3"
+    [string]$Version = "2.1.5"
 )
 
 $ErrorActionPreference = "Stop"
