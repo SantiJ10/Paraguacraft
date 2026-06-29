@@ -16,6 +16,7 @@ paraguacraft.menu.cat.mechanics=Mechanics
 paraguacraft.menu.cat.server=Server
 paraguacraft.menu.cat.textures=Textures
 paraguacraft.menu.cat.perf=Performance
+paraguacraft.menu.cat.hypixel=Hypixel
 
 paraguacraft.menu.mod.fps=FPS
 paraguacraft.menu.mod.ping=Ping
@@ -58,6 +59,32 @@ paraguacraft.menu.mod.music_hud=Music HUD
 paraguacraft.menu.mod.tnt_countdown=TNT Countdown
 paraguacraft.menu.mod.bw_resources=BW Resources
 paraguacraft.menu.mod.item_3d=Item 3D
+
+paraguacraft.menu.mod.compact_chat=Compact Chat
+paraguacraft.menu.mod.low_fire=Low Fire
+paraguacraft.menu.mod.colored_beds=Colored Beds
+paraguacraft.menu.mod.opponent_ping=Opponent Ping
+paraguacraft.menu.mod.quick_play=Quick Play
+paraguacraft.menu.mod.chat_triggers=Chat Triggers
+paraguacraft.menu.mod.freelook=Freelook
+paraguacraft.menu.mod.reach_display=Reach Display
+paraguacraft.menu.mod.combo_counter=Combo Counter
+paraguacraft.menu.mod.item_physics=Item Physics
+
+paraguacraft.quickplay.title=QUICK PLAY
+paraguacraft.quickplay.hypixel=Hypixel only — click to join
+paraguacraft.quickplay.offline=Connect to Hypixel to use this menu
+paraguacraft.quickplay.safe=Normal /play commands — Hypixel allowed
+
+paraguacraft.triggers.title=Chat alerts
+paraguacraft.triggers.hint=Comma-separated keywords. Colors: RED, GOLD, YELLOW...
+paraguacraft.triggers.keywords=Keywords
+paraguacraft.triggers.alert_title=Screen title
+paraguacraft.triggers.color=Color (EnumChatFormatting)
+paraguacraft.triggers.add=Add
+paraguacraft.triggers.remove=Delete
+paraguacraft.triggers.reset=Reset
+paraguacraft.triggers.save=Save
 
 paraguacraft.menu.options=OPTIONS
 

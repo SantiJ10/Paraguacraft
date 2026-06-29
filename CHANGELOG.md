@@ -3,6 +3,26 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.1.9] - 2026-06-29
+
+### Added
+- **Cliente PvP 2.1.0**: chat compacto, ping rival, camas coloridas, freelook, reach/combo HUD, fisica de items, categoria Hypixel en Mod Menu.
+- **Juego rapido Hypixel**: menu con iconos de items y comandos `/play` / `/lobby` (tecla `` ` ``).
+- **Alertas de chat configurables**: reglas personalizables en `paraguacraft/chat_triggers.json` (estilo ChatTriggers simplificado).
+
+### Changed
+- Manifest PvP actualizado a `pvp-client-2.1.0` con SHA-1 verificado.
+- Fallback embebido del launcher apunta a `ParaguacraftPvP-2.1.0.jar`.
+
+### Security / Hypixel
+- Todos los mods del cliente son **solo cosmeticos/HUD** — sin reach hack, xray, autoclicker ni macros.
+- Reach Display y Combo Counter solo **muestran** datos de tus golpes; no alteran hitboxes ni paquetes.
+
+## [7.1.8] - 2026-06-29
+
+### Added
+- **Traducciones vanilla es_ES y es_AR** embebidas en el cliente PvP.
+
 ## [7.1.2] - 2026-06-25
 
 ### Fixed

@@ -35,7 +35,7 @@ public class GuiParaguaMenu extends GuiScreen {
     private static final int CARD_H = 72;
     private static final int GAP = 12;
 
-    private static final String[] CATEGORY_IDS = {"all", "hud", "pvp", "mechanics", "server", "textures", "perf"};
+    private static final String[] CATEGORY_IDS = {"all", "hud", "pvp", "mechanics", "server", "textures", "perf", "hypixel"};
 
     private int selectedCategory;
     private String searchQuery = "";
@@ -97,6 +97,16 @@ public class GuiParaguaMenu extends GuiScreen {
         new ModEntry(37, "paraguacraft.menu.mod.tnt_countdown", 2),
         new ModEntry(38, "paraguacraft.menu.mod.bw_resources", 2),
         new ModEntry(39, "paraguacraft.menu.mod.item_3d", 3),
+        new ModEntry(40, "paraguacraft.menu.mod.compact_chat", 2),
+        new ModEntry(41, "paraguacraft.menu.mod.low_fire", 2),
+        new ModEntry(42, "paraguacraft.menu.mod.colored_beds", 2),
+        new ModEntry(43, "paraguacraft.menu.mod.opponent_ping", 2),
+        new ModEntry(44, "paraguacraft.menu.mod.quick_play", 7),
+        new ModEntry(45, "paraguacraft.menu.mod.chat_triggers", 7),
+        new ModEntry(46, "paraguacraft.menu.mod.freelook", 2),
+        new ModEntry(47, "paraguacraft.menu.mod.reach_display", 2),
+        new ModEntry(48, "paraguacraft.menu.mod.combo_counter", 2),
+        new ModEntry(49, "paraguacraft.menu.mod.item_physics", 3),
     };
 
     @Override
@@ -218,7 +228,7 @@ public class GuiParaguaMenu extends GuiScreen {
 
     private void drawModCard(ModEntry mod, int x, int y, boolean enabled, int mouseX, int mouseY) {
         FontRenderer fr = fr();
-        boolean isScreen = mod.id == 16 || mod.id == 33 || mod.id == 34;
+        boolean isScreen = mod.id == 16 || mod.id == 33 || mod.id == 34 || mod.id == 44;
         boolean hover = mouseX >= x && mouseX <= x + CARD_W && mouseY >= y && mouseY <= y + CARD_H;
         float target = isScreen ? 1f : (enabled ? 1f : 0f);
         float anim = toggleAnim.containsKey(mod.id) ? toggleAnim.get(mod.id) : target;
@@ -240,7 +250,7 @@ public class GuiParaguaMenu extends GuiScreen {
             String openLbl = ModLang.format("paraguacraft.menu.open");
             Gui.drawRect(x + 8, toggleY, x + CARD_W - 8, toggleY + 16, hover ? UiTheme.ACCENT : 0xFF226688);
             fr.drawStringWithShadow(openLbl, x + CARD_W / 2 - fr.getStringWidth(openLbl) / 2, toggleY + 4, 0xFFFFFF);
-        } else if (mod.id == 9 || mod.id == 36 || mod.id == 38) {
+        } else if (mod.id == 9 || mod.id == 36 || mod.id == 38 || mod.id == 45) {
             int half = (CARD_W - 20) / 2;
             int optX = x + 8;
             int togX = x + 8 + half + 4;
@@ -340,7 +350,7 @@ public class GuiParaguaMenu extends GuiScreen {
             int cardY = gridY + 8 + cy * (CARD_H + GAP) - (int) scrollOffset;
             if (cardY + CARD_H >= gridY && cardY <= gridY + panelH - TOPBAR - 12
                 && mouseX >= cardX && mouseX <= cardX + CARD_W && mouseY >= cardY && mouseY <= cardY + CARD_H) {
-                if (mod.id == 9 || mod.id == 36 || mod.id == 38) {
+                if (mod.id == 9 || mod.id == 36 || mod.id == 38 || mod.id == 45) {
                     int toggleY = cardY + CARD_H - 22;
                     int half = (CARD_W - 20) / 2;
                     int optX = cardX + 8;
@@ -351,6 +361,8 @@ public class GuiParaguaMenu extends GuiScreen {
                                 mc.displayGuiScreen(new GuiScoreboardOptions());
                             } else if (mod.id == 36) {
                                 mc.displayGuiScreen(new GuiMusicHudOptions());
+                            } else if (mod.id == 45) {
+                                mc.displayGuiScreen(new GuiChatTriggersOptions());
                             } else {
                                 mc.displayGuiScreen(new GuiBwResourcesOptions());
                             }
@@ -370,6 +382,8 @@ public class GuiParaguaMenu extends GuiScreen {
                     mc.displayGuiScreen(new GuiModProfiles());
                 } else if (mod.id == 34) {
                     mc.displayGuiScreen(new GuiKeybinds());
+                } else if (mod.id == 44) {
+                    mc.displayGuiScreen(new GuiHypixelQuickPlay());
                 } else {
                     toggleMod(mod.id);
                     ModConfig.save();
@@ -487,6 +501,16 @@ public class GuiParaguaMenu extends GuiScreen {
             case 37: return ModConfig.showTntCountdown;
             case 38: return ModConfig.showBedwarsResources;
             case 39: return ModConfig.forceItem3d;
+            case 40: return ModConfig.compactChat;
+            case 41: return ModConfig.lowFire;
+            case 42: return ModConfig.coloredBeds;
+            case 43: return ModConfig.showOpponentPing;
+            case 44: return true;
+            case 45: return ModConfig.chatTriggers;
+            case 46: return ModConfig.freelookEnabled;
+            case 47: return ModConfig.reachDisplay;
+            case 48: return ModConfig.comboCounter;
+            case 49: return ModConfig.itemPhysics;
             default: return false;
         }
     }
@@ -582,6 +606,15 @@ public class GuiParaguaMenu extends GuiScreen {
             case 37: ModConfig.showTntCountdown = !ModConfig.showTntCountdown; break;
             case 38: ModConfig.showBedwarsResources = !ModConfig.showBedwarsResources; break;
             case 39: ModConfig.forceItem3d = !ModConfig.forceItem3d; break;
+            case 40: ModConfig.compactChat = !ModConfig.compactChat; break;
+            case 41: ModConfig.lowFire = !ModConfig.lowFire; break;
+            case 42: ModConfig.coloredBeds = !ModConfig.coloredBeds; break;
+            case 43: ModConfig.showOpponentPing = !ModConfig.showOpponentPing; break;
+            case 45: ModConfig.chatTriggers = !ModConfig.chatTriggers; break;
+            case 46: ModConfig.freelookEnabled = !ModConfig.freelookEnabled; break;
+            case 47: ModConfig.reachDisplay = !ModConfig.reachDisplay; break;
+            case 48: ModConfig.comboCounter = !ModConfig.comboCounter; break;
+            case 49: ModConfig.itemPhysics = !ModConfig.itemPhysics; break;
             default: break;
         }
     }

@@ -13,7 +13,9 @@ import org.lwjgl.input.Keyboard;
 // ---> CAMBIO: Importamos tu nuevo menú moderno en vez del viejo
 import com.paraguacraft.pvp.gui.GuiParaguaMenu; 
 import com.paraguacraft.pvp.gui.GuiEditHUD;
+import com.paraguacraft.pvp.gui.GuiHypixelQuickPlay;
 import com.paraguacraft.pvp.core.BorderlessWindowManager;
+import com.paraguacraft.pvp.modules.FreelookManager;
 
 public class QoLManager {
 
@@ -23,17 +25,23 @@ public class QoLManager {
     public static KeyBinding fullbrightKey;
     public static KeyBinding menuKey;
     public static KeyBinding editHudKey;
+    public static KeyBinding freelookKey;
+    public static KeyBinding quickPlayKey;
 
     public QoLManager() {
         toggleSprintKey = new KeyBinding("Toggle Sprint", ModConfig.keyToggleSprint, "Paraguacraft PvP");
         fullbrightKey = new KeyBinding("Fullbright", ModConfig.keyFullbright, "Paraguacraft PvP");
         menuKey = new KeyBinding("Mod Menu", ModConfig.keyMenu, "Paraguacraft PvP");
         editHudKey = new KeyBinding("Editar HUD", ModConfig.keyEditHud, "Paraguacraft PvP");
+        freelookKey = new KeyBinding("Freelook", ModConfig.keyFreelook, "Paraguacraft PvP");
+        quickPlayKey = new KeyBinding("Hypixel Quick Play", ModConfig.keyQuickPlay, "Paraguacraft PvP");
         
         ClientRegistry.registerKeyBinding(toggleSprintKey);
         ClientRegistry.registerKeyBinding(fullbrightKey);
         ClientRegistry.registerKeyBinding(menuKey);
         ClientRegistry.registerKeyBinding(editHudKey);
+        ClientRegistry.registerKeyBinding(freelookKey);
+        ClientRegistry.registerKeyBinding(quickPlayKey);
     }
 
     @SubscribeEvent
@@ -61,11 +69,25 @@ public class QoLManager {
         if (editHudKey.isPressed()) {
             mc.displayGuiScreen(new GuiEditHUD());
         }
+
+        if (quickPlayKey.isPressed()) {
+            mc.displayGuiScreen(new GuiHypixelQuickPlay());
+        }
     }
 
     @SubscribeEvent
     public void onClientTick(ClientTickEvent event) {
         if (mc.thePlayer == null) return;
+
+        if (ModConfig.freelookEnabled) {
+            if (freelookKey.isKeyDown()) {
+                if (!FreelookManager.active) {
+                    FreelookManager.onPress();
+                }
+            } else if (FreelookManager.active) {
+                FreelookManager.onRelease();
+            }
+        }
 
         if (ModConfig.toggleSprintActive && mc.currentScreen == null) {
             KeyBinding.setKeyBindState(mc.gameSettings.keyBindSprint.getKeyCode(), true);

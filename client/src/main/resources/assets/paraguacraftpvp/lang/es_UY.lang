@@ -57,7 +57,25 @@ paraguacraft.menu.mod.hardware_hud=HUD Hardware
 paraguacraft.menu.mod.music_hud=HUD Musica
 paraguacraft.menu.mod.tnt_countdown=Cuenta TNT
 paraguacraft.menu.mod.bw_resources=Recursos BW
+paraguacraft.menu.cat.perf=Rendimiento
+paraguacraft.menu.cat.hypixel=Hypixel
+
 paraguacraft.menu.mod.item_3d=Item 3D
+
+paraguacraft.menu.mod.compact_chat=Chat compacto
+paraguacraft.menu.mod.low_fire=Fuego bajo
+paraguacraft.menu.mod.colored_beds=Camas coloridas
+paraguacraft.menu.mod.opponent_ping=Ping rival
+paraguacraft.menu.mod.quick_play=Juego rapido
+paraguacraft.menu.mod.chat_triggers=Alertas chat
+paraguacraft.menu.mod.freelook=Freelook
+paraguacraft.menu.mod.reach_display=Reach display
+paraguacraft.menu.mod.combo_counter=Combo counter
+paraguacraft.menu.mod.item_physics=Fisica items
+
+paraguacraft.quickplay.title=JUEGO RAPIDO
+paraguacraft.quickplay.hypixel=Solo Hypixel — click para unirte
+paraguacraft.quickplay.offline=Conectate a Hypixel para usar este menu
 
 paraguacraft.menu.options=OPCIONES
 

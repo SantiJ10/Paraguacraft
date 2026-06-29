@@ -23,7 +23,11 @@
   ],
   "client": [
     "MixinDisplayTitle",
-    "client.MixinFontRenderer"
+    "client.MixinFontRenderer",
+    "client.MixinGuiNewChat",
+    "client.MixinEntityRendererFreelook",
+    "client.MixinRenderLivingLabelPing",
+    "client.MixinBedColor"
   ],
   "injectors": {
     "defaultRequire": 0

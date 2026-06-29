@@ -15,6 +15,9 @@ public abstract class MixinRenderEntityItem {
         at = @At(value = "INVOKE", target = "Lnet/minecraft/client/resources/model/IBakedModel;isGui3d()Z")
     )
     private boolean paraguacraft$forceItemRenderMode(IBakedModel model) {
+        if (ModConfig.itemPhysics) {
+            return false;
+        }
         return ModConfig.forceItem3d;
     }
 }
