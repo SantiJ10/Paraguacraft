@@ -1,12 +1,12 @@
 {
-  "version": "7.2.4",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.4/Instalar_Paraguacraft_v7.2.4.exe",
-  "size_bytes": 10248634,
-  "sha256": "e7c74fa16b4e1b6b72005dd569dd9cbd10e944dd9c0d140252780623eaebc33c",
-  "notes": "- Fix crash Hypixel/servidores (camas coloridas en chunk workers)\n- Fix crash menu (chat compacto)\n- Cliente PvP 2.1.5\n- Launcher 7.2.4",
+  "version": "7.2.5",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.5/Instalar_Paraguacraft_v7.2.5.exe",
+  "size_bytes": 10259431,
+  "sha256": "8be4252b0f010d83bc60b1271d6e055423423e28384799bb0159733a6bc291d8",
+  "notes": "- Cliente PvP 2.1.7: Chat Alerts (/chat alerts), borderless Discord, Combo/Reach arrastrables, scoreboard Hypixel, HUD musica\n- Fix freelook y sky flicker (OpenGL)\n- Launcher 7.2.5",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.4/Instalar_Paraguacraft_v7.2.4.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.5/Instalar_Paraguacraft_v7.2.5.exe",
       "signature": ""
     }
   }

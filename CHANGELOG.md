@@ -3,6 +3,22 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.2.5] - 2026-06-29
+
+### Added
+- **Chat Alerts**: comando `/chat alerts add <palabra>` con sonido (ding) y resaltado de mensajes en chat.
+- **Combo y Reach** arrastrables en el editor de HUD.
+
+### Fixed
+- **Borderless**: ventana compatible con captura por ventana y overlay de Discord (WS_EX_APPWINDOW, sin fullscreen exclusivo DWM).
+- **Scoreboard**: filtro Unicode para barras de progreso de Hypixel (cuadrados cian).
+- **HUD de musica**: texto recortado al ancho del panel; fondo opaco por defecto.
+- **Freelook**: sensibilidad corregida; cuerpo del jugador no rota mientras la camara esta libre.
+- **Sky flicker**: encapsulado GL en HUDOverlay para evitar fugas de estado OpenGL.
+
+### Changed
+- **Cliente PvP 2.1.7**.
+
 ## [7.2.4] - 2026-06-29
 
 ### Fixed
