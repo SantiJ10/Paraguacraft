@@ -67,7 +67,7 @@ public class ModConfig {
     public static boolean showHardwareHud = true;
     public static boolean showMusicHud = true;
     public static boolean showMusicAlbumArt = true;
-    public static int musicHudAlpha = 153;
+    public static int musicHudAlpha = 255;
     public static boolean showTntCountdown = true;
     public static boolean showBedwarsResources = true;
     public static boolean bwResTransparentBg = false;

@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.5",
-  "release_tag": "pvp-client-2.1.5",
-  "descripcion": "Cliente PvP 2.1.5 — fix crash Hypixel (camas coloridas en chunk workers).",
+  "client_version": "2.1.6",
+  "release_tag": "pvp-client-2.1.6",
+  "descripcion": "Cliente PvP 2.1.6 — Combo/Reach arrastrables, limpieza de barra de progreso del scoreboard y mejoras del HUD de música.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.5.jar",
-      "sha1": "e916d3871e98380df80a8c18b360c99177fce765"
+      "filename": "ParaguacraftPvP-2.1.6.jar",
+      "sha1": "eff2f7a87b19b0373ad0aab1dfdb1544b5a71221"
     },
     {
       "filename": "OptiFine_1.8.9_HD_U_M5.jar",

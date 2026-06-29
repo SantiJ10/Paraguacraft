@@ -129,11 +129,13 @@ public final class AdvancedHud {
                 drawMusicArt(x + 6, ty, snap.musicImageUrl);
                 textX = x + 6 + ART_SIZE + 4;
             }
+            // Limite real en pixeles para que el texto nunca traspase el cuadro.
+            int innerMax = (x + w) - textX - 6;
             String title = snap.musicTitle.isEmpty() ? "-" : TextUtil.sanitizeForMcFont(snap.musicTitle);
-            HudDraw.text(trunc(title, 22), textX, ty, UiTheme.ACCENT);
+            HudDraw.text(clampToWidth(title, innerMax), textX, ty, UiTheme.ACCENT);
             ty += 11;
             if (!snap.musicArtist.isEmpty()) {
-                HudDraw.text(trunc(TextUtil.sanitizeForMcFont(snap.musicArtist), 24), textX, ty, UiTheme.TEXT_DIM);
+                HudDraw.text(clampToWidth(TextUtil.sanitizeForMcFont(snap.musicArtist), innerMax), textX, ty, UiTheme.TEXT_DIM);
             }
         }
         GlStateManager.disableBlend();
@@ -213,5 +215,28 @@ public final class AdvancedHud {
             return s;
         }
         return s.substring(0, max - 1) + "...";
+    }
+
+    /** Recorta el texto con "..." para que su ancho real no supere maxPx. */
+    private static String clampToWidth(String s, int maxPx) {
+        if (s == null || maxPx <= 0) {
+            return "";
+        }
+        if (HudDraw.width(s) <= maxPx) {
+            return s;
+        }
+        String ellipsis = "...";
+        int ellW = HudDraw.width(ellipsis);
+        StringBuilder sb = new StringBuilder();
+        int w = 0;
+        for (int i = 0; i < s.length(); i++) {
+            int cw = HudDraw.width(String.valueOf(s.charAt(i)));
+            if (w + cw + ellW > maxPx) {
+                break;
+            }
+            sb.append(s.charAt(i));
+            w += cw;
+        }
+        return sb.append(ellipsis).toString();
     }
 }
