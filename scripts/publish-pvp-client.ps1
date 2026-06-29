@@ -1,7 +1,7 @@
 # Sube ParaguacraftPvP + OptiFine a GitHub Releases (descarga global del launcher).
 # Requisito: gh auth login
 param(
-    [string]$Tag = "pvp-client-2.1.1"
+    [string]$Tag = "pvp-client-2.1.2"
 )
 
 $ErrorActionPreference = "Stop"
@@ -23,7 +23,7 @@ function Resolve-GhExe {
 $gh = Resolve-GhExe
 Write-Host "Usando: $gh"
 
-$clientJar = Join-Path $Root "bundled\pvp\ParaguacraftPvP-2.1.1.jar"
+$clientJar = Join-Path $Root "bundled\pvp\ParaguacraftPvP-2.1.2.jar"
 $optifineJar = Join-Path $Root "bundled\pvp\OptiFine_1.8.9_HD_U_M5.jar"
 if (-not (Test-Path $clientJar)) { throw "Falta: $clientJar" }
 if (-not (Test-Path $optifineJar)) { throw "Falta: $optifineJar" }
@@ -33,7 +33,7 @@ Write-Host "ParaguacraftPvP SHA1: $sha1"
 
 & $gh release create $Tag `
     --repo SantiJ10/Paraguacraft `
-    --title "Paraguacraft PvP Client 2.1.1" `
+    --title "Paraguacraft PvP Client 2.1.2" `
     --notes "Cliente PvP Forge 1.8.9 + OptiFine. SHA1 mod: $sha1" `
     $clientJar `
     $optifineJar

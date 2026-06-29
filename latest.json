@@ -1,12 +1,12 @@
 {
-  "version": "7.2.0",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.0/Instalar_Paraguacraft_v7.2.0.exe",
-  "size_bytes": 10396192,
-  "sha256": "89f57eac0120c1d5e2876c8844171cf1fb8b4016036a572467a0ef4e7572bddc",
-  "notes": "- Fix crash al iniciar Minecraft (codigo 1): mixins BedColor, Freelook y nametag\n- Cliente PvP 2.1.1 con mods Hypixel-safe\n- Launcher 7.2.0",
+  "version": "7.2.1",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.1/Instalar_Paraguacraft_v7.2.1.exe",
+  "size_bytes": 10403275,
+  "sha256": "c3f545ef592bd3af64e7b7af88b44b0619fc560fda595329e6ac64f093bf8c5f",
+  "notes": "- Fix crash codigo 1: mixin nametag/ping (ModifyVariable)\n- Cliente PvP 2.1.2\n- Launcher 7.2.1",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.0/Instalar_Paraguacraft_v7.2.0.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.1/Instalar_Paraguacraft_v7.2.1.exe",
       "signature": ""
     }
   }
