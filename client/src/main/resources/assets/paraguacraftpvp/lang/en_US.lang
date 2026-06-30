@@ -36,6 +36,7 @@ paraguacraft.menu.mod.no_hurt_cam=No Hurt Cam
 paraguacraft.menu.mod.scoreboard=Scoreboard
 paraguacraft.menu.mod.toggle_sneak=Toggle Sneak
 paraguacraft.menu.mod.dynamic_fov=Dynamic FOV
+paraguacraft.menu.mod.windowed_fullscreen=Windowed Fullscreen
 paraguacraft.menu.mod.borderless=Borderless
 paraguacraft.menu.mod.old_anim=Old Animations
 paraguacraft.menu.mod.boost_fps=Boost FPS

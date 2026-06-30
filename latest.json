@@ -1,12 +1,12 @@
 {
-  "version": "7.2.12",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.12/Instalar_Paraguacraft_v7.2.12.exe",
-  "size_bytes": 10247512,
-  "sha256": "66c188205940693a2338711b2f9bfe551376e56c6f8fee3e73100e6079bd973f",
-  "notes": "- Se quita Patcher/Essential del cliente PvP (bloat, login y reinicio al menú): cliente limpio\n- Queda OptiFine + optimizaciones propias pulidas (culling sin parpadeo, partículas, limpieza de memoria)\n- El launcher purga Patcher de las instancias existentes automáticamente\n- Cliente PvP 2.1.14 / Launcher 7.2.12",
+  "version": "7.2.13",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.13/Instalar_Paraguacraft_v7.2.13.exe",
+  "size_bytes": 10280959,
+  "sha256": "b6bf69577458185dcf35bfc4b695f89b2dd081500bce1937e26cec503c162d1f",
+  "notes": "- Windowed Fullscreen (pantalla completa en ventana) estilo Patcher/Lunar en el cliente PvP: alt-tab instantáneo, enfocar otras ventanas y captura OBS/Discord sin parpadeo\n- Limpieza automática de restos de Essential/Patcher en instancias existentes\n- Optimizaciones propias mantenidas: culling sin parpadeo de jugadores, partículas, skipCombatFx, limpieza de memoria y preset por gama de hardware\n- Cliente PvP 2.1.15 / Launcher 7.2.13",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.12/Instalar_Paraguacraft_v7.2.12.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.13/Instalar_Paraguacraft_v7.2.13.exe",
       "signature": ""
     }
   }

@@ -30,6 +30,9 @@ public class ModConfig {
     public static boolean toggleSneak = false; 
     public static boolean isSneakingToggled = false; 
     public static boolean showArmorPercentage = true;
+    public static boolean windowedFullscreen = false;
+    /** Estado en caliente del borderless (no se persiste). */
+    public static boolean windowedActive = false;
     public static boolean toggleSprintActive = true;
     public static boolean fullbrightActive = true;
 
@@ -132,6 +135,7 @@ public class ModConfig {
             props.setProperty("showCoords", String.valueOf(showCoords));
             props.setProperty("toggleSneak", String.valueOf(toggleSneak));
             props.setProperty("showArmorPercentage", String.valueOf(showArmorPercentage));
+            props.setProperty("windowedFullscreen", String.valueOf(windowedFullscreen));
             props.setProperty("toggleSprintActive", String.valueOf(toggleSprintActive));
             props.setProperty("fullbrightActive", String.valueOf(fullbrightActive));
             props.setProperty("keyMenu", String.valueOf(keyMenu));
@@ -232,6 +236,7 @@ public class ModConfig {
             showCoords = Boolean.parseBoolean(props.getProperty("showCoords", String.valueOf(showCoords)));
             toggleSneak = Boolean.parseBoolean(props.getProperty("toggleSneak", String.valueOf(toggleSneak)));
             showArmorPercentage = Boolean.parseBoolean(props.getProperty("showArmorPercentage", String.valueOf(showArmorPercentage)));
+            windowedFullscreen = Boolean.parseBoolean(props.getProperty("windowedFullscreen", String.valueOf(windowedFullscreen)));
             toggleSprintActive = Boolean.parseBoolean(props.getProperty("toggleSprintActive", String.valueOf(toggleSprintActive)));
             fullbrightActive = Boolean.parseBoolean(props.getProperty("fullbrightActive", String.valueOf(fullbrightActive)));
             keyMenu = Integer.parseInt(props.getProperty("keyMenu", String.valueOf(keyMenu)));

@@ -35,6 +35,7 @@ paraguacraft.menu.mod.no_hurt_cam=Sin camara de dano
 paraguacraft.menu.mod.scoreboard=Scoreboard
 paraguacraft.menu.mod.toggle_sneak=Agacharse toggle
 paraguacraft.menu.mod.dynamic_fov=FOV dinamico
+paraguacraft.menu.mod.windowed_fullscreen=Pantalla completa en ventana
 paraguacraft.menu.mod.borderless=Sin bordes
 paraguacraft.menu.mod.old_anim=Animaciones viejas
 paraguacraft.menu.mod.boost_fps=Boost FPS
