@@ -27,7 +27,7 @@ public class ParaguacraftPvP {
 
     public static final String MODID = "paraguacraftpvp";
     public static final String NAME = "Paraguacraft PvP Client";
-    public static final String VERSION = "2.1.19";
+    public static final String VERSION = "2.1.20";
 
     @Mod.Instance(MODID)
     public static ParaguacraftPvP instance;
@@ -48,7 +48,6 @@ public class ParaguacraftPvP {
         MinecraftForge.EVENT_BUS.register(new QoLManager());
         MinecraftForge.EVENT_BUS.register(new GuiBackgroundHandler());
         MinecraftForge.EVENT_BUS.register(new com.paraguacraft.pvp.modules.VisualsManager());
-        MinecraftForge.EVENT_BUS.register(new com.paraguacraft.pvp.modules.BedTextureRegistry());
         MinecraftForge.EVENT_BUS.register(new BadgeNetHandler());
         MinecraftForge.EVENT_BUS.register(new DiscordPresenceHandler());
         MinecraftForge.EVENT_BUS.register(new LauncherIpcHandler());

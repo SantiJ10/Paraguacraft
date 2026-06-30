@@ -3,13 +3,17 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.19",
-  "release_tag": "pvp-client-2.1.19",
-  "descripcion": "Cliente PvP 2.1.19 — fix crash al entrar a Hypixel (sprites de cama sin PNG faltante).",
+  "client_version": "2.1.20",
+  "release_tag": "pvp-client-2.1.20",
+  "descripcion": "Cliente PvP 2.1.20 — camas coloreadas vía Hytils Reborn (GPL); eliminado mod custom de camas.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.19.jar",
-      "sha1": "12043186bb92fcdf50b6c10851b4537bc0c195d6"
+      "filename": "ParaguacraftPvP-2.1.20.jar",
+      "sha1": "21ad0b508b85ff304d2f147ae278174089494baf"
+    },
+    {
+      "filename": "Hytils-Reborn-1.8.9-forge-1.7.5.jar",
+      "sha1": "f34462f9072bb23b0c6dd313d38e80a8d6a3eda1"
     },
     {
       "filename": "OptiFine_1.8.9_HD_U_M5.jar",

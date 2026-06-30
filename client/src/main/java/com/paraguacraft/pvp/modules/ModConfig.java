@@ -45,7 +45,6 @@ public class ModConfig {
 
     // --- Mods PvP / Hypixel ---
     public static boolean lowFire = true;
-    public static boolean coloredBeds = true;
     public static boolean showOpponentPing = false;
     public static boolean chatTriggers = true;
     public static boolean freelookEnabled = true;
@@ -145,7 +144,6 @@ public class ModConfig {
             props.setProperty("keyFreelook", String.valueOf(keyFreelook));
             props.setProperty("keyQuickPlay", String.valueOf(keyQuickPlay));
             props.setProperty("lowFire", String.valueOf(lowFire));
-            props.setProperty("coloredBeds", String.valueOf(coloredBeds));
             props.setProperty("showOpponentPing", String.valueOf(showOpponentPing));
             props.setProperty("chatTriggers", String.valueOf(chatTriggers));
             props.setProperty("freelookEnabled", String.valueOf(freelookEnabled));
@@ -246,7 +244,6 @@ public class ModConfig {
             keyFreelook = Integer.parseInt(props.getProperty("keyFreelook", String.valueOf(keyFreelook)));
             keyQuickPlay = Integer.parseInt(props.getProperty("keyQuickPlay", String.valueOf(keyQuickPlay)));
             lowFire = Boolean.parseBoolean(props.getProperty("lowFire", String.valueOf(lowFire)));
-            coloredBeds = Boolean.parseBoolean(props.getProperty("coloredBeds", String.valueOf(coloredBeds)));
             showOpponentPing = Boolean.parseBoolean(props.getProperty("showOpponentPing", String.valueOf(showOpponentPing)));
             chatTriggers = Boolean.parseBoolean(props.getProperty("chatTriggers", String.valueOf(chatTriggers)));
             freelookEnabled = Boolean.parseBoolean(props.getProperty("freelookEnabled", String.valueOf(freelookEnabled)));
