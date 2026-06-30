@@ -52,6 +52,7 @@ public final class ModProfileManager {
         mods.addProperty("showCoords", ModConfig.showCoords);
         mods.addProperty("toggleSneak", ModConfig.toggleSneak);
         mods.addProperty("showArmorPercentage", ModConfig.showArmorPercentage);
+        mods.addProperty("windowedFullscreen", ModConfig.windowedFullscreen);
         mods.addProperty("toggleSprintActive", ModConfig.toggleSprintActive);
         mods.addProperty("fullbrightActive", ModConfig.fullbrightActive);
         mods.addProperty("showHeldItem", ModConfig.showHeldItem);
@@ -111,6 +112,7 @@ public final class ModProfileManager {
             ModConfig.showCoords = bool(m, "showCoords", ModConfig.showCoords);
             ModConfig.toggleSneak = bool(m, "toggleSneak", ModConfig.toggleSneak);
             ModConfig.showArmorPercentage = bool(m, "showArmorPercentage", ModConfig.showArmorPercentage);
+            ModConfig.windowedFullscreen = bool(m, "windowedFullscreen", ModConfig.windowedFullscreen);
             ModConfig.toggleSprintActive = bool(m, "toggleSprintActive", ModConfig.toggleSprintActive);
             ModConfig.fullbrightActive = bool(m, "fullbrightActive", ModConfig.fullbrightActive);
             ModConfig.showHeldItem = bool(m, "showHeldItem", ModConfig.showHeldItem);

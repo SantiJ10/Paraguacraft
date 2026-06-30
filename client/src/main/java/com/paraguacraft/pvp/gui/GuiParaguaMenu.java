@@ -73,6 +73,7 @@ public class GuiParaguaMenu extends GuiScreen {
         new ModEntry(9, "paraguacraft.menu.mod.scoreboard", 2),
         new ModEntry(10, "paraguacraft.menu.mod.toggle_sneak", 3),
         new ModEntry(11, "paraguacraft.menu.mod.dynamic_fov", 3),
+        new ModEntry(13, "paraguacraft.menu.mod.windowed_fullscreen", 3),
         new ModEntry(20, "paraguacraft.menu.mod.old_anim", 3),
         new ModEntry(19, "paraguacraft.menu.mod.boost_fps", 6),
         new ModEntry(21, "paraguacraft.menu.mod.entity_cull", 6),
@@ -471,6 +472,7 @@ public class GuiParaguaMenu extends GuiScreen {
             case 10: return ModConfig.toggleSneak;
             case 11: return ModConfig.dynamicFov;
             case 12: return ModConfig.showHeldItem;
+            case 13: return ModConfig.windowedFullscreen;
             case 14: return ModConfig.showServerHUD;
             case 15: return ModConfig.showCompass;
             case 16: return true;
@@ -526,6 +528,15 @@ public class GuiParaguaMenu extends GuiScreen {
             case 10: ModConfig.toggleSneak = !ModConfig.toggleSneak; ModConfig.isSneakingToggled = false; break;
             case 11: ModConfig.dynamicFov = !ModConfig.dynamicFov; break;
             case 12: ModConfig.showHeldItem = !ModConfig.showHeldItem; break;
+            case 13:
+                ModConfig.windowedFullscreen = !ModConfig.windowedFullscreen;
+                ModConfig.save();
+                if (this.mc != null
+                        && ModConfig.windowedFullscreen != ModConfig.windowedActive) {
+                    // Activar => entrar en borderless; desactivar => salir.
+                    this.mc.toggleFullscreen();
+                }
+                break;
             case 14: ModConfig.showServerHUD = !ModConfig.showServerHUD; break;
             case 15: ModConfig.showCompass = !ModConfig.showCompass; break;
             case 17: ModConfig.showNametagLogo = !ModConfig.showNametagLogo; break;

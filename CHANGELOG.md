@@ -3,6 +3,29 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.2.13] - 2026-06-30
+
+### Added
+- **Windowed Fullscreen (pantalla completa en ventana)** estilo Patcher/Lunar en el
+  cliente PvP. Reemplaza el fullscreen exclusivo (F11) por una ventana sin bordes del
+  tamaño del escritorio: permite **alt-tab instantáneo**, enfocar otras ventanas y que
+  **OBS/Discord** sigan capturando como ventana de juego, sin el parpadeo del modo
+  exclusivo. Implementado con LWJGL2 (propiedad `undecorated` + `setFullscreen(false)`),
+  no usa hacks nativos frágiles. Se activa desde el Mod Menu (categoría Mecánicas) y se
+  aplica al instante; también cambia el comportamiento de F11.
+
+### Changed
+- **Limpieza automática de restos de Essential/Patcher**: el launcher borra el JAR de
+  Essential y sus carpetas de datos (`essential/`, `ModCoreOSS/`, config de Patcher) de
+  las instancias existentes, evitando el login y los reinicios que dejaba.
+- **Cliente PvP 2.1.15**.
+
+### Performance
+- Optimizaciones propias revisadas y mantenidas: culling de entidades **sin parpadeo de
+  jugadores** (nunca se cullan), nametags/armorstands/itemframes/tile-entities, límite de
+  partículas, skip de FX de combate y limpieza de memoria. Preset automático por gama de
+  hardware (LOW/MEDIUM/HIGH) para buen rendimiento desde laptops 8 GB hasta PCs de gama alta.
+
 ## [7.2.12] - 2026-06-30
 
 ### Removed

@@ -21,13 +21,13 @@ const GITHUB_REPO: &str = "SantiJ10/Paraguacraft";
 const MANIFEST_URL: &str =
     "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/clientes/paraguacraft-pvp/manifest.json";
 
-const FALLBACK_CLIENT_VERSION: &str = "2.1.14";
-const FALLBACK_RELEASE_TAG: &str = "pvp-client-2.1.14";
+const FALLBACK_CLIENT_VERSION: &str = "2.1.15";
+const FALLBACK_RELEASE_TAG: &str = "pvp-client-2.1.15";
 
 const FALLBACK_MODS: &[(&str, &str)] = &[
     (
-        "ParaguacraftPvP-2.1.14.jar",
-        "0959928b8e25bf09f38073a677df3aef726c29e6",
+        "ParaguacraftPvP-2.1.15.jar",
+        "9fe263f0902750f564e5dfd4f62b195217fe3443",
     ),
     (
         "OptiFine_1.8.9_HD_U_M5.jar",
@@ -291,7 +291,8 @@ fn prune_stale_pvp_mods(mods_dir: &Path, keep: &[String]) {
         }
         let is_pvp = name.starts_with("paraguacraftpvp")
             || name.starts_with("optifine_1.8.9")
-            || name.starts_with("patcher");
+            || name.starts_with("patcher")
+            || name.starts_with("essential");
         if !is_pvp {
             continue;
         }
@@ -299,6 +300,32 @@ fn prune_stale_pvp_mods(mods_dir: &Path, keep: &[String]) {
         if !keep_this {
             let _ = std::fs::remove_file(e.path());
         }
+    }
+}
+
+/// Borra restos de Essential/Patcher: carpetas de datos y configs que quedaron
+/// de versiones anteriores del cliente (Essential pedía login y rompía ajustes).
+fn cleanup_essential_leftovers(instance_dir: &Path, mods_dir: &Path) {
+    // Carpetas de datos en la raíz de la instancia.
+    for dir in ["essential", "ModCoreOSS"] {
+        let path = instance_dir.join(dir);
+        if path.is_dir() {
+            let _ = std::fs::remove_dir_all(&path);
+        }
+    }
+    // Config de Patcher en la carpeta config/.
+    for cfg in ["patcher.toml", "patcher", "essential"] {
+        let path = instance_dir.join("config").join(cfg);
+        if path.is_dir() {
+            let _ = std::fs::remove_dir_all(&path);
+        } else if path.is_file() {
+            let _ = std::fs::remove_file(&path);
+        }
+    }
+    // Essential también deja una carpeta "essential" dentro de mods/.
+    let mods_essential = mods_dir.join("essential");
+    if mods_essential.is_dir() {
+        let _ = std::fs::remove_dir_all(&mods_essential);
     }
 }
 
@@ -359,6 +386,7 @@ pub async fn install_bundle(
 
     let filenames: Vec<String> = manifest.mods.iter().map(|m| m.filename.clone()).collect();
     prune_stale_pvp_mods(&mods_dir, &filenames);
+    cleanup_essential_leftovers(instance_dir, &mods_dir);
 
     for entry in &manifest.mods {
         let sha = resolve_sha(app, &entry.filename, &entry.sha1);
