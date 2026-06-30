@@ -1,12 +1,12 @@
 {
-  "version": "7.2.9",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.9/Instalar_Paraguacraft_v7.2.9.exe",
-  "size_bytes": 10828355,
-  "sha256": "fd830ee1aff7d0ec634831aa84468c2940bf5050cf75db87daa3376a387c584c",
-  "notes": "- Se quita el Borderless propio (lo hace Patcher mejor, evita conflictos de ventana)\n- Se quita el Chat compacto propio (lo hace Patcher, evita doble chat)\n- Patcher (Sk1er) + OptiFine siguen integrados\n- Cliente PvP 2.1.11 / Launcher 7.2.9",
+  "version": "7.2.10",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.10/Instalar_Paraguacraft_v7.2.10.exe",
+  "size_bytes": 10828712,
+  "sha256": "6966cc9dcaf48d210fd780a91cf58dc8ce9e981ffa91124f70da77693691d9f1",
+  "notes": "- Boost FPS reforzado: OptiFine Fast Render + preset agresivo (nubes/lluvia/AA off, Fast graphics, AO off)\n- Se quita el System.gc() forzado al cambiar de mundo (lo maneja Patcher): menos freeze al entrar a partida\n- Las opciones de OptiFine aplican al siguiente reinicio\n- Cliente PvP 2.1.12 / Launcher 7.2.10",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.9/Instalar_Paraguacraft_v7.2.9.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.10/Instalar_Paraguacraft_v7.2.10.exe",
       "signature": ""
     }
   }

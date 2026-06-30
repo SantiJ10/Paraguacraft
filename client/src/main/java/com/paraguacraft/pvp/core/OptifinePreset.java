@@ -47,7 +47,11 @@ public final class OptifinePreset {
             return;
         }
         GameSettings gs = mc.gameSettings;
+        // Estos sí aplican en vivo (próximo frame).
         gs.entityShadows = false;
+        gs.fancyGraphics = false;   // Fast Graphics: gran ganancia de FPS en PvP.
+        gs.ambientOcclusion = 0;    // Smooth Lighting OFF.
+        gs.mipmapLevels = 0;        // Sin mipmaps: menos costo de muestreo.
         gs.saveOptions();
     }
 
@@ -59,6 +63,7 @@ public final class OptifinePreset {
         }
         File ofFile = new File(mc.mcDataDir, "optionsof.txt");
         Map<String, String> patches = new LinkedHashMap<String, String>();
+        // Animaciones de texturas apagadas (2 = off en OptiFine).
         patches.put("ofAnimatedWater", "2");
         patches.put("ofAnimatedLava", "2");
         patches.put("ofAnimatedFire", "2");
@@ -67,9 +72,41 @@ public final class OptifinePreset {
         patches.put("ofAnimatedExplosion", "2");
         patches.put("ofAnimatedFlame", "2");
         patches.put("ofAnimatedSmoke", "2");
+        patches.put("ofWaterParticles", "false");
+        patches.put("ofRainSplash", "false");
+        patches.put("ofVoidParticles", "false");
+        patches.put("ofPortalParticles", "false");
+        patches.put("ofFireworkParticles", "false");
+        // Carga/actualización de chunks.
         patches.put("ofLazyChunkLoading", "true");
         patches.put("ofChunkUpdates", "1");
         patches.put("ofFastMath", "true");
+        // Lo que más FPS da en 1.8.9.
+        patches.put("ofFastRender", "true");
+        patches.put("ofRenderRegions", "true");
+        patches.put("ofSmartAnimations", "true");
+        patches.put("ofSmoothFps", "false");
+        // Efectos pesados apagados (3 = off en OptiFine).
+        patches.put("ofClouds", "3");
+        patches.put("ofRain", "3");
+        patches.put("ofDroppedItems", "0");
+        patches.put("ofWeather", "false");
+        patches.put("ofSky", "false");
+        patches.put("ofStars", "false");
+        patches.put("ofVignette", "1");
+        patches.put("ofDynamicFov", "false");
+        patches.put("ofDynamicLights", "3");
+        // Texturas/calidad: lo mínimo para máximo FPS.
+        patches.put("ofMipmapType", "0");
+        patches.put("ofAaLevel", "0");
+        patches.put("ofAfLevel", "1");
+        patches.put("ofBetterGrass", "3");
+        patches.put("ofConnectedTextures", "2");
+        patches.put("ofCustomSky", "false");
+        patches.put("ofCustomFonts", "false");
+        patches.put("ofCustomColors", "false");
+        patches.put("ofNaturalTextures", "false");
+        patches.put("ofEmissiveTextures", "false");
 
         try {
             List<String> lines = new ArrayList<String>();
