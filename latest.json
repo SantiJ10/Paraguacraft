@@ -1,12 +1,12 @@
 {
-  "version": "7.2.11",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.11/Instalar_Paraguacraft_v7.2.11.exe",
-  "size_bytes": 10829564,
-  "sha256": "fc6931d207df38d33c8bd269c8fabd028cf78352e1e172c367d76c9c45a3e21d",
-  "notes": "- Fix crash al iniciar: mipmapLevels=0 rompía el atlas de texturas (no llegaba al menú)\n- Boost FPS sigue activo (Fast Render, preset OptiFine, sin System.gc forzado)\n- Cliente PvP 2.1.13 / Launcher 7.2.11",
+  "version": "7.2.12",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.12/Instalar_Paraguacraft_v7.2.12.exe",
+  "size_bytes": 10247512,
+  "sha256": "66c188205940693a2338711b2f9bfe551376e56c6f8fee3e73100e6079bd973f",
+  "notes": "- Se quita Patcher/Essential del cliente PvP (bloat, login y reinicio al menú): cliente limpio\n- Queda OptiFine + optimizaciones propias pulidas (culling sin parpadeo, partículas, limpieza de memoria)\n- El launcher purga Patcher de las instancias existentes automáticamente\n- Cliente PvP 2.1.14 / Launcher 7.2.12",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.11/Instalar_Paraguacraft_v7.2.11.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.12/Instalar_Paraguacraft_v7.2.12.exe",
       "signature": ""
     }
   }

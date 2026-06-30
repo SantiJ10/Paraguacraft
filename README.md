@@ -20,7 +20,7 @@ Incluye el **cliente oficial Paraguacraft PvP** (Forge 1.8.9 + OptiFine + mod pr
 
 ## ⭐ Cliente destacado: Paraguacraft PvP
 
-Cliente competitivo de **Minecraft 1.8.9** listo para Hypixel: **Forge + OptiFine + Patcher (Sk1er)** y un mod propio con HUD estilo Lunar. **Más FPS, cero configuración** y se actualiza solo desde el launcher.
+Cliente competitivo de **Minecraft 1.8.9** listo para Hypixel: **Forge + OptiFine** y un mod propio con HUD estilo Lunar y optimizaciones integradas. **Más FPS, cero configuración, sin login ni mods extra** y se actualiza solo desde el launcher.
 
 <div align="center">
 
@@ -32,12 +32,12 @@ Cliente competitivo de **Minecraft 1.8.9** listo para Hypixel: **Forge + OptiFin
 
 **Qué trae:**
 
-- 🚀 **Boost FPS integrado** — OptiFine Fast Render + culling propio + Patcher. Hasta **3–4× más FPS** que vanilla.
+- 🚀 **Boost FPS integrado** — OptiFine Fast Render + culling propio + limpieza de memoria. Hasta **3–4× más FPS** que vanilla.
 - 🎯 **HUD competitivo** — reach, combo, keystrokes, CPS, FPS/ping y % de armadura, todo arrastrable.
 - 🟢 **100% legal en Hypixel** — solo visual y de rendimiento (sin reach hack, autoclicker ni macros).
 - 🎵 **Overlay de música** — Spotify y YouTube/YT Music con carátula y nombre dentro del juego.
 - 🧊 **Freelook + QoL** — cámara libre, toggle sprint/sneak, fullbright, camas de color, ping en nametag.
-- ⚙️ **Se actualiza solo** — Forge 1.8.9 + OptiFine + Patcher sincronizados desde el launcher con SHA-1.
+- ⚙️ **Se actualiza solo** — Forge 1.8.9 + OptiFine sincronizados desde el launcher con SHA-1.
 
 ### FPS promedio (BedWars, render 4–6 chunks)
 
@@ -54,7 +54,7 @@ Cliente competitivo de **Minecraft 1.8.9** listo para Hypixel: **Forge + OptiFin
 | Aspecto | Paraguacraft PvP | Lunar | Badlion | Vanilla + OptiFine |
 |---------|------------------|-------|---------|--------------------|
 | Precio | Gratis | Gratis | Gratis / Plus pago | Gratis |
-| Boost de FPS | Fast Render + Patcher + culling | Alto | Alto | Solo OptiFine |
+| Boost de FPS | Fast Render + culling + anti-leak | Alto | Alto | Solo OptiFine |
 | Overlay de música | Spotify + YouTube con carátula | Solo Spotify | Solo Spotify | No |
 | Quick Play Hypixel | Sí (menú integrado) | Sí | Sí | No |
 | Cuenta / login extra | No requiere | Cuenta Lunar | Cuenta Badlion | No |
@@ -72,7 +72,7 @@ Cliente competitivo de **Minecraft 1.8.9** listo para Hypixel: **Forge + OptiFin
 | Área | Detalle |
 |------|---------|
 | **Rendimiento** | Motor de descargas en Rust, SHA-1, 0 % CPU al jugar, JVM/RAM automática por hardware |
-| **Paraguacraft PvP 2.1.13** | Forge 1.8.9, OptiFine + Patcher, mod HUD/GUI, Quick Play Hypixel, overlay de música, alertas chat — **se actualiza solo** desde GitHub |
+| **Paraguacraft PvP 2.1.14** | Forge 1.8.9, OptiFine, mod HUD/GUI con optimizaciones, Quick Play Hypixel, overlay de música, alertas chat — **se actualiza solo** desde GitHub |
 | **Tienda** | Modrinth + CurseForge, modpacks `.mrpack` y `.zip` |
 | **Instancias** | Mods por carpeta, exportar/importar, reparar, favoritos con join directo |
 | **Servidores** | Paper, Fabric, Forge + túnel Playit.gg |

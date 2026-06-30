@@ -3,6 +3,21 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.2.12] - 2026-06-30
+
+### Removed
+- **Patcher (Sk1er) / Essential** eliminado del cliente PvP. El Patcher actual depende de
+  Essential (login, cosméticos y un reinicio del juego al arrancar) y no existe una versión
+  standalone viable. Para un cliente PvP limpio se quita por completo; el launcher purga el
+  JAR de Patcher de las instancias existentes automáticamente.
+
+### Changed
+- El cliente queda con **OptiFine + optimizaciones propias pulidas**: culling de
+  entidades (jugadores nunca se cullan), nametags/armorstands/itemframes/tile-entities,
+  límite de partículas, skip de FX de combate y limpieza de memoria al cambiar de mundo
+  (GC solo al descargar mundo, sin freeze al entrar a la partida).
+- **Cliente PvP 2.1.14**.
+
 ## [7.2.11] - 2026-06-30
 
 ### Fixed
