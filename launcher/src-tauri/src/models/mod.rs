@@ -260,3 +260,17 @@ pub struct DownloadProgress {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub failed_file: Option<String>,
 }
+
+/// Estado del cliente PvP (manifest remoto vs JAR instalado).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PvpClientStatus {
+    pub remote_version: String,
+    pub remote_filename: String,
+    pub installed_version: Option<String>,
+    pub installed_filename: Option<String>,
+    pub up_to_date: bool,
+    pub auto_updates_on_launch: bool,
+    pub manifest_source: String,
+    pub manifest_url: String,
+}

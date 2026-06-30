@@ -234,6 +234,18 @@ export interface UpdateProgress {
   message: string;
 }
 
+/** Cliente PvP: versión remota (manifest) vs JAR en la instancia. */
+export interface PvpClientStatus {
+  remoteVersion: string;
+  remoteFilename: string;
+  installedVersion: string | null;
+  installedFilename: string | null;
+  upToDate: boolean;
+  autoUpdatesOnLaunch: boolean;
+  manifestSource: string;
+  manifestUrl: string;
+}
+
 export type ServerType = "paper" | "paper-geyser" | "fabric" | "fabric-geyser" | "forge";
 
 export interface ServerProfile {

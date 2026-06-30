@@ -132,13 +132,20 @@ pub async fn ensure_valid_token(
     // Si el token es reciente, validamos contra Mojang; si responde 200, listo.
     let fresh = now().saturating_sub(rec.last_refresh) < 55 * 60;
     if fresh {
-        if let Ok(Some(_)) = microsoft::validate_profile(http, &rec.mc_access_token).await {
-            return Ok(rec);
+        match microsoft::validate_profile(http, &rec.mc_access_token).await {
+            Ok(Some(_)) => return Ok(rec),
+            Ok(None) => {}
+            Err(e) if e.is_connectivity() => return Ok(rec),
+            Err(_) => {}
         }
     }
 
-    // Refresh on-demand.
-    let login = microsoft::refresh(http, &rec.ms_client_id, &rec.ms_refresh_token).await?;
-    upsert_microsoft(&login)?;
-    store::get_token(id).ok_or_else(|| AppError::msg("No se pudo guardar el token refrescado"))
+    match microsoft::refresh(http, &rec.ms_client_id, &rec.ms_refresh_token).await {
+        Ok(login) => {
+            upsert_microsoft(&login)?;
+            store::get_token(id).ok_or_else(|| AppError::msg("No se pudo guardar el token refrescado"))
+        }
+        Err(e) if e.is_connectivity() && !rec.mc_access_token.is_empty() => Ok(rec),
+        Err(e) => Err(e),
+    }
 }

@@ -1,12 +1,12 @@
 {
-  "version": "7.2.16",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.16/Instalar_Paraguacraft_v7.2.16.exe",
-  "size_bytes": 10333264,
-  "sha256": "cea5a591c01a8a69a0ed1e7857a7bce04b08ebbceebbdf9c17b6058e5c4d458d",
-  "notes": "- HUD GPU: % de uso y temperatura (como CPU/RAM), no el nombre de la placa\n- Fix skins Steve corruptas en lobby Hypixel (restaurar textura OpenGL tras nametags)\n- Camas BedWars coloreadas por equipo (Hypixel sidebar, lana, bloques cercanos) estilo Lunar\n- Cliente PvP 2.1.18 / Launcher 7.2.16",
+  "version": "7.2.17",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.17/Instalar_Paraguacraft_v7.2.17.exe",
+  "size_bytes": 10423827,
+  "sha256": "e8279fc3fd11f2e37a59388b75ae8ac5b7775bda0370d92f42562f578a3f309c",
+  "notes": "- Ajustes → Cliente PvP: versión publicada vs instalada (sin recompilar launcher para cada cliente)\n- Modo offline: jugar con mods instalados; skins Premium locales + cola para Mojang\n- Cliente PvP 2.1.19 / Launcher 7.2.17",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.16/Instalar_Paraguacraft_v7.2.16.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.17/Instalar_Paraguacraft_v7.2.17.exe",
       "signature": ""
     }
   }

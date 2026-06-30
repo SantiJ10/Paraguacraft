@@ -6,7 +6,7 @@ use tauri::AppHandle;
 use tauri::State;
 
 use crate::core::accounts;
-use crate::core::skins::{self, catalog, history, mojang, offline, SkinProfile};
+use crate::core::skins::{self, catalog, history, mojang, offline, pending_premium, SkinProfile};
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
@@ -196,6 +196,19 @@ pub fn clear_skin_history() -> AppResult<()> {
 #[tauri::command]
 pub fn can_upload_premium_skin() -> bool {
     mojang::active_can_upload_premium()
+}
+
+#[tauri::command]
+pub fn has_pending_premium_skin() -> bool {
+    pending_premium::has_pending()
+}
+
+#[tauri::command]
+pub async fn sync_pending_premium_skin(state: State<'_, AppState>) -> AppResult<Option<String>> {
+    let http = state.client();
+    let result = pending_premium::flush_pending(&http).await;
+    state.shutdown_network();
+    result
 }
 
 #[tauri::command]
