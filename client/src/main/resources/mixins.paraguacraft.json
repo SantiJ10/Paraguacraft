@@ -28,7 +28,8 @@
     "client.MixinEntityRendererFreelook",
     "client.MixinEntityFreelook",
     "client.MixinMinecraftFullscreen",
-    "client.MixinRenderPlayerCleanup"
+    "client.MixinRenderPlayerCleanup",
+    "client.MixinEntityPlayerSPQoL"
   ],
   "injectors": {
     "defaultRequire": 0
