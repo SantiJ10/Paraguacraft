@@ -105,6 +105,8 @@ public class GuiParaguaMenu extends GuiScreen {
         new ModEntry(48, "paraguacraft.menu.mod.combo_counter", 2),
         new ModEntry(49, "paraguacraft.menu.mod.item_physics", 3),
         new ModEntry(50, "paraguacraft.menu.mod.hide_titles", 2),
+        new ModEntry(51, "paraguacraft.menu.mod.idle_fps_min", 6),
+        new ModEntry(52, "paraguacraft.menu.mod.idle_fps_unfocus", 6),
     };
 
     @Override
@@ -509,6 +511,8 @@ public class GuiParaguaMenu extends GuiScreen {
             case 48: return ModConfig.comboCounter;
             case 49: return ModConfig.itemPhysics;
             case 50: return ModConfig.hideTitles;
+            case 51: return PerformanceConfig.reduceFpsWhenMinimized;
+            case 52: return PerformanceConfig.reduceFpsWhenUnfocused;
             default: return false;
         }
     }
@@ -617,6 +621,14 @@ public class GuiParaguaMenu extends GuiScreen {
             case 48: ModConfig.comboCounter = !ModConfig.comboCounter; break;
             case 49: ModConfig.itemPhysics = !ModConfig.itemPhysics; break;
             case 50: ModConfig.hideTitles = !ModConfig.hideTitles; break;
+            case 51:
+                PerformanceConfig.reduceFpsWhenMinimized = !PerformanceConfig.reduceFpsWhenMinimized;
+                ModConfig.save();
+                break;
+            case 52:
+                PerformanceConfig.reduceFpsWhenUnfocused = !PerformanceConfig.reduceFpsWhenUnfocused;
+                ModConfig.save();
+                break;
             default: break;
         }
     }

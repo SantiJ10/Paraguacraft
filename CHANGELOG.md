@@ -3,6 +3,22 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.2.14] - 2026-06-30
+
+### Added
+- **Limitador de FPS en segundo plano** (estilo Lunar/Badlion): cuando la ventana está
+  **minimizada** se baja el tope de FPS (default 5). Reduce uso de CPU/GPU y, sobre todo
+  en laptops, evita el *thermal throttling* que después tira los FPS en partida. Opción
+  extra para limitar también **sin foco** (default off, para no molestar al borderless con
+  el juego visible en otro monitor). Configurable desde el Mod Menu (Rendimiento).
+
+### Fixed
+- **Windowed Fullscreen**: al activarlo desde el menú ya no se ve la ventana "achicada"
+  hasta tocar F11; ahora aplica el resize del framebuffer al instante.
+
+### Changed
+- **Cliente PvP 2.1.16**.
+
 ## [7.2.13] - 2026-06-30
 
 ### Added

@@ -32,6 +32,11 @@ public abstract class MixinMinecraftFullscreen {
     @Shadow private int tempDisplayWidth;
     @Shadow private int tempDisplayHeight;
 
+    @Shadow
+    private void resize(int width, int height) {
+        throw new AssertionError();
+    }
+
     @Inject(method = "toggleFullscreen", at = @At("HEAD"), cancellable = true)
     private void paraguacraft$windowedFullscreen(CallbackInfo ci) {
         // Interceptamos si el modo está activado, o si aún estamos en borderless
@@ -84,6 +89,15 @@ public abstract class MixinMinecraftFullscreen {
             if (grabbed) {
                 Mouse.setGrabbed(true);
             }
+
+            // Aplica el nuevo tamaño al instante (framebuffer + GUI) para que NO
+            // se vea la ventana "achicada" hasta el próximo F11.
+            try {
+                Display.update();
+                this.resize(this.displayWidth, this.displayHeight);
+            } catch (Throwable ignored) {
+            }
+
             ModConfig.windowedActive = this.fullscreen;
             return true;
         } catch (Throwable t) {
