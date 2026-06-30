@@ -1,12 +1,12 @@
 {
-  "version": "7.2.13",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.13/Instalar_Paraguacraft_v7.2.13.exe",
-  "size_bytes": 10280959,
-  "sha256": "b6bf69577458185dcf35bfc4b695f89b2dd081500bce1937e26cec503c162d1f",
-  "notes": "- Windowed Fullscreen (pantalla completa en ventana) estilo Patcher/Lunar en el cliente PvP: alt-tab instantáneo, enfocar otras ventanas y captura OBS/Discord sin parpadeo\n- Limpieza automática de restos de Essential/Patcher en instancias existentes\n- Optimizaciones propias mantenidas: culling sin parpadeo de jugadores, partículas, skipCombatFx, limpieza de memoria y preset por gama de hardware\n- Cliente PvP 2.1.15 / Launcher 7.2.13",
+  "version": "7.2.14",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.14/Instalar_Paraguacraft_v7.2.14.exe",
+  "size_bytes": 10309236,
+  "sha256": "be4dccae7ec029e302c651db725c62332a0ab0808ddb5a82c054c3c7f152aecc",
+  "notes": "- Limitador de FPS en segundo plano (estilo Lunar/Badlion): baja los FPS al minimizar para no calentar y evitar el thermal throttling en laptops\n- Windowed Fullscreen pulido: al activarlo desde el menú ya no se ve la ventana achicada, aplica al instante\n- Cliente PvP 2.1.16 / Launcher 7.2.14",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.13/Instalar_Paraguacraft_v7.2.13.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.14/Instalar_Paraguacraft_v7.2.14.exe",
       "signature": ""
     }
   }

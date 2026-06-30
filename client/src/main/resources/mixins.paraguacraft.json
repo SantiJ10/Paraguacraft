@@ -14,6 +14,7 @@
     "performance.MixinRenderManager",
     "performance.MixinEffectRenderer",
     "performance.MixinMinecraft",
+    "performance.MixinMinecraftFpsLimit",
     "performance.MixinNametagCull",
     "performance.MixinTileEntityRenderDispatcher",
     "performance.MixinDecorEntityCull",

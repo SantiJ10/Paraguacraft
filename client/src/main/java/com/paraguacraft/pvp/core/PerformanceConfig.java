@@ -96,6 +96,19 @@ public final class PerformanceConfig {
     /** Aplica preset según RAM/CPU al primer arranque. */
     public static boolean hardwareAutoPreset = true;
 
+    /**
+     * Limita los FPS cuando la ventana está MINIMIZADA (estilo Lunar/Badlion).
+     * Baja consumo de CPU/GPU y, en laptops, evita el thermal throttling que tira
+     * los FPS al volver al juego. No afecta cuando la ventana está visible (sirve
+     * para el borderless: podés mirar otra ventana al lado sin perder FPS).
+     */
+    public static boolean reduceFpsWhenMinimized = true;
+    public static int minimizedFps = 5;
+
+    /** Limita los FPS cuando la ventana NO tiene foco pero sigue visible (default off). */
+    public static boolean reduceFpsWhenUnfocused = false;
+    public static int unfocusedFps = 30;
+
     private PerformanceConfig() {}
 
     public static void setBoostFps(boolean enabled) {
@@ -156,6 +169,10 @@ public final class PerformanceConfig {
         props.setProperty("nametagLod", String.valueOf(nametagLod));
         props.setProperty("skipCombatFx", String.valueOf(skipCombatFx));
         props.setProperty("hardwareAutoPreset", String.valueOf(hardwareAutoPreset));
+        props.setProperty("reduceFpsWhenMinimized", String.valueOf(reduceFpsWhenMinimized));
+        props.setProperty("minimizedFps", String.valueOf(minimizedFps));
+        props.setProperty("reduceFpsWhenUnfocused", String.valueOf(reduceFpsWhenUnfocused));
+        props.setProperty("unfocusedFps", String.valueOf(unfocusedFps));
     }
 
     public static void loadFromProperties(Properties props) {
@@ -180,6 +197,25 @@ public final class PerformanceConfig {
         hardwareAutoPreset = Boolean.parseBoolean(
             props.getProperty("hardwareAutoPreset", String.valueOf(hardwareAutoPreset))
         );
+        reduceFpsWhenMinimized = Boolean.parseBoolean(
+            props.getProperty("reduceFpsWhenMinimized", String.valueOf(reduceFpsWhenMinimized))
+        );
+        minimizedFps = parseIntSafe(props.getProperty("minimizedFps"), minimizedFps);
+        reduceFpsWhenUnfocused = Boolean.parseBoolean(
+            props.getProperty("reduceFpsWhenUnfocused", String.valueOf(reduceFpsWhenUnfocused))
+        );
+        unfocusedFps = parseIntSafe(props.getProperty("unfocusedFps"), unfocusedFps);
         applyParticleLimitsFromMode();
+    }
+
+    private static int parseIntSafe(String value, int fallback) {
+        if (value == null) {
+            return fallback;
+        }
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
     }
 }
