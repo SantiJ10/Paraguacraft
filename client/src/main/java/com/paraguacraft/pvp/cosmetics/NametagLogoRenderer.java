@@ -1,9 +1,11 @@
 package com.paraguacraft.pvp.cosmetics;
 
 import com.paraguacraft.pvp.network.BadgeProtocol;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.texture.TextureMap;
 import net.minecraft.util.ResourceLocation;
 
 /** Dibuja el icono Paraguacraft junto al nametag (Módulo 5). */
@@ -33,12 +35,10 @@ public final class NametagLogoRenderer {
             } else {
                 GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
             }
-            net.minecraft.client.Minecraft.getMinecraft().getTextureManager().bindTexture(LOGO);
+            Minecraft.getMinecraft().getTextureManager().bindTexture(LOGO);
             Gui.drawModalRectWithCustomSizedTexture(x, y, 0, 0, LOGO_SIZE, LOGO_SIZE, LOGO_SIZE, LOGO_SIZE);
         } finally {
-            // Restauramos el estado canónico para que el nametag/modelo siguiente no
-            // herede color tintado ni la textura del logo (causa de skins rotas en lobby).
-            GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+            restoreRenderState();
             GlStateManager.popMatrix();
         }
     }
@@ -56,8 +56,23 @@ public final class NametagLogoRenderer {
             GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
             font.drawString(text, x, 0, color);
         } finally {
-            GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+            restoreRenderState();
             GlStateManager.popMatrix();
+        }
+    }
+
+    /**
+     * Restaura textura/color para que el siguiente jugador (sobre todo Steve por
+     * defecto en lobby) no herede el logo ni quede con skins/nametags corruptos.
+     */
+    private static void restoreRenderState() {
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        GlStateManager.enableTexture2D();
+        GlStateManager.disableBlend();
+        GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc != null && mc.getTextureManager() != null) {
+            mc.getTextureManager().bindTexture(TextureMap.locationBlocksTexture);
         }
     }
 }

@@ -264,6 +264,87 @@ fn detect_gpu_name() -> Option<String> {
     None
 }
 
+/// Lectura de uso/temperatura de GPU para el HUD in-game (Windows).
+pub struct GpuSnapshot {
+    pub usage_pct: f32,
+    pub temp_c: f32,
+}
+
+pub fn read_gpu_snapshot() -> GpuSnapshot {
+  GpuSnapshot {
+    usage_pct: read_gpu_usage_pct().unwrap_or(-1.0),
+    temp_c: read_gpu_temp_c().unwrap_or(-1.0),
+  }
+}
+
+fn read_gpu_usage_pct() -> Option<f32> {
+    #[cfg(windows)]
+    {
+        if let Some(text) = run_hidden_ps(
+            "(Get-Counter '\\GPU Engine(*engtype_3D*)\\Utilization Percentage' -ErrorAction SilentlyContinue).CounterSamples | Measure-Object -Property CookedValue -Maximum | Select-Object -ExpandProperty Maximum",
+        ) {
+            let normalized = text.trim().replace(',', ".");
+            if let Ok(v) = normalized.parse::<f32>() {
+                if v >= 0.0 && v <= 100.0 {
+                    return Some(v);
+                }
+            }
+        }
+        use std::os::windows::process::CommandExt;
+        use std::process::Command;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        if let Ok(out) = Command::new("nvidia-smi")
+            .args([
+                "--query-gpu=utilization.gpu",
+                "--format=csv,noheader,nounits",
+            ])
+            .creation_flags(CREATE_NO_WINDOW)
+            .output()
+        {
+            let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            if let Ok(v) = text.replace('%', "").trim().parse::<f32>() {
+                if v >= 0.0 && v <= 100.0 {
+                    return Some(v);
+                }
+            }
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = ();
+    }
+    None
+}
+
+fn read_gpu_temp_c() -> Option<f32> {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        use std::process::Command;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        if let Ok(out) = Command::new("nvidia-smi")
+            .args([
+                "--query-gpu=temperature.gpu",
+                "--format=csv,noheader,nounits",
+            ])
+            .creation_flags(CREATE_NO_WINDOW)
+            .output()
+        {
+            let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            if let Ok(v) = text.parse::<f32>() {
+                if v > 0.0 && v < 130.0 {
+                    return Some(v);
+                }
+            }
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = ();
+    }
+    None
+}
+
 /// Devuelve (RAM recomendada en MB, GC recomendado) segun la RAM total.
 pub fn recommend(ram_gb: f64) -> (u32, &'static str) {
     let ram_mb = if ram_gb <= 8.0 {

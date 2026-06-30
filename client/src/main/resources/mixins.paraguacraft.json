@@ -28,6 +28,7 @@
     "client.MixinEntityRendererFreelook",
     "client.MixinEntityFreelook",
     "client.MixinMinecraftFullscreen",
+    "client.MixinTextureMapBed",
     "client.MixinBedColor"
   ],
   "injectors": {
