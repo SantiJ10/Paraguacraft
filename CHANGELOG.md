@@ -3,6 +3,17 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.2.11] - 2026-06-30
+
+### Fixed
+- **Crash al iniciar** (no llegaba al menú principal): el preset Boost FPS ponía
+  `mipmapLevels = 0`, lo que provoca `ArrayIndexOutOfBoundsException` al generar
+  mipmaps del atlas de texturas en 1.8.9. Ahora se usa mínimo 1 y se corrige
+  automáticamente si el perfil quedó en 0.
+
+### Changed
+- **Cliente PvP 2.1.13**.
+
 ## [7.2.10] - 2026-06-30
 
 ### Performance
