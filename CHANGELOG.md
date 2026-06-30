@@ -3,6 +3,12 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## Cliente PvP 2.1.23 - 2026-06-30
+
+### Fixed
+- **Toggle Sprint**: ya no simula la tecla Ctrl (se pisaba cada frame); ahora activa
+  el sprint al moverse hacia adelante con W cuando el toggle está ON (tecla V).
+
 ## Cliente PvP 2.1.22 - 2026-06-30
 
 ### Fixed

@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.22",
-  "release_tag": "pvp-client-2.1.22",
-  "descripcion": "Cliente PvP 2.1.22 — fix Steve/nametags corruptos en lobby (reset GL tras nametags).",
+  "client_version": "2.1.23",
+  "release_tag": "pvp-client-2.1.23",
+  "descripcion": "Cliente PvP 2.1.23 — fix Toggle Sprint (sprint automatico con W cuando esta ON).",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.22.jar",
-      "sha1": "b07136c356cc593d8a342f83e5e5a6f86668dd49"
+      "filename": "ParaguacraftPvP-2.1.23.jar",
+      "sha1": "bdadc79990d0f03676bac976895effb76ccf7350"
     },
     {
       "filename": "Hytils-Reborn-1.8.9-forge-1.7.5.jar",

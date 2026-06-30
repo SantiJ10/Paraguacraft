@@ -1,6 +1,7 @@
 package com.paraguacraft.pvp.modules;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.util.ChatComponentText;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
@@ -88,10 +89,6 @@ public class QoLManager {
             }
         }
 
-        if (ModConfig.toggleSprintActive && mc.currentScreen == null) {
-            KeyBinding.setKeyBindState(mc.gameSettings.keyBindSprint.getKeyCode(), true);
-        }
-
         if (ModConfig.fullbrightActive && mc.gameSettings.gammaSetting < 100.0F) {
             mc.gameSettings.gammaSetting = 100.0F;
         }
@@ -99,11 +96,32 @@ public class QoLManager {
 
     @SubscribeEvent
     public void onPlayerUpdate(LivingUpdateEvent event) {
+        if (!event.entityLiving.worldObj.isRemote) {
+            return;
+        }
+
         if (ModConfig.noHurtCam && event.entityLiving == mc.thePlayer) {
             event.entityLiving.hurtTime = 0;
             event.entityLiving.maxHurtTime = 0;
             event.entityLiving.attackedAtYaw = 0;
         }
+
+        if (!(event.entityLiving instanceof EntityPlayerSP) || mc.currentScreen != null) {
+            return;
+        }
+        if (!ModConfig.toggleSprintActive) {
+            return;
+        }
+
+        EntityPlayerSP player = (EntityPlayerSP) event.entityLiving;
+        if (player.movementInput.moveForward <= 0.0F
+                || player.isSneaking()
+                || player.isUsingItem()
+                || player.getFoodStats().getFoodLevel() <= 6
+                || player.isCollidedHorizontally) {
+            return;
+        }
+        player.setSprinting(true);
     }
 
     private void sendMessage(String msg) {
