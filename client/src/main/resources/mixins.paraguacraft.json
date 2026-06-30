@@ -27,7 +27,8 @@
     "client.MixinFontRenderer",
     "client.MixinEntityRendererFreelook",
     "client.MixinEntityFreelook",
-    "client.MixinMinecraftFullscreen"
+    "client.MixinMinecraftFullscreen",
+    "client.MixinRenderPlayerCleanup"
   ],
   "injectors": {
     "defaultRequire": 0

@@ -1,11 +1,11 @@
 package com.paraguacraft.pvp.cosmetics;
 
+import com.paraguacraft.pvp.core.GlRenderUtil;
 import com.paraguacraft.pvp.network.BadgeProtocol;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.renderer.texture.TextureMap;
 import net.minecraft.util.ResourceLocation;
 
 /** Dibuja el icono Paraguacraft junto al nametag (Módulo 5). */
@@ -38,7 +38,7 @@ public final class NametagLogoRenderer {
             Minecraft.getMinecraft().getTextureManager().bindTexture(LOGO);
             Gui.drawModalRectWithCustomSizedTexture(x, y, 0, 0, LOGO_SIZE, LOGO_SIZE, LOGO_SIZE, LOGO_SIZE);
         } finally {
-            restoreRenderState();
+            GlRenderUtil.rebindNametagFont();
             GlStateManager.popMatrix();
         }
     }
@@ -56,23 +56,8 @@ public final class NametagLogoRenderer {
             GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
             font.drawString(text, x, 0, color);
         } finally {
-            restoreRenderState();
+            GlRenderUtil.rebindNametagFont();
             GlStateManager.popMatrix();
-        }
-    }
-
-    /**
-     * Restaura textura/color para que el siguiente jugador (sobre todo Steve por
-     * defecto en lobby) no herede el logo ni quede con skins/nametags corruptos.
-     */
-    private static void restoreRenderState() {
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        GlStateManager.enableTexture2D();
-        GlStateManager.disableBlend();
-        GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
-        Minecraft mc = Minecraft.getMinecraft();
-        if (mc != null && mc.getTextureManager() != null) {
-            mc.getTextureManager().bindTexture(TextureMap.locationBlocksTexture);
         }
     }
 }

@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.21",
-  "release_tag": "pvp-client-2.1.21",
-  "descripcion": "Cliente PvP 2.1.21 — Hytils preconfig (solo camas), OneConfig sin RShift.",
+  "client_version": "2.1.22",
+  "release_tag": "pvp-client-2.1.22",
+  "descripcion": "Cliente PvP 2.1.22 — fix Steve/nametags corruptos en lobby (reset GL tras nametags).",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.21.jar",
-      "sha1": "728a474464e80c2902dba6441663814c82880a27"
+      "filename": "ParaguacraftPvP-2.1.22.jar",
+      "sha1": "b07136c356cc593d8a342f83e5e5a6f86668dd49"
     },
     {
       "filename": "Hytils-Reborn-1.8.9-forge-1.7.5.jar",
