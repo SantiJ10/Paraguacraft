@@ -1,0 +1,23 @@
+{
+  "id": "paraguacraft-pvp",
+  "nombre": "Paraguacraft PvP",
+  "mc_version": "1.8.9",
+  "loader": "forge",
+  "client_version": "2.1.21",
+  "release_tag": "pvp-client-2.1.21",
+  "descripcion": "Cliente PvP 2.1.21 â€” Hytils preconfig (solo camas), OneConfig sin RShift.",
+  "mods": [
+    {
+      "filename": "ParaguacraftPvP-2.1.21.jar",
+      "sha1": "728a474464e80c2902dba6441663814c82880a27"
+    },
+    {
+      "filename": "Hytils-Reborn-1.8.9-forge-1.7.5.jar",
+      "sha1": "f34462f9072bb23b0c6dd313d38e80a8d6a3eda1"
+    },
+    {
+      "filename": "OptiFine_1.8.9_HD_U_M5.jar",
+      "sha1": "d362d58a28f5373b141b9e426e8e160638bfafcd"
+    }
+  ]
+}

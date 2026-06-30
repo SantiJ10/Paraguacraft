@@ -27,6 +27,12 @@ const GITHUB_REPO: &str = "SantiJ10/Paraguacraft";
 const MANIFEST_URL: &str =
     "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/clientes/paraguacraft-pvp/manifest.json";
 
+const MANIFEST_MIRROR_URLS: &[&str] = &[
+    MANIFEST_URL,
+    "https://cdn.jsdelivr.net/gh/SantiJ10/Paraguacraft@main/clientes/paraguacraft-pvp/manifest.json",
+    "https://github.com/SantiJ10/Paraguacraft/raw/main/clientes/paraguacraft-pvp/manifest.json",
+];
+
 const FALLBACK_CLIENT_VERSION: &str = "2.1.21";
 const FALLBACK_RELEASE_TAG: &str = "pvp-client-2.1.21";
 
@@ -89,15 +95,45 @@ impl PvpManifest {
     }
 }
 
-async fn fetch_manifest_with_source(client: &reqwest::Client) -> (PvpManifest, &'static str) {
-    match net::fetch_json::<PvpManifest>(client, MANIFEST_URL).await {
-        Ok(m) if !m.mods.is_empty() => (m, "remote"),
-        _ => (PvpManifest::default(), "fallback"),
+async fn fetch_manifest_with_source(
+    client: &reqwest::Client,
+    app: Option<&AppHandle>,
+) -> (PvpManifest, &'static str) {
+    for url in MANIFEST_MIRROR_URLS {
+        if let Ok(m) = net::fetch_json::<PvpManifest>(client, url).await {
+            if !m.mods.is_empty() {
+                return (m, "remote");
+            }
+        }
     }
+    if let Some(app) = app {
+        if let Some(m) = read_bundled_manifest(app) {
+            if !m.mods.is_empty() {
+                return (m, "bundled");
+            }
+        }
+    }
+    (PvpManifest::default(), "fallback")
 }
 
-async fn fetch_manifest(client: &reqwest::Client) -> PvpManifest {
-    fetch_manifest_with_source(client).await.0
+fn read_bundled_manifest(app: &AppHandle) -> Option<PvpManifest> {
+    for dir in local_bundled_dirs(app) {
+        let path = dir.join("manifest.json");
+        if !path.is_file() {
+            continue;
+        }
+        let text = std::fs::read_to_string(&path).ok()?;
+        let text = text.trim_start_matches('\u{FEFF}');
+        let m: PvpManifest = serde_json::from_str(text).ok()?;
+        if !m.mods.is_empty() {
+            return Some(m);
+        }
+    }
+    None
+}
+
+async fn fetch_manifest(client: &reqwest::Client, app: Option<&AppHandle>) -> PvpManifest {
+    fetch_manifest_with_source(client, app).await.0
 }
 
 fn version_from_pvp_jar(filename: &str) -> Option<String> {
@@ -162,7 +198,7 @@ pub async fn client_status(
     client: &reqwest::Client,
     instance_dir: Option<&Path>,
 ) -> PvpClientStatus {
-    let (manifest, source) = fetch_manifest_with_source(client).await;
+    let (manifest, source) = fetch_manifest_with_source(client, Some(app)).await;
     let main_mod = manifest
         .mods
         .iter()
@@ -187,7 +223,7 @@ pub async fn client_status(
 
 /// Versión publicada del cliente PvP (manifest remoto).
 pub async fn remote_client_version(client: &reqwest::Client) -> String {
-    fetch_manifest(client).await.client_version
+    fetch_manifest(client, None).await.client_version
 }
 
 pub async fn versions(client: &reqwest::Client, mc: &str) -> AppResult<Vec<String>> {
@@ -549,7 +585,7 @@ pub async fn install_bundle(
     client: &reqwest::Client,
     instance_dir: &Path,
 ) -> AppResult<()> {
-    let (manifest, source) = fetch_manifest_with_source(client).await;
+    let (manifest, source) = fetch_manifest_with_source(client, Some(app)).await;
     let offline_lenient = source == "fallback";
     let release_tag = manifest.release_tag();
     let mods_dir = instance_dir.join("mods");
@@ -574,4 +610,29 @@ pub async fn install_bundle(
         .await?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_client() -> reqwest::Client {
+        reqwest::Client::builder()
+            .user_agent("SantiJ10/Paraguacraft/7.0.1 (https://paraguacraft.gg)")
+            .build()
+            .expect("http client")
+    }
+
+    #[tokio::test]
+    async fn live_manifest_fetch_and_parse() {
+        let client = test_client();
+        let (m, src) = fetch_manifest_with_source(&client, None).await;
+        eprintln!("source={src} version={} mods={}", m.client_version, m.mods.len());
+        assert_eq!(src, "remote", "manifest remoto inalcanzable o JSON inválido");
+        assert!(
+            m.client_version.starts_with("2.1."),
+            "version inesperada: {}",
+            m.client_version
+        );
+    }
 }
