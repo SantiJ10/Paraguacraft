@@ -6,6 +6,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 ## [7.2.16] - 2026-06-30
 
 ### Fixed
+- **Crash al entrar a Hypixel (cliente 2.1.19)**: los sprites de cama coloreados ya no
+  apuntan a PNG inexistentes en `paraguacraft:textures/beds/`; cargan desde la textura
+  vanilla y se recolorean después del stitch del atlas.
 - **HUD de hardware — GPU como CPU/RAM**: el overlay muestra **% de uso** de la GPU (y
   temperatura cuando está disponible), no el nombre de la placa. En Windows se lee con
   contadores de rendimiento / `nvidia-smi`.
@@ -17,7 +20,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
   Lunar/Badlion.
 
 ### Changed
-- **Cliente PvP 2.1.18**.
+- **Cliente PvP 2.1.19** (hotfix de camas sobre 2.1.18).
 
 ## [7.2.15] - 2026-06-30
 
