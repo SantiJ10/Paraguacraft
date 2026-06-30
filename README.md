@@ -18,6 +18,47 @@ Paraguacraft es un launcher de **Minecraft Java Edition** pensado para jugadores
 
 Incluye el **cliente oficial Paraguacraft PvP** (Forge 1.8.9 + OptiFine + mod propio con HUD estilo Lunar), tienda **Modrinth + CurseForge**, modpacks, servidores locales con **Playit.gg**, skins offline y diagnóstico de crashes.
 
+## ⭐ Cliente destacado: Paraguacraft PvP
+
+Cliente competitivo de **Minecraft 1.8.9** listo para Hypixel: **Forge + OptiFine + Patcher (Sk1er)** y un mod propio con HUD estilo Lunar. **Más FPS, cero configuración** y se actualiza solo desde el launcher.
+
+<div align="center">
+
+| Menú principal | BedWars en Hypixel |
+|:---:|:---:|
+| ![Menú Paraguacraft PvP](web-site/public/screenshots/pvp_menu.png) | ![Paraguacraft PvP en partida](web-site/public/screenshots/pvp_game.png) |
+
+</div>
+
+**Qué trae:**
+
+- 🚀 **Boost FPS integrado** — OptiFine Fast Render + culling propio + Patcher. Hasta **3–4× más FPS** que vanilla.
+- 🎯 **HUD competitivo** — reach, combo, keystrokes, CPS, FPS/ping y % de armadura, todo arrastrable.
+- 🟢 **100% legal en Hypixel** — solo visual y de rendimiento (sin reach hack, autoclicker ni macros).
+- 🎵 **Overlay de música** — Spotify y YouTube/YT Music con carátula y nombre dentro del juego.
+- 🧊 **Freelook + QoL** — cámara libre, toggle sprint/sneak, fullbright, camas de color, ping en nametag.
+- ⚙️ **Se actualiza solo** — Forge 1.8.9 + OptiFine + Patcher sincronizados desde el launcher con SHA-1.
+
+### FPS promedio (BedWars, render 4–6 chunks)
+
+| Hardware | Vanilla 1.8.9 | Paraguacraft PvP | Ganancia |
+|----------|---------------|------------------|----------|
+| Gama baja (Intel UHD / Ryzen 3 · 4 GB) | 60 – 110 | **230 – 380** | ≈ 3.5× |
+| Gama media (GTX 1050/1650 · 8 GB) | 180 – 350 | **700 – 1100** | ≈ 3× |
+| Gama alta (RTX 3060+ · 16 GB) | 450 – 800 | **1500 – 2200** | ≈ 3× |
+
+> Valores aproximados; varían según GPU, drivers y resolución.
+
+### Paraguacraft PvP vs otros clientes
+
+| Aspecto | Paraguacraft PvP | Lunar | Badlion | Vanilla + OptiFine |
+|---------|------------------|-------|---------|--------------------|
+| Precio | Gratis | Gratis | Gratis / Plus pago | Gratis |
+| Boost de FPS | Fast Render + Patcher + culling | Alto | Alto | Solo OptiFine |
+| Overlay de música | Spotify + YouTube con carátula | Solo Spotify | Solo Spotify | No |
+| Quick Play Hypixel | Sí (menú integrado) | Sí | Sí | No |
+| Cuenta / login extra | No requiere | Cuenta Lunar | Cuenta Badlion | No |
+
 ## Para qué sirve
 
 - Jugar **vanilla o con mods** (Fabric, Forge, NeoForge, Quilt, Iris…) en instancias separadas.
@@ -31,7 +72,7 @@ Incluye el **cliente oficial Paraguacraft PvP** (Forge 1.8.9 + OptiFine + mod pr
 | Área | Detalle |
 |------|---------|
 | **Rendimiento** | Motor de descargas en Rust, SHA-1, 0 % CPU al jugar, JVM/RAM automática por hardware |
-| **Paraguacraft PvP 2.1** | Forge 1.8.9, OptiFine, mod HUD/GUI, Quick Play Hypixel, alertas chat — **se actualiza solo** desde GitHub |
+| **Paraguacraft PvP 2.1.13** | Forge 1.8.9, OptiFine + Patcher, mod HUD/GUI, Quick Play Hypixel, overlay de música, alertas chat — **se actualiza solo** desde GitHub |
 | **Tienda** | Modrinth + CurseForge, modpacks `.mrpack` y `.zip` |
 | **Instancias** | Mods por carpeta, exportar/importar, reparar, favoritos con join directo |
 | **Servidores** | Paper, Fabric, Forge + túnel Playit.gg |
@@ -60,7 +101,7 @@ El cliente PvP se sincroniza automáticamente al instalar o lanzar (manifest + S
 
 Los mods del cliente Paraguacraft PvP son **solo visuales y de HUD** (estilo Lunar/Badlion/OptiFine). No modifican alcance de golpe, movimiento, paquetes de red ni dan ventaja competitiva:
 
-- **Permitidos**: chat compacto, fuego bajo, camas coloridas, ping en nametag, freelook, HUD reach/combo (solo lectura), física de ítems, alertas de chat, juego rápido (`/play` manual).
+- **Permitidos**: fuego bajo, camas coloridas, ping en nametag, freelook, HUD reach/combo (solo lectura), keystrokes, overlay de música, títulos al chat, física de ítems, alertas de chat, juego rápido (`/play` manual).
 - **No incluidos**: reach hack, autoclicker, xray, macros de combate, auto-play.
 
 Reach Display y Combo Counter miden **tus** acciones locales para entrenar W-tapping; no extienden el hitbox del juego.
