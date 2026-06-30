@@ -27,13 +27,17 @@ const GITHUB_REPO: &str = "SantiJ10/Paraguacraft";
 const MANIFEST_URL: &str =
     "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/clientes/paraguacraft-pvp/manifest.json";
 
-const FALLBACK_CLIENT_VERSION: &str = "2.1.19";
-const FALLBACK_RELEASE_TAG: &str = "pvp-client-2.1.19";
+const FALLBACK_CLIENT_VERSION: &str = "2.1.20";
+const FALLBACK_RELEASE_TAG: &str = "pvp-client-2.1.20";
 
 const FALLBACK_MODS: &[(&str, &str)] = &[
     (
-        "ParaguacraftPvP-2.1.19.jar",
-        "12043186bb92fcdf50b6c10851b4537bc0c195d6",
+        "ParaguacraftPvP-2.1.20.jar",
+        "21ad0b508b85ff304d2f147ae278174089494baf",
+    ),
+    (
+        "Hytils-Reborn-1.8.9-forge-1.7.5.jar",
+        "f34462f9072bb23b0c6dd313d38e80a8d6a3eda1",
     ),
     (
         "OptiFine_1.8.9_HD_U_M5.jar",
@@ -400,6 +404,7 @@ fn prune_stale_pvp_mods(mods_dir: &Path, keep: &[String]) {
         }
         let is_pvp = name.starts_with("paraguacraftpvp")
             || name.starts_with("optifine_1.8.9")
+            || name.starts_with("hytils")
             || name.starts_with("patcher")
             || name.starts_with("essential");
         if !is_pvp {

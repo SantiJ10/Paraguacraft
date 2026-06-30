@@ -5,6 +5,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [7.2.17] - 2026-06-30
 
+### Changed
+- **Cliente PvP 2.1.20**: camas coloreadas en BedWars con **Hytils Reborn** (GPL);
+  eliminado el sistema custom de sprites de camas que causaba crashes.
+
 ### Added
 - **Ajustes → Cliente PvP**: versión publicada vs instalada, sincronización manual y nota
   de que el cliente se actualiza sin recompilar el launcher.

@@ -27,9 +27,7 @@
     "client.MixinFontRenderer",
     "client.MixinEntityRendererFreelook",
     "client.MixinEntityFreelook",
-    "client.MixinMinecraftFullscreen",
-    "client.MixinTextureMapBed",
-    "client.MixinBedColor"
+    "client.MixinMinecraftFullscreen"
   ],
   "injectors": {
     "defaultRequire": 0

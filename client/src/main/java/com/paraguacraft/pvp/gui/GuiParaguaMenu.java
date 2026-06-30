@@ -96,7 +96,6 @@ public class GuiParaguaMenu extends GuiScreen {
         new ModEntry(38, "paraguacraft.menu.mod.bw_resources", 2),
         new ModEntry(39, "paraguacraft.menu.mod.item_3d", 3),
         new ModEntry(41, "paraguacraft.menu.mod.low_fire", 2),
-        new ModEntry(42, "paraguacraft.menu.mod.colored_beds", 2),
         new ModEntry(43, "paraguacraft.menu.mod.opponent_ping", 2),
         new ModEntry(44, "paraguacraft.menu.mod.quick_play", 7),
         new ModEntry(45, "paraguacraft.menu.mod.chat_triggers", 7),
@@ -502,7 +501,6 @@ public class GuiParaguaMenu extends GuiScreen {
             case 38: return ModConfig.showBedwarsResources;
             case 39: return ModConfig.forceItem3d;
             case 41: return ModConfig.lowFire;
-            case 42: return ModConfig.coloredBeds;
             case 43: return ModConfig.showOpponentPing;
             case 44: return true;
             case 45: return ModConfig.chatTriggers;
@@ -613,7 +611,6 @@ public class GuiParaguaMenu extends GuiScreen {
             case 38: ModConfig.showBedwarsResources = !ModConfig.showBedwarsResources; break;
             case 39: ModConfig.forceItem3d = !ModConfig.forceItem3d; break;
             case 41: ModConfig.lowFire = !ModConfig.lowFire; break;
-            case 42: ModConfig.coloredBeds = !ModConfig.coloredBeds; break;
             case 43: ModConfig.showOpponentPing = !ModConfig.showOpponentPing; break;
             case 45: ModConfig.chatTriggers = !ModConfig.chatTriggers; break;
             case 46: ModConfig.freelookEnabled = !ModConfig.freelookEnabled; break;
