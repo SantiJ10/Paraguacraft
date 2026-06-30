@@ -31,10 +31,20 @@ const inGame = computed(() => music.inGameOverlay && app.launchPhase === "runnin
       <div class="min-w-0 flex-1">
         <p class="truncate text-xs font-bold">{{ music.overlayLabel }}</p>
         <p class="text-[10px] text-gray-500">
-          {{ music.isSpotifyMode ? "Spotify" : inGame ? "Overlay en juego" : "Reproduciendo" }}
+          {{
+            music.activeSource === "spotify"
+              ? "Spotify"
+              : music.activeSource === "youtube"
+                ? inGame
+                  ? "YouTube · en juego"
+                  : "YouTube"
+                : inGame
+                  ? "Overlay en juego"
+                  : "Reproduciendo"
+          }}
         </p>
         <div
-          v-if="music.isSpotifyMode && music.spotifyNow?.durationMs"
+          v-if="music.activeSource === 'spotify' && music.spotifyNow?.durationMs"
           class="mt-1 h-0.5 overflow-hidden rounded-full bg-surface-4"
         >
           <div class="h-full bg-emerald-500" :style="{ width: `${music.spotifyProgressPct}%` }" />
@@ -45,7 +55,7 @@ const inGame = computed(() => music.inGameOverlay && app.launchPhase === "runnin
           {{ music.isPlaying ? "⏸" : "▶" }}
         </button>
         <button
-          v-if="music.isSpotifyMode"
+          v-if="music.activeSource === 'spotify'"
           type="button"
           class="overlay-btn"
           title="Siguiente"

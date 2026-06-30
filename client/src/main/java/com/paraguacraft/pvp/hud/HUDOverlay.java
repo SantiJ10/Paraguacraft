@@ -92,12 +92,19 @@ public class HUDOverlay extends Gui {
             AdvancedHud.drawBedwarsResources(mc.thePlayer);
             drawCombatStats();
         } finally {
-            // Restauración estricta del estado GL para el resto del pipeline (mundo/cielo).
+            // Restauración estricta del estado GL al estado canónico que espera el
+            // pipeline 3D del próximo frame (mundo/cielo). Evita el quiebre de texturas
+            // (sky/HUD) al terminar la partida en Bedwars.
             net.minecraft.client.renderer.RenderHelper.disableStandardItemLighting();
             GlStateManager.disableLighting();
             GL11.glDisable(GL11.GL_SCISSOR_TEST);
             GlStateManager.enableDepth();
+            GlStateManager.enableTexture2D();
+            GlStateManager.enableAlpha();
+            GlStateManager.tryBlendFuncSeparate(
+                GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, 1, 0);
             GlStateManager.disableBlend();
+            GlStateManager.depthMask(true);
             GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
             GlStateManager.popMatrix();
         }

@@ -105,8 +105,11 @@ public final class BorderlessWindowManager {
             }
             resyncTicks = 5;
         } catch (Throwable t) {
-            System.err.println("[Paraguacraft] Borderless falló: " + t.getMessage());
-            ModConfig.borderlessWindow = false;
+            // No reseteamos el toggle del usuario: si falla un intento (p.ej. en pleno
+            // juego), conservamos la intención y reintentamos en el próximo arranque
+            // (scheduleApplyFromConfig, que es más estable). Antes esto hacía que el
+            // borderless "no se pudiera activar" porque volvía solo a OFF.
+            System.err.println("[Paraguacraft] Borderless falló: " + t);
             active = false;
         }
     }
@@ -264,15 +267,18 @@ public final class BorderlessWindowManager {
     }
 
     private static Pointer resolveHwnd() {
-        Pointer h = hwndFromAwt();
+        // En Minecraft 1.8.9 LWJGL2 crea la ventana SIN canvas AWT, así que
+        // Display.getParent() suele ser null. La enumeración por proceso (EnumWindows)
+        // es la vía más fiable; la dejamos primero.
+        Pointer h = hwndFromProcess();
         if (h != null) {
             return h;
         }
-        h = hwndFromLwjgl();
+        h = hwndFromAwt();
         if (h != null) {
             return h;
         }
-        return hwndFromProcess();
+        return hwndFromLwjgl();
     }
 
     private static Pointer hwndFromAwt() {

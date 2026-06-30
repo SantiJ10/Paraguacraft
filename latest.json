@@ -1,12 +1,12 @@
 {
-  "version": "7.2.6",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.6/Instalar_Paraguacraft_v7.2.6.exe",
-  "size_bytes": 10260035,
-  "sha256": "690f6095e4d1985e832f2aa5f785c155c3d5616ada81ea633281f583c11a2553",
-  "notes": "- Cliente PvP 2.1.8: fix freelook (gira la camara, no el cuerpo) e indetectable (el servidor recibe la rotacion real)\n- Launcher 7.2.6",
+  "version": "7.2.7",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.7/Instalar_Paraguacraft_v7.2.7.exe",
+  "size_bytes": 10260267,
+  "sha256": "c9395326d36433f39c6310deee3ebe68a359759dde830578c2b52961071f37d3",
+  "notes": "- Fix texturas/cielo rotos al terminar la partida en Bedwars\n- Titulos del centro (FINAL KILL, etc.) ahora se muestran solo en el chat (mod nuevo)\n- Overlay de musica con YouTube: titulo + caratula (independiente de Spotify)\n- Borderless mas estable (ya no se auto-desactiva)\n- Cliente PvP 2.1.9 / Launcher 7.2.7",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.6/Instalar_Paraguacraft_v7.2.6.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.7/Instalar_Paraguacraft_v7.2.7.exe",
       "signature": ""
     }
   }

@@ -3,7 +3,12 @@ import { computed, ref, watch } from "vue";
 import { parseMusicUrl, type ParsedMusic } from "@/lib/musicUrl";
 import type { SpotifyNowPlaying } from "@/lib/types";
 import { api, isTauri } from "@/lib/ipc";
-import { destroyYoutube } from "@/lib/youtubePlayer";
+import {
+  destroyYoutube,
+  getYoutubeNow,
+  youtubeThumbnail,
+  type YoutubeNow,
+} from "@/lib/youtubePlayer";
 
 const STORAGE_KEY = "paraguacraft.music.v1";
 
@@ -49,6 +54,7 @@ export const useMusicStore = defineStore("music", () => {
   const source = ref<"youtube" | "spotify" | null>(saved.source ?? null);
   const embedUrl = ref<string | null>(saved.embedUrl ?? null);
   const youtubeTrack = ref<ParsedMusic | null>(null);
+  const youtubeNow = ref<YoutubeNow | null>(null);
   const inputUrl = ref(saved.inputUrl ?? "");
   const label = ref(saved.label ?? "");
   const playing = ref(saved.playing ?? false);
@@ -67,6 +73,7 @@ export const useMusicStore = defineStore("music", () => {
   const spotifyAuthBusy = ref(false);
 
   let spotifyPollTimer: number | null = null;
+  let youtubePollTimer: number | null = null;
 
   const isSpotifyMode = computed(() => spotifyConnected.value);
   const spotifyPlaying = computed(() => Boolean(spotifyNow.value?.playing && spotifyNow.value?.title));
@@ -84,19 +91,45 @@ export const useMusicStore = defineStore("music", () => {
   const hasTrack = computed(
     () => Boolean(embedUrl.value) || Boolean(spotifyNow.value?.title),
   );
-  const isPlaying = computed(() => {
-    if (isSpotifyMode.value) return spotifyPlaying.value;
-    return playing.value && Boolean(embedUrl.value);
-  });
-  const overlayLabel = computed(() =>
-    isSpotifyMode.value && spotifyNow.value?.title ? spotifyLabel.value : label.value,
+
+  // YouTube y Spotify son reproductores INDEPENDIENTES; el overlay sigue al que
+  // realmente está sonando ahora.
+  const youtubePlaying = computed(
+    () => source.value === "youtube" && Boolean(embedUrl.value) && playing.value,
   );
-  const overlayImage = computed(() => spotifyNow.value?.imageUrl ?? null);
+  const activeSource = computed<"youtube" | "spotify" | null>(() => {
+    if (youtubePlaying.value) return "youtube";
+    if (spotifyPlaying.value) return "spotify";
+    if (spotifyConnected.value && spotifyNow.value?.title) return "spotify";
+    if (embedUrl.value) return "youtube";
+    return null;
+  });
+
+  const isPlaying = computed(() => {
+    if (activeSource.value === "youtube") return youtubePlaying.value;
+    if (activeSource.value === "spotify") return spotifyPlaying.value;
+    return false;
+  });
+  const youtubeLabel = computed(() => {
+    const n = youtubeNow.value;
+    if (n?.title) return n.author ? `${n.title} · ${n.author}` : n.title;
+    return label.value || "YouTube";
+  });
+  const overlayLabel = computed(() => {
+    if (activeSource.value === "youtube") return youtubeLabel.value;
+    if (spotifyNow.value?.title) return spotifyLabel.value;
+    return label.value;
+  });
+  const overlayImage = computed(() => {
+    if (activeSource.value === "youtube") return youtubeNow.value?.thumbnail || null;
+    return spotifyNow.value?.imageUrl ?? null;
+  });
   const showOverlay = computed(() => isPlaying.value && launcherOverlay.value && hasTrack.value);
 
   function shouldPlayAudio(inGame: boolean) {
-    if (isSpotifyMode.value) return false;
-    if (!playing.value || !embedUrl.value) return false;
+    // YouTube es independiente de Spotify: suena si hay un video cargado y en play,
+    // sin importar si Spotify está conectado (antes esto lo bloqueaba por completo).
+    if (source.value !== "youtube" || !playing.value || !embedUrl.value) return false;
     if (inGame) return inGameOverlay.value;
     return launcherBackground.value;
   }
@@ -104,7 +137,15 @@ export const useMusicStore = defineStore("music", () => {
   function syncOverlayIpc() {
     if (!isTauri()) return;
     const active = isPlaying.value && inGameOverlay.value;
-    if (isSpotifyMode.value && spotifyNow.value?.title) {
+    if (activeSource.value === "youtube") {
+      const n = youtubeNow.value;
+      void api.syncOverlayMusic(
+        active,
+        n?.title || label.value || "YouTube",
+        n?.author || "YouTube",
+        n?.thumbnail || "",
+      );
+    } else if (activeSource.value === "spotify" && spotifyNow.value?.title) {
       void api.syncOverlayMusic(
         active,
         spotifyNow.value.title ?? "",
@@ -112,12 +153,50 @@ export const useMusicStore = defineStore("music", () => {
         spotifyNow.value.imageUrl ?? "",
       );
     } else {
-      void api.syncOverlayMusic(active, active ? label.value : "", "", "");
+      void api.syncOverlayMusic(false, "", "", "");
     }
   }
 
+  function updateYoutubeNow() {
+    const now = getYoutubeNow();
+    const vid = now?.videoId || youtubeTrack.value?.videoId || "";
+    if (now && now.title) {
+      youtubeNow.value = {
+        title: now.title,
+        author: now.author,
+        videoId: vid,
+        thumbnail: youtubeThumbnail(vid),
+        playing: now.playing,
+      };
+    } else if (vid) {
+      // Antes de que la IFrame API devuelva metadata: al menos mostramos la
+      // miniatura por el videoId y el label parseado.
+      youtubeNow.value = {
+        title: label.value || "YouTube",
+        author: "",
+        videoId: vid,
+        thumbnail: youtubeThumbnail(vid),
+        playing: playing.value,
+      };
+    }
+    syncOverlayIpc();
+  }
+
+  function stopYoutubePoll() {
+    if (youtubePollTimer !== null) {
+      clearInterval(youtubePollTimer);
+      youtubePollTimer = null;
+    }
+  }
+
+  function startYoutubePoll() {
+    stopYoutubePoll();
+    updateYoutubeNow();
+    youtubePollTimer = window.setInterval(updateYoutubeNow, 2500);
+  }
+
   watch(
-    [isPlaying, inGameOverlay, label, spotifyNow, playing, isSpotifyMode],
+    [isPlaying, inGameOverlay, label, spotifyNow, playing, isSpotifyMode, youtubeNow],
     syncOverlayIpc,
     { deep: true },
   );
@@ -326,11 +405,22 @@ export const useMusicStore = defineStore("music", () => {
     youtubeTrack.value = parsed;
     label.value = parsed.label;
     playing.value = true;
+    const vid = parsed.videoId ?? "";
+    youtubeNow.value = {
+      title: parsed.label,
+      author: "",
+      videoId: vid,
+      thumbnail: youtubeThumbnail(vid),
+      playing: true,
+    };
+    startYoutubePoll();
     return true;
   }
 
   function play() {
-    if (isSpotifyMode.value) {
+    // Controla la fuente activa; si Spotify está conectado pero quien suena es
+    // YouTube, reanuda YouTube (reproductores independientes).
+    if (activeSource.value === "spotify" || (isSpotifyMode.value && !embedUrl.value)) {
       void spotifyControl("play");
       return;
     }
@@ -341,7 +431,7 @@ export const useMusicStore = defineStore("music", () => {
   }
 
   function pause() {
-    if (isSpotifyMode.value) {
+    if (activeSource.value === "spotify") {
       void spotifyControl("pause");
       return;
     }
@@ -361,9 +451,12 @@ export const useMusicStore = defineStore("music", () => {
     playing.value = false;
     embedUrl.value = null;
     youtubeTrack.value = null;
+    youtubeNow.value = null;
     source.value = null;
     label.value = "";
+    stopYoutubePoll();
     destroyYoutube();
+    syncOverlayIpc();
   }
 
   function setVolume(v: number) {
@@ -373,6 +466,17 @@ export const useMusicStore = defineStore("music", () => {
   async function init() {
     if (inputUrl.value && embedUrl.value) {
       youtubeTrack.value = parseMusicUrl(inputUrl.value);
+      const vid = youtubeTrack.value?.videoId ?? "";
+      if (vid) {
+        youtubeNow.value = {
+          title: label.value || "YouTube",
+          author: "",
+          videoId: vid,
+          thumbnail: youtubeThumbnail(vid),
+          playing: playing.value,
+        };
+      }
+      startYoutubePoll();
     }
     await refreshSpotifyStatus();
     if (spotifyConnected.value || (await trySpotifyAutoconnect())) {
@@ -385,6 +489,8 @@ export const useMusicStore = defineStore("music", () => {
     source,
     embedUrl,
     youtubeTrack,
+    youtubeNow,
+    activeSource,
     inputUrl,
     label,
     playing,

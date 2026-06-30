@@ -107,6 +107,7 @@ public class GuiParaguaMenu extends GuiScreen {
         new ModEntry(47, "paraguacraft.menu.mod.reach_display", 2),
         new ModEntry(48, "paraguacraft.menu.mod.combo_counter", 2),
         new ModEntry(49, "paraguacraft.menu.mod.item_physics", 3),
+        new ModEntry(50, "paraguacraft.menu.mod.hide_titles", 2),
     };
 
     @Override
@@ -511,6 +512,7 @@ public class GuiParaguaMenu extends GuiScreen {
             case 47: return ModConfig.reachDisplay;
             case 48: return ModConfig.comboCounter;
             case 49: return ModConfig.itemPhysics;
+            case 50: return ModConfig.hideTitles;
             default: return false;
         }
     }
@@ -615,6 +617,7 @@ public class GuiParaguaMenu extends GuiScreen {
             case 47: ModConfig.reachDisplay = !ModConfig.reachDisplay; break;
             case 48: ModConfig.comboCounter = !ModConfig.comboCounter; break;
             case 49: ModConfig.itemPhysics = !ModConfig.itemPhysics; break;
+            case 50: ModConfig.hideTitles = !ModConfig.hideTitles; break;
             default: break;
         }
     }

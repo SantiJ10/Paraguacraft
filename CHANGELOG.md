@@ -3,6 +3,20 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.2.7] - 2026-06-29
+
+### Added
+- **Titulos al chat** (mod nuevo): los carteles gigantes del centro ("FINAL KILL", "LA CAMA HA SIDO DESTRUIDA", "TRAMPA ACTIVADA", etc.) ya no tapan la pantalla; se muestran solo en el chat. Toggle en el menu (categoria PvP), activado por defecto.
+- **Overlay de musica con YouTube**: el mismo overlay (launcher e in-game) ahora muestra titulo + caratula (miniatura) tambien para YouTube y YouTube Music, igual que Spotify. Los dos reproductores funcionan de forma independiente.
+
+### Fixed
+- **Texturas/cielo rotos al terminar la partida (Bedwars)**: se quito el forzado de hora del mundo (`setWorldTime(6000)` cada tick) que peleaba con las actualizaciones del servidor y la animacion de cielo del fin de partida (causa del parpadeo). Reset GL del HUD mas estricto (texture2d, alpha, blendFunc, depthMask).
+- **YouTube dejaba de sonar si Spotify estaba conectado**: el audio de YouTube estaba bloqueado globalmente al conectar Spotify. Ahora son independientes.
+- **Borderless no se podia activar**: al fallar un intento el toggle se apagaba solo. Ya no se auto-desactiva (conserva la intencion y reintenta al iniciar). Busqueda de ventana por proceso priorizada (mas fiable en LWJGL2).
+
+### Changed
+- **Cliente PvP 2.1.9**.
+
 ## [7.2.6] - 2026-06-29
 
 ### Fixed

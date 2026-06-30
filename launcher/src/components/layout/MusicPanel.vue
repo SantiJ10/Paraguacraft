@@ -171,9 +171,19 @@ onMounted(() => {
             <BaseButton class="flex-1" size="sm" @click="submitYoutube">Reproducir</BaseButton>
             <BaseButton class="flex-1" size="sm" variant="secondary" @click="tryExample">Ejemplo</BaseButton>
           </div>
-          <div v-if="music.embedUrl && !music.isSpotifyMode" class="rounded-lg border border-surface-4 bg-surface-3/50 p-3">
-            <p class="truncate text-xs text-gray-400">Reproduciendo</p>
-            <p class="truncate text-sm font-semibold">{{ music.label }}</p>
+          <div v-if="music.embedUrl" class="rounded-lg border border-surface-4 bg-surface-3/50 p-3">
+            <div class="mb-2 flex items-center gap-2">
+              <img
+                v-if="music.youtubeNow?.thumbnail"
+                :src="music.youtubeNow.thumbnail"
+                alt=""
+                class="h-9 w-9 shrink-0 rounded object-cover"
+              />
+              <div class="min-w-0">
+                <p class="truncate text-xs text-gray-400">Reproduciendo</p>
+                <p class="truncate text-sm font-semibold">{{ music.youtubeNow?.title || music.label }}</p>
+              </div>
+            </div>
             <div class="mt-2 flex items-center gap-2">
               <button
                 type="button"

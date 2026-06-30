@@ -56,7 +56,10 @@ public class VisualsManager {
     @SubscribeEvent
     public void onClientTick(ClientTickEvent event) {
         if (mc.theWorld != null) {
-            mc.theWorld.setWorldTime(6000);
+            // NOTA: ya NO forzamos setWorldTime(6000) cada tick. Eso peleaba con las
+            // actualizaciones de hora del servidor (S03PacketTimeUpdate, ~1/seg) y con la
+            // animacion de cielo del fin de partida en Bedwars, provocando el parpadeo /
+            // quiebre de texturas. El brillo se maneja por gamma (fullbright), no por hora.
             if (PerformanceConfig.boostFps) {
                 mc.theWorld.setRainStrength(0.0F);
                 mc.theWorld.setThunderStrength(0.0F);
