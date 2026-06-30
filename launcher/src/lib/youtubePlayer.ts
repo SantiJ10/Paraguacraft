@@ -10,13 +10,51 @@ declare global {
   }
 }
 
+interface YtVideoData {
+  title?: string;
+  author?: string;
+  video_id?: string;
+}
+
 interface YtPlayer {
   playVideo(): void;
   pauseVideo(): void;
   stopVideo(): void;
   setVolume(n: number): void;
   getPlayerState(): number;
+  getVideoData?(): YtVideoData;
   destroy(): void;
+}
+
+export interface YoutubeNow {
+  title: string;
+  author: string;
+  videoId: string;
+  thumbnail: string;
+  playing: boolean;
+}
+
+export function youtubeThumbnail(videoId: string): string {
+  return videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : "";
+}
+
+/** Lee los metadatos del video que está sonando ahora mismo en el reproductor. */
+export function getYoutubeNow(): YoutubeNow | null {
+  if (!active) return null;
+  try {
+    const data = active.player.getVideoData?.();
+    const videoId = data?.video_id ?? "";
+    const state = active.player.getPlayerState();
+    return {
+      title: data?.title ?? "",
+      author: data?.author ?? "",
+      videoId,
+      thumbnail: youtubeThumbnail(videoId),
+      playing: state === 1,
+    };
+  } catch {
+    return null;
+  }
 }
 
 let apiPromise: Promise<void> | null = null;

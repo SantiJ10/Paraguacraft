@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.8",
-  "release_tag": "pvp-client-2.1.8",
-  "descripcion": "Cliente PvP 2.1.8 — fix freelook (gira la camara, no el cuerpo) e indetectable: el servidor recibe la rotacion real.",
+  "client_version": "2.1.9",
+  "release_tag": "pvp-client-2.1.9",
+  "descripcion": "Cliente PvP 2.1.9 — fix quiebre de texturas al terminar la partida, borderless mas estable, titulos del centro (FINAL KILL, etc.) al chat y overlay de musica con YouTube (titulo + caratula).",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.8.jar",
-      "sha1": "aa4cf3a6c67909709078b5c0b6e771588fe0e117"
+      "filename": "ParaguacraftPvP-2.1.9.jar",
+      "sha1": "5d92a3ca529854a6f41c24625aa46f6ab43d3d58"
     },
     {
       "filename": "OptiFine_1.8.9_HD_U_M5.jar",

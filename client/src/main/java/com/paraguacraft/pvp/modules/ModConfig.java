@@ -51,6 +51,7 @@ public class ModConfig {
     public static boolean reachDisplay = true;
     public static boolean comboCounter = true;
     public static boolean itemPhysics = true;
+    public static boolean hideTitles = true;
     public static int reachDisplayX = 5;
     public static int reachDisplayY = 45;
     public static int comboDisplayX = 5;
@@ -151,6 +152,7 @@ public class ModConfig {
             props.setProperty("reachDisplay", String.valueOf(reachDisplay));
             props.setProperty("comboCounter", String.valueOf(comboCounter));
             props.setProperty("itemPhysics", String.valueOf(itemPhysics));
+            props.setProperty("hideTitles", String.valueOf(hideTitles));
             props.setProperty("reachDisplayX", String.valueOf(reachDisplayX));
             props.setProperty("reachDisplayY", String.valueOf(reachDisplayY));
             props.setProperty("comboDisplayX", String.valueOf(comboDisplayX));
@@ -252,6 +254,7 @@ public class ModConfig {
             reachDisplay = Boolean.parseBoolean(props.getProperty("reachDisplay", String.valueOf(reachDisplay)));
             comboCounter = Boolean.parseBoolean(props.getProperty("comboCounter", String.valueOf(comboCounter)));
             itemPhysics = Boolean.parseBoolean(props.getProperty("itemPhysics", String.valueOf(itemPhysics)));
+            hideTitles = Boolean.parseBoolean(props.getProperty("hideTitles", String.valueOf(hideTitles)));
             reachDisplayX = Integer.parseInt(props.getProperty("reachDisplayX", String.valueOf(reachDisplayX)));
             reachDisplayY = Integer.parseInt(props.getProperty("reachDisplayY", String.valueOf(reachDisplayY)));
             comboDisplayX = Integer.parseInt(props.getProperty("comboDisplayX", String.valueOf(comboDisplayX)));
