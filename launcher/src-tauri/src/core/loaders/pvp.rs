@@ -28,18 +28,18 @@ const MANIFEST_URL: &str =
     "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/clientes/paraguacraft-pvp/manifest.json";
 
 const MANIFEST_MIRROR_URLS: &[&str] = &[
+    "https://github.com/SantiJ10/Paraguacraft/raw/main/clientes/paraguacraft-pvp/manifest.json",
     MANIFEST_URL,
     "https://cdn.jsdelivr.net/gh/SantiJ10/Paraguacraft@main/clientes/paraguacraft-pvp/manifest.json",
-    "https://github.com/SantiJ10/Paraguacraft/raw/main/clientes/paraguacraft-pvp/manifest.json",
 ];
 
-const FALLBACK_CLIENT_VERSION: &str = "2.1.25";
-const FALLBACK_RELEASE_TAG: &str = "pvp-client-2.1.25";
+const FALLBACK_CLIENT_VERSION: &str = "2.1.26";
+const FALLBACK_RELEASE_TAG: &str = "pvp-client-2.1.26";
 
 const FALLBACK_MODS: &[(&str, &str)] = &[
     (
-        "ParaguacraftPvP-2.1.25.jar",
-        "8b516dee3a64f3659f4fee9f62ba1b7bef1d570e",
+        "ParaguacraftPvP-2.1.26.jar",
+        "3e14412e88dce0f09262b8b24cae1656ea3795f1",
     ),
     (
         "Hytils-Reborn-1.8.9-forge-1.7.5.jar",
@@ -95,16 +95,46 @@ impl PvpManifest {
     }
 }
 
+fn cmp_client_version(a: &str, b: &str) -> std::cmp::Ordering {
+    let pa: Vec<u32> = a.split('.').filter_map(|p| p.parse().ok()).collect();
+    let pb: Vec<u32> = b.split('.').filter_map(|p| p.parse().ok()).collect();
+    for i in 0..pa.len().max(pb.len()) {
+        let da = *pa.get(i).unwrap_or(&0);
+        let db = *pb.get(i).unwrap_or(&0);
+        match da.cmp(&db) {
+            std::cmp::Ordering::Equal => {}
+            other => return other,
+        }
+    }
+    std::cmp::Ordering::Equal
+}
+
 async fn fetch_manifest_with_source(
     client: &reqwest::Client,
     app: Option<&AppHandle>,
 ) -> (PvpManifest, &'static str) {
+    let mut best: Option<PvpManifest> = None;
     for url in MANIFEST_MIRROR_URLS {
         if let Ok(m) = net::fetch_json::<PvpManifest>(client, url).await {
-            if !m.mods.is_empty() {
-                return (m, "remote");
+            if m.mods.is_empty() {
+                continue;
             }
+            best = Some(match best {
+                None => m,
+                Some(prev) => {
+                    if cmp_client_version(&m.client_version, &prev.client_version)
+                        == std::cmp::Ordering::Greater
+                    {
+                        m
+                    } else {
+                        prev
+                    }
+                }
+            });
         }
+    }
+    if let Some(m) = best {
+        return (m, "remote");
     }
     if let Some(app) = app {
         if let Some(m) = read_bundled_manifest(app) {

@@ -3,6 +3,14 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## Cliente PvP 2.1.26 - 2026-06-30
+
+### Fixed
+- **Toggle Sprint / Toggle Sneak rotos** en 2.1.24–2.1.25: el mixin no se aplicaba (punto de
+  inyección inválido). Ahora sneak/sprint se aplican al final de `onLivingUpdate`.
+- **Detección de actualización**: el launcher consulta todos los mirrors del manifest y elige
+  la versión más nueva (evita CDN de raw.githubusercontent con manifest viejo).
+
 ## Cliente PvP 2.1.25 - 2026-06-30
 
 ### Added
