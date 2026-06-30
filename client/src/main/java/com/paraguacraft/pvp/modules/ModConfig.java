@@ -34,11 +34,14 @@ public class ModConfig {
     /** Estado en caliente del borderless (no se persiste). */
     public static boolean windowedActive = false;
     public static boolean toggleSprintActive = true;
+    /** Modo legacy: {@code setSprinting} al final del tick (2.1.23). */
+    public static boolean toggleSprintLegacyActive = false;
     public static boolean fullbrightActive = true;
 
     public static int keyMenu = org.lwjgl.input.Keyboard.KEY_RSHIFT;
     public static int keyEditHud = org.lwjgl.input.Keyboard.KEY_RCONTROL;
-    public static int keyToggleSprint = org.lwjgl.input.Keyboard.KEY_V;
+    public static int keyToggleSprint = org.lwjgl.input.Keyboard.KEY_M;
+    public static int keyToggleSprintLegacy = org.lwjgl.input.Keyboard.KEY_N;
     public static int keyFullbright = org.lwjgl.input.Keyboard.KEY_G;
     public static int keyFreelook = org.lwjgl.input.Keyboard.KEY_LMENU;
     public static int keyQuickPlay = org.lwjgl.input.Keyboard.KEY_GRAVE;
@@ -136,10 +139,12 @@ public class ModConfig {
             props.setProperty("showArmorPercentage", String.valueOf(showArmorPercentage));
             props.setProperty("windowedFullscreen", String.valueOf(windowedFullscreen));
             props.setProperty("toggleSprintActive", String.valueOf(toggleSprintActive));
+            props.setProperty("toggleSprintLegacyActive", String.valueOf(toggleSprintLegacyActive));
             props.setProperty("fullbrightActive", String.valueOf(fullbrightActive));
             props.setProperty("keyMenu", String.valueOf(keyMenu));
             props.setProperty("keyEditHud", String.valueOf(keyEditHud));
             props.setProperty("keyToggleSprint", String.valueOf(keyToggleSprint));
+            props.setProperty("keyToggleSprintLegacy", String.valueOf(keyToggleSprintLegacy));
             props.setProperty("keyFullbright", String.valueOf(keyFullbright));
             props.setProperty("keyFreelook", String.valueOf(keyFreelook));
             props.setProperty("keyQuickPlay", String.valueOf(keyQuickPlay));
@@ -236,10 +241,12 @@ public class ModConfig {
             showArmorPercentage = Boolean.parseBoolean(props.getProperty("showArmorPercentage", String.valueOf(showArmorPercentage)));
             windowedFullscreen = Boolean.parseBoolean(props.getProperty("windowedFullscreen", String.valueOf(windowedFullscreen)));
             toggleSprintActive = Boolean.parseBoolean(props.getProperty("toggleSprintActive", String.valueOf(toggleSprintActive)));
+            toggleSprintLegacyActive = Boolean.parseBoolean(props.getProperty("toggleSprintLegacyActive", String.valueOf(toggleSprintLegacyActive)));
             fullbrightActive = Boolean.parseBoolean(props.getProperty("fullbrightActive", String.valueOf(fullbrightActive)));
             keyMenu = Integer.parseInt(props.getProperty("keyMenu", String.valueOf(keyMenu)));
             keyEditHud = Integer.parseInt(props.getProperty("keyEditHud", String.valueOf(keyEditHud)));
             keyToggleSprint = Integer.parseInt(props.getProperty("keyToggleSprint", String.valueOf(keyToggleSprint)));
+            keyToggleSprintLegacy = Integer.parseInt(props.getProperty("keyToggleSprintLegacy", String.valueOf(keyToggleSprintLegacy)));
             keyFullbright = Integer.parseInt(props.getProperty("keyFullbright", String.valueOf(keyFullbright)));
             keyFreelook = Integer.parseInt(props.getProperty("keyFreelook", String.valueOf(keyFreelook)));
             keyQuickPlay = Integer.parseInt(props.getProperty("keyQuickPlay", String.valueOf(keyQuickPlay)));

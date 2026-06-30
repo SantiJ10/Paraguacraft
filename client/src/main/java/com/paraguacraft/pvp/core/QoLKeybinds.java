@@ -13,6 +13,7 @@ public final class QoLKeybinds {
         setCode(QoLManager.menuKey, ModConfig.keyMenu);
         setCode(QoLManager.editHudKey, ModConfig.keyEditHud);
         setCode(QoLManager.toggleSprintKey, ModConfig.keyToggleSprint);
+        setCode(QoLManager.toggleSprintLegacyKey, ModConfig.keyToggleSprintLegacy);
         setCode(QoLManager.fullbrightKey, ModConfig.keyFullbright);
         setCode(QoLManager.freelookKey, ModConfig.keyFreelook);
         setCode(QoLManager.quickPlayKey, ModConfig.keyQuickPlay);

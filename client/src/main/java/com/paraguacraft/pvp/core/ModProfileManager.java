@@ -54,6 +54,7 @@ public final class ModProfileManager {
         mods.addProperty("showArmorPercentage", ModConfig.showArmorPercentage);
         mods.addProperty("windowedFullscreen", ModConfig.windowedFullscreen);
         mods.addProperty("toggleSprintActive", ModConfig.toggleSprintActive);
+        mods.addProperty("toggleSprintLegacyActive", ModConfig.toggleSprintLegacyActive);
         mods.addProperty("fullbrightActive", ModConfig.fullbrightActive);
         mods.addProperty("showHeldItem", ModConfig.showHeldItem);
         mods.addProperty("showServerHUD", ModConfig.showServerHUD);
@@ -63,6 +64,7 @@ public final class ModProfileManager {
         mods.addProperty("keyMenu", ModConfig.keyMenu);
         mods.addProperty("keyEditHud", ModConfig.keyEditHud);
         mods.addProperty("keyToggleSprint", ModConfig.keyToggleSprint);
+        mods.addProperty("keyToggleSprintLegacy", ModConfig.keyToggleSprintLegacy);
         mods.addProperty("keyFullbright", ModConfig.keyFullbright);
         root.add("mods", mods);
 
@@ -114,6 +116,7 @@ public final class ModProfileManager {
             ModConfig.showArmorPercentage = bool(m, "showArmorPercentage", ModConfig.showArmorPercentage);
             ModConfig.windowedFullscreen = bool(m, "windowedFullscreen", ModConfig.windowedFullscreen);
             ModConfig.toggleSprintActive = bool(m, "toggleSprintActive", ModConfig.toggleSprintActive);
+            ModConfig.toggleSprintLegacyActive = bool(m, "toggleSprintLegacyActive", ModConfig.toggleSprintLegacyActive);
             ModConfig.fullbrightActive = bool(m, "fullbrightActive", ModConfig.fullbrightActive);
             ModConfig.showHeldItem = bool(m, "showHeldItem", ModConfig.showHeldItem);
             ModConfig.showServerHUD = bool(m, "showServerHUD", ModConfig.showServerHUD);
@@ -123,6 +126,7 @@ public final class ModProfileManager {
             ModConfig.keyMenu = num(m, "keyMenu", ModConfig.keyMenu);
             ModConfig.keyEditHud = num(m, "keyEditHud", ModConfig.keyEditHud);
             ModConfig.keyToggleSprint = num(m, "keyToggleSprint", ModConfig.keyToggleSprint);
+            ModConfig.keyToggleSprintLegacy = num(m, "keyToggleSprintLegacy", ModConfig.keyToggleSprintLegacy);
             ModConfig.keyFullbright = num(m, "keyFullbright", ModConfig.keyFullbright);
         }
         if (root.has("performance")) {

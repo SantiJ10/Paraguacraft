@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.26",
-  "release_tag": "pvp-client-2.1.26",
-  "descripcion": "Cliente PvP 2.1.26 — fix toggle sprint/sneak (mixin RETURN) + deteccion manifest.",
+  "client_version": "2.1.28",
+  "release_tag": "pvp-client-2.1.28",
+  "descripcion": "Cliente PvP 2.1.28 — dos modos Correr toggle (M nuevo / N legacy) para testeo.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.26.jar",
-      "sha1": "3e14412e88dce0f09262b8b24cae1656ea3795f1"
+      "filename": "ParaguacraftPvP-2.1.28.jar",
+      "sha1": "21f6d768c5280433d0e0cec7fd8ccbc65e614e21"
     },
     {
       "filename": "Hytils-Reborn-1.8.9-forge-1.7.5.jar",
