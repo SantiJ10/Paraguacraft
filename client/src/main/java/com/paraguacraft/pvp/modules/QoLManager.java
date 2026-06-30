@@ -1,7 +1,6 @@
 package com.paraguacraft.pvp.modules;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.util.ChatComponentText;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
@@ -11,8 +10,7 @@ import net.minecraftforge.fml.common.gameevent.TickEvent.ClientTickEvent;
 import net.minecraftforge.event.entity.living.LivingEvent.LivingUpdateEvent;
 import org.lwjgl.input.Keyboard;
 
-// ---> CAMBIO: Importamos tu nuevo menú moderno en vez del viejo
-import com.paraguacraft.pvp.gui.GuiParaguaMenu; 
+import com.paraguacraft.pvp.gui.GuiParaguaMenu;
 import com.paraguacraft.pvp.gui.GuiEditHUD;
 import com.paraguacraft.pvp.gui.GuiHypixelQuickPlay;
 import com.paraguacraft.pvp.modules.FreelookManager;
@@ -20,7 +18,7 @@ import com.paraguacraft.pvp.modules.FreelookManager;
 public class QoLManager {
 
     private final Minecraft mc = Minecraft.getMinecraft();
-    
+
     public static KeyBinding toggleSprintKey;
     public static KeyBinding fullbrightKey;
     public static KeyBinding menuKey;
@@ -37,7 +35,7 @@ public class QoLManager {
         editHudKey = new KeyBinding("Editar HUD", ModConfig.keyEditHud, "Paraguacraft PvP");
         freelookKey = new KeyBinding("Freelook", ModConfig.keyFreelook, "Paraguacraft PvP");
         quickPlayKey = new KeyBinding("Hypixel Quick Play", ModConfig.keyQuickPlay, "Paraguacraft PvP");
-        
+
         ClientRegistry.registerKeyBinding(toggleSprintKey);
         ClientRegistry.registerKeyBinding(fullbrightKey);
         ClientRegistry.registerKeyBinding(menuKey);
@@ -53,18 +51,26 @@ public class QoLManager {
             ModConfig.save();
             sendMessage("Toggle Sprint: " + (ModConfig.toggleSprintActive ? "\u00A7aON" : "\u00A7cOFF"));
         }
-        
+
+        if (ModConfig.toggleSneak && mc.thePlayer != null) {
+            int sneakKey = mc.gameSettings.keyBindSneak.getKeyCode();
+            boolean sneakDown = Keyboard.isKeyDown(sneakKey);
+            if (sneakDown && !sneakKeyWasPressed) {
+                ModConfig.isSneakingToggled = !ModConfig.isSneakingToggled;
+            }
+            sneakKeyWasPressed = sneakDown;
+        }
+
         if (fullbrightKey.isPressed()) {
             ModConfig.fullbrightActive = !ModConfig.fullbrightActive;
             if (!ModConfig.fullbrightActive) {
-                mc.gameSettings.gammaSetting = 1.0F; 
+                mc.gameSettings.gammaSetting = 1.0F;
             }
             ModConfig.save();
             sendMessage("Fullbright: " + (ModConfig.fullbrightActive ? "\u00A7aON" : "\u00A7cOFF"));
         }
 
         if (menuKey.isPressed()) {
-            // ---> CAMBIO: Abrimos el panel estilo Lunar Client
             mc.displayGuiScreen(new GuiParaguaMenu());
         }
 
@@ -79,7 +85,9 @@ public class QoLManager {
 
     @SubscribeEvent
     public void onClientTick(ClientTickEvent event) {
-        if (mc.thePlayer == null) return;
+        if (mc.thePlayer == null) {
+            return;
+        }
 
         if (ModConfig.freelookEnabled) {
             if (freelookKey.isKeyDown()) {
@@ -94,6 +102,16 @@ public class QoLManager {
         if (ModConfig.fullbrightActive && mc.gameSettings.gammaSetting < 100.0F) {
             mc.gameSettings.gammaSetting = 100.0F;
         }
+
+        // Con toggle sneak ON, Shift físico solo alterna estado; no "mantener agachado".
+        if (ModConfig.toggleSneak && mc.currentScreen == null) {
+            KeyBinding.setKeyBindState(mc.gameSettings.keyBindSneak.getKeyCode(), false);
+        } else {
+            sneakKeyWasPressed = false;
+            if (ModConfig.isSneakingToggled) {
+                ModConfig.isSneakingToggled = false;
+            }
+        }
     }
 
     @SubscribeEvent
@@ -106,26 +124,6 @@ public class QoLManager {
             event.entityLiving.hurtTime = 0;
             event.entityLiving.maxHurtTime = 0;
             event.entityLiving.attackedAtYaw = 0;
-        }
-
-        if (!(event.entityLiving instanceof EntityPlayerSP) || mc.currentScreen != null) {
-            return;
-        }
-
-        if (ModConfig.toggleSneak) {
-            int sneakKey = mc.gameSettings.keyBindSneak.getKeyCode();
-            boolean sneakDown = Keyboard.isKeyDown(sneakKey);
-            if (sneakDown && !sneakKeyWasPressed) {
-                ModConfig.isSneakingToggled = !ModConfig.isSneakingToggled;
-            }
-            sneakKeyWasPressed = sneakDown;
-            // Evita que Shift físico se lea como "mantener agachado" en updatePlayerMoveState.
-            KeyBinding.setKeyBindState(sneakKey, false);
-        } else {
-            sneakKeyWasPressed = false;
-            if (ModConfig.isSneakingToggled) {
-                ModConfig.isSneakingToggled = false;
-            }
         }
     }
 
