@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.18",
-  "release_tag": "pvp-client-2.1.18",
-  "descripcion": "Cliente PvP 2.1.18 — HUD GPU con %/temp (no nombre), fix skins Steve en lobby, camas coloreadas en BedWars estilo Lunar.",
+  "client_version": "2.1.19",
+  "release_tag": "pvp-client-2.1.19",
+  "descripcion": "Cliente PvP 2.1.19 — fix crash al entrar a Hypixel (sprites de cama sin PNG faltante).",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.18.jar",
-      "sha1": "e4c735e5b84faa08852ba10632b89f6336d706fd"
+      "filename": "ParaguacraftPvP-2.1.19.jar",
+      "sha1": "12043186bb92fcdf50b6c10851b4537bc0c195d6"
     },
     {
       "filename": "OptiFine_1.8.9_HD_U_M5.jar",
