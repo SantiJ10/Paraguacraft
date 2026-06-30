@@ -354,7 +354,11 @@ pub async fn fetch_json<T: serde::de::DeserializeOwned>(
     let u = url.to_string();
     with_retries(|| async {
         let resp = client.get(&u).send().await?.error_for_status()?;
-        Ok(resp.json::<T>().await?)
+        let mut text = resp.text().await?;
+        if text.starts_with('\u{FEFF}') {
+            text = text.trim_start_matches('\u{FEFF}').to_string();
+        }
+        Ok(serde_json::from_str(&text)?)
     })
     .await
 }
