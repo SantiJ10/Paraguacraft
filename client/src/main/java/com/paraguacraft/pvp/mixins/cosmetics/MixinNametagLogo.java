@@ -6,9 +6,7 @@ import com.paraguacraft.pvp.network.BadgeRegistry;
 import com.paraguacraft.pvp.network.BadgeProtocol;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.network.NetworkPlayerInfo;
-import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.entity.Render;
-import net.minecraft.client.renderer.texture.TextureMap;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import org.spongepowered.asm.mixin.Mixin;
@@ -79,20 +77,6 @@ public class MixinNametagLogo {
                     0xFFAAAAAA
                 );
             }
-        }
-    }
-
-    @Inject(method = "renderLivingLabel(Lnet/minecraft/entity/Entity;Ljava/lang/String;DDDI)V", at = @At("RETURN"))
-    private void paraguacraft$resetAfterNametag(Entity entity, String label, double x, double y, double z, int maxDistance, CallbackInfo ci) {
-        if (!(entity instanceof EntityPlayer)) {
-            return;
-        }
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        GlStateManager.enableTexture2D();
-        GlStateManager.disableBlend();
-        Minecraft mc = Minecraft.getMinecraft();
-        if (mc != null && mc.getTextureManager() != null) {
-            mc.getTextureManager().bindTexture(TextureMap.locationBlocksTexture);
         }
     }
 }

@@ -3,6 +3,14 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## Cliente PvP 2.1.22 - 2026-06-30
+
+### Fixed
+- **Skins Steve + nametags corruptos en lobby Hypixel**: el reset GL tras logos/ping
+  enlazaba el atlas de bloques en vez de la fuente ASCII; el siguiente jugador heredaba
+  textura/color sucios. Ahora se re-enlaza `ascii.png` y se resetea al terminar cada
+  `RenderPlayer#doRender`.
+
 ## [7.2.18] - 2026-06-30
 
 ### Fixed
