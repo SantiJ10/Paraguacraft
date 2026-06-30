@@ -27,13 +27,13 @@ const GITHUB_REPO: &str = "SantiJ10/Paraguacraft";
 const MANIFEST_URL: &str =
     "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/clientes/paraguacraft-pvp/manifest.json";
 
-const FALLBACK_CLIENT_VERSION: &str = "2.1.20";
-const FALLBACK_RELEASE_TAG: &str = "pvp-client-2.1.20";
+const FALLBACK_CLIENT_VERSION: &str = "2.1.21";
+const FALLBACK_RELEASE_TAG: &str = "pvp-client-2.1.21";
 
 const FALLBACK_MODS: &[(&str, &str)] = &[
     (
-        "ParaguacraftPvP-2.1.20.jar",
-        "21ad0b508b85ff304d2f147ae278174089494baf",
+        "ParaguacraftPvP-2.1.21.jar",
+        "728a474464e80c2902dba6441663814c82880a27",
     ),
     (
         "Hytils-Reborn-1.8.9-forge-1.7.5.jar",
@@ -417,6 +417,58 @@ fn prune_stale_pvp_mods(mods_dir: &Path, keep: &[String]) {
     }
 }
 
+/// Pre-configura OneConfig/Hytils en la primera instalación:
+/// - OneConfig sin tecla (RShift queda para el Mod Menu de Paraguacraft).
+/// - Hytils: solo camas coloreadas; resto desactivado.
+const ONECONFIG_SEED_MARKER: &str = ".paraguacraft-hytils-v1";
+
+fn oneconfig_defaults_dir(app: &AppHandle) -> Option<PathBuf> {
+    for dir in local_bundled_dirs(app) {
+        let p = dir.join("defaults").join("oneconfig");
+        if p.is_dir() {
+            return Some(p);
+        }
+    }
+    None
+}
+
+fn copy_template_file(src: &Path, dest: &Path, only_if_missing: bool) -> std::io::Result<()> {
+    if only_if_missing && dest.is_file() {
+        return Ok(());
+    }
+    if let Some(parent) = dest.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::copy(src, dest)?;
+    Ok(())
+}
+
+fn seed_oneconfig_defaults(app: &AppHandle, instance_dir: &Path) {
+    let oneconfig_dir = instance_dir.join("OneConfig");
+    let marker = oneconfig_dir.join(ONECONFIG_SEED_MARKER);
+    if marker.is_file() {
+        return;
+    }
+    let Some(templates) = oneconfig_defaults_dir(app) else {
+        return;
+    };
+    let _ = std::fs::create_dir_all(&oneconfig_dir);
+    let files: [(&str, bool); 3] = [
+        ("OneConfig.json", true),
+        ("Preferences.json", false),
+        ("profiles/Default Profile/hytilsreborn.json", false),
+    ];
+    for (rel, only_if_missing) in files {
+        let src = templates.join(rel);
+        if !src.is_file() {
+            continue;
+        }
+        let dest = oneconfig_dir.join(rel);
+        let _ = copy_template_file(&src, &dest, only_if_missing);
+    }
+    let _ = std::fs::File::create(&marker);
+}
+
 /// Borra restos de Essential/Patcher: carpetas de datos y configs que quedaron
 /// de versiones anteriores del cliente (Essential pedía login y rompía ajustes).
 fn cleanup_essential_leftovers(instance_dir: &Path, mods_dir: &Path) {
@@ -506,6 +558,7 @@ pub async fn install_bundle(
     let filenames: Vec<String> = manifest.mods.iter().map(|m| m.filename.clone()).collect();
     prune_stale_pvp_mods(&mods_dir, &filenames);
     cleanup_essential_leftovers(instance_dir, &mods_dir);
+    seed_oneconfig_defaults(app, instance_dir);
 
     for entry in &manifest.mods {
         let sha = resolve_sha(app, &entry.filename, &entry.sha1);
