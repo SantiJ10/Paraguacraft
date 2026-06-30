@@ -33,7 +33,7 @@ public final class AdvancedHud {
     public static int overlayPanelHeight(LauncherIpc.Snapshot snap) {
         int lines = 0;
         if (ModConfig.showHardwareHud && snap.valid) {
-            // CPU, RAM y GPU (nombre por GL_RENDERER, siempre visible).
+            // CPU, RAM y GPU (% uso); temperatura aparte si está disponible.
             lines += 3;
             if (snap.tempC >= 0f) {
                 lines++;
@@ -107,7 +107,7 @@ public final class AdvancedHud {
             ty += 11;
             HudDraw.labeled("RAM ", fmtPct(snap.ramPct), x + 6, ty);
             ty += 11;
-            HudDraw.labeled("GPU ", gpuName(), x + 6, ty);
+            HudDraw.labeled("GPU ", fmtPct(snap.gpuPct), x + 6, ty);
             ty += 11;
             if (snap.tempC >= 0f) {
                 HudDraw.labeled("TEMP ", String.format("%.0f C", snap.tempC), x + 6, ty);
@@ -194,44 +194,6 @@ public final class AdvancedHud {
 
     private static void drawBwLine(String name, int count, int x, int y) {
         HudDraw.labeled(name + " ", String.valueOf(count), x, y);
-    }
-
-    private static String gpuNameCache;
-
-    /** Nombre de la GPU vía OpenGL (GL_RENDERER). Confiable en cualquier PC. */
-    private static String gpuName() {
-        if (gpuNameCache == null) {
-            try {
-                String r = GL11.glGetString(GL11.GL_RENDERER);
-                gpuNameCache = cleanGpuName(r);
-            } catch (Throwable t) {
-                gpuNameCache = "-";
-            }
-        }
-        return gpuNameCache;
-    }
-
-    private static String cleanGpuName(String raw) {
-        if (raw == null || raw.trim().isEmpty()) {
-            return "-";
-        }
-        String s = raw;
-        // El driver suele venir como "AMD Radeon RX 6650 XT (radeonsi, ...)" o
-        // "Intel(R) Iris(R) Xe Graphics". Limpiamos ruido y recortamos.
-        int paren = s.indexOf('(');
-        // Solo cortamos el paréntesis si NO es parte del marcador (R)/(TM).
-        if (paren > 0 && !s.regionMatches(true, paren, "(r)", 0, 3)
-                && !s.regionMatches(true, paren, "(tm)", 0, 4)) {
-            s = s.substring(0, paren);
-        }
-        s = s.replace("(R)", "").replace("(r)", "")
-             .replace("(TM)", "").replace("(tm)", "")
-             .replace("/PCIe/SSE2", "");
-        s = s.replaceAll("\\s+", " ").trim();
-        if (s.isEmpty()) {
-            return "-";
-        }
-        return trunc(s, 22);
     }
 
     private static String fmtPct(float v) {

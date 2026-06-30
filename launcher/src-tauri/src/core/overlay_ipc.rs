@@ -8,6 +8,7 @@ use std::time::Duration;
 
 use sysinfo::System;
 
+use crate::core::hardware;
 use crate::core::paths;
 
 const MAGIC: &[u8; 4] = b"PGIP";
@@ -50,6 +51,8 @@ pub fn write_snapshot(sys: &mut System) {
         -1.0
     };
 
+    let gpu = hardware::read_gpu_snapshot();
+
     let (music_playing, music_title, music_artist, music_image) = MUSIC
         .lock()
         .map(|g| (g.0, g.1.clone(), g.2.clone(), g.3.clone()))
@@ -60,8 +63,8 @@ pub fn write_snapshot(sys: &mut System) {
     buf[4..8].copy_from_slice(&1i32.to_le_bytes());
     buf[8..12].copy_from_slice(&cpu.to_le_bytes());
     buf[12..16].copy_from_slice(&ram_pct.to_le_bytes());
-    buf[16..20].copy_from_slice(&(-1f32).to_le_bytes());
-    buf[20..24].copy_from_slice(&(-1f32).to_le_bytes());
+    buf[16..20].copy_from_slice(&gpu.usage_pct.to_le_bytes());
+    buf[20..24].copy_from_slice(&gpu.temp_c.to_le_bytes());
     buf[24] = if music_playing { 1 } else { 0 };
     write_fixed_str(&mut buf, 25, 128, &music_title);
     write_fixed_str(&mut buf, 153, 64, &music_artist);

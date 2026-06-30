@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.17",
-  "release_tag": "pvp-client-2.1.17",
-  "descripcion": "Cliente PvP 2.1.17 — fix pantalla renderizada en la esquina (self-heal de viewport, también DPI), HUD de hardware con GPU real (GL_RENDERER) y CPU/RAM bien medidos. Windowed Fullscreen + limitador de FPS en segundo plano.",
+  "client_version": "2.1.18",
+  "release_tag": "pvp-client-2.1.18",
+  "descripcion": "Cliente PvP 2.1.18 — HUD GPU con %/temp (no nombre), fix skins Steve en lobby, camas coloreadas en BedWars estilo Lunar.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.17.jar",
-      "sha1": "919f6e354060b4ab5c36c88de801ae05b952fd3c"
+      "filename": "ParaguacraftPvP-2.1.18.jar",
+      "sha1": "e4c735e5b84faa08852ba10632b89f6336d706fd"
     },
     {
       "filename": "OptiFine_1.8.9_HD_U_M5.jar",

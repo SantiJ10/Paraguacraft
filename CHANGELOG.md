@@ -3,6 +3,22 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.2.16] - 2026-06-30
+
+### Fixed
+- **HUD de hardware — GPU como CPU/RAM**: el overlay muestra **% de uso** de la GPU (y
+  temperatura cuando está disponible), no el nombre de la placa. En Windows se lee con
+  contadores de rendimiento / `nvidia-smi`.
+- **Skins Steve corruptas en lobby de Hypixel**: se restaura el estado OpenGL tras dibujar
+  logos/ping en nametags (la textura quedaba mal enlazada y rompía el siguiente jugador
+  renderizado; Alex no se veía afectado).
+- **Camas siempre rojas en BedWars**: detección de equipo en Hypixel (sidebar con ✓, lana en
+  inventario, bloques cercanos) y sprites de cama recoloreados por equipo, estilo
+  Lunar/Badlion.
+
+### Changed
+- **Cliente PvP 2.1.18**.
+
 ## [7.2.15] - 2026-06-30
 
 ### Fixed
