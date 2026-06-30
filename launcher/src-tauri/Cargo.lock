@@ -2378,7 +2378,7 @@ dependencies = [
 
 [[package]]
 name = "paraguacraft-launcher"
-version = "7.2.11"
+version = "7.2.12"
 dependencies = [
  "base64 0.22.1",
  "dirs 5.0.1",

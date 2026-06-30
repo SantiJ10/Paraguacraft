@@ -10,12 +10,10 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Limpieza ligera de memoria al salir de mundos.
- *
- * NOTA: Patcher (Sk1er) ya arregla los memory leaks clásicos de 1.8.9 y hace
- * "optimized world swapping", así que NO forzamos System.gc() (provocaba un
- * freeze justo al entrar a la partida). Solo liberamos los display lists de GPU,
- * que es barato y evita basura del mundo anterior.
+ * Limpieza de memoria al cambiar de mundo — mitiga los memory leaks clásicos de
+ * 1.8.9 (chunks/renderers/WorldClient) que se acumulan al saltar entre lobbies y
+ * partidas. Se ejecuta durante la pantalla de carga, no por tick, así que el
+ * costo del GC no se nota en juego.
  */
 @Mixin(Minecraft.class)
 public abstract class MixinMinecraft {
@@ -37,5 +35,18 @@ public abstract class MixinMinecraft {
             } catch (Exception ignored) {
             }
         }
+    }
+
+    @Inject(
+        method = "loadWorld(Lnet/minecraft/client/multiplayer/WorldClient;Ljava/lang/String;)V",
+        at = @At("TAIL")
+    )
+    private void paraguacraft$afterWorldChange(WorldClient worldClientIn, String loadingMessage, CallbackInfo ci) {
+        // Solo al DESCARGAR un mundo (world == null): evita el freeze al ENTRAR a
+        // la partida y libera la memoria del lobby/partida anterior.
+        if (!PerformanceConfig.memoryCleanupOnWorldChange || worldClientIn != null) {
+            return;
+        }
+        System.gc();
     }
 }

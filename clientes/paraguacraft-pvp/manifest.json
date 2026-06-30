@@ -3,21 +3,17 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.13",
-  "release_tag": "pvp-client-2.1.13",
-  "descripcion": "Cliente PvP 2.1.13 — Fix crash al iniciar (mipmapLevels=0 rompía el atlas de texturas). Boost FPS sigue activo.",
+  "client_version": "2.1.14",
+  "release_tag": "pvp-client-2.1.14",
+  "descripcion": "Cliente PvP 2.1.14 — se quita Patcher/Essential (bloat + reinicio). OptiFine + optimizaciones propias pulidas (culling, leaks, partículas).",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.13.jar",
-      "sha1": "691e4803d0d16e8ba96b3c8ded9553df02741cc5"
+      "filename": "ParaguacraftPvP-2.1.14.jar",
+      "sha1": "0959928b8e25bf09f38073a677df3aef726c29e6"
     },
     {
       "filename": "OptiFine_1.8.9_HD_U_M5.jar",
       "sha1": "d362d58a28f5373b141b9e426e8e160638bfafcd"
-    },
-    {
-      "filename": "Patcher-1.8.9.jar",
-      "sha1": "4421d04c0e2e632e4fa4bb26b621b66ac7f99159"
     }
   ]
 }
