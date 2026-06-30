@@ -21,17 +21,21 @@ const GITHUB_REPO: &str = "SantiJ10/Paraguacraft";
 const MANIFEST_URL: &str =
     "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/clientes/paraguacraft-pvp/manifest.json";
 
-const FALLBACK_CLIENT_VERSION: &str = "2.1.9";
-const FALLBACK_RELEASE_TAG: &str = "pvp-client-2.1.9";
+const FALLBACK_CLIENT_VERSION: &str = "2.1.10";
+const FALLBACK_RELEASE_TAG: &str = "pvp-client-2.1.10";
 
 const FALLBACK_MODS: &[(&str, &str)] = &[
     (
-        "ParaguacraftPvP-2.1.9.jar",
-        "5d92a3ca529854a6f41c24625aa46f6ab43d3d58",
+        "ParaguacraftPvP-2.1.10.jar",
+        "4a66754b6f8c39a516ac6696e2fa10c13d96ba03",
     ),
     (
         "OptiFine_1.8.9_HD_U_M5.jar",
         "d362d58a28f5373b141b9e426e8e160638bfafcd",
+    ),
+    (
+        "Patcher-1.8.9.jar",
+        "4421d04c0e2e632e4fa4bb26b621b66ac7f99159",
     ),
 ];
 
@@ -289,7 +293,9 @@ fn prune_stale_pvp_mods(mods_dir: &Path, keep: &[String]) {
         if !name.ends_with(".jar") {
             continue;
         }
-        let is_pvp = name.starts_with("paraguacraftpvp") || name.starts_with("optifine_1.8.9");
+        let is_pvp = name.starts_with("paraguacraftpvp")
+            || name.starts_with("optifine_1.8.9")
+            || name.starts_with("patcher");
         if !is_pvp {
             continue;
         }

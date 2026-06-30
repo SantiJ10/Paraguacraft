@@ -1,12 +1,12 @@
 {
-  "version": "7.2.7",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.7/Instalar_Paraguacraft_v7.2.7.exe",
-  "size_bytes": 10260267,
-  "sha256": "c9395326d36433f39c6310deee3ebe68a359759dde830578c2b52961071f37d3",
-  "notes": "- Fix texturas/cielo rotos al terminar la partida en Bedwars\n- Titulos del centro (FINAL KILL, etc.) ahora se muestran solo en el chat (mod nuevo)\n- Overlay de musica con YouTube: titulo + caratula (independiente de Spotify)\n- Borderless mas estable (ya no se auto-desactiva)\n- Cliente PvP 2.1.9 / Launcher 7.2.7",
+  "version": "7.2.8",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.8/Instalar_Paraguacraft_v7.2.8.exe",
+  "size_bytes": 10841620,
+  "sha256": "2bd325b14c5b245dd345115f41c33c668ed1e3d6926ec09a5739d1026eb572d3",
+  "notes": "- Patcher (Sk1er) integrado para mejor rendimiento y render\n- Los compañeros ya no desaparecen/reaparecen (jugadores no se cullan)\n- Skins de las salas de espera arregladas (estado GL de nametags)\n- Cliente PvP 2.1.10 / Launcher 7.2.8",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.7/Instalar_Paraguacraft_v7.2.7.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.8/Instalar_Paraguacraft_v7.2.8.exe",
       "signature": ""
     }
   }

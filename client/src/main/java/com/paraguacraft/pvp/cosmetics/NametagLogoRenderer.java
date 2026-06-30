@@ -23,16 +23,24 @@ public final class NametagLogoRenderer {
         int x = -half - LOGO_SIZE - 2;
         int y = (font.FONT_HEIGHT - LOGO_SIZE) / 2 - 1;
 
-        GlStateManager.enableBlend();
-        GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
-        if (badgeId == BadgeProtocol.BADGE_STAFF) {
-            GlStateManager.color(1.0F, 0.85F, 0.2F, 1.0F);
-        } else {
+        GlStateManager.pushMatrix();
+        try {
+            GlStateManager.enableTexture2D();
+            GlStateManager.enableBlend();
+            GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
+            if (badgeId == BadgeProtocol.BADGE_STAFF) {
+                GlStateManager.color(1.0F, 0.85F, 0.2F, 1.0F);
+            } else {
+                GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+            }
+            net.minecraft.client.Minecraft.getMinecraft().getTextureManager().bindTexture(LOGO);
+            Gui.drawModalRectWithCustomSizedTexture(x, y, 0, 0, LOGO_SIZE, LOGO_SIZE, LOGO_SIZE, LOGO_SIZE);
+        } finally {
+            // Restauramos el estado canónico para que el nametag/modelo siguiente no
+            // herede color tintado ni la textura del logo (causa de skins rotas en lobby).
             GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+            GlStateManager.popMatrix();
         }
-        net.minecraft.client.Minecraft.getMinecraft().getTextureManager().bindTexture(LOGO);
-        Gui.drawModalRectWithCustomSizedTexture(x, y, 0, 0, LOGO_SIZE, LOGO_SIZE, LOGO_SIZE, LOGO_SIZE);
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
     }
 
     /** Dibuja texto extra (ej. ping) a la derecha del nombre, sin alterar el centrado del nametag. */
@@ -41,9 +49,15 @@ public final class NametagLogoRenderer {
             return;
         }
         int x = font.getStringWidth(name) / 2 + 2;
-        GlStateManager.enableBlend();
-        GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
-        font.drawString(text, x, 0, color);
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        GlStateManager.pushMatrix();
+        try {
+            GlStateManager.enableTexture2D();
+            GlStateManager.enableBlend();
+            GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
+            font.drawString(text, x, 0, color);
+        } finally {
+            GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+            GlStateManager.popMatrix();
+        }
     }
 }
