@@ -3,6 +3,11 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## Cliente PvP 2.1.25 - 2026-06-30
+
+### Added
+- **Toggle Sprint en Mod Menu** (categoría PvP): activar/desactivar sin depender de la tecla V.
+
 ## Cliente PvP 2.1.24 - 2026-06-30
 
 ### Fixed
