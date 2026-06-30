@@ -1,6 +1,7 @@
 package com.paraguacraft.pvp.modules;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.util.ChatComponentText;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
@@ -20,6 +21,7 @@ public class QoLManager {
     private final Minecraft mc = Minecraft.getMinecraft();
 
     public static KeyBinding toggleSprintKey;
+    public static KeyBinding toggleSprintLegacyKey;
     public static KeyBinding fullbrightKey;
     public static KeyBinding menuKey;
     public static KeyBinding editHudKey;
@@ -29,7 +31,8 @@ public class QoLManager {
     private boolean sneakKeyWasPressed = false;
 
     public QoLManager() {
-        toggleSprintKey = new KeyBinding("Toggle Sprint", ModConfig.keyToggleSprint, "Paraguacraft PvP");
+        toggleSprintKey = new KeyBinding("Toggle Sprint (M)", ModConfig.keyToggleSprint, "Paraguacraft PvP");
+        toggleSprintLegacyKey = new KeyBinding("Toggle Sprint legacy (N)", ModConfig.keyToggleSprintLegacy, "Paraguacraft PvP");
         fullbrightKey = new KeyBinding("Fullbright", ModConfig.keyFullbright, "Paraguacraft PvP");
         menuKey = new KeyBinding("Mod Menu", ModConfig.keyMenu, "Paraguacraft PvP");
         editHudKey = new KeyBinding("Editar HUD", ModConfig.keyEditHud, "Paraguacraft PvP");
@@ -37,6 +40,7 @@ public class QoLManager {
         quickPlayKey = new KeyBinding("Hypixel Quick Play", ModConfig.keyQuickPlay, "Paraguacraft PvP");
 
         ClientRegistry.registerKeyBinding(toggleSprintKey);
+        ClientRegistry.registerKeyBinding(toggleSprintLegacyKey);
         ClientRegistry.registerKeyBinding(fullbrightKey);
         ClientRegistry.registerKeyBinding(menuKey);
         ClientRegistry.registerKeyBinding(editHudKey);
@@ -49,7 +53,13 @@ public class QoLManager {
         if (toggleSprintKey.isPressed()) {
             ModConfig.toggleSprintActive = !ModConfig.toggleSprintActive;
             ModConfig.save();
-            sendMessage("Toggle Sprint: " + (ModConfig.toggleSprintActive ? "\u00A7aON" : "\u00A7cOFF"));
+            sendMessage("Correr toggle (M): " + (ModConfig.toggleSprintActive ? "\u00A7aON" : "\u00A7cOFF"));
+        }
+
+        if (toggleSprintLegacyKey.isPressed()) {
+            ModConfig.toggleSprintLegacyActive = !ModConfig.toggleSprintLegacyActive;
+            ModConfig.save();
+            sendMessage("Correr toggle legacy (N): " + (ModConfig.toggleSprintLegacyActive ? "\u00A7aON" : "\u00A7cOFF"));
         }
 
         if (ModConfig.toggleSneak && mc.thePlayer != null) {
@@ -57,6 +67,9 @@ public class QoLManager {
             boolean sneakDown = Keyboard.isKeyDown(sneakKey);
             if (sneakDown && !sneakKeyWasPressed) {
                 ModConfig.isSneakingToggled = !ModConfig.isSneakingToggled;
+                EntityPlayerSP player = mc.thePlayer;
+                player.setSneaking(ModConfig.isSneakingToggled);
+                player.movementInput.sneak = ModConfig.isSneakingToggled;
             }
             sneakKeyWasPressed = sneakDown;
         }
@@ -103,14 +116,9 @@ public class QoLManager {
             mc.gameSettings.gammaSetting = 100.0F;
         }
 
-        // Con toggle sneak ON, Shift físico solo alterna estado; no "mantener agachado".
-        if (ModConfig.toggleSneak && mc.currentScreen == null) {
-            KeyBinding.setKeyBindState(mc.gameSettings.keyBindSneak.getKeyCode(), false);
-        } else {
+        if (!ModConfig.toggleSneak && ModConfig.isSneakingToggled) {
+            ModConfig.isSneakingToggled = false;
             sneakKeyWasPressed = false;
-            if (ModConfig.isSneakingToggled) {
-                ModConfig.isSneakingToggled = false;
-            }
         }
     }
 

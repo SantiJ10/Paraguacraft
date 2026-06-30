@@ -3,6 +3,18 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## Cliente PvP 2.1.28 - 2026-06-30
+
+### Added
+- **Dos modos de Correr toggle** para testeo A/B: nuevo (teclas virtuales, **M**) y legacy
+  (`setSprinting`, **N**), cada uno con tarjeta en Mod Menu y atajo configurable.
+
+## Cliente PvP 2.1.27 - 2026-06-30
+
+### Fixed
+- **Toggle Sprint / Toggle Sneak**: sin lag de 1 tick; las teclas virtuales se aplican al
+  inicio de `onLivingUpdate` (patrón Lunar) para velocidad de sprint vanilla y sneak instantáneo.
+
 ## Cliente PvP 2.1.26 - 2026-06-30
 
 ### Fixed
