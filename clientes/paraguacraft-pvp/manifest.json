@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.20",
-  "release_tag": "pvp-client-2.1.20",
-  "descripcion": "Cliente PvP 2.1.20 — camas coloreadas vía Hytils Reborn (GPL); eliminado mod custom de camas.",
+  "client_version": "2.1.21",
+  "release_tag": "pvp-client-2.1.21",
+  "descripcion": "Cliente PvP 2.1.21 — Hytils preconfig (solo camas), OneConfig sin RShift.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.20.jar",
-      "sha1": "21ad0b508b85ff304d2f147ae278174089494baf"
+      "filename": "ParaguacraftPvP-2.1.21.jar",
+      "sha1": "728a474464e80c2902dba6441663814c82880a27"
     },
     {
       "filename": "Hytils-Reborn-1.8.9-forge-1.7.5.jar",

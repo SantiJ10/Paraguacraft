@@ -15,6 +15,7 @@ import com.paraguacraft.pvp.core.ModConfigApply;
 import com.paraguacraft.pvp.core.LauncherIpcHandler;
 import com.paraguacraft.pvp.core.DiscordPresenceHandler;
 import com.paraguacraft.pvp.core.HardwarePreset;
+import com.paraguacraft.pvp.core.HytilsDefaults;
 import com.paraguacraft.pvp.modules.ModConfig;
 import com.paraguacraft.pvp.modules.QoLManager;
 import com.paraguacraft.pvp.network.BadgeNetHandler;
@@ -22,18 +23,25 @@ import net.minecraftforge.client.event.GuiOpenEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraft.client.gui.GuiMainMenu;
 
-@Mod(modid = ParaguacraftPvP.MODID, name = ParaguacraftPvP.NAME, version = ParaguacraftPvP.VERSION, acceptedMinecraftVersions = "[1.8.9]")
+@Mod(
+    modid = ParaguacraftPvP.MODID,
+    name = ParaguacraftPvP.NAME,
+    version = ParaguacraftPvP.VERSION,
+    acceptedMinecraftVersions = "[1.8.9]",
+    dependencies = "before:hytils-reborn"
+)
 public class ParaguacraftPvP {
 
     public static final String MODID = "paraguacraftpvp";
     public static final String NAME = "Paraguacraft PvP Client";
-    public static final String VERSION = "2.1.20";
+    public static final String VERSION = "2.1.21";
 
     @Mod.Instance(MODID)
     public static ParaguacraftPvP instance;
 
     @EventHandler
     public void preInit(FMLPreInitializationEvent event) {
+        HytilsDefaults.applyIfNeeded();
     }
 
     @EventHandler

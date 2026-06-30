@@ -51,6 +51,10 @@ bundled/pvp/resourcepacks/*.zip
 
 # --- Datos locales / IDE ---
 OneConfig/
+!bundled/pvp/defaults/oneconfig/
+!bundled/pvp/defaults/oneconfig/**
+!client/src/main/resources/defaults/oneconfig/
+!client/src/main/resources/defaults/oneconfig/**
 .netlify
 /config/
 botamin/
