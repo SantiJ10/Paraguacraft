@@ -554,7 +554,7 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
             <div class="flex flex-wrap gap-x-2">
               <dt class="text-gray-500">Fuente:</dt>
               <dd class="text-gray-400">
-                {{ pvpStatus.manifestSource === "remote" ? "manifest en línea" : "respaldo offline" }}
+                {{ pvpStatus.manifestSource === "remote" ? "manifest en línea" : pvpStatus.manifestSource === "bundled" ? "manifest embebido" : "respaldo offline" }}
               </dd>
             </div>
           </dl>
