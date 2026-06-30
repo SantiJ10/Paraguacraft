@@ -3,6 +3,22 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.2.10] - 2026-06-30
+
+### Performance
+- **Boost FPS reforzado** (preset estilo Lunar/Badlion):
+  - OptiFine **Fast Render** + Render Regions + Smart Animations + Fast Math.
+  - Apagado de nubes, lluvia, clima, estrellas, sky custom, partículas de agua/void/portal.
+  - Gráficos en **Fast**, Smooth Lighting (AO) **off**, mipmaps **off**, AA/AF al mínimo.
+- Se quita el **System.gc() forzado** al cambiar de mundo: provocaba un freeze al
+  entrar a la partida. La memoria ya la maneja Patcher (leaks + world swapping).
+  Se conserva solo la limpieza barata de display lists.
+
+### Changed
+- **Cliente PvP 2.1.12**.
+
+> Nota: las opciones de OptiFine se aplican al **siguiente reinicio** del juego.
+
 ## [7.2.9] - 2026-06-30
 
 ### Removed
