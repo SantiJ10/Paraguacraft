@@ -35,6 +35,7 @@ import type {
   SkinHistoryEntry,
   StructuredInvokeError,
   UpdateInfo,
+  PvpClientStatus,
   HardwareInfo,
   ImportInstanceIconResult,
   BedrockStatus,
@@ -407,6 +408,12 @@ export const api = {
 
   async installPvpBundle(instanceId: string): Promise<void> {
     await invokeReal<void>("install_pvp_bundle", { instanceId });
+  },
+
+  async getPvpClientStatus(instanceId?: string | null): Promise<PvpClientStatus> {
+    return invokeReal<PvpClientStatus>("get_pvp_client_status", {
+      instanceId: instanceId ?? null,
+    });
   },
 
   // --- Tienda: catálogo global (browse) + install por instancia ---

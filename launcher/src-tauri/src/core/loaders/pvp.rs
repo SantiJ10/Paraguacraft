@@ -1,7 +1,12 @@
 //! Preset **Paraguacraft PvP** (solo Minecraft 1.8.9).
 //!
-//! El manifest remoto (`clientes/paraguacraft-pvp/manifest.json`) define versión,
-//! release de GitHub y SHA-1. Al instalar o lanzar, se sincroniza el cliente.
+//! ## Actualizar solo el cliente (sin recompilar el launcher)
+//! La versión publicada vive en el manifest remoto:
+//! `clientes/paraguacraft-pvp/manifest.json` + JAR en `bundled/pvp/`.
+//! En cada lanzamiento se llama a `install_bundle`, que descarga el JAR si el SHA-1
+//! no coincide. **No hace falta** subir un launcher nuevo para cada cliente.
+//!
+//! Las constantes `FALLBACK_*` son solo respaldo offline (sin internet o manifest caído).
 
 use std::path::{Path, PathBuf};
 
@@ -12,6 +17,7 @@ use tauri::{AppHandle, Manager};
 use crate::core::net::{self, DownloadItem};
 use crate::core::paths;
 use crate::error::{AppError, AppResult};
+use crate::models::PvpClientStatus;
 
 use super::forge;
 
@@ -79,10 +85,99 @@ impl PvpManifest {
     }
 }
 
-async fn fetch_manifest(client: &reqwest::Client) -> PvpManifest {
+async fn fetch_manifest_with_source(client: &reqwest::Client) -> (PvpManifest, &'static str) {
     match net::fetch_json::<PvpManifest>(client, MANIFEST_URL).await {
-        Ok(m) if !m.mods.is_empty() => m,
-        _ => PvpManifest::default(),
+        Ok(m) if !m.mods.is_empty() => (m, "remote"),
+        _ => (PvpManifest::default(), "fallback"),
+    }
+}
+
+async fn fetch_manifest(client: &reqwest::Client) -> PvpManifest {
+    fetch_manifest_with_source(client).await.0
+}
+
+fn version_from_pvp_jar(filename: &str) -> Option<String> {
+    let lower = filename.to_lowercase();
+    if !lower.starts_with("paraguacraftpvp-") || !lower.ends_with(".jar") {
+        return None;
+    }
+    let ver = &filename[16..filename.len().saturating_sub(4)];
+    if ver.is_empty() {
+        None
+    } else {
+        Some(ver.to_string())
+    }
+}
+
+fn detect_installed_client(
+    app: &AppHandle,
+    instance_dir: Option<&Path>,
+    manifest: &PvpManifest,
+) -> (Option<String>, Option<String>, bool) {
+    let Some(dir) = instance_dir else {
+        return (None, None, false);
+    };
+    let mods_dir = dir.join("mods");
+    let main_mod = manifest
+        .mods
+        .iter()
+        .find(|m| m.filename.to_lowercase().starts_with("paraguacraftpvp"));
+
+    if let Some(entry) = main_mod {
+        let dest = mods_dir.join(&entry.filename);
+        let sha = resolve_sha(app, &entry.filename, &entry.sha1);
+        if sha_matches(&dest, &sha, &entry.filename) {
+            return (
+                Some(entry.filename.clone()),
+                Some(manifest.client_version.clone()),
+                true,
+            );
+        }
+    }
+
+    let Ok(rd) = std::fs::read_dir(&mods_dir) else {
+        return (None, None, false);
+    };
+    for e in rd.flatten() {
+        let name = e.file_name().to_string_lossy().to_string();
+        if !name.to_lowercase().starts_with("paraguacraftpvp") {
+            continue;
+        }
+        let path = e.path();
+        let up_to_date = main_mod.is_some_and(|exp| {
+            exp.filename == name && sha_matches(&path, &resolve_sha(app, &exp.filename, &exp.sha1), &exp.filename)
+        });
+        return (Some(name.clone()), version_from_pvp_jar(&name), up_to_date);
+    }
+    (None, None, false)
+}
+
+/// Estado del cliente PvP (remoto vs instalado en una instancia).
+pub async fn client_status(
+    app: &AppHandle,
+    client: &reqwest::Client,
+    instance_dir: Option<&Path>,
+) -> PvpClientStatus {
+    let (manifest, source) = fetch_manifest_with_source(client).await;
+    let main_mod = manifest
+        .mods
+        .iter()
+        .find(|m| m.filename.to_lowercase().starts_with("paraguacraftpvp"));
+    let remote_filename = main_mod
+        .map(|m| m.filename.clone())
+        .unwrap_or_default();
+    let (installed_filename, installed_version, up_to_date) =
+        detect_installed_client(app, instance_dir, &manifest);
+
+    PvpClientStatus {
+        remote_version: manifest.client_version.clone(),
+        remote_filename,
+        installed_version,
+        installed_filename,
+        up_to_date,
+        auto_updates_on_launch: true,
+        manifest_source: source.into(),
+        manifest_url: MANIFEST_URL.into(),
     }
 }
 
@@ -185,6 +280,20 @@ fn resolve_sha(app: &AppHandle, filename: &str, remote_sha: &str) -> String {
         }
     }
     remote_sha.to_string()
+}
+
+fn is_pvp_client_jar(filename: &str) -> bool {
+    filename.to_lowercase().starts_with("paraguacraftpvp-")
+}
+
+fn has_any_pvp_client_jar(mods_dir: &Path) -> bool {
+    let Ok(rd) = std::fs::read_dir(mods_dir) else {
+        return false;
+    };
+    rd.flatten().any(|e| {
+        let name = e.file_name().to_string_lossy().to_lowercase();
+        name.starts_with("paraguacraftpvp-") && name.ends_with(".jar")
+    })
 }
 
 fn sha_matches(path: &Path, expected: &str, _filename: &str) -> bool {
@@ -336,6 +445,7 @@ async fn ensure_mod(
     sha_expected: &str,
     release_tag: &str,
     mods_dir: &Path,
+    offline_lenient: bool,
 ) -> AppResult<()> {
     let dest = mods_dir.join(filename);
     if sha_matches(&dest, sha_expected, filename) {
@@ -355,7 +465,7 @@ async fn ensure_mod(
         return Ok(());
     }
 
-    download_verified(
+    if let Err(e) = download_verified(
         client,
         remote_urls(filename, release_tag),
         &dest,
@@ -364,11 +474,14 @@ async fn ensure_mod(
         release_tag,
     )
     .await
-    .map_err(|_| {
-        AppError::msg(format!(
-            "No se pudo obtener {filename} (cliente PvP). Actualizá el launcher o usá Reparar instancia."
-        ))
-    })?;
+    {
+        if offline_lenient && is_pvp_client_jar(filename) && has_any_pvp_client_jar(mods_dir) {
+            return Ok(());
+        }
+        return Err(AppError::msg(format!(
+            "No se pudo obtener {filename} (cliente PvP). Actualizá el launcher o usá Reparar instancia. ({e})"
+        )));
+    }
     let _ = std::fs::copy(&dest, &cache_path);
     Ok(())
 }
@@ -379,7 +492,8 @@ pub async fn install_bundle(
     client: &reqwest::Client,
     instance_dir: &Path,
 ) -> AppResult<()> {
-    let manifest = fetch_manifest(client).await;
+    let (manifest, source) = fetch_manifest_with_source(client).await;
+    let offline_lenient = source == "fallback";
     let release_tag = manifest.release_tag();
     let mods_dir = instance_dir.join("mods");
     std::fs::create_dir_all(&mods_dir)?;
@@ -397,6 +511,7 @@ pub async fn install_bundle(
             &sha,
             &release_tag,
             &mods_dir,
+            offline_lenient,
         )
         .await?;
     }

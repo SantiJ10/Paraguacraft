@@ -3,6 +3,18 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.2.17] - 2026-06-30
+
+### Added
+- **Ajustes → Cliente PvP**: versión publicada vs instalada, sincronización manual y nota
+  de que el cliente se actualiza sin recompilar el launcher.
+- **Modo offline mejorado**: jugar con instancias y mods ya instalados sin internet;
+  skins Premium se aplican localmente y se encolan para Mojang al reconectar; tokens
+  Microsoft en caché si no hay red.
+
+### Changed
+- Launcher **7.2.17**.
+
 ## [7.2.16] - 2026-06-30
 
 ### Fixed

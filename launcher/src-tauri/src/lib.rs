@@ -49,6 +49,14 @@ pub fn run() {
                     core::extras::discord_rpc::set_launcher_idle(&acc.username);
                 }
             }
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                if let Some(state) = handle.try_state::<AppState>() {
+                    let http = state.client();
+                    let _ = core::skins::pending_premium::flush_pending(&http).await;
+                    state.shutdown_network();
+                }
+            });
             Ok(())
         })
         .on_window_event(|_window, event| {
@@ -132,6 +140,7 @@ pub fn run() {
             commands::loaders::install_loader,
             commands::loaders::install_fabric_iris_bundle,
             commands::loaders::install_pvp_bundle,
+            commands::loaders::get_pvp_client_status,
             // Tienda (Fase 3)
             commands::store::store_search,
             commands::store::store_list_versions,
@@ -212,6 +221,8 @@ pub fn run() {
             commands::skins::get_skin_history,
             commands::skins::clear_skin_history,
             commands::skins::can_upload_premium_skin,
+            commands::skins::has_pending_premium_skin,
+            commands::skins::sync_pending_premium_skin,
             commands::skins::pick_skin_file_for_preview,
             commands::skins::apply_skin_file_with_variant,
             // Spotify

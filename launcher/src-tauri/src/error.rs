@@ -28,6 +28,16 @@ pub enum AppError {
     Structured(StructuredError),
 }
 
+impl AppError {
+    /// Fallo de red transitorio (sin conexión, timeout, DNS).
+    pub fn is_connectivity(&self) -> bool {
+        match self {
+            AppError::Http(e) => e.is_connect() || e.is_timeout(),
+            _ => false,
+        }
+    }
+}
+
 /// Error estructurado para que la UI reaccione (p. ej. CF distribution blocked).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

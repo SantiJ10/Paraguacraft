@@ -12,7 +12,8 @@ import JavaManager from "@/components/settings/JavaManager.vue";
 import { formatRam } from "@/composables/useFormat";
 import { applyAccentTheme } from "@/composables/useAccent";
 import { api, isTauri } from "@/lib/ipc";
-import type { CleanupInfo, ExtrasStatus, GcType } from "@/lib/types";
+import { normalizeLoaderId } from "@/lib/loaders";
+import type { CleanupInfo, ExtrasStatus, GcType, PvpClientStatus } from "@/lib/types";
 
 const settings = useSettingsStore();
 const accounts = useAccountsStore();
@@ -58,6 +59,7 @@ onMounted(async () => {
         extrasLoading.value = false;
       }
     }, 0);
+    void refreshPvpClientStatus();
   }
 
   window.setTimeout(() => {
@@ -81,6 +83,11 @@ async function applyOfflineSkin() {
 }
 
 const checkingUpdate = ref(false);
+const pvpStatus = ref<PvpClientStatus | null>(null);
+const pvpStatusLoading = ref(false);
+const pvpSyncBusy = ref(false);
+const pvpStatusMessage = ref<string | null>(null);
+const pvpInstanceId = ref<string | null>(null);
 const perfBusy = ref(false);
 const perfMessage = ref<string | null>(null);
 
@@ -126,6 +133,40 @@ async function refreshUpdate() {
     await app.checkUpdate(true);
   } finally {
     checkingUpdate.value = false;
+  }
+}
+
+async function refreshPvpClientStatus() {
+  if (!isTauri()) return;
+  pvpStatusLoading.value = true;
+  pvpStatusMessage.value = null;
+  try {
+    const instances = await api.getInstances();
+    const pvp = instances.find((i) => normalizeLoaderId(i.loader) === "paraguacraft-pvp");
+    pvpInstanceId.value = pvp?.id ?? null;
+    pvpStatus.value = await api.getPvpClientStatus(pvp?.id ?? null);
+  } catch (e) {
+    pvpStatusMessage.value = String(e);
+  } finally {
+    pvpStatusLoading.value = false;
+  }
+}
+
+async function syncPvpClientNow() {
+  if (!pvpInstanceId.value) {
+    pvpStatusMessage.value = "No hay instancia Paraguacraft PvP instalada.";
+    return;
+  }
+  pvpSyncBusy.value = true;
+  pvpStatusMessage.value = null;
+  try {
+    await api.installPvpBundle(pvpInstanceId.value);
+    await refreshPvpClientStatus();
+    pvpStatusMessage.value = "Cliente PvP sincronizado.";
+  } catch (e) {
+    pvpStatusMessage.value = String(e);
+  } finally {
+    pvpSyncBusy.value = false;
   }
 }
 
@@ -474,6 +515,67 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
         <p v-if="skinMessage" class="text-sm" :class="skinMessage.startsWith('No se') ? 'text-red-400' : 'text-pc-green'">
           {{ skinMessage }}
         </p>
+      </section>
+
+      <!-- Cliente PvP (actualización independiente del launcher) -->
+      <section v-if="isTauri()" class="mb-6 rounded-xl border border-surface-4 bg-surface-2 p-6">
+        <h2 class="mb-4 flex items-center gap-2 text-lg font-bold">
+          <span class="font-emoji">&#9876;</span> Cliente PvP
+        </h2>
+        <p class="text-sm text-gray-400">
+          El mod del cliente se actualiza solo al lanzar el juego (lee el manifest en GitHub).
+          <strong class="text-gray-300">No necesitás reinstalar el launcher</strong> para cada versión nueva del cliente.
+          Sin internet podés jugar con los mods ya instalados; al reconectar se sincroniza solo.
+        </p>
+        <div v-if="pvpStatusLoading" class="mt-3 text-sm text-gray-500">Consultando versión…</div>
+        <template v-else-if="pvpStatus">
+          <dl class="mt-4 grid gap-2 text-sm">
+            <div class="flex flex-wrap gap-x-2">
+              <dt class="text-gray-500">Publicada:</dt>
+              <dd class="font-semibold text-white">{{ pvpStatus.remoteVersion }}</dd>
+              <dd class="text-gray-500">({{ pvpStatus.remoteFilename }})</dd>
+            </div>
+            <div class="flex flex-wrap gap-x-2">
+              <dt class="text-gray-500">Instalada:</dt>
+              <dd v-if="pvpStatus.installedVersion" class="font-semibold text-white">
+                {{ pvpStatus.installedVersion }}
+              </dd>
+              <dd v-else class="text-amber-400">sin instancia / no detectada</dd>
+              <dd v-if="pvpStatus.installedFilename" class="text-gray-500">
+                ({{ pvpStatus.installedFilename }})
+              </dd>
+            </div>
+            <div class="flex flex-wrap gap-x-2">
+              <dt class="text-gray-500">Estado:</dt>
+              <dd :class="pvpStatus.upToDate ? 'text-pc-green' : 'text-amber-400'">
+                {{ pvpStatus.upToDate ? "Al día" : "Pendiente de sincronizar" }}
+              </dd>
+            </div>
+            <div class="flex flex-wrap gap-x-2">
+              <dt class="text-gray-500">Fuente:</dt>
+              <dd class="text-gray-400">
+                {{ pvpStatus.manifestSource === "remote" ? "manifest en línea" : "respaldo offline" }}
+              </dd>
+            </div>
+          </dl>
+        </template>
+        <p v-if="pvpStatusMessage" class="mt-3 text-sm" :class="pvpStatusMessage.startsWith('No') || pvpStatusMessage.includes('Error') ? 'text-red-400' : 'text-pc-green'">
+          {{ pvpStatusMessage }}
+        </p>
+        <div class="mt-4 flex flex-wrap gap-2">
+          <BaseButton size="sm" variant="secondary" :disabled="pvpStatusLoading" @click="refreshPvpClientStatus">
+            {{ pvpStatusLoading ? "Consultando…" : "Verificar cliente" }}
+          </BaseButton>
+          <BaseButton
+            v-if="pvpInstanceId"
+            size="sm"
+            variant="secondary"
+            :disabled="pvpSyncBusy || pvpStatusLoading"
+            @click="syncPvpClientNow"
+          >
+            {{ pvpSyncBusy ? "Sincronizando…" : "Sincronizar ahora" }}
+          </BaseButton>
+        </div>
       </section>
 
       <!-- Launcher / actualizaciones -->

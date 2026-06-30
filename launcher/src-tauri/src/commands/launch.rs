@@ -135,7 +135,7 @@ async fn spawn_for_instance(
         );
     }
 
-    if auth.user_type == "legacy" {
+    if crate::core::skins::offline::has_global_skin() {
         let _ = crate::core::skins::offline::ensure_for_launch(&game_dir, &mc);
     }
 

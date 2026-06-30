@@ -4,6 +4,7 @@ pub mod catalog;
 pub mod history;
 pub mod mojang;
 pub mod offline;
+pub mod pending_premium;
 
 use std::path::{Path, PathBuf};
 
@@ -188,18 +189,44 @@ pub async fn apply_skin_file(
 
     if let Some(acc) = accounts::active_account() {
         if acc.premium {
-            let _ = accounts::ensure_valid_token(http, &acc.id).await;
-            mojang::upload_premium_skin(http, &acc.id, path, variant).await?;
-            if !history_url.is_empty() {
-                history::push(history_name, history_url, variant);
+            let local = offline::apply_offline_skin(path, &acc.username)?;
+            pending_premium::save_pending(&acc.id, path, variant)?;
+
+            let upload_result = async {
+                let _ = accounts::ensure_valid_token(http, &acc.id).await?;
+                mojang::upload_premium_skin(http, &acc.id, path, variant).await
             }
-            return Ok(ApplySkinResult {
-                ok: true,
-                message: "Skin subida a Mojang. Reiniciá Minecraft para verla.".into(),
-                instances: 0,
-                server_sync: 0,
-                premium: true,
-            });
+            .await;
+
+            match upload_result {
+                Ok(()) => {
+                    pending_premium::clear_pending();
+                    if !history_url.is_empty() {
+                        history::push(history_name, history_url, variant);
+                    }
+                    return Ok(ApplySkinResult {
+                        ok: true,
+                        message: "Skin aplicada en el juego y subida a Mojang.".into(),
+                        instances: local.instances,
+                        server_sync: local.server_sync,
+                        premium: true,
+                    });
+                }
+                Err(e) if e.is_connectivity() => {
+                    if !history_url.is_empty() {
+                        history::push(history_name, history_url, variant);
+                    }
+                    return Ok(ApplySkinResult {
+                        ok: true,
+                        message: "Skin aplicada en el juego. Se subirá a Mojang cuando haya conexión."
+                            .into(),
+                        instances: local.instances,
+                        server_sync: local.server_sync,
+                        premium: true,
+                    });
+                }
+                Err(e) => return Err(e),
+            }
         }
     }
 

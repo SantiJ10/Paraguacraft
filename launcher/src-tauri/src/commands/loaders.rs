@@ -74,3 +74,22 @@ pub async fn install_pvp_bundle(
     let dir = crate::core::instances::instance_dir(&instance_id);
     loaders::pvp::install_bundle(&app, &http, &dir).await
 }
+
+/// Estado del cliente PvP publicado (manifest) vs instalado en una instancia.
+#[tauri::command]
+pub async fn get_pvp_client_status(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    instance_id: Option<String>,
+) -> AppResult<crate::models::PvpClientStatus> {
+    let (http, _net) = state.net_scope();
+    let dir = if let Some(id) = instance_id {
+        Some(crate::core::instances::instance_dir(&id))
+    } else {
+        crate::core::instances::list_local()
+            .into_iter()
+            .find(|i| loaders::normalize(&i.loader) == "paraguacraft-pvp")
+            .map(|i| crate::core::instances::instance_dir(&i.id))
+    };
+    Ok(loaders::pvp::client_status(&app, &http, dir.as_deref()).await)
+}
