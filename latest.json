@@ -1,12 +1,12 @@
 {
-  "version": "7.2.10",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.10/Instalar_Paraguacraft_v7.2.10.exe",
-  "size_bytes": 10828712,
-  "sha256": "6966cc9dcaf48d210fd780a91cf58dc8ce9e981ffa91124f70da77693691d9f1",
-  "notes": "- Boost FPS reforzado: OptiFine Fast Render + preset agresivo (nubes/lluvia/AA off, Fast graphics, AO off)\n- Se quita el System.gc() forzado al cambiar de mundo (lo maneja Patcher): menos freeze al entrar a partida\n- Las opciones de OptiFine aplican al siguiente reinicio\n- Cliente PvP 2.1.12 / Launcher 7.2.10",
+  "version": "7.2.11",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.11/Instalar_Paraguacraft_v7.2.11.exe",
+  "size_bytes": 10829564,
+  "sha256": "fc6931d207df38d33c8bd269c8fabd028cf78352e1e172c367d76c9c45a3e21d",
+  "notes": "- Fix crash al iniciar: mipmapLevels=0 rompía el atlas de texturas (no llegaba al menú)\n- Boost FPS sigue activo (Fast Render, preset OptiFine, sin System.gc forzado)\n- Cliente PvP 2.1.13 / Launcher 7.2.11",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.10/Instalar_Paraguacraft_v7.2.10.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.11/Instalar_Paraguacraft_v7.2.11.exe",
       "signature": ""
     }
   }

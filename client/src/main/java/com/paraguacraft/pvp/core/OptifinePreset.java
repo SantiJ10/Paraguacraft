@@ -51,7 +51,12 @@ public final class OptifinePreset {
         gs.entityShadows = false;
         gs.fancyGraphics = false;   // Fast Graphics: gran ganancia de FPS en PvP.
         gs.ambientOcclusion = 0;    // Smooth Lighting OFF.
-        gs.mipmapLevels = 0;        // Sin mipmaps: menos costo de muestreo.
+        // NO poner mipmapLevels en 0: en 1.8.9 TextureUtil.generateMipmapData
+        // accede al índice 1 y crashea con ArrayIndexOutOfBoundsException al cargar
+        // el atlas de texturas (no llega al menú principal).
+        if (gs.mipmapLevels < 1) {
+            gs.mipmapLevels = 1;
+        }
         gs.saveOptions();
     }
 
