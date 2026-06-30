@@ -3,6 +3,15 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.2.18] - 2026-06-30
+
+### Fixed
+- **Cliente PvP**: manifest remoto sin BOM UTF-8; mirrors (GitHub, jsDelivr) y manifest
+  embebido en `bundled/pvp` cuando falla la red. Detecta correctamente **2.1.21**.
+
+### Changed
+- **Cliente PvP 2.1.21**: Hytils preconfig (solo camas), OneConfig sin Right Shift.
+
 ## [7.2.17] - 2026-06-30
 
 ### Changed

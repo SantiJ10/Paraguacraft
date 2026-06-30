@@ -105,8 +105,17 @@ fn main() {
         let _ = fs::create_dir_all(&res_pvp);
         for entry in fs::read_dir(&repo_bundled).into_iter().flatten().flatten() {
             let p = entry.path();
-            if p.extension().and_then(|e| e.to_str()) == Some("jar") {
-                let _ = fs::copy(&p, res_pvp.join(entry.file_name()));
+            let name = entry.file_name();
+            if p.is_dir() {
+                if name == "defaults" {
+                    let _ = copy_dir_all(&p, &res_pvp.join("defaults"));
+                }
+                continue;
+            }
+            let is_jar = p.extension().and_then(|e| e.to_str()) == Some("jar");
+            let is_manifest = name == "manifest.json";
+            if is_jar || is_manifest {
+                let _ = fs::copy(&p, res_pvp.join(name));
             }
         }
         println!("cargo:rerun-if-changed=../../bundled/pvp");
@@ -346,4 +355,19 @@ fn write_java_pack_zip(
     zip.write_all(&ed_buf).expect("edition bytes");
 
     zip.finish().expect("zip finish");
+}
+
+fn copy_dir_all(src: &Path, dst: &Path) -> std::io::Result<()> {
+    fs::create_dir_all(dst)?;
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let ty = entry.file_type()?;
+        let to = dst.join(entry.file_name());
+        if ty.is_dir() {
+            copy_dir_all(&entry.path(), &to)?;
+        } else {
+            fs::copy(entry.path(), to)?;
+        }
+    }
+    Ok(())
 }
