@@ -37,6 +37,29 @@ public abstract class MixinMinecraftFullscreen {
         throw new AssertionError();
     }
 
+    /**
+     * Self-heal del viewport: si el tamaño real de la ventana (Display) no
+     * coincide con el framebuffer del juego, forzamos un resize. Corrige la
+     * pantalla renderizada "en la esquina" (cuadrante) que puede pasar con el
+     * borderless o con escalado DPI de Windows.
+     */
+    @Inject(method = "runTick", at = @At("HEAD"))
+    private void paraguacraft$healViewport(CallbackInfo ci) {
+        if (!ModConfig.windowedFullscreen && !ModConfig.windowedActive) {
+            return;
+        }
+        try {
+            int w = Display.getWidth();
+            int h = Display.getHeight();
+            if (w > 0 && h > 0 && (w != this.displayWidth || h != this.displayHeight)) {
+                this.displayWidth = w;
+                this.displayHeight = h;
+                this.resize(w, h);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
     @Inject(method = "toggleFullscreen", at = @At("HEAD"), cancellable = true)
     private void paraguacraft$windowedFullscreen(CallbackInfo ci) {
         // Interceptamos si el modo está activado, o si aún estamos en borderless

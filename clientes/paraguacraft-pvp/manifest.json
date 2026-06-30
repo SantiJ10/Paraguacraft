@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.16",
-  "release_tag": "pvp-client-2.1.16",
-  "descripcion": "Cliente PvP 2.1.16 — Windowed Fullscreen pulido (se aplica al instante) + limitador de FPS en segundo plano (estilo Lunar/Badlion, evita thermal throttling en laptops). Optimizaciones propias + OptiFine.",
+  "client_version": "2.1.17",
+  "release_tag": "pvp-client-2.1.17",
+  "descripcion": "Cliente PvP 2.1.17 — fix pantalla renderizada en la esquina (self-heal de viewport, también DPI), HUD de hardware con GPU real (GL_RENDERER) y CPU/RAM bien medidos. Windowed Fullscreen + limitador de FPS en segundo plano.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.16.jar",
-      "sha1": "3e6e47607ef87de0271f6e02604c1312b805e504"
+      "filename": "ParaguacraftPvP-2.1.17.jar",
+      "sha1": "919f6e354060b4ab5c36c88de801ae05b952fd3c"
     },
     {
       "filename": "OptiFine_1.8.9_HD_U_M5.jar",

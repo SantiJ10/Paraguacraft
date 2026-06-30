@@ -3,6 +3,23 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.2.15] - 2026-06-30
+
+### Fixed
+- **Pantalla renderizada "en la esquina"** (cuadrante con el resto en negro): self-heal de
+  viewport: si el tamaño real de la ventana no coincide con el framebuffer, se fuerza el
+  resize. Corrige el problema al usar Windowed Fullscreen y también con escalado DPI de
+  Windows (típico en laptops con pantalla a 125/150%).
+- **HUD de hardware con datos correctos**:
+  - **CPU/RAM ya no marcan "demasiada carga"**: el % de CPU se medía con un `System` nuevo
+    en cada lectura (sysinfo necesita dos muestras para el delta). Ahora se reutiliza una
+    instancia persistente, así el % es real.
+  - **GPU identificada de verdad**: se muestra el nombre real de la placa leído por OpenGL
+    (`GL_RENDERER`), que funciona en cualquier PC (antes la GPU iba fija en "-").
+
+### Changed
+- **Cliente PvP 2.1.17**.
+
 ## [7.2.14] - 2026-06-30
 
 ### Added
