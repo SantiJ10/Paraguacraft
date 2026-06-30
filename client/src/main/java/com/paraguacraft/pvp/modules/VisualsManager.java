@@ -20,8 +20,6 @@ public class VisualsManager {
     private final Minecraft mc = Minecraft.getMinecraft();
     private static final net.minecraft.util.ResourceLocation TIGHTFAULT_TEX = new net.minecraft.util.ResourceLocation("paraguacraft", "textures/gui/tightfault.png");
 
-    private boolean sneakKeyWasPressed = false; // Memoria para el Toggle Sneak
-
     @SubscribeEvent
     public void onBlockHighlight(DrawBlockHighlightEvent event) {
         if (event.target.typeOfHit == MovingObjectPosition.MovingObjectType.BLOCK) {
@@ -66,33 +64,7 @@ public class VisualsManager {
             }
         }
 
-        // --- LA MAGIA: Toggle Sneak con tu Shift nativo ---
-        if (mc.thePlayer != null && mc.currentScreen == null) {
-            // Obtenemos qué tecla tenés configurada en Opciones para agacharte
-            int sneakKey = mc.gameSettings.keyBindSneak.getKeyCode();
-            boolean isKeyPressed = org.lwjgl.input.Keyboard.isKeyDown(sneakKey); 
-
-            if (ModConfig.toggleSneak) {
-                // Si la acabamos de presionar físicamente, invertimos la memoria
-                if (isKeyPressed && !sneakKeyWasPressed) {
-                    ModConfig.isSneakingToggled = !ModConfig.isSneakingToggled;
-                }
-                sneakKeyWasPressed = isKeyPressed;
-
-                // Forzamos al juego a creer que la tecla está o no apretada
-                if (ModConfig.isSneakingToggled) {
-                    net.minecraft.client.settings.KeyBinding.setKeyBindState(sneakKey, true);
-                } else if (!isKeyPressed) {
-                    net.minecraft.client.settings.KeyBinding.setKeyBindState(sneakKey, false);
-                }
-            } else {
-                // Si el mod está apagado, nos aseguramos de destrabarlo
-                if (ModConfig.isSneakingToggled) {
-                    ModConfig.isSneakingToggled = false;
-                    net.minecraft.client.settings.KeyBinding.setKeyBindState(sneakKey, isKeyPressed);
-                }
-            }
-        }
+        // Toggle sneak: vive en QoLManager (LivingUpdate) para respuesta instantánea.
     }
 
     @SubscribeEvent

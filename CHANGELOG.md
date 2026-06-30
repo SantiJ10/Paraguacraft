@@ -3,6 +3,14 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## Cliente PvP 2.1.24 - 2026-06-30
+
+### Fixed
+- **Toggle Sneak**: respuesta instantánea (como Lunar); sneak/sprint se aplican después de
+  `updatePlayerMoveState` vía mixin, no antes donde vanilla los pisaba cada tick.
+- **Auditoría de input**: eliminados usos rotos de `setKeyBindState` para sprint; sneak solo
+  bloquea Shift físico de forma intencional.
+
 ## Cliente PvP 2.1.23 - 2026-06-30
 
 ### Fixed

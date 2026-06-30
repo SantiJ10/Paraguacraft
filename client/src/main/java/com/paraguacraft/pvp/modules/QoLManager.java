@@ -28,6 +28,8 @@ public class QoLManager {
     public static KeyBinding freelookKey;
     public static KeyBinding quickPlayKey;
 
+    private boolean sneakKeyWasPressed = false;
+
     public QoLManager() {
         toggleSprintKey = new KeyBinding("Toggle Sprint", ModConfig.keyToggleSprint, "Paraguacraft PvP");
         fullbrightKey = new KeyBinding("Fullbright", ModConfig.keyFullbright, "Paraguacraft PvP");
@@ -109,19 +111,22 @@ public class QoLManager {
         if (!(event.entityLiving instanceof EntityPlayerSP) || mc.currentScreen != null) {
             return;
         }
-        if (!ModConfig.toggleSprintActive) {
-            return;
-        }
 
-        EntityPlayerSP player = (EntityPlayerSP) event.entityLiving;
-        if (player.movementInput.moveForward <= 0.0F
-                || player.isSneaking()
-                || player.isUsingItem()
-                || player.getFoodStats().getFoodLevel() <= 6
-                || player.isCollidedHorizontally) {
-            return;
+        if (ModConfig.toggleSneak) {
+            int sneakKey = mc.gameSettings.keyBindSneak.getKeyCode();
+            boolean sneakDown = Keyboard.isKeyDown(sneakKey);
+            if (sneakDown && !sneakKeyWasPressed) {
+                ModConfig.isSneakingToggled = !ModConfig.isSneakingToggled;
+            }
+            sneakKeyWasPressed = sneakDown;
+            // Evita que Shift físico se lea como "mantener agachado" en updatePlayerMoveState.
+            KeyBinding.setKeyBindState(sneakKey, false);
+        } else {
+            sneakKeyWasPressed = false;
+            if (ModConfig.isSneakingToggled) {
+                ModConfig.isSneakingToggled = false;
+            }
         }
-        player.setSprinting(true);
     }
 
     private void sendMessage(String msg) {
