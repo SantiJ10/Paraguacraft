@@ -30,7 +30,6 @@ public class ModConfig {
     public static boolean toggleSneak = false; 
     public static boolean isSneakingToggled = false; 
     public static boolean showArmorPercentage = true;
-    public static boolean borderlessWindow = false;
     public static boolean toggleSprintActive = true;
     public static boolean fullbrightActive = true;
 
@@ -42,7 +41,6 @@ public class ModConfig {
     public static int keyQuickPlay = org.lwjgl.input.Keyboard.KEY_GRAVE;
 
     // --- Mods PvP / Hypixel ---
-    public static boolean compactChat = true;
     public static boolean lowFire = true;
     public static boolean coloredBeds = true;
     public static boolean showOpponentPing = false;
@@ -134,7 +132,6 @@ public class ModConfig {
             props.setProperty("showCoords", String.valueOf(showCoords));
             props.setProperty("toggleSneak", String.valueOf(toggleSneak));
             props.setProperty("showArmorPercentage", String.valueOf(showArmorPercentage));
-            props.setProperty("borderlessWindow", String.valueOf(borderlessWindow));
             props.setProperty("toggleSprintActive", String.valueOf(toggleSprintActive));
             props.setProperty("fullbrightActive", String.valueOf(fullbrightActive));
             props.setProperty("keyMenu", String.valueOf(keyMenu));
@@ -143,7 +140,6 @@ public class ModConfig {
             props.setProperty("keyFullbright", String.valueOf(keyFullbright));
             props.setProperty("keyFreelook", String.valueOf(keyFreelook));
             props.setProperty("keyQuickPlay", String.valueOf(keyQuickPlay));
-            props.setProperty("compactChat", String.valueOf(compactChat));
             props.setProperty("lowFire", String.valueOf(lowFire));
             props.setProperty("coloredBeds", String.valueOf(coloredBeds));
             props.setProperty("showOpponentPing", String.valueOf(showOpponentPing));
@@ -236,7 +232,6 @@ public class ModConfig {
             showCoords = Boolean.parseBoolean(props.getProperty("showCoords", String.valueOf(showCoords)));
             toggleSneak = Boolean.parseBoolean(props.getProperty("toggleSneak", String.valueOf(toggleSneak)));
             showArmorPercentage = Boolean.parseBoolean(props.getProperty("showArmorPercentage", String.valueOf(showArmorPercentage)));
-            borderlessWindow = Boolean.parseBoolean(props.getProperty("borderlessWindow", String.valueOf(borderlessWindow)));
             toggleSprintActive = Boolean.parseBoolean(props.getProperty("toggleSprintActive", String.valueOf(toggleSprintActive)));
             fullbrightActive = Boolean.parseBoolean(props.getProperty("fullbrightActive", String.valueOf(fullbrightActive)));
             keyMenu = Integer.parseInt(props.getProperty("keyMenu", String.valueOf(keyMenu)));
@@ -245,7 +240,6 @@ public class ModConfig {
             keyFullbright = Integer.parseInt(props.getProperty("keyFullbright", String.valueOf(keyFullbright)));
             keyFreelook = Integer.parseInt(props.getProperty("keyFreelook", String.valueOf(keyFreelook)));
             keyQuickPlay = Integer.parseInt(props.getProperty("keyQuickPlay", String.valueOf(keyQuickPlay)));
-            compactChat = Boolean.parseBoolean(props.getProperty("compactChat", String.valueOf(compactChat)));
             lowFire = Boolean.parseBoolean(props.getProperty("lowFire", String.valueOf(lowFire)));
             coloredBeds = Boolean.parseBoolean(props.getProperty("coloredBeds", String.valueOf(coloredBeds)));
             showOpponentPing = Boolean.parseBoolean(props.getProperty("showOpponentPing", String.valueOf(showOpponentPing)));

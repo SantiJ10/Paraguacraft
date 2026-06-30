@@ -15,6 +15,5 @@ public final class ModConfigApply {
         }
         applied = true;
         ModConfig.loaded = true;
-        BorderlessWindowManager.scheduleApplyFromConfig();
     }
 }

@@ -1,12 +1,12 @@
 {
-  "version": "7.2.8",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.8/Instalar_Paraguacraft_v7.2.8.exe",
-  "size_bytes": 10841620,
-  "sha256": "2bd325b14c5b245dd345115f41c33c668ed1e3d6926ec09a5739d1026eb572d3",
-  "notes": "- Patcher (Sk1er) integrado para mejor rendimiento y render\n- Los compañeros ya no desaparecen/reaparecen (jugadores no se cullan)\n- Skins de las salas de espera arregladas (estado GL de nametags)\n- Cliente PvP 2.1.10 / Launcher 7.2.8",
+  "version": "7.2.9",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.9/Instalar_Paraguacraft_v7.2.9.exe",
+  "size_bytes": 10828355,
+  "sha256": "fd830ee1aff7d0ec634831aa84468c2940bf5050cf75db87daa3376a387c584c",
+  "notes": "- Se quita el Borderless propio (lo hace Patcher mejor, evita conflictos de ventana)\n- Se quita el Chat compacto propio (lo hace Patcher, evita doble chat)\n- Patcher (Sk1er) + OptiFine siguen integrados\n- Cliente PvP 2.1.11 / Launcher 7.2.9",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.8/Instalar_Paraguacraft_v7.2.8.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.9/Instalar_Paraguacraft_v7.2.9.exe",
       "signature": ""
     }
   }
