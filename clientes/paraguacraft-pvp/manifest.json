@@ -3,17 +3,21 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.9",
-  "release_tag": "pvp-client-2.1.9",
-  "descripcion": "Cliente PvP 2.1.9 — fix quiebre de texturas al terminar la partida, borderless mas estable, titulos del centro (FINAL KILL, etc.) al chat y overlay de musica con YouTube (titulo + caratula).",
+  "client_version": "2.1.10",
+  "release_tag": "pvp-client-2.1.10",
+  "descripcion": "Cliente PvP 2.1.10 — Patcher (Sk1er) integrado para mejor rendimiento y render, jugadores ya no se cullan (no desaparecen compañeros), estado GL de nametags endurecido (skins de lobby), y mejoras previas (titulos al chat, overlay YouTube, borderless).",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.9.jar",
-      "sha1": "5d92a3ca529854a6f41c24625aa46f6ab43d3d58"
+      "filename": "ParaguacraftPvP-2.1.10.jar",
+      "sha1": "4a66754b6f8c39a516ac6696e2fa10c13d96ba03"
     },
     {
       "filename": "OptiFine_1.8.9_HD_U_M5.jar",
       "sha1": "d362d58a28f5373b141b9e426e8e160638bfafcd"
+    },
+    {
+      "filename": "Patcher-1.8.9.jar",
+      "sha1": "4421d04c0e2e632e4fa4bb26b621b66ac7f99159"
     }
   ]
 }

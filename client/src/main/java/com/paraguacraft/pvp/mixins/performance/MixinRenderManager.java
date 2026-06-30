@@ -4,6 +4,7 @@ import com.paraguacraft.pvp.core.PerformanceConfig;
 import net.minecraft.client.renderer.culling.ICamera;
 import net.minecraft.client.renderer.entity.RenderManager;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.player.EntityPlayer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -30,6 +31,12 @@ public class MixinRenderManager {
         CallbackInfoReturnable<Boolean> cir
     ) {
         if (!PerformanceConfig.entityCull || entity == null) {
+            return;
+        }
+        // NUNCA cullar jugadores: el frustum check parpadea en los bordes de la
+        // pantalla y hacía que los compañeros "desaparecieran y volvieran".
+        // El culling solo aplica a mobs/objetos lejanos.
+        if (entity instanceof EntityPlayer) {
             return;
         }
         // Nunca cullar al jugador local ni entidades montadas sobre él.

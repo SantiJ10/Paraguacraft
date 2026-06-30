@@ -3,6 +3,18 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.2.8] - 2026-06-30
+
+### Added
+- **Patcher (Sk1er) integrado** al cliente PvP: coremod 1.8.9 que arregla varios bugs de render y mejora rendimiento. Se distribuye junto con OptiFine en `bundled/pvp` (no en Releases).
+
+### Fixed
+- **Compañeros que desaparecian y volvian en partida**: el culling de entidades hacia un chequeo de frustum sobre jugadores lejanos y parpadeaban. Ahora los jugadores NUNCA se cullan (el culling solo aplica a mobs/objetos).
+- **Skins rotas en salas de espera**: se endurecio el estado GL al dibujar logos/ping en los nametags (push/pop + reset de color y textura) para que el modelo/nametag siguiente no herede estado sucio.
+
+### Changed
+- **Cliente PvP 2.1.10**.
+
 ## [7.2.7] - 2026-06-29
 
 ### Added
