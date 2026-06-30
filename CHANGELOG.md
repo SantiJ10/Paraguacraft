@@ -3,6 +3,15 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.2.9] - 2026-06-30
+
+### Removed
+- **Borderless** (Win32 propio) eliminado del cliente: lo maneja **Patcher** (Windowed Fullscreen), que lo hace mejor y evita conflictos de ventana/captura. Se borraron `BorderlessWindowManager` y `Win32Helper`.
+- **Chat compacto** propio eliminado: lo maneja **Patcher** (Compact Chat). Evita doble procesamiento del chat. Se borraron `MixinGuiNewChat` y `CompactChatHandler`.
+
+### Changed
+- **Cliente PvP 2.1.11**.
+
 ## [7.2.8] - 2026-06-30
 
 ### Added

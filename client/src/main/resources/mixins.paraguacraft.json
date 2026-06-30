@@ -24,7 +24,6 @@
   "client": [
     "MixinDisplayTitle",
     "client.MixinFontRenderer",
-    "client.MixinGuiNewChat",
     "client.MixinEntityRendererFreelook",
     "client.MixinEntityFreelook",
     "client.MixinBedColor"

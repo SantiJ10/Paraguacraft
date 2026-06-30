@@ -5,8 +5,6 @@ import com.paraguacraft.pvp.gui.theme.UiEasing;
 import com.paraguacraft.pvp.gui.theme.UiTheme;
 import com.paraguacraft.pvp.core.OptifinePreset;
 import com.paraguacraft.pvp.core.PerformanceConfig;
-import com.paraguacraft.pvp.core.BorderlessWindowManager;
-import com.paraguacraft.pvp.core.ModConfigFeedback;
 import com.paraguacraft.pvp.modules.ModConfig;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
@@ -75,7 +73,6 @@ public class GuiParaguaMenu extends GuiScreen {
         new ModEntry(9, "paraguacraft.menu.mod.scoreboard", 2),
         new ModEntry(10, "paraguacraft.menu.mod.toggle_sneak", 3),
         new ModEntry(11, "paraguacraft.menu.mod.dynamic_fov", 3),
-        new ModEntry(13, "paraguacraft.menu.mod.borderless", 3),
         new ModEntry(20, "paraguacraft.menu.mod.old_anim", 3),
         new ModEntry(19, "paraguacraft.menu.mod.boost_fps", 6),
         new ModEntry(21, "paraguacraft.menu.mod.entity_cull", 6),
@@ -97,7 +94,6 @@ public class GuiParaguaMenu extends GuiScreen {
         new ModEntry(37, "paraguacraft.menu.mod.tnt_countdown", 2),
         new ModEntry(38, "paraguacraft.menu.mod.bw_resources", 2),
         new ModEntry(39, "paraguacraft.menu.mod.item_3d", 3),
-        new ModEntry(40, "paraguacraft.menu.mod.compact_chat", 2),
         new ModEntry(41, "paraguacraft.menu.mod.low_fire", 2),
         new ModEntry(42, "paraguacraft.menu.mod.colored_beds", 2),
         new ModEntry(43, "paraguacraft.menu.mod.opponent_ping", 2),
@@ -475,7 +471,6 @@ public class GuiParaguaMenu extends GuiScreen {
             case 10: return ModConfig.toggleSneak;
             case 11: return ModConfig.dynamicFov;
             case 12: return ModConfig.showHeldItem;
-            case 13: return ModConfig.borderlessWindow;
             case 14: return ModConfig.showServerHUD;
             case 15: return ModConfig.showCompass;
             case 16: return true;
@@ -502,7 +497,6 @@ public class GuiParaguaMenu extends GuiScreen {
             case 37: return ModConfig.showTntCountdown;
             case 38: return ModConfig.showBedwarsResources;
             case 39: return ModConfig.forceItem3d;
-            case 40: return ModConfig.compactChat;
             case 41: return ModConfig.lowFire;
             case 42: return ModConfig.coloredBeds;
             case 43: return ModConfig.showOpponentPing;
@@ -575,11 +569,6 @@ public class GuiParaguaMenu extends GuiScreen {
                 }
                 ModConfig.save();
                 break;
-            case 13:
-                ModConfig.borderlessWindow = !ModConfig.borderlessWindow;
-                BorderlessWindowManager.apply(ModConfig.borderlessWindow);
-                ModConfigFeedback.notifyToggle("Borderless", ModConfig.borderlessWindow);
-                break;
             case 28:
                 PerformanceConfig.armorStandCull = !PerformanceConfig.armorStandCull;
                 ModConfig.save();
@@ -608,7 +597,6 @@ public class GuiParaguaMenu extends GuiScreen {
             case 37: ModConfig.showTntCountdown = !ModConfig.showTntCountdown; break;
             case 38: ModConfig.showBedwarsResources = !ModConfig.showBedwarsResources; break;
             case 39: ModConfig.forceItem3d = !ModConfig.forceItem3d; break;
-            case 40: ModConfig.compactChat = !ModConfig.compactChat; break;
             case 41: ModConfig.lowFire = !ModConfig.lowFire; break;
             case 42: ModConfig.coloredBeds = !ModConfig.coloredBeds; break;
             case 43: ModConfig.showOpponentPing = !ModConfig.showOpponentPing; break;

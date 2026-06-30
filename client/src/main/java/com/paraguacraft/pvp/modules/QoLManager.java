@@ -14,7 +14,6 @@ import org.lwjgl.input.Keyboard;
 import com.paraguacraft.pvp.gui.GuiParaguaMenu; 
 import com.paraguacraft.pvp.gui.GuiEditHUD;
 import com.paraguacraft.pvp.gui.GuiHypixelQuickPlay;
-import com.paraguacraft.pvp.core.BorderlessWindowManager;
 import com.paraguacraft.pvp.modules.FreelookManager;
 
 public class QoLManager {
@@ -96,8 +95,6 @@ public class QoLManager {
         if (ModConfig.fullbrightActive && mc.gameSettings.gammaSetting < 100.0F) {
             mc.gameSettings.gammaSetting = 100.0F;
         }
-
-        BorderlessWindowManager.clientTick();
     }
 
     @SubscribeEvent
