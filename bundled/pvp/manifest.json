@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.24",
-  "release_tag": "pvp-client-2.1.24",
-  "descripcion": "Cliente PvP 2.1.24 — fix Toggle Sneak instantaneo + auditoria sprint/sneak input.",
+  "client_version": "2.1.25",
+  "release_tag": "pvp-client-2.1.25",
+  "descripcion": "Cliente PvP 2.1.25 — Toggle Sprint en Mod Menu (sin depender de V).",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.24.jar",
-      "sha1": "2ce6c3b591fe7c41adca5f1c9684e3cde8edb477"
+      "filename": "ParaguacraftPvP-2.1.25.jar",
+      "sha1": "8b516dee3a64f3659f4fee9f62ba1b7bef1d570e"
     },
     {
       "filename": "Hytils-Reborn-1.8.9-forge-1.7.5.jar",

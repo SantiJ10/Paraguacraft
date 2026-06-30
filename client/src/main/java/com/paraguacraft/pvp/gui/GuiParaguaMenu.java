@@ -72,6 +72,7 @@ public class GuiParaguaMenu extends GuiScreen {
         new ModEntry(4, "paraguacraft.menu.mod.no_hurt_cam", 2),
         new ModEntry(9, "paraguacraft.menu.mod.scoreboard", 2),
         new ModEntry(10, "paraguacraft.menu.mod.toggle_sneak", 3),
+        new ModEntry(53, "paraguacraft.menu.mod.toggle_sprint", 3),
         new ModEntry(11, "paraguacraft.menu.mod.dynamic_fov", 3),
         new ModEntry(13, "paraguacraft.menu.mod.windowed_fullscreen", 3),
         new ModEntry(20, "paraguacraft.menu.mod.old_anim", 3),
@@ -471,6 +472,7 @@ public class GuiParaguaMenu extends GuiScreen {
             case 8: return ModConfig.showPotions;
             case 9: return ModConfig.scoreboardEnabled;
             case 10: return ModConfig.toggleSneak;
+            case 53: return ModConfig.toggleSprintActive;
             case 11: return ModConfig.dynamicFov;
             case 12: return ModConfig.showHeldItem;
             case 13: return ModConfig.windowedFullscreen;
@@ -528,6 +530,7 @@ public class GuiParaguaMenu extends GuiScreen {
             case 8: ModConfig.showPotions = !ModConfig.showPotions; break;
             case 9: ModConfig.scoreboardEnabled = !ModConfig.scoreboardEnabled; break;
             case 10: ModConfig.toggleSneak = !ModConfig.toggleSneak; ModConfig.isSneakingToggled = false; break;
+            case 53: ModConfig.toggleSprintActive = !ModConfig.toggleSprintActive; break;
             case 11: ModConfig.dynamicFov = !ModConfig.dynamicFov; break;
             case 12: ModConfig.showHeldItem = !ModConfig.showHeldItem; break;
             case 13:
