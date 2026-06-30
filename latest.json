@@ -1,12 +1,12 @@
 {
-  "version": "7.2.14",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.14/Instalar_Paraguacraft_v7.2.14.exe",
-  "size_bytes": 10309236,
-  "sha256": "be4dccae7ec029e302c651db725c62332a0ab0808ddb5a82c054c3c7f152aecc",
-  "notes": "- Limitador de FPS en segundo plano (estilo Lunar/Badlion): baja los FPS al minimizar para no calentar y evitar el thermal throttling en laptops\n- Windowed Fullscreen pulido: al activarlo desde el menú ya no se ve la ventana achicada, aplica al instante\n- Cliente PvP 2.1.16 / Launcher 7.2.14",
+  "version": "7.2.15",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.15/Instalar_Paraguacraft_v7.2.15.exe",
+  "size_bytes": 10321677,
+  "sha256": "397c05337880548801b6555bd2e4877fbbc22f49246ee13e5c69eb3a6c5a73ce",
+  "notes": "- Fix pantalla renderizada en la esquina (self-heal de viewport): corrige el cuadrante en negro con Windowed Fullscreen y con escalado DPI de Windows\n- HUD de hardware corregido: CPU/RAM bien medidos (ya no marcan carga falsa) y GPU identificada de verdad por OpenGL\n- Cliente PvP 2.1.17 / Launcher 7.2.15",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.14/Instalar_Paraguacraft_v7.2.14.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.15/Instalar_Paraguacraft_v7.2.15.exe",
       "signature": ""
     }
   }

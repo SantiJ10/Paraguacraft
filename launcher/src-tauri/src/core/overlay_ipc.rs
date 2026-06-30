@@ -36,8 +36,10 @@ fn write_fixed_str(buf: &mut [u8], off: usize, max: usize, text: &str) {
     buf[off..off + len].copy_from_slice(&bytes[..len]);
 }
 
-pub fn write_snapshot() {
-    let mut sys = System::new();
+pub fn write_snapshot(sys: &mut System) {
+    // sysinfo calcula el % de CPU por DELTA entre dos refrescos: por eso el
+    // System se reutiliza entre llamadas (antes se creaba nuevo cada vez y daba
+    // siempre 0/100 o valores basura, "demasiada carga").
     sys.refresh_cpu_all();
     sys.refresh_memory();
 
@@ -73,8 +75,13 @@ pub fn write_snapshot() {
 
 pub fn watch(stop: Arc<AtomicBool>) {
     std::thread::spawn(move || {
+        // System persistente: necesario para que el % de CPU se calcule por delta.
+        let mut sys = System::new();
+        // Primer refresco "de cebado": la primera medición de CPU siempre es 0.
+        sys.refresh_cpu_all();
+        std::thread::sleep(Duration::from_millis(250));
         while !stop.load(Ordering::Relaxed) {
-            write_snapshot();
+            write_snapshot(&mut sys);
             std::thread::sleep(Duration::from_millis(500));
         }
         let _ = std::fs::remove_file(ipc_path());
