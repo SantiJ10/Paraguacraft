@@ -1,0 +1,97 @@
+---
+const features = [
+  {
+    icon: "⚡",
+    accent: "green",
+    title: "0% CPU en segundo plano",
+    desc: "Al lanzar Minecraft, Paraguacraft apaga red, caches y runtime async. Tu PC solo corre el juego.",
+  },
+  {
+    icon: "🔧",
+    accent: "green",
+    title: "Reparar instancia + logs",
+    desc: "Detecta JARs corruptos, reinstala vanilla/loader y muestra latest.log sin salir del launcher.",
+  },
+  {
+    icon: "🛒",
+    accent: "green",
+    title: "Tienda Modrinth + CurseForge",
+    desc: "Mods, shaders, packs, plugins, datapacks y modpacks .mrpack — filtros reales de versión y loader.",
+  },
+  {
+    icon: "📦",
+    accent: "purple",
+    title: "Modpacks CurseForge .zip",
+    desc: "Importá modpacks CF desde archivo o tienda. Exportá instancias completas a .zip portable.",
+  },
+  {
+    icon: "🎮",
+    accent: "purple",
+    title: "Gestor de mods por instancia",
+    desc: "Buscar, agregar .jar/.zip, eliminar y abrir la carpeta mods sin explorador manual.",
+  },
+  {
+    icon: "⭐",
+    accent: "green",
+    title: "Servidores favoritos",
+    desc: "Guardá IPs del grupo y unite con un clic (--server / --port) desde el inicio.",
+  },
+  {
+    icon: "🤖",
+    accent: "purple",
+    title: "Diagnóstico de crashes con IA",
+    desc: "Analiza logs al crashear y sugiere fixes: Java incorrecto, mods, RAM, GPU.",
+  },
+  {
+    icon: "🌐",
+    accent: "green",
+    title: "Servidores Playit.gg",
+    desc: "Paper/Fabric/Forge local con túnel público sin abrir puertos en el router.",
+  },
+  {
+    icon: "🦀",
+    accent: "green",
+    title: "Descargas Rust ultrarrápidas",
+    desc: "Motor async con SHA-1, cola con progreso por archivo y escritura atómica.",
+  },
+];
+---
+
+<section id="features" class="py-24 lg:py-28">
+  <div class="container-page">
+    <div class="reveal mb-14 text-center">
+      <p class="mb-3 text-sm font-bold uppercase tracking-widest text-pc-green">Features</p>
+      <h2 class="text-3xl font-black md:text-4xl">Todo lo que necesitás. Nada que te frene.</h2>
+      <p class="mx-auto mt-4 max-w-2xl text-fg-muted">
+        Launcher de grado comercial para jugadores competitivos, modders y grupos de amigos.
+      </p>
+    </div>
+
+    <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      {
+        features.map((f, i) => (
+          <article
+            class:list={[
+              "reveal card transition duration-300 hover:-translate-y-1",
+              f.accent === "purple"
+                ? "hover:border-pc-purple/40 hover:shadow-lg hover:shadow-pc-purple/5"
+                : "hover:border-pc-green/40 hover:shadow-lg hover:shadow-pc-green/5",
+            ]}
+            style={`transition-delay:${i * 40}ms`}
+          >
+            <div
+              class:list={[
+                "mb-4 flex h-12 w-12 items-center justify-center rounded-xl text-2xl",
+                f.accent === "purple" ? "bg-pc-purple/15" : "bg-pc-green/15",
+              ]}
+            >
+              {f.icon}
+            </div>
+            <h3 class="mb-2 text-lg font-bold">{f.title}</h3>
+            <p class="text-sm leading-relaxed text-fg-muted">{f.desc}</p>
+          </article>
+        ))
+      }
+    </div>
+  </div>
+</section>

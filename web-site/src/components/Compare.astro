@@ -1,0 +1,74 @@
+---
+const rows = [
+  {
+    feature: "CPU en segundo plano",
+    paraguacraft: "0% diseñado (runtime apagado al jugar)",
+    python: "Timers y red activos",
+    otros: "Variable; muchos consumen RAM/CPU",
+  },
+  {
+    feature: "Motor de descargas",
+    paraguacraft: "Rust async + SHA-1 + cola con progreso",
+    python: "requests / hilos Python",
+    otros: "Depende del launcher",
+  },
+  {
+    feature: "Tienda integrada",
+    paraguacraft: "Modrinth + CurseForge + modpacks .mrpack/.zip",
+    python: "Modrinth + CF (legacy)",
+    otros: "A menudo solo Modrinth o manual",
+  },
+  {
+    feature: "Auto-update",
+    paraguacraft: "Instalador NSIS + latest.json SHA-256",
+    python: "Instalador Inno Setup",
+    otros: "Variable",
+  },
+  {
+    feature: "Stack técnico",
+    paraguacraft: "Tauri v2 + Rust + Vue 3",
+    python: "Python + pywebview",
+    otros: "Electron / Java / C#",
+  },
+];
+---
+
+<section id="compare" class="py-24 lg:py-28">
+  <div class="container-page">
+    <div class="reveal mb-12 max-w-2xl">
+      <span class="badge border border-brand-400/30 bg-brand-400/10 text-brand-300">Comparativa</span>
+      <h2 class="mt-3 text-3xl font-black md:text-4xl">
+        Paraguacraft vs <span class="gradient-text">launcher anterior</span>
+      </h2>
+      <p class="mt-4 text-fg-muted">
+        Migración transparente: mismo nombre de instalador (<code class="text-brand-300">Instalar_Paraguacraft_vX.exe</code>)
+        y actualización vía <code class="text-brand-300">latest.json</code>.
+      </p>
+    </div>
+
+    <div class="reveal overflow-x-auto rounded-2xl border border-bg-border">
+      <table class="table-fg min-w-full text-left text-sm">
+        <thead class="bg-bg-soft text-xs uppercase tracking-wider text-gray-500">
+          <tr>
+            <th class="px-5 py-4 font-bold">Aspecto</th>
+            <th class="px-5 py-4 font-bold text-brand-300">Paraguacraft 7.x</th>
+            <th class="px-5 py-4 font-bold">Launcher Python 6.x</th>
+            <th class="px-5 py-4 font-bold">Otros launchers</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-bg-border bg-bg-card">
+          {
+            rows.map((r) => (
+              <tr class="hover:bg-bg-hover/50">
+                <td class="px-5 py-4">{r.feature}</td>
+                <td class="px-5 py-4 text-brand-400">{r.paraguacraft}</td>
+                <td class="px-5 py-4 text-fg-muted">{r.python}</td>
+                <td class="px-5 py-4 text-fg-muted">{r.otros}</td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>

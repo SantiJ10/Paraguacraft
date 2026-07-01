@@ -1,0 +1,211 @@
+---
+const shots = [
+  {
+    src: "/screenshots/pvp_menu.png",
+    label: "Menú principal",
+    desc: "GUI estilo Lunar con fondo de constelaciones animado",
+  },
+  {
+    src: "/screenshots/pvp_game.png",
+    label: "BedWars en Hypixel",
+    desc: "HUD de FPS/ping, reach, combo, keystrokes y armadura — 1839 FPS",
+  },
+];
+
+const perks = [
+  { icon: "🚀", title: "Boost FPS integrado", desc: "OptiFine Fast Render + culling propio + limpieza de memoria. Hasta 3–4× más FPS que vanilla." },
+  { icon: "🎯", title: "HUD competitivo", desc: "Reach, combo, keystrokes, CPS, FPS/ping y porcentaje de armadura — todo arrastrable." },
+  { icon: "🟢", title: "100% legal en Hypixel", desc: "Solo visual y de rendimiento. Sin reach hack, autoclicker ni macros." },
+  { icon: "🎵", title: "Overlay de música", desc: "Spotify y YouTube/YT Music con carátula y nombre, dentro del juego." },
+  { icon: "🧊", title: "Freelook + QoL", desc: "Cámara libre, toggle sprint/sneak, fullbright, camas de color, ping en nametag." },
+  { icon: "⚙️", title: "Limpio y liviano", desc: "Sin login ni mods extra. Forge 1.8.9 + OptiFine se sincronizan desde el launcher con SHA-1." },
+];
+
+// Promedios de FPS aproximados en BedWars (Hypixel), 1.8.9, render 4-6 chunks.
+const fps = [
+  {
+    tier: "Gama baja",
+    spec: "Intel UHD / Ryzen 3 · 4 GB",
+    vanilla: "60 – 110",
+    pgc: "230 – 380",
+    mult: "≈ 3.5×",
+  },
+  {
+    tier: "Gama media",
+    spec: "GTX 1050 / 1650 · 8 GB",
+    vanilla: "180 – 350",
+    pgc: "700 – 1100",
+    mult: "≈ 3×",
+  },
+  {
+    tier: "Gama alta",
+    spec: "RTX 3060+ / Ryzen 5+ · 16 GB",
+    vanilla: "450 – 800",
+    pgc: "1500 – 2200",
+    mult: "≈ 3×",
+  },
+];
+
+const compare = [
+  { feat: "Precio", pgc: "Gratis", lunar: "Gratis", badlion: "Gratis / Plus pago", vanilla: "Gratis" },
+  { feat: "Boost de FPS", pgc: "Fast Render + culling + anti-leak", lunar: "Alto", badlion: "Alto", vanilla: "Solo OptiFine" },
+  { feat: "Mods Hypixel-safe", pgc: "Reach, combo, keystrokes, freelook", lunar: "Sí", badlion: "Sí", vanilla: "Manual" },
+  { feat: "Overlay de música", pgc: "Spotify + YouTube con carátula", lunar: "Solo Spotify", badlion: "Solo Spotify", vanilla: "No" },
+  { feat: "Quick Play Hypixel", pgc: "Sí (menú integrado)", lunar: "Sí", badlion: "Sí", vanilla: "No" },
+  { feat: "Cuenta / login extra", pgc: "No requiere", lunar: "Cuenta Lunar", badlion: "Cuenta Badlion", vanilla: "No" },
+  { feat: "Peso / RAM del cliente", pgc: "Liviano (Forge)", lunar: "Medio", badlion: "Pesado", vanilla: "Mínimo" },
+];
+---
+
+<section id="pvp" class="relative overflow-hidden border-y border-bg-border bg-bg-soft py-24 lg:py-32">
+  <div class="pointer-events-none absolute -right-32 top-10 h-96 w-96 rounded-full bg-pc-purple/10 blur-3xl"></div>
+  <div class="pointer-events-none absolute -left-32 bottom-10 h-96 w-96 rounded-full bg-pc-green/10 blur-3xl"></div>
+
+  <div class="container-page relative z-10">
+    <!-- Header -->
+    <div class="reveal mx-auto mb-14 max-w-3xl text-center">
+      <span class="badge border border-pc-purple/30 bg-pc-purple/10 text-pc-purple">Cliente destacado</span>
+      <h2 class="mt-4 text-3xl font-black tracking-tight md:text-5xl">
+        Paraguacraft <span class="gradient-text">PvP</span>
+      </h2>
+      <p class="mx-auto mt-4 max-w-2xl text-lg text-fg-muted">
+        Cliente competitivo de <strong class="text-fg">Minecraft 1.8.9</strong> listo para Hypixel: Forge + OptiFine
+        y un mod propio con HUD estilo Lunar y optimizaciones integradas. <strong class="text-fg">Más FPS, cero
+        configuración, sin login ni mods extra</strong> y se actualiza solo desde el launcher.
+      </p>
+      <div class="mt-6 flex flex-wrap justify-center gap-2 text-xs font-semibold">
+        <span class="rounded-full border border-pc-green/30 bg-pc-green/10 px-3 py-1 text-pc-green">1.8.9 · Forge</span>
+        <span class="rounded-full border border-pc-green/30 bg-pc-green/10 px-3 py-1 text-pc-green">OptiFine</span>
+        <span class="rounded-full border border-pc-green/30 bg-pc-green/10 px-3 py-1 text-pc-green">Hypixel-safe</span>
+        <span class="rounded-full border border-pc-green/30 bg-pc-green/10 px-3 py-1 text-pc-green">Auto-update SHA-1</span>
+      </div>
+    </div>
+
+    <!-- Screenshots -->
+    <div class="reveal mb-16 grid gap-6 lg:grid-cols-2">
+      {
+        shots.map((s) => (
+          <figure class="group overflow-hidden rounded-2xl border border-pc-border bg-pc-dark/60 shadow-2xl shadow-pc-green/5">
+            <div class="flex items-center gap-1.5 border-b border-pc-border bg-pc-panel/60 px-4 py-3">
+              <span class="h-3 w-3 rounded-full bg-[#FF5F57]" />
+              <span class="h-3 w-3 rounded-full bg-[#FEBC2E]" />
+              <span class="h-3 w-3 rounded-full bg-[#28C840]" />
+              <span class="ml-3 font-mono text-xs text-gray-500">Paraguacraft PvP · {s.label}</span>
+            </div>
+            <img
+              src={s.src}
+              alt={`Paraguacraft PvP — ${s.label}`}
+              loading="lazy"
+              decoding="async"
+              class="block w-full h-auto transition duration-500 group-hover:scale-[1.02]"
+            />
+            <figcaption class="px-5 py-4 text-sm text-fg-muted">{s.desc}</figcaption>
+          </figure>
+        ))
+      }
+    </div>
+
+    <!-- Perks -->
+    <div class="reveal mb-20 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      {
+        perks.map((p) => (
+          <article class="card transition duration-300 hover:-translate-y-1 hover:border-pc-green/40">
+            <div class="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-pc-green/15 text-xl">{p.icon}</div>
+            <h3 class="mb-1.5 font-bold">{p.title}</h3>
+            <p class="text-sm leading-relaxed text-fg-muted">{p.desc}</p>
+          </article>
+        ))
+      }
+    </div>
+
+    <!-- FPS benchmarks -->
+    <div class="reveal mb-20">
+      <div class="mb-8 text-center">
+        <p class="mb-2 text-sm font-bold uppercase tracking-widest text-pc-green">FPS reales</p>
+        <h3 class="text-2xl font-black md:text-3xl">Hasta <span class="gradient-text">3–4× más FPS</span> que vanilla</h3>
+        <p class="mx-auto mt-3 max-w-xl text-sm text-gray-500">
+          Promedios en BedWars (Hypixel) con render de 4–6 chunks. Vanilla = 1.8.9 sin mods. Los números varían según
+          GPU, drivers y resolución.
+        </p>
+      </div>
+
+      <div class="grid gap-5 md:grid-cols-3">
+        {
+          fps.map((row) => (
+            <div class="rounded-2xl border border-bg-border bg-bg-card p-6">
+              <div class="mb-4 flex items-center justify-between">
+                <h4 class="font-bold">{row.tier}</h4>
+                <span class="rounded-full bg-pc-green/15 px-3 py-1 text-xs font-bold text-pc-green">{row.mult}</span>
+              </div>
+              <p class="mb-5 text-xs text-gray-500">{row.spec}</p>
+              <div class="space-y-3">
+                <div>
+                  <div class="mb-1 flex justify-between text-xs text-gray-500">
+                    <span>Vanilla</span>
+                    <span>{row.vanilla} FPS</span>
+                  </div>
+                  <div class="h-2 overflow-hidden rounded-full bg-pc-border">
+                    <div class="h-full w-1/4 rounded-full bg-gray-600" />
+                  </div>
+                </div>
+                <div>
+                  <div class="mb-1 flex justify-between text-xs">
+                    <span class="font-semibold text-pc-green">Paraguacraft PvP</span>
+                    <span class="font-bold text-pc-green">{row.pgc} FPS</span>
+                  </div>
+                  <div class="h-2 overflow-hidden rounded-full bg-pc-border">
+                    <div class="h-full w-full rounded-full bg-gradient-to-r from-pc-green to-pc-purple" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+
+    <!-- Comparison vs other clients -->
+    <div class="reveal">
+      <div class="mb-8 max-w-2xl">
+        <p class="mb-2 text-sm font-bold uppercase tracking-widest text-pc-purple">Comparativa</p>
+        <h3 class="text-2xl font-black md:text-3xl">Paraguacraft PvP vs otros clientes</h3>
+        <p class="mt-3 text-sm text-fg-muted">Lo mejor de un client premium, gratis y sin cuenta extra.</p>
+      </div>
+
+      <div class="overflow-x-auto rounded-2xl border border-bg-border">
+        <table class="table-fg min-w-full text-left text-sm">
+          <thead class="bg-bg-soft text-xs uppercase tracking-wider text-gray-500">
+            <tr>
+              <th class="px-5 py-4 font-bold">Aspecto</th>
+              <th class="px-5 py-4 font-bold text-pc-green">Paraguacraft PvP</th>
+              <th class="px-5 py-4 font-bold">Lunar Client</th>
+              <th class="px-5 py-4 font-bold">Badlion</th>
+              <th class="px-5 py-4 font-bold">Vanilla + OptiFine</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-bg-border bg-bg-card">
+            {
+              compare.map((r) => (
+                <tr class="hover:bg-bg-hover/50">
+                  <td class="px-5 py-4">{r.feat}</td>
+                  <td class="px-5 py-4 text-brand-400">{r.pgc}</td>
+                  <td class="px-5 py-4 text-fg-muted">{r.lunar}</td>
+                  <td class="px-5 py-4 text-fg-muted">{r.badlion}</td>
+                  <td class="px-5 py-4 text-fg-muted">{r.vanilla}</td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="mt-10 flex flex-wrap items-center justify-center gap-4 text-center">
+        <a href="/download" class="btn-primary px-8 py-3.5">Descargar y jugar PvP</a>
+        <a href="/#compare" class="btn-secondary">Comparar el launcher →</a>
+      </div>
+      <p class="mt-4 text-center text-xs text-gray-600">
+        El cliente PvP se instala y actualiza automáticamente desde el launcher. No requiere descargas aparte.
+      </p>
+    </div>
+  </div>
+</section>

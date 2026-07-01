@@ -28,3 +28,13 @@ pub async fn ai_assist(
     )
     .await
 }
+
+#[tauri::command]
+pub fn ai_status() -> ai::AiStatus {
+    ai::ai_status()
+}
+
+#[tauri::command]
+pub fn save_groq_api_key(key: String) -> AppResult<()> {
+    crate::config::keys::save_groq_api_key(&key)
+}

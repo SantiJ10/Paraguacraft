@@ -22,6 +22,26 @@ pub struct AiResponse {
     pub suggestions: Vec<String>,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiStatus {
+    pub configured: bool,
+    pub provider: Option<String>,
+}
+
+pub fn ai_status() -> AiStatus {
+    keys::resolve_llm_config().map_or(
+        AiStatus {
+            configured: false,
+            provider: None,
+        },
+        |llm| AiStatus {
+            configured: true,
+            provider: Some(llm.provider.to_string()),
+        },
+    )
+}
+
 pub trait AiProvider: Send + Sync {
     fn name(&self) -> &str;
     fn complete(&self, req: &AiRequest) -> Result<AiResponse, String>;
@@ -50,19 +70,40 @@ impl AiProvider for LocalHeuristic {
             message: if req.prompt.trim().is_empty() {
                 "Describe el problema o abri el diagnostico de crash.".into()
             } else {
-                "Paraguabot necesita una API key. Agrega GROQ_API_KEY (recomendado) o OPENAI_API_KEY en launcher/.env.".into()
+                "Paraguabot necesita una API key. Agrega GROQ_API_KEY en launcher/.env, en \
+                 %APPDATA%/ParaguacraftLauncher/.env, o en Ajustes > Paraguabot."
+                    .into()
             },
             suggestions: vec![
-                "Configura GROQ_API_KEY en launcher/.env (mas rapido y economico).".into(),
+                "Ajustes > Paraguabot: pega tu Groq API key (gratis en console.groq.com).".into(),
+                "Reinicia el launcher despues de editar .env.".into(),
                 "Usa el panel de diagnostico para crashes automaticos.".into(),
             ],
         })
     }
 }
 
-const SYSTEM_PROMPT: &str = "Sos Paraguabot, asistente del launcher Paraguacraft (Minecraft Java). \
-Responde en espanol, breve y accionable. Ayuda con versiones, mods, Forge/Fabric, Java, RAM, crashes, servidores locales y Hypixel PvP 1.8.9. \
-No inventes rutas de archivos; sugeri Ajustes, Reparar instancia o Versiones del launcher.";
+const KNOWLEDGE: &str = r#"
+LAUNCHER Paraguacraft (Tauri v2 + Rust + Vue 3):
+- 0% CPU en segundo plano al jugar. Instancias vanilla/Fabric/Forge/NeoForge/Quilt + preset PvP 1.8.9.
+- Tienda Modrinth + CurseForge (key CF en Ajustes). Modpacks .mrpack/.zip. Servidores Paper/Fabric/Forge + Playit.gg.
+- Ajustes: RAM, GC, options.txt, cerrar al jugar, Discord RPC, Java Temurin 17/21, reparar instancia, auto-update SHA-256.
+
+CLIENTE Paraguacraft PvP (Forge 1.8.9 + OptiFine + mod propio, v2.1.28):
+- Hypixel-safe: solo HUD/visual/rendimiento. Mod Menu (Right Shift). Hytils camas, OptiFine, mod ParaguacraftPvP.
+- Toggle Sprint: (M) teclas virtuales Lunar, (N) legacy. Toggle Sneak en Mod Menu (Shift alterna).
+- HUD: FPS, ping, CPS, keystrokes, reach, combo, armadura, freelook, Quick Play Hypixel, alertas chat, musica overlay.
+- Boost FPS + culling en Mod Menu > Rendimiento. Config: .minecraft/paraguacraft_v2.properties.
+- Actualiza solo al Iniciar desde manifest GitHub (Ajustes > Cliente PvP muestra version).
+
+SETTINGS PvP recomendados: Boost FPS ON, entity/nametag cull ON, Toggle Sprint (M) ON, 4-8GB RAM, perfil hardware en Ajustes.
+"#;
+
+const SYSTEM_PROMPT: &str = "Sos Paraguabot, experto en el launcher Paraguacraft y el cliente PvP 1.8.9. \
+Responde en espanol rioplatense, claro y accionable. Usa el conocimiento del producto abajo. \
+Para crashes inclui pasos concretos (Reparar instancia, Ajustes > Java, actualizar cliente PvP). \
+No inventes rutas; referi Ajustes, Versiones, Mod Menu (Right Shift) y teclas M/N para sprint. \
+Si no sabes algo especifico del PC del usuario, pedi el log o crash-report.";
 
 pub fn suggestions_for_category(category: &str) -> Vec<String> {
     match category {
@@ -78,7 +119,7 @@ pub fn suggestions_for_category(category: &str) -> Vec<String> {
         ],
         "gpu" => vec!["Actualiza drivers NVIDIA/AMD/Intel.".into()],
         "hypixel_scoreboard" => vec![
-            "Actualiza Paraguacraft PvP desde Versiones -> Instalar.".into(),
+            "Actualiza Paraguacraft PvP desde Ajustes > Cliente PvP.".into(),
             "Si el juego funciona, podes ignorar esos mensajes en el log.".into(),
         ],
         "clean_exit" => vec!["No hace falta actualizar drivers si el juego cerro bien.".into()],
@@ -104,10 +145,33 @@ pub fn analyze_prompt(req: &AiRequest) -> AiResponse {
     })
 }
 
-pub async fn analyze_prompt_async(state: &AppState, req: &AiRequest) -> AppResult<AiResponse> {
-    if req.diagnosis.is_some() {
-        return Ok(analyze_prompt(req));
+fn build_user_content(req: &AiRequest) -> String {
+    let mut parts = vec![req.prompt.trim().to_string()];
+
+    if let Some(d) = &req.diagnosis {
+        parts.push(format!(
+            "\n\n[Diagnostico reciente de crash]\nCategoria: {}\n{}\n{}\nSugerencias: {}",
+            d.category,
+            d.message,
+            d.hint,
+            d.suggestions.join("; ")
+        ));
+        if let Some(line) = &d.error_line {
+            parts.push(format!("\nLinea de error: {line}"));
+        }
     }
+
+    if let Some(tail) = &req.log_tail {
+        if !tail.trim().is_empty() {
+            let truncated: String = tail.chars().rev().take(4000).collect::<String>().chars().rev().collect();
+            parts.push(format!("\n\nLog reciente:\n{truncated}"));
+        }
+    }
+
+    parts.join("")
+}
+
+pub async fn analyze_prompt_async(state: &AppState, req: &AiRequest) -> AppResult<AiResponse> {
     let prompt = req.prompt.trim();
     if prompt.is_empty() {
         return Ok(analyze_prompt(req));
@@ -116,20 +180,17 @@ pub async fn analyze_prompt_async(state: &AppState, req: &AiRequest) -> AppResul
         return Ok(analyze_prompt(req));
     };
 
-    let user_content = if let Some(tail) = &req.log_tail {
-        format!("{prompt}\n\nLog reciente:\n{tail}")
-    } else {
-        prompt.to_string()
-    };
+    let system = format!("{SYSTEM_PROMPT}\n\n--- CONOCIMIENTO PARAGUACRAFT ---\n{KNOWLEDGE}");
+    let user_content = build_user_content(req);
 
     let body = json!({
         "model": llm.model,
         "messages": [
-            { "role": "system", "content": SYSTEM_PROMPT },
+            { "role": "system", "content": system },
             { "role": "user", "content": user_content }
         ],
-        "max_tokens": 512,
-        "temperature": 0.4
+        "max_tokens": 1024,
+        "temperature": 0.35
     });
 
     let (client, _guard) = state.net_scope();
@@ -147,7 +208,7 @@ pub async fn analyze_prompt_async(state: &AppState, req: &AiRequest) -> AppResul
         return Err(AppError::msg(format!(
             "Paraguabot ({}) API {status}: {}",
             llm.provider,
-            err_body.chars().take(200).collect::<String>()
+            err_body.chars().take(300).collect::<String>()
         )));
     }
 

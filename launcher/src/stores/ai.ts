@@ -52,7 +52,7 @@ export const useAiStore = defineStore("ai", () => {
     messages.value.push({ id: `u-${Date.now()}`, role: "user", content: clean });
     thinking.value = true;
     try {
-      const res = await api.aiAssist(clean, lastDiagnosis.value);
+      const res = await api.aiAssist(clean, null);
       messages.value.push({ id: `a-${Date.now()}`, role: "assistant", content: res.message });
       for (const s of res.suggestions) {
         messages.value.push({ id: `as-${Date.now()}-${s.slice(0, 8)}`, role: "assistant", content: `• ${s}` });
