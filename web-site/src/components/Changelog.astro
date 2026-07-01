@@ -1,0 +1,59 @@
+---
+import { loadChangelog, inlineMd } from "../lib/changelog";
+
+const entries = loadChangelog(4);
+---
+
+<section id="changelog" class="py-24 lg:py-32 relative">
+  <div class="container-page">
+    <div class="reveal max-w-2xl mb-12">
+      <span class="badge bg-brand-400/10 border border-brand-400/30 text-brand-300 mb-4">Changelog</span>
+      <h2 class="text-4xl sm:text-5xl font-black tracking-tight mb-4">
+        Releases <span class="gradient-text">recientes</span>
+      </h2>
+      <p class="text-lg text-fg-muted">
+        Auto-update incluido: cuando salga algo nuevo, el launcher te avisa.
+      </p>
+    </div>
+
+    <div class="space-y-4">
+      {entries.map((e) => (
+        <article class="reveal card !p-0 overflow-hidden">
+          <header class="flex items-baseline justify-between gap-4 px-6 pt-5 pb-3 border-b border-bg-border">
+            <div class="flex items-baseline gap-3 flex-wrap">
+              <h3 class="text-2xl font-black text-fg">v{e.version}</h3>
+              <span class="text-xs text-gray-500 font-mono">{e.date}</span>
+            </div>
+            <a
+              href={`https://github.com/SantiJ10/Paraguacraft/releases/tag/v${e.version}`}
+              target="_blank"
+              rel="noopener"
+              class="text-xs text-gray-400 hover:text-brand-300 font-semibold transition"
+            >
+              Ver en GitHub →
+            </a>
+          </header>
+          <div class="px-6 py-5 space-y-4">
+            {e.sections.map((sec) => (
+              <div>
+                <h4 class="text-[11px] uppercase tracking-widest font-black text-brand-400 mb-2">{sec.heading}</h4>
+                <ul class="space-y-1.5">
+                  {sec.items.slice(0, 6).map((it) => (
+                    <li class="text-sm text-fg-secondary leading-relaxed flex gap-2">
+                      <span class="text-brand-400 mt-1.5 flex-shrink-0">▸</span>
+                      <span set:html={inlineMd(it)} />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </article>
+      ))}
+    </div>
+
+    <div class="text-center mt-10">
+      <a href="/notas" class="btn-secondary">Ver todas las notas →</a>
+    </div>
+  </div>
+</section>

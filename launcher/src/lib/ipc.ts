@@ -660,6 +660,14 @@ export const api = {
     return invokeReal<AiAssistResponse>("ai_assist", { prompt, diagnosis: diagnosis ?? null });
   },
 
+  async aiStatus(): Promise<{ configured: boolean; provider: string | null }> {
+    return invokeReal("ai_status");
+  },
+
+  async saveGroqApiKey(key: string): Promise<void> {
+    return invokeReal("save_groq_api_key", { key });
+  },
+
   async syncOverlayMusic(
     playing: boolean,
     title: string,

@@ -168,6 +168,8 @@ pub fn run() {
             // Fase 4
             commands::diagnostics::diagnose_instance,
             commands::diagnostics::ai_assist,
+            commands::diagnostics::ai_status,
+            commands::diagnostics::save_groq_api_key,
             commands::servers::list_servers,
             commands::servers::create_server,
             commands::servers::update_server,

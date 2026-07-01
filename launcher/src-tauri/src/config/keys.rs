@@ -43,21 +43,43 @@ fn app_secrets_file() -> PathBuf {
 /// Carga `.env` desde rutas candidatas (dev + produccion). Idempotente.
 pub fn load_env_files() {
     let mut candidates: Vec<PathBuf> = Vec::new();
-    if let Ok(cwd) = std::env::current_dir() {
-        candidates.push(cwd.join(".env"));
-        candidates.push(cwd.join("launcher").join(".env"));
+
+    // Dev Tauri: launcher/.env junto al crate (src-tauri/../.env)
+    candidates.push(PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.env")));
+
+    if let Ok(mut dir) = std::env::current_dir() {
+        for _ in 0..8 {
+            candidates.push(dir.join(".env"));
+            candidates.push(dir.join("launcher").join(".env"));
+            if dir.file_name().and_then(|n| n.to_str()) == Some("src-tauri") {
+                if let Some(launcher) = dir.parent() {
+                    candidates.push(launcher.join(".env"));
+                }
+            }
+            if !dir.pop() {
+                break;
+            }
+        }
     }
+
     candidates.push(paths::data_dir().join(".env"));
     if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
             candidates.push(dir.join(".env"));
         }
     }
+
+    let mut seen = std::collections::HashSet::new();
     for p in candidates {
-        if p.is_file() {
+        if seen.insert(p.clone()) && p.is_file() {
             let _ = dotenvy::from_path(&p);
         }
     }
+}
+
+/// Indica si Paraguabot tiene proveedor LLM configurado.
+pub fn llm_is_configured() -> bool {
+    resolve_llm_config().is_some()
 }
 
 fn read_app_secrets() -> AppSecretsFile {

@@ -33,6 +33,33 @@ const cleanupInfo = ref<CleanupInfo | null>(null);
 const extrasBusy = ref(false);
 const extrasMessage = ref<string | null>(null);
 
+const groqKey = ref("");
+const groqKeyMessage = ref<string | null>(null);
+const aiConfigured = ref<boolean | null>(null);
+
+async function loadAiStatus() {
+  if (!isTauri()) return;
+  try {
+    const st = await api.aiStatus();
+    aiConfigured.value = st.configured;
+  } catch {
+    aiConfigured.value = false;
+  }
+}
+
+async function saveGroqKey() {
+  if (!isTauri()) return;
+  groqKeyMessage.value = null;
+  try {
+    await api.saveGroqApiKey(groqKey.value.trim());
+    groqKeyMessage.value = "API key guardada. Reinicia Paraguabot si ya estaba abierto.";
+    groqKey.value = "";
+    await loadAiStatus();
+  } catch (e) {
+    groqKeyMessage.value = String(e);
+  }
+}
+
 onMounted(async () => {
   try {
     if (!settings.settings) {
@@ -60,6 +87,7 @@ onMounted(async () => {
       }
     }, 0);
     void refreshPvpClientStatus();
+    void loadAiStatus();
   }
 
   window.setTimeout(() => {
@@ -640,6 +668,37 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
       <!-- Java -->
       <JavaManager v-if="javaSectionReady" :auto-detect="true" />
       <div v-else class="mb-6 h-40 animate-pulse rounded-xl bg-surface-3" />
+
+      <!-- Paraguabot -->
+      <section class="mb-6 rounded-xl border border-surface-4 bg-surface-2 p-6">
+        <h2 class="mb-4 flex items-center gap-2 text-lg font-bold">
+          <span class="font-emoji">&#129302;</span> Paraguabot
+        </h2>
+        <p class="mb-4 text-sm text-gray-400">
+          Asistente con IA para settings PvP, crashes y el launcher. Usa Groq (gratis en
+          <a href="https://console.groq.com" class="text-pc-green underline" target="_blank" rel="noopener">console.groq.com</a>).
+        </p>
+        <p v-if="aiConfigured === true" class="mb-3 text-xs text-pc-green">Paraguabot configurado (Groq/OpenAI detectado).</p>
+        <p v-else-if="aiConfigured === false" class="mb-3 text-xs text-amber-400">Sin API key — Paraguabot no puede responder con IA.</p>
+        <label class="block">
+          <span class="mb-1 block text-sm text-gray-300">Groq API Key</span>
+          <input
+            v-model="groqKey"
+            type="password"
+            placeholder="gsk_..."
+            class="w-full rounded-lg border border-surface-5 bg-surface-3 px-3 py-2.5 text-sm outline-none focus:border-pc-green"
+          />
+          <span class="mt-1 block text-xs text-gray-500">
+            También podés poner GROQ_API_KEY en launcher/.env o %APPDATA%/ParaguacraftLauncher/.env
+          </span>
+        </label>
+        <div class="mt-3">
+          <BaseButton size="sm" variant="secondary" @click="saveGroqKey">Guardar key</BaseButton>
+        </div>
+        <p v-if="groqKeyMessage" class="mt-2 text-xs" :class="groqKeyMessage.includes('guardada') ? 'text-pc-green' : 'text-red-400'">
+          {{ groqKeyMessage }}
+        </p>
+      </section>
 
       <!-- Tienda -->
       <section class="rounded-xl border border-surface-4 bg-surface-2 p-6">

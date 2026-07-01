@@ -3,6 +3,16 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.2.19] - 2026-07-01
+
+### Fixed
+- **Paraguabot**: carga `.env` desde `launcher/.env` aunque el cwd sea `src-tauri`; panel en
+  Ajustes para guardar Groq API key; conocimiento embebido del launcher y cliente PvP 2.1.28.
+- **Paraguabot**: consultas generales ya no quedan bloqueadas por un diagnostico de crash previo.
+
+### Changed
+- **Web** (`paraguacraft.pages.dev`): modo claro legible (contraste, tablas, hero, secciones PvP).
+
 ## Cliente PvP 2.1.28 - 2026-06-30
 
 ### Added

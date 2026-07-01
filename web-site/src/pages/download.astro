@@ -1,0 +1,84 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Nav from "../components/Nav.astro";
+import Footer from "../components/Footer.astro";
+import { loadLatestManifest, formatSize } from "../lib/latest";
+
+const latest = loadLatestManifest();
+const sizeLabel = formatSize(latest.size_bytes);
+---
+
+<Layout
+  title={`Descargar Paraguacraft v${latest.version}`}
+  description="Instalador oficial Windows con hash SHA-256 verificable y auto-update integrado."
+>
+  <Nav />
+
+  <main class="py-16 md:py-24">
+    <div class="container-page max-w-3xl">
+      <div class="reveal mb-10">
+        <span class="badge border border-brand-400/30 bg-brand-400/10 text-brand-300">Descarga</span>
+        <h1 class="mt-4 text-4xl font-black md:text-5xl">
+          Instalador <span class="gradient-text">v{latest.version}</span>
+        </h1>
+        <p class="mt-4 text-gray-400">
+          Windows 10/11 · 64-bit · NSIS. Verificá el hash antes de instalar si querés máxima confianza.
+        </p>
+      </div>
+
+      <div class="reveal card space-y-6">
+        <a href={latest.download_url} class="btn-primary w-full py-4 text-base">
+          Descargar Instalar_Paraguacraft_v{latest.version}.exe
+          {sizeLabel && ` (${sizeLabel})`}
+        </a>
+
+        <div class="space-y-3 text-sm">
+          <div>
+            <p class="mb-1 text-xs font-bold uppercase tracking-wider text-gray-500">URL directa</p>
+            <code class="block break-all rounded-lg border border-bg-border bg-bg-soft p-3 font-mono text-xs text-gray-300">{latest.download_url}</code>
+          </div>
+
+          {latest.sha256 && (
+            <div>
+              <p class="mb-1 text-xs font-bold uppercase tracking-wider text-gray-500">SHA-256</p>
+              <div class="flex flex-col gap-2 sm:flex-row sm:items-start">
+                <code id="sha256-value" class="block flex-1 break-all rounded-lg border border-bg-border bg-bg-soft p-3 font-mono text-xs text-brand-300">{latest.sha256}</code>
+                <button id="copy-sha" type="button" class="btn-secondary shrink-0 text-xs">Copiar hash</button>
+              </div>
+            </div>
+          )}
+
+          {latest.size_bytes && (
+            <p class="text-gray-500">Tamaño: <span class="font-mono text-gray-300">{latest.size_bytes.toLocaleString("es-AR")} bytes</span></p>
+          )}
+        </div>
+
+        <div class="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 text-sm text-amber-200/90">
+          <strong>SmartScreen:</strong> al ser open-source sin certificado EV, Windows puede mostrar un aviso la primera vez. Podés verificar el SHA-256 arriba o revisar el código en GitHub.
+        </div>
+      </div>
+
+      <div class="reveal mt-8 flex flex-wrap gap-4 text-sm">
+        <a href="https://github.com/SantiJ10/Paraguacraft/releases/tag/v{latest.version}" target="_blank" rel="noopener" class="text-brand-300 hover:underline">Ver release en GitHub →</a>
+        <a href="/latest.json" class="text-gray-400 hover:text-white">latest.json →</a>
+        <a href="/" class="text-gray-400 hover:text-white">← Volver al inicio</a>
+      </div>
+    </div>
+  </main>
+
+  <Footer />
+</Layout>
+
+<script is:inline>
+  (function () {
+    var btn = document.getElementById("copy-sha");
+    var val = document.getElementById("sha256-value");
+    if (!btn || !val) return;
+    btn.addEventListener("click", function () {
+      navigator.clipboard.writeText(val.textContent || "").then(function () {
+        btn.textContent = "Copiado ✓";
+        setTimeout(function () { btn.textContent = "Copiar hash"; }, 2000);
+      });
+    });
+  })();
+</script>

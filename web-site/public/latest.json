@@ -1,0 +1,13 @@
+{
+  "version": "7.2.17",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.17/Instalar_Paraguacraft_v7.2.17.exe",
+  "size_bytes": 10423827,
+  "sha256": "e8279fc3fd11f2e37a59388b75ae8ac5b7775bda0370d92f42562f578a3f309c",
+  "notes": "- Ajustes → Cliente PvP: versión publicada vs instalada (sin recompilar launcher para cada cliente)\n- Modo offline: jugar con mods instalados; skins Premium locales + cola para Mojang\n- Cliente PvP 2.1.19 / Launcher 7.2.17",
+  "platforms": {
+    "windows-x86_64": {
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.17/Instalar_Paraguacraft_v7.2.17.exe",
+      "signature": ""
+    }
+  }
+}
