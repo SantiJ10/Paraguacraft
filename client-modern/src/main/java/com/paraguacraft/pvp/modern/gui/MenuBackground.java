@@ -6,11 +6,26 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
+import net.minecraft.client.gl.RenderPipelines;
+import net.minecraft.util.Identifier;
 
 /** Fondo del menú: gradiente + constelación + logo Paraguacraft. */
 public final class MenuBackground {
 
+    public static final int LOGO_MAX = 96;
+
+    private static final Identifier LOGO = Identifier.of(
+        ParaguacraftPvPModern.MOD_ID,
+        "textures/gui/logo.png"
+    );
+
     private MenuBackground() {}
+
+    /** Altura reservada arriba (logo + título) para colocar botones debajo. */
+    public static int contentTop(int screenHeight) {
+        int logoSize = Math.min(LOGO_MAX, screenHeight / 6);
+        return screenHeight / 5 + logoSize / 2 + 52;
+    }
 
     public static void draw(Screen screen, DrawContext ctx, int mouseX, int mouseY, float delta) {
         int w = screen.width;
@@ -19,15 +34,22 @@ public final class MenuBackground {
         ctx.fill(0, 0, w, h, UiTheme.OVERLAY);
         ConstellationBackground.draw(ctx, w, h);
 
-        int logoSize = Math.min(w / 5, 96);
+        int logoSize = Math.min(LOGO_MAX, w / 5);
+        logoSize = Math.min(logoSize, h / 6);
         int lx = w / 2 - logoSize / 2;
         int ly = h / 5 - logoSize / 2;
-        ctx.fill(lx, ly, lx + logoSize, ly + logoSize, UiTheme.accent() & 0x44FFFFFF);
-        ctx.fill(lx + 4, ly + 4, lx + logoSize - 4, ly + logoSize - 4, UiTheme.BTN_BG);
 
-        var tr = MinecraftClient.getInstance().textRenderer;
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.getResourceManager().getResource(LOGO).isPresent()) {
+            ctx.drawGuiTexture(RenderPipelines.GUI_TEXTURED, LOGO, lx, ly, logoSize, logoSize);
+        } else {
+            ctx.fill(lx, ly, lx + logoSize, ly + logoSize, UiTheme.accent() & 0x44FFFFFF);
+            ctx.fill(lx + 4, ly + 4, lx + logoSize - 4, ly + logoSize - 4, UiTheme.BTN_BG);
+        }
+
+        var tr = client.textRenderer;
         String title = "PARAGUACRAFT";
-        ctx.drawText(tr, Text.literal(title), w / 2 - tr.getWidth(title), ly + logoSize + 10, UiTheme.accent(), true);
+        ctx.drawText(tr, Text.literal(title), w / 2 - tr.getWidth(title) / 2, ly + logoSize + 10, UiTheme.accent(), true);
 
         String subtitle = "PvP Modern · 1.21.11";
         ctx.drawText(
