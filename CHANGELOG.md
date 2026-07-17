@@ -48,6 +48,13 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - HUD ampliado: **coordenadas**, **armadura** y **CPS**.
 - Mod **0.4.0** compilado y empaquetado en `bundled/pvp-modern/`.
 
+## Cliente PvP Modern 0.4.2 - 2026-06-30
+
+### Fixed
+- **Texto invisible en el menú**: colores del tema sin canal alpha (1.21.11 ignora drawText si alpha = 0).
+- **Logo rosa/negro**: textura del mod dibujada con `drawTexture` en lugar de `drawGuiTexture` (solo sprites del atlas).
+- HUD: colores de FPS, ping, CPS, coords y armadura con alpha completo.
+
 ## Cliente PvP Modern 0.4.1 - 2026-06-30
 
 ### Fixed
