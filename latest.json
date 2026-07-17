@@ -1,8 +1,8 @@
 {
   "version": "7.7.0",
   "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.7.0/Instalar_Paraguacraft_v7.7.0.exe",
-  "size_bytes": 0,
-  "sha256": "",
+  "size_bytes": 83603884,
+  "sha256": "a34dafd0108a129d4289710d8b276c5acc09b716ad3c2517e596bd6bdaf15162",
   "notes": "- Paraguacraft PvP 1.21.11 (Fabric): menu Lunar, Mod Menu, Quick Play y practica PvP\n- Cliente PvP 1.8.9 2.1.29: Quick Play reconectar y mundo flat de entrenamiento\n- Perfiles Inicio: Hypixel, practica, servidores y solo menu\n- JVM Java 21 y optimizaciones superiores en 1.21.11",
   "platforms": {
     "windows-x86_64": {
