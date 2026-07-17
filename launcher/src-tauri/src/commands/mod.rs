@@ -3,6 +3,8 @@
 pub mod accounts;
 pub mod bedrock;
 pub mod cleanup;
+pub mod compete;
+pub mod playbook;
 pub mod diagnostics;
 pub mod extras;
 pub mod favorites;

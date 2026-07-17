@@ -43,6 +43,35 @@ function savePersist(state: MusicPersist) {
   }
 }
 
+const SMART_DEFAULTS_KEY = "paraguacraft.music.smartDefaults.v1";
+
+/** Defaults de música según gama de hardware (solo primera vez). */
+export function applyHardwareSmartDefaults(tier: string) {
+  try {
+    if (localStorage.getItem(SMART_DEFAULTS_KEY)) return;
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const prev = raw ? (JSON.parse(raw) as Partial<MusicPersist>) : {};
+    const next: MusicPersist = {
+      inputUrl: prev.inputUrl ?? "",
+      source: prev.source ?? null,
+      embedUrl: prev.embedUrl ?? null,
+      label: prev.label ?? "",
+      playing: prev.playing ?? false,
+      volume: prev.volume ?? 70,
+      launcherBackground:
+        tier === "baja" ? false : (prev.launcherBackground ?? true),
+      launcherOverlay: tier === "baja" ? false : (prev.launcherOverlay ?? true),
+      inGameOverlay: prev.inGameOverlay ?? true,
+      spotifyClientId: prev.spotifyClientId ?? "",
+      spotifyRedirectUri: prev.spotifyRedirectUri ?? SPOTIFY_REDIRECT_URI,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    localStorage.setItem(SMART_DEFAULTS_KEY, tier);
+  } catch {
+    /* ignore */
+  }
+}
+
 export const SPOTIFY_REDIRECT_URI = "http://127.0.0.1:8888/callback";
 
 export const SPOTIFY_REDIRECT_OPTIONS = [SPOTIFY_REDIRECT_URI] as const;

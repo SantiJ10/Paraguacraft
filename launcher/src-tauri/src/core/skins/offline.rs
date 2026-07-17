@@ -73,49 +73,6 @@ fn rebuild_brand_pack_zip(game_dir: &Path) -> AppResult<()> {
     branding::rebuild_pack_zip(game_dir)
 }
 
-fn sync_resource_pack_options(game_dir: &Path, mc_version: &str, use_zip: bool) -> AppResult<()> {
-    let options_path = game_dir.join("options.txt");
-    let mut lines = if options_path.is_file() {
-        std::fs::read_to_string(&options_path)?
-            .lines()
-            .map(|l| l.to_string())
-            .collect::<Vec<_>>()
-    } else {
-        Vec::new()
-    };
-
-    let pack_visible = if use_zip {
-        format!("{}.zip", branding::PACK_NAME)
-    } else {
-        branding::PACK_NAME.to_string()
-    };
-
-    let major = mc_version.split('.').nth(1).and_then(|p| p.parse::<u32>().ok()).unwrap_or(21);
-
-    lines.retain(|l| !l.starts_with("resourcePacks:") && !l.starts_with("texturepack:"));
-
-    if major < 6 {
-        lines.push(format!("texturepack:{pack_visible}"));
-    } else if major < 13 {
-        lines.push(format!("resourcePacks:[\"{pack_visible}\"]"));
-    } else {
-        lines.push(format!("resourcePacks:[\"vanilla\",\"file/{pack_visible}\"]"));
-    }
-
-    let content = lines
-        .into_iter()
-        .map(|l| {
-            if l.ends_with('\n') {
-                l
-            } else {
-                format!("{l}\n")
-            }
-        })
-        .collect::<String>();
-    std::fs::write(&options_path, content)?;
-    Ok(())
-}
-
 /// Aplica la skin en el directorio de juego de una instancia.
 pub fn apply_to_game_dir(game_dir: &Path, skin_path: &Path, mc_version: &str) -> AppResult<()> {
     if !skin_path.is_file() {
@@ -133,11 +90,7 @@ pub fn apply_to_game_dir(game_dir: &Path, skin_path: &Path, mc_version: &str) ->
     }
     copy_skin_textures(&pack_path, skin_path)?;
     rebuild_brand_pack_zip(game_dir)?;
-    let use_zip = game_dir
-        .join("resourcepacks")
-        .join(format!("{}.zip", branding::PACK_NAME))
-        .is_file();
-    let _ = sync_resource_pack_options(game_dir, mc_version, use_zip);
+    branding::sync_brand_options(game_dir, mc_version, false)?;
     Ok(())
 }
 

@@ -57,10 +57,16 @@ pub fn run() {
                     state.shutdown_network();
                 }
             });
+            let _ = core::tray_lite::install(app.handle());
             Ok(())
         })
-        .on_window_event(|_window, event| {
-            if let tauri::WindowEvent::CloseRequested { .. } = event {
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if core::game_session::is_running() {
+                    api.prevent_close();
+                    core::tray_lite::hide_to_tray(window.app_handle());
+                    return;
+                }
                 core::servers::stop_all_running();
             }
         })
@@ -73,6 +79,12 @@ pub fn run() {
             commands::cleanup::shutdown_background_services,
             commands::performance::optimize_minecraft_options,
             commands::performance::apply_recommended_performance,
+            commands::compete::get_resource_budget,
+            commands::playbook::run_pre_launch_check,
+            commands::playbook::get_instance_weight,
+            commands::playbook::list_game_profiles,
+            commands::playbook::launch_game_profile,
+            commands::playbook::scan_mod_conflicts,
             // Extras
             commands::extras::get_extras_status,
             commands::extras::get_extras_panel_data,

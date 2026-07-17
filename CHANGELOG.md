@@ -3,6 +3,42 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.6.0] - 2026-06-30
+
+### Added
+- **Contenido estilo Modrinth**: mods, shaders y resource packs muestran nombre, autor, descripción e icono original (API Modrinth + `pack.png` local).
+- **Compatibilidad de mods** en chequeo pre-lanzamiento según loader y versión MC.
+
+### Fixed
+- **Resource packs** ya no se borran al aplicar skin offline ni al togglear desde el launcher (`options.txt` merge correcto).
+- **Resource packs en PvP 1.8.9 y 1.21.x**: activación/desactivación sincronizada con `options.txt`.
+- **Servidores Fabric**: preparación detecta `fabric-server-launch.jar`; playit.gg se auto-inicia al arrancar el servidor.
+- **Playit.gg**: no devuelve dirección obsoleta como si fuera la actual.
+
+## [7.5.0] - 2026-06-30
+
+### Added
+- **Diagnóstico post-crash liviano**: banner con causa, hints y enlace a instancia/Paraguabot (sin abrir el bot automáticamente).
+- **Conflictos de mods**: avisos on-demand (duplicados, OptiFine+Iris, Essential/Patcher).
+- **Bandeja ultra-lite**: icono en systray mientras jugás; restaurar launcher con un clic.
+
+## [7.4.0] - 2026-06-30
+
+### Added
+- **Chequeo pre-lanzamiento** on-demand: Java, cliente PvP, espacio en disco y tips de antivirus.
+- **Peso de instancia** (liviano / medio / pesado) según mods, shaders y RAM.
+- **Perfiles de juego** 1 clic en Inicio: Hypixel PvP, PvP práctica, Vanilla e Iris/Modpack.
+
+## [7.3.0] - 2026-06-30
+
+### Added
+- **Modo Competir** (PvP): un clic orquesta cierre del launcher al jugar, Game Mode,
+  prioridad Java alta, RAM/GC por hardware, perfil cliente Boost FPS y actualizaciones
+  PvP diferidas hasta cerrar Minecraft.
+- **Presupuesto de recursos** en detalle de instancia: launcher, Java y RAM libre.
+- **Música smart**: defaults por gama baja/media; IPC overlay solo si HUD música/hardware ON.
+- **Actualizaciones diferidas**: no sync PvP ni chequeo de launcher mientras hay partida.
+
 ## [7.2.19] - 2026-07-01
 
 ### Fixed
@@ -11,7 +47,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - **Paraguabot**: consultas generales ya no quedan bloqueadas por un diagnostico de crash previo.
 
 ### Changed
-- **Web** (`paraguacraft.pages.dev`): modo claro legible (contraste, tablas, hero, secciones PvP).
+- **Web**: modo claro en [paraguacraft.pages.dev](https://paraguacraft.pages.dev) — deploy desde repo [paraguacraft-web](https://github.com/SantiJ10/paraguacraft-web) (separado del launcher).
 
 ## Cliente PvP 2.1.28 - 2026-06-30
 

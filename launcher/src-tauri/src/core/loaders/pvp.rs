@@ -615,6 +615,37 @@ pub async fn install_bundle(
     client: &reqwest::Client,
     instance_dir: &Path,
 ) -> AppResult<()> {
+    install_bundle_inner(app, client, instance_dir, false).await
+}
+
+/// En Modo Competir: no descarga durante el lanzamiento si ya hay un cliente jugable.
+pub async fn install_bundle_for_launch(
+    app: &AppHandle,
+    client: &reqwest::Client,
+    instance_dir: &Path,
+    instance_id: &str,
+    defer_if_outdated: bool,
+) -> AppResult<()> {
+    if crate::core::game_session::is_running() {
+        crate::core::game_session::queue_pvp_sync(instance_id);
+        return Ok(());
+    }
+    if defer_if_outdated {
+        let status = client_status(app, client, Some(instance_dir)).await;
+        if !status.up_to_date && status.installed_filename.is_some() {
+            crate::core::game_session::queue_pvp_sync(instance_id);
+            return Ok(());
+        }
+    }
+    install_bundle_inner(app, client, instance_dir, false).await
+}
+
+async fn install_bundle_inner(
+    app: &AppHandle,
+    client: &reqwest::Client,
+    instance_dir: &Path,
+    _offline_only: bool,
+) -> AppResult<()> {
     let (manifest, source) = fetch_manifest_with_source(client, Some(app)).await;
     let offline_lenient = source == "fallback";
     let release_tag = manifest.release_tag();

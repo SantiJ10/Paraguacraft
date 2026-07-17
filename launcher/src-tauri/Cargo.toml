@@ -1,6 +1,6 @@
 [package]
 name = "paraguacraft-launcher"
-version = "7.2.19"
+version = "7.6.0"
 description = "Paraguacraft Launcher"
 authors = ["Paraguacraft"]
 edition = "2021"
@@ -17,7 +17,7 @@ image = { version = "0.25", default-features = false, features = ["png"] }
 zip = { version = "2", default-features = false, features = ["deflate"] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-shell = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-process = "2"

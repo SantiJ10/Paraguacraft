@@ -68,7 +68,21 @@ pub async fn start_server(
         servers::ensure_server_jar(&app, &http, &id).await?;
     }
     let _ = crate::core::java::resolve::ensure_installer_java(&app, &state, &prof.mc_version).await?;
-    servers::start_mc(&id)
+    let pid = servers::start_mc(&id)?;
+    if servers::playit_available(&id) {
+        if let Err(e) = servers::start_playit(&id) {
+            crate::core::server_console::append(
+                &id,
+                &format!("[playit] No se pudo auto-iniciar el túnel: {e}"),
+            );
+        } else {
+            crate::core::server_console::append(
+                &id,
+                "[playit] Túnel playit.gg iniciado automáticamente.",
+            );
+        }
+    }
+    Ok(pid)
 }
 
 #[tauri::command]

@@ -6,7 +6,9 @@
 
 pub mod backups;
 pub mod content;
+pub mod content_metadata;
 pub mod export;
+pub mod resource_packs;
 pub mod icons;
 pub mod importers;
 pub mod profiles;

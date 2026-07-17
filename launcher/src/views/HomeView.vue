@@ -11,6 +11,7 @@ import BaseButton from "@/components/common/BaseButton.vue";
 import InstanceCard from "@/components/common/InstanceCard.vue";
 import InstanceIcon from "@/components/instance/InstanceIcon.vue";
 import FavoriteServersPanel from "@/components/home/FavoriteServersPanel.vue";
+import GameProfilesPanel from "@/components/home/GameProfilesPanel.vue";
 import { formatPlaytime } from "@/composables/useFormat";
 import type { Instance } from "@/lib/types";
 
@@ -122,6 +123,7 @@ async function play(inst: { id: string; name: string }) {
     </section>
 
     <section class="flex-1 border-t border-surface-3 bg-surface-1 p-8 space-y-8">
+      <GameProfilesPanel />
       <FavoriteServersPanel />
 
       <div>

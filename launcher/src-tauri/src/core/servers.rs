@@ -178,6 +178,9 @@ pub fn needs_prepare(dir: &Path, server_type: &str) -> bool {
         return !dir.join("run.bat").is_file()
             && crate::core::server_setup::find_server_jar(dir, "forge").is_none();
     }
+    if kind.starts_with("fabric") {
+        return !dir.join("fabric-server-launch.jar").is_file() && !dir.join("server.jar").is_file();
+    }
     !dir.join("server.jar").is_file()
 }
 
@@ -790,7 +793,7 @@ pub fn start_playit(id: &str) -> AppResult<String> {
     if let Some(ref saved) = saved_addr {
         crate::core::server_console::append(
             id,
-            &format!("[playit] 💾 IP Java guardada para este server: {saved}"),
+            &format!("[playit] 💾 IP anterior guardada: {saved} (se actualizará si el túnel cambia)"),
         );
     }
     crate::core::server_console::append(
@@ -833,9 +836,6 @@ pub fn start_playit(id: &str) -> AppResult<String> {
         })
         .playit = Some(child);
 
-    if let Some(addr) = saved_addr {
-        return Ok(format!("Playit activo. Túnel: {addr}"));
-    }
     Ok("Playit iniciado. Mirá la consola — la dirección aparece en unos segundos.".into())
 }
 
@@ -861,6 +861,13 @@ fn find_playit_exe(dir: &Path) -> Option<PathBuf> {
         return Some(global);
     }
     None
+}
+
+pub fn playit_available(id: &str) -> bool {
+    profile_by_id(id)
+        .ok()
+        .map(|p| find_playit_exe(&folder_for(&p)).is_some())
+        .unwrap_or(false)
 }
 
 /// Prepara el servidor (jar + mods/plugins según tipo).

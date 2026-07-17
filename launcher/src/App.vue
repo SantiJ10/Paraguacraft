@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, watch } from "vue";
 import TitleBar from "@/components/layout/TitleBar.vue";
+import PostCrashBanner from "@/components/layout/PostCrashBanner.vue";
 import { useSettingsStore } from "@/stores/settings";
 import { applyAccentTheme } from "@/composables/useAccent";
 
@@ -22,6 +23,7 @@ watch(
 <template>
   <div class="flex h-screen flex-col bg-surface-1">
     <TitleBar />
+    <PostCrashBanner />
     <RouterView />
   </div>
 </template>

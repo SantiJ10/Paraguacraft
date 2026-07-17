@@ -8,7 +8,7 @@ use crate::error::AppResult;
 
 const PACK_NAME: &str = "ParaguacraftBrandPack";
 
-fn is_system_pack(inner: &str) -> bool {
+pub fn is_system_pack(inner: &str) -> bool {
     inner == "vanilla"
         || inner.starts_with("file/ParaguacraftBrandPack")
         || inner.starts_with("file/Pack_Graficos_Minimos")
@@ -25,7 +25,7 @@ fn brand_tokens(profile: PackProfile) -> Vec<String> {
     }
 }
 
-fn parse_quoted_packs(line: &str) -> Vec<String> {
+pub fn parse_quoted_packs(line: &str) -> Vec<String> {
     let mut packs = Vec::new();
     let mut chars = line.chars().peekable();
     while chars.peek() == Some(&'"') {

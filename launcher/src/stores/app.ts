@@ -2,7 +2,6 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import type { HardwareInfo, UpdateInfo, UpdateProgress, CrashDiagnosis } from "@/lib/types";
 import { api, isTauri, openUrl } from "@/lib/ipc";
-import { useAiStore } from "@/stores/ai";
 import { useSettingsStore } from "@/stores/settings";
 import { useSkinsStore } from "@/stores/skins";
 
@@ -13,6 +12,11 @@ export const useAppStore = defineStore("app", () => {
   const runningInTauri = ref(isTauri());
   const launchPhase = ref<LaunchPhase>("idle");
   const launchMessage = ref("Listo para jugar");
+  const lastCrash = ref<{
+    instanceId: string;
+    exitCode: number;
+    diagnosis: CrashDiagnosis;
+  } | null>(null);
   const updateInfo = ref<UpdateInfo | null>(null);
   const updateProgress = ref<UpdateProgress | null>(null);
   const updating = ref(false);
@@ -20,6 +24,8 @@ export const useAppStore = defineStore("app", () => {
   async function loadHardware(force = false) {
     if (hardware.value && !force) return;
     hardware.value = await api.getHardwareInfo();
+    const { applyHardwareSmartDefaults } = await import("@/stores/music");
+    applyHardwareSmartDefaults(hardware.value.perfilSugerido);
   }
 
   function setLaunch(phase: LaunchPhase, message: string) {
@@ -43,7 +49,6 @@ export const useAppStore = defineStore("app", () => {
     if (gameEventsBound || !isTauri()) return;
     gameEventsBound = true;
     const { listen } = await import("@tauri-apps/api/event");
-    const ai = useAiStore();
     const skins = useSkinsStore();
     await listen("game://started", () => {
       setLaunch("running", "Jugando — launcher suspendido");
@@ -61,7 +66,11 @@ export const useAppStore = defineStore("app", () => {
         setLaunch("idle", "El juego terminó con error");
         void skins.refresh();
         if (ev.payload?.diagnosis) {
-          ai.pushDiagnosis(ev.payload.diagnosis, ev.payload.instanceId);
+          lastCrash.value = {
+            instanceId: ev.payload.instanceId,
+            exitCode: ev.payload.exitCode,
+            diagnosis: ev.payload.diagnosis,
+          };
         }
       },
     );
@@ -70,6 +79,7 @@ export const useAppStore = defineStore("app", () => {
   async function checkUpdate(force = false) {
     const settings = useSettingsStore();
     if (!force && settings.loaded && settings.settings?.autoUpdateCheck === false) return;
+    if (launchPhase.value === "running") return;
     try {
       await initUpdateEvents();
       updateInfo.value = await api.checkLauncherUpdate();
@@ -137,12 +147,26 @@ export const useAppStore = defineStore("app", () => {
     }
   }
 
-  async function launch(instanceId: string, name: string, serverAddress?: string | null) {
+  function dismissCrash() {
+    lastCrash.value = null;
+  }
+
+  async function launch(
+    instanceId: string,
+    name: string,
+    serverAddress?: string | null,
+    competeMode = false,
+  ) {
     await initGameEvents();
-    setLaunch("preparing", `Preparando ${name}…`);
+    setLaunch(
+      "preparing",
+      competeMode ? `Modo Competir — ${name}…` : `Preparando ${name}…`,
+    );
     try {
-      await api.launchInstance(instanceId, serverAddress);
-      if (launchPhase.value === "preparing") setLaunch("launching", `Lanzando ${name}…`);
+      await api.launchInstance(instanceId, serverAddress, competeMode);
+      if (launchPhase.value === "preparing") {
+        setLaunch("launching", competeMode ? `Competir — ${name}…` : `Lanzando ${name}…`);
+      }
     } catch (e) {
       setLaunch("idle", "Listo para jugar");
       throw e;
@@ -154,6 +178,8 @@ export const useAppStore = defineStore("app", () => {
     runningInTauri,
     launchPhase,
     launchMessage,
+    lastCrash,
+    dismissCrash,
     updateInfo,
     updateProgress,
     updating,
