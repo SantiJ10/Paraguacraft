@@ -425,6 +425,12 @@ export const api = {
     });
   },
 
+  async getPvpModernClientStatus(instanceId?: string | null): Promise<PvpClientStatus> {
+    return invokeReal<PvpClientStatus>("get_pvp_modern_client_status", {
+      instanceId: instanceId ?? null,
+    });
+  },
+
   // --- Tienda: catálogo global (browse) + install por instancia ---
   async searchStore(payload: {
     provider: ContentProvider;

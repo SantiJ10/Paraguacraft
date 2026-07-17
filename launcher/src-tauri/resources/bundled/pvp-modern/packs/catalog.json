@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "releaseTag": "pvp-packs-modern-1.0",
+  "baseUrl": "https://github.com/SantiJ10/Paraguacraft/releases/download/pvp-packs-modern-1.0",
+  "packs": [
+    {
+      "id": "tom1xi",
+      "title": "Tom1xi Remade",
+      "subtitle": "Pack PvP competitivo",
+      "badge": "16x",
+      "fileName": "tom1xi-remade.zip",
+      "sha1": "e1681e958369c4ce75a30147fea4b5a9ea1dc04e"
+    },
+    {
+      "id": "9blue1fault",
+      "title": "9Blue1fault 8f16x80",
+      "subtitle": "Estilo blue PvP",
+      "badge": "16x",
+      "fileName": "9blue1fault-8f16x80.zip",
+      "sha1": "df406f6fa1894262726df86514578eeefce336a2"
+    },
+    {
+      "id": "sharpness",
+      "title": "Sharpness 500k",
+      "subtitle": "Pack nítido CPvP",
+      "badge": "16x",
+      "fileName": "sharpness-500k.zip",
+      "sha1": "39d1609283b5fdd6698901c6ec8bb9ea3bade12e"
+    },
+    {
+      "id": "mr-blue-sky",
+      "title": "Mr Blue Sky",
+      "subtitle": "Estética azul suave",
+      "badge": "32x",
+      "fileName": "mr-blue-sky.zip",
+      "sha1": "ed66d4cefd8b836503bb6b4296ccdbfbba353453"
+    },
+    {
+      "id": "xaquatic",
+      "title": "XAquatic",
+      "subtitle": "Pack acuático compacto",
+      "badge": "16x",
+      "fileName": "xaquatic.zip",
+      "sha1": "aa385ef73ad84a5db54e829e10a53ecf96bc89f9"
+    }
+  ]
+}

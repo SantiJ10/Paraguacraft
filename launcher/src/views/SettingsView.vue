@@ -87,6 +87,7 @@ onMounted(async () => {
       }
     }, 0);
     void refreshPvpClientStatus();
+    void refreshPvpModernClientStatus();
     void loadAiStatus();
   }
 
@@ -116,6 +117,11 @@ const pvpStatusLoading = ref(false);
 const pvpSyncBusy = ref(false);
 const pvpStatusMessage = ref<string | null>(null);
 const pvpInstanceId = ref<string | null>(null);
+const pvpModernStatus = ref<PvpClientStatus | null>(null);
+const pvpModernStatusLoading = ref(false);
+const pvpModernSyncBusy = ref(false);
+const pvpModernStatusMessage = ref<string | null>(null);
+const pvpModernInstanceId = ref<string | null>(null);
 const perfBusy = ref(false);
 const perfMessage = ref<string | null>(null);
 
@@ -182,7 +188,7 @@ async function refreshPvpClientStatus() {
 
 async function syncPvpClientNow() {
   if (!pvpInstanceId.value) {
-    pvpStatusMessage.value = "No hay instancia Paraguacraft PvP instalada.";
+    pvpStatusMessage.value = "No hay instancia Paraguacraft PvP 1.8.9 instalada.";
     return;
   }
   pvpSyncBusy.value = true;
@@ -190,11 +196,45 @@ async function syncPvpClientNow() {
   try {
     await api.installPvpBundle(pvpInstanceId.value);
     await refreshPvpClientStatus();
-    pvpStatusMessage.value = "Cliente PvP sincronizado.";
+    pvpStatusMessage.value = "Cliente PvP 1.8.9 sincronizado.";
   } catch (e) {
     pvpStatusMessage.value = String(e);
   } finally {
     pvpSyncBusy.value = false;
+  }
+}
+
+async function refreshPvpModernClientStatus() {
+  if (!isTauri()) return;
+  pvpModernStatusLoading.value = true;
+  pvpModernStatusMessage.value = null;
+  try {
+    const instances = await api.getInstances();
+    const pvp = instances.find((i) => normalizeLoaderId(i.loader) === "paraguacraft-pvp-modern");
+    pvpModernInstanceId.value = pvp?.id ?? null;
+    pvpModernStatus.value = await api.getPvpModernClientStatus(pvp?.id ?? null);
+  } catch (e) {
+    pvpModernStatusMessage.value = String(e);
+  } finally {
+    pvpModernStatusLoading.value = false;
+  }
+}
+
+async function syncPvpModernClientNow() {
+  if (!pvpModernInstanceId.value) {
+    pvpModernStatusMessage.value = "No hay instancia Paraguacraft PvP 1.21.11 instalada.";
+    return;
+  }
+  pvpModernSyncBusy.value = true;
+  pvpModernStatusMessage.value = null;
+  try {
+    await api.installPvpModernBundle(pvpModernInstanceId.value);
+    await refreshPvpModernClientStatus();
+    pvpModernStatusMessage.value = "Cliente PvP 1.21.11 sincronizado.";
+  } catch (e) {
+    pvpModernStatusMessage.value = String(e);
+  } finally {
+    pvpModernSyncBusy.value = false;
   }
 }
 
@@ -557,10 +597,10 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
         </p>
       </section>
 
-      <!-- Cliente PvP (actualización independiente del launcher) -->
+      <!-- Cliente PvP 1.8.9 (actualización independiente del launcher) -->
       <section v-if="isTauri()" class="mb-6 rounded-xl border border-surface-4 bg-surface-2 p-6">
         <h2 class="mb-4 flex items-center gap-2 text-lg font-bold">
-          <span class="font-emoji">&#9876;</span> Cliente PvP
+          <span class="font-emoji">&#9876;</span> Cliente PvP 1.8.9
         </h2>
         <p class="text-sm text-gray-400">
           El mod del cliente se actualiza solo al lanzar el juego (lee el manifest en GitHub).
@@ -614,6 +654,66 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
             @click="syncPvpClientNow"
           >
             {{ pvpSyncBusy ? "Sincronizando…" : "Sincronizar ahora" }}
+          </BaseButton>
+        </div>
+      </section>
+
+      <!-- Cliente PvP 1.21.11 (actualización independiente del launcher) -->
+      <section v-if="isTauri()" class="mb-6 rounded-xl border border-surface-4 bg-surface-2 p-6">
+        <h2 class="mb-4 flex items-center gap-2 text-lg font-bold">
+          <span class="font-emoji">&#9889;</span> Cliente PvP 1.21.11
+        </h2>
+        <p class="text-sm text-gray-400">
+          El mod Fabric se sincroniza al lanzar (manifest en GitHub), igual que el cliente 1.8.9.
+          <strong class="text-gray-300">No necesitás actualizar el launcher</strong> para cada versión del mod.
+        </p>
+        <div v-if="pvpModernStatusLoading" class="mt-3 text-sm text-gray-500">Consultando versión…</div>
+        <template v-else-if="pvpModernStatus">
+          <dl class="mt-4 grid gap-2 text-sm">
+            <div class="flex flex-wrap gap-x-2">
+              <dt class="text-gray-500">Publicada:</dt>
+              <dd class="font-semibold text-white">{{ pvpModernStatus.remoteVersion }}</dd>
+              <dd class="text-gray-500">({{ pvpModernStatus.remoteFilename }})</dd>
+            </div>
+            <div class="flex flex-wrap gap-x-2">
+              <dt class="text-gray-500">Instalada:</dt>
+              <dd v-if="pvpModernStatus.installedVersion" class="font-semibold text-white">
+                {{ pvpModernStatus.installedVersion }}
+              </dd>
+              <dd v-else class="text-amber-400">sin instancia / no detectada</dd>
+              <dd v-if="pvpModernStatus.installedFilename" class="text-gray-500">
+                ({{ pvpModernStatus.installedFilename }})
+              </dd>
+            </div>
+            <div class="flex flex-wrap gap-x-2">
+              <dt class="text-gray-500">Estado:</dt>
+              <dd :class="pvpModernStatus.upToDate ? 'text-pc-green' : 'text-amber-400'">
+                {{ pvpModernStatus.upToDate ? "Al día" : "Pendiente de sincronizar" }}
+              </dd>
+            </div>
+            <div class="flex flex-wrap gap-x-2">
+              <dt class="text-gray-500">Fuente:</dt>
+              <dd class="text-gray-400">
+                {{ pvpModernStatus.manifestSource === "remote" ? "manifest en línea" : pvpModernStatus.manifestSource === "bundled" ? "manifest embebido" : "respaldo offline" }}
+              </dd>
+            </div>
+          </dl>
+        </template>
+        <p v-if="pvpModernStatusMessage" class="mt-3 text-sm" :class="pvpModernStatusMessage.startsWith('No') || pvpModernStatusMessage.includes('Error') ? 'text-red-400' : 'text-pc-green'">
+          {{ pvpModernStatusMessage }}
+        </p>
+        <div class="mt-4 flex flex-wrap gap-2">
+          <BaseButton size="sm" variant="secondary" :disabled="pvpModernStatusLoading" @click="refreshPvpModernClientStatus">
+            {{ pvpModernStatusLoading ? "Consultando…" : "Verificar cliente" }}
+          </BaseButton>
+          <BaseButton
+            v-if="pvpModernInstanceId"
+            size="sm"
+            variant="secondary"
+            :disabled="pvpModernSyncBusy || pvpModernStatusLoading"
+            @click="syncPvpModernClientNow"
+          >
+            {{ pvpModernSyncBusy ? "Sincronizando…" : "Sincronizar ahora" }}
           </BaseButton>
         </div>
       </section>

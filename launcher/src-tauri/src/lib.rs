@@ -154,6 +154,7 @@ pub fn run() {
             commands::loaders::install_pvp_bundle,
             commands::loaders::install_pvp_modern_bundle,
             commands::loaders::get_pvp_client_status,
+            commands::loaders::get_pvp_modern_client_status,
             // Tienda (Fase 3)
             commands::store::store_search,
             commands::store::store_list_versions,

@@ -264,36 +264,16 @@ pub fn apply_modern_pvp_mod_configs(game_dir: &Path, tier: &str) -> AppResult<()
         std::fs::write(&dynamic_fps, body)?;
     }
 
+    // No parchear sodium-options.json: el esquema cambia entre versiones y puede corromper el archivo.
+    // Si quedó inválido de un parche anterior, borrarlo para que Sodium regenere defaults.
     let sodium = config.join("sodium-options.json");
     if sodium.is_file() {
-        if let Ok(text) = std::fs::read_to_string(&sodium) {
-            if let Ok(mut json) = serde_json::from_str::<serde_json::Value>(&text) {
-                if let Some(obj) = json.as_object_mut() {
-                    let quality = obj
-                        .entry("quality")
-                        .or_insert_with(|| serde_json::json!({}));
-                    if let Some(q) = quality.as_object_mut() {
-                        q.insert(
-                            "weather".into(),
-                            serde_json::json!({ "value": false }),
-                        );
-                        q.insert(
-                            "leaves_quality".into(),
-                            serde_json::json!({ "value": "FAST" }),
-                        );
-                    }
-                    let perf = obj
-                        .entry("performance")
-                        .or_insert_with(|| serde_json::json!({}));
-                    if let Some(p) = perf.as_object_mut() {
-                        p.insert(
-                            "chunk_builder_threads".into(),
-                            serde_json::json!({ "value": 0 }),
-                        );
-                    }
-                }
-                let _ = std::fs::write(&sodium, serde_json::to_string_pretty(&json).unwrap_or(text));
-            }
+        let invalid = std::fs::read_to_string(&sodium)
+            .ok()
+            .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+            .is_none();
+        if invalid {
+            let _ = std::fs::remove_file(&sodium);
         }
     }
 

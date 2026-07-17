@@ -120,3 +120,22 @@ pub async fn get_pvp_client_status(
     };
     Ok(loaders::pvp::client_status(&app, &http, dir.as_deref()).await)
 }
+
+/// Estado del cliente PvP 1.21.11 publicado (manifest) vs instalado en una instancia.
+#[tauri::command]
+pub async fn get_pvp_modern_client_status(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    instance_id: Option<String>,
+) -> AppResult<crate::models::PvpClientStatus> {
+    let (http, _net) = state.net_scope();
+    let dir = if let Some(id) = instance_id {
+        Some(crate::core::instances::instance_dir(&id))
+    } else {
+        crate::core::instances::list_local()
+            .into_iter()
+            .find(|i| loaders::normalize(&i.loader) == "paraguacraft-pvp-modern")
+            .map(|i| crate::core::instances::instance_dir(&i.id))
+    };
+    Ok(loaders::pvp_modern::client_status(&app, &http, dir.as_deref()).await)
+}
