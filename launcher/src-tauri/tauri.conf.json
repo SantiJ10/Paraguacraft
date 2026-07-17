@@ -53,7 +53,8 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "resources/bundled/pvp/": "bundled/pvp/"
+      "resources/bundled/pvp/": "bundled/pvp/",
+      "resources/bundled/pvp-modern/": "bundled/pvp-modern/"
     }
   }
 }

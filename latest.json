@@ -1,12 +1,12 @@
 {
-  "version": "7.6.0",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.6.0/Instalar_Paraguacraft_v7.6.0.exe",
-  "size_bytes": 10657536,
-  "sha256": "8415a3887c3c88dbdcbf599a54b2e6448d788ceb5504d60370c76296fe042f5e",
-  "notes": "- Contenido estilo Modrinth: icono, nombre y autor reales en mods, shaders y resource packs\n- Resource packs ya no se pierden al aplicar skin offline ni al togglear packs\n- Compatibilidad de mods en chequeo pre-lanzamiento + playit.gg auto al iniciar servidor\n- Modo Competir, perfiles Hypixel 1 clic, post-crash liviano y bandeja systray",
+  "version": "7.7.0",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.7.0/Instalar_Paraguacraft_v7.7.0.exe",
+  "size_bytes": 0,
+  "sha256": "",
+  "notes": "- Paraguacraft PvP 1.21.11 (Fabric): menu Lunar, Mod Menu, Quick Play y practica PvP\n- Cliente PvP 1.8.9 2.1.29: Quick Play reconectar y mundo flat de entrenamiento\n- Perfiles Inicio: Hypixel, practica, servidores y solo menu\n- JVM Java 21 y optimizaciones superiores en 1.21.11",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.6.0/Instalar_Paraguacraft_v7.6.0.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.7.0/Instalar_Paraguacraft_v7.7.0.exe",
       "signature": ""
     }
   }

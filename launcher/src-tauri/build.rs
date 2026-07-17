@@ -121,6 +121,29 @@ fn main() {
         println!("cargo:rerun-if-changed=../../bundled/pvp");
     }
 
+    // Cliente PvP Modern embebido (Fabric 1.21.11, offline).
+    let repo_modern = manifest.join("../../bundled/pvp-modern");
+    let res_modern = manifest.join("resources/bundled/pvp-modern");
+    if repo_modern.is_dir() {
+        let _ = fs::create_dir_all(&res_modern);
+        for entry in fs::read_dir(&repo_modern).into_iter().flatten().flatten() {
+            let p = entry.path();
+            let name = entry.file_name();
+            if p.is_dir() {
+                if name == "packs" || name == "resourcepacks" {
+                    let _ = copy_dir_all(&p, &res_modern.join(name));
+                }
+                continue;
+            }
+            let is_jar = p.extension().and_then(|e| e.to_str()) == Some("jar");
+            let is_manifest = name == "manifest.json";
+            if is_jar || is_manifest {
+                let _ = fs::copy(&p, res_modern.join(name));
+            }
+        }
+        println!("cargo:rerun-if-changed=../../bundled/pvp-modern");
+    }
+
     tauri_build::build();
 }
 
