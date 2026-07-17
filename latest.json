@@ -3,7 +3,7 @@
   "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.6.0/Instalar_Paraguacraft_v7.6.0.exe",
   "size_bytes": 10657536,
   "sha256": "8415a3887c3c88dbdcbf599a54b2e6448d788ceb5504d60370c76296fe042f5e",
-  "notes": "- Fix manifest remoto del cliente PvP (BOM UTF-8, mirrors jsDelivr)\n- Cliente PvP 2.1.21 embebido + Hytils preconfig (solo camas)\n- OneConfig sin Right Shift (RShift = Mod Menu Paraguacraft)",
+  "notes": "- Contenido estilo Modrinth: icono, nombre y autor reales en mods, shaders y resource packs\n- Resource packs ya no se pierden al aplicar skin offline ni al togglear packs\n- Compatibilidad de mods en chequeo pre-lanzamiento + playit.gg auto al iniciar servidor\n- Modo Competir, perfiles Hypixel 1 clic, post-crash liviano y bandeja systray",
   "platforms": {
     "windows-x86_64": {
       "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.6.0/Instalar_Paraguacraft_v7.6.0.exe",

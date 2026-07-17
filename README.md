@@ -26,7 +26,7 @@ Cliente competitivo de **Minecraft 1.8.9** listo para Hypixel: **Forge + OptiFin
 
 | Menú principal | BedWars en Hypixel |
 |:---:|:---:|
-| ![Menú Paraguacraft PvP](web-site/public/screenshots/pvp_menu.png) | ![Paraguacraft PvP en partida](web-site/public/screenshots/pvp_game.png) |
+| ![Menú Paraguacraft PvP](docs/screenshots/pvp_menu.png) | ![Paraguacraft PvP en partida](docs/screenshots/pvp_game.png) |
 
 </div>
 
@@ -123,7 +123,7 @@ El launcher avisa cuando hay una versión nueva y descarga desde **GitHub Releas
 
 ## Enlaces
 
-- **Sitio web:** [paraguacraft.pages.dev](https://paraguacraft.pages.dev)
+- **Sitio web:** [paraguacraft.pages.dev](https://paraguacraft.pages.dev) — código en [paraguacraft-web](https://github.com/SantiJ10/paraguacraft-web) (no vive en este repo).
 - **Código:** [github.com/SantiJ10/Paraguacraft](https://github.com/SantiJ10/Paraguacraft)
 - **Changelog:** [CHANGELOG.md](CHANGELOG.md)
 - **Desarrollo del launcher:** [launcher/README.md](launcher/README.md)
