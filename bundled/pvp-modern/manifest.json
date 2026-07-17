@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP Modern",
   "mc_version": "1.21.11",
   "loader": "fabric",
-  "client_version": "0.4.1",
-  "release_tag": "pvp-modern-0.4.1",
-  "descripcion": "Menu compacto, logo Paraguacraft y botones planos estilo Lunar.",
+  "client_version": "0.4.2",
+  "release_tag": "pvp-modern-0.4.2",
+  "descripcion": "Fix menu: logo PNG y texto visible en botones/titulos.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-Modern-0.4.1.jar",
-      "sha1": "99f2ddd258efd9507c82d5c60071489648fb56ba"
+      "filename": "ParaguacraftPvP-Modern-0.4.2.jar",
+      "sha1": "43c613f8efde28f4d513256eec54234e88d49ba0"
     }
   ]
 }

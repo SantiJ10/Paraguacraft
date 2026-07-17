@@ -44,32 +44,32 @@ public final class HudRenderer {
         int line = 0;
         if (ModernConfig.showFps) {
             int fps = client.getCurrentFps();
-            context.drawText(tr, Text.literal("FPS " + fps), x, y + line * 10, 0xFFFFFF, true);
+            context.drawText(tr, Text.literal("FPS " + fps), x, y + line * 10, 0xFFFFFFFF, true);
             line++;
         }
         if (ModernConfig.showPing) {
             int ping = resolvePing(client);
-            int color = ping < 80 ? 0x55FF55 : (ping < 150 ? 0xFFFF55 : 0xFF5555);
+            int color = ping < 80 ? 0xFF55FF55 : (ping < 150 ? 0xFFFFFF55 : 0xFFFF5555);
             context.drawText(tr, Text.literal("Ping " + ping + "ms"), x, y + line * 10, color, true);
             line++;
         }
         if (ModernConfig.showPerfBadge && PerformanceConfig.boostFps) {
-            context.drawText(tr, Text.literal("Boost"), x, y + line * 10, 0x55FFAA, true);
+            context.drawText(tr, Text.literal("Boost"), x, y + line * 10, 0xFF55FFAA, true);
             line++;
         }
         if (ModernConfig.showCps) {
-            context.drawText(tr, Text.literal("CPS " + leftCps + " | " + rightCps), x, y + line * 10, 0xFFFFFF, true);
+            context.drawText(tr, Text.literal("CPS " + leftCps + " | " + rightCps), x, y + line * 10, 0xFFFFFFFF, true);
             line++;
         }
         if (ModernConfig.showCoords && client.player != null) {
             var p = client.player;
             String coords = String.format("XYZ %.0f %.0f %.0f", p.getX(), p.getY(), p.getZ());
-            context.drawText(tr, Text.literal(coords), x, y + line * 10, 0xAAAAAA, true);
+            context.drawText(tr, Text.literal(coords), x, y + line * 10, 0xFFAAAAAA, true);
             line++;
         }
         if (ModernConfig.showArmor && client.player != null) {
             int armor = client.player.getArmor();
-            context.drawText(tr, Text.literal("Armor " + armor), x, y + line * 10, 0x55AAFF, true);
+            context.drawText(tr, Text.literal("Armor " + armor), x, y + line * 10, 0xFF55AAFF, true);
             line++;
         }
         if (ModernConfig.showKeystrokes) {

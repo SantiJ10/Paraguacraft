@@ -13,6 +13,7 @@ import net.minecraft.util.Identifier;
 public final class MenuBackground {
 
     public static final int LOGO_MAX = 96;
+    private static final int LOGO_TEX = 128;
 
     private static final Identifier LOGO = Identifier.of(
         ParaguacraftPvPModern.MOD_ID,
@@ -41,7 +42,7 @@ public final class MenuBackground {
 
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.getResourceManager().getResource(LOGO).isPresent()) {
-            ctx.drawGuiTexture(RenderPipelines.GUI_TEXTURED, LOGO, lx, ly, logoSize, logoSize);
+            ctx.drawTexture(RenderPipelines.GUI_TEXTURED, LOGO, lx, ly, 0f, 0f, logoSize, logoSize, LOGO_TEX, LOGO_TEX);
         } else {
             ctx.fill(lx, ly, lx + logoSize, ly + logoSize, UiTheme.accent() & 0x44FFFFFF);
             ctx.fill(lx + 4, ly + 4, lx + logoSize - 4, ly + logoSize - 4, UiTheme.BTN_BG);

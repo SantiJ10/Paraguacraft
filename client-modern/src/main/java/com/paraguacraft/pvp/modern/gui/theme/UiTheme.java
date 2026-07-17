@@ -5,7 +5,8 @@ public final class UiTheme {
     public static final int OVERLAY = 0x8C000000;
     public static final int BTN_BG = 0xC80C0E16;
     public static final int BTN_HOVER = 0xDC121622;
-    public static final int TEXT = 0xF0F4FF;
+    /** ARGB completo: en 1.21 drawText ignora colores con alpha 0. */
+    public static final int TEXT = 0xFFF0F4FF;
     public static final int BAR_BG = 0xB0101218;
 
     private UiTheme() {}

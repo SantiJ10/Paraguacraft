@@ -18,10 +18,10 @@ public enum MenuTheme {
 
     MenuTheme(String label, int accent, int bgTop, int bgBottom, int textDim) {
         this.label = label;
-        this.accent = accent;
+        this.accent = accent | 0xFF000000;
         this.bgTop = bgTop | 0xFF000000;
         this.bgBottom = bgBottom | 0xFF000000;
-        this.textDim = textDim;
+        this.textDim = textDim | 0xFF000000;
     }
 
     public static MenuTheme current() {
