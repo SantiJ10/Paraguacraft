@@ -48,6 +48,13 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - HUD ampliado: **coordenadas**, **armadura** y **CPS**.
 - Mod **0.4.0** compilado y empaquetado en `bundled/pvp-modern/`.
 
+## Cliente PvP Modern 0.4.1 - 2026-06-30
+
+### Fixed
+- **Logo Paraguacraft** cargaba mal (namespace de assets incorrecto).
+- **Menú compacto**: botones planos estilo Lunar, sin bloques de piedra gigantes ni solapamiento.
+- Layout en 3 filas: juego principal, utilidades (Mod Menu/Opciones/Salir) y barra Skin/Tema/Packs/Fabric.
+
 ## Cliente PvP Modern 0.4.0 - 2026-06-30
 
 ### Added

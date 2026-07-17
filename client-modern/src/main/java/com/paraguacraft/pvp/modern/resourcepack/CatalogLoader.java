@@ -20,7 +20,7 @@ public final class CatalogLoader {
     private static final String USER_AGENT = "Paraguacraft-Modern/1.0 (Fabric-1.21.11)";
     private static final String REMOTE =
         "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/clientes/paraguacraft-pvp-modern/packs/catalog.json";
-    private static final String EMBEDDED = "/assets/paraguacraft-modern/packs/catalog.json";
+    private static final String EMBEDDED = "/assets/paraguacraftpvp-modern/packs/catalog.json";
 
     private static CatalogPack[] cached;
     private static long cachedAt;
