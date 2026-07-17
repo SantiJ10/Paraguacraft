@@ -77,22 +77,114 @@ impl ModernManifest {
     }
 }
 
-async fn fetch_manifest(client: &reqwest::Client, app: Option<&AppHandle>) -> ModernManifest {
+async fn fetch_manifest_with_source(
+    client: &reqwest::Client,
+    app: Option<&AppHandle>,
+) -> (ModernManifest, &'static str) {
     for url in MANIFEST_MIRROR_URLS {
         if let Ok(m) = net::fetch_json::<ModernManifest>(client, url).await {
             if !m.mods.is_empty() {
-                return m;
+                return (m, "remote");
             }
         }
     }
     if let Some(app) = app {
         if let Some(m) = read_bundled_manifest(app) {
             if !m.mods.is_empty() {
-                return m;
+                return (m, "bundled");
             }
         }
     }
-    ModernManifest::default()
+    (ModernManifest::default(), "fallback")
+}
+
+async fn fetch_manifest(client: &reqwest::Client, app: Option<&AppHandle>) -> ModernManifest {
+    fetch_manifest_with_source(client, app).await.0
+}
+
+fn version_from_modern_jar(filename: &str) -> Option<String> {
+    let lower = filename.to_lowercase();
+    const PREFIX: &str = "paraguacraftpvp-modern-";
+    if !lower.starts_with(PREFIX) || !lower.ends_with(".jar") {
+        return None;
+    }
+    let ver = &filename[PREFIX.len()..filename.len().saturating_sub(4)];
+    if ver.is_empty() {
+        None
+    } else {
+        Some(ver.to_string())
+    }
+}
+
+fn detect_installed_client(
+    app: &AppHandle,
+    instance_dir: Option<&Path>,
+    manifest: &ModernManifest,
+) -> (Option<String>, Option<String>, bool) {
+    let Some(dir) = instance_dir else {
+        return (None, None, false);
+    };
+    let mods_dir = dir.join("mods");
+    let main_mod = manifest.mods.iter().find(|m| {
+        m.filename
+            .to_lowercase()
+            .starts_with("paraguacraftpvp-modern")
+    });
+
+    if let Some(entry) = main_mod {
+        let dest = mods_dir.join(&entry.filename);
+        if sha_matches(&dest, &entry.sha1) {
+            return (
+                Some(entry.filename.clone()),
+                Some(manifest.client_version.clone()),
+                true,
+            );
+        }
+    }
+
+    let Ok(rd) = std::fs::read_dir(&mods_dir) else {
+        return (None, None, false);
+    };
+    for e in rd.flatten() {
+        let name = e.file_name().to_string_lossy().to_string();
+        if !name.to_lowercase().starts_with("paraguacraftpvp-modern") {
+            continue;
+        }
+        let path = e.path();
+        let up_to_date = main_mod.is_some_and(|exp| {
+            exp.filename == name && sha_matches(&path, &exp.sha1)
+        });
+        return (Some(name.clone()), version_from_modern_jar(&name), up_to_date);
+    }
+    (None, None, false)
+}
+
+/// Estado del cliente PvP 1.21.11 (manifest remoto vs JAR instalado).
+pub async fn client_status(
+    app: &AppHandle,
+    client: &reqwest::Client,
+    instance_dir: Option<&Path>,
+) -> crate::models::PvpClientStatus {
+    let (manifest, source) = fetch_manifest_with_source(client, Some(app)).await;
+    let main_mod = manifest.mods.iter().find(|m| {
+        m.filename
+            .to_lowercase()
+            .starts_with("paraguacraftpvp-modern")
+    });
+    let remote_filename = main_mod.map(|m| m.filename.clone()).unwrap_or_default();
+    let (installed_filename, installed_version, up_to_date) =
+        detect_installed_client(app, instance_dir, &manifest);
+
+    crate::models::PvpClientStatus {
+        remote_version: manifest.client_version.clone(),
+        remote_filename,
+        installed_version,
+        installed_filename,
+        up_to_date,
+        auto_updates_on_launch: true,
+        manifest_source: source.into(),
+        manifest_url: MANIFEST_URL.into(),
+    }
 }
 
 fn read_bundled_manifest(app: &AppHandle) -> Option<ModernManifest> {

@@ -1,0 +1,15 @@
+{
+  "id": "paraguacraft-pvp-modern",
+  "nombre": "Paraguacraft PvP Modern",
+  "mc_version": "1.21.11",
+  "loader": "fabric",
+  "client_version": "0.4.0",
+  "release_tag": "pvp-modern-0.4.0",
+  "descripcion": "Mod Menu, Quick Play, practica PvP, HUD avanzado y Boost FPS.",
+  "mods": [
+    {
+      "filename": "ParaguacraftPvP-Modern-0.4.0.jar",
+      "sha1": "b5cf99d7cb21f85e18d002b443618c7bbe89ccfe"
+    }
+  ]
+}

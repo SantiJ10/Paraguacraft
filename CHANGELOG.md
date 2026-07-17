@@ -3,6 +3,14 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.7.1] - 2026-06-30
+
+### Added
+- **Ajustes → Cliente PvP 1.21.11**: verificar y sincronizar el mod modern sin reinstalar el launcher (igual que 1.8.9).
+
+### Fixed
+- **Sodium corrupto** en instancias 1.21.11: el launcher ya no parchea `sodium-options.json` con esquema inválido; borra configs rotas al lanzar.
+
 ## [7.7.0] - 2026-06-30
 
 ### Added
