@@ -118,6 +118,7 @@ async fn spawn_for_instance(
     loader: String,
     settings: &AppSettings,
     server_address: Option<String>,
+    compete: Option<crate::core::compete_mode::CompeteLaunchPlan>,
 ) -> AppResult<u32> {
     if settings.deep_clean_on_launch {
         let _ = crate::core::extras::maintenance::run("both");
@@ -143,7 +144,9 @@ async fn spawn_for_instance(
         let _ = crate::core::extras::maintenance::auto_backup_worlds(instance_id);
     }
 
-    let ram = if meta.ram_mb > 0 {
+    let ram = if let Some(ref plan) = compete {
+        plan.ram_mb
+    } else if meta.ram_mb > 0 {
         meta.ram_mb
     } else {
         settings.ram_mb
@@ -196,12 +199,16 @@ async fn spawn_for_instance(
     }
     let has_pvp_mod = launch::has_paraguacraft_pvp_mod(&game_dir);
     let has_pg_rpc = settings.discord_rpc && has_pvp_mod;
+    let overlay_ipc = compete
+        .as_ref()
+        .map(|p| p.overlay_ipc)
+        .unwrap_or_else(|| crate::core::compete_mode::overlay_ipc_needed(&game_dir));
     let ipc_path_owned = crate::core::overlay_ipc::ipc_path().to_string_lossy().into_owned();
     let mut launch_env_owned: Vec<(String, String)> = Vec::new();
     if has_pg_rpc {
         launch_env_owned.push(("PARAGUACRAFT_LAUNCHER_RPC".into(), "1".into()));
     }
-    if has_pvp_mod {
+    if has_pvp_mod && overlay_ipc {
         launch_env_owned.push(("PARAGUACRAFT_OVERLAY_IPC".into(), ipc_path_owned));
     }
     let launch_env: Vec<(&str, &str)> = launch_env_owned
@@ -211,13 +218,17 @@ async fn spawn_for_instance(
     let child = launch::spawn_game(&java, &args, &game_dir, &launch_env, java_major)?;
     let pid = child.id();
 
-    let _ = crate::core::extras::java_priority::set_level(
-        if settings.java_priority.is_empty() {
-            "high"
-        } else {
-            &settings.java_priority
-        },
-    );
+    let java_priority = compete
+        .as_ref()
+        .map(|p| p.java_priority.as_str())
+        .unwrap_or_else(|| {
+            if settings.java_priority.is_empty() {
+                "high"
+            } else {
+                &settings.java_priority
+            }
+        });
+    let _ = crate::core::extras::java_priority::set_level(java_priority);
 
     if settings.discord_rpc {
         if has_pg_rpc {
@@ -234,7 +245,11 @@ async fn spawn_for_instance(
     }
 
     launch::emit_started(app, instance_id, pid);
-    let close_on_launch = settings.close_on_launch;
+    crate::core::game_session::set_running(true);
+    let close_on_launch = compete
+        .as_ref()
+        .map(|p| p.close_on_launch)
+        .unwrap_or(settings.close_on_launch);
     launch::watch_exit(
         app.clone(),
         instance_id.to_string(),
@@ -246,13 +261,15 @@ async fn spawn_for_instance(
         server_address.clone(),
         settings.clone(),
         has_pg_rpc,
-        has_pvp_mod,
+        overlay_ipc,
+        compete.is_some(),
+        compete.is_some(),
     );
 
     state.shutdown_network();
     *state.java_cache.lock().unwrap() = None;
 
-    launch::apply_launch_window(app, close_on_launch);
+    launch::apply_launch_window(app, close_on_launch, compete.is_some());
 
     if !instance_id.starts_with("ext::") {
         meta.last_played = Some(now_secs().to_string());
@@ -315,6 +332,7 @@ async fn launch_external(
         loader,
         &settings,
         None,
+        None,
     )
     .await
 }
@@ -328,6 +346,7 @@ pub async fn launch_instance(
     state: State<'_, AppState>,
     instance_id: String,
     server_address: Option<String>,
+    compete_mode: Option<bool>,
 ) -> AppResult<u32> {
     if instance_id.starts_with("ext::") {
         return launch_external(&app, &state, &instance_id).await;
@@ -338,6 +357,19 @@ pub async fn launch_instance(
     let loader = loaders::normalize(&meta.loader);
 
     let settings = config::read_json::<AppSettings>(&paths::config_file()).unwrap_or_default();
+    let use_compete = compete_mode.unwrap_or(false);
+    let inst_dir = instances::instance_dir(&instance_id);
+
+    let compete_plan = if use_compete {
+        Some(crate::core::compete_mode::apply_pre_launch(
+            &inst_dir,
+            &loader,
+            &meta,
+            settings.compete_turbo,
+        )?)
+    } else {
+        None
+    };
 
     let loader_version = meta.loader_version.clone();
     let (auth, launch_id) = {
@@ -369,8 +401,14 @@ pub async fn launch_instance(
             loaders::fabric_iris::install_bundle(&app, &http, &mc, &inst_dir).await?;
         }
         if loader == "paraguacraft-pvp" {
-            let inst_dir = instances::instance_dir(&instance_id);
-            loaders::pvp::install_bundle(&app, &http, &inst_dir).await?;
+            loaders::pvp::install_bundle_for_launch(
+                &app,
+                &http,
+                &inst_dir,
+                &instance_id,
+                use_compete,
+            )
+            .await?;
         }
 
         let auth = resolve_auth(&http).await?;
@@ -390,6 +428,7 @@ pub async fn launch_instance(
         loader,
         &settings,
         server_address,
+        compete_plan,
     )
     .await
 }

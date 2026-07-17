@@ -6,6 +6,7 @@ use crate::core::net;
 use crate::error::{AppError, AppResult};
 
 use super::game_dir_for;
+use super::resource_packs;
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -18,6 +19,20 @@ pub struct InstanceContentItem {
     pub size_bytes: u64,
     pub sha1: Option<String>,
     pub enabled: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub author: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub local_icon_path: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub compatible: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub compat_message: Option<String>,
 }
 
 fn sha1_file(path: &Path) -> Option<String> {
@@ -49,6 +64,13 @@ fn push_jar(entries: &mut Vec<InstanceContentItem>, base: &Path, folder: &str, k
         size_bytes: size,
         sha1: sha1_file(path),
         enabled,
+        display_name: None,
+        icon_url: None,
+        author: None,
+        description: None,
+        local_icon_path: None,
+        compatible: None,
+        compat_message: None,
     });
 }
 
@@ -76,6 +98,13 @@ fn scan_folder_dir(entries: &mut Vec<InstanceContentItem>, base: &Path, folder: 
                 size_bytes: dir_size(&path),
                 sha1: None,
                 enabled: true,
+                display_name: None,
+                icon_url: None,
+                author: None,
+                description: None,
+                local_icon_path: None,
+                compatible: None,
+                compat_message: None,
             });
             continue;
         }
@@ -102,12 +131,27 @@ fn dir_size(path: &Path) -> u64 {
     total
 }
 
+fn sync_resource_pack_enabled(base: &Path, mc_version: &str, items: &mut [InstanceContentItem]) {
+    for item in items.iter_mut() {
+        if item.folder != "resourcepacks" {
+            continue;
+        }
+        let path = base.join(item.path.replace('/', std::path::MAIN_SEPARATOR_STR));
+        let is_dir = path.is_dir();
+        item.enabled = resource_packs::is_enabled_in_options(base, mc_version, &item.name, is_dir);
+    }
+}
+
 pub fn list(id: &str) -> AppResult<Vec<InstanceContentItem>> {
     let base = game_dir_for(id).ok_or_else(|| AppError::msg("Instancia no encontrada"))?;
+    let mc_version = super::ensure_meta(id)
+        .map(|m| m.mc_version)
+        .unwrap_or_else(|_| "1.21.1".into());
     let mut entries = Vec::new();
     scan_folder_dir(&mut entries, &base, "mods", "mod");
     scan_folder_dir(&mut entries, &base, "resourcepacks", "resourcepack");
     scan_folder_dir(&mut entries, &base, "shaderpacks", "shader");
+    sync_resource_pack_enabled(&base, &mc_version, &mut entries);
     entries.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
     Ok(entries)
 }
@@ -122,6 +166,18 @@ pub fn toggle(id: &str, rel_path: &str, enabled: bool) -> AppResult<()> {
     if !path.exists() {
         return Err(AppError::msg("Archivo no encontrado"));
     }
+
+    if rel.starts_with("resourcepacks/") {
+        let meta = super::ensure_meta(id)?;
+        let pack_name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .trim_end_matches(".disabled");
+        resource_packs::set_enabled(&base, &meta.mc_version, pack_name, path.is_dir(), enabled)?;
+        return Ok(());
+    }
+
     let file_name = path
         .file_name()
         .and_then(|n| n.to_str())

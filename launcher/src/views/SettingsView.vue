@@ -341,6 +341,18 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
             hint="Libera RAM y procesos en segundo plano."
             @update:model-value="settings.update('closeOnLaunch', $event)"
           />
+          <BaseToggle
+            :model-value="settings.settings.competeTurbo ?? false"
+            label="Turbo en Modo Competir"
+            hint="DNS Cloudflare y cierre de apps de red al usar Competir."
+            @update:model-value="settings.update('competeTurbo', $event)"
+          />
+          <BaseToggle
+            :model-value="settings.settings.trayLite ?? true"
+            label="Bandeja ultra-lite"
+            hint="Icono en la bandeja mientras jugás; clic para restaurar el launcher."
+            @update:model-value="settings.update('trayLite', $event)"
+          />
         </div>
 
         <div v-if="app.hardware" class="mt-5 rounded-lg border border-surface-4 bg-surface-3/50 p-4 text-sm">

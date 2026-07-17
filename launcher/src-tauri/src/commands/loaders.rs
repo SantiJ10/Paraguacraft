@@ -70,6 +70,10 @@ pub async fn install_pvp_bundle(
             "Paraguacraft PvP solo esta disponible para Minecraft 1.8.9",
         ));
     }
+    if crate::core::game_session::is_running() {
+        crate::core::game_session::queue_pvp_sync(instance_id);
+        return Ok(());
+    }
     let (http, _net) = state.net_scope();
     let dir = crate::core::instances::instance_dir(&instance_id);
     loaders::pvp::install_bundle(&app, &http, &dir).await

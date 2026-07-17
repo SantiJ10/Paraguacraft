@@ -57,6 +57,12 @@ pub struct AppSettings {
     pub backup_auto_hours: u32,
     #[serde(default)]
     pub java_priority: String,
+    /// Turbo (DNS + apps red) al usar Modo Competir.
+    #[serde(default)]
+    pub compete_turbo: bool,
+    /// Bandeja del sistema mientras el juego corre (restaurar con un clic).
+    #[serde(default = "default_true")]
+    pub tray_lite: bool,
 }
 
 fn default_auto_update_check() -> bool {
@@ -90,6 +96,8 @@ impl Default for AppSettings {
             deep_clean_on_launch: false,
             backup_auto_hours: 0,
             java_priority: "high".into(),
+            compete_turbo: false,
+            tray_lite: true,
         }
     }
 }

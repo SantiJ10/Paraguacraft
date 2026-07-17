@@ -634,15 +634,20 @@ pub fn has_paraguacraft_pvp_mod(game_dir: &Path) -> bool {
 
 /// Emite `game://started`.
 pub fn emit_started(app: &AppHandle, instance_id: &str, pid: u32) {
+    crate::core::tray_lite::set_playing(app, true);
     let _ = app.emit(
         "game://started",
         serde_json::json!({ "instanceId": instance_id, "pid": pid }),
     );
 }
 
-/// Tras lanzar el juego: minimiza o cierra el launcher según Ajustes.
-pub fn apply_launch_window(app: &AppHandle, close_on_launch: bool) {
+/// Tras lanzar el juego: minimiza, oculta o cierra el launcher según Ajustes.
+pub fn apply_launch_window(app: &AppHandle, close_on_launch: bool, soft_close: bool) {
     if close_on_launch {
+        if soft_close {
+            suspend_for_game(app);
+            return;
+        }
         app.exit(0);
         return;
     }
@@ -651,12 +656,16 @@ pub fn apply_launch_window(app: &AppHandle, close_on_launch: bool) {
     }
 }
 
-fn restore_launch_window(app: &AppHandle) {
+fn suspend_for_game(app: &AppHandle) {
     if let Some(win) = app.get_webview_window("main") {
-        let _ = win.unminimize();
-        let _ = win.show();
-        let _ = win.set_focus();
+        let _ = win.minimize();
+        let _ = win.hide();
     }
+    crate::core::tray_lite::hide_to_tray(app);
+}
+
+fn restore_launch_window(app: &AppHandle) {
+    crate::core::tray_lite::show_main(app);
 }
 
 /// Espera (en hilo BLOQUEADO = 0% CPU, sin red) a que el juego cierre, suma el
@@ -673,6 +682,8 @@ pub fn watch_exit(
     settings: crate::models::AppSettings,
     game_rpc_handoff: bool,
     overlay_ipc: bool,
+    compete_session: bool,
+    soft_close: bool,
 ) {
     let started = std::time::Instant::now();
     let pid = child.id();
@@ -725,8 +736,15 @@ pub fn watch_exit(
             "exitCode": exit_code,
             "diagnosis": diagnosis,
         });
-        if !settings.close_on_launch {
+        if soft_close || !settings.close_on_launch {
             restore_launch_window(&app);
+        }
+        crate::core::game_session::set_running(false);
+        crate::core::tray_lite::set_playing(&app, false);
+        let pending_pvp = crate::core::game_session::take_pending_pvp_sync();
+        if compete_session {
+            let _ = crate::core::extras::game_mode::deactivate();
+            let _ = crate::core::extras::turbo::deactivate();
         }
         let _ = app.emit("game://exited", payload.clone());
         if exit_code != 0 {
@@ -738,6 +756,24 @@ pub fn watch_exit(
         .unwrap_or_default();
         if settings.discord_rpc {
             crate::core::extras::discord_rpc::set_launcher_idle(&username);
+        }
+        if !pending_pvp.is_empty() {
+            let app_sync = app.clone();
+            tauri::async_runtime::spawn(async move {
+                if let Some(state) = app_sync.try_state::<crate::state::AppState>() {
+                    let http = state.client();
+                    for id in pending_pvp {
+                        let dir = crate::core::instances::instance_dir(&id);
+                        let _ = crate::core::loaders::pvp::install_bundle(
+                            &app_sync,
+                            &http,
+                            &dir,
+                        )
+                        .await;
+                    }
+                    state.shutdown_network();
+                }
+            });
         }
     });
 }

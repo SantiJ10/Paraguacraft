@@ -340,6 +340,61 @@ export interface AppSettings {
   deepCleanOnLaunch?: boolean;
   backupAutoHours?: number;
   javaPriority?: string;
+  competeTurbo?: boolean;
+  trayLite?: boolean;
+}
+
+export interface ResourceBudget {
+  launcherMb: number;
+  javaMb: number;
+  systemFreeMb: number;
+  totalRamMb: number;
+  tier: string;
+  profileLabel: string;
+}
+
+export interface PreLaunchCheckItem {
+  id: string;
+  label: string;
+  status: "ok" | "warn" | "error" | "info";
+  message: string;
+  hint?: string | null;
+}
+
+export interface PreLaunchCheckReport {
+  ready: boolean;
+  items: PreLaunchCheckItem[];
+}
+
+export interface InstanceWeight {
+  tier: "liviano" | "medio" | "pesado";
+  label: string;
+  score: number;
+  modCount: number;
+  shaderCount: number;
+  ramMb: number;
+  modsMb: number;
+  reasons: string[];
+}
+
+export interface ModConflict {
+  severity: "warn" | "error";
+  title: string;
+  detail: string;
+  mods: string[];
+}
+
+export interface GameProfile {
+  id: string;
+  name: string;
+  description: string;
+  instanceId?: string | null;
+  loaderFilter?: string | null;
+  competeMode: boolean;
+  serverAddress?: string | null;
+  builtin: boolean;
+  available: boolean;
+  resolvedInstanceName?: string | null;
 }
 
 export interface ExtrasStatus {
@@ -420,6 +475,13 @@ export interface InstanceContentItem {
   sizeBytes: number;
   sha1: string | null;
   enabled: boolean;
+  displayName?: string | null;
+  iconUrl?: string | null;
+  author?: string | null;
+  description?: string | null;
+  localIconPath?: string | null;
+  compatible?: boolean | null;
+  compatMessage?: string | null;
 }
 
 export interface FavoriteServer {

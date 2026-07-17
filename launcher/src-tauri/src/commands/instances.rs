@@ -111,8 +111,16 @@ pub fn set_instance_auto_managed(id: String, auto: bool) -> AppResult<InstanceMe
 }
 
 #[tauri::command]
-pub fn list_instance_content(id: String) -> AppResult<Vec<instances::content::InstanceContentItem>> {
-    instances::content::list(&id)
+pub async fn list_instance_content(
+    state: tauri::State<'_, crate::state::AppState>,
+    id: String,
+) -> AppResult<Vec<instances::content::InstanceContentItem>> {
+    let mut items = instances::content::list(&id)?;
+    if let Some(base) = instances::game_dir_for(&id) {
+        let (http, _guard) = state.net_scope();
+        let _ = instances::content_metadata::enrich(&http, &id, &base, &mut items).await;
+    }
+    Ok(items)
 }
 
 #[tauri::command]

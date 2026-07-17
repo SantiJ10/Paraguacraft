@@ -36,6 +36,11 @@ import type {
   StructuredInvokeError,
   UpdateInfo,
   PvpClientStatus,
+  ResourceBudget,
+  PreLaunchCheckReport,
+  InstanceWeight,
+  GameProfile,
+  ModConflict,
   HardwareInfo,
   ImportInstanceIconResult,
   BedrockStatus,
@@ -544,11 +549,40 @@ export const api = {
   },
 
   // --- Lanzamiento (Fase 3) ---
-  async launchInstance(instanceId: string, serverAddress?: string | null): Promise<number> {
+  async launchInstance(
+    instanceId: string,
+    serverAddress?: string | null,
+    competeMode?: boolean,
+  ): Promise<number> {
     return invokeReal<number>("launch_instance", {
       instanceId,
       serverAddress: serverAddress ?? null,
+      competeMode: competeMode ?? null,
     });
+  },
+
+  async getResourceBudget(instanceId: string): Promise<ResourceBudget> {
+    return invokeReal<ResourceBudget>("get_resource_budget", { instanceId });
+  },
+
+  async runPreLaunchCheck(instanceId: string): Promise<PreLaunchCheckReport> {
+    return invokeReal<PreLaunchCheckReport>("run_pre_launch_check", { instanceId });
+  },
+
+  async getInstanceWeight(instanceId: string): Promise<InstanceWeight> {
+    return invokeReal<InstanceWeight>("get_instance_weight", { instanceId });
+  },
+
+  async listGameProfiles(): Promise<GameProfile[]> {
+    return invokeReal<GameProfile[]>("list_game_profiles");
+  },
+
+  async launchGameProfile(profileId: string): Promise<number> {
+    return invokeReal<number>("launch_game_profile", { profileId });
+  },
+
+  async scanModConflicts(instanceId: string): Promise<ModConflict[]> {
+    return invokeReal<ModConflict[]>("scan_mod_conflicts", { instanceId });
   },
 
   async getBedrockStatus(): Promise<BedrockStatus> {

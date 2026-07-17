@@ -8,6 +8,8 @@ mod deploy;
 mod options;
 mod version;
 
+pub use options::{is_system_pack, parse_quoted_packs};
+
 use std::path::Path;
 
 pub use version::parse_mc_version;
@@ -20,6 +22,13 @@ pub const BEDROCK_TITLE_PNG: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/b
 /// `paraguacraft-pvp` incluye su propio menú personalizado.
 pub fn should_apply(loader: &str) -> bool {
     loader != "paraguacraft-pvp"
+}
+
+/// Asegura que el pack de branding esté activo en `options.txt` sin borrar packs del usuario.
+pub fn sync_brand_options(game_dir: &Path, mc_version: &str, min_graphics: bool) -> crate::error::AppResult<()> {
+    let ver = parse_mc_version(mc_version);
+    let profile = version::pack_profile(ver);
+    options::ensure_enabled(game_dir, ver, profile, min_graphics)
 }
 
 /// Instala el pack de branding pre-generado antes del lanzamiento.

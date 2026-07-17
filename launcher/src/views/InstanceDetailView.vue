@@ -5,7 +5,7 @@ import { useInstancesStore } from "@/stores/instances";
 import { useAppStore } from "@/stores/app";
 import { useDownloadsStore } from "@/stores/downloads";
 import { api } from "@/lib/ipc";
-import type { InstanceContentItem, InstanceMeta, GcType, Instance, ServerRepairReport } from "@/lib/types";
+import type { InstanceContentItem, InstanceMeta, GcType, Instance, ServerRepairReport, ResourceBudget, PreLaunchCheckReport, InstanceWeight, ModConflict } from "@/lib/types";
 import BaseButton from "@/components/common/BaseButton.vue";
 import BackupsModal from "@/components/instance/BackupsModal.vue";
 import InstanceIcon from "@/components/instance/InstanceIcon.vue";
@@ -13,6 +13,7 @@ import InstanceIconPicker from "@/components/instance/InstanceIconPicker.vue";
 import { resolveInstanceIcon } from "@/lib/instanceIcons";
 import { formatPlaytime, formatRelative } from "@/composables/useFormat";
 import SearchInput from "@/components/common/SearchInput.vue";
+import InstanceContentRow from "@/components/instance/InstanceContentRow.vue";
 
 type TabId = "content" | "files" | "logs" | "settings";
 
@@ -40,6 +41,16 @@ const contentSearch = ref("");
 const contentKind = ref<"all" | "mod" | "resourcepack" | "shader">("all");
 const contentBusy = ref(false);
 const exporting = ref(false);
+const resourceBudget = ref<ResourceBudget | null>(null);
+const instanceWeight = ref<InstanceWeight | null>(null);
+const preLaunchReport = ref<PreLaunchCheckReport | null>(null);
+const preLaunchBusy = ref(false);
+const showPreLaunch = ref(false);
+const modConflicts = ref<ModConflict[]>([]);
+
+const isPvp = computed(
+  () => displayInstance.value?.loader === "paraguacraft-pvp",
+);
 
 const instanceId = computed(() => String(route.params.id ?? ""));
 const instance = computed(() => instances.instances.find((i) => i.id === instanceId.value) ?? null);
@@ -167,6 +178,17 @@ async function loadAll() {
     }
     content.value = await api.listInstanceContent(instanceId.value);
     folderPath.value = await api.getInstanceFolderPath(instanceId.value);
+    if (!isExternal.value) {
+      try {
+        resourceBudget.value = await api.getResourceBudget(instanceId.value);
+        instanceWeight.value = await api.getInstanceWeight(instanceId.value);
+        modConflicts.value = await api.scanModConflicts(instanceId.value);
+      } catch {
+        resourceBudget.value = null;
+        instanceWeight.value = null;
+        modConflicts.value = [];
+      }
+    }
   } catch (e) {
     error.value = String(e);
   } finally {
@@ -189,18 +211,48 @@ watch(tab, (t) => {
   if (t === "logs") void loadLogs();
 });
 
-async function play() {
+async function play(compete = false) {
   const inst = displayInstance.value;
   if (!inst) return;
   launching.value = true;
   error.value = null;
   try {
-    await app.launch(inst.id, inst.name);
+    await app.launch(inst.id, inst.name, null, compete);
   } catch (e) {
     error.value = String(e);
   } finally {
     launching.value = false;
   }
+}
+
+async function compete() {
+  await play(true);
+}
+
+async function runPreLaunchCheck() {
+  preLaunchBusy.value = true;
+  error.value = null;
+  try {
+    preLaunchReport.value = await api.runPreLaunchCheck(instanceId.value);
+    showPreLaunch.value = true;
+  } catch (e) {
+    error.value = String(e);
+  } finally {
+    preLaunchBusy.value = false;
+  }
+}
+
+function preLaunchStatusClass(status: string) {
+  if (status === "ok") return "border-pc-green/40 bg-pc-green/10 text-pc-green";
+  if (status === "warn") return "border-amber-500/40 bg-amber-500/10 text-amber-200";
+  if (status === "error") return "border-red-500/40 bg-red-500/10 text-red-300";
+  return "border-surface-4 bg-surface-3 text-gray-400";
+}
+
+function weightBadgeClass(tier: string) {
+  if (tier === "pesado") return "bg-red-500/20 text-red-300";
+  if (tier === "medio") return "bg-amber-500/20 text-amber-200";
+  return "bg-pc-green/20 text-pc-green";
 }
 
 async function toggleItem(item: InstanceContentItem) {
@@ -233,12 +285,6 @@ async function updateContent() {
   } finally {
     updating.value = false;
   }
-}
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function goStore() {
@@ -410,7 +456,10 @@ const contentByFolder = computed(() => {
   const map = new Map<string, InstanceContentItem[]>();
   for (const item of content.value) {
     if (contentKind.value !== "all" && item.kind !== contentKind.value) continue;
-    if (q && !item.name.toLowerCase().includes(q)) continue;
+    if (q) {
+      const label = (item.displayName ?? item.name).toLowerCase();
+      if (!label.includes(q) && !item.name.toLowerCase().includes(q)) continue;
+    }
     const list = map.get(item.folder) ?? [];
     list.push(item);
     map.set(item.folder, list);
@@ -489,12 +538,43 @@ async function exportInstance() {
             Minecraft {{ displayInstance.mcVersion }} ·
             <span class="capitalize">{{ displayInstance.loader.replace(/-/g, " ") }}</span>
             <span v-if="displayInstance.loaderVersion"> {{ displayInstance.loaderVersion }}</span>
+            <span
+              v-if="instanceWeight"
+              class="ml-2 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase"
+              :class="weightBadgeClass(instanceWeight.tier)"
+            >
+              {{ instanceWeight.label }}
+            </span>
             · {{ formatRelative(displayInstance.lastPlayed) }} · {{ formatPlaytime(displayInstance.totalPlayMinutes) }}
           </p>
         </div>
         <div class="flex flex-wrap gap-2">
-          <BaseButton size="lg" :disabled="launching || app.launchPhase === 'running'" @click="play">
+          <BaseButton
+            v-if="isPvp"
+            size="lg"
+            variant="primary"
+            :disabled="launching || app.launchPhase === 'running'"
+            title="Cierra el launcher, Game Mode, RAM óptima y perfil PvP competitivo"
+            @click="compete"
+          >
+            {{ launching ? "Lanzando…" : "Competir" }}
+          </BaseButton>
+          <BaseButton
+            size="lg"
+            :variant="isPvp ? 'secondary' : 'primary'"
+            :disabled="launching || app.launchPhase === 'running'"
+            @click="play(false)"
+          >
             {{ launching ? "Lanzando…" : "Jugar" }}
+          </BaseButton>
+          <BaseButton
+            v-if="!isExternal"
+            variant="secondary"
+            :disabled="preLaunchBusy || launching"
+            title="Java, cliente PvP, disco y tips antes de jugar"
+            @click="runPreLaunchCheck"
+          >
+            {{ preLaunchBusy ? "Chequeando…" : "Chequear" }}
           </BaseButton>
           <BaseButton v-if="isExternal" variant="secondary" @click="importExternal">
             Importar a Paraguacraft
@@ -511,6 +591,90 @@ async function exportInstance() {
           </BaseButton>
         </div>
       </header>
+
+      <div
+        v-if="resourceBudget && !isExternal"
+        class="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-surface-4 bg-surface-2 px-4 py-3 text-sm text-gray-400"
+      >
+        <span class="font-semibold text-gray-300">Presupuesto</span>
+        <span>Launcher ~{{ resourceBudget.launcherMb }} MB</span>
+        <span>·</span>
+        <span>Java ~{{ (resourceBudget.javaMb / 1024).toFixed(1) }} GB</span>
+        <span>·</span>
+        <span>Libre ~{{ (resourceBudget.systemFreeMb / 1024).toFixed(1) }} GB</span>
+        <span>·</span>
+        <span class="text-pc-green">{{ resourceBudget.profileLabel }}</span>
+      </div>
+
+      <div
+        v-if="instanceWeight && !isExternal"
+        class="mb-4 rounded-xl border border-surface-4 bg-surface-2 px-4 py-3 text-sm text-gray-400"
+      >
+        <span class="font-semibold text-gray-300">Peso estimado: </span>
+        <span
+          class="rounded px-1.5 py-0.5 text-xs font-bold uppercase"
+          :class="weightBadgeClass(instanceWeight.tier)"
+        >{{ instanceWeight.label }}</span>
+        <span class="ml-2">
+          {{ instanceWeight.modCount }} mods
+          <span v-if="instanceWeight.shaderCount"> · {{ instanceWeight.shaderCount }} shaders</span>
+          · {{ instanceWeight.ramMb }} MB RAM
+        </span>
+        <p v-if="instanceWeight.reasons.length" class="mt-1 text-xs text-gray-500">
+          {{ instanceWeight.reasons.join(" · ") }}
+        </p>
+      </div>
+
+      <div
+        v-if="modConflicts.length && !isExternal"
+        class="mb-4 space-y-2 rounded-xl border border-amber-500/30 bg-amber-950/20 p-4"
+      >
+        <h2 class="text-sm font-bold text-amber-200">Conflictos de mods</h2>
+        <ul class="space-y-2 text-sm">
+          <li
+            v-for="(c, i) in modConflicts"
+            :key="i"
+            class="rounded-lg border px-3 py-2"
+            :class="c.severity === 'error' ? 'border-red-500/40 bg-red-500/10 text-red-200' : 'border-amber-500/40 bg-amber-500/10 text-amber-100'"
+          >
+            <p class="font-semibold">{{ c.title }}</p>
+            <p class="mt-0.5 text-xs opacity-90">{{ c.detail }}</p>
+            <p v-if="c.mods.length" class="mt-1 text-xs opacity-75">{{ c.mods.join(" · ") }}</p>
+          </li>
+        </ul>
+      </div>
+
+      <div
+        v-if="showPreLaunch && preLaunchReport"
+        class="mb-4 space-y-2 rounded-xl border border-surface-4 bg-surface-2 p-4"
+      >
+        <div class="flex items-center justify-between gap-2">
+          <h2 class="text-sm font-bold">
+            Chequeo pre-lanzamiento
+            <span
+              class="ml-2 font-normal"
+              :class="preLaunchReport.ready ? 'text-pc-green' : 'text-amber-300'"
+            >
+              {{ preLaunchReport.ready ? "Listo para jugar" : "Revisá los avisos" }}
+            </span>
+          </h2>
+          <button type="button" class="text-xs text-gray-500 hover:text-white" @click="showPreLaunch = false">
+            Cerrar
+          </button>
+        </div>
+        <ul class="space-y-2 text-sm">
+          <li
+            v-for="item in preLaunchReport.items"
+            :key="item.id"
+            class="rounded-lg border px-3 py-2"
+            :class="preLaunchStatusClass(item.status)"
+          >
+            <p class="font-semibold">{{ item.label }}</p>
+            <p class="mt-0.5 opacity-90">{{ item.message }}</p>
+            <p v-if="item.hint" class="mt-1 text-xs opacity-75">{{ item.hint }}</p>
+          </li>
+        </ul>
+      </div>
 
       <div
         v-if="repairReport?.items.length"
@@ -596,43 +760,14 @@ async function exportInstance() {
             {{ folder }} · {{ items.length }}
           </h3>
           <ul class="divide-y divide-surface-3">
-            <li
+            <InstanceContentRow
               v-for="item in items"
               :key="item.path"
-              class="flex items-center gap-3 px-4 py-3"
-              :class="!item.enabled ? 'opacity-50' : ''"
-            >
-              <div class="min-w-0 flex-1">
-                <p class="truncate font-medium">{{ item.name }}</p>
-                <p class="text-xs text-gray-500">
-                  {{ formatSize(item.sizeBytes) }}
-                  <span v-if="item.sha1"> · {{ item.sha1.slice(0, 8) }}…</span>
-                </p>
-              </div>
-              <div class="flex shrink-0 gap-1">
-                <button
-                  class="rounded-lg px-2 py-1 text-xs text-gray-400 hover:bg-surface-4 hover:text-white"
-                  title="Mostrar en carpeta"
-                  @click="revealContent(item)"
-                >
-                  📁
-                </button>
-                <button
-                  class="rounded-lg px-2 py-1 text-xs text-gray-400 hover:bg-red-900/40 hover:text-red-300"
-                  title="Eliminar"
-                  @click="removeContent(item)"
-                >
-                  🗑
-                </button>
-                <button
-                  class="rounded-lg px-3 py-1 text-xs font-semibold transition-colors"
-                  :class="item.enabled ? 'bg-surface-4 text-gray-300 hover:bg-amber-900/40 hover:text-amber-200' : 'bg-pc-green/20 text-pc-green'"
-                  @click="toggleItem(item)"
-                >
-                  {{ item.enabled ? "Desactivar" : "Activar" }}
-                </button>
-              </div>
-            </li>
+              :item="item"
+              @toggle="toggleItem(item)"
+              @reveal="revealContent(item)"
+              @remove="removeContent(item)"
+            />
           </ul>
         </div>
       </section>

@@ -1,12 +1,12 @@
 {
-  "version": "7.2.18",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.18/Instalar_Paraguacraft_v7.2.18.exe",
-  "size_bytes": 10774320,
-  "sha256": "7e10e714d3f75f5126801475e6db99aaadedcaa6cd1c5241aca81e9ad0dbebf7",
+  "version": "7.6.0",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.6.0/Instalar_Paraguacraft_v7.6.0.exe",
+  "size_bytes": 10657536,
+  "sha256": "8415a3887c3c88dbdcbf599a54b2e6448d788ceb5504d60370c76296fe042f5e",
   "notes": "- Fix manifest remoto del cliente PvP (BOM UTF-8, mirrors jsDelivr)\n- Cliente PvP 2.1.21 embebido + Hytils preconfig (solo camas)\n- OneConfig sin Right Shift (RShift = Mod Menu Paraguacraft)",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.2.18/Instalar_Paraguacraft_v7.2.18.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.6.0/Instalar_Paraguacraft_v7.6.0.exe",
       "signature": ""
     }
   }

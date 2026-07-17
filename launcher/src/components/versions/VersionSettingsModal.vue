@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import BaseButton from "@/components/common/BaseButton.vue";
-import { CONTENT_FOLDERS, contentFolderIcon, contentFolderLabel } from "@/lib/contentIcons";
+import InstanceContentRow from "@/components/instance/InstanceContentRow.vue";
+import { CONTENT_FOLDERS, contentFolderLabel } from "@/lib/contentIcons";
 import { loaderIconSrc } from "@/lib/loaderIcons";
 import { api } from "@/lib/ipc";
 import type { GcType, InstanceContentItem, InstanceMeta, LoaderInfo } from "@/lib/types";
@@ -132,12 +133,6 @@ async function openFolder() {
   await api.openInstanceFolder(props.instanceId);
 }
 
-function formatSize(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 const selectedLoaderInfo = computed(() => loaders.value.find((l) => l.id === loader.value));
 </script>
 
@@ -211,26 +206,13 @@ const selectedLoaderInfo = computed(() => loaders.value.find((l) => l.id === loa
                 No hay {{ contentFolderLabel(contentTab).toLowerCase() }} instalados.
               </p>
               <ul v-else class="divide-y divide-surface-3 rounded-xl border border-surface-4 bg-surface-2">
-                <li
+                <InstanceContentRow
                   v-for="item in filteredContent"
                   :key="item.path"
-                  class="flex items-center gap-3 px-4 py-3"
-                  :class="!item.enabled ? 'opacity-50' : ''"
-                >
-                  <img :src="contentFolderIcon(item.folder)" alt="" class="h-8 w-8 object-contain" />
-                  <div class="min-w-0 flex-1">
-                    <p class="truncate font-medium">{{ item.name }}</p>
-                    <p class="text-xs text-gray-500">{{ formatSize(item.sizeBytes) }}</p>
-                  </div>
-                  <button
-                    type="button"
-                    class="rounded-lg px-3 py-1 text-xs font-semibold transition"
-                    :class="item.enabled ? 'bg-surface-4 text-gray-300' : 'bg-pc-green/20 text-pc-green'"
-                    @click="toggleItem(item)"
-                  >
-                    {{ item.enabled ? "Desactivar" : "Activar" }}
-                  </button>
-                </li>
+                  :item="item"
+                  compact
+                  @toggle="toggleItem(item)"
+                />
               </ul>
             </section>
 
