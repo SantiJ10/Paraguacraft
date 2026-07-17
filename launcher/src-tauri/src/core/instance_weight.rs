@@ -89,8 +89,12 @@ pub fn compute(instance_id: &str) -> AppResult<InstanceWeight> {
     }
 
     score += match loader.as_str() {
-        "fabric-iris" => {
-            reasons.push("Fabric + Iris".into());
+        "fabric-iris" | "paraguacraft-pvp-modern" => {
+            reasons.push(if loader == "paraguacraft-pvp-modern" {
+                "Paraguacraft PvP 1.21.11".into()
+            } else {
+                "Fabric + Iris".into()
+            });
             2
         }
         "paraguacraft-pvp" => 0,

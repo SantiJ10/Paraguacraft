@@ -1,0 +1,11 @@
+{
+  "required": true,
+  "package": "com.paraguacraft.pvp.modern.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "MixinMinecraftClient"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

@@ -39,6 +39,8 @@ pub fn create(
     let default_ram = if ram_mb == 0 {
         if loader == "paraguacraft-pvp" && mc_version == "1.8.9" {
             crate::core::hardware::recommend_pvp_189_ram_mb(crate::core::hardware::detect().ram_gb)
+        } else if loader == "paraguacraft-pvp-modern" && mc_version == "1.21.11" {
+            crate::core::hardware::detect().recommended_ram_mb.max(4096)
         } else {
             4096
         }

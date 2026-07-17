@@ -145,6 +145,23 @@ pub async fn repair(
         }
     }
 
+    if loader == "paraguacraft-pvp-modern" {
+        match loaders::pvp_modern::sync_instance(app, client, &meta.mc_version, &dir).await {
+            Ok(()) => push_fixed(
+                &mut report,
+                "Cliente PvP 1.21.11 sincronizado",
+                "Iris + mod ParaguacraftPvP-Modern verificados.",
+                Some(dir.join("mods")),
+            ),
+            Err(e) => push_warning(
+                &mut report,
+                "Cliente PvP 1.21.11 incompleto",
+                e.to_string(),
+                Some(dir.join("mods")),
+            ),
+        }
+    }
+
     let log_path = dir.join("logs").join("latest.log");
     if log_path.is_file() {
         if let Ok(content) = fs::read_to_string(&log_path) {

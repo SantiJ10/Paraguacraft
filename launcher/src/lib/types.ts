@@ -9,7 +9,8 @@ export type LoaderId =
   | "optifine"
   | "quilt"
   | "fabric-iris"
-  | "paraguacraft-pvp";
+  | "paraguacraft-pvp"
+  | "paraguacraft-pvp-modern";
 
 export type GcType = "Auto" | "G1GC" | "ZGC" | "Shenandoah";
 
@@ -384,6 +385,14 @@ export interface ModConflict {
   mods: string[];
 }
 
+export interface GameProfileDestination {
+  id: string;
+  label: string;
+  description?: string | null;
+  serverAddress?: string | null;
+  needsFavorite?: boolean;
+}
+
 export interface GameProfile {
   id: string;
   name: string;
@@ -395,6 +404,9 @@ export interface GameProfile {
   builtin: boolean;
   available: boolean;
   resolvedInstanceName?: string | null;
+  destinations?: GameProfileDestination[];
+  hardwareTier?: string | null;
+  modPackSummary?: string | null;
 }
 
 export interface ExtrasStatus {

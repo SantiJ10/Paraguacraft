@@ -25,7 +25,8 @@ export const LOADER_ICONS: LoaderIconOption[] = [
   { id: "neoforge", name: "NeoForge", src: neoforge, description: "Forge moderno" },
   { id: "quilt", name: "Quilt", src: quilt, description: "Fork de Fabric" },
   { id: "optifine", name: "OptiFine", src: optifine, description: "Optimización + shaders" },
-  { id: "paraguacraft-pvp", name: "Paraguacraft PvP", src: tnt, description: "Cliente PvP" },
+  { id: "paraguacraft-pvp", name: "Paraguacraft PvP 1.8.9", src: tnt, description: "Cliente PvP Forge" },
+  { id: "paraguacraft-pvp-modern", name: "Paraguacraft PvP 1.21.11", src: tnt, description: "Cliente PvP Fabric" },
 ];
 
 const ICON_BY_ID: Record<string, string> = Object.fromEntries(

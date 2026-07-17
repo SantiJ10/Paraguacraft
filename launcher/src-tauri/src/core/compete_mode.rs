@@ -84,6 +84,12 @@ fn apply_pvp_compete_profile(game_dir: &Path, tier: &str) -> AppResult<bool> {
     props.insert("skipCombatFx".into(), "true".into());
     props.insert("armorStandCull".into(), "true".into());
     props.insert("itemFrameCull".into(), "true".into());
+    props.insert("scoreboardHideStats".into(), "true".into());
+    props.insert("scoreboardHideRedNumbers".into(), "true".into());
+    props.insert("toggleSprintActive".into(), "true".into());
+    props.insert("toggleSprintLegacyActive".into(), "false".into());
+    props.insert("pvpTrainingMode".into(), "false".into());
+    props.insert("pvpTrainingAutoWorld".into(), "false".into());
 
     match tier {
         "baja" => {
@@ -115,6 +121,52 @@ fn apply_pvp_compete_profile(game_dir: &Path, tier: &str) -> AppResult<bool> {
         .get("showHardwareHud")
         .is_some_and(|v| v.eq_ignore_ascii_case("true"));
     Ok(music || hw_hud)
+}
+
+/// Perfil entrenamiento: Boost FPS + HUD de practica, sin turbo Competir ni auto-servidor.
+pub fn apply_training_profile(game_dir: &Path, tier: &str, auto_world: bool) -> AppResult<()> {
+    let path = game_dir.join("paraguacraft_v2.properties");
+    let mut props = read_properties(&path);
+
+    props.insert("pvpTrainingMode".into(), "true".into());
+    props.insert("pvpTrainingAutoWorld".into(), auto_world.to_string());
+    props.insert("boostFps".into(), "true".into());
+    props.insert("entityCull".into(), "true".into());
+    props.insert("nametagCull".into(), "true".into());
+    props.insert("particleLimit".into(), "true".into());
+    props.insert("hardwareAutoPreset".into(), "true".into());
+    props.insert("applyVanillaPreset".into(), "true".into());
+    props.insert("skipCombatFx".into(), "false".into());
+    props.insert("memoryCleanup".into(), "false".into());
+    props.insert("entityAnimCull".into(), "false".into());
+    props.insert("blockEntityCull".into(), "false".into());
+    props.insert("reachDisplay".into(), "true".into());
+    props.insert("comboCounter".into(), "true".into());
+    props.insert("showKeystrokes".into(), "true".into());
+    props.insert("showFPS".into(), "true".into());
+    props.insert("showPing".into(), "true".into());
+    props.insert("scoreboardHideStats".into(), "true".into());
+    props.insert("scoreboardHideRedNumbers".into(), "true".into());
+    props.insert("toggleSprintActive".into(), "true".into());
+    props.insert("toggleSprintLegacyActive".into(), "false".into());
+    props.insert("showMusicHud".into(), "false".into());
+    props.insert("showHardwareHud".into(), "false".into());
+    props.insert("showMusicAlbumArt".into(), "false".into());
+
+    match tier {
+        "baja" => {
+            props.insert("particleMode".into(), "MINIMAL".into());
+        }
+        "alta" => {
+            props.insert("particleMode".into(), "REDUCED".into());
+        }
+        _ => {
+            props.insert("particleMode".into(), "REDUCED".into());
+        }
+    }
+
+    write_properties(&path, &props)?;
+    Ok(())
 }
 
 fn read_properties(path: &Path) -> HashMap<String, String> {

@@ -11,6 +11,7 @@ import BackupsModal from "@/components/instance/BackupsModal.vue";
 import InstanceIcon from "@/components/instance/InstanceIcon.vue";
 import InstanceIconPicker from "@/components/instance/InstanceIconPicker.vue";
 import { resolveInstanceIcon } from "@/lib/instanceIcons";
+import { normalizeLoaderId } from "@/lib/loaders";
 import { formatPlaytime, formatRelative } from "@/composables/useFormat";
 import SearchInput from "@/components/common/SearchInput.vue";
 import InstanceContentRow from "@/components/instance/InstanceContentRow.vue";
@@ -48,9 +49,11 @@ const preLaunchBusy = ref(false);
 const showPreLaunch = ref(false);
 const modConflicts = ref<ModConflict[]>([]);
 
-const isPvp = computed(
-  () => displayInstance.value?.loader === "paraguacraft-pvp",
+const loaderKind = computed(() =>
+  normalizeLoaderId(displayInstance.value?.loader ?? "vanilla"),
 );
+const isPvp = computed(() => loaderKind.value === "paraguacraft-pvp");
+const isPvpModern = computed(() => loaderKind.value === "paraguacraft-pvp-modern");
 
 const instanceId = computed(() => String(route.params.id ?? ""));
 const instance = computed(() => instances.instances.find((i) => i.id === instanceId.value) ?? null);
@@ -538,6 +541,12 @@ async function exportInstance() {
             Minecraft {{ displayInstance.mcVersion }} ·
             <span class="capitalize">{{ displayInstance.loader.replace(/-/g, " ") }}</span>
             <span v-if="displayInstance.loaderVersion"> {{ displayInstance.loaderVersion }}</span>
+            <span
+              v-if="isPvpModern"
+              class="ml-2 rounded bg-pc-purple/20 px-1.5 py-0.5 text-[10px] font-bold text-pc-purple"
+            >
+              Cliente PvP
+            </span>
             <span
               v-if="instanceWeight"
               class="ml-2 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase"

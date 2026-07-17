@@ -40,10 +40,16 @@ client/eclipse/
 client/build/
 client/run/
 client/out/
+client-modern/.gradle/
+client-modern/build/
+client-modern/run/
 .mixin.out/
 *.jar
 !bundled/pvp/*.jar
+!bundled/pvp-modern/*.jar
+!**/gradle/wrapper/gradle-wrapper.jar
 bundled/pvp/resourcepacks/*.zip
+!bundled/pvp-modern/resourcepacks/*.zip
 !client/src/**/*.jar
 
 # --- Datos locales / IDE ---

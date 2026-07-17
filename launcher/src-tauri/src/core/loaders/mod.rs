@@ -12,6 +12,7 @@ pub mod forge;
 pub mod neoforge;
 pub mod optifine;
 pub mod pvp;
+pub mod pvp_modern;
 pub mod quilt;
 
 use std::path::PathBuf;
@@ -25,7 +26,12 @@ use crate::models::LoaderInfo;
 /// `fabric-iris` es un preset **aparte** de `fabric` (no se fusionan).
 pub fn normalize(loader: &str) -> String {
     let l = loader.trim().to_lowercase().replace(' ', "-").replace('+', "-");
-    if l.contains("fabric-iris") || l.contains("fabric_iris") || (l.contains("fabric") && l.contains("iris")) {
+    if l.contains("paraguacraft-pvp-modern")
+        || l.contains("paraguacraft_pvp_modern")
+        || l.contains("pvp-modern")
+    {
+        "paraguacraft-pvp-modern".into()
+    } else if l.contains("fabric-iris") || l.contains("fabric_iris") || (l.contains("fabric") && l.contains("iris")) {
         "fabric-iris".into()
     } else if l.contains("paraguacraft-pvp")
         || l.contains("paraguacraft_pvp")
@@ -52,6 +58,7 @@ pub fn normalize(loader: &str) -> String {
 pub fn display_label(loader: &str) -> String {
     match normalize(loader).as_str() {
         "fabric-iris" => "Fabric + Iris".into(),
+        "paraguacraft-pvp-modern" => "Paraguacraft PvP 1.21.11".into(),
         "paraguacraft-pvp" => "Paraguacraft PvP".into(),
         "fabric" => "Fabric".into(),
         "quilt" => "Quilt".into(),
@@ -67,6 +74,7 @@ pub fn display_label(loader: &str) -> String {
 pub fn store_loader(loader: &str) -> String {
     match normalize(loader).as_str() {
         "fabric-iris" => "fabric".into(),
+        "paraguacraft-pvp-modern" => "fabric".into(),
         "paraguacraft-pvp" => "forge".into(),
         other => other.into(),
     }
@@ -87,6 +95,7 @@ pub async fn loader_versions(
         "vanilla" => Ok(vec![]),
         "fabric" => fabric::versions(client, mc).await,
         "fabric-iris" => fabric_iris::versions(client, mc).await,
+        "paraguacraft-pvp-modern" => pvp_modern::versions(client, mc).await,
         "paraguacraft-pvp" => pvp::versions(client, mc).await,
         "quilt" => quilt::versions(client, mc).await,
         "forge" => forge::versions(client, mc).await,
@@ -164,6 +173,21 @@ pub async fn available_loaders(client: &reqwest::Client, mc: &str) -> AppResult<
         }
     }
 
+    if mc == pvp_modern::MC {
+        if let Ok(pvp_vers) = pvp_modern::versions(client, mc).await {
+            if !pvp_vers.is_empty() {
+                let recommended = pvp_vers.first().cloned();
+                out.push(LoaderInfo {
+                    id: "paraguacraft-pvp-modern".into(),
+                    name: "Paraguacraft PvP 1.21.11".into(),
+                    description: "Cliente PvP dedicado: Fabric + Iris + mod Paraguacraft (separado de Fabric+Iris genérico).".into(),
+                    versions: pvp_vers,
+                    recommended,
+                });
+            }
+        }
+    }
+
     Ok(out)
 }
 
@@ -172,7 +196,7 @@ pub fn loader_version_from_version_id(loader: &str, version_id: &str, mc: &str) 
     let kind = normalize(loader);
     let mc_suffix = format!("-{mc}");
     match kind.as_str() {
-        "fabric" | "fabric-iris" => version_id
+        "fabric" | "fabric-iris" | "paraguacraft-pvp-modern" => version_id
             .strip_prefix("fabric-loader-")?
             .strip_suffix(&mc_suffix)
             .map(String::from),
@@ -196,7 +220,7 @@ pub fn version_id_matches_loader(loader: &str, version_id: &str, mc: &str) -> bo
     let mc_suffix = format!("-{mc}");
     match kind.as_str() {
         "vanilla" => version_id == mc,
-        "fabric" | "fabric-iris" => {
+        "fabric" | "fabric-iris" | "paraguacraft-pvp-modern" => {
             version_id.starts_with("fabric-loader-") && version_id.ends_with(&mc_suffix)
         }
         "quilt" => version_id.starts_with("quilt-loader-") && version_id.ends_with(&mc_suffix),
@@ -245,7 +269,9 @@ pub fn find_version_id_for_loader(mc: &str, loader: &str) -> Option<String> {
             continue;
         }
         let loader_ver = match kind.as_str() {
-            "fabric" | "fabric-iris" if name.starts_with("fabric-loader-") && name.ends_with(&mc_suffix) => {
+            "fabric" | "fabric-iris" | "paraguacraft-pvp-modern"
+                if name.starts_with("fabric-loader-") && name.ends_with(&mc_suffix) =>
+            {
                 loader_version_from_version_id(&kind, &name, mc)
             }
             "quilt" if name.starts_with("quilt-loader-") && name.ends_with(&mc_suffix) => {
@@ -320,6 +346,7 @@ pub async fn install_loader(
             let id = fabric_iris::install_fabric_profile(app, client, mc, &loader_version).await?;
             Ok(id)
         }
+        "paraguacraft-pvp-modern" => pvp_modern::install(app, client, mc, &loader_version).await,
         "paraguacraft-pvp" => pvp::install(app, client, mc, &loader_version).await,
         "quilt" => quilt::install(app, client, mc, &loader_version).await,
         "forge" => forge::install(app, client, mc, &loader_version).await,

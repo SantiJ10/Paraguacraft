@@ -2,6 +2,7 @@ package com.paraguacraft.pvp.gui;
 
 import com.paraguacraft.pvp.core.HypixelHelper;
 import com.paraguacraft.pvp.core.ModLang;
+import com.paraguacraft.pvp.core.QuickPlayState;
 import com.paraguacraft.pvp.gui.theme.UiTheme;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
@@ -82,6 +83,15 @@ public class GuiHypixelQuickPlay extends GuiScreen {
         fr.drawStringWithShadow(hint, panelX + 16, panelY + 26, UiTheme.TEXT_DIM);
         fr.drawStringWithShadow(ModLang.format("paraguacraft.quickplay.safe"), panelX + 16, panelY + 38, 0xFF88AA88);
 
+        if (QuickPlayState.hasLast() && pendingModes == null) {
+            int reY = panelY + 48;
+            boolean reHover = mouseX >= panelX + 16 && mouseX <= panelX + panelW - 16
+                && mouseY >= reY && mouseY <= reY + 20;
+            Gui.drawRect(panelX + 16, reY, panelX + panelW - 16, reY + 20, reHover ? 0xFF226644 : 0xCC1A3322);
+            String label = ModLang.format("paraguacraft.quickplay.reconnect", QuickPlayState.lastLabel);
+            fr.drawStringWithShadow(label, panelX + 24, reY + 6, 0xFFAAFFAA);
+        }
+
         if (pendingModes != null) {
             drawModePanel(panelX, panelY, panelW, panelH, mouseX, mouseY);
         } else {
@@ -95,7 +105,7 @@ public class GuiHypixelQuickPlay extends GuiScreen {
         FontRenderer fr = fontRendererObj;
         int cols = 2;
         int startX = panelX + 16;
-        int startY = panelY + 52;
+        int startY = panelY + (QuickPlayState.hasLast() ? 72 : 52);
         int rows = (GAMES.length + cols - 1) / cols;
         int contentH = rows * (CARD_H + GAP);
         int viewH = panelH - 64;
@@ -174,7 +184,7 @@ public class GuiHypixelQuickPlay extends GuiScreen {
                 int rowY = y + i * 22;
                 if (mouseX >= panelX + 16 && mouseX <= panelX + panelW - 16
                     && mouseY >= rowY && mouseY <= rowY + 18) {
-                    HypixelHelper.sendCommand(modeCommands.get(i));
+                    sendPlayCommand(modeCommands.get(i), pendingModes.name, pendingModes.name);
                     mc.displayGuiScreen(null);
                     return;
                 }
@@ -182,9 +192,19 @@ public class GuiHypixelQuickPlay extends GuiScreen {
             return;
         }
 
+        if (QuickPlayState.hasLast()) {
+            int reY = panelY + 48;
+            if (mouseX >= panelX + 16 && mouseX <= panelX + panelW - 16
+                && mouseY >= reY && mouseY <= reY + 20) {
+                QuickPlayState.reconnect();
+                mc.displayGuiScreen(null);
+                return;
+            }
+        }
+
         int cols = 2;
         int startX = panelX + 16;
-        int startY = panelY + 52;
+        int startY = panelY + (QuickPlayState.hasLast() ? 72 : 52);
         for (int i = 0; i < GAMES.length; i++) {
             GameEntry game = GAMES[i];
             int col = i % cols;
@@ -193,7 +213,7 @@ public class GuiHypixelQuickPlay extends GuiScreen {
             int y = startY + row * (CARD_H + GAP) - (int) scroll;
             if (mouseX >= x && mouseX <= x + CARD_W && mouseY >= y && mouseY <= y + CARD_H) {
                 if (game.lobbyOnly || game.subtitle.startsWith(">")) {
-                    HypixelHelper.sendCommand(game.command);
+                    sendPlayCommand(game.command, game.name, game.name);
                     mc.displayGuiScreen(null);
                 } else {
                     openModes(game);
@@ -201,6 +221,11 @@ public class GuiHypixelQuickPlay extends GuiScreen {
                 return;
             }
         }
+    }
+
+    private void sendPlayCommand(String command, String label, String game) {
+        QuickPlayState.remember(command, label, game);
+        HypixelHelper.sendCommand(command);
     }
 
     @Override

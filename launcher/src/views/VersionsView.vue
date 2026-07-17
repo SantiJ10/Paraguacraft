@@ -244,6 +244,7 @@ async function install() {
       await api.installLoader(mcVersion.value, loaderId, lv);
       if (loaderId === "fabric-iris") await api.installFabricIrisBundle(inst.id);
       if (loaderId === "paraguacraft-pvp") await api.installPvpBundle(inst.id);
+      if (loaderId === "paraguacraft-pvp-modern") await api.installPvpModernBundle(inst.id);
     }
     message.value = `${name} lista.`;
     await instances.load(true);
