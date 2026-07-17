@@ -183,6 +183,7 @@ fn check_compat(ver: &Value, mc: &str, loader: &str, folder: &str) -> (bool, Opt
         let ok = loaders.iter().any(|l| {
             l == &norm
                 || (norm == "fabric-iris" && l == "fabric")
+                || (norm == "paraguacraft-pvp-modern" && l == "fabric")
                 || (norm == "paraguacraft-pvp" && (l == "forge" || l == "neoforge"))
         });
         if !ok {

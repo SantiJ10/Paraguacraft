@@ -152,6 +152,7 @@ pub fn run() {
             commands::loaders::install_loader,
             commands::loaders::install_fabric_iris_bundle,
             commands::loaders::install_pvp_bundle,
+            commands::loaders::install_pvp_modern_bundle,
             commands::loaders::get_pvp_client_status,
             // Tienda (Fase 3)
             commands::store::store_search,

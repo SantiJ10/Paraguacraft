@@ -3,6 +3,84 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.7.0] - 2026-06-30
+
+### Added
+- **Perfil unificado PvP 1.8.9** con selector de destino: Hypixel, favorito, solo menú o **Práctica PvP** (mundo flat).
+- **Paraguacraft PvP 1.21.11**: instancia Fabric+Iris auto-creada, mods HUD por tier de PC (baja/media/alta).
+- **Fase 2 cliente 1.21.11**: mod `ParaguacraftPvP-Modern` (FPS, ping, keystrokes) vía manifest remoto.
+- Presets de servidores en 1.21.11: Hypixel, CubeCraft, MineLatino y favoritos.
+
+### Changed
+- Perfil entrenamiento 1.8.9: Boost FPS sin turbo Competir; sprint toggle **M** por defecto en Competir.
+- **Loaders 1.21.11 separados**: `fabric-iris` (solo optimización) vs `paraguacraft-pvp-modern` (cliente PvP dedicado).
+
+### Fase 3 — Cliente PvP 1.21.11
+- Loader propio **`paraguacraft-pvp-modern`** en el selector de versiones (como `paraguacraft-pvp` en 1.8.9).
+- Perfil Inicio **Fabric + Iris** aparte del perfil **Paraguacraft PvP 1.21.11**.
+- Mod modern lee `paraguacraft_modern.properties` del launcher (tier + HUD).
+
+### Fase 4 — Optimizaciones 1.21.11 (superiores a 1.8.9)
+- **JVM Java 21** dedicada: hasta **8 GB** heap (vs tope 4 GB en 1.8.9), **ZGC generacional** en PCs 16+ GB.
+- **options.txt PvP** por tier: distancias, partículas mínimas, nubes off, entity distance scaling.
+- Patch automático de **Lithium**, **Sodium** y **Dynamic FPS** al lanzar.
+- Mod **0.2.0**: Boost FPS (preset vanilla + limpieza de memoria al cambiar mundo) e indicador en HUD.
+
+### Pre-fase 5 — Menú PvP 1.21.11
+- **Menú personalizado** estilo Paraguacraft/Lunar: constelación, logo, botones centrales.
+- Barra inferior: **Skin**, **Tema** (5 presets), **Packs**, **Fabric** (Mod Menu).
+- **Multijugador PvP** con Hypixel, CubeCraft, LibreCraft, Hylex y MineLatino.
+- **Texture packs 1.21.11** descargados al instalar (launcher + catálogo GitHub `pvp-packs-modern-1.0`).
+- Mod **0.3.0** incluye selector de packs in-game.
+
+### Fase 5 — Paridad PvP 1.21.11
+- **Mod Menu** (Right Shift): toggles HUD, Boost FPS, toggle sprint, acceso a Quick Play y packs.
+- **Hypixel Quick Play** con reconexión al último modo.
+- **Práctica PvP**: botón en menú + destino launcher con mundo local y HUD de entrenamiento.
+- HUD ampliado: **coordenadas**, **armadura** y **CPS**.
+- Mod **0.4.0** compilado y empaquetado en `bundled/pvp-modern/`.
+
+## Cliente PvP Modern 0.4.0 - 2026-06-30
+
+### Added
+- Mod Menu estilo Lunar (Right Shift).
+- Hypixel Quick Play con estado persistente.
+- Mundo de práctica PvP (flat) desde menú o launcher.
+- HUD: coordenadas, armadura, CPS y toggle sprint configurable.
+
+## Cliente PvP Modern 0.3.0 - 2026-06-30
+
+### Added
+- Menú principal y pausa personalizados (mixin TitleScreen / GameMenuScreen).
+- Pantallas: tema, multijugador PvP, texture packs.
+- Catálogo embebido + remoto de 5 packs PvP 1.21.11.
+
+## Cliente PvP Modern 0.2.0 - 2026-06-30
+
+### Added
+- **Boost FPS**: aplica gráficos rápidos, partículas mínimas y distancias PvP al iniciar.
+- Limpieza de memoria al entrar a mundo/servidor.
+- Badge **Boost** en el HUD (media/alta).
+
+### Changed
+- Launcher sincroniza flags de rendimiento en `paraguacraft_modern.properties`.
+
+## Cliente PvP Modern 0.1.0 - 2026-06-30
+
+### Added
+- Mod Fabric **Paraguacraft PvP Modern** para 1.21.11: HUD FPS, ping y keystrokes básicos.
+
+## Cliente PvP 2.1.29 - 2026-06-30
+
+### Added
+- **Hypixel Quick Play**: botón reconectar al último modo jugado.
+- **Práctica PvP**: mundo flat con reglas PvP (keepInventory, sin mobs/regeneración).
+- Destino launcher «Práctica PvP» abre el mundo automáticamente.
+
+### Changed
+- Filtro de scoreboard Hypixel ampliado (quests, rank, daily reward, etc.).
+- Perfil Competir fuerza scoreboard limpio y toggle sprint modo **M** (legacy **N** off).
+
 ## [7.6.0] - 2026-06-30
 
 ### Added

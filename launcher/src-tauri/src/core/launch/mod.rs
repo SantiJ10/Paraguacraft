@@ -10,6 +10,7 @@
 
 pub mod window_title;
 pub mod pvp_jvm;
+pub mod modern_pvp_jvm;
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -362,6 +363,12 @@ fn merge_extra_jvm_args(args: &mut Vec<String>, extra: &[String]) {
 fn build_jvm_ram_gc(jvm: &JvmCtx) -> Vec<String> {
     if pvp_jvm::applies(&jvm.loader, &jvm.mc_version, jvm.java_major) {
         let mut args = pvp_jvm::build_jvm_args(jvm.system_ram_gb);
+        merge_extra_jvm_args(&mut args, &jvm.extra_args);
+        return args;
+    }
+
+    if modern_pvp_jvm::applies(&jvm.loader, &jvm.mc_version, jvm.java_major) {
+        let mut args = modern_pvp_jvm::build_jvm_args(jvm.system_ram_gb);
         merge_extra_jvm_args(&mut args, &jvm.extra_args);
         return args;
     }

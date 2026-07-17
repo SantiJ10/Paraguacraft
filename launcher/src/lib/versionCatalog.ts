@@ -228,7 +228,11 @@ export function findInstanceForVersion(
     const canonicalId = canonicalPvpInstanceId(mcVersion);
     const official = matches.find((i) => i.id === canonicalId || i.id.startsWith(`${canonicalId}_`));
     if (official) return official;
-    // Sin instancia oficial: no reutilizar carpetas de prueba (Prueba_Paraguacraft, etc.).
+    return undefined;
+  }
+  if (want === "paraguacraft-pvp-modern" && matches.length) {
+    const official = matches.find((i) => normalizeLoaderId(i.loader) === "paraguacraft-pvp-modern");
+    if (official) return official;
     return undefined;
   }
   return matches[0];

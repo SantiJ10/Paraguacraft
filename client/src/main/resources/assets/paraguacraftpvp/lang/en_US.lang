@@ -81,6 +81,7 @@ paraguacraft.quickplay.title=QUICK PLAY
 paraguacraft.quickplay.hypixel=Hypixel only — click to join
 paraguacraft.quickplay.offline=Connect to Hypixel to use this menu
 paraguacraft.quickplay.safe=Normal /play commands — Hypixel allowed
+paraguacraft.quickplay.reconnect=Reconnect: %s
 
 paraguacraft.triggers.title=Chat alerts
 paraguacraft.triggers.hint=Comma-separated keywords. Colors: RED, GOLD, YELLOW...

@@ -79,6 +79,29 @@ pub async fn install_pvp_bundle(
     loaders::pvp::install_bundle(&app, &http, &dir).await
 }
 
+/// Instala el bundle PvP 1.21.11 (Iris + mod Paraguacraft) en una instancia dedicada.
+#[tauri::command]
+pub async fn install_pvp_modern_bundle(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    instance_id: String,
+) -> AppResult<()> {
+    let meta = crate::core::instances::ensure_meta(&instance_id)?;
+    if loaders::normalize(&meta.loader) != "paraguacraft-pvp-modern" {
+        return Err(crate::error::AppError::msg(
+            "La instancia no usa el loader Paraguacraft PvP 1.21.11",
+        ));
+    }
+    if meta.mc_version != loaders::pvp_modern::MC {
+        return Err(crate::error::AppError::msg(
+            "Paraguacraft PvP 1.21.11 solo esta disponible para Minecraft 1.21.11",
+        ));
+    }
+    let (http, _net) = state.net_scope();
+    let dir = crate::core::instances::instance_dir(&instance_id);
+    loaders::pvp_modern::sync_instance(&app, &http, &meta.mc_version, &dir).await
+}
+
 /// Estado del cliente PvP publicado (manifest) vs instalado en una instancia.
 #[tauri::command]
 pub async fn get_pvp_client_status(

@@ -8,7 +8,7 @@ use tauri::{AppHandle, State};
 use crate::config;
 use crate::core::launch::{self, AuthCtx, JvmCtx};
 use crate::core::paths;
-use crate::core::{accounts, instances, loaders, versions};
+use crate::core::{accounts, instances, loaders, modern_pvp, versions};
 use crate::error::{AppError, AppResult};
 use crate::models::AppSettings;
 use crate::state::AppState;
@@ -399,6 +399,15 @@ pub async fn launch_instance(
         if loader == "fabric-iris" {
             let inst_dir = instances::instance_dir(&instance_id);
             loaders::fabric_iris::install_bundle(&app, &http, &mc, &inst_dir).await?;
+        }
+        if loader == "paraguacraft-pvp-modern" {
+            let inst_dir = instances::instance_dir(&instance_id);
+            loaders::pvp_modern::sync_instance(&app, &http, &mc, &inst_dir).await?;
+            let _ = modern_pvp::sync_hud_mods(&app, &http, &instance_id).await;
+            let tier = crate::core::hardware::detect().perfil_sugerido;
+            let _ = modern_pvp::apply_launch_properties(&instance_id, &tier);
+            let _ = modern_pvp::apply_performance_profile(&instance_id, &tier);
+            let _ = modern_pvp::sync_instance_content(&app, &http, &instance_id).await;
         }
         if loader == "paraguacraft-pvp" {
             loaders::pvp::install_bundle_for_launch(

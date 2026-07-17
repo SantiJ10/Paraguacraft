@@ -46,6 +46,14 @@ public class ModConfig {
     public static int keyFreelook = org.lwjgl.input.Keyboard.KEY_LMENU;
     public static int keyQuickPlay = org.lwjgl.input.Keyboard.KEY_GRAVE;
 
+    /** Perfil entrenamiento desde el launcher (Boost FPS sin turbo Competir). */
+    public static boolean pvpTrainingMode = false;
+    /** Abrir mundo flat al iniciar (destino «Práctica PvP»). */
+    public static boolean pvpTrainingAutoWorld = false;
+    public static String quickPlayLastCommand = "";
+    public static String quickPlayLastLabel = "";
+    public static String quickPlayLastGame = "";
+
     // --- Mods PvP / Hypixel ---
     public static boolean lowFire = true;
     public static boolean showOpponentPing = false;
@@ -148,6 +156,11 @@ public class ModConfig {
             props.setProperty("keyFullbright", String.valueOf(keyFullbright));
             props.setProperty("keyFreelook", String.valueOf(keyFreelook));
             props.setProperty("keyQuickPlay", String.valueOf(keyQuickPlay));
+            props.setProperty("pvpTrainingMode", String.valueOf(pvpTrainingMode));
+            props.setProperty("pvpTrainingAutoWorld", String.valueOf(pvpTrainingAutoWorld));
+            props.setProperty("quickPlayLastCommand", quickPlayLastCommand != null ? quickPlayLastCommand : "");
+            props.setProperty("quickPlayLastLabel", quickPlayLastLabel != null ? quickPlayLastLabel : "");
+            props.setProperty("quickPlayLastGame", quickPlayLastGame != null ? quickPlayLastGame : "");
             props.setProperty("lowFire", String.valueOf(lowFire));
             props.setProperty("showOpponentPing", String.valueOf(showOpponentPing));
             props.setProperty("chatTriggers", String.valueOf(chatTriggers));
@@ -250,6 +263,11 @@ public class ModConfig {
             keyFullbright = Integer.parseInt(props.getProperty("keyFullbright", String.valueOf(keyFullbright)));
             keyFreelook = Integer.parseInt(props.getProperty("keyFreelook", String.valueOf(keyFreelook)));
             keyQuickPlay = Integer.parseInt(props.getProperty("keyQuickPlay", String.valueOf(keyQuickPlay)));
+            pvpTrainingMode = Boolean.parseBoolean(props.getProperty("pvpTrainingMode", String.valueOf(pvpTrainingMode)));
+            pvpTrainingAutoWorld = Boolean.parseBoolean(props.getProperty("pvpTrainingAutoWorld", String.valueOf(pvpTrainingAutoWorld)));
+            quickPlayLastCommand = props.getProperty("quickPlayLastCommand", quickPlayLastCommand);
+            quickPlayLastLabel = props.getProperty("quickPlayLastLabel", quickPlayLastLabel);
+            quickPlayLastGame = props.getProperty("quickPlayLastGame", quickPlayLastGame);
             lowFire = Boolean.parseBoolean(props.getProperty("lowFire", String.valueOf(lowFire)));
             showOpponentPing = Boolean.parseBoolean(props.getProperty("showOpponentPing", String.valueOf(showOpponentPing)));
             chatTriggers = Boolean.parseBoolean(props.getProperty("chatTriggers", String.valueOf(chatTriggers)));

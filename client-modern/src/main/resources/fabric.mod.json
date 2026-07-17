@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "paraguacraftpvp-modern",
+  "version": "${version}",
+  "name": "Paraguacraft PvP Modern",
+  "description": "Menú PvP, HUD, Boost FPS y texture packs para 1.21.11.",
+  "authors": ["Paraguacraft"],
+  "contact": {
+    "homepage": "https://paraguacraft.pages.dev"
+  },
+  "license": "All-Rights-Reserved",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "com.paraguacraft.pvp.modern.ParaguacraftPvPModern"
+    ]
+  },
+  "mixins": [
+    "paraguacraft-modern.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.18.0",
+    "minecraft": "~1.21.11",
+    "java": ">=21",
+    "fabric-api": "*"
+  },
+  "suggests": {
+    "modmenu": "*"
+  }
+}

@@ -415,6 +415,10 @@ export const api = {
     await invokeReal<void>("install_pvp_bundle", { instanceId });
   },
 
+  async installPvpModernBundle(instanceId: string): Promise<void> {
+    await invokeReal<void>("install_pvp_modern_bundle", { instanceId });
+  },
+
   async getPvpClientStatus(instanceId?: string | null): Promise<PvpClientStatus> {
     return invokeReal<PvpClientStatus>("get_pvp_client_status", {
       instanceId: instanceId ?? null,
@@ -577,8 +581,16 @@ export const api = {
     return invokeReal<GameProfile[]>("list_game_profiles");
   },
 
-  async launchGameProfile(profileId: string): Promise<number> {
-    return invokeReal<number>("launch_game_profile", { profileId });
+  async launchGameProfile(
+    profileId: string,
+    destinationId?: string,
+    favoriteId?: string,
+  ): Promise<number> {
+    return invokeReal<number>("launch_game_profile", {
+      profileId,
+      destinationId: destinationId ?? null,
+      favoriteId: favoriteId ?? null,
+    });
   },
 
   async scanModConflicts(instanceId: string): Promise<ModConflict[]> {

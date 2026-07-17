@@ -112,8 +112,8 @@ impl InstanceMeta {
 
 /// Sanitiza el nombre de carpeta como el Python (`carpeta_instancia_paraguacraft`).
 pub fn folder_for(mc_version: &str, loader: &str) -> String {
-    let norm = loader.trim().to_lowercase().replace(' ', "-");
-    if norm.contains("paraguacraft-pvp") || norm == "pvp" {
+    let norm = crate::core::loaders::normalize(loader);
+    if norm == "paraguacraft-pvp" || norm == "paraguacraft-pvp-modern" {
         return format!("Paraguacraft_{mc_version}_PvP");
     }
     let motor = loader.replace(' ', "_").replace('+', "Plus");

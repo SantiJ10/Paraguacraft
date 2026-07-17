@@ -13,6 +13,8 @@ pub fn title_for_launch(mc_version: &str, loader: &str) -> String {
     let loader = loaders::normalize(loader);
     if loader == "paraguacraft-pvp" && mc_version == "1.8.9" {
         "Paraguacraft PvP".into()
+    } else if loader == "paraguacraft-pvp-modern" && mc_version == "1.21.11" {
+        "Paraguacraft PvP 1.21.11".into()
     } else {
         format!("Paraguacraft {mc_version}")
     }

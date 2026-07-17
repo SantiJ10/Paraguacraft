@@ -2,6 +2,7 @@
 export function storeLoader(loader: string): string {
   const l = loader.trim().toLowerCase().replace(/\s+/g, "-").replace(/\+/g, "-");
   if (l.includes("fabric-iris") || (l.includes("fabric") && l.includes("iris"))) return "fabric";
+  if (l.includes("paraguacraft-pvp-modern") || l.includes("pvp-modern")) return "fabric";
   if (l.includes("paraguacraft-pvp") || (l.includes("paraguacraft") && l.includes("pvp")) || l === "pvp") {
     return "forge";
   }
@@ -16,6 +17,9 @@ export function storeLoader(loader: string): string {
 /** Id canonico del loader (espeja `loaders::normalize` en Rust). */
 export function normalizeLoaderId(loader: string): string {
   const l = loader.trim().toLowerCase().replace(/\s+/g, "-").replace(/\+/g, "-");
+  if (l.includes("paraguacraft-pvp-modern") || l.includes("pvp-modern")) {
+    return "paraguacraft-pvp-modern";
+  }
   if (l.includes("fabric-iris") || l.includes("fabric_iris") || (l.includes("fabric") && l.includes("iris"))) {
     return "fabric-iris";
   }

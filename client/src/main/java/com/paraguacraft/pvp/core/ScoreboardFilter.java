@@ -18,6 +18,13 @@ public final class ScoreboardFilter {
         Pattern.compile("(?i).*\\bmode\\s*:.*"),
         Pattern.compile("(?i).*\\boverall\\s+winstreak\\s*:.*"),
         Pattern.compile("(?i).*\\bmode\\s+winstreak\\s*:.*"),
+        Pattern.compile("(?i).*\\bquests?\\s*:.*"),
+        Pattern.compile("(?i).*\\bchallenges?\\s*:.*"),
+        Pattern.compile("(?i).*\\bdaily\\s+reward\\s*:.*"),
+        Pattern.compile("(?i).*\\bplay\\s+time\\s*:.*"),
+        Pattern.compile("(?i).*\\brank\\s*:.*"),
+        Pattern.compile("(?i).*\\blevel\\s*:.*"),
+        Pattern.compile("(?i).*\\bexperience\\s*:.*"),
     };
 
     // Rangos Unicode de los glifos que Hypixel usa para barras de progreso:
