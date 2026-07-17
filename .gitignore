@@ -32,10 +32,7 @@ launcher/.env
 launcher/.env.local
 launcher/src-tauri/updater.key
 
-# --- Web (va a repo paraguacraft-web) ---
-web-site/node_modules/
-web-site/dist/
-web-site/.astro/
+# --- Web: sitio en github.com/SantiJ10/paraguacraft-web (no en este repo) ---
 
 # --- Minecraft / Forge dev ---
 client/.gradle/
