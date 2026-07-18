@@ -1,12 +1,12 @@
 {
-  "version": "7.7.0",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.7.0/Instalar_Paraguacraft_v7.7.0.exe",
-  "size_bytes": 83603884,
-  "sha256": "a34dafd0108a129d4289710d8b276c5acc09b716ad3c2517e596bd6bdaf15162",
-  "notes": "- Paraguacraft PvP 1.21.11 (Fabric): menu Lunar, Mod Menu, Quick Play y practica PvP\n- Cliente PvP 1.8.9 2.1.29: Quick Play reconectar y mundo flat de entrenamiento\n- Perfiles Inicio: Hypixel, practica, servidores y solo menu\n- JVM Java 21 y optimizaciones superiores en 1.21.11",
+  "version": "7.7.2",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.7.2/Instalar_Paraguacraft_v7.7.2.exe",
+  "size_bytes": 91916320,
+  "sha256": "42c412080216a6a1d33483b81f7bf8ea3d6d91e6b615ca834b98eae912983d8a",
+  "notes": "- Arranque rapido: Inicio y Ajustes ya no tardan 5-7 s\n- Fix 503 Mojang: el juego inicia aunque api.minecraftservices.com falle\n- Ajustes: sincronizar cliente PvP 1.21.11 (mod 0.6.0) sin reinstalar\n- Perfiles Inicio unificados (1.8.9 + 1.21.11)",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.7.0/Instalar_Paraguacraft_v7.7.0.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.7.2/Instalar_Paraguacraft_v7.7.2.exe",
       "signature": ""
     }
   }
