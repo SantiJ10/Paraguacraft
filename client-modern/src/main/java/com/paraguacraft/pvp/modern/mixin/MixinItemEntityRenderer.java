@@ -1,9 +1,11 @@
 package com.paraguacraft.pvp.modern.mixin;
 
 import com.paraguacraft.pvp.modern.config.ModernConfig;
+import net.minecraft.client.render.command.OrderedRenderCommandQueue;
 import net.minecraft.client.render.entity.ItemEntityRenderer;
+import net.minecraft.client.render.entity.state.ItemEntityRenderState;
+import net.minecraft.client.render.state.CameraRenderState;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.entity.ItemEntity;
 import net.minecraft.util.math.RotationAxis;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -18,8 +20,10 @@ public class MixinItemEntityRenderer {
         at = @At("HEAD")
     )
     private void paraguacraft$itemBob(
-        net.minecraft.client.render.entity.state.ItemEntityRenderState state,
+        ItemEntityRenderState state,
         MatrixStack matrices,
+        OrderedRenderCommandQueue queue,
+        CameraRenderState cameraState,
         CallbackInfo ci
     ) {
         if (!ModernConfig.itemPhysics) {
