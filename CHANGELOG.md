@@ -48,6 +48,27 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - HUD ampliado: **coordenadas**, **armadura** y **CPS**.
 - Mod **0.4.0** compilado y empaquetado en `bundled/pvp-modern/`.
 
+## Cliente PvP Modern 0.5.0 - 2026-07-18
+
+### Added
+- **Mod Menu** estilo Lunar con categorías, cards ON/OFF y botón **Editar HUD** (arrastrar módulos).
+- **Skin Changer** por URL o nick (minotar) en lugar del menú vanilla de capas.
+- HUD ampliado: iconos de armadura, objeto en mano, recursos BedWars, overlay música (IPC launcher).
+- **Hitbox azul** cyan al apuntar bloques; **FPS/Ping/CPS** con etiquetas estilo 1.8.9.
+- Keystrokes 20×20 (WASD + LMB/RMB) como 1.8.9.
+
+### Fixed
+- **Toggle sprint legacy**: W activa sprint automáticamente.
+- **Resource packs**: aplicación real vía perfiles habilitados + refresh.
+- **Hypixel Quick Play**: conecta a Hypixel y ejecuta el comando al entrar.
+- **Práctica PvP flat**: borra mundo corrupto sin `level.dat` y crea flat automático.
+- **Menú alternante** vanilla/custom: `CustomTitleScreen` extiende `TitleScreen`.
+- **Layout responsive** del menú principal según escala GUI.
+- **Tier hardware**: PCs con 16–32 GB RAM ya no reciben preset “baja” (R7 5700G + 32 GB → alta).
+
+### Changed
+- Preset gráfico **media** menos agresivo (render 12, sim 10, ImmediatelyFast activo).
+
 ## Cliente PvP Modern 0.4.2 - 2026-06-30
 
 ### Fixed

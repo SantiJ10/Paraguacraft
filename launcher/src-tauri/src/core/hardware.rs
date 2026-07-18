@@ -25,10 +25,12 @@ pub fn detect() -> HardwareInfo {
 
     let perfil = if ram_gb <= 8.0 || cpu_cores <= 4 {
         "baja"
-    } else if ram_gb <= 16.0 || cpu_cores <= 8 {
-        "media"
-    } else {
+    } else if ram_gb >= 24.0 || (ram_gb >= 16.0 && cpu_cores >= 6) {
         "alta"
+    } else if ram_gb <= 12.0 && cpu_cores <= 6 {
+        "baja"
+    } else {
+        "media"
     };
 
     let (recommended_ram_mb, recommended_gc) = recommend(ram_gb);

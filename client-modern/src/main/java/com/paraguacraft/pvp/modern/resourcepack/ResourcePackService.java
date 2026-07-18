@@ -1,6 +1,7 @@
 package com.paraguacraft.pvp.modern.resourcepack;
 
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.resource.ResourcePackManager;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -10,7 +11,9 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 public final class ResourcePackService {
 
@@ -77,8 +80,32 @@ public final class ResourcePackService {
         if (!file.isFile()) {
             return;
         }
-        client.getResourcePackManager().scanPacks();
+        ResourcePackManager manager = client.getResourcePackManager();
+        manager.scanPacks();
+        String packId = resolvePackId(manager, fileName);
+        if (packId == null) {
+            return;
+        }
+        Set<String> enabled = new LinkedHashSet<>(manager.getEnabledIds());
+        enabled.removeIf(id -> id.startsWith("file/"));
+        enabled.add(packId);
+        manager.setEnabledProfiles(enabled);
+        client.options.refreshResourcePacks(manager);
+        client.options.write();
         client.reloadResources();
+    }
+
+    private static String resolvePackId(ResourcePackManager manager, String fileName) {
+        String direct = "file/" + fileName;
+        if (manager.getIds().contains(direct)) {
+            return direct;
+        }
+        for (String id : manager.getIds()) {
+            if (id.endsWith("/" + fileName) || id.endsWith(fileName)) {
+                return id;
+            }
+        }
+        return direct;
     }
 
     private static void downloadHttp(String urlStr, File dest) throws Exception {
@@ -86,17 +113,11 @@ public final class ResourcePackService {
         conn.setRequestProperty("User-Agent", "Paraguacraft-Modern/1.0");
         conn.setConnectTimeout(12000);
         conn.setReadTimeout(60000);
-        int total = conn.getContentLength();
         try (InputStream in = conn.getInputStream(); FileOutputStream out = new FileOutputStream(dest)) {
             byte[] buf = new byte[8192];
             int read;
-            int done = 0;
             while ((read = in.read(buf)) >= 0) {
                 out.write(buf, 0, read);
-                done += read;
-            }
-            if (total > 0 && done < total / 2) {
-                throw new IllegalStateException("Descarga incompleta");
             }
         }
     }

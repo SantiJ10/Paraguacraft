@@ -60,7 +60,7 @@ const TIER_BAJA_OFF: &[&str] = &[
     "immediatelyfast",
 ];
 
-const TIER_MEDIA_OFF: &[&str] = &["entityculling", "immediatelyfast"];
+const TIER_MEDIA_OFF: &[&str] = &["entityculling"];
 
 pub fn pack_summary(tier: &str) -> String {
     match tier {
@@ -250,10 +250,10 @@ pub fn apply_launch_properties(instance_id: &str, tier: &str) -> AppResult<()> {
             props.insert("entityDistanceScaling".into(), "0.5".into());
         }
         "media" => {
-            props.insert("particleMode".into(), "MINIMAL".into());
-            props.insert("renderDistance".into(), "10".into());
-            props.insert("simulationDistance".into(), "8".into());
-            props.insert("entityDistanceScaling".into(), "0.65".into());
+            props.insert("particleMode".into(), "REDUCED".into());
+            props.insert("renderDistance".into(), "12".into());
+            props.insert("simulationDistance".into(), "10".into());
+            props.insert("entityDistanceScaling".into(), "0.75".into());
         }
         _ => {
             props.insert("particleMode".into(), "REDUCED".into());
