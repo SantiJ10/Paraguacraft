@@ -1,12 +1,12 @@
 {
-  "version": "7.7.2",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.7.2/Instalar_Paraguacraft_v7.7.2.exe",
-  "size_bytes": 91915667,
-  "sha256": "62f8f4a813d56fe5d145daf076ee78f6aeb39896abe6bb0985f374425f0450be",
-  "notes": "- Arranque rapido: Inicio y Ajustes ya no tardan 5-7 s\n- Fix 503 Mojang: el juego inicia aunque api.minecraftservices.com falle\n- Ajustes: sincronizar cliente PvP 1.21.11 (mod 0.6.0) sin reinstalar\n- Perfiles Inicio unificados (1.8.9 + 1.21.11)",
+  "version": "7.7.3",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.7.3/Instalar_Paraguacraft_v7.7.3.exe",
+  "size_bytes": 91917968,
+  "sha256": "c317df72c5cca248ff59eae2c65b56de1e9c9353fa8767d23f669bc2849a5c08",
+  "notes": "- Cliente PvP Modern 0.6.1: fix crash mixin hitbox al iniciar\n- Mods Fabric 1.21.11: deps automaticas (searchables, kotlin, YACL)\n- Tienda Modrinth: reintentos 503 y descarga CDN de respaldo\n- Arranque rapido Inicio/Ajustes y fix 503 Mojang al jugar",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.7.2/Instalar_Paraguacraft_v7.7.2.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.7.3/Instalar_Paraguacraft_v7.7.3.exe",
       "signature": ""
     }
   }

@@ -233,6 +233,74 @@ pub fn optimize_modern_pvp_options(
     })
 }
 
+const DYNAMIC_FPS_VALID_STATES: &[&str] = &[
+    "focused", "hovered", "unfocused", "invisible", "unplugged", "abandoned",
+];
+
+fn default_dynamic_fps_json() -> &'static str {
+    r#"{
+  "states": {
+    "invisible": { "frame_rate_target": 5 },
+    "unfocused": { "frame_rate_target": 30 }
+  }
+}
+"#
+}
+
+/// Dynamic FPS 3.x renombró `minimized` → `invisible`. Repara configs rotas del launcher.
+fn repair_dynamic_fps_config(path: &Path) -> AppResult<()> {
+    if !path.is_file() {
+        std::fs::write(path, default_dynamic_fps_json())?;
+        return Ok(());
+    }
+
+    let text = match std::fs::read_to_string(path) {
+        Ok(t) => t,
+        Err(_) => {
+            let _ = std::fs::remove_file(path);
+            std::fs::write(path, default_dynamic_fps_json())?;
+            return Ok(());
+        }
+    };
+
+    let Ok(mut root) = serde_json::from_str::<serde_json::Value>(&text) else {
+        let _ = std::fs::remove_file(path);
+        std::fs::write(path, default_dynamic_fps_json())?;
+        return Ok(());
+    };
+
+    let Some(states) = root.get_mut("states").and_then(|s| s.as_object_mut()) else {
+        std::fs::write(path, default_dynamic_fps_json())?;
+        return Ok(());
+    };
+
+    let mut changed = false;
+    for legacy in ["minimized", "MINIMIZED"] {
+        if let Some(value) = states.remove(legacy) {
+            if !states.contains_key("invisible") {
+                states.insert("invisible".into(), value);
+            }
+            changed = true;
+        }
+    }
+
+    let invalid: Vec<String> = states
+        .keys()
+        .filter(|k| !DYNAMIC_FPS_VALID_STATES.contains(&k.as_str()))
+        .cloned()
+        .collect();
+    for key in invalid {
+        states.remove(&key);
+        changed = true;
+    }
+
+    if changed {
+        std::fs::write(path, format!("{}\n", serde_json::to_string_pretty(&root)?))?;
+    }
+
+    Ok(())
+}
+
 /// Ajusta configs de Sodium, Lithium y Dynamic FPS según tier PvP modern.
 pub fn apply_modern_pvp_mod_configs(game_dir: &Path, tier: &str) -> AppResult<()> {
     let config = game_dir.join("config");
@@ -253,16 +321,7 @@ pub fn apply_modern_pvp_mod_configs(game_dir: &Path, tier: &str) -> AppResult<()
     };
     patch_properties_file(&config.join("lithium.properties"), lithium_entries)?;
 
-    let dynamic_fps = config.join("dynamic_fps.json");
-    if !dynamic_fps.is_file() {
-        let body = r#"{
-  "states": {
-    "minimized": { "fps": 5 },
-    "unfocused": { "fps": 30 }
-  }
-}"#;
-        std::fs::write(&dynamic_fps, body)?;
-    }
+    repair_dynamic_fps_config(&config.join("dynamic_fps.json"))?;
 
     // No parchear sodium-options.json: el esquema cambia entre versiones y puede corromper el archivo.
     // Si quedó inválido de un parche anterior, borrarlo para que Sodium regenere defaults.

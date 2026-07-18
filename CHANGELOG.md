@@ -3,6 +3,14 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.7.3] - 2026-07-18
+
+### Fixed
+- **Mods Fabric 1.21.11**: instala dependencias de Controlling/Zoomify (`searchables`, `fabric-language-kotlin`, `yacl`) y resuelve `required` de Modrinth en cadena.
+- **Tienda Modrinth (503)**: hasta 6 reintentos; si la API falla, descarga directo desde CDN con la URL ya cargada en el asistente.
+- **Cliente PvP Modern 0.6.1**: sincroniza el JAR embebido y remoto; corrige crash al iniciar por mixin de hitbox en 1.21.11.
+- **Dynamic FPS**: repara `dynamic_fps.json` con estado obsoleto `minimized` (ahora `invisible` en 3.11.6).
+
 ## [7.7.2] - 2026-07-18
 
 ### Fixed
@@ -59,6 +67,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - **Práctica PvP**: botón en menú + destino launcher con mundo local y HUD de entrenamiento.
 - HUD ampliado: **coordenadas**, **armadura** y **CPS**.
 - Mod **0.4.0** compilado y empaquetado en `bundled/pvp-modern/`.
+
+## Cliente PvP Modern 0.6.1 - 2026-07-18
+
+### Fixed
+- **Crash al iniciar (MixinWorldRendererOutline)**: el mixin de grosor del hitbox apuntaba al ordinal incorrecto del parámetro `lineWidth` en `drawBlockOutline` de 1.21.11.
 
 ## Cliente PvP Modern 0.6.0 - 2026-07-18
 
