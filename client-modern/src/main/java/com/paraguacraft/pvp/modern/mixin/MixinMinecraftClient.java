@@ -20,10 +20,10 @@ public class MixinMinecraftClient {
             return;
         }
         MinecraftClient client = (MinecraftClient) (Object) this;
-        if (screen.getClass() == TitleScreen.class && !(screen instanceof CustomTitleScreen)) {
+        if (screen instanceof TitleScreen && !(screen instanceof CustomTitleScreen)) {
             client.setScreen(new CustomTitleScreen());
             ci.cancel();
-        } else if (screen.getClass() == GameMenuScreen.class && !(screen instanceof CustomPauseScreen)) {
+        } else if (screen instanceof GameMenuScreen && !(screen instanceof CustomPauseScreen)) {
             client.setScreen(new CustomPauseScreen(true));
             ci.cancel();
         }

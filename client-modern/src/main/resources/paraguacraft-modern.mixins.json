@@ -3,7 +3,11 @@
   "package": "com.paraguacraft.pvp.modern.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
-    "MixinMinecraftClient"
+    "KeyBindingAccessor",
+    "MixinMinecraftClient",
+    "MixinClientPlayerEntity",
+    "MixinWorldRendererOutline",
+    "CreateWorldScreenAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -8,11 +8,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Properties;
 
-/** Recuerda el último modo Hypixel Quick Play para reconectar. */
+/** Recuerda el ultimo modo Hypixel Quick Play y ejecuta comandos pendientes al conectar. */
 public final class QuickPlayState {
 
     public static String lastCommand = "";
     public static String lastLabel = "";
+    public static String pendingCommand = "";
 
     private QuickPlayState() {}
 
@@ -29,11 +30,33 @@ public final class QuickPlayState {
         persist();
     }
 
+    public static void queue(String command) {
+        pendingCommand = command == null ? "" : command;
+    }
+
     public static void reconnect(MinecraftClient client) {
         if (!hasLast() || client == null) {
             return;
         }
-        HypixelHelper.sendCommand(client, lastCommand);
+        if (HypixelHelper.isOnHypixel(client)) {
+            HypixelHelper.sendCommand(client, lastCommand);
+        } else {
+            queue(lastCommand);
+            HypixelHelper.connect(client, client.currentScreen);
+        }
+    }
+
+    public static void onJoin(MinecraftClient client) {
+        if (client == null || pendingCommand == null || pendingCommand.isEmpty()) {
+            return;
+        }
+        if (!HypixelHelper.isOnHypixel(client)) {
+            return;
+        }
+        client.execute(() -> {
+            HypixelHelper.sendCommand(client, pendingCommand);
+            pendingCommand = "";
+        });
     }
 
     public static void load() {

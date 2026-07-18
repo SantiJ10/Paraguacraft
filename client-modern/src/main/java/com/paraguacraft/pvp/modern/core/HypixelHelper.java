@@ -1,9 +1,15 @@
 package com.paraguacraft.pvp.modern.core;
 
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screen.multiplayer.ConnectScreen;
+import net.minecraft.client.network.ServerAddress;
+import net.minecraft.client.network.ServerInfo;
 
-/** Utilidades Hypixel (detección + envío de comandos). */
+/** Utilidades Hypixel (deteccion + envio de comandos + conexion). */
 public final class HypixelHelper {
+
+    public static final String HYPIXEL_ADDRESS = "mc.hypixel.net";
 
     private HypixelHelper() {}
 
@@ -25,5 +31,10 @@ public final class HypixelHelper {
         }
         String cmd = command.startsWith("/") ? command.substring(1) : command;
         client.getNetworkHandler().sendChatCommand(cmd);
+    }
+
+    public static void connect(MinecraftClient client, Screen parent) {
+        ServerInfo info = new ServerInfo("Hypixel", HYPIXEL_ADDRESS, ServerInfo.ServerType.OTHER);
+        ConnectScreen.connect(parent, client, ServerAddress.parse(HYPIXEL_ADDRESS), info, false, null);
     }
 }

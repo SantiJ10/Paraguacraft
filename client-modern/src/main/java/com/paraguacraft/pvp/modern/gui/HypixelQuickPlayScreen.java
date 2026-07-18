@@ -65,7 +65,8 @@ public class HypixelQuickPlayScreen extends Screen {
             HypixelHelper.sendCommand(client, game.command());
             client.setScreen(null);
         } else {
-            client.setScreen(new ParaguacraftMultiplayerScreen(parent));
+            QuickPlayState.queue(game.command());
+            HypixelHelper.connect(client, parent != null ? parent : this);
         }
     }
 

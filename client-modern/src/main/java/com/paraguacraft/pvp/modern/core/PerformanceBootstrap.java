@@ -1,5 +1,7 @@
 package com.paraguacraft.pvp.modern.core;
 
+import com.paraguacraft.pvp.modern.config.LauncherProfile;
+import com.paraguacraft.pvp.modern.config.ModernConfig;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.MinecraftClient;
@@ -8,7 +10,7 @@ import net.minecraft.client.option.GameOptions;
 import net.minecraft.client.option.GraphicsMode;
 import net.minecraft.particle.ParticlesMode;
 
-/** Aplica preset PvP al arrancar y libera memoria al cambiar de mundo/servidor. */
+/** Aplica preset PvP al arrancar; respeta tier de hardware del launcher. */
 public final class PerformanceBootstrap {
 
     private PerformanceBootstrap() {}
@@ -26,6 +28,7 @@ public final class PerformanceBootstrap {
     }
 
     private static void onWorldJoin(MinecraftClient client) {
+        QuickPlayState.onJoin(client);
         if (!PerformanceConfig.memoryCleanupOnWorldChange) {
             return;
         }
@@ -33,17 +36,37 @@ public final class PerformanceBootstrap {
     }
 
     private static void applyGameOptions(GameOptions options) {
-        options.getViewDistance().setValue(clampChunkDistance(PerformanceConfig.renderDistance));
-        options.getSimulationDistance().setValue(clampChunkDistance(PerformanceConfig.simulationDistance));
-        options.getParticles().setValue(toParticlesMode(PerformanceConfig.particleMode));
+        String tier = LauncherProfile.hardwareTier == null ? "media" : LauncherProfile.hardwareTier.toLowerCase();
+        int renderDistance = PerformanceConfig.renderDistance;
+        int simDistance = PerformanceConfig.simulationDistance;
+        double entityScale = PerformanceConfig.entityDistanceScaling;
+        ParticlesMode particles = toParticlesMode(PerformanceConfig.particleMode);
+        boolean fastGraphics = true;
+        boolean ao = false;
+        int biomeBlend = 1;
+
+        if ("alta".equals(tier) || "high".equals(tier)) {
+            renderDistance = Math.max(renderDistance, 12);
+            simDistance = Math.max(simDistance, 10);
+            entityScale = Math.max(entityScale, 0.75);
+            biomeBlend = 2;
+        } else if ("media".equals(tier) || "medium".equals(tier)) {
+            renderDistance = Math.max(renderDistance, 12);
+            simDistance = Math.max(simDistance, 10);
+            entityScale = Math.max(entityScale, 0.75);
+            ao = true;
+            biomeBlend = 2;
+        }
+
+        options.getViewDistance().setValue(clampChunkDistance(renderDistance));
+        options.getSimulationDistance().setValue(clampChunkDistance(simDistance));
+        options.getParticles().setValue(particles);
         options.getCloudRenderMode().setValue(CloudRenderMode.OFF);
-        options.getPreset().setValue(GraphicsMode.FAST);
+        options.getPreset().setValue(fastGraphics ? GraphicsMode.FAST : GraphicsMode.FANCY);
         options.getEntityShadows().setValue(false);
-        options.getAo().setValue(false);
-        options.getEntityDistanceScaling().setValue(
-            clamp(PerformanceConfig.entityDistanceScaling, 0.25, 1.0)
-        );
-        options.getBiomeBlendRadius().setValue(Math.min(options.getBiomeBlendRadius().getValue(), 2));
+        options.getAo().setValue(ao);
+        options.getEntityDistanceScaling().setValue(clamp(entityScale, 0.25, 1.0));
+        options.getBiomeBlendRadius().setValue(biomeBlend);
     }
 
     private static ParticlesMode toParticlesMode(PerformanceConfig.ParticleMode mode) {
