@@ -136,6 +136,9 @@ fn version_from_json_typed(v: &Value, project_type: &str) -> StoreVersion {
         name: v["name"].as_str().unwrap_or_default().to_string(),
         version_number: v["version_number"].as_str().unwrap_or_default().to_string(),
         filename,
+        download_url: file.and_then(|f| f["url"].as_str().map(String::from)),
+        sha1: file
+            .and_then(|f| f["hashes"]["sha1"].as_str().map(String::from)),
         game_versions: v["game_versions"]
             .as_array()
             .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
@@ -191,26 +194,31 @@ pub async fn list_all_versions(
 
 /// Instala un archivo concreto por id de version Modrinth.
 pub async fn install_version_id(
-    app: &tauri::AppHandle,
+    app: &AppHandle,
     client: &reqwest::Client,
     version_id: &str,
     dest_dir: std::path::PathBuf,
+    file_hint: Option<(String, String, Option<String>)>,
 ) -> AppResult<String> {
-    let v: Value = net::fetch_json(client, &format!("{API}/version/{version_id}")).await?;
-    let files = v["files"].as_array().cloned().unwrap_or_default();
-    let file = files
-        .iter()
-        .find(|f| f["primary"].as_bool().unwrap_or(false))
-        .or_else(|| files.first())
-        .ok_or_else(|| AppError::msg("La version no tiene archivos"))?;
-    let filename = file["filename"].as_str().unwrap_or("download.jar").to_string();
-    let dl = file["url"].as_str().ok_or_else(|| AppError::msg("Sin URL de descarga"))?;
-    let sha1 = file["hashes"]["sha1"].as_str().map(String::from);
+    let (filename, dl, sha1) = match fetch_version_file(client, version_id).await {
+        Ok(info) => info,
+        Err(e) => {
+            if let Some((filename, url, sha1)) = file_hint {
+                (filename, url, sha1)
+            } else if e.is_transient_server() {
+                return Err(AppError::msg(
+                    "Modrinth no responde (servidor saturado). Esperá 1–2 minutos e intentá de nuevo.",
+                ));
+            } else {
+                return Err(e);
+            }
+        }
+    };
     std::fs::create_dir_all(&dest_dir)?;
     let dest = dest_dir.join(&filename);
     net::download_all(
         client,
-        vec![DownloadItem::new(dl.to_string(), dest).with_sha1(sha1)],
+        vec![DownloadItem::new(dl, dest).with_sha1(sha1)],
         1,
         app,
         &format!("store-v-{version_id}"),
@@ -218,6 +226,14 @@ pub async fn install_version_id(
     )
     .await?;
     Ok(filename)
+}
+
+async fn fetch_version_file(
+    client: &reqwest::Client,
+    version_id: &str,
+) -> AppResult<(String, String, Option<String>)> {
+    let v: Value = net::fetch_json(client, &format!("{API}/version/{version_id}")).await?;
+    file_from_version(&v, "mod")
 }
 
 /// Devuelve (filename, url, sha1) de la mejor version compatible.

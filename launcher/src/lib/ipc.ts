@@ -510,6 +510,9 @@ export const api = {
     destination?: StoreInstallDestination;
     serverId?: string;
     worldName?: string;
+    filename?: string;
+    downloadUrl?: string;
+    sha1?: string | null;
   }): Promise<string> {
     return invokeReal<string>("store_install_version", { ...payload });
   },

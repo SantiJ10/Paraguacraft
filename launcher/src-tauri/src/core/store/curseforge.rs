@@ -152,6 +152,8 @@ fn file_to_version(f: &Value) -> StoreVersion {
         name: f["displayName"].as_str().unwrap_or_default().to_string(),
         version_number: f["displayName"].as_str().unwrap_or_default().to_string(),
         filename: f["fileName"].as_str().unwrap_or("download.jar").to_string(),
+        download_url: None,
+        sha1: None,
         game_versions,
         loaders,
         published_at: f["fileDate"].as_str().unwrap_or("").to_string(),

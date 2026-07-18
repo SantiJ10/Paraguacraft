@@ -103,7 +103,7 @@ where
     F: FnMut() -> Fut,
     Fut: std::future::Future<Output = AppResult<T>>,
 {
-    const MAX: u32 = 3;
+    const MAX: u32 = 6;
     let mut last = None;
     for attempt in 0..MAX {
         match op().await {
@@ -121,7 +121,8 @@ where
                 if !retry || attempt + 1 >= MAX {
                     break;
                 }
-                tokio::time::sleep(std::time::Duration::from_millis(400 * (attempt as u64 + 1))).await;
+                let wait_ms = 800u64 * (attempt as u64 + 1).pow(2);
+                tokio::time::sleep(std::time::Duration::from_millis(wait_ms)).await;
             }
         }
     }

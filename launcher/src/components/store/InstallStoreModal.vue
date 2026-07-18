@@ -257,6 +257,10 @@ const canNext = computed(() => {
 
 const canInstall = computed(() => !!selectedVersionId.value && !busy.value);
 
+const selectedVersion = computed(() =>
+  modVersions.value.find((v) => v.id === selectedVersionId.value) ?? null,
+);
+
 watch(mcChannel, () => {
   const list = wizardMcVersions.value;
   if (!list.some((v) => v.id === mcVersion.value)) {
@@ -584,6 +588,9 @@ async function install() {
       versionId: selectedVersionId.value,
       mc: mcVersion.value,
       loader: effectiveLoader.value,
+      filename: selectedVersion.value?.filename,
+      downloadUrl: selectedVersion.value?.downloadUrl ?? undefined,
+      sha1: selectedVersion.value?.sha1 ?? undefined,
       instanceId:
         isInstanceFlow.value && installTarget.value !== "server"
           ? instanceId.value
