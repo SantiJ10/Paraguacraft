@@ -41,6 +41,7 @@ client/build/
 client/run/
 client/out/
 client-modern/.gradle/
+client-modern/.tmp-decompile/
 client-modern/build/
 client-modern/run/
 .mixin.out/
