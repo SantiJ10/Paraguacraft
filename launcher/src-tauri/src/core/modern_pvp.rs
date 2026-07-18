@@ -31,6 +31,19 @@ struct HudMod {
 }
 
 const HUD_MODS: &[HudMod] = &[
+    // Dependencias de Controlling / Zoomify (instalar antes que los mods que las usan).
+    HudMod {
+        slug: "searchables",
+        min_tier: 0,
+    },
+    HudMod {
+        slug: "fabric-language-kotlin",
+        min_tier: 0,
+    },
+    HudMod {
+        slug: "yacl",
+        min_tier: 0,
+    },
     HudMod {
         slug: "modmenu",
         min_tier: 0,
