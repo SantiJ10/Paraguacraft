@@ -15,7 +15,7 @@ public class MixinWorldRendererOutline {
         return ModernConfig.showBlockOutline ? 0xFF00E5FF : color;
     }
 
-    @ModifyVariable(method = "drawBlockOutline", at = @At("HEAD"), ordinal = 1, argsOnly = true)
+    @ModifyVariable(method = "drawBlockOutline", at = @At("HEAD"), ordinal = 0, argsOnly = true)
     private float paraguacraft$thickLines(float lineWidth) {
         return ModernConfig.showBlockOutline ? 3.0F : lineWidth;
     }

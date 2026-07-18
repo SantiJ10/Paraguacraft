@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP Modern",
   "mc_version": "1.21.11",
   "loader": "fabric",
-  "client_version": "0.6.0",
-  "release_tag": "pvp-modern-0.6.0",
+  "client_version": "0.6.1",
+  "release_tag": "pvp-modern-0.6.1",
   "descripcion": "Mods 1.8.9 portados + Fabric QoL (Zoomify, Controlling, Smooth Scrolling).",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-Modern-0.6.0.jar",
-      "sha1": "eade875cffbd3d1a949e8a636fea66d95cbf80c5"
+      "filename": "ParaguacraftPvP-Modern-0.6.1.jar",
+      "sha1": "0ad67fbc5f3b1d8f79fbf6f14f2c63cbac4713c2"
     }
   ]
 }
