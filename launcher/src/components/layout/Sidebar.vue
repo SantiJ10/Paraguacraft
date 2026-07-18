@@ -22,20 +22,22 @@ const nav = [
   { name: "servers", label: "Servidores", to: "/servers", icon: "server" },
 ];
 
+const FOCUS_REFRESH_MS = 60_000;
 let unlistenFocus: (() => void) | null = null;
+let lastFocusRefresh = 0;
 
 onMounted(async () => {
-  await accounts.load();
-  await skins.refresh();
-
-  if (isTauri()) {
-    try {
-      unlistenFocus = await getCurrentWindow().onFocusChanged(({ payload: focused }) => {
-        if (focused) void skins.refresh();
-      });
-    } catch {
-      /* ignore */
-    }
+  if (!isTauri()) return;
+  try {
+    unlistenFocus = await getCurrentWindow().onFocusChanged(({ payload: focused }) => {
+      if (!focused) return;
+      const now = Date.now();
+      if (now - lastFocusRefresh < FOCUS_REFRESH_MS) return;
+      lastFocusRefresh = now;
+      void skins.refresh();
+    });
+  } catch {
+    /* ignore */
   }
 });
 
@@ -46,7 +48,7 @@ onUnmounted(() => {
 watch(
   () => accounts.active?.id,
   () => {
-    void skins.refresh();
+    void skins.refresh(true);
   },
 );
 

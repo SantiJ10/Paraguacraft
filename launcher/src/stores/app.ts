@@ -21,11 +21,21 @@ export const useAppStore = defineStore("app", () => {
   const updateProgress = ref<UpdateProgress | null>(null);
   const updating = ref(false);
 
+  let hardwareInflight: Promise<void> | null = null;
+
   async function loadHardware(force = false) {
     if (hardware.value && !force) return;
-    hardware.value = await api.getHardwareInfo();
-    const { applyHardwareSmartDefaults } = await import("@/stores/music");
-    applyHardwareSmartDefaults(hardware.value.perfilSugerido);
+    if (hardwareInflight) return hardwareInflight;
+
+    hardwareInflight = (async () => {
+      hardware.value = await api.getHardwareInfo();
+      const { applyHardwareSmartDefaults } = await import("@/stores/music");
+      applyHardwareSmartDefaults(hardware.value.perfilSugerido);
+    })().finally(() => {
+      hardwareInflight = null;
+    });
+
+    return hardwareInflight;
   }
 
   function setLaunch(phase: LaunchPhase, message: string) {

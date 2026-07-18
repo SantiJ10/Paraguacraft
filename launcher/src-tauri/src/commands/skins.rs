@@ -11,10 +11,29 @@ use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
 #[tauri::command]
-pub async fn get_active_skin(state: State<'_, AppState>) -> AppResult<SkinProfile> {
+pub fn get_active_skin_local() -> SkinProfile {
+    skins::active_or_steve()
+}
+
+#[tauri::command]
+pub async fn get_active_skin(
+    state: State<'_, AppState>,
+    force: Option<bool>,
+) -> AppResult<SkinProfile> {
+    let acc_key = accounts::active_account()
+        .map(|a| a.id)
+        .unwrap_or_else(|| "steve".into());
+    let force = force.unwrap_or(false);
+    if !force {
+        if let Some(cached) = state.cached_skin(&acc_key, 120) {
+            return Ok(cached);
+        }
+    }
+
     let http = state.client();
     let profile = skins::active_or_steve();
     let enriched = skins::enrich_profile(&http, profile).await;
+    state.store_skin_cache(&acc_key, enriched.clone());
     state.shutdown_network();
     Ok(enriched)
 }

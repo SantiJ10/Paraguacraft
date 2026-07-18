@@ -2,6 +2,7 @@ package com.paraguacraft.pvp.modern.hud;
 
 import com.paraguacraft.pvp.modern.ParaguacraftPvPModern;
 import com.paraguacraft.pvp.modern.config.ModernConfig;
+import com.paraguacraft.pvp.modern.core.CombatStats;
 import com.paraguacraft.pvp.modern.core.LauncherIpc;
 import com.paraguacraft.pvp.modern.core.PerformanceConfig;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
@@ -11,7 +12,10 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.client.render.RenderTickCounter;
+import net.minecraft.entity.TntEntity;
+import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.enchantment.EnchantmentHelper;
+import net.minecraft.client.gui.hud.InGameHud;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -79,6 +83,18 @@ public final class HudRenderer {
         }
         if (ModernConfig.showMusicHud) {
             drawMusicOverlay(context, tr);
+        }
+        if (ModernConfig.comboCounter) {
+            drawLabeled(tr, context, "Combo: ", String.valueOf(CombatStats.comboCount), ModernConfig.comboX, ModernConfig.comboY, 0xFF00E5FF);
+        }
+        if (ModernConfig.showPotions) {
+            drawPotions(context, client);
+        }
+        if (ModernConfig.showCompass) {
+            drawCompass(context, tr, client);
+        }
+        if (ModernConfig.showTntCountdown) {
+            drawNearestTnt(context, tr, client);
         }
     }
 
@@ -198,6 +214,57 @@ public final class HudRenderer {
         ctx.drawText(tr, Text.literal(String.valueOf(diamond)), x + 62, y + 4, 0xFFFFFFFF, true);
         ctx.drawItem(new ItemStack(Items.EMERALD), x + 44, y + 12);
         ctx.drawText(tr, Text.literal(String.valueOf(emerald)), x + 62, y + 16, 0xFFFFFFFF, true);
+    }
+
+    private static void drawPotions(DrawContext ctx, MinecraftClient client) {
+        int y = ModernConfig.potionY;
+        for (StatusEffectInstance effect : client.player.getStatusEffects()) {
+            var type = effect.getEffectType();
+            Identifier tex = InGameHud.getEffectTexture(type);
+            ctx.drawGuiTexture(net.minecraft.client.gl.RenderPipelines.GUI_TEXTURED, tex, ModernConfig.potionX, y, 18, 18);
+            if (effect.getDuration() > 0) {
+                int sec = effect.getDuration() / 20;
+                ctx.drawText(client.textRenderer, Text.literal(String.valueOf(sec)), ModernConfig.potionX + 20, y + 5, 0xFFFFFFFF, true);
+            }
+            y += 20;
+        }
+    }
+
+    private static void drawCompass(DrawContext ctx, TextRenderer tr, MinecraftClient client) {
+        float yaw = (client.player.getYaw() % 360 + 360) % 360;
+        String dir = compassDirection(yaw);
+        int cx = client.getWindow().getScaledWidth() / 2;
+        ctx.drawCenteredTextWithShadow(tr, Text.literal(dir), cx, ModernConfig.compassY, 0xFF00E5FF);
+    }
+
+    private static String compassDirection(float yaw) {
+        if (yaw >= 315 || yaw < 45) return "S";
+        if (yaw < 135) return "W";
+        if (yaw < 225) return "N";
+        return "E";
+    }
+
+    private static void drawNearestTnt(DrawContext ctx, TextRenderer tr, MinecraftClient client) {
+        if (client.world == null) {
+            return;
+        }
+        TntEntity nearest = null;
+        double best = 256;
+        for (var entity : client.world.getEntities()) {
+            if (!(entity instanceof TntEntity tnt) || tnt.getFuse() <= 0) {
+                continue;
+            }
+            double d = client.player.squaredDistanceTo(entity);
+            if (d < best) {
+                best = d;
+                nearest = tnt;
+            }
+        }
+        if (nearest == null) {
+            return;
+        }
+        String label = String.format("TNT: %.1fs", nearest.getFuse() / 20.0f);
+        ctx.drawText(tr, Text.literal(label), ModernConfig.hudX, ModernConfig.hudY + 52, 0xFFFF5555, true);
     }
 
     private static void drawMusicOverlay(DrawContext ctx, TextRenderer tr) {

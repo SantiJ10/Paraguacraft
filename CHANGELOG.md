@@ -3,6 +3,16 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.7.2] - 2026-07-18
+
+### Fixed
+- **Inicio y Ajustes lentos (5–7 s)**: bootstrap único en paralelo, sin cargas duplicadas de cuentas/skins/instancias; Ajustes ya no bloquea la UI esperando Mojang.
+- **503 Mojang al jugar**: si `api.minecraftservices.com` está caído, reutiliza el token guardado en lugar de bloquear el inicio.
+
+### Changed
+- Cache de hardware (5 min) y avatar activo (2 min); avatar local instantáneo antes del enrich de Mojang.
+- Escaneo de launchers externos (Prism/Lunar) diferido 3 s para no competir con el arranque.
+
 ## [7.7.1] - 2026-06-30
 
 ### Added
@@ -47,6 +57,18 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - **Práctica PvP**: botón en menú + destino launcher con mundo local y HUD de entrenamiento.
 - HUD ampliado: **coordenadas**, **armadura** y **CPS**.
 - Mod **0.4.0** compilado y empaquetado en `bundled/pvp-modern/`.
+
+## Cliente PvP Modern 0.6.0 - 2026-07-18
+
+### Added
+- Mods de prioridad alta portados: No Hurt Cam, Fullbright, FOV dinámico, Hide titles, Scoreboard toggle, Low fire, Item physics, Old swing, Combo, TNT HUD, Chat triggers, Freelook (Alt), Pociones HUD, Brújula.
+- Mod Menu ampliado con toggles para todos los módulos nuevos.
+- Atajos: G fullbright, Alt freelook, RControl editar HUD, ` quick play.
+- Launcher instala mods Fabric extra: Controlling, Smooth Scrolling, Zoomify (+ Mod Menu, AppleSkin, Better Ping, Shulker Tooltip, Dynamic FPS).
+
+### Notes
+- Fondos de tema PNG embebidos si están en `assets/paraguacraftpvp-modern/textures/gui/`.
+- Filtro avanzado del scoreboard (ocultar stats/números rojos) pendiente de paridad total 1.8.9.
 
 ## Cliente PvP Modern 0.5.0 - 2026-07-18
 

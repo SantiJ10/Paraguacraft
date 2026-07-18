@@ -40,6 +40,18 @@ const HUD_MODS: &[HudMod] = &[
         min_tier: 0,
     },
     HudMod {
+        slug: "controlling",
+        min_tier: 0,
+    },
+    HudMod {
+        slug: "smooth-scrolling",
+        min_tier: 0,
+    },
+    HudMod {
+        slug: "zoomify",
+        min_tier: 0,
+    },
+    HudMod {
         slug: "better-ping-display-fabric",
         min_tier: 1,
     },

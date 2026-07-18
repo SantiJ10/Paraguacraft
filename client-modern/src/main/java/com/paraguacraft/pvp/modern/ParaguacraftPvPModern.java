@@ -5,6 +5,7 @@ import com.paraguacraft.pvp.modern.config.ModernConfig;
 import com.paraguacraft.pvp.modern.core.LauncherIpcHandler;
 import com.paraguacraft.pvp.modern.core.PerformanceBootstrap;
 import com.paraguacraft.pvp.modern.core.QuickPlayState;
+import com.paraguacraft.pvp.modern.core.QoLBootstrap;
 import com.paraguacraft.pvp.modern.core.TrainingWorldHelper;
 import com.paraguacraft.pvp.modern.hud.HudRenderer;
 import com.paraguacraft.pvp.modern.input.ModKeybinds;
@@ -15,13 +16,14 @@ import net.minecraft.client.MinecraftClient;
 public class ParaguacraftPvPModern implements ClientModInitializer {
 
     public static final String MOD_ID = "paraguacraftpvp-modern";
-    public static final String VERSION = "0.5.0";
+    public static final String VERSION = "0.6.0";
 
     @Override
     public void onInitializeClient() {
         QuickPlayState.load();
         LauncherProfile.apply();
         PerformanceBootstrap.register();
+        QoLBootstrap.register();
         TrainingWorldHelper.register();
         LauncherIpcHandler.register();
         HudRenderer.register();

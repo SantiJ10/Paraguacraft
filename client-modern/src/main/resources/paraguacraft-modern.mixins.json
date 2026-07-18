@@ -7,7 +7,16 @@
     "MixinMinecraftClient",
     "MixinClientPlayerEntity",
     "MixinWorldRendererOutline",
-    "CreateWorldScreenAccessor"
+    "CreateWorldScreenAccessor",
+    "MixinGameRendererHurtCam",
+    "MixinGameRendererFov",
+    "MixinGameRendererFreelook",
+    "MixinEntityFreelook",
+    "MixinInGameHudTitles",
+    "MixinInGameHudScoreboard",
+    "MixinInGameHudLowFire",
+    "MixinItemEntityRenderer",
+    "MixinLivingEntitySwing"
   ],
   "injectors": {
     "defaultRequire": 1

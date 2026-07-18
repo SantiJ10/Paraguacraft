@@ -10,6 +10,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 
 use crate::core::accounts::microsoft::DeviceAuth;
+use crate::core::skins::SkinProfile;
 use crate::models::JavaInstallation;
 
 pub struct AppState {
@@ -21,6 +22,8 @@ pub struct AppState {
     pub ms_device: Mutex<Option<DeviceAuth>>,
     /// Cache perezosa de Javas detectados.
     pub java_cache: Mutex<Option<Vec<JavaInstallation>>>,
+    /// Avatar enriquecido (evita repetir Mojang en cada vista).
+    skin_cache: Mutex<Option<(String, SkinProfile, u64)>>,
 }
 
 impl Default for AppState {
@@ -30,6 +33,7 @@ impl Default for AppState {
             net_active: AtomicUsize::new(0),
             ms_device: Mutex::new(None),
             java_cache: Mutex::new(None),
+            skin_cache: Mutex::new(None),
         }
     }
 }
@@ -76,6 +80,33 @@ impl AppState {
         if self.net_active.load(Ordering::SeqCst) == 0 {
             *self.http.lock().unwrap() = None;
         }
+    }
+
+    pub fn cached_skin(&self, account_key: &str, max_age_secs: u64) -> Option<SkinProfile> {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let guard = self.skin_cache.lock().unwrap();
+        guard.as_ref().and_then(|(id, profile, ts)| {
+            if id == account_key && now.saturating_sub(*ts) < max_age_secs {
+                Some(profile.clone())
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn store_skin_cache(&self, account_key: &str, profile: SkinProfile) {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        *self.skin_cache.lock().unwrap() = Some((account_key.to_string(), profile, now));
+    }
+
+    pub fn clear_skin_cache(&self) {
+        *self.skin_cache.lock().unwrap() = None;
     }
 
     /// Devuelve (cliente, guard). Al soltar el guard se decrementa el contador y,

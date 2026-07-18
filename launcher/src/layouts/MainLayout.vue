@@ -13,6 +13,7 @@ import { useInstancesStore } from "@/stores/instances";
 import { useSettingsStore } from "@/stores/settings";
 import { useDownloadsStore } from "@/stores/downloads";
 import { useMusicStore } from "@/stores/music";
+import { useSkinsStore } from "@/stores/skins";
 
 const app = useAppStore();
 const accounts = useAccountsStore();
@@ -20,16 +21,26 @@ const instances = useInstancesStore();
 const settings = useSettingsStore();
 const downloads = useDownloadsStore();
 const music = useMusicStore();
+const skins = useSkinsStore();
 
-onMounted(async () => {
-  app.loadHardware();
+onMounted(() => {
   app.initGameEvents();
-  await settings.load();
-  app.checkUpdate();
-  accounts.load();
-  instances.load();
   downloads.initEvents();
-  void music.init();
+
+  void Promise.all([
+    settings.load(),
+    accounts.load(),
+    instances.load(),
+    app.loadHardware(),
+    skins.refresh(),
+  ]).then(() => {
+    void app.checkUpdate();
+    void music.init();
+  });
+
+  window.setTimeout(() => {
+    void instances.scan();
+  }, 3000);
 });
 </script>
 
