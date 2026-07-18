@@ -1,12 +1,12 @@
 {
-  "version": "7.7.3",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.7.3/Instalar_Paraguacraft_v7.7.3.exe",
-  "size_bytes": 91917968,
-  "sha256": "c317df72c5cca248ff59eae2c65b56de1e9c9353fa8767d23f669bc2849a5c08",
-  "notes": "- Cliente PvP Modern 0.6.1: fix crash mixin hitbox al iniciar\n- Mods Fabric 1.21.11: deps automaticas (searchables, kotlin, YACL)\n- Tienda Modrinth: reintentos 503 y descarga CDN de respaldo\n- Arranque rapido Inicio/Ajustes y fix 503 Mojang al jugar",
+  "version": "7.7.4",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.7.4/Instalar_Paraguacraft_v7.7.4.exe",
+  "size_bytes": 91924500,
+  "sha256": "658b8a733399f01be476b76d6889f9fedf56db6738dafe2114f5dd1e51768d22",
+  "notes": "- Cliente PvP Modern 0.6.2: fix pantalla negra en menu (ItemEntityRenderer)\n- Dynamic FPS: repara dynamic_fps.json (minimized→invisible)\n- Mods Fabric 1.21.11: deps automaticas (searchables, kotlin, YACL)\n- Tienda Modrinth: reintentos 503 y descarga CDN de respaldo",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.7.3/Instalar_Paraguacraft_v7.7.3.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.7.4/Instalar_Paraguacraft_v7.7.4.exe",
       "signature": ""
     }
   }

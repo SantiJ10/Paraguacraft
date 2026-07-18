@@ -1,6 +1,6 @@
 [package]
 name = "paraguacraft-launcher"
-version = "7.7.3"
+version = "7.7.4"
 description = "Paraguacraft Launcher"
 authors = ["Paraguacraft"]
 edition = "2021"
