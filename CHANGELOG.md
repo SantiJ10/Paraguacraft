@@ -3,6 +3,12 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.7.4] - 2026-07-18
+
+### Fixed
+- **Cliente PvP Modern 0.6.2**: sincroniza el JAR corregido (mixin ItemEntityRenderer); evita pantalla negra en el menu.
+- **Dynamic FPS offline**: manifest embebido y fallback actualizados a 0.6.2.
+
 ## [7.7.3] - 2026-07-18
 
 ### Fixed
@@ -67,6 +73,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - **Práctica PvP**: botón en menú + destino launcher con mundo local y HUD de entrenamiento.
 - HUD ampliado: **coordenadas**, **armadura** y **CPS**.
 - Mod **0.4.0** compilado y empaquetado en `bundled/pvp-modern/`.
+
+## Cliente PvP Modern 0.6.2 - 2026-07-18
+
+### Fixed
+- **Pantalla negra en menu**: corrige firma del mixin `MixinItemEntityRenderer` para el pipeline de render 1.21.11.
 
 ## Cliente PvP Modern 0.6.1 - 2026-07-18
 
