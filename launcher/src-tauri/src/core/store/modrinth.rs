@@ -2,7 +2,11 @@
 //!
 //! Búsqueda global sin mc/loader, o filtrada cuando se pasan (instalación / modal).
 
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
+
 use serde_json::Value;
+use tauri::AppHandle;
 
 use crate::core::net::{self, DownloadItem};
 use crate::error::{AppError, AppResult};
@@ -224,7 +228,17 @@ async fn best_file(
     mc: &str,
     loader: &str,
 ) -> AppResult<(String, String, Option<String>)> {
-    // Filtro por version siempre; por loader solo si aplica.
+    let version = fetch_best_version(client, project_id, project_type, mc, loader).await?;
+    file_from_version(&version, project_type)
+}
+
+async fn fetch_best_version(
+    client: &reqwest::Client,
+    project_id: &str,
+    project_type: &str,
+    mc: &str,
+    loader: &str,
+) -> AppResult<Value> {
     let mut url = format!(
         "{API}/project/{project_id}/version?game_versions={}",
         net::url_encode(&format!("[\"{mc}\"]"))
@@ -233,12 +247,14 @@ async fn best_file(
         url.push_str(&format!("&loaders={}", net::url_encode(&q)));
     }
     let versions: Value = net::fetch_json(client, &url).await?;
-    let arr = versions.as_array().cloned().unwrap_or_default();
-    let version = arr
-        .first()
-        .ok_or_else(|| AppError::msg("No hay version compatible con esta instancia"))?;
+    versions
+        .as_array()
+        .and_then(|arr| arr.first().cloned())
+        .ok_or_else(|| AppError::msg("No hay version compatible con esta instancia"))
+}
+
+fn file_from_version(version: &Value, project_type: &str) -> AppResult<(String, String, Option<String>)> {
     let files = version["files"].as_array().cloned().unwrap_or_default();
-    // Preferimos el archivo "primary".
     let file = files
         .iter()
         .find(|f| f["primary"].as_bool().unwrap_or(false))
@@ -251,18 +267,65 @@ async fn best_file(
     Ok((filename, dl, sha1))
 }
 
-/// Instala el contenido en `dest_dir`. Devuelve el filename instalado.
-pub async fn install(
-    app: &tauri::AppHandle,
+fn jar_already_present(dest_dir: &Path, filename: &str) -> bool {
+    let target = dest_dir.join(filename);
+    if target.is_file() {
+        return true;
+    }
+    let stem = filename
+        .trim_end_matches(".jar")
+        .trim_end_matches(".disabled")
+        .to_lowercase();
+    dest_dir.read_dir().into_iter().flatten().flatten().any(|e| {
+        let n = e.file_name().to_string_lossy().to_lowercase();
+        (n.ends_with(".jar") || n.ends_with(".jar.disabled")) && n.contains(&stem)
+    })
+}
+
+async fn install_recursive(
+    app: &AppHandle,
     client: &reqwest::Client,
     project_id: &str,
     project_type: &str,
     mc: &str,
     loader: &str,
-    dest_dir: std::path::PathBuf,
+    dest_dir: PathBuf,
+    visiting: &mut HashSet<String>,
 ) -> AppResult<String> {
-    let (filename, url, sha1) = best_file(client, project_id, project_type, mc, loader).await?;
+    let key = project_id.to_lowercase();
+    if !visiting.insert(key) {
+        return Ok(String::new());
+    }
+
+    let version = fetch_best_version(client, project_id, project_type, mc, loader).await?;
+
+    if let Some(deps) = version["dependencies"].as_array() {
+        for dep in deps {
+            let dep_type = dep["dependency_type"].as_str().unwrap_or("");
+            if dep_type != "required" && dep_type != "embedded" {
+                continue;
+            }
+            if let Some(dep_project) = dep["project_id"].as_str() {
+                let _ = Box::pin(install_recursive(
+                    app,
+                    client,
+                    dep_project,
+                    project_type,
+                    mc,
+                    loader,
+                    dest_dir.clone(),
+                    visiting,
+                ))
+                .await;
+            }
+        }
+    }
+
+    let (filename, url, sha1) = file_from_version(&version, project_type)?;
     std::fs::create_dir_all(&dest_dir)?;
+    if jar_already_present(&dest_dir, &filename) {
+        return Ok(filename);
+    }
     let dest = dest_dir.join(&filename);
     net::download_all(
         client,
@@ -274,4 +337,27 @@ pub async fn install(
     )
     .await?;
     Ok(filename)
+}
+
+/// Instala el contenido en `dest_dir`. Devuelve el filename instalado.
+pub async fn install(
+    app: &AppHandle,
+    client: &reqwest::Client,
+    project_id: &str,
+    project_type: &str,
+    mc: &str,
+    loader: &str,
+    dest_dir: PathBuf,
+) -> AppResult<String> {
+    install_recursive(
+        app,
+        client,
+        project_id,
+        project_type,
+        mc,
+        loader,
+        dest_dir,
+        &mut HashSet::new(),
+    )
+    .await
 }
