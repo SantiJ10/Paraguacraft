@@ -78,6 +78,9 @@ pub async fn store_install_version(
     destination: Option<String>,
     server_id: Option<String>,
     world_name: Option<String>,
+    filename: Option<String>,
+    download_url: Option<String>,
+    sha1: Option<String>,
 ) -> AppResult<String> {
     let key = keys::curseforge_api_key();
     let (http, _net) = state.net_scope();
@@ -98,6 +101,9 @@ pub async fn store_install_version(
         &mc,
         &loader,
         dest,
+        download_url,
+        filename,
+        sha1,
     )
     .await
 }

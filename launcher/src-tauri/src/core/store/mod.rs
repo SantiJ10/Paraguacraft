@@ -254,6 +254,9 @@ pub async fn install_version(
     mc: &str,
     loader: &str,
     dest: InstallDestination,
+    download_url: Option<String>,
+    filename: Option<String>,
+    sha1: Option<String>,
 ) -> AppResult<String> {
     if project_type == "modpack" {
         return Err(AppError::msg(
@@ -264,7 +267,13 @@ pub async fn install_version(
     let dest_dir = resolve_dest_dir(project_type, &dest, mc, loader, loader_required)?;
 
     match provider {
-        "modrinth" => modrinth::install_version_id(app, client, version_id, dest_dir).await,
+        "modrinth" => {
+            let hint = match (filename, download_url) {
+                (Some(f), Some(u)) => Some((f, u, sha1)),
+                _ => None,
+            };
+            modrinth::install_version_id(app, client, version_id, dest_dir, hint).await
+        }
         "curseforge" => {
             curseforge::install_file_id(
                 app,

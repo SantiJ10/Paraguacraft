@@ -129,6 +129,8 @@ export interface StoreVersion {
   name: string;
   versionNumber: string;
   filename: string;
+  downloadUrl?: string | null;
+  sha1?: string | null;
   gameVersions: string[];
   loaders: string[];
   publishedAt: string;

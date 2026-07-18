@@ -9,6 +9,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - **Inicio y Ajustes lentos (5–7 s)**: bootstrap único en paralelo, sin cargas duplicadas de cuentas/skins/instancias; Ajustes ya no bloquea la UI esperando Mojang.
 - **503 Mojang al jugar**: si `api.minecraftservices.com` está caído, reutiliza el token guardado en lugar de bloquear el inicio.
 - **Mods Fabric 1.21.11**: el launcher instala dependencias de Controlling/Zoomify (`searchables`, `fabric-language-kotlin`, `yacl`) vía Modrinth.
+- **Tienda Modrinth (503)**: reintentos más largos y descarga directa desde CDN si la API falla al instalar.
 
 ### Changed
 - Cache de hardware (5 min) y avatar activo (2 min); avatar local instantáneo antes del enrich de Mojang.

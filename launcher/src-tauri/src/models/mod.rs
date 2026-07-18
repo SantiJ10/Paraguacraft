@@ -195,6 +195,10 @@ pub struct StoreVersion {
     pub name: String,
     pub version_number: String,
     pub filename: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub download_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sha1: Option<String>,
     pub game_versions: Vec<String>,
     pub loaders: Vec<String>,
     pub published_at: String,
