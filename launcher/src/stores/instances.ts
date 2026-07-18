@@ -28,8 +28,6 @@ export const useInstancesStore = defineStore("instances", () => {
     instances.value = await api.getInstances();
     selectedId.value = recent.value[0]?.id ?? instances.value[0]?.id ?? null;
     loaded.value = true;
-    // Detecta otros launchers en segundo plano (Prism, Lunar, .minecraft).
-    void scan();
   }
 
   /** Escaneo completo (incluye otros launchers). On-demand. */

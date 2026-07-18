@@ -221,6 +221,7 @@ pub fn run() {
             commands::servers::import_server_folder,
             commands::servers::pick_server_folder,
             commands::servers::set_playit_address,
+            commands::skins::get_active_skin_local,
             commands::skins::get_active_skin,
             commands::skins::get_skin_for_account,
             commands::skins::get_offline_skin,

@@ -23,9 +23,9 @@ onMounted(async () => {
     return;
   }
   try {
-    await favorites.load();
-    profiles.value = await api.listGameProfiles();
-    for (const p of profiles.value) {
+    const [, list] = await Promise.all([favorites.load(), api.listGameProfiles()]);
+    profiles.value = list;
+    for (const p of list) {
       if (p.destinations?.length) {
         destinationByProfile[p.id] = p.destinations[0]?.id ?? "menu";
       }

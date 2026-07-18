@@ -197,6 +197,7 @@ pub async fn validate_profile(
             )))
         }
         401 | 403 => Ok(None),
+        s if matches!(s, 429 | 502 | 503 | 504) => Err(AppError::transient_http(s)),
         s => Err(AppError::msg(format!("Mojang respondio HTTP {s}"))),
     }
 }

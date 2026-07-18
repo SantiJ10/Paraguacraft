@@ -1,9 +1,51 @@
 //! Deteccion de hardware y autoconfig de JVM/GC/RAM.
 
+use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
+
 use crate::models::HardwareInfo;
 use sysinfo::System;
 
+struct HardwareCache {
+    info: HardwareInfo,
+    at: Instant,
+}
+
+static HARDWARE_CACHE: OnceLock<Mutex<Option<HardwareCache>>> = OnceLock::new();
+
+const HARDWARE_CACHE_TTL: Duration = Duration::from_secs(300);
+
 pub fn detect() -> HardwareInfo {
+    detect_inner(false)
+}
+
+pub fn detect_force() -> HardwareInfo {
+    detect_inner(true)
+}
+
+fn detect_inner(force: bool) -> HardwareInfo {
+    let cache = HARDWARE_CACHE.get_or_init(|| Mutex::new(None));
+    if !force {
+        if let Ok(guard) = cache.lock() {
+            if let Some(entry) = guard.as_ref() {
+                if entry.at.elapsed() < HARDWARE_CACHE_TTL {
+                    return entry.info.clone();
+                }
+            }
+        }
+    }
+
+    let info = detect_uncached();
+    if let Ok(mut guard) = cache.lock() {
+        *guard = Some(HardwareCache {
+            info: info.clone(),
+            at: Instant::now(),
+        });
+    }
+    info
+}
+
+fn detect_uncached() -> HardwareInfo {
     let mut sys = System::new_all();
     sys.refresh_memory();
     sys.refresh_cpu_all();

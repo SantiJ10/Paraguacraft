@@ -4,6 +4,7 @@ import { useSettingsStore } from "@/stores/settings";
 import { useAccountsStore } from "@/stores/accounts";
 import { useSkinsStore } from "@/stores/skins";
 import { useAppStore } from "@/stores/app";
+import { useInstancesStore } from "@/stores/instances";
 import BaseToggle from "@/components/common/BaseToggle.vue";
 import BaseButton from "@/components/common/BaseButton.vue";
 import AddAccountModal from "@/components/account/AddAccountModal.vue";
@@ -19,8 +20,9 @@ const settings = useSettingsStore();
 const accounts = useAccountsStore();
 const skins = useSkinsStore();
 const app = useAppStore();
+const instancesStore = useInstancesStore();
 
-const pageReady = ref(false);
+const pageReady = ref(true);
 const extrasLoading = ref(false);
 const javaSectionReady = ref(false);
 
@@ -61,17 +63,11 @@ async function saveGroqKey() {
 }
 
 onMounted(async () => {
-  try {
-    if (!settings.settings) {
-      await settings.load();
-    }
-    await Promise.all([accounts.load(), skins.refresh()]);
-    if (!app.hardware) {
-      app.loadHardware(false);
-    }
-  } finally {
-    pageReady.value = true;
+  if (!settings.settings) {
+    await settings.load();
   }
+
+  void Promise.all([accounts.load(), app.loadHardware(), skins.refresh()]);
 
   if (isTauri()) {
     extrasLoading.value = true;
@@ -85,9 +81,8 @@ onMounted(async () => {
       } finally {
         extrasLoading.value = false;
       }
-    }, 0);
-    void refreshPvpClientStatus();
-    void refreshPvpModernClientStatus();
+    }, 400);
+    void refreshPvpStatuses();
     void loadAiStatus();
   }
 
@@ -175,8 +170,10 @@ async function refreshPvpClientStatus() {
   pvpStatusLoading.value = true;
   pvpStatusMessage.value = null;
   try {
-    const instances = await api.getInstances();
-    const pvp = instances.find((i) => normalizeLoaderId(i.loader) === "paraguacraft-pvp");
+    if (!instancesStore.loaded) await instancesStore.load();
+    const pvp = instancesStore.instances.find(
+      (i) => normalizeLoaderId(i.loader) === "paraguacraft-pvp",
+    );
     pvpInstanceId.value = pvp?.id ?? null;
     pvpStatus.value = await api.getPvpClientStatus(pvp?.id ?? null);
   } catch (e) {
@@ -209,8 +206,10 @@ async function refreshPvpModernClientStatus() {
   pvpModernStatusLoading.value = true;
   pvpModernStatusMessage.value = null;
   try {
-    const instances = await api.getInstances();
-    const pvp = instances.find((i) => normalizeLoaderId(i.loader) === "paraguacraft-pvp-modern");
+    if (!instancesStore.loaded) await instancesStore.load();
+    const pvp = instancesStore.instances.find(
+      (i) => normalizeLoaderId(i.loader) === "paraguacraft-pvp-modern",
+    );
     pvpModernInstanceId.value = pvp?.id ?? null;
     pvpModernStatus.value = await api.getPvpModernClientStatus(pvp?.id ?? null);
   } catch (e) {
@@ -218,6 +217,10 @@ async function refreshPvpModernClientStatus() {
   } finally {
     pvpModernStatusLoading.value = false;
   }
+}
+
+async function refreshPvpStatuses() {
+  await Promise.all([refreshPvpClientStatus(), refreshPvpModernClientStatus()]);
 }
 
 async function syncPvpModernClientNow() {

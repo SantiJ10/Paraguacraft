@@ -896,8 +896,13 @@ export const api = {
     await invokeReal<void>("set_playit_address", { id, address });
   },
 
-  async getActiveSkin(): Promise<SkinProfile> {
-    if (isTauri()) return invokeReal<SkinProfile>("get_active_skin");
+  async getActiveSkinLocal(): Promise<SkinProfile> {
+    if (isTauri()) return invokeReal<SkinProfile>("get_active_skin_local");
+    return this.getActiveSkin();
+  },
+
+  async getActiveSkin(force = false): Promise<SkinProfile> {
+    if (isTauri()) return invokeReal<SkinProfile>("get_active_skin", { force });
     const acc = mockAccounts.find((a) => a.active);
     if (!acc) {
       return delay({

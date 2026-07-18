@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import mainBanner from "@/assets/main_banner.png";
 import SkinAvatar from "@/components/account/SkinAvatar.vue";
@@ -31,11 +31,6 @@ const avatarKey = computed(
 );
 
 const greetingName = computed(() => accounts.active?.username ?? "jugador");
-
-onMounted(() => {
-  void instances.load();
-  void skins.refresh();
-});
 
 function openInstance(inst: Instance) {
   instances.select(inst.id);

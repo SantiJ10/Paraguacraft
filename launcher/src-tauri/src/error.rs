@@ -28,6 +28,10 @@ pub enum AppError {
     Structured(StructuredError),
 }
 
+fn is_transient_http_status(status: u16) -> bool {
+    matches!(status, 429 | 502 | 503 | 504)
+}
+
 impl AppError {
     /// Fallo de red transitorio (sin conexión, timeout, DNS).
     pub fn is_connectivity(&self) -> bool {
@@ -35,6 +39,25 @@ impl AppError {
             AppError::Http(e) => e.is_connect() || e.is_timeout(),
             _ => false,
         }
+    }
+
+    /// Mojang/Microsoft caído o saturado: conviene reutilizar el token cacheado.
+    pub fn is_transient_server(&self) -> bool {
+        if self.is_connectivity() {
+            return true;
+        }
+        match self {
+            AppError::Http(e) => e
+                .status()
+                .map(|s| is_transient_http_status(s.as_u16()))
+                .unwrap_or(false),
+            AppError::Msg(s) => s.starts_with("__transient_http:"),
+            _ => false,
+        }
+    }
+
+    pub fn transient_http(status: u16) -> Self {
+        AppError::Msg(format!("__transient_http:{status}"))
     }
 }
 
