@@ -1,6 +1,8 @@
 //! Limpieza de logs/crash-reports y info de espacio.
 
 use std::path::Path;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 use serde::Serialize;
 
@@ -47,6 +49,19 @@ fn mc_java_ram_mb() -> u32 {
 }
 
 pub fn info() -> CleanupInfo {
+    static CACHE: Mutex<Option<(Instant, CleanupInfo)>> = Mutex::new(None);
+    let mut guard = CACHE.lock().unwrap();
+    if let Some((t, data)) = guard.as_ref() {
+        if t.elapsed() < Duration::from_secs(120) {
+            return data.clone();
+        }
+    }
+    let data = info_uncached();
+    *guard = Some((Instant::now(), data.clone()));
+    data
+}
+
+fn info_uncached() -> CleanupInfo {
     let mc = paths::default_minecraft_dir();
     let mut logs = dir_size_mb(&mc.join("logs"));
     let mut crash = dir_size_mb(&mc.join("crash-reports"));

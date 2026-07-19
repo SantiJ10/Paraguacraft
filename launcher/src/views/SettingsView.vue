@@ -22,7 +22,7 @@ const skins = useSkinsStore();
 const app = useAppStore();
 const instancesStore = useInstancesStore();
 
-const pageReady = ref(true);
+const pageReady = ref(false);
 const extrasLoading = ref(false);
 const javaSectionReady = ref(false);
 
@@ -66,29 +66,25 @@ onMounted(async () => {
   if (!settings.settings) {
     await settings.load();
   }
+  pageReady.value = true;
 
-  void Promise.all([accounts.load(), app.loadHardware(), skins.refresh()]);
-
-  if (isTauri()) {
-    extrasLoading.value = true;
-    window.setTimeout(async () => {
-      try {
-        const data = await api.getExtrasPanelData();
-        extrasStatus.value = data.extras;
-        cleanupInfo.value = data.cleanup;
-      } catch {
-        /* opcional */
-      } finally {
-        extrasLoading.value = false;
-      }
-    }, 400);
-    void refreshPvpStatuses();
-    void loadAiStatus();
+  if (!accounts.loaded) {
+    void accounts.load();
+  }
+  if (!app.hardware) {
+    void app.loadHardware();
+  }
+  if (!skins.activeUuid) {
+    void skins.refresh();
   }
 
-  window.setTimeout(() => {
-    javaSectionReady.value = true;
-  }, 120);
+  if (isTauri()) {
+    void loadAiStatus();
+    const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 600));
+    idle(() => {
+      javaSectionReady.value = true;
+    });
+  }
 });
 
 async function applyOfflineSkin() {
@@ -423,6 +419,11 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
         </h2>
 
         <div v-if="extrasLoading" class="mb-4 h-16 animate-pulse rounded-lg bg-surface-3" />
+        <div v-else-if="!extrasStatus && isTauri()" class="mb-4">
+          <BaseButton size="sm" variant="secondary" @click="refreshExtrasStatus">
+            Cargar datos de limpieza y RAM
+          </BaseButton>
+        </div>
 
         <div class="mb-5 space-y-4">
           <BaseToggle

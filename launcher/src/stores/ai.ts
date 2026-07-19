@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import type { AiMessage, CrashDiagnosis } from "@/lib/types";
-import { api } from "@/lib/ipc";
+import { api, parseInvokeError } from "@/lib/ipc";
 
 export const useAiStore = defineStore("ai", () => {
   const open = ref(false);
@@ -58,10 +58,11 @@ export const useAiStore = defineStore("ai", () => {
         messages.value.push({ id: `as-${Date.now()}-${s.slice(0, 8)}`, role: "assistant", content: `• ${s}` });
       }
     } catch (e) {
+      const err = parseInvokeError(e);
       messages.value.push({
         id: `err-${Date.now()}`,
         role: "assistant",
-        content: `No pude procesar la consulta: ${e}`,
+        content: err.message || err.raw || "No pude procesar la consulta.",
       });
     } finally {
       thinking.value = false;

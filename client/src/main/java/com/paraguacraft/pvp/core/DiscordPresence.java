@@ -69,7 +69,8 @@ public final class DiscordPresence {
             return;
         }
         Minecraft mc = Minecraft.getMinecraft();
-        String details = "Paraguacraft PvP Client";
+        String user = mc.getSession().getUsername();
+        String details = user + " - 1.8.9 - Forge + OptiFine";
         String state = buildState(mc);
         if (state.equals(lastState)) {
             return;
@@ -106,7 +107,7 @@ public final class DiscordPresence {
         }
         ServerData server = mc.getCurrentServerData();
         if (server != null && server.serverIP != null && !server.serverIP.isEmpty()) {
-            return "Multijugador: " + server.serverIP;
+            return server.serverIP;
         }
         if (mc.theWorld.getWorldInfo() != null) {
             String world = mc.theWorld.getWorldInfo().getWorldName();
