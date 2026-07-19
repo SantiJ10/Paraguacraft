@@ -54,10 +54,10 @@ pub fn set_launcher_idle(username: &str) {
     );
 }
 
-pub fn set_browsing(username: &str) {
+pub fn set_exploring_settings(username: &str) {
     update(
         "Paraguacraft",
-        &format!("Explorando · {username}"),
+        &format!("Explorando Ajustes · {username}"),
         true,
         true,
     );
@@ -103,13 +103,45 @@ pub fn set_playing_session(
     update(&details, &state, show_time, show_version);
 }
 
-pub fn set_bedrock_playing(username: &str, show_time: bool) {
+/// RPC al detectar el proceso Bedrock (antes de leer ventana).
+pub fn set_bedrock_loading(username: &str, show_time: bool) {
     update(
-        "Paraguacraft Bedrock",
         &format!("Jugando como {username}"),
+        "Bedrock Edition",
         show_time,
         false,
     );
+}
+
+/// RPC in-game Bedrock: `{user} - Bedrock Edition` + menú/mundo en state.
+pub fn set_bedrock_session(username: &str, mode_line: Option<&str>, show_time: bool) {
+    let details = format!("{username} - Bedrock Edition");
+    let state = mode_line
+        .filter(|s| !s.is_empty())
+        .unwrap_or("En el menú")
+        .to_string();
+    update(&details, &state, show_time, false);
+}
+
+/// Actualiza RPC según pantalla del launcher (idle / settings). No pisa juego activo.
+pub fn set_discord_rpc_screen(screen: &str) {
+    if crate::core::game_session::is_running() {
+        return;
+    }
+    let settings: crate::models::AppSettings =
+        crate::config::read_json(&crate::core::paths::config_file()).unwrap_or_default();
+    if !settings.discord_rpc {
+        return;
+    }
+    connect(true);
+    let user = crate::core::accounts::active_account()
+        .map(|a| a.username.replace(" [PREMIUM]", ""))
+        .unwrap_or_default();
+    if screen == "settings" {
+        set_exploring_settings(&user);
+    } else {
+        set_launcher_idle(&user);
+    }
 }
 
 fn update(details: &str, state: &str, show_time: bool, _show_version: bool) {

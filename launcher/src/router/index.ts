@@ -1,4 +1,6 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router";
+import { api, isTauri } from "@/lib/ipc";
+import { useAppStore } from "@/stores/app";
 
 const routes: RouteRecordRaw[] = [
   {
@@ -48,6 +50,14 @@ router.beforeEach((to) => {
     return { name: "home" };
   }
   return true;
+});
+
+router.afterEach((to) => {
+  if (!isTauri()) return;
+  const app = useAppStore();
+  if (app.launchPhase === "running") return;
+  const screen = to.name === "settings" ? "settings" : "idle";
+  void api.setDiscordRpcScreen(screen);
 });
 
 export default router;

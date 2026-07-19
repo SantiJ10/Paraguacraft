@@ -56,6 +56,11 @@ pub fn run_cleanup(kind: String) -> AppResult<u32> {
 }
 
 #[tauri::command]
+pub fn set_discord_rpc_screen(screen: String) {
+    extras::discord_rpc::set_discord_rpc_screen(&screen);
+}
+
+#[tauri::command]
 pub fn sync_discord_rpc() {
     let settings: AppSettings = config::read_json(&paths::config_file()).unwrap_or_default();
     if settings.discord_rpc {

@@ -10,6 +10,7 @@ use tauri::{AppHandle, Emitter, Manager};
 
 use crate::config;
 use crate::core::extras::discord_rpc;
+use crate::core::game_session;
 use crate::error::{AppError, AppResult};
 use crate::models::AppSettings;
 
@@ -157,11 +158,13 @@ pub fn watch_session(app: AppHandle, username: String, close_on_launch: bool) {
 
         emit_status(&app, "Bedrock activo");
         let _ = app.emit("bedrock://started", serde_json::json!({}));
+        game_session::set_running(true);
 
         let settings = config::read_json::<AppSettings>(&crate::core::paths::config_file())
             .unwrap_or_default();
+        let display_user = username.replace(" [PREMIUM]", "");
         if settings.discord_rpc {
-            discord_rpc::set_bedrock_playing(&username, settings.discord_rpc_time);
+            discord_rpc::set_bedrock_loading(&display_user, settings.discord_rpc_time);
         }
 
         if let Some(win) = app.get_webview_window("main") {
@@ -175,9 +178,23 @@ pub fn watch_session(app: AppHandle, username: String, close_on_launch: bool) {
         let start = std::time::Instant::now();
         let max_run = Duration::from_secs(600);
         let mut last_rename = std::time::Instant::now();
+        let mut last_rpc_state = String::from("En el menú");
+        let mut last_rpc_sent = String::new();
         while start.elapsed() < max_run {
             if !bedrock_running() {
                 break;
+            }
+            if settings.discord_rpc {
+                let title = read_bedrock_window_title();
+                let state = bedrock_rpc_state(title.as_deref(), &mut last_rpc_state);
+                if state != last_rpc_sent {
+                    last_rpc_sent = state.clone();
+                    discord_rpc::set_bedrock_session(
+                        &display_user,
+                        Some(&state),
+                        settings.discord_rpc_time,
+                    );
+                }
             }
             if last_rename.elapsed() >= Duration::from_millis(150) {
                 rename_bedrock_windows(BEDROCK_TITLE);
@@ -185,6 +202,8 @@ pub fn watch_session(app: AppHandle, username: String, close_on_launch: bool) {
             }
             std::thread::sleep(Duration::from_millis(200));
         }
+
+        game_session::set_running(false);
 
         if let Some(win) = app.get_webview_window("main") {
             if close_on_launch {
@@ -195,7 +214,7 @@ pub fn watch_session(app: AppHandle, username: String, close_on_launch: bool) {
         }
 
         if settings.discord_rpc {
-            discord_rpc::set_launcher_idle(&username);
+            discord_rpc::set_launcher_idle(&display_user);
         }
 
         emit_status(&app, "Bedrock cerrado");
@@ -228,6 +247,95 @@ fn bedrock_running() -> bool {
         let name = p.name().to_string_lossy().to_lowercase();
         PROC_NAMES.contains(&name.as_str())
     })
+}
+
+fn bedrock_rpc_state(title: Option<&str>, last: &mut String) -> String {
+    match title {
+        None => last.clone(),
+        Some(t) if t.contains("Paraguacraft") => last.clone(),
+        Some(t)
+            if t.eq_ignore_ascii_case("Minecraft")
+                || t.contains("Minecraft for Windows")
+                || t.eq_ignore_ascii_case("Minecraft: Bedrock Edition") =>
+        {
+            let s = "En el menú".to_string();
+            *last = s.clone();
+            s
+        }
+        Some(t) => {
+            let s = t.trim().to_string();
+            if !s.is_empty() {
+                *last = s.clone();
+            }
+            last.clone()
+        }
+    }
+}
+
+fn read_bedrock_window_title() -> Option<String> {
+    let mut sys = System::new();
+    sys.refresh_processes(ProcessesToUpdate::All, true);
+
+    struct Ctx {
+        pids: Vec<u32>,
+        title: Option<String>,
+    }
+
+    let bedrock_pids: Vec<u32> = sys
+        .processes()
+        .iter()
+        .filter_map(|(pid, p)| {
+            let name = p.name().to_string_lossy().to_lowercase();
+            PROC_NAMES.contains(&name.as_str()).then_some(pid.as_u32())
+        })
+        .collect();
+
+    let mut ctx = Ctx {
+        pids: bedrock_pids,
+        title: None,
+    };
+
+    unsafe extern "system" fn read_callback(
+        hwnd: windows_sys::Win32::Foundation::HWND,
+        lparam: windows_sys::Win32::Foundation::LPARAM,
+    ) -> windows_sys::Win32::Foundation::BOOL {
+        use windows_sys::Win32::Foundation::TRUE;
+        use windows_sys::Win32::UI::WindowsAndMessaging::{
+            GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId, IsWindowVisible,
+        };
+
+        let ctx = &mut *(lparam as *mut Ctx);
+        if ctx.title.is_some() {
+            return TRUE;
+        }
+        if IsWindowVisible(hwnd) == 0 {
+            return TRUE;
+        }
+        let mut pid: u32 = 0;
+        GetWindowThreadProcessId(hwnd, &mut pid);
+        if !ctx.pids.contains(&pid) {
+            return TRUE;
+        }
+        let len = GetWindowTextLengthW(hwnd);
+        if len <= 0 {
+            return TRUE;
+        }
+        let mut buf = vec![0u16; (len + 1) as usize];
+        GetWindowTextW(hwnd, buf.as_mut_ptr(), buf.len() as i32);
+        let current = String::from_utf16_lossy(&buf[..len as usize]);
+        if current.is_empty() {
+            return TRUE;
+        }
+        ctx.title = Some(current);
+        TRUE
+    }
+
+    let lparam = &mut ctx as *mut Ctx as isize;
+    unsafe {
+        use windows_sys::Win32::UI::WindowsAndMessaging::EnumWindows;
+        EnumWindows(Some(read_callback), lparam);
+    }
+    ctx.title
 }
 
 fn rename_bedrock_windows(new_title: &str) {

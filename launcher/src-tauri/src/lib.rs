@@ -96,6 +96,7 @@ pub fn run() {
             commands::extras::get_cleanup_info,
             commands::extras::run_cleanup,
             commands::extras::sync_discord_rpc,
+            commands::extras::set_discord_rpc_screen,
             // Java
             commands::java::detect_javas,
             commands::java::verify_java_path,

@@ -74,7 +74,7 @@ onMounted(async () => {
   if (!app.hardware) {
     void app.loadHardware();
   }
-  if (!skins.activeUuid) {
+  if (!skins.activeSkin) {
     void skins.refresh();
   }
 
@@ -213,10 +213,6 @@ async function refreshPvpModernClientStatus() {
   } finally {
     pvpModernStatusLoading.value = false;
   }
-}
-
-async function refreshPvpStatuses() {
-  await Promise.all([refreshPvpClientStatus(), refreshPvpModernClientStatus()]);
 }
 
 async function syncPvpModernClientNow() {

@@ -3,6 +3,15 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.7.5] - 2026-07-19
+
+### Added
+- **Discord RPC Bedrock**: `{usuario} - Bedrock Edition` con estado dinámico (menú, mundo) leyendo el título de ventana antes del rename.
+- **Discord RPC Ajustes**: `Explorando Ajustes · {usuario}` al entrar a la pantalla de configuración.
+
+### Changed
+- RPC del launcher respeta sesión activa (Java o Bedrock) y no se pisa al navegar mientras jugás.
+
 ## [7.7.4] - 2026-07-18
 
 ### Fixed
