@@ -14,7 +14,15 @@ pub fn get_accounts() -> Vec<Account> {
 
 #[tauri::command]
 pub fn set_active_account(id: String) -> AppResult<Vec<Account>> {
-    accounts::set_active(&id)
+    let list = accounts::set_active(&id)?;
+    let settings: crate::models::AppSettings =
+        crate::config::read_json(&crate::core::paths::config_file()).unwrap_or_default();
+    if settings.discord_rpc {
+        if let Some(acc) = list.iter().find(|a| a.active) {
+            crate::core::extras::discord_rpc::set_launcher_idle(&acc.username);
+        }
+    }
+    Ok(list)
 }
 
 #[tauri::command]
