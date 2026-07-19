@@ -155,6 +155,12 @@ export const api = {
     }
   },
 
+  async setDiscordRpcScreen(screen: "idle" | "settings"): Promise<void> {
+    if (isTauri()) {
+      await invokeReal<void>("set_discord_rpc_screen", { screen });
+    }
+  },
+
   async getExtrasStatus(): Promise<ExtrasStatus> {
     if (isTauri()) {
       return invokeReal<ExtrasStatus>("get_extras_status");

@@ -66,9 +66,15 @@ export const useAppStore = defineStore("app", () => {
     await listen("game://exited", () => {
       setLaunch("idle", "Listo para jugar");
       void skins.refresh();
+      void api.setDiscordRpcScreen("idle");
+    });
+    await listen("bedrock://started", () => {
+      setLaunch("running", "Bedrock activo — launcher minimizado");
     });
     await listen("bedrock://exited", () => {
+      setLaunch("idle", "Listo para jugar");
       void skins.refresh();
+      void api.setDiscordRpcScreen("idle");
     });
     await listen<{ instanceId: string; exitCode: number; diagnosis?: CrashDiagnosis }>(
       "game://crashed",
