@@ -118,30 +118,38 @@ public final class HudRenderer {
     }
 
     public static int musicPanelWidth(LauncherIpc.Snapshot snap, boolean preview) {
-        int minW = scaledMusic(ModernConfig.overlayHudW);
         if (!ModernConfig.showMusicHud) {
-            return minW;
+            return scaledMusic(80);
         }
         boolean playing = preview || (snap != null && snap.musicPlaying);
         if (!playing) {
-            return minW;
+            return scaledMusic(80);
         }
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null) {
-            return minW;
+            return scaledMusic(80);
         }
         TextRenderer tr = client.textRenderer;
         String title = preview ? "Vista previa" : snap.musicTitle;
+        String artist = preview ? "Spotify / YouTube" : snap.musicArtist;
         if (title == null || title.isEmpty()) {
             title = "Reproduciendo";
         }
-        int textW = tr.getWidth(clampMusicText(title, 22)) + scaledMusic(12);
-        boolean showArt = ModernConfig.showMusicAlbumArt
-            && (preview || (snap.musicImageUrl != null && !snap.musicImageUrl.isEmpty()));
-        if (showArt) {
-            textW += musicArtSize() + scaledMusic(6);
+        if (artist == null || artist.isEmpty()) {
+            artist = "Spotify / YouTube";
         }
-        return Math.max(minW, textW);
+        title = clampMusicText(title, 22);
+        artist = clampMusicText(artist, 28);
+
+        int pad = scaledMusic(6);
+        int textW = Math.max(tr.getWidth(title), tr.getWidth(artist)) + pad * 2;
+        String imageUrl = preview ? "" : (snap != null ? snap.musicImageUrl : "");
+        boolean showArt = ModernConfig.showMusicAlbumArt
+            && (preview || (imageUrl != null && !imageUrl.isEmpty()));
+        if (showArt) {
+            textW += musicArtSize() + scaledMusic(4);
+        }
+        return Math.max(scaledMusic(72), textW);
     }
 
     public static int musicPanelHeight(LauncherIpc.Snapshot snap, boolean preview) {
@@ -225,10 +233,11 @@ public final class HudRenderer {
         ctx.drawText(tr, Text.literal(label), x + w / 2 - tr.getWidth(label) / 2, y + h / 2 - 4, fg, false);
     }
 
-    /** Columna vertical casco → botas, estilo 1.8.9. */
+    /** Columna vertical casco → botas, estilo 1.8.9 (icono + brillo encantamiento). */
     private static void drawArmor(DrawContext ctx, MinecraftClient client) {
         EquipmentSlot[] slots = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
         int yOffset = 0;
+        TextRenderer tr = client.textRenderer;
         for (EquipmentSlot slot : slots) {
             ItemStack stack = client.player.getEquippedStack(slot);
             if (stack.isEmpty()) {
@@ -236,14 +245,15 @@ public final class HudRenderer {
             }
             int x = ModernConfig.armorX;
             int y = ModernConfig.armorY + yOffset;
-            ctx.drawItem(stack, x, y);
+            int iconX = x + 25;
+            ctx.drawItem(client.player, stack, iconX, y, 0);
             if (ModernConfig.showArmorPercentage && stack.isDamageable()) {
                 int max = stack.getMaxDamage();
                 int dmg = stack.getDamage();
                 int percent = max > 0 ? (int) (((max - dmg) * 100.0F) / max) : 100;
                 String text = percent + "%";
                 int color = percent < 25 ? 0xFFFF5555 : (percent < 50 ? 0xFFFFCC55 : 0xFF55FF55);
-                ctx.drawText(client.textRenderer, Text.literal(text), x + 18, y + 4, color, true);
+                ctx.drawText(tr, Text.literal(text), x + 22 - tr.getWidth(text), y + 4, color, true);
             }
             yOffset += 16;
         }
@@ -454,11 +464,13 @@ public final class HudRenderer {
         int artSize = musicArtSize();
         int textX = x + pad;
         int textY = y + pad;
-        if (ModernConfig.showMusicAlbumArt && playing && imageUrl != null && !imageUrl.isEmpty()) {
-            Identifier art = MusicArtCache.get(imageUrl);
+        boolean wantsArt = ModernConfig.showMusicAlbumArt
+            && (preview || (imageUrl != null && !imageUrl.isEmpty()));
+        if (wantsArt) {
+            int artX = x + pad;
+            int artY = y + pad;
+            Identifier art = preview ? null : MusicArtCache.get(imageUrl);
             if (art != null) {
-                int artX = x + pad;
-                int artY = y + pad;
                 ctx.drawTexture(
                     RenderPipelines.GUI_TEXTURED,
                     art,
@@ -471,12 +483,13 @@ public final class HudRenderer {
                     MusicArtCache.getTexWidth(),
                     MusicArtCache.getTexHeight()
                 );
-                textX = artX + artSize + scaledMusic(4);
+            } else if (preview) {
+                ctx.fill(artX, artY, artX + artSize, artY + artSize, 0xFF202030);
+                ctx.drawText(tr, Text.literal("♪"), artX + artSize / 2 - 3, artY + artSize / 2 - 4, UiTheme.accent(), false);
+            } else {
+                ctx.drawItem(new ItemStack(Items.MUSIC_DISC_13), artX, artY);
             }
-        } else if (ModernConfig.showMusicAlbumArt && preview) {
-            ctx.fill(x + pad, y + pad, x + pad + artSize, y + pad + artSize, 0xFF202030);
-            ctx.drawText(tr, Text.literal("♪"), x + pad + artSize / 2 - 3, y + pad + artSize / 2 - 4, UiTheme.accent(), false);
-            textX = x + pad + artSize + scaledMusic(4);
+            textX = artX + artSize + scaledMusic(4);
         }
 
         if (title == null || title.isEmpty()) {

@@ -57,9 +57,9 @@ public final class ModernConfig {
     public static int keysX = 5;
     public static int keysY = 55;
     public static int armorX = 5;
-    public static int armorY = 200;
+    public static int armorY = 140;
     public static int blocksX = 5;
-    public static int blocksY = 180;
+    public static int blocksY = 260;
     public static int heldX = 5;
     public static int heldY = 140;
     public static int bwResX = 5;
@@ -178,6 +178,9 @@ public final class ModernConfig {
             keysY = intProp(props, "keysY", keysY);
             armorX = intProp(props, "armorX", armorX);
             armorY = intProp(props, "armorY", armorY);
+            if (armorY > 170) {
+                armorY = 140;
+            }
             blocksX = intProp(props, "blocksX", blocksX);
             blocksY = intProp(props, "blocksY", blocksY);
             heldX = intProp(props, "heldX", heldX);
@@ -187,6 +190,9 @@ public final class ModernConfig {
             overlayHudX = intProp(props, "overlayHudX", overlayHudX);
             overlayHudY = intProp(props, "overlayHudY", overlayHudY);
             overlayHudW = intProp(props, "overlayHudW", overlayHudW);
+            if (overlayHudW > 140) {
+                overlayHudW = 118;
+            }
             musicHudAlpha = intProp(props, "musicHudAlpha", musicHudAlpha);
             musicHudScale = intProp(props, "musicHudScale", musicHudScale);
             coordsX = intProp(props, "coordsX", hudX);
