@@ -25,12 +25,12 @@ const MANIFEST_MIRROR_URLS: &[&str] = &[
     "https://cdn.jsdelivr.net/gh/SantiJ10/Paraguacraft@main/clientes/paraguacraft-pvp-modern/manifest.json",
 ];
 
-const FALLBACK_CLIENT_VERSION: &str = "0.6.5";
-const FALLBACK_RELEASE_TAG: &str = "pvp-modern-0.6.5";
+const FALLBACK_CLIENT_VERSION: &str = "0.6.6";
+const FALLBACK_RELEASE_TAG: &str = "pvp-modern-0.6.6";
 
 const FALLBACK_MODS: &[(&str, &str)] = &[(
-    "ParaguacraftPvP-Modern-0.6.5.jar",
-    "a609348261f2e8280c32aa1646166dd9bd0f056e",
+    "ParaguacraftPvP-Modern-0.6.6.jar",
+    "6cbf897163074068dd4cb87827d4fd2121e9cce9",
 )];
 
 #[derive(Debug, Clone, Deserialize)]

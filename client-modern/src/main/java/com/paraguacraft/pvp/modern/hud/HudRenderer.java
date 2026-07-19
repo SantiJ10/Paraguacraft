@@ -4,6 +4,7 @@ import com.paraguacraft.pvp.modern.ParaguacraftPvPModern;
 import com.paraguacraft.pvp.modern.config.ModernConfig;
 import com.paraguacraft.pvp.modern.core.CombatStats;
 import com.paraguacraft.pvp.modern.core.LauncherIpc;
+import com.paraguacraft.pvp.modern.gui.GuiEditHudScreen;
 import com.paraguacraft.pvp.modern.gui.theme.UiTheme;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.minecraft.client.MinecraftClient;
@@ -33,7 +34,7 @@ import org.lwjgl.glfw.GLFW;
 public final class HudRenderer {
 
     private static final Identifier HUD_ID = Identifier.of(ParaguacraftPvPModern.MOD_ID, "hud");
-    private static final int MUSIC_ART = 16;
+    private static final int BASE_MUSIC_ART = 16;
 
     private HudRenderer() {}
 
@@ -41,34 +42,50 @@ public final class HudRenderer {
         HudElementRegistry.addFirst(HUD_ID, HudRenderer::render);
     }
 
+    /** Render en partida (Fabric HUD layer). */
     private static void render(DrawContext context, RenderTickCounter tickCounter) {
+        renderAll(context, false, false);
+    }
+
+    /** Render desde modo edicion (preview real de mods activos). */
+    public static void renderEditing(DrawContext context) {
+        renderAll(context, true, true);
+    }
+
+    private static void renderAll(DrawContext context, boolean editing, boolean previewMusic) {
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.options.hudHidden || client.currentScreen != null || client.player == null) {
+        if (client == null || client.player == null) {
             return;
         }
-        TextRenderer tr = client.textRenderer;
+        if (!editing) {
+            if (client.options.hudHidden || client.currentScreen != null) {
+                return;
+            }
+        } else if (!(client.currentScreen instanceof GuiEditHudScreen)) {
+            return;
+        }
 
         if (ModernConfig.showFps) {
-            drawLabeled(tr, context, "FPS: ", String.valueOf(client.getCurrentFps()), ModernConfig.fpsX, ModernConfig.fpsY);
+            drawLabeled(client.textRenderer, context, "FPS: ", String.valueOf(client.getCurrentFps()), ModernConfig.fpsX, ModernConfig.fpsY);
         }
         if (ModernConfig.showPing) {
             int ping = resolvePing(client);
             int color = ping < 80 ? 0xFF55FF55 : (ping < 150 ? 0xFFFFFF55 : 0xFFFF5555);
-            drawLabeled(tr, context, "Ping: ", ping + " ms", ModernConfig.pingX, ModernConfig.pingY, color);
+            drawLabeled(client.textRenderer, context, "Ping: ", ping + " ms", ModernConfig.pingX, ModernConfig.pingY, color);
         }
         if (ModernConfig.showCps) {
-            drawLabeled(tr, context, "CPS: ", String.valueOf(HudCpsTracker.leftCps()), ModernConfig.cpsX, ModernConfig.cpsY);
+            drawLabeled(client.textRenderer, context, "CPS: ", String.valueOf(HudCpsTracker.leftCps()), ModernConfig.cpsX, ModernConfig.cpsY);
         }
         if (ModernConfig.showCoords) {
             var p = client.player;
             String coords = String.format("X: %.0f  Y: %.0f  Z: %.0f", p.getX(), p.getY(), p.getZ());
-            context.drawText(tr, Text.literal(coords), ModernConfig.hudX, coordsY(), 0xFF00E5FF, true);
+            context.drawText(client.textRenderer, Text.literal(coords), ModernConfig.coordsX, ModernConfig.coordsY, 0xFF00E5FF, true);
         }
         if (ModernConfig.showKeystrokes) {
-            drawKeystrokes(context, tr);
+            drawKeystrokes(context, client.textRenderer, client);
         }
         if (ModernConfig.showBlockCount) {
-            drawBlockCount(context, tr, client);
+            drawBlockCount(context, client.textRenderer, client);
         }
         if (ModernConfig.showArmor) {
             drawArmor(context, client);
@@ -77,27 +94,65 @@ public final class HudRenderer {
             drawHeldItem(context, client);
         }
         if (ModernConfig.showBedwarsResources) {
-            drawBedwarsResources(context, tr, client);
+            drawBedwarsResources(context, client.textRenderer, client);
         }
         if (ModernConfig.showMusicHud) {
-            drawMusicOverlay(context, tr, client);
+            drawMusicOverlay(context, client.textRenderer, client, previewMusic);
         }
         if (ModernConfig.comboCounter) {
-            drawLabeled(tr, context, "Combo: ", String.valueOf(CombatStats.comboCount), ModernConfig.comboX, ModernConfig.comboY, 0xFF00E5FF);
+            drawLabeled(client.textRenderer, context, "Combo: ", String.valueOf(CombatStats.comboCount), ModernConfig.comboX, ModernConfig.comboY, 0xFF00E5FF);
         }
         if (ModernConfig.showPotions) {
             drawPotions(context, client);
         }
         if (ModernConfig.showCompass) {
-            drawCompass(context, tr, client);
+            drawCompass(context, client.textRenderer, client);
         }
         if (ModernConfig.showTntCountdown) {
-            drawNearestTnt(context, tr, client);
+            drawNearestTnt(context, client.textRenderer, client);
         }
     }
 
-    private static int coordsY() {
-        return ModernConfig.hudY + 40;
+    public static int musicPanelWidth() {
+        return scaledMusic(ModernConfig.overlayHudW);
+    }
+
+    public static int musicPanelHeight(LauncherIpc.Snapshot snap, boolean preview) {
+        int art = musicArtSize();
+        int baseH = scaledMusic(28);
+        if (ModernConfig.showMusicAlbumArt && (preview || (snap != null && !snap.musicImageUrl.isEmpty()))) {
+            return Math.max(baseH, scaledMusic(8) + art + scaledMusic(4));
+        }
+        return baseH;
+    }
+
+    public static int armorPanelHeight(MinecraftClient client) {
+        if (client == null || client.player == null) {
+            return 64;
+        }
+        EquipmentSlot[] slots = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
+        int count = 0;
+        for (EquipmentSlot slot : slots) {
+            if (!client.player.getEquippedStack(slot).isEmpty()) {
+                count++;
+            }
+        }
+        return Math.max(16, count * 16);
+    }
+
+    public static int potionPanelHeight(MinecraftClient client) {
+        if (client == null || client.player == null || client.player.getStatusEffects().isEmpty()) {
+            return 24;
+        }
+        return client.player.getStatusEffects().size() * 24;
+    }
+
+    private static int scaledMusic(int value) {
+        return Math.max(1, value * ModernConfig.musicHudScale / 100);
+    }
+
+    private static int musicArtSize() {
+        return Math.max(12, scaledMusic(BASE_MUSIC_ART));
     }
 
     private static void drawLabeled(TextRenderer tr, DrawContext ctx, String label, String value, int x, int y) {
@@ -109,9 +164,7 @@ public final class HudRenderer {
         ctx.drawText(tr, Text.literal(value), x + tr.getWidth(label), y, valueColor, true);
     }
 
-    /** Keystrokes 1.8.9: cajas 20x20, WASD + LMB/RMB. */
-    private static void drawKeystrokes(DrawContext ctx, TextRenderer tr) {
-        MinecraftClient client = MinecraftClient.getInstance();
+    private static void drawKeystrokes(DrawContext ctx, TextRenderer tr, MinecraftClient client) {
         int x = ModernConfig.keysX;
         int y = ModernConfig.keysY;
         int gap = 2;
@@ -145,7 +198,7 @@ public final class HudRenderer {
         ctx.drawText(tr, Text.literal(label), x + w / 2 - tr.getWidth(label) / 2, y + h / 2 - 4, fg, false);
     }
 
-    /** Columna vertical de iconos (casco → botas), estilo 1.8.9. */
+    /** Columna vertical casco → botas, estilo 1.8.9. */
     private static void drawArmor(DrawContext ctx, MinecraftClient client) {
         EquipmentSlot[] slots = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
         int yOffset = 0;
@@ -154,21 +207,21 @@ public final class HudRenderer {
             if (stack.isEmpty()) {
                 continue;
             }
+            int x = ModernConfig.armorX;
             int y = ModernConfig.armorY + yOffset;
-            ctx.drawItem(stack, ModernConfig.armorX, y);
+            ctx.drawItem(stack, x, y);
             if (ModernConfig.showArmorPercentage && stack.isDamageable()) {
                 int max = stack.getMaxDamage();
                 int dmg = stack.getDamage();
                 int percent = max > 0 ? (int) (((max - dmg) * 100.0F) / max) : 100;
                 String text = percent + "%";
                 int color = percent < 25 ? 0xFFFF5555 : (percent < 50 ? 0xFFFFCC55 : 0xFF55FF55);
-                ctx.drawText(client.textRenderer, Text.literal(text), ModernConfig.armorX + 18, y + 4, color, true);
+                ctx.drawText(client.textRenderer, Text.literal(text), x + 18, y + 4, color, true);
             }
             yOffset += 16;
         }
     }
 
-    /** Bloques colocables en inventario (BedWars, SkyWars, etc.). */
     private static void drawBlockCount(DrawContext ctx, TextRenderer tr, MinecraftClient client) {
         int blocks = countPlaceableBlocks(client);
         if (blocks <= 0) {
@@ -194,7 +247,6 @@ public final class HudRenderer {
         return total;
     }
 
-    /** Nombre + encantamientos, estilo 1.8.9. */
     private static void drawHeldItem(DrawContext ctx, MinecraftClient client) {
         ItemStack stack = client.player.getMainHandStack();
         if (stack.isEmpty()) {
@@ -213,7 +265,7 @@ public final class HudRenderer {
         for (var entry : enchants.getEnchantmentEntries()) {
             RegistryEntry<Enchantment> ench = entry.getKey();
             int level = entry.getIntValue();
-            String line = formatEnchantLine(ench, level);
+            String line = Enchantment.getName(ench, level).getString();
             if (!line.isEmpty()) {
                 ctx.drawText(client.textRenderer, Text.literal(line), textX, textY, UiTheme.textDim(), true);
                 textY += 10;
@@ -221,12 +273,6 @@ public final class HudRenderer {
         }
     }
 
-    private static String formatEnchantLine(RegistryEntry<Enchantment> ench, int level) {
-        Text name = Enchantment.getName(ench, level);
-        return name.getString();
-    }
-
-    /** Recursos BW: columna vertical transparente con icono + cantidad. */
     private static void drawBedwarsResources(DrawContext ctx, TextRenderer tr, MinecraftClient client) {
         int iron = 0;
         int gold = 0;
@@ -264,7 +310,6 @@ public final class HudRenderer {
         ctx.drawText(tr, Text.literal(String.valueOf(count)), x + 18, y + 4, 0xFFFFFFFF, true);
     }
 
-    /** Pociones: icono + nombre + duracion formateada (estilo 1.8.9). */
     private static void drawPotions(DrawContext ctx, MinecraftClient client) {
         int y = ModernConfig.potionY;
         for (StatusEffectInstance effect : client.player.getStatusEffects()) {
@@ -284,18 +329,53 @@ public final class HudRenderer {
         }
     }
 
+    /** Brújula detallada con recorte, estilo 1.8.9. */
     private static void drawCompass(DrawContext ctx, TextRenderer tr, MinecraftClient client) {
-        float yaw = (client.player.getYaw() % 360 + 360) % 360;
-        String dir = compassDirection(yaw);
-        int cx = client.getWindow().getScaledWidth() / 2;
-        ctx.drawCenteredTextWithShadow(tr, Text.literal(dir), cx, ModernConfig.compassY, 0xFF00E5FF);
+        int centerX = client.getWindow().getScaledWidth() / 2;
+        int y = ModernConfig.compassY;
+        int boxW = 220;
+        int boxH = 16;
+        int x = centerX - boxW / 2;
+
+        ctx.enableScissor(x, y, x + boxW, y + boxH);
+        float yaw = (client.player.getYaw() % 360.0F + 360.0F) % 360.0F;
+        for (int i = (int) yaw - 60; i < (int) yaw + 60; i++) {
+            int angle = (i + 360) % 360;
+            if (angle % 15 != 0) {
+                continue;
+            }
+            float offset = i - yaw;
+            float px = centerX + offset * 2.0F;
+            String markerText = compassMarker(angle);
+            int color = compassColor(angle);
+            ctx.drawText(tr, Text.literal(markerText), (int) px - tr.getWidth(markerText) / 2, y + 4, color, true);
+        }
+        ctx.disableScissor();
+        ctx.fill(centerX - 1, y, centerX + 1, y + 4, 0xFF00E5FF);
     }
 
-    private static String compassDirection(float yaw) {
-        if (yaw >= 315 || yaw < 45) return "S";
-        if (yaw < 135) return "W";
-        if (yaw < 225) return "N";
-        return "E";
+    private static String compassMarker(int angle) {
+        return switch (angle) {
+            case 0, 360 -> "S";
+            case 45 -> "SO";
+            case 90 -> "O";
+            case 135 -> "NO";
+            case 180 -> "N";
+            case 225 -> "NE";
+            case 270 -> "E";
+            case 315 -> "SE";
+            default -> String.valueOf(angle);
+        };
+    }
+
+    private static int compassColor(int angle) {
+        if (angle == 0 || angle == 90 || angle == 180 || angle == 270 || angle == 360) {
+            return 0xFF00E5FF;
+        }
+        if (angle % 45 == 0) {
+            return 0xFFFFFFFF;
+        }
+        return 0xFFAAAAAA;
     }
 
     private static void drawNearestTnt(DrawContext ctx, TextRenderer tr, MinecraftClient client) {
@@ -321,43 +401,61 @@ public final class HudRenderer {
         ctx.drawText(tr, Text.literal(label), ModernConfig.hudX, ModernConfig.hudY + 52, 0xFFFF5555, true);
     }
 
-    private static void drawMusicOverlay(DrawContext ctx, TextRenderer tr, MinecraftClient client) {
+    private static void drawMusicOverlay(DrawContext ctx, TextRenderer tr, MinecraftClient client, boolean preview) {
         LauncherIpc.Snapshot snap = LauncherIpc.get();
-        if (!snap.musicPlaying) {
+        boolean playing = snap.musicPlaying;
+        if (!playing && !preview) {
             return;
         }
-        if (ModernConfig.showMusicAlbumArt && !snap.musicImageUrl.isEmpty()) {
-            MusicArtCache.request(snap.musicImageUrl);
+
+        String title = playing ? snap.musicTitle : "Vista previa";
+        String artist = playing ? snap.musicArtist : "Spotify / YouTube";
+        String imageUrl = playing ? snap.musicImageUrl : "";
+
+        if (ModernConfig.showMusicAlbumArt && !imageUrl.isEmpty()) {
+            MusicArtCache.request(imageUrl);
         }
+
         int x = ModernConfig.overlayHudX;
         int y = ModernConfig.overlayHudY;
-        int w = ModernConfig.overlayHudW;
+        int w = musicPanelWidth();
         int alpha = Math.max(0, Math.min(255, ModernConfig.musicHudAlpha));
-        int bg = (alpha << 24) | 0x101018;
-        int panelH = 28;
-        if (ModernConfig.showMusicAlbumArt && !snap.musicImageUrl.isEmpty()) {
-            panelH = Math.max(panelH, 8 + MUSIC_ART + 4);
+        int panelH = musicPanelHeight(snap, preview);
+        if (alpha > 0) {
+            int bg = (alpha << 24) | 0x101018;
+            ctx.fill(x, y, x + w, y + panelH, bg);
         }
-        ctx.fill(x, y, x + w, y + panelH, bg);
-        int textX = x + 4;
-        int textY = y + 4;
-        if (ModernConfig.showMusicAlbumArt && !snap.musicImageUrl.isEmpty()) {
-            Identifier art = MusicArtCache.get(snap.musicImageUrl);
+
+        int artSize = musicArtSize();
+        int textX = x + scaledMusic(4);
+        int textY = y + scaledMusic(4);
+        if (ModernConfig.showMusicAlbumArt && playing && !imageUrl.isEmpty()) {
+            Identifier art = MusicArtCache.get(imageUrl);
             if (art != null) {
-                ctx.drawTexture(RenderPipelines.GUI_TEXTURED, art, x + 4, y + 4, 0f, 0f, MUSIC_ART, MUSIC_ART, MUSIC_ART, MUSIC_ART);
-                textX = x + 4 + MUSIC_ART + 4;
+                ctx.drawTexture(RenderPipelines.GUI_TEXTURED, art, x + scaledMusic(4), y + scaledMusic(4), 0f, 0f, artSize, artSize, artSize, artSize);
+                textX = x + scaledMusic(4) + artSize + scaledMusic(4);
             }
+        } else if (ModernConfig.showMusicAlbumArt && preview) {
+            ctx.fill(x + scaledMusic(4), y + scaledMusic(4), x + scaledMusic(4) + artSize, y + scaledMusic(4) + artSize, 0xFF202030);
+            ctx.drawText(tr, Text.literal("♪"), x + scaledMusic(4) + artSize / 2 - 3, y + scaledMusic(4) + artSize / 2 - 4, UiTheme.accent(), false);
+            textX = x + scaledMusic(4) + artSize + scaledMusic(4);
         }
-        String title = snap.musicTitle.isEmpty() ? "Reproduciendo" : snap.musicTitle;
-        String artist = snap.musicArtist.isEmpty() ? "Spotify / YouTube" : snap.musicArtist;
-        if (title.length() > 24) {
-            title = title.substring(0, 22) + "…";
+
+        if (title.isEmpty()) {
+            title = "Reproduciendo";
         }
-        if (artist.length() > 28) {
-            artist = artist.substring(0, 26) + "…";
+        if (artist.isEmpty()) {
+            artist = "Spotify / YouTube";
+        }
+        int maxTitle = Math.max(12, w / (Math.max(1, ModernConfig.musicHudScale / 100) * 6));
+        if (title.length() > maxTitle) {
+            title = title.substring(0, maxTitle - 1) + "…";
+        }
+        if (artist.length() > maxTitle + 4) {
+            artist = artist.substring(0, maxTitle + 2) + "…";
         }
         ctx.drawText(tr, Text.literal(title), textX, textY, UiTheme.TEXT, true);
-        ctx.drawText(tr, Text.literal(artist), textX, textY + 12, UiTheme.textDim(), true);
+        ctx.drawText(tr, Text.literal(artist), textX, textY + scaledMusic(12), UiTheme.textDim(), true);
     }
 
     private static int resolvePing(MinecraftClient client) {
@@ -365,7 +463,22 @@ public final class HudRenderer {
         if (handler == null || client.player == null) {
             return 0;
         }
-        PlayerListEntry entry = handler.getPlayerListEntry(client.player.getUuid());
-        return entry != null ? Math.max(0, entry.getLatency()) : 0;
+        PlayerListEntry self = handler.getPlayerListEntry(client.player.getUuid());
+        if (self != null) {
+            return Math.max(0, self.getLatency());
+        }
+        int sum = 0;
+        int count = 0;
+        for (PlayerListEntry entry : handler.getPlayerList()) {
+            int lat = entry.getLatency();
+            if (lat > 0) {
+                sum += lat;
+                count++;
+            }
+        }
+        if (count > 0) {
+            return sum / count;
+        }
+        return 0;
     }
 }

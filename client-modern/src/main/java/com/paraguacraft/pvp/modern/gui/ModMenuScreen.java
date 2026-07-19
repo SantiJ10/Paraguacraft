@@ -87,6 +87,7 @@ public class ModMenuScreen extends ParaguacraftScreen {
             case "quickplay" -> client.setScreen(new HypixelQuickPlayScreen(this));
             case "packs" -> client.setScreen(new PackSelectScreen(this));
             case "theme" -> client.setScreen(new ThemeSelectScreen(this));
+            case "music_hud" -> client.setScreen(new GuiMusicHudOptionsScreen(this));
             default -> {}
         }
     }
@@ -120,6 +121,7 @@ public class ModMenuScreen extends ParaguacraftScreen {
         cards.add(toggle(1, "Recursos BedWars", () -> ModernConfig.showBedwarsResources, v -> ModernConfig.showBedwarsResources = v));
         cards.add(toggle(1, "BW fondo transparente", () -> ModernConfig.bwResTransparentBg, v -> ModernConfig.bwResTransparentBg = v));
         cards.add(toggle(1, "Musica (Spotify/YT)", () -> ModernConfig.showMusicHud, v -> ModernConfig.showMusicHud = v));
+        cards.add(open(1, "Opciones HUD Musica", "music_hud"));
         cards.add(toggle(1, "Pociones HUD", () -> ModernConfig.showPotions, v -> ModernConfig.showPotions = v));
         cards.add(toggle(1, "Brújula", () -> ModernConfig.showCompass, v -> ModernConfig.showCompass = v));
         cards.add(toggle(1, "Combo counter", () -> ModernConfig.comboCounter, v -> ModernConfig.comboCounter = v));

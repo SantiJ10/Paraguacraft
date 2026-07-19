@@ -68,6 +68,11 @@ public final class ModernConfig {
     public static int overlayHudY = 120;
     public static int overlayHudW = 180;
     public static int musicHudAlpha = 180;
+    /** Escala del panel de musica (100 = normal). */
+    public static int musicHudScale = 100;
+    public static int coordsX = 5;
+    public static int coordsY = 44;
+    private static final int[] MUSIC_ALPHA_PRESETS = {255, 64, 0};
     public static int comboX = 5;
     public static int comboY = 45;
     public static int potionX = 150;
@@ -75,6 +80,41 @@ public final class ModernConfig {
     public static int compassY = 10;
     public static String menuTheme = "CLASSIC";
     public static String customSkinUrl = "";
+
+    public static void cycleMusicHudAlpha() {
+        int idx = 0;
+        for (int i = 0; i < MUSIC_ALPHA_PRESETS.length; i++) {
+            if (musicHudAlpha == MUSIC_ALPHA_PRESETS[i]) {
+                idx = (i + 1) % MUSIC_ALPHA_PRESETS.length;
+                break;
+            }
+        }
+        musicHudAlpha = MUSIC_ALPHA_PRESETS[idx];
+    }
+
+    public static String musicHudAlphaLabel() {
+        if (musicHudAlpha <= 0) {
+            return "Transparente";
+        }
+        int pct = Math.round(musicHudAlpha / 255f * 100f);
+        return pct + "%";
+    }
+
+    public static void cycleMusicHudScale() {
+        int[] presets = {100, 125, 150, 175, 200};
+        int idx = 0;
+        for (int i = 0; i < presets.length; i++) {
+            if (musicHudScale == presets[i]) {
+                idx = (i + 1) % presets.length;
+                break;
+            }
+        }
+        musicHudScale = presets[idx];
+    }
+
+    public static String musicHudScaleLabel() {
+        return musicHudScale + "%";
+    }
 
     private ModernConfig() {}
 
@@ -148,6 +188,9 @@ public final class ModernConfig {
             overlayHudY = intProp(props, "overlayHudY", overlayHudY);
             overlayHudW = intProp(props, "overlayHudW", overlayHudW);
             musicHudAlpha = intProp(props, "musicHudAlpha", musicHudAlpha);
+            musicHudScale = intProp(props, "musicHudScale", musicHudScale);
+            coordsX = intProp(props, "coordsX", hudX);
+            coordsY = intProp(props, "coordsY", hudY + 40);
             comboX = intProp(props, "comboX", comboX);
             comboY = intProp(props, "comboY", comboY);
             potionX = intProp(props, "potionX", potionX);
@@ -219,6 +262,9 @@ public final class ModernConfig {
         props.setProperty("overlayHudY", String.valueOf(overlayHudY));
         props.setProperty("overlayHudW", String.valueOf(overlayHudW));
         props.setProperty("musicHudAlpha", String.valueOf(musicHudAlpha));
+        props.setProperty("musicHudScale", String.valueOf(musicHudScale));
+        props.setProperty("coordsX", String.valueOf(coordsX));
+        props.setProperty("coordsY", String.valueOf(coordsY));
         props.setProperty("comboX", String.valueOf(comboX));
         props.setProperty("comboY", String.valueOf(comboY));
         props.setProperty("potionX", String.valueOf(potionX));

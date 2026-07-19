@@ -18,6 +18,20 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - **Cliente PvP Modern 0.6.2**: sincroniza el JAR corregido (mixin ItemEntityRenderer); evita pantalla negra en el menu.
 - **Dynamic FPS offline**: manifest embebido y fallback actualizados a 0.6.2.
 
+## Cliente PvP Modern 0.6.6 - 2026-07-19
+
+### Added
+- **HUD Musica**: transparencia (100%/25%/transparente), tamano y descarga de portada Spotify/YouTube.
+- **Editar HUD**: preview real de mods activos con cajas arrastrables.
+
+### Fixed
+- **Armadura HUD**: iconos de casco a botas visibles en partida.
+- **Logo Paraguacraft** en menu principal (textura embebida, escala nitida).
+- **Freelook**: camara libre sin girar el movimiento (como 1.8.9).
+
+### Changed
+- Brújula detallada, ping con fallback, coordenadas con posicion propia en editor HUD.
+
 ## Cliente PvP Modern 0.6.5 - 2026-07-19
 
 ### Added

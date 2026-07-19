@@ -19,7 +19,9 @@ public class MixinEntityFreelook {
         }
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.player != null && (Object) this == client.player) {
-            FreelookManager.addMouseDelta((float) cursorDeltaX, (float) cursorDeltaY);
+            double sens = client.options.getMouseSensitivity().getValue() * 0.6D + 0.2D;
+            sens = sens * sens * sens * 8.0D;
+            FreelookManager.addMouseDelta((float) (cursorDeltaX * sens), (float) (cursorDeltaY * sens));
             ci.cancel();
         }
     }

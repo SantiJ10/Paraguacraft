@@ -2,6 +2,7 @@ package com.paraguacraft.pvp.modern.mixin;
 
 import com.paraguacraft.pvp.modern.mixin.KeyBindingAccessor;
 import com.paraguacraft.pvp.modern.config.ModernConfig;
+import com.paraguacraft.pvp.modern.core.FreelookManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.option.KeyBinding;
@@ -22,6 +23,11 @@ public class MixinClientPlayerEntity {
 
     @Inject(method = "tickMovement", at = @At("HEAD"))
     private void paraguacraft$sprintHead(CallbackInfo ci) {
+        ClientPlayerEntity player = (ClientPlayerEntity) (Object) this;
+        if (FreelookManager.active) {
+            player.setYaw(FreelookManager.bodyYaw);
+            player.lastYaw = FreelookManager.bodyYaw;
+        }
         if (!ModernConfig.toggleSprint) {
             return;
         }
