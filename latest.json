@@ -1,12 +1,12 @@
 {
-  "version": "7.7.4",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.7.4/Instalar_Paraguacraft_v7.7.4.exe",
-  "size_bytes": 91924500,
-  "sha256": "658b8a733399f01be476b76d6889f9fedf56db6738dafe2114f5dd1e51768d22",
+  "version": "7.7.5",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.7.5/Instalar_Paraguacraft_v7.7.5.exe",
+  "size_bytes": 92031166,
+  "sha256": "5aacd5e251c6b1fc7065ad5584d014cb0580b0dff61f2070f1740a27c6aaa318",
   "notes": "- Discord RPC Bedrock: usuario, edicion y estado dinamico (menu/mundo)\n- Discord RPC Ajustes: Explorando Ajustes al entrar a configuracion\n- RPC respeta sesion Java/Bedrock activa",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.7.4/Instalar_Paraguacraft_v7.7.4.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.7.5/Instalar_Paraguacraft_v7.7.5.exe",
       "signature": ""
     }
   }
