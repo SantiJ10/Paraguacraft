@@ -3,7 +3,7 @@
   "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.7.4/Instalar_Paraguacraft_v7.7.4.exe",
   "size_bytes": 91924500,
   "sha256": "658b8a733399f01be476b76d6889f9fedf56db6738dafe2114f5dd1e51768d22",
-  "notes": "- Cliente PvP Modern 0.6.5: Discord RPC in-game (menu, mundo, servidor)\n- Launcher RPC: idle, cargando, menú MC, SP y MP en todas las instancias Java\n- Paraguabot Groq mejorado y Ajustes más rápidos",
+  "notes": "- Discord RPC Bedrock: usuario, edicion y estado dinamico (menu/mundo)\n- Discord RPC Ajustes: Explorando Ajustes al entrar a configuracion\n- RPC respeta sesion Java/Bedrock activa",
   "platforms": {
     "windows-x86_64": {
       "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.7.4/Instalar_Paraguacraft_v7.7.4.exe",
