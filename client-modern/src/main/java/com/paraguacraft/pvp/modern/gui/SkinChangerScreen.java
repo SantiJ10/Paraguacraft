@@ -51,8 +51,12 @@ public class SkinChangerScreen extends Screen {
     }
 
     @Override
-    public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
+    public void renderBackground(DrawContext ctx, int mouseX, int mouseY, float delta) {
         MenuBackground.draw(this, ctx, mouseX, mouseY, delta);
+    }
+
+    @Override
+    public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
         int panelW = Math.min(360, width - 40);
         int cx = width / 2;
         int y = height / 2 - 60;

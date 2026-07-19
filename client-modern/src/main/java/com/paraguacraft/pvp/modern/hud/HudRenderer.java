@@ -4,21 +4,27 @@ import com.paraguacraft.pvp.modern.ParaguacraftPvPModern;
 import com.paraguacraft.pvp.modern.config.ModernConfig;
 import com.paraguacraft.pvp.modern.core.CombatStats;
 import com.paraguacraft.pvp.modern.core.LauncherIpc;
-import com.paraguacraft.pvp.modern.core.PerformanceConfig;
+import com.paraguacraft.pvp.modern.gui.theme.UiTheme;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.hud.InGameHud;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.client.render.RenderTickCounter;
+import net.minecraft.component.type.ItemEnchantmentsComponent;
+import net.minecraft.enchantment.Enchantment;
+import net.minecraft.enchantment.EnchantmentHelper;
+import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.TntEntity;
 import net.minecraft.entity.effect.StatusEffectInstance;
-import net.minecraft.enchantment.EnchantmentHelper;
-import net.minecraft.client.gui.hud.InGameHud;
-import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.entity.effect.StatusEffectUtil;
+import net.minecraft.item.BlockItem;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import org.lwjgl.glfw.GLFW;
@@ -27,14 +33,7 @@ import org.lwjgl.glfw.GLFW;
 public final class HudRenderer {
 
     private static final Identifier HUD_ID = Identifier.of(ParaguacraftPvPModern.MOD_ID, "hud");
-
-    private static long lastLeftClick;
-    private static long lastRightClick;
-    private static int leftCps;
-    private static int rightCps;
-    private static int leftTicks;
-    private static int rightTicks;
-    private static long cpsWindowStart;
+    private static final int MUSIC_ART = 16;
 
     private HudRenderer() {}
 
@@ -47,7 +46,6 @@ public final class HudRenderer {
         if (client == null || client.options.hudHidden || client.currentScreen != null || client.player == null) {
             return;
         }
-        tickCps(client);
         TextRenderer tr = client.textRenderer;
 
         if (ModernConfig.showFps) {
@@ -59,18 +57,18 @@ public final class HudRenderer {
             drawLabeled(tr, context, "Ping: ", ping + " ms", ModernConfig.pingX, ModernConfig.pingY, color);
         }
         if (ModernConfig.showCps) {
-            drawLabeled(tr, context, "CPS: ", String.valueOf(leftCps), ModernConfig.cpsX, ModernConfig.cpsY);
+            drawLabeled(tr, context, "CPS: ", String.valueOf(HudCpsTracker.leftCps()), ModernConfig.cpsX, ModernConfig.cpsY);
         }
         if (ModernConfig.showCoords) {
             var p = client.player;
             String coords = String.format("X: %.0f  Y: %.0f  Z: %.0f", p.getX(), p.getY(), p.getZ());
             context.drawText(tr, Text.literal(coords), ModernConfig.hudX, coordsY(), 0xFF00E5FF, true);
         }
-        if (ModernConfig.showPerfBadge && PerformanceConfig.boostFps) {
-            context.drawText(tr, Text.literal("Boost FPS"), ModernConfig.hudX, ModernConfig.hudY, 0xFF55FFAA, true);
-        }
         if (ModernConfig.showKeystrokes) {
             drawKeystrokes(context, tr);
+        }
+        if (ModernConfig.showBlockCount) {
+            drawBlockCount(context, tr, client);
         }
         if (ModernConfig.showArmor) {
             drawArmor(context, client);
@@ -82,7 +80,7 @@ public final class HudRenderer {
             drawBedwarsResources(context, tr, client);
         }
         if (ModernConfig.showMusicHud) {
-            drawMusicOverlay(context, tr);
+            drawMusicOverlay(context, tr, client);
         }
         if (ModernConfig.comboCounter) {
             drawLabeled(tr, context, "Combo: ", String.valueOf(CombatStats.comboCount), ModernConfig.comboX, ModernConfig.comboY, 0xFF00E5FF);
@@ -147,6 +145,7 @@ public final class HudRenderer {
         ctx.drawText(tr, Text.literal(label), x + w / 2 - tr.getWidth(label) / 2, y + h / 2 - 4, fg, false);
     }
 
+    /** Columna vertical de iconos (casco → botas), estilo 1.8.9. */
     private static void drawArmor(DrawContext ctx, MinecraftClient client) {
         EquipmentSlot[] slots = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
         int yOffset = 0;
@@ -156,19 +155,46 @@ public final class HudRenderer {
                 continue;
             }
             int y = ModernConfig.armorY + yOffset;
-            ctx.drawItem(stack, ModernConfig.armorX + 25, y);
+            ctx.drawItem(stack, ModernConfig.armorX, y);
             if (ModernConfig.showArmorPercentage && stack.isDamageable()) {
                 int max = stack.getMaxDamage();
                 int dmg = stack.getDamage();
                 int percent = max > 0 ? (int) (((max - dmg) * 100.0F) / max) : 100;
                 String text = percent + "%";
                 int color = percent < 25 ? 0xFFFF5555 : (percent < 50 ? 0xFFFFCC55 : 0xFF55FF55);
-                ctx.drawText(client.textRenderer, Text.literal(text), ModernConfig.armorX, y + 4, color, true);
+                ctx.drawText(client.textRenderer, Text.literal(text), ModernConfig.armorX + 18, y + 4, color, true);
             }
             yOffset += 16;
         }
     }
 
+    /** Bloques colocables en inventario (BedWars, SkyWars, etc.). */
+    private static void drawBlockCount(DrawContext ctx, TextRenderer tr, MinecraftClient client) {
+        int blocks = countPlaceableBlocks(client);
+        if (blocks <= 0) {
+            return;
+        }
+        int x = ModernConfig.blocksX;
+        int y = ModernConfig.blocksY;
+        ctx.drawItem(new ItemStack(Items.WHITE_WOOL), x, y);
+        ctx.drawText(tr, Text.literal(String.valueOf(blocks)), x + 18, y + 4, 0xFFFFFFFF, true);
+    }
+
+    private static int countPlaceableBlocks(MinecraftClient client) {
+        int total = 0;
+        for (int i = 0; i < client.player.getInventory().size(); i++) {
+            ItemStack stack = client.player.getInventory().getStack(i);
+            if (stack.isEmpty()) {
+                continue;
+            }
+            if (stack.getItem() instanceof BlockItem) {
+                total += stack.getCount();
+            }
+        }
+        return total;
+    }
+
+    /** Nombre + encantamientos, estilo 1.8.9. */
     private static void drawHeldItem(DrawContext ctx, MinecraftClient client) {
         ItemStack stack = client.player.getMainHandStack();
         if (stack.isEmpty()) {
@@ -177,12 +203,30 @@ public final class HudRenderer {
         int x = ModernConfig.heldX;
         int y = ModernConfig.heldY;
         ctx.drawItem(stack, x, y);
-        ctx.drawStackOverlay(client.textRenderer, stack, x, y);
-        if (EnchantmentHelper.hasEnchantments(stack)) {
-            ctx.drawText(client.textRenderer, Text.literal("Ench"), x + 20, y + 4, 0xFF00E5FF, true);
+        int textX = x + 20;
+        int textY = y + 1;
+        String displayName = stack.getName().getString();
+        int nameColor = EnchantmentHelper.hasEnchantments(stack) ? UiTheme.accent() : UiTheme.TEXT;
+        ctx.drawText(client.textRenderer, Text.literal(displayName), textX, textY, nameColor, true);
+        textY += 10;
+        ItemEnchantmentsComponent enchants = EnchantmentHelper.getEnchantments(stack);
+        for (var entry : enchants.getEnchantmentEntries()) {
+            RegistryEntry<Enchantment> ench = entry.getKey();
+            int level = entry.getIntValue();
+            String line = formatEnchantLine(ench, level);
+            if (!line.isEmpty()) {
+                ctx.drawText(client.textRenderer, Text.literal(line), textX, textY, UiTheme.textDim(), true);
+                textY += 10;
+            }
         }
     }
 
+    private static String formatEnchantLine(RegistryEntry<Enchantment> ench, int level) {
+        Text name = Enchantment.getName(ench, level);
+        return name.getString();
+    }
+
+    /** Recursos BW: columna vertical transparente con icono + cantidad. */
     private static void drawBedwarsResources(DrawContext ctx, TextRenderer tr, MinecraftClient client) {
         int iron = 0;
         int gold = 0;
@@ -205,28 +249,38 @@ public final class HudRenderer {
         }
         int x = ModernConfig.bwResX;
         int y = ModernConfig.bwResY;
-        ctx.fill(x - 2, y - 2, x + 92, y + 34, 0x88000000);
-        ctx.drawItem(new ItemStack(Items.IRON_INGOT), x, y);
-        ctx.drawText(tr, Text.literal(String.valueOf(iron)), x + 18, y + 4, 0xFFFFFFFF, true);
-        ctx.drawItem(new ItemStack(Items.GOLD_INGOT), x, y + 12);
-        ctx.drawText(tr, Text.literal(String.valueOf(gold)), x + 18, y + 16, 0xFFFFFFFF, true);
-        ctx.drawItem(new ItemStack(Items.DIAMOND), x + 44, y);
-        ctx.drawText(tr, Text.literal(String.valueOf(diamond)), x + 62, y + 4, 0xFFFFFFFF, true);
-        ctx.drawItem(new ItemStack(Items.EMERALD), x + 44, y + 12);
-        ctx.drawText(tr, Text.literal(String.valueOf(emerald)), x + 62, y + 16, 0xFFFFFFFF, true);
+        int rowH = 16;
+        if (!ModernConfig.bwResTransparentBg) {
+            ctx.fill(x - 2, y - 2, x + 42, y + rowH * 4 + 2, 0x88000000);
+        }
+        drawBwRow(ctx, tr, new ItemStack(Items.IRON_INGOT), iron, x, y);
+        drawBwRow(ctx, tr, new ItemStack(Items.GOLD_INGOT), gold, x, y + rowH);
+        drawBwRow(ctx, tr, new ItemStack(Items.DIAMOND), diamond, x, y + rowH * 2);
+        drawBwRow(ctx, tr, new ItemStack(Items.EMERALD), emerald, x, y + rowH * 3);
     }
 
+    private static void drawBwRow(DrawContext ctx, TextRenderer tr, ItemStack icon, int count, int x, int y) {
+        ctx.drawItem(icon, x, y);
+        ctx.drawText(tr, Text.literal(String.valueOf(count)), x + 18, y + 4, 0xFFFFFFFF, true);
+    }
+
+    /** Pociones: icono + nombre + duracion formateada (estilo 1.8.9). */
     private static void drawPotions(DrawContext ctx, MinecraftClient client) {
         int y = ModernConfig.potionY;
         for (StatusEffectInstance effect : client.player.getStatusEffects()) {
             var type = effect.getEffectType();
             Identifier tex = InGameHud.getEffectTexture(type);
-            ctx.drawGuiTexture(net.minecraft.client.gl.RenderPipelines.GUI_TEXTURED, tex, ModernConfig.potionX, y, 18, 18);
-            if (effect.getDuration() > 0) {
-                int sec = effect.getDuration() / 20;
-                ctx.drawText(client.textRenderer, Text.literal(String.valueOf(sec)), ModernConfig.potionX + 20, y + 5, 0xFFFFFFFF, true);
+            ctx.drawGuiTexture(RenderPipelines.GUI_TEXTURED, tex, ModernConfig.potionX, y, 18, 18);
+            String name = Text.translatable(type.value().getTranslationKey()).getString();
+            if (effect.getAmplifier() > 0) {
+                name += " " + (effect.getAmplifier() + 1);
             }
-            y += 20;
+            ctx.drawText(client.textRenderer, Text.literal(name), ModernConfig.potionX + 22, y + 1, UiTheme.TEXT, true);
+            if (effect.getDuration() > 0) {
+                String duration = StatusEffectUtil.getDurationText(effect, 1.0F, client.world.getTickManager().getTickRate()).getString();
+                ctx.drawText(client.textRenderer, Text.literal(duration), ModernConfig.potionX + 22, y + 11, UiTheme.textDim(), true);
+            }
+            y += 24;
         }
     }
 
@@ -267,17 +321,33 @@ public final class HudRenderer {
         ctx.drawText(tr, Text.literal(label), ModernConfig.hudX, ModernConfig.hudY + 52, 0xFFFF5555, true);
     }
 
-    private static void drawMusicOverlay(DrawContext ctx, TextRenderer tr) {
+    private static void drawMusicOverlay(DrawContext ctx, TextRenderer tr, MinecraftClient client) {
         LauncherIpc.Snapshot snap = LauncherIpc.get();
-        if (!snap.valid || !snap.musicPlaying) {
+        if (!snap.musicPlaying) {
             return;
+        }
+        if (ModernConfig.showMusicAlbumArt && !snap.musicImageUrl.isEmpty()) {
+            MusicArtCache.request(snap.musicImageUrl);
         }
         int x = ModernConfig.overlayHudX;
         int y = ModernConfig.overlayHudY;
         int w = ModernConfig.overlayHudW;
         int alpha = Math.max(0, Math.min(255, ModernConfig.musicHudAlpha));
-        int bg = (alpha << 24);
-        ctx.fill(x, y, x + w, y + 28, bg | 0x101018);
+        int bg = (alpha << 24) | 0x101018;
+        int panelH = 28;
+        if (ModernConfig.showMusicAlbumArt && !snap.musicImageUrl.isEmpty()) {
+            panelH = Math.max(panelH, 8 + MUSIC_ART + 4);
+        }
+        ctx.fill(x, y, x + w, y + panelH, bg);
+        int textX = x + 4;
+        int textY = y + 4;
+        if (ModernConfig.showMusicAlbumArt && !snap.musicImageUrl.isEmpty()) {
+            Identifier art = MusicArtCache.get(snap.musicImageUrl);
+            if (art != null) {
+                ctx.drawTexture(RenderPipelines.GUI_TEXTURED, art, x + 4, y + 4, 0f, 0f, MUSIC_ART, MUSIC_ART, MUSIC_ART, MUSIC_ART);
+                textX = x + 4 + MUSIC_ART + 4;
+            }
+        }
         String title = snap.musicTitle.isEmpty() ? "Reproduciendo" : snap.musicTitle;
         String artist = snap.musicArtist.isEmpty() ? "Spotify / YouTube" : snap.musicArtist;
         if (title.length() > 24) {
@@ -286,8 +356,8 @@ public final class HudRenderer {
         if (artist.length() > 28) {
             artist = artist.substring(0, 26) + "…";
         }
-        ctx.drawText(tr, Text.literal(title), x + 4, y + 4, 0xFFFFFFFF, true);
-        ctx.drawText(tr, Text.literal(artist), x + 4, y + 16, 0xFFAAAAAA, true);
+        ctx.drawText(tr, Text.literal(title), textX, textY, UiTheme.TEXT, true);
+        ctx.drawText(tr, Text.literal(artist), textX, textY + 12, UiTheme.textDim(), true);
     }
 
     private static int resolvePing(MinecraftClient client) {
@@ -297,27 +367,5 @@ public final class HudRenderer {
         }
         PlayerListEntry entry = handler.getPlayerListEntry(client.player.getUuid());
         return entry != null ? Math.max(0, entry.getLatency()) : 0;
-    }
-
-    private static void tickCps(MinecraftClient client) {
-        long now = System.currentTimeMillis();
-        if (now - cpsWindowStart > 1000L) {
-            leftCps = leftTicks;
-            rightCps = rightTicks;
-            leftTicks = 0;
-            rightTicks = 0;
-            cpsWindowStart = now;
-        }
-        long window = client.getWindow().getHandle();
-        boolean left = GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS;
-        boolean right = GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_RIGHT) == GLFW.GLFW_PRESS;
-        if (left && now - lastLeftClick > 50L) {
-            lastLeftClick = now;
-            leftTicks++;
-        }
-        if (right && now - lastRightClick > 50L) {
-            lastRightClick = now;
-            rightTicks++;
-        }
     }
 }

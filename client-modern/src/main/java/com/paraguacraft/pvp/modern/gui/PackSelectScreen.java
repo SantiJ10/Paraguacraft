@@ -70,8 +70,12 @@ public class PackSelectScreen extends Screen {
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
         MenuBackground.draw(this, context, mouseX, mouseY, delta);
+    }
+
+    @Override
+    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         context.drawCenteredTextWithShadow(
             textRenderer,
             Text.literal("Texture packs PvP 1.21.11"),

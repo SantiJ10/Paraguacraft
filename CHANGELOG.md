@@ -9,6 +9,25 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - **Cliente PvP Modern 0.6.2**: sincroniza el JAR corregido (mixin ItemEntityRenderer); evita pantalla negra en el menu.
 - **Dynamic FPS offline**: manifest embebido y fallback actualizados a 0.6.2.
 
+## Cliente PvP Modern 0.6.3 - 2026-07-19
+
+### Added
+- **Contador de bloques** en HUD (BedWars, SkyWars, Lucky Islands, Pillars).
+- **MusicArtCache**: carátula de Spotify/YouTube en el HUD de música.
+
+### Changed
+- **Recursos BedWars**: columna vertical con fondo transparente (estilo 1.8.9).
+- **HUD pociones y objeto en mano**: nombre, duración y encantamientos como 1.8.9.
+- **Armadura**: columna vertical solo iconos.
+- **Menú**: botones negros con borde azul al hover; fondo Paraguacraft en subpantallas vanilla.
+- **Toggle sprint**: restaurado modo virtual + legacy (W) como 1.8.9.
+- **CPS**: calculado en tick, no en render (menos micro-lag).
+
+### Fixed
+- **Boost FPS** ya no aparece fijo en el HUD (libera espacio para FPS).
+- **Logo duplicado** y pantalla negra en menú/multijugador/conexión.
+- **IPC música**: launcher lee config modern (`paraguacraftpvp-modern.properties`).
+
 ## [7.7.3] - 2026-07-18
 
 ### Fixed

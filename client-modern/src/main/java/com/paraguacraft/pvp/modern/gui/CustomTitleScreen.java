@@ -6,16 +6,16 @@ import com.paraguacraft.pvp.modern.gui.theme.UiTheme;
 import com.paraguacraft.pvp.modern.util.FabricSettingsHelper;
 import com.paraguacraft.pvp.modern.util.SkinHelper;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.TitleScreen;
+import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.option.OptionsScreen;
 import net.minecraft.client.gui.screen.world.SelectWorldScreen;
 import net.minecraft.text.Text;
 
-/** Menu principal estilo Lunar / Paraguacraft 1.8.9. */
-public class CustomTitleScreen extends TitleScreen {
+/** Menu principal estilo Paraguacraft 1.8.9 (sin logo vanilla duplicado). */
+public class CustomTitleScreen extends Screen {
 
     public CustomTitleScreen() {
-        super(false);
+        super(Text.literal("Paraguacraft PvP"));
     }
 
     @Override

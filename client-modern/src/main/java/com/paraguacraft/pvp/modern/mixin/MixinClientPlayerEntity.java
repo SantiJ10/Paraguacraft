@@ -6,18 +6,23 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
+import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Toggle sprint estilo 1.8.9: W activa sprint automáticamente. */
+/**
+ * Toggle sprint como 1.8.9:
+ * - {@link ModernConfig#toggleSprint}: simula la tecla de sprint (modo virtual).
+ * - {@link ModernConfig#toggleSprintLegacy}: W activa sprint con {@code setSprinting}.
+ */
 @Mixin(ClientPlayerEntity.class)
 public class MixinClientPlayerEntity {
 
     @Inject(method = "tickMovement", at = @At("HEAD"))
     private void paraguacraft$sprintHead(CallbackInfo ci) {
-        if (!ModernConfig.toggleSprint || !ModernConfig.toggleSprintLegacy) {
+        if (!ModernConfig.toggleSprint) {
             return;
         }
         MinecraftClient client = MinecraftClient.getInstance();
@@ -36,16 +41,25 @@ public class MixinClientPlayerEntity {
         if (client.currentScreen != null) {
             return;
         }
-        if (ModernConfig.toggleSprint && ModernConfig.toggleSprintLegacy) {
-            if (player.input.hasForwardMovement()
-                && !player.isSneaking()
-                && !player.isUsingItem()
-                && player.getHungerManager().getFoodLevel() > 6) {
-                player.setSprinting(true);
-            }
+
+        if (ModernConfig.toggleSprint) {
             KeyBinding sprint = client.options.sprintKey;
             InputUtil.Key bound = ((KeyBindingAccessor) sprint).paraguacraft$getBoundKey();
-            KeyBinding.setKeyPressed(bound, sprint.isPressed());
+            long window = client.getWindow().getHandle();
+            boolean physical = bound.getCategory() == InputUtil.Type.KEYSYM
+                ? GLFW.glfwGetKey(window, bound.getCode()) == GLFW.GLFW_PRESS
+                : sprint.isPressed();
+            KeyBinding.setKeyPressed(bound, physical);
+        }
+
+        if (!ModernConfig.toggleSprintLegacy) {
+            return;
+        }
+        if (player.input.hasForwardMovement()
+            && !player.isSneaking()
+            && !player.isUsingItem()
+            && player.getHungerManager().getFoodLevel() > 6) {
+            player.setSprinting(true);
         }
     }
 }

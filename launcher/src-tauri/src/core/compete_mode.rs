@@ -58,14 +58,31 @@ pub fn overlay_ipc_needed(game_dir: &Path) -> bool {
     if !launch::has_paraguacraft_pvp_mod(game_dir) {
         return false;
     }
-    let props = read_properties(&game_dir.join("paraguacraft_v2.properties"));
+    let candidates = [
+        game_dir.join("config").join("paraguacraftpvp-modern.properties"),
+        game_dir.join("paraguacraft_modern.properties"),
+        game_dir.join("paraguacraft_v2.properties"),
+    ];
+    for path in candidates {
+        if let Some(enabled) = hud_ipc_from_properties(&path) {
+            return enabled;
+        }
+    }
+    true
+}
+
+fn hud_ipc_from_properties(path: &Path) -> Option<bool> {
+    if !path.is_file() {
+        return None;
+    }
+    let props = read_properties(path);
     let music = props
         .get("showMusicHud")
         .is_none_or(|v| v.eq_ignore_ascii_case("true"));
     let hw_hud = props
         .get("showHardwareHud")
         .is_none_or(|v| v.eq_ignore_ascii_case("true"));
-    music || hw_hud
+    Some(music || hw_hud)
 }
 
 fn apply_pvp_compete_profile(game_dir: &Path, tier: &str) -> AppResult<bool> {

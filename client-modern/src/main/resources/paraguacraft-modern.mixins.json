@@ -16,7 +16,8 @@
     "MixinInGameHudScoreboard",
     "MixinInGameHudLowFire",
     "MixinItemEntityRenderer",
-    "MixinLivingEntitySwing"
+    "MixinLivingEntitySwing",
+    "MixinScreenBackground"
   ],
   "injectors": {
     "defaultRequire": 1
