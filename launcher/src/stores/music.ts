@@ -188,12 +188,13 @@ export const useMusicStore = defineStore("music", () => {
         n?.author || "YouTube",
         n?.thumbnail || "",
       );
-    } else if (activeSource.value === "spotify" && spotifyNow.value?.title) {
+    } else if (activeSource.value === "spotify") {
+      const t = spotifyNow.value;
       void api.syncOverlayMusic(
         active,
-        spotifyNow.value.title ?? "",
-        spotifyNow.value.artist ?? "",
-        spotifyNow.value.imageUrl ?? "",
+        t?.title || label.value || "Spotify",
+        t?.artist || "Spotify",
+        t?.imageUrl ?? "",
       );
     } else {
       void api.syncOverlayMusic(false, "", "", "");

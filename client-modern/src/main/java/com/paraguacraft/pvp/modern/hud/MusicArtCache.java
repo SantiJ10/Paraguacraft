@@ -5,6 +5,10 @@ import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
 import net.minecraft.util.Identifier;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
@@ -55,28 +59,61 @@ public final class MusicArtCache {
         try {
             HttpURLConnection conn = (HttpURLConnection) URI.create(fetchUrl).toURL().openConnection();
             conn.setInstanceFollowRedirects(true);
-            conn.setConnectTimeout(4000);
-            conn.setReadTimeout(8000);
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(10000);
             conn.setRequestProperty("User-Agent", "ParaguacraftPvP-Modern/0.6");
-            conn.setRequestProperty("Accept", "image/*,*/*");
+            conn.setRequestProperty("Accept", "image/jpeg,image/png,image/webp,image/*,*/*");
             conn.connect();
-            try (InputStream in = conn.getInputStream()) {
-                NativeImage image = NativeImage.read(in);
-                if (image != null) {
-                    final int w = image.getWidth();
-                    final int h = image.getHeight();
-                    MinecraftClient client = MinecraftClient.getInstance();
-                    if (client != null) {
-                        client.execute(() -> registerImage(image, w, h));
-                        return;
-                    }
-                    image.close();
+            byte[] bytes;
+            try (InputStream in = conn.getInputStream(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                in.transferTo(out);
+                bytes = out.toByteArray();
+            }
+            if (bytes.length == 0) {
+                loading.set(false);
+                return;
+            }
+            NativeImage image = readImage(bytes);
+            if (image != null) {
+                final int w = image.getWidth();
+                final int h = image.getHeight();
+                MinecraftClient client = MinecraftClient.getInstance();
+                if (client != null) {
+                    client.execute(() -> registerImage(image, w, h));
+                    return;
                 }
+                image.close();
             }
         } catch (Exception ignored) {
             /* retry next poll */
         }
         loading.set(false);
+    }
+
+    private static NativeImage readImage(byte[] bytes) {
+        try {
+            NativeImage image = NativeImage.read(new ByteArrayInputStream(bytes));
+            if (image != null) {
+                return image;
+            }
+        } catch (Exception ignored) {
+            /* fallback ImageIO */
+        }
+        try {
+            BufferedImage buffered = ImageIO.read(new ByteArrayInputStream(bytes));
+            if (buffered == null) {
+                return null;
+            }
+            NativeImage image = new NativeImage(buffered.getWidth(), buffered.getHeight(), false);
+            for (int y = 0; y < buffered.getHeight(); y++) {
+                for (int x = 0; x < buffered.getWidth(); x++) {
+                    image.setColorArgb(x, y, buffered.getRGB(x, y));
+                }
+            }
+            return image;
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private static void registerImage(NativeImage image, int w, int h) {
