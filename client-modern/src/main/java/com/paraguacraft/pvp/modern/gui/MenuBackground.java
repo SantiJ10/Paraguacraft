@@ -14,11 +14,8 @@ import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
-/** Fondo del menu: tema completo + logo Paraguacraft. */
+/** Fondo del menu: tema completo + logo Paraguacraft (layout 1.8.9). */
 public final class MenuBackground {
-
-    public static final int LOGO_MAX = 112;
-    private static final int LOGO_TEX = 128;
 
     private static final Identifier LOGO = Identifier.of(
         ParaguacraftPvPModern.MOD_ID,
@@ -29,8 +26,8 @@ public final class MenuBackground {
 
     public static int headerBottom(int screenHeight) {
         int logoSize = logoSize(screenHeight, screenHeight);
-        int ly = Math.max(24, screenHeight / 8);
-        return ly + logoSize + 46;
+        int ly = logoY(screenHeight, logoSize);
+        return ly + logoSize + 58;
     }
 
     /** @deprecated use {@link #headerBottom(int)} */
@@ -39,13 +36,11 @@ public final class MenuBackground {
     }
 
     private static int logoSize(int w, int h) {
-        int size = Math.min(LOGO_MAX, w / 4);
-        size = Math.min(size, h / 6);
-        // Escala entera para pixel-art nitido (128 -> 96/64/32...)
-        if (size >= 96) return 96;
-        if (size >= 64) return 64;
-        if (size >= 48) return 48;
-        return Math.max(32, size);
+        return Math.min(w / 5, 96);
+    }
+
+    private static int logoY(int h, int logoSize) {
+        return h / 5 - logoSize / 2;
     }
 
     public static void draw(Screen screen, DrawContext ctx, int mouseX, int mouseY, float delta) {
@@ -67,22 +62,29 @@ public final class MenuBackground {
 
         int logoSize = logoSize(w, h);
         int lx = w / 2 - logoSize / 2;
-        int ly = Math.max(24, h / 8);
+        int ly = logoY(h, logoSize);
 
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.getResourceManager().getResource(LOGO).isPresent()) {
-            ctx.drawTexture(RenderPipelines.GUI_TEXTURED, LOGO, lx, ly, 0f, 0f, logoSize, logoSize, LOGO_TEX, LOGO_TEX);
-            ctx.fill(lx - 2, ly - 2, lx + logoSize + 2, ly + logoSize + 2, 0x2200E5FF);
+            // Igual que 1.8.9: UV 0-1 sobre toda la textura, evita recortar el icono.
+            ctx.drawTexture(RenderPipelines.GUI_TEXTURED, LOGO, lx, ly, 0f, 0f, logoSize, logoSize, logoSize, logoSize);
         }
 
         var tr = client.textRenderer;
         String title = "PARAGUACRAFT";
-        ctx.drawText(tr, Text.literal(title), w / 2 - tr.getWidth(title) / 2, ly + logoSize + 8, UiTheme.accent(), true);
+        int titleW = tr.getWidth(title);
+        var matrices = ctx.getMatrices();
+        matrices.pushMatrix();
+        matrices.translate(w / 2f, ly + logoSize + 10f);
+        matrices.scale(2f, 2f);
+        ctx.drawText(tr, Text.literal(title), -titleW / 2, 0, UiTheme.accent(), true);
+        matrices.popMatrix();
+
         ctx.drawText(
             tr,
             Text.literal("PvP Modern · 1.21.11"),
             w / 2 - tr.getWidth("PvP Modern · 1.21.11") / 2,
-            ly + logoSize + 24,
+            ly + logoSize + 48,
             UiTheme.textDim(),
             true
         );

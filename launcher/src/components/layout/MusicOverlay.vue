@@ -23,34 +23,23 @@ const inGame = computed(() => music.inGameOverlay && app.launchPhase === "runnin
         v-if="music.overlayImage"
         :src="music.overlayImage"
         alt=""
-        class="h-10 w-10 shrink-0 rounded-md object-cover"
+        class="music-cover"
+        referrerpolicy="no-referrer"
       />
       <div v-else class="music-bars music-bars-live">
         <span /><span /><span />
       </div>
-      <div class="min-w-0 flex-1">
-        <p class="truncate text-xs font-bold">{{ music.overlayLabel }}</p>
-        <p class="text-[10px] text-gray-500">
-          {{
-            music.activeSource === "spotify"
-              ? "Spotify"
-              : music.activeSource === "youtube"
-                ? inGame
-                  ? "YouTube · en juego"
-                  : "YouTube"
-                : inGame
-                  ? "Overlay en juego"
-                  : "Reproduciendo"
-          }}
-        </p>
+      <div class="music-meta">
+        <p class="music-title">{{ music.overlayTitle }}</p>
+        <p class="music-artist">{{ music.overlayArtist }}</p>
         <div
           v-if="music.activeSource === 'spotify' && music.spotifyNow?.durationMs"
           class="mt-1 h-0.5 overflow-hidden rounded-full bg-surface-4"
         >
-          <div class="h-full bg-emerald-500" :style="{ width: `${music.spotifyProgressPct}%` }" />
+          <div class="h-full bg-[#00E5FF]" :style="{ width: `${music.spotifyProgressPct}%` }" />
         </div>
       </div>
-      <div class="flex shrink-0 items-center gap-1">
+      <div class="music-controls">
         <button type="button" class="overlay-btn" title="Pausar" @click="music.togglePlay()">
           {{ music.isPlaying ? "⏸" : "▶" }}
         </button>
@@ -71,21 +60,41 @@ const inGame = computed(() => music.inGameOverlay && app.launchPhase === "runnin
 
 <style scoped>
 .music-overlay {
-  @apply fixed bottom-12 right-4 z-40 flex max-w-sm items-center gap-3 rounded-xl border border-surface-4 bg-surface-2/95 px-3 py-2 shadow-xl backdrop-blur;
+  @apply fixed bottom-12 right-4 z-40 flex w-auto max-w-[220px] items-center gap-2 rounded-lg border border-surface-4 bg-surface-2/95 px-2 py-1.5 shadow-xl backdrop-blur;
 }
 .music-overlay-game {
-  @apply border-pc-green/30 bg-surface-1/95;
+  @apply border-[#00E5FF]/30 bg-surface-1/95;
+}
+
+.music-cover {
+  @apply h-8 w-8 shrink-0 rounded object-cover;
+}
+
+.music-meta {
+  @apply min-w-0 flex-1;
+}
+
+.music-title {
+  @apply truncate text-[11px] font-bold leading-tight text-[#00E5FF];
+}
+
+.music-artist {
+  @apply truncate text-[10px] leading-tight text-gray-400;
+}
+
+.music-controls {
+  @apply flex shrink-0 items-center gap-0.5;
 }
 
 .overlay-btn {
-  @apply flex h-7 w-7 items-center justify-center rounded-md bg-surface-4 text-xs hover:bg-surface-5;
+  @apply flex h-6 w-6 items-center justify-center rounded-md bg-surface-4 text-[10px] hover:bg-surface-5;
 }
 
 .music-bars {
-  @apply flex h-10 w-10 shrink-0 items-end justify-center gap-0.5;
+  @apply flex h-8 w-8 shrink-0 items-end justify-center gap-0.5;
 }
 .music-bars span {
-  @apply w-0.5 rounded-full bg-pc-green;
+  @apply w-0.5 rounded-full bg-[#00E5FF];
   animation: eq 0.9s ease-in-out infinite alternate;
 }
 .music-bars span:nth-child(1) {

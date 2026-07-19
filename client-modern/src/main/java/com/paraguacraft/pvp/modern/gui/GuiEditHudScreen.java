@@ -72,7 +72,7 @@ public class GuiEditHudScreen extends Screen {
         if (ModernConfig.showMusicHud) {
             LauncherIpc.Snapshot snap = LauncherIpc.get();
             drawEditBox(ctx, 7, ModernConfig.overlayHudX, ModernConfig.overlayHudY,
-                HudRenderer.musicPanelWidth(), HudRenderer.musicPanelHeight(snap, true));
+                HudRenderer.musicPanelWidth(snap, true), HudRenderer.musicPanelHeight(snap, true));
         }
         if (ModernConfig.showBedwarsResources) {
             drawEditBox(ctx, 6, ModernConfig.bwResX, ModernConfig.bwResY, 42, 68);
@@ -145,7 +145,7 @@ public class GuiEditHudScreen extends Screen {
         if (ModernConfig.showMusicHud) {
             LauncherIpc.Snapshot snap = LauncherIpc.get();
             if (inBox(mx, my, ModernConfig.overlayHudX, ModernConfig.overlayHudY,
-                HudRenderer.musicPanelWidth(), HudRenderer.musicPanelHeight(snap, true))) {
+                HudRenderer.musicPanelWidth(snap, true), HudRenderer.musicPanelHeight(snap, true))) {
                 return 7;
             }
         }

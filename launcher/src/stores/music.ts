@@ -144,6 +144,20 @@ export const useMusicStore = defineStore("music", () => {
     if (n?.title) return n.author ? `${n.title} · ${n.author}` : n.title;
     return label.value || "YouTube";
   });
+  const overlayTitle = computed(() => {
+    if (activeSource.value === "youtube") {
+      return youtubeNow.value?.title || label.value || "YouTube";
+    }
+    if (spotifyNow.value?.title) return spotifyNow.value.title;
+    return label.value || "Reproduciendo";
+  });
+  const overlayArtist = computed(() => {
+    if (activeSource.value === "youtube") {
+      return youtubeNow.value?.author || "YouTube";
+    }
+    if (spotifyNow.value?.artist) return spotifyNow.value.artist;
+    return activeSource.value === "spotify" ? "Spotify" : "YouTube";
+  });
   const overlayLabel = computed(() => {
     if (activeSource.value === "youtube") return youtubeLabel.value;
     if (spotifyNow.value?.title) return spotifyLabel.value;
@@ -539,6 +553,8 @@ export const useMusicStore = defineStore("music", () => {
     spotifyProgressPct,
     hasTrack,
     isPlaying,
+    overlayTitle,
+    overlayArtist,
     overlayLabel,
     overlayImage,
     showOverlay,
