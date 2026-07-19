@@ -1,7 +1,8 @@
-package com.paraguacraft.pvp.core;
+package com.paraguacraft.pvp.modern.core;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.ServerInfo;
+import net.minecraft.server.integrated.IntegratedServer;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -12,9 +13,7 @@ import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
-/**
- * Discord Rich Presence in-game (IPC pipe). Mismo APP ID que el launcher Tauri.
- */
+/** Discord Rich Presence in-game (IPC pipe). Mismo APP ID que el launcher. */
 public final class DiscordPresence {
 
     public static final String APP_ID = "1487516329631154206";
@@ -25,6 +24,7 @@ public final class DiscordPresence {
     private static FileInputStream pipeIn;
     private static boolean connected;
     private static long sessionStart = System.currentTimeMillis() / 1000L;
+    private static String lastDetails = "";
     private static String lastState = "";
 
     private DiscordPresence() {}
@@ -61,6 +61,7 @@ public final class DiscordPresence {
     public static void disconnect() {
         closeQuietly();
         connected = false;
+        lastDetails = "";
         lastState = "";
     }
 
@@ -68,13 +69,16 @@ public final class DiscordPresence {
         if (!connected) {
             return;
         }
-        Minecraft mc = Minecraft.getMinecraft();
-        String user = mc.getSession().getUsername();
-        String details = user + " - 1.8.9 - Forge + OptiFine";
-        String state = buildState(mc);
-        if (state.equals(lastState)) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null) {
             return;
         }
+        String details = buildDetails(client);
+        String state = buildState(client);
+        if (details.equals(lastDetails) && state.equals(lastState)) {
+            return;
+        }
+        lastDetails = details;
         lastState = state;
         long pid = getPid();
         String nonce = UUID.randomUUID().toString();
@@ -88,7 +92,7 @@ public final class DiscordPresence {
             + "\"timestamps\":{\"start\":" + sessionStart + "},"
             + "\"assets\":{"
             + "\"large_image\":\"paraguacraft\","
-            + "\"large_text\":\"Paraguacraft PvP\""
+            + "\"large_text\":\"Paraguacraft PvP Modern\""
             + "}"
             + "},"
             + "\"nonce\":\"" + nonce + "\""
@@ -101,21 +105,37 @@ public final class DiscordPresence {
         }
     }
 
-    private static String buildState(Minecraft mc) {
-        if (mc.theWorld == null) {
+    private static String buildDetails(MinecraftClient client) {
+        String user = envOr("PARAGUACRAFT_RPC_USER", client.getSession().getUsername());
+        String mc = envOr("PARAGUACRAFT_RPC_MC", "1.21.11");
+        String loader = envOr("PARAGUACRAFT_RPC_LOADER", "Fabric + Iris");
+        return user + " - " + mc + " - " + loader;
+    }
+
+    private static String buildState(MinecraftClient client) {
+        if (client.world == null) {
             return "En el menú";
         }
-        ServerData server = mc.getCurrentServerData();
-        if (server != null && server.serverIP != null && !server.serverIP.isEmpty()) {
-            return server.serverIP;
+        ServerInfo server = client.getCurrentServerEntry();
+        if (server != null && server.address != null && !server.address.isEmpty()) {
+            return server.address;
         }
-        if (mc.theWorld.getWorldInfo() != null) {
-            String world = mc.theWorld.getWorldInfo().getWorldName();
+        IntegratedServer integrated = client.getServer();
+        if (integrated != null) {
+            String world = integrated.getSaveProperties().getLevelName();
             if (world != null && !world.isEmpty()) {
                 return "Un jugador: " + world;
             }
         }
-        return "Jugando Minecraft 1.8.9";
+        return "Un jugador";
+    }
+
+    private static String envOr(String key, String fallback) {
+        String v = System.getenv(key);
+        if (v != null && !v.isBlank()) {
+            return v.trim();
+        }
+        return fallback;
     }
 
     private static long getPid() {

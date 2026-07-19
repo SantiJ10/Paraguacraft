@@ -34,8 +34,6 @@ pub fn connect(enabled: bool) {
     if client.connect().is_ok() {
         *SESSION_START.lock().unwrap() = Some(now_secs());
         *guard = Some(client);
-        drop(guard);
-        set_launcher_idle("Paraguacraft");
     }
 }
 
@@ -73,10 +71,17 @@ pub fn set_playing(
     show_version: bool,
     show_time: bool,
 ) {
-    set_playing_session(username, mc_version, loader, None, show_version, show_time);
+    let loader_label = loaders::display_label(loader);
+    let details = format!("Jugando como {username}");
+    let state = if show_version {
+        format!("{mc_version} - {loader_label}")
+    } else {
+        loader_label
+    };
+    update(&details, &state, show_time, show_version);
 }
 
-/// Formato: `{user} - {version} - {loader}` + `Multijugador: ip` / `Un Jugador: mundo`.
+/// Formato in-game: `{user} - {version} - {loader}` + servidor/mundo/menu en state.
 pub fn set_playing_session(
     username: &str,
     mc_version: &str,
@@ -93,7 +98,7 @@ pub fn set_playing_session(
     };
     let state = mode_line
         .filter(|s| !s.is_empty())
-        .unwrap_or("Cargando…")
+        .unwrap_or("En el menú")
         .to_string();
     update(&details, &state, show_time, show_version);
 }

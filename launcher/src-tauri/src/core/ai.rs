@@ -89,6 +89,12 @@ LAUNCHER Paraguacraft (Tauri v2 + Rust + Vue 3):
 - Tienda Modrinth + CurseForge (key CF en Ajustes). Modpacks .mrpack/.zip. Servidores Paper/Fabric/Forge + Playit.gg.
 - Ajustes: RAM, GC, options.txt, cerrar al jugar, Discord RPC, Java Temurin 17/21, reparar instancia, auto-update SHA-256.
 
+CLIENTE Paraguacraft PvP Modern (Fabric 1.21.11 + Iris/Sodium, v0.6.4):
+- Loader paraguacraft-pvp-modern. Mod Menu (Right Shift), menu custom, Hypixel Quick Play, borderless LWJGL3.
+- HUD: FPS, ping, CPS, keystrokes, armadura vertical, bloques, musica Spotify/YT, pociones estilo 1.8.9.
+- Toggle sprint legacy (W). Config persiste en options.txt (launcher ya no la resetea al actualizar).
+- Discord RPC in-game: usuario - version - loader + servidor/mundo/menu.
+
 CLIENTE Paraguacraft PvP (Forge 1.8.9 + OptiFine + mod propio, v2.1.28):
 - Hypixel-safe: solo HUD/visual/rendimiento. Mod Menu (Right Shift). Hytils camas, OptiFine, mod ParaguacraftPvP.
 - Toggle Sprint: (M) teclas virtuales Lunar, (N) legacy. Toggle Sneak en Mod Menu (Shift alterna).
@@ -99,7 +105,7 @@ CLIENTE Paraguacraft PvP (Forge 1.8.9 + OptiFine + mod propio, v2.1.28):
 SETTINGS PvP recomendados: Boost FPS ON, entity/nametag cull ON, Toggle Sprint (M) ON, 4-8GB RAM, perfil hardware en Ajustes.
 "#;
 
-const SYSTEM_PROMPT: &str = "Sos Paraguabot, experto en el launcher Paraguacraft y el cliente PvP 1.8.9. \
+const SYSTEM_PROMPT: &str = "Sos Paraguabot, experto en el launcher Paraguacraft, el cliente PvP 1.8.9 y PvP Modern 1.21.11. \
 Responde en espanol rioplatense, claro y accionable. Usa el conocimiento del producto abajo. \
 Para crashes inclui pasos concretos (Reparar instancia, Ajustes > Java, actualizar cliente PvP). \
 No inventes rutas; referi Ajustes, Versiones, Mod Menu (Right Shift) y teclas M/N para sprint. \
@@ -183,48 +189,77 @@ pub async fn analyze_prompt_async(state: &AppState, req: &AiRequest) -> AppResul
     let system = format!("{SYSTEM_PROMPT}\n\n--- CONOCIMIENTO PARAGUACRAFT ---\n{KNOWLEDGE}");
     let user_content = build_user_content(req);
 
-    let body = json!({
-        "model": llm.model,
-        "messages": [
-            { "role": "system", "content": system },
-            { "role": "user", "content": user_content }
-        ],
-        "max_tokens": 1024,
-        "temperature": 0.35
-    });
+    let models: Vec<&str> = if llm.provider == "groq" {
+        vec![
+            llm.model,
+            "llama-3.3-70b-versatile",
+            "llama-3.1-8b-instant",
+        ]
+    } else {
+        vec![llm.model]
+    };
 
     let (client, _guard) = state.net_scope();
-    let resp = client
-        .post(llm.chat_url)
-        .header("Authorization", format!("Bearer {}", llm.api_key))
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| AppError::msg(format!("Paraguabot ({}) red: {e}", llm.provider)))?;
+    let mut last_err = String::new();
 
-    if !resp.status().is_success() {
-        let status = resp.status();
-        let err_body = resp.text().await.unwrap_or_default();
-        return Err(AppError::msg(format!(
-            "Paraguabot ({}) API {status}: {}",
-            llm.provider,
-            err_body.chars().take(300).collect::<String>()
-        )));
+    for model in models {
+        let body = json!({
+            "model": model,
+            "messages": [
+                { "role": "system", "content": system },
+                { "role": "user", "content": user_content }
+            ],
+            "max_tokens": 1024,
+            "temperature": 0.35
+        });
+
+        let resp = match client
+            .post(llm.chat_url)
+            .header("Authorization", format!("Bearer {}", llm.api_key))
+            .json(&body)
+            .send()
+            .await
+        {
+            Ok(r) => r,
+            Err(e) => {
+                last_err = format!("Paraguabot ({}) red: {e}", llm.provider);
+                continue;
+            }
+        };
+
+        if !resp.status().is_success() {
+            last_err = format!(
+                "Paraguabot ({}) API {}: {}",
+                llm.provider,
+                resp.status(),
+                resp.text().await.unwrap_or_default().chars().take(300).collect::<String>()
+            );
+            continue;
+        }
+
+        let json: serde_json::Value = match resp.json().await {
+            Ok(v) => v,
+            Err(e) => {
+                last_err = format!("Paraguabot JSON: {e}");
+                continue;
+            }
+        };
+
+        let message = json["choices"][0]["message"]["content"]
+            .as_str()
+            .unwrap_or("Sin respuesta del modelo.")
+            .trim()
+            .to_string();
+
+        return Ok(AiResponse {
+            message,
+            suggestions: vec![],
+        });
     }
 
-    let json: serde_json::Value = resp
-        .json()
-        .await
-        .map_err(|e| AppError::msg(format!("Paraguabot JSON: {e}")))?;
-
-    let message = json["choices"][0]["message"]["content"]
-        .as_str()
-        .unwrap_or("Sin respuesta del modelo.")
-        .trim()
-        .to_string();
-
-    Ok(AiResponse {
-        message,
-        suggestions: vec![],
-    })
+    Err(AppError::msg(if last_err.is_empty() {
+        "Paraguabot no pudo contactar al proveedor.".into()
+    } else {
+        last_err
+    }))
 }

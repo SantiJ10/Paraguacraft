@@ -9,6 +9,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - **Cliente PvP Modern 0.6.2**: sincroniza el JAR corregido (mixin ItemEntityRenderer); evita pantalla negra en el menu.
 - **Dynamic FPS offline**: manifest embebido y fallback actualizados a 0.6.2.
 
+## Cliente PvP Modern 0.6.5 - 2026-07-19
+
+### Added
+- **Discord RPC in-game** (usuario - versión - loader + servidor/mundo/menú).
+
 ## Cliente PvP Modern 0.6.4 - 2026-07-19
 
 ### Added

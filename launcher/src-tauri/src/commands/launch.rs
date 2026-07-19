@@ -207,6 +207,9 @@ async fn spawn_for_instance(
     let mut launch_env_owned: Vec<(String, String)> = Vec::new();
     if has_pg_rpc {
         launch_env_owned.push(("PARAGUACRAFT_LAUNCHER_RPC".into(), "1".into()));
+        launch_env_owned.push(("PARAGUACRAFT_RPC_USER".into(), auth.username.clone()));
+        launch_env_owned.push(("PARAGUACRAFT_RPC_MC".into(), mc.clone()));
+        launch_env_owned.push(("PARAGUACRAFT_RPC_LOADER".into(), loaders::display_label(&loader)));
     }
     if has_pvp_mod && overlay_ipc {
         launch_env_owned.push(("PARAGUACRAFT_OVERLAY_IPC".into(), ipc_path_owned));

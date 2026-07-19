@@ -36,7 +36,7 @@ pub fn watch(ctx: PresenceCtx, stop: Arc<AtomicBool>) {
                     );
                 }
             }
-            std::thread::sleep(Duration::from_secs(3));
+            std::thread::sleep(Duration::from_millis(900));
         }
     });
 }
@@ -47,10 +47,9 @@ fn detect_mode(game_dir: &Path, launch_server: Option<&str>) -> String {
     }
     if let Some(addr) = launch_server.filter(|s| !s.trim().is_empty()) {
         let (host, _) = crate::core::favorites::parse_address(addr.trim());
-        return format!("Multijugador: {host}");
-    }
-    if let Some(world) = newest_save_name(game_dir) {
-        return format!("Un Jugador: {world}");
+        if !host.is_empty() {
+            return format!("Conectando a {host}…");
+        }
     }
     "En el menú".into()
 }
@@ -61,7 +60,7 @@ fn parse_log_mode(game_dir: &Path) -> Option<String> {
     let tail: String = content
         .lines()
         .rev()
-        .take(400)
+        .take(500)
         .collect::<Vec<_>>()
         .into_iter()
         .rev()
@@ -77,7 +76,7 @@ fn parse_log_mode(game_dir: &Path) -> Option<String> {
         {
             let host = host.trim();
             if !host.is_empty() {
-                return Some(format!("Multijugador: {host}"));
+                return Some(host.to_string());
             }
         }
     }
@@ -86,10 +85,10 @@ fn parse_log_mode(game_dir: &Path) -> Option<String> {
         || low.contains("singleplayer")
         || low.contains("local game hosted on")
     {
-        if let Some(world) = world_from_log(&tail).or_else(|| newest_save_name(game_dir)) {
-            return Some(format!("Un Jugador: {world}"));
+        if let Some(world) = world_from_log(&tail) {
+            return Some(format!("Un jugador: {world}"));
         }
-        return Some("Un Jugador".into());
+        return Some("Un jugador".into());
     }
 
     None
@@ -119,47 +118,15 @@ fn world_from_log(tail: &str) -> Option<String> {
     None
 }
 
-fn newest_save_name(game_dir: &Path) -> Option<String> {
-    let saves = game_dir.join("saves");
-    let mut best: Option<(std::time::SystemTime, String)> = None;
-    for entry in std::fs::read_dir(&saves).ok()?.flatten() {
-        let path = entry.path();
-        if !path.is_dir() {
-            continue;
-        }
-        let name = entry.file_name().to_string_lossy().to_string();
-        if name.eq_ignore_ascii_case("readme.txt") {
-            continue;
-        }
-        if !path.join("level.dat").is_file() && !path.join("level.dat_old").is_file() {
-            continue;
-        }
-        let Ok(meta) = entry.metadata() else {
-            continue;
-        };
-        let Ok(modified) = meta.modified() else {
-            continue;
-        };
-        if best.as_ref().map(|(t, _)| modified > *t).unwrap_or(true) {
-            best = Some((modified, name));
-        }
-    }
-    best.map(|(_, n)| n)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn parses_multiplayer_connect() {
-        let log = "[Render thread/INFO]: Connecting to tax-estimated.gl.joinmc.link, 25565\n";
-        assert_eq!(
-            world_from_log(log),
-            None
-        );
+        let log = "[Render thread/INFO]: Connecting to mc.hypixel.net, 25565\n";
         let mode = parse_log_mode_from_tail(log);
-        assert_eq!(mode.as_deref(), Some("Multijugador: tax-estimated.gl.joinmc.link"));
+        assert_eq!(mode.as_deref(), Some("mc.hypixel.net"));
     }
 
     fn parse_log_mode_from_tail(tail: &str) -> Option<String> {
@@ -171,7 +138,7 @@ mod tests {
             {
                 let host = host.trim();
                 if !host.is_empty() {
-                    return Some(format!("Multijugador: {host}"));
+                    return Some(host.to_string());
                 }
             }
         }

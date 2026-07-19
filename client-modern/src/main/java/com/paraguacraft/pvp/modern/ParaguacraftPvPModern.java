@@ -2,6 +2,7 @@ package com.paraguacraft.pvp.modern;
 
 import com.paraguacraft.pvp.modern.config.LauncherProfile;
 import com.paraguacraft.pvp.modern.config.ModernConfig;
+import com.paraguacraft.pvp.modern.core.DiscordPresenceHandler;
 import com.paraguacraft.pvp.modern.core.LauncherIpcHandler;
 import com.paraguacraft.pvp.modern.core.PerformanceBootstrap;
 import com.paraguacraft.pvp.modern.core.QuickPlayState;
@@ -17,7 +18,7 @@ import net.minecraft.client.MinecraftClient;
 public class ParaguacraftPvPModern implements ClientModInitializer {
 
     public static final String MOD_ID = "paraguacraftpvp-modern";
-    public static final String VERSION = "0.6.4";
+    public static final String VERSION = "0.6.5";
 
     @Override
     public void onInitializeClient() {
@@ -27,6 +28,7 @@ public class ParaguacraftPvPModern implements ClientModInitializer {
         QoLBootstrap.register();
         TrainingWorldHelper.register();
         LauncherIpcHandler.register();
+        DiscordPresenceHandler.register();
         HudCpsTracker.register();
         HudRenderer.register();
         ModKeybinds.register();
