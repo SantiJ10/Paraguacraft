@@ -3,7 +3,7 @@
   "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.7.4/Instalar_Paraguacraft_v7.7.4.exe",
   "size_bytes": 91924500,
   "sha256": "658b8a733399f01be476b76d6889f9fedf56db6738dafe2114f5dd1e51768d22",
-  "notes": "- Cliente PvP Modern 0.6.2: fix pantalla negra en menu (ItemEntityRenderer)\n- Dynamic FPS: repara dynamic_fps.json (minimized→invisible)\n- Mods Fabric 1.21.11: deps automaticas (searchables, kotlin, YACL)\n- Tienda Modrinth: reintentos 503 y descarga CDN de respaldo",
+  "notes": "- Cliente PvP Modern 0.6.5: Discord RPC in-game (menu, mundo, servidor)\n- Launcher RPC: idle, cargando, menú MC, SP y MP en todas las instancias Java\n- Paraguabot Groq mejorado y Ajustes más rápidos",
   "platforms": {
     "windows-x86_64": {
       "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.7.4/Instalar_Paraguacraft_v7.7.4.exe",
