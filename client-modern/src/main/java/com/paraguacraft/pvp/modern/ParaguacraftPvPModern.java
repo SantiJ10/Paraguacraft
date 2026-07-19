@@ -7,6 +7,7 @@ import com.paraguacraft.pvp.modern.core.PerformanceBootstrap;
 import com.paraguacraft.pvp.modern.core.QuickPlayState;
 import com.paraguacraft.pvp.modern.core.QoLBootstrap;
 import com.paraguacraft.pvp.modern.core.TrainingWorldHelper;
+import com.paraguacraft.pvp.modern.hud.HudCpsTracker;
 import com.paraguacraft.pvp.modern.hud.HudRenderer;
 import com.paraguacraft.pvp.modern.input.ModKeybinds;
 import net.fabricmc.api.ClientModInitializer;
@@ -16,7 +17,7 @@ import net.minecraft.client.MinecraftClient;
 public class ParaguacraftPvPModern implements ClientModInitializer {
 
     public static final String MOD_ID = "paraguacraftpvp-modern";
-    public static final String VERSION = "0.6.0";
+    public static final String VERSION = "0.6.3";
 
     @Override
     public void onInitializeClient() {
@@ -26,6 +27,7 @@ public class ParaguacraftPvPModern implements ClientModInitializer {
         QoLBootstrap.register();
         TrainingWorldHelper.register();
         LauncherIpcHandler.register();
+        HudCpsTracker.register();
         HudRenderer.register();
         ModKeybinds.register();
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> applyClientOptions(client));

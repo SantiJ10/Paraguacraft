@@ -71,8 +71,12 @@ public class HypixelQuickPlayScreen extends Screen {
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
         MenuBackground.draw(this, context, mouseX, mouseY, delta);
+    }
+
+    @Override
+    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         String hint = HypixelHelper.isOnHypixel(client)
             ? "Conectado a Hypixel"
             : "Conectate a Hypixel para jugar";

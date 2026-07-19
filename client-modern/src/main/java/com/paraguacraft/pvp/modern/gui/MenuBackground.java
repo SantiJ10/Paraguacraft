@@ -6,6 +6,10 @@ import com.paraguacraft.pvp.modern.gui.theme.UiTheme;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screen.multiplayer.ConnectScreen;
+import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
+import net.minecraft.client.gui.screen.option.OptionsScreen;
+import net.minecraft.client.gui.screen.world.SelectWorldScreen;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
@@ -40,6 +44,10 @@ public final class MenuBackground {
     }
 
     public static void draw(Screen screen, DrawContext ctx, int mouseX, int mouseY, float delta) {
+        draw(screen, ctx, mouseX, mouseY, delta, true);
+    }
+
+    public static void draw(Screen screen, DrawContext ctx, int mouseX, int mouseY, float delta, boolean withBranding) {
         int w = screen.width;
         int h = screen.height;
         MenuTheme theme = MenuTheme.current();
@@ -47,6 +55,9 @@ public final class MenuBackground {
         drawThemeBackground(ctx, w, h, theme);
         if (theme.animatedOverlay) {
             ConstellationBackground.draw(ctx, w, h);
+        }
+        if (!withBranding) {
+            return;
         }
 
         int logoSize = logoSize(w, h);
@@ -83,7 +94,35 @@ public final class MenuBackground {
         ctx.fillGradient(0, 0, w, h, UiTheme.bgTop(), UiTheme.bgBottom());
         ctx.fill(0, 0, w, h, UiTheme.OVERLAY);
         if (theme.secondaryTint != 0) {
-            ctx.fill(0, 0, w, h / 2, theme.secondaryTint);
+            int top = theme.secondaryTint;
+            int bottom = top & 0x00FFFFFF;
+            ctx.fillGradient(0, 0, w, h, top, bottom);
         }
+    }
+
+    /** Reemplaza el fondo negro/vanilla en menus fuera del mundo. */
+    public static boolean shouldReplace(Screen screen) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.world != null) {
+            return false;
+        }
+        if (screen instanceof CustomTitleScreen) {
+            return false;
+        }
+        if (screen instanceof ParaguacraftMultiplayerScreen
+            || screen instanceof HypixelQuickPlayScreen
+            || screen instanceof ModMenuScreen
+            || screen instanceof ThemeSelectScreen
+            || screen instanceof PackSelectScreen
+            || screen instanceof SkinChangerScreen
+            || screen instanceof GuiEditHudScreen) {
+            return false;
+        }
+        return screen instanceof MultiplayerScreen
+            || screen instanceof ConnectScreen
+            || screen instanceof SelectWorldScreen
+            || screen instanceof OptionsScreen
+            || screen.getClass().getName().contains("ProgressScreen")
+            || screen.getClass().getName().contains("Loading");
     }
 }

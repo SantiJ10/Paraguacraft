@@ -38,9 +38,11 @@ public class GuiEditHudScreen extends Screen {
         drawHandle(ctx, 2, ModernConfig.cpsX, ModernConfig.cpsY, "CPS");
         drawHandle(ctx, 3, ModernConfig.keysX, ModernConfig.keysY, "Keys");
         drawHandle(ctx, 4, ModernConfig.armorX, ModernConfig.armorY, "Armor");
+        drawHandle(ctx, 8, ModernConfig.blocksX, ModernConfig.blocksY, "Bloques");
         drawHandle(ctx, 5, ModernConfig.heldX, ModernConfig.heldY, "Mano");
         drawHandle(ctx, 6, ModernConfig.bwResX, ModernConfig.bwResY, "BW");
         drawHandle(ctx, 7, ModernConfig.overlayHudX, ModernConfig.overlayHudY, "Musica");
+        drawHandle(ctx, 9, ModernConfig.potionX, ModernConfig.potionY, "Pociones");
         super.render(ctx, mouseX, mouseY, delta);
     }
 
@@ -84,7 +86,7 @@ public class GuiEditHudScreen extends Screen {
     }
 
     private int hit(double mx, double my) {
-        for (int i = 0; i < 8; i++) {
+        for (int i = 0; i < 10; i++) {
             int[] p = posFor(i);
             int w = Math.max(48, textRenderer.getWidth(labelFor(i)) + 12);
             if (mx >= p[0] && mx <= p[0] + w && my >= p[1] && my <= p[1] + 14) {
@@ -103,7 +105,9 @@ public class GuiEditHudScreen extends Screen {
             case 4 -> new int[] {ModernConfig.armorX, ModernConfig.armorY};
             case 5 -> new int[] {ModernConfig.heldX, ModernConfig.heldY};
             case 6 -> new int[] {ModernConfig.bwResX, ModernConfig.bwResY};
-            default -> new int[] {ModernConfig.overlayHudX, ModernConfig.overlayHudY};
+            case 7 -> new int[] {ModernConfig.overlayHudX, ModernConfig.overlayHudY};
+            case 8 -> new int[] {ModernConfig.blocksX, ModernConfig.blocksY};
+            default -> new int[] {ModernConfig.potionX, ModernConfig.potionY};
         };
     }
 
@@ -116,7 +120,9 @@ public class GuiEditHudScreen extends Screen {
             case 4 -> { ModernConfig.armorX = x; ModernConfig.armorY = y; }
             case 5 -> { ModernConfig.heldX = x; ModernConfig.heldY = y; }
             case 6 -> { ModernConfig.bwResX = x; ModernConfig.bwResY = y; }
-            default -> { ModernConfig.overlayHudX = x; ModernConfig.overlayHudY = y; }
+            case 7 -> { ModernConfig.overlayHudX = x; ModernConfig.overlayHudY = y; }
+            case 8 -> { ModernConfig.blocksX = x; ModernConfig.blocksY = y; }
+            default -> { ModernConfig.potionX = x; ModernConfig.potionY = y; }
         }
     }
 
@@ -129,7 +135,9 @@ public class GuiEditHudScreen extends Screen {
             case 4 -> "Armor";
             case 5 -> "Mano";
             case 6 -> "BW";
-            default -> "Musica";
+            case 7 -> "Musica";
+            case 8 -> "Bloques";
+            default -> "Pociones";
         };
     }
 }

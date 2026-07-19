@@ -11,7 +11,7 @@ public final class LauncherIpcHandler {
 
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            if (++tick % 10 == 0) {
+            if (++tick % 5 == 0) {
                 LauncherIpc.poll();
             }
         });
