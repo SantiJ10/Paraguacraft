@@ -5,17 +5,13 @@ import com.paraguacraft.pvp.modern.gui.theme.MenuTheme;
 import com.paraguacraft.pvp.modern.gui.theme.UiTheme;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.text.Text;
 
-/** Selector de tema del menú (estilo Lunar). */
-public class ThemeSelectScreen extends Screen {
-
-    private final Screen parent;
+/** Selector de tema del menu (estilo Lunar). */
+public class ThemeSelectScreen extends ParaguacraftScreen {
 
     public ThemeSelectScreen(Screen parent) {
-        super(Text.literal("Elegir tema"));
-        this.parent = parent;
+        super(Text.literal("Elegir tema"), parent);
     }
 
     @Override
@@ -35,24 +31,20 @@ public class ThemeSelectScreen extends Screen {
             int x = startX + col * gapX;
             int y = startY + row * gapY;
             String label = theme.label + (theme == MenuTheme.current() ? " ✓" : "");
-            addDrawableChild(ButtonWidget.builder(Text.literal(label), b -> {
+            addDrawableChild(FlatMenuButton.create(x, y, btnW, btnH, Text.literal(label), () -> {
                 MenuTheme.setCurrent(theme);
                 ModernConfig.menuTheme = theme.name();
                 ModernConfig.save();
                 client.setScreen(new CustomTitleScreen());
-            }).dimensions(x, y, btnW, btnH).build());
+            }));
         }
-        addDrawableChild(ButtonWidget.builder(Text.literal("Volver"), b ->
-            client.setScreen(parent)).dimensions(width / 2 - btnW / 2, height - 48, btnW, btnH).build());
-    }
-
-    @Override
-    public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
-        MenuBackground.draw(this, context, mouseX, mouseY, delta);
+        addDrawableChild(FlatMenuButton.create(width / 2 - btnW / 2, height - 48, btnW, btnH,
+            Text.literal("Volver"), () -> client.setScreen(parent)));
     }
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+        super.render(context, mouseX, mouseY, delta);
         context.drawCenteredTextWithShadow(
             textRenderer,
             Text.literal("Tema activo: " + MenuTheme.current().label),
@@ -60,6 +52,5 @@ public class ThemeSelectScreen extends Screen {
             52,
             UiTheme.accent()
         );
-        super.render(context, mouseX, mouseY, delta);
     }
 }

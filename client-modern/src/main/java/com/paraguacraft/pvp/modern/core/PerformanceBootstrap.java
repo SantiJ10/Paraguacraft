@@ -10,6 +10,8 @@ import net.minecraft.client.option.GameOptions;
 import net.minecraft.client.option.GraphicsMode;
 import net.minecraft.particle.ParticlesMode;
 
+import java.nio.file.Path;
+
 /** Aplica preset PvP al arrancar; respeta tier de hardware del launcher. */
 public final class PerformanceBootstrap {
 
@@ -21,10 +23,24 @@ public final class PerformanceBootstrap {
     }
 
     private static void onClientStarted(MinecraftClient client) {
-        if (!PerformanceConfig.boostFps || !PerformanceConfig.applyVanillaPreset) {
-            return;
+        Path gameDir = net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir();
+        Path marker = gameDir.resolve(".paraguacraft_vanilla_preset_applied");
+        if (PerformanceConfig.boostFps && PerformanceConfig.applyVanillaPreset) {
+            try {
+                if (!java.nio.file.Files.isRegularFile(marker)) {
+                    if (java.nio.file.Files.isRegularFile(gameDir.resolve("options.txt"))) {
+                        java.nio.file.Files.writeString(marker, "existing");
+                    } else {
+                        applyGameOptions(client.options);
+                        java.nio.file.Files.writeString(marker, "applied");
+                    }
+                }
+            } catch (java.io.IOException ignored) {
+            }
         }
-        applyGameOptions(client.options);
+        if (ModernConfig.windowedFullscreen) {
+            WindowedFullscreenManager.enable(client);
+        }
     }
 
     private static void onWorldJoin(MinecraftClient client) {

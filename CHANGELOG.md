@@ -9,6 +9,21 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - **Cliente PvP Modern 0.6.2**: sincroniza el JAR corregido (mixin ItemEntityRenderer); evita pantalla negra en el menu.
 - **Dynamic FPS offline**: manifest embebido y fallback actualizados a 0.6.2.
 
+## Cliente PvP Modern 0.6.4 - 2026-07-19
+
+### Added
+- **Pantalla sin bordes** (borderless LWJGL3) en Mod Menu; alternativa a fullscreen exclusivo.
+- **Mod Menu** con tarjetas estilo 1.8.9 (negro + borde azul, ON/OFF/ABRIR).
+
+### Changed
+- Submenús (Multijugador, Hypixel Quick Play, Mod Menu, Tema, Packs, Skin) usan botones/tarjetas Paraguacraft.
+- Launcher: ya no pisa `options.txt` ni configs en cada launch (solo merge de claves nuevas).
+
+### Fixed
+- **ESC / volver al menú**: redirige siempre al menú Paraguacraft, no al TitleScreen vanilla.
+- **Logo duplicado** en submenús (fondo sin branding en pantallas hijas).
+- **Opciones que se reseteaban**: volumen, chunks, pantalla completa, Sodium — el launcher y `PerformanceBootstrap` ya no las sobrescriben al actualizar.
+
 ## Cliente PvP Modern 0.6.3 - 2026-07-19
 
 ### Added
