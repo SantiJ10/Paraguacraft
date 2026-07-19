@@ -17,7 +17,7 @@ import net.minecraft.util.Identifier;
 /** Fondo del menu: tema completo + logo Paraguacraft. */
 public final class MenuBackground {
 
-    public static final int LOGO_MAX = 88;
+    public static final int LOGO_MAX = 112;
     private static final int LOGO_TEX = 128;
 
     private static final Identifier LOGO = Identifier.of(
@@ -39,8 +39,13 @@ public final class MenuBackground {
     }
 
     private static int logoSize(int w, int h) {
-        int size = Math.min(LOGO_MAX, w / 5);
-        return Math.min(size, h / 7);
+        int size = Math.min(LOGO_MAX, w / 4);
+        size = Math.min(size, h / 6);
+        // Escala entera para pixel-art nitido (128 -> 96/64/32...)
+        if (size >= 96) return 96;
+        if (size >= 64) return 64;
+        if (size >= 48) return 48;
+        return Math.max(32, size);
     }
 
     public static void draw(Screen screen, DrawContext ctx, int mouseX, int mouseY, float delta) {
@@ -67,6 +72,7 @@ public final class MenuBackground {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.getResourceManager().getResource(LOGO).isPresent()) {
             ctx.drawTexture(RenderPipelines.GUI_TEXTURED, LOGO, lx, ly, 0f, 0f, logoSize, logoSize, LOGO_TEX, LOGO_TEX);
+            ctx.fill(lx - 2, ly - 2, lx + logoSize + 2, ly + logoSize + 2, 0x2200E5FF);
         }
 
         var tr = client.textRenderer;

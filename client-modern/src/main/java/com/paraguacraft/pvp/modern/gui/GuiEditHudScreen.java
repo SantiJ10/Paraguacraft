@@ -1,15 +1,19 @@
 package com.paraguacraft.pvp.modern.gui;
 
 import com.paraguacraft.pvp.modern.config.ModernConfig;
+import com.paraguacraft.pvp.modern.core.LauncherIpc;
 import com.paraguacraft.pvp.modern.gui.theme.UiTheme;
+import com.paraguacraft.pvp.modern.hud.HudRenderer;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.text.Text;
 
-/** Arrastra elementos del HUD (como 1.8.9). */
+/** Arrastra elementos del HUD con preview real (solo mods activos). */
 public class GuiEditHudScreen extends Screen {
+
+    private static final int ACCENT_BOX = 0x8800E5FF;
 
     private final Screen parent;
     private int dragging = -1;
@@ -30,26 +34,71 @@ public class GuiEditHudScreen extends Screen {
     }
 
     @Override
+    public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
+        /* Mundo visible detras del editor. */
+    }
+
+    @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        ctx.fill(0, 0, width, height, 0x88000000);
-        ctx.drawCenteredTextWithShadow(textRenderer, Text.literal("Arrastra los modulos del HUD"), width / 2, 12, UiTheme.accent());
-        drawHandle(ctx, 0, ModernConfig.fpsX, ModernConfig.fpsY, "FPS");
-        drawHandle(ctx, 1, ModernConfig.pingX, ModernConfig.pingY, "Ping");
-        drawHandle(ctx, 2, ModernConfig.cpsX, ModernConfig.cpsY, "CPS");
-        drawHandle(ctx, 3, ModernConfig.keysX, ModernConfig.keysY, "Keys");
-        drawHandle(ctx, 4, ModernConfig.armorX, ModernConfig.armorY, "Armor");
-        drawHandle(ctx, 8, ModernConfig.blocksX, ModernConfig.blocksY, "Bloques");
-        drawHandle(ctx, 5, ModernConfig.heldX, ModernConfig.heldY, "Mano");
-        drawHandle(ctx, 6, ModernConfig.bwResX, ModernConfig.bwResY, "BW");
-        drawHandle(ctx, 7, ModernConfig.overlayHudX, ModernConfig.overlayHudY, "Musica");
-        drawHandle(ctx, 9, ModernConfig.potionX, ModernConfig.potionY, "Pociones");
+        HudRenderer.renderEditing(ctx);
+        ctx.fill(0, 0, width, height, 0x44000000);
+        ctx.drawCenteredTextWithShadow(textRenderer, Text.literal("Modo Edicion Paraguacraft"), width / 2, 12, UiTheme.accent());
+        ctx.drawCenteredTextWithShadow(textRenderer, Text.literal("Arrastra las cajas celestes (solo mods activos)"), width / 2, 26, UiTheme.textDim());
+
+        if (ModernConfig.showFps) {
+            drawEditBox(ctx, 0, ModernConfig.fpsX, ModernConfig.fpsY, 55, 10);
+        }
+        if (ModernConfig.showPing) {
+            drawEditBox(ctx, 1, ModernConfig.pingX, ModernConfig.pingY, 70, 10);
+        }
+        if (ModernConfig.showCps) {
+            drawEditBox(ctx, 2, ModernConfig.cpsX, ModernConfig.cpsY, 50, 10);
+        }
+        if (ModernConfig.showKeystrokes) {
+            drawEditBox(ctx, 3, ModernConfig.keysX, ModernConfig.keysY, 68, 68);
+        }
+        if (ModernConfig.showArmor) {
+            drawEditBox(ctx, 4, ModernConfig.armorX, ModernConfig.armorY, 45, HudRenderer.armorPanelHeight(client));
+        }
+        if (ModernConfig.showPotions) {
+            drawEditBox(ctx, 9, ModernConfig.potionX, ModernConfig.potionY, 120, HudRenderer.potionPanelHeight(client));
+        }
+        if (ModernConfig.showCoords) {
+            drawEditBox(ctx, 10, ModernConfig.coordsX, ModernConfig.coordsY, 130, 10);
+        }
+        if (ModernConfig.showHeldItem) {
+            drawEditBox(ctx, 5, ModernConfig.heldX, ModernConfig.heldY, 130, 40);
+        }
+        if (ModernConfig.showMusicHud) {
+            LauncherIpc.Snapshot snap = LauncherIpc.get();
+            drawEditBox(ctx, 7, ModernConfig.overlayHudX, ModernConfig.overlayHudY,
+                HudRenderer.musicPanelWidth(), HudRenderer.musicPanelHeight(snap, true));
+        }
+        if (ModernConfig.showBedwarsResources) {
+            drawEditBox(ctx, 6, ModernConfig.bwResX, ModernConfig.bwResY, 42, 68);
+        }
+        if (ModernConfig.showBlockCount) {
+            drawEditBox(ctx, 8, ModernConfig.blocksX, ModernConfig.blocksY, 36, 16);
+        }
+        if (ModernConfig.showCompass) {
+            int cx = width / 2;
+            drawEditBox(ctx, 11, cx - 110, ModernConfig.compassY, 220, 16);
+        }
+        if (ModernConfig.comboCounter) {
+            drawEditBox(ctx, 12, ModernConfig.comboX, ModernConfig.comboY, 70, 10);
+        }
+
         super.render(ctx, mouseX, mouseY, delta);
     }
 
-    private void drawHandle(DrawContext ctx, int id, int x, int y, String label) {
-        int w = Math.max(48, textRenderer.getWidth(label) + 12);
-        ctx.fill(x, y, x + w, y + 14, dragging == id ? 0xAA00E5FF : 0x88000000);
-        ctx.drawText(textRenderer, Text.literal(label), x + 4, y + 3, 0xFFFFFFFF, true);
+    private void drawEditBox(DrawContext ctx, int id, int x, int y, int w, int h) {
+        int color = dragging == id ? 0xAA00E5FF : ACCENT_BOX;
+        ctx.fill(x - 2, y - 2, x + w + 2, y + h + 2, color);
+    }
+
+    @Override
+    public boolean shouldPause() {
+        return false;
     }
 
     @Override
@@ -86,14 +135,33 @@ public class GuiEditHudScreen extends Screen {
     }
 
     private int hit(double mx, double my) {
-        for (int i = 0; i < 10; i++) {
-            int[] p = posFor(i);
-            int w = Math.max(48, textRenderer.getWidth(labelFor(i)) + 12);
-            if (mx >= p[0] && mx <= p[0] + w && my >= p[1] && my <= p[1] + 14) {
-                return i;
+        if (ModernConfig.showFps && inBox(mx, my, ModernConfig.fpsX, ModernConfig.fpsY, 55, 10)) return 0;
+        if (ModernConfig.showPing && inBox(mx, my, ModernConfig.pingX, ModernConfig.pingY, 70, 10)) return 1;
+        if (ModernConfig.showCps && inBox(mx, my, ModernConfig.cpsX, ModernConfig.cpsY, 50, 10)) return 2;
+        if (ModernConfig.showKeystrokes && inBox(mx, my, ModernConfig.keysX, ModernConfig.keysY, 68, 68)) return 3;
+        if (ModernConfig.showArmor && inBox(mx, my, ModernConfig.armorX, ModernConfig.armorY, 45, HudRenderer.armorPanelHeight(client))) return 4;
+        if (ModernConfig.showHeldItem && inBox(mx, my, ModernConfig.heldX, ModernConfig.heldY, 130, 40)) return 5;
+        if (ModernConfig.showBedwarsResources && inBox(mx, my, ModernConfig.bwResX, ModernConfig.bwResY, 42, 68)) return 6;
+        if (ModernConfig.showMusicHud) {
+            LauncherIpc.Snapshot snap = LauncherIpc.get();
+            if (inBox(mx, my, ModernConfig.overlayHudX, ModernConfig.overlayHudY,
+                HudRenderer.musicPanelWidth(), HudRenderer.musicPanelHeight(snap, true))) {
+                return 7;
             }
         }
+        if (ModernConfig.showBlockCount && inBox(mx, my, ModernConfig.blocksX, ModernConfig.blocksY, 36, 16)) return 8;
+        if (ModernConfig.showPotions && inBox(mx, my, ModernConfig.potionX, ModernConfig.potionY, 120, HudRenderer.potionPanelHeight(client))) return 9;
+        if (ModernConfig.showCoords && inBox(mx, my, ModernConfig.coordsX, ModernConfig.coordsY, 130, 10)) return 10;
+        if (ModernConfig.showCompass) {
+            int cx = width / 2;
+            if (inBox(mx, my, cx - 110, ModernConfig.compassY, 220, 16)) return 11;
+        }
+        if (ModernConfig.comboCounter && inBox(mx, my, ModernConfig.comboX, ModernConfig.comboY, 70, 10)) return 12;
         return -1;
+    }
+
+    private static boolean inBox(double mx, double my, int x, int y, int w, int h) {
+        return mx >= x - 2 && mx <= x + w + 2 && my >= y - 2 && my <= y + h + 2;
     }
 
     private int[] posFor(int id) {
@@ -107,6 +175,9 @@ public class GuiEditHudScreen extends Screen {
             case 6 -> new int[] {ModernConfig.bwResX, ModernConfig.bwResY};
             case 7 -> new int[] {ModernConfig.overlayHudX, ModernConfig.overlayHudY};
             case 8 -> new int[] {ModernConfig.blocksX, ModernConfig.blocksY};
+            case 10 -> new int[] {ModernConfig.coordsX, ModernConfig.coordsY};
+            case 11 -> new int[] {width / 2 - 110, ModernConfig.compassY};
+            case 12 -> new int[] {ModernConfig.comboX, ModernConfig.comboY};
             default -> new int[] {ModernConfig.potionX, ModernConfig.potionY};
         };
     }
@@ -122,22 +193,10 @@ public class GuiEditHudScreen extends Screen {
             case 6 -> { ModernConfig.bwResX = x; ModernConfig.bwResY = y; }
             case 7 -> { ModernConfig.overlayHudX = x; ModernConfig.overlayHudY = y; }
             case 8 -> { ModernConfig.blocksX = x; ModernConfig.blocksY = y; }
+            case 10 -> { ModernConfig.coordsX = x; ModernConfig.coordsY = y; }
+            case 11 -> { ModernConfig.compassY = y; }
+            case 12 -> { ModernConfig.comboX = x; ModernConfig.comboY = y; }
             default -> { ModernConfig.potionX = x; ModernConfig.potionY = y; }
         }
-    }
-
-    private String labelFor(int id) {
-        return switch (id) {
-            case 0 -> "FPS";
-            case 1 -> "Ping";
-            case 2 -> "CPS";
-            case 3 -> "Keys";
-            case 4 -> "Armor";
-            case 5 -> "Mano";
-            case 6 -> "BW";
-            case 7 -> "Musica";
-            case 8 -> "Bloques";
-            default -> "Pociones";
-        };
     }
 }

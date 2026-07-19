@@ -33,7 +33,7 @@ public final class MusicArtCache {
     }
 
     public static void request(String url) {
-        if (url == null || url.isEmpty() || url.equals(cachedUrl) && textureId != null) {
+        if (url == null || url.isEmpty()) {
             return;
         }
         if (!url.equals(cachedUrl)) {
