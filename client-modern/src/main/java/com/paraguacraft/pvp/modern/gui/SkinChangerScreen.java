@@ -5,19 +5,16 @@ import com.paraguacraft.pvp.modern.core.SkinManager;
 import com.paraguacraft.pvp.modern.gui.theme.UiTheme;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.text.Text;
 
 /** Skin Changer estilo Lunar: URL o nombre de jugador. */
-public class SkinChangerScreen extends Screen {
+public class SkinChangerScreen extends ParaguacraftScreen {
 
-    private final Screen parent;
     private TextFieldWidget urlField;
 
     public SkinChangerScreen(Screen parent) {
-        super(Text.literal("Skin Changer"));
-        this.parent = parent;
+        super(Text.literal("Skin Changer"), parent);
     }
 
     @Override
@@ -33,30 +30,26 @@ public class SkinChangerScreen extends Screen {
         addSelectableChild(urlField);
         setInitialFocus(urlField);
 
-        addDrawableChild(ButtonWidget.builder(Text.literal("Aplicar skin"), b -> {
-            ModernConfig.customSkinUrl = urlField.getText().trim();
-            SkinManager.apply(ModernConfig.customSkinUrl);
-            ModernConfig.save();
-        }).dimensions(cx - panelW / 2, y + 28, panelW, 22).build());
-
-        addDrawableChild(ButtonWidget.builder(Text.literal("Quitar skin custom"), b -> {
-            ModernConfig.customSkinUrl = "";
-            SkinManager.clear();
-            urlField.setText("");
-            ModernConfig.save();
-        }).dimensions(cx - panelW / 2, y + 56, panelW, 22).build());
-
-        addDrawableChild(ButtonWidget.builder(Text.literal("Volver"), b ->
-            client.setScreen(parent)).dimensions(cx - panelW / 2, y + 88, panelW, 22).build());
-    }
-
-    @Override
-    public void renderBackground(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        MenuBackground.draw(this, ctx, mouseX, mouseY, delta);
+        addDrawableChild(FlatMenuButton.create(cx - panelW / 2, y + 28, panelW, 22,
+            Text.literal("Aplicar skin"), () -> {
+                ModernConfig.customSkinUrl = urlField.getText().trim();
+                SkinManager.apply(ModernConfig.customSkinUrl);
+                ModernConfig.save();
+            }));
+        addDrawableChild(FlatMenuButton.create(cx - panelW / 2, y + 56, panelW, 22,
+            Text.literal("Quitar skin custom"), () -> {
+                ModernConfig.customSkinUrl = "";
+                SkinManager.clear();
+                urlField.setText("");
+                ModernConfig.save();
+            }));
+        addDrawableChild(FlatMenuButton.create(cx - panelW / 2, y + 88, panelW, 22,
+            Text.literal("Volver"), () -> client.setScreen(parent)));
     }
 
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
+        super.render(ctx, mouseX, mouseY, delta);
         int panelW = Math.min(360, width - 40);
         int cx = width / 2;
         int y = height / 2 - 60;
@@ -64,6 +57,5 @@ public class SkinChangerScreen extends Screen {
         ctx.drawCenteredTextWithShadow(textRenderer, Text.literal("Skin Changer"), cx, y - 20, UiTheme.accent());
         ctx.drawCenteredTextWithShadow(textRenderer, Text.literal("Pega URL de skin o nick para copiar su skin"), cx, y - 8, UiTheme.textDim());
         urlField.render(ctx, mouseX, mouseY, delta);
-        super.render(ctx, mouseX, mouseY, delta);
     }
 }

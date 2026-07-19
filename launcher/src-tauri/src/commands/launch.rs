@@ -405,8 +405,7 @@ pub async fn launch_instance(
             loaders::pvp_modern::sync_instance(&app, &http, &mc, &inst_dir).await?;
             let _ = modern_pvp::sync_hud_mods(&app, &http, &instance_id).await;
             let tier = crate::core::hardware::detect().perfil_sugerido;
-            let _ = modern_pvp::apply_launch_properties(&instance_id, &tier);
-            let _ = modern_pvp::apply_performance_profile(&instance_id, &tier);
+            let _ = modern_pvp::ensure_launch_defaults(&instance_id, &tier);
             let _ = modern_pvp::sync_instance_content(&app, &http, &instance_id).await;
         }
         if loader == "paraguacraft-pvp" {

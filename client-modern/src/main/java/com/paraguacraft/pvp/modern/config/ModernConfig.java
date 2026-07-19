@@ -44,6 +44,7 @@ public final class ModernConfig {
     public static boolean showCompass = true;
     public static boolean toggleSprint = true;
     public static boolean toggleSprintLegacy = true;
+    public static boolean windowedFullscreen = false;
     public static boolean pvpTrainingAutoWorld = false;
     public static int hudX = 4;
     public static int hudY = 4;
@@ -123,6 +124,7 @@ public final class ModernConfig {
             showCompass = bool(props, "showCompass", showCompass);
             toggleSprint = bool(props, "toggleSprint", toggleSprint);
             toggleSprintLegacy = bool(props, "toggleSprintLegacy", toggleSprintLegacy);
+            windowedFullscreen = bool(props, "windowedFullscreen", windowedFullscreen);
             pvpTrainingAutoWorld = bool(props, "pvpTrainingAutoWorld", pvpTrainingAutoWorld);
             hudX = intProp(props, "hudX", hudX);
             hudY = intProp(props, "hudY", hudY);
@@ -193,6 +195,7 @@ public final class ModernConfig {
         props.setProperty("showCompass", String.valueOf(showCompass));
         props.setProperty("toggleSprint", String.valueOf(toggleSprint));
         props.setProperty("toggleSprintLegacy", String.valueOf(toggleSprintLegacy));
+        props.setProperty("windowedFullscreen", String.valueOf(windowedFullscreen));
         props.setProperty("pvpTrainingAutoWorld", String.valueOf(pvpTrainingAutoWorld));
         props.setProperty("hudX", String.valueOf(hudX));
         props.setProperty("hudY", String.valueOf(hudY));

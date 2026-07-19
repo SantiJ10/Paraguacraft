@@ -247,12 +247,44 @@ pub fn apply_performance_profile(instance_id: &str, tier: &str) -> AppResult<()>
 
 /// Propiedades que lee el mod Fabric (`paraguacraft_modern.properties`).
 pub fn apply_launch_properties(instance_id: &str, tier: &str) -> AppResult<()> {
+    merge_launch_properties(instance_id, tier)
+}
+
+/// Solo añade claves faltantes; no pisa opciones del usuario.
+pub fn merge_launch_properties(instance_id: &str, tier: &str) -> AppResult<()> {
     let path = instances::instance_dir(instance_id).join("paraguacraft_modern.properties");
+    let mut props = read_properties(&path);
+    for (k, v) in default_launch_props(tier) {
+        props.entry(k).or_insert(v);
+    }
+    write_properties(&path, &props)
+}
+
+const PVP_TUNED_MARKER: &str = ".paraguacraft_pvp_tuned";
+
+/// Sync del mod sin resetear options.txt / configs del usuario.
+pub fn ensure_launch_defaults(instance_id: &str, tier: &str) -> AppResult<()> {
+    merge_launch_properties(instance_id, tier)?;
+    let dir = instances::instance_dir(instance_id);
+    let marker = dir.join(PVP_TUNED_MARKER);
+    if marker.is_file() {
+        return Ok(());
+    }
+    if dir.join("options.txt").is_file() {
+        let _ = std::fs::write(&marker, "existing");
+        return Ok(());
+    }
+    let _ = apply_performance_profile(instance_id, tier);
+    let _ = std::fs::write(&marker, tier);
+    Ok(())
+}
+
+fn default_launch_props(tier: &str) -> HashMap<String, String> {
     let mut props = HashMap::new();
     props.insert("showFps".into(), "true".into());
     props.insert("showPing".into(), "true".into());
     props.insert("showKeystrokes".into(), "true".into());
-    props.insert("showPerfBadge".into(), "true".into());
+    props.insert("showPerfBadge".into(), "false".into());
     props.insert("hardwareTier".into(), tier.into());
     props.insert("boostFps".into(), "true".into());
     props.insert("applyVanillaPreset".into(), "true".into());
@@ -261,14 +293,13 @@ pub fn apply_launch_properties(instance_id: &str, tier: &str) -> AppResult<()> {
     props.insert("reduceFpsWhenMinimized".into(), "true".into());
     props.insert("minimizedFps".into(), "5".into());
     props.insert("showCoords".into(), "false".into());
-    props.insert("showArmor".into(), "false".into());
+    props.insert("showArmor".into(), "true".into());
     props.insert("showCps".into(), "true".into());
     props.insert("toggleSprint".into(), "true".into());
     props.insert("pvpTrainingAutoWorld".into(), "false".into());
     match tier {
         "baja" => {
             props.insert("showKeystrokes".into(), "false".into());
-            props.insert("showPerfBadge".into(), "false".into());
             props.insert("particleMode".into(), "MINIMAL".into());
             props.insert("renderDistance".into(), "8".into());
             props.insert("simulationDistance".into(), "6".into());
@@ -287,7 +318,7 @@ pub fn apply_launch_properties(instance_id: &str, tier: &str) -> AppResult<()> {
             props.insert("entityDistanceScaling".into(), "0.75".into());
         }
     }
-    write_properties(&path, &props)
+    props
 }
 
 /// Perfil practica PvP: HUD de entrenamiento y mundo flat automatico.

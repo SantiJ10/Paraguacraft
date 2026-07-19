@@ -17,7 +17,9 @@
     "MixinInGameHudLowFire",
     "MixinItemEntityRenderer",
     "MixinLivingEntitySwing",
-    "MixinScreenBackground"
+    "MixinScreenBackground",
+    "MixinScreenClose",
+    "MixinWindowFullscreen"
   ],
   "injectors": {
     "defaultRequire": 1

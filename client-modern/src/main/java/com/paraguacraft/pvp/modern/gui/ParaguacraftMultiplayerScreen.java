@@ -6,7 +6,6 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.multiplayer.ConnectScreen;
 import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
-import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.network.ServerAddress;
 import net.minecraft.client.network.ServerInfo;
 import net.minecraft.text.Text;
@@ -14,14 +13,12 @@ import net.minecraft.text.Text;
 import java.util.List;
 
 /** Multijugador con servidores PvP predefinidos. */
-public class ParaguacraftMultiplayerScreen extends Screen {
+public class ParaguacraftMultiplayerScreen extends ParaguacraftScreen {
 
-    private final Screen parent;
     private List<DefaultServers.Entry> servers;
 
     public ParaguacraftMultiplayerScreen(Screen parent) {
-        super(Text.literal("Multijugador PvP"));
-        this.parent = parent;
+        super(Text.literal("Multijugador PvP"), parent);
     }
 
     @Override
@@ -34,14 +31,14 @@ public class ParaguacraftMultiplayerScreen extends Screen {
         for (int i = 0; i < servers.size(); i++) {
             DefaultServers.Entry entry = servers.get(i);
             int y = startY + i * gap;
-            addDrawableChild(ButtonWidget.builder(Text.literal(entry.name()), b ->
-                connect(entry)).dimensions(width / 2 - btnW / 2, y, btnW, btnH).build());
+            addDrawableChild(FlatMenuButton.create(width / 2 - btnW / 2, y, btnW, btnH,
+                Text.literal(entry.name()), () -> connect(entry)));
         }
         int after = startY + servers.size() * gap + 8;
-        addDrawableChild(ButtonWidget.builder(Text.literal("Lista vanilla / LAN"), b ->
-            client.setScreen(new MultiplayerScreen(parent))).dimensions(width / 2 - btnW / 2, after, btnW, btnH).build());
-        addDrawableChild(ButtonWidget.builder(Text.literal("Volver"), b ->
-            client.setScreen(parent)).dimensions(width / 2 - btnW / 2, after + gap, btnW, btnH).build());
+        addDrawableChild(FlatMenuButton.create(width / 2 - btnW / 2, after, btnW, btnH,
+            Text.literal("Lista vanilla / LAN"), () -> client.setScreen(new MultiplayerScreen(this))));
+        addDrawableChild(FlatMenuButton.create(width / 2 - btnW / 2, after + gap, btnW, btnH,
+            Text.literal("Volver"), () -> client.setScreen(parent)));
     }
 
     private void connect(DefaultServers.Entry entry) {
@@ -50,12 +47,8 @@ public class ParaguacraftMultiplayerScreen extends Screen {
     }
 
     @Override
-    public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
-        MenuBackground.draw(this, context, mouseX, mouseY, delta);
-    }
-
-    @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+        super.render(context, mouseX, mouseY, delta);
         context.drawCenteredTextWithShadow(
             textRenderer,
             Text.literal("Servidores PvP"),
@@ -63,6 +56,5 @@ public class ParaguacraftMultiplayerScreen extends Screen {
             48,
             UiTheme.accent()
         );
-        super.render(context, mouseX, mouseY, delta);
     }
 }

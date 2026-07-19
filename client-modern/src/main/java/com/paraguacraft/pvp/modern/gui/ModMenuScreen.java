@@ -6,7 +6,6 @@ import com.paraguacraft.pvp.modern.gui.theme.UiTheme;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.text.Text;
 
 import java.util.ArrayList;
@@ -15,21 +14,19 @@ import java.util.Locale;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
-/** Mod Menu estilo Lunar / Paraguacraft 1.8.9 con categorias y busqueda. */
-public class ModMenuScreen extends Screen {
+/** Mod Menu estilo Lunar / Paraguacraft 1.8.9 con categorias y tarjetas. */
+public class ModMenuScreen extends ParaguacraftScreen {
 
     private static final String[] CATEGORIES = {"Todos", "HUD", "PvP", "Mecanicas", "Rendimiento", "Hypixel"};
     private static final int SIDEBAR = 132;
     private static final int TOPBAR = 44;
 
-    private final Screen parent;
     private int selectedCategory;
     private String search = "";
     private float scroll;
 
     public ModMenuScreen(Screen parent) {
-        super(Text.literal("Paraguacraft Mods"));
-        this.parent = parent;
+        super(Text.literal("Paraguacraft Mods"), parent);
     }
 
     @Override
@@ -63,23 +60,25 @@ public class ModMenuScreen extends Screen {
         }
 
         int closeY = panelY + panelH - 26;
-        addDrawableChild(ButtonWidget.builder(Text.literal("Editar HUD"), b ->
-            client.setScreen(new GuiEditHudScreen(this))).dimensions(panelX + 12, closeY, 100, 20).build());
-        addDrawableChild(ButtonWidget.builder(Text.literal("Cerrar"), b -> goBack())
-            .dimensions(panelX + panelW - 112, closeY, 100, 20).build());
+        addDrawableChild(FlatMenuButton.create(panelX + 12, closeY, 100, 20,
+            Text.literal("Editar HUD"), () -> client.setScreen(new GuiEditHudScreen(this))));
+        addDrawableChild(FlatMenuButton.create(panelX + panelW - 112, closeY, 100, 20,
+            Text.literal("Cerrar"), this::goBack));
     }
 
     private void addCardButton(ModCard card, int x, int y, int w, int h) {
         if ("open".equals(card.action)) {
-            addDrawableChild(ButtonWidget.builder(Text.literal(card.label), b -> open(card.openTarget))
-                .dimensions(x, y, w, h).build());
+            addDrawableChild(MenuCardButton.open(x, y, w, h, card.label, () -> open(card.openTarget)));
         } else {
-            addDrawableChild(ButtonWidget.builder(Text.literal(toggleLabel(card.label, card.getter.getAsBoolean())), b -> {
+            addDrawableChild(MenuCardButton.create(x, y, w, h, card.label, card.getter.getAsBoolean(), () -> {
                 card.setter.accept(!card.getter.getAsBoolean());
                 ModernConfig.save();
+                if ("Pantalla sin bordes".equals(card.label)) {
+                    com.paraguacraft.pvp.modern.core.WindowedFullscreenManager.sync(client);
+                }
                 clearChildren();
                 init();
-            }).dimensions(x, y, w, h).build());
+            }));
         }
     }
 
@@ -130,6 +129,7 @@ public class ModMenuScreen extends Screen {
         cards.add(toggle(2, "Item physics", () -> ModernConfig.itemPhysics, v -> ModernConfig.itemPhysics = v));
         cards.add(toggle(2, "TNT countdown", () -> ModernConfig.showTntCountdown, v -> ModernConfig.showTntCountdown = v));
         cards.add(toggle(3, "Toggle sprint (W)", () -> ModernConfig.toggleSprintLegacy, v -> ModernConfig.toggleSprintLegacy = v));
+        cards.add(toggle(3, "Pantalla sin bordes", () -> ModernConfig.windowedFullscreen, v -> ModernConfig.windowedFullscreen = v));
         cards.add(toggle(3, "Fullbright", () -> ModernConfig.fullbright, v -> ModernConfig.fullbright = v));
         cards.add(toggle(3, "FOV dinamico", () -> ModernConfig.dynamicFov, v -> ModernConfig.dynamicFov = v));
         cards.add(toggle(3, "Freelook (Alt)", () -> ModernConfig.freelookEnabled, v -> ModernConfig.freelookEnabled = v));
@@ -192,41 +192,38 @@ public class ModMenuScreen extends Screen {
     }
 
     @Override
-    public boolean keyPressed(net.minecraft.client.input.KeyInput input) {
-        return super.keyPressed(input);
-    }
-
-    @Override
-    public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        ctx.fill(0, 0, width, height, 0x99000000);
+    public void renderBackground(DrawContext ctx, int mouseX, int mouseY, float delta) {
+        super.renderBackground(ctx, mouseX, mouseY, delta);
         int panelX = Math.max(8, width / 2 - 420);
         int panelY = 20;
         int panelW = Math.min(width - 16, 840);
         int panelH = height - 40;
-        ctx.fill(panelX, panelY, panelX + panelW, panelY + panelH, 0xE00A0C14);
+        ctx.fill(panelX, panelY, panelX + panelW, panelY + panelH, 0xCC0A0C14);
         ctx.fill(panelX, panelY, panelX + panelW, panelY + 1, 0x33FFFFFF);
+        ctx.fill(panelX, panelY + TOPBAR, panelX + SIDEBAR, panelY + panelH, 0xBB080A10);
+    }
 
+    @Override
+    public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
+        super.render(ctx, mouseX, mouseY, delta);
+        int panelX = Math.max(8, width / 2 - 420);
+        int panelY = 20;
         ctx.drawText(textRenderer, Text.literal("PARAGUACRAFT"), panelX + 14, panelY + 12, UiTheme.accent(), true);
         ctx.drawText(textRenderer, Text.literal("Mod Menu"), panelX + 14, panelY + 26, UiTheme.textDim(), true);
-
-        ctx.fill(panelX, panelY + TOPBAR, panelX + SIDEBAR, panelY + panelH, 0xDD080A10);
         int catY = panelY + TOPBAR + 8;
         for (int i = 0; i < CATEGORIES.length; i++) {
+            if (i == selectedCategory) {
+                ctx.fill(panelX + 6, catY + i * 22 - 2, panelX + SIDEBAR - 6, catY + i * 22 + 12, 0x4400E5FF);
+            }
             int color = i == selectedCategory ? UiTheme.accent() : UiTheme.textDim();
             ctx.drawText(textRenderer, Text.literal(CATEGORIES[i]), panelX + 14, catY + i * 22, color, true);
         }
-
         ctx.drawText(textRenderer, Text.literal("Buscar: " + search), panelX + SIDEBAR + 12, panelY + 16, UiTheme.textDim(), true);
-        super.render(ctx, mouseX, mouseY, delta);
     }
 
     private void goBack() {
         ModernConfig.save();
-        client.setScreen(parent != null ? parent : null);
-    }
-
-    private static String toggleLabel(String label, boolean on) {
-        return label + "\n" + (on ? "ON" : "OFF");
+        client.setScreen(parent != null ? parent : new CustomTitleScreen());
     }
 
     private static final class ModCard {

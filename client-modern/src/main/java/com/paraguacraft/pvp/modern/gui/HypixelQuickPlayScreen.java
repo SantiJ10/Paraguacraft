@@ -5,11 +5,10 @@ import com.paraguacraft.pvp.modern.core.QuickPlayState;
 import com.paraguacraft.pvp.modern.gui.theme.UiTheme;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.text.Text;
 
 /** Hypixel Quick Play — reconectar y elegir modo. */
-public class HypixelQuickPlayScreen extends Screen {
+public class HypixelQuickPlayScreen extends ParaguacraftScreen {
 
     private record GameEntry(String name, String command) {}
 
@@ -24,11 +23,8 @@ public class HypixelQuickPlayScreen extends Screen {
         new GameEntry("Wool Wars", "play wool_wool_wars"),
     };
 
-    private final Screen parent;
-
     public HypixelQuickPlayScreen(Screen parent) {
-        super(Text.literal("Hypixel Quick Play"));
-        this.parent = parent;
+        super(Text.literal("Hypixel Quick Play"), parent);
     }
 
     @Override
@@ -40,23 +36,23 @@ public class HypixelQuickPlayScreen extends Screen {
         int i = 0;
 
         if (QuickPlayState.hasLast()) {
-            addDrawableChild(ButtonWidget.builder(
+            addDrawableChild(FlatMenuButton.create(width / 2 - btnW / 2, startY, btnW, btnH,
                 Text.literal("Reconectar: " + QuickPlayState.lastLabel),
-                b -> QuickPlayState.reconnect(client)
-            ).dimensions(width / 2 - btnW / 2, startY, btnW, btnH).build());
+                () -> QuickPlayState.reconnect(client)));
             startY += gap;
             i++;
         }
 
         for (GameEntry game : GAMES) {
             int y = startY + i * gap;
-            addDrawableChild(ButtonWidget.builder(Text.literal(game.name()), b -> play(game)).dimensions(width / 2 - btnW / 2, y, btnW, btnH).build());
+            addDrawableChild(FlatMenuButton.create(width / 2 - btnW / 2, y, btnW, btnH,
+                Text.literal(game.name()), () -> play(game)));
             i++;
         }
 
         int after = startY + i * gap + 4;
-        addDrawableChild(ButtonWidget.builder(Text.literal("Volver"), b ->
-            client.setScreen(parent)).dimensions(width / 2 - btnW / 2, after, btnW, btnH).build());
+        addDrawableChild(FlatMenuButton.create(width / 2 - btnW / 2, after, btnW, btnH,
+            Text.literal("Volver"), () -> client.setScreen(parent)));
     }
 
     private void play(GameEntry game) {
@@ -71,17 +67,12 @@ public class HypixelQuickPlayScreen extends Screen {
     }
 
     @Override
-    public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
-        MenuBackground.draw(this, context, mouseX, mouseY, delta);
-    }
-
-    @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+        super.render(context, mouseX, mouseY, delta);
         String hint = HypixelHelper.isOnHypixel(client)
             ? "Conectado a Hypixel"
             : "Conectate a Hypixel para jugar";
         context.drawCenteredTextWithShadow(textRenderer, Text.literal("Hypixel Quick Play"), width / 2, 40, UiTheme.accent());
         context.drawCenteredTextWithShadow(textRenderer, Text.literal(hint), width / 2, 52, UiTheme.textDim());
-        super.render(context, mouseX, mouseY, delta);
     }
 }
