@@ -16,6 +16,8 @@ public final class MusicArtCache {
     private static String cachedUrl = "";
     private static Identifier textureId;
     private static NativeImageBackedTexture texture;
+    private static int texW = 64;
+    private static int texH = 64;
     private static final AtomicBoolean loading = new AtomicBoolean(false);
 
     private MusicArtCache() {}
@@ -29,49 +31,62 @@ public final class MusicArtCache {
             clearTexture();
             loading.set(false);
         }
-        return textureId;
+        if (textureId != null) {
+            return textureId;
+        }
+        if (loading.compareAndSet(false, true)) {
+            final String fetchUrl = url;
+            Thread t = new Thread(() -> download(fetchUrl), "Paraguacraft-MusicArt");
+            t.setDaemon(true);
+            t.start();
+        }
+        return null;
     }
 
-    public static void request(String url) {
-        if (url == null || url.isEmpty()) {
-            return;
-        }
-        if (!url.equals(cachedUrl)) {
-            cachedUrl = url;
-            clearTexture();
-            loading.set(false);
-        }
-        if (textureId != null || !loading.compareAndSet(false, true)) {
-            return;
-        }
-        final String fetchUrl = url;
-        Thread t = new Thread(() -> {
-            try {
-                HttpURLConnection conn = (HttpURLConnection) URI.create(fetchUrl).toURL().openConnection();
-                conn.setConnectTimeout(4000);
-                conn.setReadTimeout(6000);
-                conn.setRequestProperty("User-Agent", "ParaguacraftPvP-Modern/0.6");
-                conn.connect();
-                try (InputStream in = conn.getInputStream()) {
-                    NativeImage image = NativeImage.read(in);
-                    if (image != null) {
-                        MinecraftClient.getInstance().execute(() -> {
-                            clearTexture();
-                            texture = new NativeImageBackedTexture(() -> "paraguacraft_music_art", image);
-                            textureId = Identifier.of("paraguacraftpvp-modern", "music_art/live");
-                            MinecraftClient.getInstance().getTextureManager().registerTexture(textureId, texture);
-                            loading.set(false);
-                        });
+    public static int getTexWidth() {
+        return texW;
+    }
+
+    public static int getTexHeight() {
+        return texH;
+    }
+
+    private static void download(String fetchUrl) {
+        try {
+            HttpURLConnection conn = (HttpURLConnection) URI.create(fetchUrl).toURL().openConnection();
+            conn.setInstanceFollowRedirects(true);
+            conn.setConnectTimeout(4000);
+            conn.setReadTimeout(8000);
+            conn.setRequestProperty("User-Agent", "ParaguacraftPvP-Modern/0.6");
+            conn.setRequestProperty("Accept", "image/*,*/*");
+            conn.connect();
+            try (InputStream in = conn.getInputStream()) {
+                NativeImage image = NativeImage.read(in);
+                if (image != null) {
+                    final int w = image.getWidth();
+                    final int h = image.getHeight();
+                    MinecraftClient client = MinecraftClient.getInstance();
+                    if (client != null) {
+                        client.execute(() -> registerImage(image, w, h));
                         return;
                     }
+                    image.close();
                 }
-            } catch (Exception ignored) {
-                /* retry next poll */
             }
-            loading.set(false);
-        }, "Paraguacraft-MusicArt");
-        t.setDaemon(true);
-        t.start();
+        } catch (Exception ignored) {
+            /* retry next poll */
+        }
+        loading.set(false);
+    }
+
+    private static void registerImage(NativeImage image, int w, int h) {
+        clearTexture();
+        texW = Math.max(1, w);
+        texH = Math.max(1, h);
+        texture = new NativeImageBackedTexture(() -> "paraguacraft_music_art", image);
+        textureId = Identifier.of("paraguacraftpvp-modern", "music_art/live");
+        MinecraftClient.getInstance().getTextureManager().registerTexture(textureId, texture);
+        loading.set(false);
     }
 
     private static void clearTexture() {
@@ -83,6 +98,8 @@ public final class MusicArtCache {
         }
         textureId = null;
         texture = null;
+        texW = 64;
+        texH = 64;
     }
 
     public static void clear() {

@@ -66,7 +66,7 @@ public final class ModernConfig {
     public static int bwResY = 320;
     public static int overlayHudX = 5;
     public static int overlayHudY = 120;
-    public static int overlayHudW = 180;
+    public static int overlayHudW = 118;
     public static int musicHudAlpha = 180;
     /** Escala del panel de musica (100 = normal). */
     public static int musicHudScale = 100;

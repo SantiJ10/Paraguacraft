@@ -114,7 +114,34 @@ public final class HudRenderer {
     }
 
     public static int musicPanelWidth() {
-        return scaledMusic(ModernConfig.overlayHudW);
+        return musicPanelWidth(LauncherIpc.get(), true);
+    }
+
+    public static int musicPanelWidth(LauncherIpc.Snapshot snap, boolean preview) {
+        int minW = scaledMusic(ModernConfig.overlayHudW);
+        if (!ModernConfig.showMusicHud) {
+            return minW;
+        }
+        boolean playing = preview || (snap != null && snap.musicPlaying);
+        if (!playing) {
+            return minW;
+        }
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null) {
+            return minW;
+        }
+        TextRenderer tr = client.textRenderer;
+        String title = preview ? "Vista previa" : snap.musicTitle;
+        if (title == null || title.isEmpty()) {
+            title = "Reproduciendo";
+        }
+        int textW = tr.getWidth(clampMusicText(title, 22)) + scaledMusic(12);
+        boolean showArt = ModernConfig.showMusicAlbumArt
+            && (preview || (snap.musicImageUrl != null && !snap.musicImageUrl.isEmpty()));
+        if (showArt) {
+            textW += musicArtSize() + scaledMusic(6);
+        }
+        return Math.max(minW, textW);
     }
 
     public static int musicPanelHeight(LauncherIpc.Snapshot snap, boolean preview) {
@@ -412,50 +439,82 @@ public final class HudRenderer {
         String artist = playing ? snap.musicArtist : "Spotify / YouTube";
         String imageUrl = playing ? snap.musicImageUrl : "";
 
-        if (ModernConfig.showMusicAlbumArt && !imageUrl.isEmpty()) {
-            MusicArtCache.request(imageUrl);
-        }
-
         int x = ModernConfig.overlayHudX;
         int y = ModernConfig.overlayHudY;
-        int w = musicPanelWidth();
+        int w = musicPanelWidth(snap, preview);
         int alpha = Math.max(0, Math.min(255, ModernConfig.musicHudAlpha));
         int panelH = musicPanelHeight(snap, preview);
         if (alpha > 0) {
-            int bg = (alpha << 24) | 0x101018;
+            int bg = (alpha << 24) | 0x0A0C14;
             ctx.fill(x, y, x + w, y + panelH, bg);
         }
+        ctx.fill(x, y, x + w, y + 1, 0x4400E5FF);
 
+        int pad = scaledMusic(6);
         int artSize = musicArtSize();
-        int textX = x + scaledMusic(4);
-        int textY = y + scaledMusic(4);
-        if (ModernConfig.showMusicAlbumArt && playing && !imageUrl.isEmpty()) {
+        int textX = x + pad;
+        int textY = y + pad;
+        if (ModernConfig.showMusicAlbumArt && playing && imageUrl != null && !imageUrl.isEmpty()) {
             Identifier art = MusicArtCache.get(imageUrl);
             if (art != null) {
-                ctx.drawTexture(RenderPipelines.GUI_TEXTURED, art, x + scaledMusic(4), y + scaledMusic(4), 0f, 0f, artSize, artSize, artSize, artSize);
-                textX = x + scaledMusic(4) + artSize + scaledMusic(4);
+                int artX = x + pad;
+                int artY = y + pad;
+                ctx.drawTexture(
+                    RenderPipelines.GUI_TEXTURED,
+                    art,
+                    artX,
+                    artY,
+                    0f,
+                    0f,
+                    artSize,
+                    artSize,
+                    MusicArtCache.getTexWidth(),
+                    MusicArtCache.getTexHeight()
+                );
+                textX = artX + artSize + scaledMusic(4);
             }
         } else if (ModernConfig.showMusicAlbumArt && preview) {
-            ctx.fill(x + scaledMusic(4), y + scaledMusic(4), x + scaledMusic(4) + artSize, y + scaledMusic(4) + artSize, 0xFF202030);
-            ctx.drawText(tr, Text.literal("♪"), x + scaledMusic(4) + artSize / 2 - 3, y + scaledMusic(4) + artSize / 2 - 4, UiTheme.accent(), false);
-            textX = x + scaledMusic(4) + artSize + scaledMusic(4);
+            ctx.fill(x + pad, y + pad, x + pad + artSize, y + pad + artSize, 0xFF202030);
+            ctx.drawText(tr, Text.literal("♪"), x + pad + artSize / 2 - 3, y + pad + artSize / 2 - 4, UiTheme.accent(), false);
+            textX = x + pad + artSize + scaledMusic(4);
         }
 
-        if (title.isEmpty()) {
+        if (title == null || title.isEmpty()) {
             title = "Reproduciendo";
         }
-        if (artist.isEmpty()) {
+        if (artist == null || artist.isEmpty()) {
             artist = "Spotify / YouTube";
         }
-        int maxTitle = Math.max(12, w / (Math.max(1, ModernConfig.musicHudScale / 100) * 6));
-        if (title.length() > maxTitle) {
-            title = title.substring(0, maxTitle - 1) + "…";
+        int innerMax = (x + w) - textX - pad;
+        title = clampToWidth(title, innerMax, tr);
+        artist = clampToWidth(artist, innerMax, tr);
+        ctx.drawText(tr, Text.literal(title), textX, textY, UiTheme.accent(), true);
+        ctx.drawText(tr, Text.literal(artist), textX, textY + scaledMusic(11), UiTheme.textDim(), true);
+    }
+
+    private static String clampMusicText(String text, int maxChars) {
+        if (text == null) {
+            return "";
         }
-        if (artist.length() > maxTitle + 4) {
-            artist = artist.substring(0, maxTitle + 2) + "…";
+        if (text.length() <= maxChars) {
+            return text;
         }
-        ctx.drawText(tr, Text.literal(title), textX, textY, UiTheme.TEXT, true);
-        ctx.drawText(tr, Text.literal(artist), textX, textY + scaledMusic(12), UiTheme.textDim(), true);
+        return text.substring(0, Math.max(1, maxChars - 1)) + "…";
+    }
+
+    private static String clampToWidth(String text, int maxPx, TextRenderer tr) {
+        if (text == null || text.isEmpty() || maxPx <= 0) {
+            return text == null ? "" : text;
+        }
+        if (tr.getWidth(text) <= maxPx) {
+            return text;
+        }
+        String ell = "…";
+        int end = text.length();
+        while (end > 1 && tr.getWidth(text.substring(0, end) + ell) > maxPx) {
+            end--;
+        }
+        return text.substring(0, end) + ell;
     }
 
     private static int resolvePing(MinecraftClient client) {
