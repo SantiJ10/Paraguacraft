@@ -229,7 +229,7 @@ pub fn resolve_llm_config() -> Option<LlmConfig> {
             provider: "groq",
             api_key: key,
             chat_url: "https://api.groq.com/openai/v1/chat/completions",
-            model: "llama-3.3-70b-versatile",
+            model: "openai/gpt-oss-120b",
         });
     }
     openai_api_key().map(|key| LlmConfig {

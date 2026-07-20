@@ -1,6 +1,8 @@
 package com.paraguacraft.pvp.modern.core;
 
 import java.util.Properties;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 /** Preset de rendimiento PvP modern (fase 4). El launcher escribe flags en `paraguacraft_modern.properties`. */
 public final class PerformanceConfig {
@@ -39,7 +41,14 @@ public final class PerformanceConfig {
     private PerformanceConfig() {}
 
     public static void loadFromProperties(Properties props) {
-        boostFps = Boolean.parseBoolean(props.getProperty("boostFps", "true"));
+        loadTierFromProperties(props);
+    }
+
+    /** Solo distancias/partículas del launcher; boostFps vive en paraguacraftpvp-modern.properties. */
+    public static void loadTierFromProperties(Properties props) {
+        if (props.containsKey("boostFps") && !userConfigHasBoostFps()) {
+            boostFps = Boolean.parseBoolean(props.getProperty("boostFps", "true"));
+        }
         applyVanillaPreset = Boolean.parseBoolean(props.getProperty("applyVanillaPreset", "true"));
         memoryCleanupOnWorldChange = Boolean.parseBoolean(props.getProperty("memoryCleanup", "true"));
         skipCombatFx = Boolean.parseBoolean(props.getProperty("skipCombatFx", "true"));
@@ -55,6 +64,25 @@ public final class PerformanceConfig {
             entityDistanceScaling
         );
         oldAnimations = Boolean.parseBoolean(props.getProperty("oldAnimations", "false"));
+    }
+
+    private static boolean userConfigHasBoostFps() {
+        Path path = net.fabricmc.loader.api.FabricLoader.getInstance()
+            .getGameDir()
+            .resolve("config")
+            .resolve("paraguacraftpvp-modern.properties");
+        if (!Files.isRegularFile(path)) {
+            return false;
+        }
+        try {
+            Properties p = new Properties();
+            try (var in = Files.newInputStream(path)) {
+                p.load(in);
+            }
+            return p.containsKey("boostFps");
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private static int parseInt(String value, int fallback) {

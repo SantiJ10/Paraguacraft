@@ -35,13 +35,13 @@ fn default_servers() -> Vec<ServerEntry> {
             description: "EggWars · SkyWars".into(),
         },
         ServerEntry {
-            name: "LibreCraft".into(),
-            address: "librecraft.gg".into(),
+            name: "Regorland".into(),
+            address: "regorland.net".into(),
             description: "Survival · PvP latino".into(),
         },
         ServerEntry {
             name: "Hylex".into(),
-            address: "hylex.net".into(),
+            address: "original.hylex.net".into(),
             description: "Minijuegos competitivos".into(),
         },
         ServerEntry {

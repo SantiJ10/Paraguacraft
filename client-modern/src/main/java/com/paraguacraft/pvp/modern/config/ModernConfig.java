@@ -1,5 +1,6 @@
 package com.paraguacraft.pvp.modern.config;
 
+import com.paraguacraft.pvp.modern.core.PerformanceConfig;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.IOException;
@@ -42,8 +43,15 @@ public final class ModernConfig {
     public static boolean chatTriggers = true;
     public static boolean freelookEnabled = true;
     public static boolean showCompass = true;
-    public static boolean toggleSprint = true;
-    public static boolean toggleSprintLegacy = true;
+    public static boolean showHardwareHud = true;
+    public static boolean reachDisplay = true;
+    /** 0=vanilla, 1=cruz, 2=gap, 3=punto, 4=icono */
+    public static int crosshairMode = 0;
+    public static int reachDisplayX = 5;
+    public static int reachDisplayY = 58;
+    public static String selectedResourcePack = "";
+    public static boolean toggleSprint = false;
+    public static boolean toggleSprintLegacy = false;
     public static boolean windowedFullscreen = false;
     public static boolean pvpTrainingAutoWorld = false;
     public static int hudX = 4;
@@ -116,6 +124,20 @@ public final class ModernConfig {
         return musicHudScale + "%";
     }
 
+    public static void cycleCrosshairMode() {
+        crosshairMode = (crosshairMode + 1) % 5;
+    }
+
+    public static String crosshairModeLabel() {
+        return switch (crosshairMode) {
+            case 1 -> "Cruz";
+            case 2 -> "Gap";
+            case 3 -> "Punto";
+            case 4 -> "Icono";
+            default -> "Vanilla";
+        };
+    }
+
     private ModernConfig() {}
 
     private static Path configPath() {
@@ -162,6 +184,15 @@ public final class ModernConfig {
             chatTriggers = bool(props, "chatTriggers", chatTriggers);
             freelookEnabled = bool(props, "freelookEnabled", freelookEnabled);
             showCompass = bool(props, "showCompass", showCompass);
+            showHardwareHud = bool(props, "showHardwareHud", showHardwareHud);
+            reachDisplay = bool(props, "reachDisplay", reachDisplay);
+            crosshairMode = intProp(props, "crosshairMode", crosshairMode);
+            reachDisplayX = intProp(props, "reachDisplayX", reachDisplayX);
+            reachDisplayY = intProp(props, "reachDisplayY", reachDisplayY);
+            selectedResourcePack = props.getProperty("selectedResourcePack", selectedResourcePack);
+            if (selectedResourcePack == null) {
+                selectedResourcePack = "";
+            }
             toggleSprint = bool(props, "toggleSprint", toggleSprint);
             toggleSprintLegacy = bool(props, "toggleSprintLegacy", toggleSprintLegacy);
             windowedFullscreen = bool(props, "windowedFullscreen", windowedFullscreen);
@@ -195,8 +226,8 @@ public final class ModernConfig {
             }
             musicHudAlpha = intProp(props, "musicHudAlpha", musicHudAlpha);
             musicHudScale = intProp(props, "musicHudScale", musicHudScale);
-            coordsX = intProp(props, "coordsX", hudX);
-            coordsY = intProp(props, "coordsY", hudY + 40);
+            coordsX = intProp(props, "coordsX", coordsX);
+            coordsY = intProp(props, "coordsY", coordsY);
             comboX = intProp(props, "comboX", comboX);
             comboY = intProp(props, "comboY", comboY);
             potionX = intProp(props, "potionX", potionX);
@@ -204,6 +235,9 @@ public final class ModernConfig {
             compassY = intProp(props, "compassY", compassY);
             menuTheme = props.getProperty("menuTheme", menuTheme);
             customSkinUrl = props.getProperty("customSkinUrl", customSkinUrl);
+            if (props.containsKey("boostFps")) {
+                PerformanceConfig.boostFps = bool(props, "boostFps", PerformanceConfig.boostFps);
+            }
         } catch (IOException ignored) {
         }
     }
@@ -242,6 +276,13 @@ public final class ModernConfig {
         props.setProperty("chatTriggers", String.valueOf(chatTriggers));
         props.setProperty("freelookEnabled", String.valueOf(freelookEnabled));
         props.setProperty("showCompass", String.valueOf(showCompass));
+        props.setProperty("showHardwareHud", String.valueOf(showHardwareHud));
+        props.setProperty("reachDisplay", String.valueOf(reachDisplay));
+        props.setProperty("crosshairMode", String.valueOf(crosshairMode));
+        props.setProperty("reachDisplayX", String.valueOf(reachDisplayX));
+        props.setProperty("reachDisplayY", String.valueOf(reachDisplayY));
+        props.setProperty("selectedResourcePack", selectedResourcePack == null ? "" : selectedResourcePack);
+        props.setProperty("boostFps", String.valueOf(PerformanceConfig.boostFps));
         props.setProperty("toggleSprint", String.valueOf(toggleSprint));
         props.setProperty("toggleSprintLegacy", String.valueOf(toggleSprintLegacy));
         props.setProperty("windowedFullscreen", String.valueOf(windowedFullscreen));

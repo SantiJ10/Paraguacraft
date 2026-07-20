@@ -47,8 +47,8 @@ public final class DefaultServers {
         return List.of(
             new Entry("Hypixel", "mc.hypixel.net", "BedWars · SkyWars"),
             new Entry("CubeCraft", "m.cubecraft.net", "EggWars · SkyWars"),
-            new Entry("LibreCraft", "librecraft.gg", "Survival · PvP"),
-            new Entry("Hylex", "hylex.net", "Minijuegos"),
+            new Entry("Regorland", "regorland.net", "Survival · PvP"),
+            new Entry("Hylex", "original.hylex.net", "Minijuegos"),
             new Entry("MineLatino", "play.minelatino.net", "Comunidad latina")
         );
     }

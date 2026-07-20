@@ -192,6 +192,8 @@ pub async fn analyze_prompt_async(state: &AppState, req: &AiRequest) -> AppResul
     let models: Vec<&str> = if llm.provider == "groq" {
         vec![
             llm.model,
+            "openai/gpt-oss-120b",
+            "openai/gpt-oss-20b",
             "llama-3.3-70b-versatile",
             "llama-3.1-8b-instant",
         ]

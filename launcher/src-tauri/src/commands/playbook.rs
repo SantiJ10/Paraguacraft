@@ -62,7 +62,7 @@ pub async fn launch_game_profile(
             modern_pvp::apply_hardware_profile(&id)?;
             let tier = hardware::detect().perfil_sugerido;
             let _ = modern_pvp::apply_launch_properties(&id, &tier)?;
-            let _ = modern_pvp::apply_performance_profile(&id, &tier)?;
+            let _ = modern_pvp::ensure_launch_defaults(&id, &tier)?;
             if dest == "training" {
                 let _ = modern_pvp::apply_training_profile(&id, &tier, true)?;
             }

@@ -18,7 +18,7 @@ import net.minecraft.client.MinecraftClient;
 public class ParaguacraftPvPModern implements ClientModInitializer {
 
     public static final String MOD_ID = "paraguacraftpvp-modern";
-    public static final String VERSION = "0.6.8";
+    public static final String VERSION = "0.6.9";
 
     @Override
     public void onInitializeClient() {
@@ -32,10 +32,14 @@ public class ParaguacraftPvPModern implements ClientModInitializer {
         HudCpsTracker.register();
         HudRenderer.register();
         ModKeybinds.register();
-        ClientLifecycleEvents.CLIENT_STARTED.register(client -> applyClientOptions(client));
+        ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
+            applyClientOptions(client);
+            com.paraguacraft.pvp.modern.resourcepack.ResourcePackService.restoreSavedPack();
+        });
+        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> ModernConfig.save());
     }
 
     private static void applyClientOptions(MinecraftClient client) {
-        client.options.getSprintToggled().setValue(ModernConfig.toggleSprint);
+        client.options.getSprintToggled().setValue(false);
     }
 }
