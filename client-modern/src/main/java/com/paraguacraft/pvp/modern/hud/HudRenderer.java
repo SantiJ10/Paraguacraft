@@ -107,8 +107,11 @@ public final class HudRenderer {
         if (ModernConfig.showBedwarsResources) {
             drawBedwarsResources(context, client.textRenderer, client);
         }
-        if (ModernConfig.showMusicHud || ModernConfig.showHardwareHud) {
-            drawLauncherOverlay(context, client.textRenderer, client, previewMusic);
+        if (ModernConfig.showHardwareHud) {
+            drawHardwareOverlay(context, client.textRenderer, client);
+        }
+        if (ModernConfig.showMusicHud) {
+            drawMusicOverlay(context, client.textRenderer, client, previewMusic);
         }
         if (ModernConfig.reachDisplay && CombatStats.lastReach > 0.0) {
             drawLabeled(
@@ -150,25 +153,39 @@ public final class HudRenderer {
         return lines;
     }
 
-    public static int musicPanelWidth(LauncherIpc.Snapshot snap, boolean preview) {
-        if (!ModernConfig.showMusicHud && !ModernConfig.showHardwareHud) {
-            return scaledMusic(80);
+    public static int hardwarePanelWidth(LauncherIpc.Snapshot snap) {
+        if (!ModernConfig.showHardwareHud || snap == null || !snap.valid) {
+            return scaledMusic(72);
         }
-        int w = scaledMusic(72);
         MinecraftClient client = MinecraftClient.getInstance();
         TextRenderer tr = client != null ? client.textRenderer : null;
-        if (ModernConfig.showHardwareHud && snap != null && snap.valid && tr != null) {
+        int w = scaledMusic(72);
+        if (tr != null) {
             w = Math.max(w, tr.getWidth("TEMP 999 C") + scaledMusic(12));
         }
+        return w;
+    }
+
+    public static int hardwarePanelHeight(LauncherIpc.Snapshot snap) {
+        int lines = hardwareLineCount(snap);
+        if (lines <= 0) {
+            return 0;
+        }
+        return scaledMusic(8) + lines * scaledMusic(11) + scaledMusic(4);
+    }
+
+    public static int musicPanelWidth(LauncherIpc.Snapshot snap, boolean preview) {
         if (!ModernConfig.showMusicHud) {
-            return w;
+            return scaledMusic(80);
         }
         boolean playing = preview || (snap != null && snap.musicPlaying);
         if (!playing) {
-            return w;
+            return scaledMusic(80);
         }
+        MinecraftClient client = MinecraftClient.getInstance();
+        TextRenderer tr = client != null ? client.textRenderer : null;
         if (client == null || tr == null) {
-            return w;
+            return scaledMusic(80);
         }
         String title = preview ? "Vista previa" : snap.musicTitle;
         String artist = preview ? "Spotify / YouTube" : snap.musicArtist;
@@ -193,30 +210,21 @@ public final class HudRenderer {
         if (showArt) {
             textW += musicArtSize() + scaledMusic(4);
         }
-        int hwW = w;
-        return Math.max(hwW, textW);
+        return textW;
     }
 
     public static int musicPanelHeight(LauncherIpc.Snapshot snap, boolean preview) {
-        int h = 0;
-        int hwLines = hardwareLineCount(snap);
-        if (hwLines > 0) {
-            h += scaledMusic(8) + hwLines * scaledMusic(11);
-        }
         if (!ModernConfig.showMusicHud) {
-            return Math.max(scaledMusic(24), h + scaledMusic(4));
+            return 0;
         }
         boolean playing = preview || (snap != null && snap.musicPlaying);
         if (!playing) {
-            return Math.max(scaledMusic(24), h + scaledMusic(4));
+            return scaledMusic(24);
         }
         int art = musicArtSize();
         int musicH = scaledMusic(28);
         if (ModernConfig.showMusicAlbumArt && (preview || (snap != null && !snap.musicImageUrl.isEmpty()))) {
             musicH = Math.max(musicH, scaledMusic(8) + art + scaledMusic(4));
-        }
-        if (h > 0) {
-            return h + musicH;
         }
         return musicH;
     }
@@ -498,56 +506,69 @@ public final class HudRenderer {
         ctx.drawText(tr, Text.literal(label), ModernConfig.hudX, ModernConfig.hudY + 52, 0xFFFF5555, true);
     }
 
-    private static void drawLauncherOverlay(DrawContext ctx, TextRenderer tr, MinecraftClient client, boolean preview) {
+    private static void drawHardwareOverlay(DrawContext ctx, TextRenderer tr, MinecraftClient client) {
         LauncherIpc.Snapshot snap = LauncherIpc.get();
-        boolean showHw = ModernConfig.showHardwareHud && snap.valid;
-        boolean showMusic = ModernConfig.showMusicHud && (preview || snap.musicPlaying);
-        if (!showHw && !showMusic) {
+        if (!ModernConfig.showHardwareHud || snap == null || !snap.valid) {
             return;
         }
-
-        int x = ModernConfig.overlayHudX;
-        int y = ModernConfig.overlayHudY;
-        int w = musicPanelWidth(snap, preview);
-        int alpha = overlayBgAlpha(snap, preview);
-        int panelH = musicPanelHeight(snap, preview);
+        int x = ModernConfig.hardwareHudX;
+        int y = ModernConfig.hardwareHudY;
+        int w = hardwarePanelWidth(snap);
+        int panelH = hardwarePanelHeight(snap);
+        if (panelH <= 0) {
+            return;
+        }
+        int alpha = 0x99;
         if (alpha > 0) {
-            int bg = (alpha << 24) | 0x0A0C14;
-            ctx.fill(x, y, x + w, y + panelH, bg);
+            ctx.fill(x, y, x + w, y + panelH, (alpha << 24) | 0x0A0C14);
         }
         ctx.fill(x, y, x + w, y + 1, 0x4400E5FF);
 
         int ty = y + scaledMusic(6);
-        if (showHw) {
-            drawMetric(tr, ctx, "CPU ", fmtPct(snap.cpuPct), x + scaledMusic(6), ty);
-            ty += scaledMusic(11);
-            drawMetric(tr, ctx, "RAM ", fmtPct(snap.ramPct), x + scaledMusic(6), ty);
-            ty += scaledMusic(11);
-            drawMetric(tr, ctx, "GPU ", fmtPct(snap.gpuPct), x + scaledMusic(6), ty);
-            ty += scaledMusic(11);
-            if (snap.tempC >= 0f) {
-                drawMetric(tr, ctx, "TEMP ", String.format("%.0f C", snap.tempC), x + scaledMusic(6), ty);
-                ty += scaledMusic(11);
-            }
+        drawMetric(tr, ctx, "CPU ", fmtPct(snap.cpuPct), x + scaledMusic(6), ty);
+        ty += scaledMusic(11);
+        drawMetric(tr, ctx, "RAM ", fmtPct(snap.ramPct), x + scaledMusic(6), ty);
+        ty += scaledMusic(11);
+        drawMetric(tr, ctx, "GPU ", fmtPct(snap.gpuPct), x + scaledMusic(6), ty);
+        ty += scaledMusic(11);
+        if (snap.tempC >= 0f) {
+            drawMetric(tr, ctx, "TEMP ", String.format("%.0f C", snap.tempC), x + scaledMusic(6), ty);
         }
+    }
 
+    private static void drawMusicOverlay(DrawContext ctx, TextRenderer tr, MinecraftClient client, boolean preview) {
+        if (!ModernConfig.showMusicHud) {
+            return;
+        }
+        LauncherIpc.Snapshot snap = LauncherIpc.get();
+        boolean showMusic = preview || (snap != null && snap.musicPlaying);
         if (!showMusic) {
             return;
         }
 
-        String title = snap.musicPlaying ? snap.musicTitle : "Vista previa";
-        String artist = snap.musicPlaying ? snap.musicArtist : "Spotify / YouTube";
-        String imageUrl = snap.musicPlaying ? snap.musicImageUrl : "";
+        int x = ModernConfig.musicHudX;
+        int y = ModernConfig.musicHudY;
+        int w = musicPanelWidth(snap, preview);
+        int panelH = musicPanelHeight(snap, preview);
+        int alpha = overlayBgAlpha(snap, preview);
+        if (alpha > 0) {
+            ctx.fill(x, y, x + w, y + panelH, (alpha << 24) | 0x0A0C14);
+        }
+        ctx.fill(x, y, x + w, y + 1, 0x4400E5FF);
+
+        String title = snap != null && snap.musicPlaying ? snap.musicTitle : "Vista previa";
+        String artist = snap != null && snap.musicPlaying ? snap.musicArtist : "Spotify / YouTube";
+        String imageUrl = snap != null && snap.musicPlaying ? snap.musicImageUrl : "";
 
         int pad = scaledMusic(6);
         int artSize = musicArtSize();
         int textX = x + pad;
-        int textY = ty;
+        int textY = y + scaledMusic(6);
         boolean wantsArt = ModernConfig.showMusicAlbumArt
             && (preview || (imageUrl != null && !imageUrl.isEmpty()));
         if (wantsArt) {
             int artX = x + pad;
-            int artY = ty;
+            int artY = y + scaledMusic(6);
             Identifier art = preview ? null : MusicArtCache.get(imageUrl);
             if (art != null) {
                 ctx.drawTexture(
@@ -586,6 +607,7 @@ public final class HudRenderer {
         ctx.drawText(tr, Text.literal(artist), textX, textY + scaledMusic(11), ARTIST_COLOR, true);
     }
 
+
     private static void drawMetric(TextRenderer tr, DrawContext ctx, String label, String value, int x, int y) {
         ctx.drawText(tr, Text.literal(label), x, y, UiTheme.accent(), true);
         ctx.drawText(tr, Text.literal(value), x + tr.getWidth(label), y, METRIC_VALUE, true);
@@ -598,9 +620,6 @@ public final class HudRenderer {
         return String.format("%.0f%%", Math.min(100f, v));
     }
 
-    private static void drawMusicOverlay(DrawContext ctx, TextRenderer tr, MinecraftClient client, boolean preview) {
-        drawLauncherOverlay(ctx, tr, client, preview);
-    }
 
     private static String clampMusicText(String text, int maxChars) {
         if (text == null) {

@@ -54,7 +54,7 @@ public final class ModernConfig {
     public static String nickFinderQuery = "";
     public static boolean coloredBeds = true;
     public static boolean teamColors = true;
-    public static boolean toggleSprint = false;
+    public static boolean toggleSprint = true;
     public static boolean toggleSprintLegacy = false;
     public static boolean windowedFullscreen = false;
     public static boolean pvpTrainingAutoWorld = false;
@@ -78,6 +78,10 @@ public final class ModernConfig {
     public static int bwResY = 320;
     public static int overlayHudX = 5;
     public static int overlayHudY = 260;
+    public static int hardwareHudX = 5;
+    public static int hardwareHudY = 260;
+    public static int musicHudX = 5;
+    public static int musicHudY = 308;
     public static int overlayHudW = 118;
     public static int musicHudAlpha = 255;
     /** Escala del panel de musica (100 = normal). */
@@ -231,6 +235,10 @@ public final class ModernConfig {
             bwResY = intProp(props, "bwResY", bwResY);
             overlayHudX = intProp(props, "overlayHudX", overlayHudX);
             overlayHudY = intProp(props, "overlayHudY", overlayHudY);
+            hardwareHudX = intProp(props, "hardwareHudX", overlayHudX);
+            hardwareHudY = intProp(props, "hardwareHudY", overlayHudY);
+            musicHudX = intProp(props, "musicHudX", overlayHudX);
+            musicHudY = intProp(props, "musicHudY", overlayHudY + 48);
             overlayHudW = intProp(props, "overlayHudW", overlayHudW);
             if (overlayHudW > 140) {
                 overlayHudW = 118;
@@ -322,6 +330,10 @@ public final class ModernConfig {
         props.setProperty("bwResY", String.valueOf(bwResY));
         props.setProperty("overlayHudX", String.valueOf(overlayHudX));
         props.setProperty("overlayHudY", String.valueOf(overlayHudY));
+        props.setProperty("hardwareHudX", String.valueOf(hardwareHudX));
+        props.setProperty("hardwareHudY", String.valueOf(hardwareHudY));
+        props.setProperty("musicHudX", String.valueOf(musicHudX));
+        props.setProperty("musicHudY", String.valueOf(musicHudY));
         props.setProperty("overlayHudW", String.valueOf(overlayHudW));
         props.setProperty("musicHudAlpha", String.valueOf(musicHudAlpha));
         props.setProperty("musicHudScale", String.valueOf(musicHudScale));

@@ -139,7 +139,8 @@ public class ModMenuScreen extends ParaguacraftScreen {
         cards.add(toggle(2, "Item physics", () -> ModernConfig.itemPhysics, v -> ModernConfig.itemPhysics = v));
         cards.add(toggle(2, "TNT countdown", () -> ModernConfig.showTntCountdown, v -> ModernConfig.showTntCountdown = v));
         cards.add(toggle(2, "Reach display", () -> ModernConfig.reachDisplay, v -> ModernConfig.reachDisplay = v));
-        cards.add(toggle(3, "Toggle sprint (W)", () -> ModernConfig.toggleSprintLegacy, v -> ModernConfig.toggleSprintLegacy = v));
+        cards.add(toggle(3, "Toggle sprint (M)", () -> ModernConfig.toggleSprint, v -> ModernConfig.toggleSprint = v));
+        cards.add(toggle(3, "Auto sprint (W)", () -> ModernConfig.toggleSprintLegacy, v -> ModernConfig.toggleSprintLegacy = v));
         cards.add(toggle(3, "Pantalla sin bordes", () -> ModernConfig.windowedFullscreen, v -> ModernConfig.windowedFullscreen = v));
         cards.add(toggle(3, "Fullbright", () -> ModernConfig.fullbright, v -> ModernConfig.fullbright = v));
         cards.add(toggle(3, "FOV dinamico", () -> ModernConfig.dynamicFov, v -> ModernConfig.dynamicFov = v));

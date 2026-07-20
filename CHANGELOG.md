@@ -3,6 +3,14 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## Cliente PvP Modern 0.6.14 - 2026-07-20
+
+### Changed
+- HUD **Hardware** y **Musica** con posiciones independientes (arrastrables por separado en editar HUD).
+- Caratula Spotify: textura 64x64, conversion ARGB corregida y reintentos con cooldown.
+- **Freelook** usa swap de rotacion en `Camera.update` como 1.8.9 (sin camara desacoplada).
+- **Toggle sprint (M)**: tecla virtual al inicio del tick estilo Lunar; ON por defecto.
+
 ## Cliente PvP Modern 0.6.13 - 2026-07-19
 
 ### Fixed
