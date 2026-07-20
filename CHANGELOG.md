@@ -3,6 +3,21 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## Cliente PvP Modern 0.6.9 - 2026-07-19
+
+### Added
+- **Hardware HUD** y **Reach display** portados de 1.8.9.
+- **Crosshair custom** (5 modos) en Mod Menu.
+- Persistencia de **texture pack** seleccionado y **Boost FPS** entre sesiones.
+
+### Fixed
+- **Freelook**: camara en 3ª persona con mixin en `Camera.update`.
+- **Toggle sprint** desactivado por defecto (sin simular tecla virtual).
+- **Caratula musica**: conversion ARGB correcta y panel compacto con hardware arriba.
+- **Paraguabot Groq**: modelos `openai/gpt-oss-*` como fallback.
+- Servidores **Regorland** (`regorland.net`) y **Hylex** (`original.hylex.net`).
+- Launcher ya no resetea `options.txt` ni toggles HUD en cada inicio.
+
 ## [7.7.5] - 2026-07-19
 
 ### Added

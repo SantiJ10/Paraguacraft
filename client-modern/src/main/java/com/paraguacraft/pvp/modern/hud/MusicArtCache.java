@@ -6,6 +6,8 @@ import net.minecraft.client.texture.NativeImageBackedTexture;
 import net.minecraft.util.Identifier;
 
 import javax.imageio.ImageIO;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -17,11 +19,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /** Descarga y cachea la caratula de Spotify/YouTube para el HUD de musica. */
 public final class MusicArtCache {
 
+    private static final int ART_PX = 64;
+
     private static String cachedUrl = "";
     private static Identifier textureId;
     private static NativeImageBackedTexture texture;
-    private static int texW = 64;
-    private static int texH = 64;
+    private static int texW = ART_PX;
+    private static int texH = ART_PX;
     private static final AtomicBoolean loading = new AtomicBoolean(false);
 
     private MusicArtCache() {}
@@ -73,7 +77,7 @@ public final class MusicArtCache {
                 loading.set(false);
                 return;
             }
-            NativeImage image = readImage(bytes);
+            NativeImage image = decodeImage(bytes);
             if (image != null) {
                 final int w = image.getWidth();
                 final int h = image.getHeight();
@@ -90,30 +94,63 @@ public final class MusicArtCache {
         loading.set(false);
     }
 
-    private static NativeImage readImage(byte[] bytes) {
-        try {
-            NativeImage image = NativeImage.read(new ByteArrayInputStream(bytes));
-            if (image != null) {
-                return image;
-            }
-        } catch (Exception ignored) {
-            /* fallback ImageIO */
-        }
-        try {
-            BufferedImage buffered = ImageIO.read(new ByteArrayInputStream(bytes));
-            if (buffered == null) {
+    private static NativeImage decodeImage(byte[] bytes) throws Exception {
+        BufferedImage src = ImageIO.read(new ByteArrayInputStream(bytes));
+        if (src == null) {
+            NativeImage direct = NativeImage.read(new ByteArrayInputStream(bytes));
+            if (direct == null) {
                 return null;
             }
-            NativeImage image = new NativeImage(buffered.getWidth(), buffered.getHeight(), false);
-            for (int y = 0; y < buffered.getHeight(); y++) {
-                for (int x = 0; x < buffered.getWidth(); x++) {
-                    image.setColorArgb(x, y, buffered.getRGB(x, y));
-                }
-            }
-            return image;
-        } catch (Exception ignored) {
-            return null;
+            return resizeToArt(direct);
         }
+        BufferedImage scaled = new BufferedImage(ART_PX, ART_PX, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = scaled.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g.drawImage(src, 0, 0, ART_PX, ART_PX, null);
+        g.dispose();
+        NativeImage out = new NativeImage(ART_PX, ART_PX, false);
+        for (int y = 0; y < ART_PX; y++) {
+            for (int x = 0; x < ART_PX; x++) {
+                out.setColorArgb(x, y, toAbgr(scaled.getRGB(x, y)));
+            }
+        }
+        return out;
+    }
+
+    private static NativeImage resizeToArt(NativeImage src) {
+        int w = src.getWidth();
+        int h = src.getHeight();
+        if (w == ART_PX && h == ART_PX) {
+            return src;
+        }
+        NativeImage out = new NativeImage(ART_PX, ART_PX, false);
+        for (int y = 0; y < ART_PX; y++) {
+            for (int x = 0; x < ART_PX; x++) {
+                int sx = x * w / ART_PX;
+                int sy = y * h / ART_PX;
+                out.setColorArgb(x, y, toAbgrFromNative(src.getColorArgb(sx, sy)));
+            }
+        }
+        src.close();
+        return out;
+    }
+
+    /** BufferedImage ARGB -> NativeImage ABGR. */
+    private static int toAbgr(int argb) {
+        int a = (argb >> 24) & 0xFF;
+        int r = (argb >> 16) & 0xFF;
+        int g = (argb >> 8) & 0xFF;
+        int b = argb & 0xFF;
+        return (a << 24) | (b << 16) | (g << 8) | r;
+    }
+
+    /** NativeImage.read devuelve ABGR en getColorArgb; reempaquetar por si acaso. */
+    private static int toAbgrFromNative(int abgr) {
+        int a = (abgr >> 24) & 0xFF;
+        int b = (abgr >> 16) & 0xFF;
+        int g = (abgr >> 8) & 0xFF;
+        int r = abgr & 0xFF;
+        return (a << 24) | (b << 16) | (g << 8) | r;
     }
 
     private static void registerImage(NativeImage image, int w, int h) {
@@ -135,8 +172,8 @@ public final class MusicArtCache {
         }
         textureId = null;
         texture = null;
-        texW = 64;
-        texH = 64;
+        texW = ART_PX;
+        texH = ART_PX;
     }
 
     public static void clear() {

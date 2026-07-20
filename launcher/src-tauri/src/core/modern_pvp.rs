@@ -281,10 +281,6 @@ pub fn ensure_launch_defaults(instance_id: &str, tier: &str) -> AppResult<()> {
 
 fn default_launch_props(tier: &str) -> HashMap<String, String> {
     let mut props = HashMap::new();
-    props.insert("showFps".into(), "true".into());
-    props.insert("showPing".into(), "true".into());
-    props.insert("showKeystrokes".into(), "true".into());
-    props.insert("showPerfBadge".into(), "false".into());
     props.insert("hardwareTier".into(), tier.into());
     props.insert("boostFps".into(), "true".into());
     props.insert("applyVanillaPreset".into(), "true".into());
@@ -292,14 +288,9 @@ fn default_launch_props(tier: &str) -> HashMap<String, String> {
     props.insert("skipCombatFx".into(), "true".into());
     props.insert("reduceFpsWhenMinimized".into(), "true".into());
     props.insert("minimizedFps".into(), "5".into());
-    props.insert("showCoords".into(), "false".into());
-    props.insert("showArmor".into(), "true".into());
-    props.insert("showCps".into(), "true".into());
-    props.insert("toggleSprint".into(), "true".into());
     props.insert("pvpTrainingAutoWorld".into(), "false".into());
     match tier {
         "baja" => {
-            props.insert("showKeystrokes".into(), "false".into());
             props.insert("particleMode".into(), "MINIMAL".into());
             props.insert("renderDistance".into(), "8".into());
             props.insert("simulationDistance".into(), "6".into());
@@ -330,14 +321,9 @@ pub fn apply_training_profile(instance_id: &str, tier: &str, auto_world: bool) -
         props = read_properties(&path);
     }
     props.insert("pvpTrainingAutoWorld".into(), auto_world.to_string());
-    props.insert("showCoords".into(), "true".into());
-    props.insert("showArmor".into(), "true".into());
-    props.insert("showCps".into(), "true".into());
-    props.insert("toggleSprint".into(), "true".into());
-    props.insert("showKeystrokes".into(), "true".into());
-    props.insert("showFps".into(), "true".into());
-    props.insert("showPing".into(), "true".into());
-    props.insert("boostFps".into(), "true".into());
+    if auto_world {
+        props.entry("showCoords".into()).or_insert("true".into());
+    }
     match tier {
         "baja" => {
             props.insert("particleMode".into(), "MINIMAL".into());

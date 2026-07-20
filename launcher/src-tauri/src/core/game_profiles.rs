@@ -111,8 +111,8 @@ pub fn resolve_server(
         "hypixel" => Ok(Some("mc.hypixel.net".into())),
         "cubecraft" => Ok(Some("m.cubecraft.net".into())),
         "minelatino" => Ok(Some("play.minelatino.net".into())),
-        "librecraft" => Ok(Some("librecraft.gg".into())),
-        "hylex" => Ok(Some("hylex.net".into())),
+        "regorland" => Ok(Some("regorland.net".into())),
+        "hylex" => Ok(Some("original.hylex.net".into())),
         "favorite" => {
             let favs = favorites::list();
             if favs.is_empty() {
@@ -243,17 +243,17 @@ fn modern_destinations() -> Vec<GameProfileDestination> {
             needs_favorite: false,
         },
         GameProfileDestination {
-            id: "librecraft".into(),
-            label: "LibreCraft".into(),
-            description: Some("librecraft.gg".into()),
-            server_address: Some("librecraft.gg".into()),
+            id: "regorland".into(),
+            label: "Regorland".into(),
+            description: Some("regorland.net".into()),
+            server_address: Some("regorland.net".into()),
             needs_favorite: false,
         },
         GameProfileDestination {
             id: "hylex".into(),
             label: "Hylex".into(),
-            description: Some("hylex.net".into()),
-            server_address: Some("hylex.net".into()),
+            description: Some("original.hylex.net".into()),
+            server_address: Some("original.hylex.net".into()),
             needs_favorite: false,
         },
         GameProfileDestination {

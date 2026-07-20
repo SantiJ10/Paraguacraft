@@ -92,7 +92,17 @@ public final class ResourcePackService {
         manager.setEnabledProfiles(enabled);
         client.options.refreshResourcePacks(manager);
         client.options.write();
+        com.paraguacraft.pvp.modern.config.ModernConfig.selectedResourcePack = fileName;
+        com.paraguacraft.pvp.modern.config.ModernConfig.save();
         client.reloadResources();
+    }
+
+    public static void restoreSavedPack() {
+        String saved = com.paraguacraft.pvp.modern.config.ModernConfig.selectedResourcePack;
+        if (saved == null || saved.isBlank() || !isInstalled(saved)) {
+            return;
+        }
+        applyPack(saved);
     }
 
     private static String resolvePackId(ResourcePackManager manager, String fileName) {

@@ -2,9 +2,9 @@ package com.paraguacraft.pvp.modern.core;
 
 import com.paraguacraft.pvp.modern.config.ModernConfig;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.entity.Entity;
+import net.minecraft.client.option.Perspective;
 
-/** Freelook: rota solo la camara, no el cuerpo ni la direccion de movimiento (como 1.8.9). */
+/** Freelook estilo 1.8.9: camara libre en 3ª persona, cuerpo congelado. */
 public final class FreelookManager {
 
     public static boolean active;
@@ -17,11 +17,7 @@ public final class FreelookManager {
     /** Yaw del cuerpo congelado al activar freelook (W/A/S/D siguen esta direccion). */
     public static float bodyYaw;
 
-    private static float savedYaw;
-    private static float savedPitch;
-    private static float savedPrevYaw;
-    private static float savedPrevPitch;
-    private static boolean cameraSwapped;
+    private static Perspective savedPerspective = Perspective.FIRST_PERSON;
 
     private FreelookManager() {}
 
@@ -33,10 +29,18 @@ public final class FreelookManager {
         bodyYaw = client.player.getYaw();
         cameraYaw = prevCameraYaw = bodyYaw;
         cameraPitch = prevCameraPitch = client.player.getPitch();
+        savedPerspective = client.options.getPerspective();
+        client.options.setPerspective(Perspective.THIRD_PERSON_BACK);
     }
 
     public static void onRelease(MinecraftClient client) {
+        if (!active) {
+            return;
+        }
         active = false;
+        if (client != null) {
+            client.options.setPerspective(savedPerspective);
+        }
     }
 
     public static void addMouseDelta(float yaw, float pitch) {
@@ -45,48 +49,16 @@ public final class FreelookManager {
         }
         prevCameraYaw = cameraYaw;
         prevCameraPitch = cameraPitch;
-        cameraYaw += yaw;
-        cameraPitch -= pitch;
+        cameraYaw += yaw * 0.15F;
+        cameraPitch -= pitch * 0.15F;
         cameraPitch = Math.max(-90.0F, Math.min(90.0F, cameraPitch));
     }
 
-    public static float movementYaw(MinecraftClient client) {
-        if (active && client != null && client.player != null) {
-            return bodyYaw;
-        }
-        return client != null && client.player != null ? client.player.getYaw() : 0.0F;
+    public static float renderYaw(float tickDelta) {
+        return prevCameraYaw + (cameraYaw - prevCameraYaw) * tickDelta;
     }
 
-    public static void applyCameraOverride(MinecraftClient client) {
-        if (!active || client == null) {
-            return;
-        }
-        Entity view = client.getCameraEntity();
-        if (view == null) {
-            return;
-        }
-        savedYaw = view.getYaw();
-        savedPitch = view.getPitch();
-        savedPrevYaw = view.lastYaw;
-        savedPrevPitch = view.lastPitch;
-        view.setYaw(cameraYaw);
-        view.setPitch(cameraPitch);
-        view.lastYaw = prevCameraYaw;
-        view.lastPitch = prevCameraPitch;
-        cameraSwapped = true;
-    }
-
-    public static void restoreCameraOverride(MinecraftClient client) {
-        if (!cameraSwapped || client == null) {
-            return;
-        }
-        Entity view = client.getCameraEntity();
-        if (view != null) {
-            view.setYaw(savedYaw);
-            view.setPitch(savedPitch);
-            view.lastYaw = savedPrevYaw;
-            view.lastPitch = savedPrevPitch;
-        }
-        cameraSwapped = false;
+    public static float renderPitch(float tickDelta) {
+        return prevCameraPitch + (cameraPitch - prevCameraPitch) * tickDelta;
     }
 }
