@@ -204,10 +204,7 @@ public final class HudRenderer {
         artist = clampToWidth(artist, innerMax, tr);
 
         int textW = Math.max(tr.getWidth(title), tr.getWidth(artist)) + pad * 2;
-        String imageUrl = preview ? "" : (snap != null ? snap.musicImageUrl : "");
-        boolean showArt = ModernConfig.showMusicAlbumArt
-            && (preview || (imageUrl != null && !imageUrl.isEmpty()));
-        if (showArt) {
+        if (preview || (snap != null && snap.musicPlaying)) {
             textW += musicArtSize() + scaledMusic(4);
         }
         return textW;
@@ -223,9 +220,7 @@ public final class HudRenderer {
         }
         int art = musicArtSize();
         int musicH = scaledMusic(28);
-        if (ModernConfig.showMusicAlbumArt && (preview || (snap != null && !snap.musicImageUrl.isEmpty()))) {
-            musicH = Math.max(musicH, scaledMusic(8) + art + scaledMusic(4));
-        }
+        musicH = Math.max(musicH, scaledMusic(8) + art + scaledMusic(4));
         return musicH;
     }
 
@@ -564,30 +559,34 @@ public final class HudRenderer {
         int artSize = musicArtSize();
         int textX = x + pad;
         int textY = y + scaledMusic(6);
-        boolean wantsArt = ModernConfig.showMusicAlbumArt
-            && (preview || (imageUrl != null && !imageUrl.isEmpty()));
-        if (wantsArt) {
+        if (showMusic) {
             int artX = x + pad;
             int artY = y + scaledMusic(6);
-            Identifier art = preview ? null : MusicArtCache.get(imageUrl);
-            if (art != null) {
-                ctx.drawTexture(
-                    RenderPipelines.GUI_TEXTURED,
-                    art,
-                    artX,
-                    artY,
-                    0f,
-                    0f,
-                    artSize,
-                    artSize,
-                    MusicArtCache.getTexWidth(),
-                    MusicArtCache.getTexHeight()
-                );
-            } else if (preview) {
+            if (preview) {
                 ctx.fill(artX, artY, artX + artSize, artY + artSize, 0xFF202030);
                 ctx.drawText(tr, Text.literal("♪"), artX + artSize / 2 - 3, artY + artSize / 2 - 4, UiTheme.accent(), false);
+            } else if (!ModernConfig.showMusicAlbumArt) {
+                drawMusicDisc(ctx, artX, artY);
+            } else if (imageUrl == null || imageUrl.isEmpty()) {
+                drawMusicDisc(ctx, artX, artY);
             } else {
-                ctx.drawItem(new ItemStack(Items.MUSIC_DISC_13), artX, artY);
+                Identifier art = MusicArtCache.get(imageUrl);
+                if (art != null) {
+                    ctx.drawTexture(
+                        RenderPipelines.GUI_TEXTURED,
+                        art,
+                        artX,
+                        artY,
+                        0f,
+                        0f,
+                        artSize,
+                        artSize,
+                        MusicArtCache.getTexWidth(),
+                        MusicArtCache.getTexHeight()
+                    );
+                } else {
+                    drawMusicDisc(ctx, artX, artY);
+                }
             }
             textX = artX + artSize + scaledMusic(4);
         }
@@ -605,6 +604,11 @@ public final class HudRenderer {
         artist = clampToWidth(artist, innerMax, tr);
         ctx.drawText(tr, Text.literal(title), textX, textY, UiTheme.accent(), true);
         ctx.drawText(tr, Text.literal(artist), textX, textY + scaledMusic(11), ARTIST_COLOR, true);
+    }
+
+    /** Icono de disco (opcion OFF o mientras carga la portada). */
+    private static void drawMusicDisc(DrawContext ctx, int x, int y) {
+        ctx.drawItem(new ItemStack(Items.MUSIC_DISC_13), x, y);
     }
 
 
