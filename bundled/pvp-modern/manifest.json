@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP Modern",
   "mc_version": "1.21.11",
   "loader": "fabric",
-  "client_version": "0.6.9",
-  "release_tag": "pvp-modern-0.6.9",
-  "descripcion": "Hardware HUD, reach, crosshair, freelook 3ª persona, persistencia de config, Groq y servidores actualizados.",
+  "client_version": "0.6.10",
+  "release_tag": "pvp-modern-0.6.10",
+  "descripcion": "HUD musica 1.8.9, NickFinder, camas coloridas BW y ajustes de caratula.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-Modern-0.6.9.jar",
-      "sha1": "76e192af4ad8416b8901fadbe9eaaff2b49e1bf24"
+      "filename": "ParaguacraftPvP-Modern-0.6.10.jar",
+      "sha1": "dcf25c2e585e7fd06a3d9f1208e894e96fc7ddc2"
     }
   ]
 }

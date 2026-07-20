@@ -87,6 +87,7 @@ public class ModMenuScreen extends ParaguacraftScreen {
             case "quickplay" -> client.setScreen(new HypixelQuickPlayScreen(this));
             case "packs" -> client.setScreen(new PackSelectScreen(this));
             case "theme" -> client.setScreen(new ThemeSelectScreen(this));
+            case "nickfinder" -> client.setScreen(new NickFinderScreen(this));
             case "music_hud" -> client.setScreen(new GuiMusicHudOptionsScreen(this));
             case "crosshair" -> {
                 ModernConfig.cycleCrosshairMode();
@@ -154,6 +155,10 @@ public class ModMenuScreen extends ParaguacraftScreen {
         cards.add(open(4, "Crosshair: " + ModernConfig.crosshairModeLabel(), "crosshair"));
         cards.add(open(5, "Hypixel Quick Play", "quickplay"));
         cards.add(open(5, "Texture packs", "packs"));
+        cards.add(open(5, "NickFinder (N)", "nickfinder"));
+        cards.add(toggle(5, "Camas coloridas BW", () -> ModernConfig.coloredBeds, v -> ModernConfig.coloredBeds = v));
+        cards.add(toggle(5, "Colores de equipo", () -> ModernConfig.teamColors, v -> ModernConfig.teamColors = v));
+        cards.add(toggle(5, "NickFinder activo", () -> ModernConfig.nickFinderEnabled, v -> ModernConfig.nickFinderEnabled = v));
         cards.add(open(5, "Tema del menu", "theme"));
         return cards;
     }

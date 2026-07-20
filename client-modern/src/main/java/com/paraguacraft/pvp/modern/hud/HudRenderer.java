@@ -5,6 +5,7 @@ import com.paraguacraft.pvp.modern.config.ModernConfig;
 import com.paraguacraft.pvp.modern.core.CombatStats;
 import com.paraguacraft.pvp.modern.core.LauncherIpc;
 import com.paraguacraft.pvp.modern.gui.GuiEditHudScreen;
+import com.paraguacraft.pvp.modern.gui.theme.TextUtil;
 import com.paraguacraft.pvp.modern.gui.theme.UiTheme;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.minecraft.client.MinecraftClient;
@@ -34,7 +35,17 @@ import org.lwjgl.glfw.GLFW;
 public final class HudRenderer {
 
     private static final Identifier HUD_ID = Identifier.of(ParaguacraftPvPModern.MOD_ID, "hud");
+    private static final int ARTIST_COLOR = 0xFF8899AA;
+    private static final int METRIC_VALUE = 0xFFF0F4FF;
     private static final int BASE_MUSIC_ART = 16;
+
+    private static int overlayBgAlpha(LauncherIpc.Snapshot snap, boolean preview) {
+        boolean musicOn = ModernConfig.showMusicHud && (preview || (snap != null && snap.musicPlaying));
+        if (musicOn) {
+            return Math.max(0, Math.min(255, ModernConfig.musicHudAlpha));
+        }
+        return 0x99;
+    }
 
     private HudRenderer() {}
 
@@ -167,10 +178,14 @@ public final class HudRenderer {
         if (artist == null || artist.isEmpty()) {
             artist = "Spotify / YouTube";
         }
-        title = clampMusicText(title, 22);
-        artist = clampMusicText(artist, 28);
+        title = TextUtil.sanitizeForMcFont(title);
+        artist = TextUtil.sanitizeForMcFont(artist);
 
         int pad = scaledMusic(6);
+        int innerMax = scaledMusic(ModernConfig.overlayHudW) - pad * 2;
+        title = clampToWidth(title, innerMax, tr);
+        artist = clampToWidth(artist, innerMax, tr);
+
         int textW = Math.max(tr.getWidth(title), tr.getWidth(artist)) + pad * 2;
         String imageUrl = preview ? "" : (snap != null ? snap.musicImageUrl : "");
         boolean showArt = ModernConfig.showMusicAlbumArt
@@ -178,7 +193,8 @@ public final class HudRenderer {
         if (showArt) {
             textW += musicArtSize() + scaledMusic(4);
         }
-        return Math.max(scaledMusic(72), textW);
+        int hwW = w;
+        return Math.max(hwW, textW);
     }
 
     public static int musicPanelHeight(LauncherIpc.Snapshot snap, boolean preview) {
@@ -493,7 +509,7 @@ public final class HudRenderer {
         int x = ModernConfig.overlayHudX;
         int y = ModernConfig.overlayHudY;
         int w = musicPanelWidth(snap, preview);
-        int alpha = Math.max(0, Math.min(255, ModernConfig.musicHudAlpha));
+        int alpha = overlayBgAlpha(snap, preview);
         int panelH = musicPanelHeight(snap, preview);
         if (alpha > 0) {
             int bg = (alpha << 24) | 0x0A0C14;
@@ -503,14 +519,14 @@ public final class HudRenderer {
 
         int ty = y + scaledMusic(6);
         if (showHw) {
-            drawLabeled(tr, ctx, "CPU ", fmtPct(snap.cpuPct), x + scaledMusic(6), ty);
+            drawMetric(tr, ctx, "CPU ", fmtPct(snap.cpuPct), x + scaledMusic(6), ty);
             ty += scaledMusic(11);
-            drawLabeled(tr, ctx, "RAM ", fmtPct(snap.ramPct), x + scaledMusic(6), ty);
+            drawMetric(tr, ctx, "RAM ", fmtPct(snap.ramPct), x + scaledMusic(6), ty);
             ty += scaledMusic(11);
-            drawLabeled(tr, ctx, "GPU ", fmtPct(snap.gpuPct), x + scaledMusic(6), ty);
+            drawMetric(tr, ctx, "GPU ", fmtPct(snap.gpuPct), x + scaledMusic(6), ty);
             ty += scaledMusic(11);
             if (snap.tempC >= 0f) {
-                drawLabeled(tr, ctx, "TEMP ", String.format("%.0f C", snap.tempC), x + scaledMusic(6), ty);
+                drawMetric(tr, ctx, "TEMP ", String.format("%.0f C", snap.tempC), x + scaledMusic(6), ty);
                 ty += scaledMusic(11);
             }
         }
@@ -561,11 +577,18 @@ public final class HudRenderer {
         if (artist == null || artist.isEmpty()) {
             artist = "Spotify / YouTube";
         }
+        title = TextUtil.sanitizeForMcFont(title);
+        artist = TextUtil.sanitizeForMcFont(artist);
         int innerMax = (x + w) - textX - pad;
         title = clampToWidth(title, innerMax, tr);
         artist = clampToWidth(artist, innerMax, tr);
         ctx.drawText(tr, Text.literal(title), textX, textY, UiTheme.accent(), true);
-        ctx.drawText(tr, Text.literal(artist), textX, textY + scaledMusic(11), UiTheme.textDim(), true);
+        ctx.drawText(tr, Text.literal(artist), textX, textY + scaledMusic(11), ARTIST_COLOR, true);
+    }
+
+    private static void drawMetric(TextRenderer tr, DrawContext ctx, String label, String value, int x, int y) {
+        ctx.drawText(tr, Text.literal(label), x, y, UiTheme.accent(), true);
+        ctx.drawText(tr, Text.literal(value), x + tr.getWidth(label), y, METRIC_VALUE, true);
     }
 
     private static String fmtPct(float v) {

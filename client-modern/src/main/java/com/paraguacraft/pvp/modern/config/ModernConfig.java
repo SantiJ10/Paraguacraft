@@ -50,6 +50,10 @@ public final class ModernConfig {
     public static int reachDisplayX = 5;
     public static int reachDisplayY = 58;
     public static String selectedResourcePack = "";
+    public static boolean nickFinderEnabled = true;
+    public static String nickFinderQuery = "";
+    public static boolean coloredBeds = true;
+    public static boolean teamColors = true;
     public static boolean toggleSprint = false;
     public static boolean toggleSprintLegacy = false;
     public static boolean windowedFullscreen = false;
@@ -73,9 +77,9 @@ public final class ModernConfig {
     public static int bwResX = 5;
     public static int bwResY = 320;
     public static int overlayHudX = 5;
-    public static int overlayHudY = 120;
+    public static int overlayHudY = 260;
     public static int overlayHudW = 118;
-    public static int musicHudAlpha = 180;
+    public static int musicHudAlpha = 255;
     /** Escala del panel de musica (100 = normal). */
     public static int musicHudScale = 100;
     public static int coordsX = 5;
@@ -193,6 +197,13 @@ public final class ModernConfig {
             if (selectedResourcePack == null) {
                 selectedResourcePack = "";
             }
+            nickFinderEnabled = bool(props, "nickFinderEnabled", nickFinderEnabled);
+            nickFinderQuery = props.getProperty("nickFinderQuery", nickFinderQuery);
+            if (nickFinderQuery == null) {
+                nickFinderQuery = "";
+            }
+            coloredBeds = bool(props, "coloredBeds", coloredBeds);
+            teamColors = bool(props, "teamColors", teamColors);
             toggleSprint = bool(props, "toggleSprint", toggleSprint);
             toggleSprintLegacy = bool(props, "toggleSprintLegacy", toggleSprintLegacy);
             windowedFullscreen = bool(props, "windowedFullscreen", windowedFullscreen);
@@ -282,6 +293,10 @@ public final class ModernConfig {
         props.setProperty("reachDisplayX", String.valueOf(reachDisplayX));
         props.setProperty("reachDisplayY", String.valueOf(reachDisplayY));
         props.setProperty("selectedResourcePack", selectedResourcePack == null ? "" : selectedResourcePack);
+        props.setProperty("nickFinderEnabled", String.valueOf(nickFinderEnabled));
+        props.setProperty("nickFinderQuery", nickFinderQuery == null ? "" : nickFinderQuery);
+        props.setProperty("coloredBeds", String.valueOf(coloredBeds));
+        props.setProperty("teamColors", String.valueOf(teamColors));
         props.setProperty("boostFps", String.valueOf(PerformanceConfig.boostFps));
         props.setProperty("toggleSprint", String.valueOf(toggleSprint));
         props.setProperty("toggleSprintLegacy", String.valueOf(toggleSprintLegacy));
