@@ -24,6 +24,7 @@ public final class TrainingWorldHelper {
 
     private static boolean launched;
     private static boolean pendingFlatCreate;
+    private static boolean pendingKitSetup;
     private static int rulesTicks;
     private static int autoCreateTicks;
 
@@ -78,7 +79,7 @@ public final class TrainingWorldHelper {
             return;
         }
         rulesTicks++;
-        if (rulesTicks > 40 || client.player == null) {
+        if (rulesTicks > 60 || client.player == null) {
             return;
         }
         if (rulesTicks == 20) {
@@ -86,6 +87,11 @@ public final class TrainingWorldHelper {
             HypixelHelper.sendCommand(client, "gamerule naturalRegeneration false");
             HypixelHelper.sendCommand(client, "gamerule doDaylightCycle false");
             HypixelHelper.sendCommand(client, "gamerule doMobSpawning false");
+        }
+        if (pendingKitSetup && rulesTicks == 40) {
+            TrainingKits.giveKit(client);
+            TrainingKits.placeChests(client);
+            pendingKitSetup = false;
         }
     }
 
@@ -109,6 +115,7 @@ public final class TrainingWorldHelper {
         }
 
         pendingFlatCreate = true;
+        pendingKitSetup = true;
         autoCreateTicks = 0;
         CreateWorldScreen.show(client, () -> {
             pendingFlatCreate = false;

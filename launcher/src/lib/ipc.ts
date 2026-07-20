@@ -584,6 +584,10 @@ export const api = {
     return invokeReal<ResourceBudget>("get_resource_budget", { instanceId });
   },
 
+  async syncPvpConfig(instanceId: string): Promise<string> {
+    return invokeReal<string>("sync_pvp_config", { instanceId });
+  },
+
   async runPreLaunchCheck(instanceId: string): Promise<PreLaunchCheckReport> {
     return invokeReal<PreLaunchCheckReport>("run_pre_launch_check", { instanceId });
   },
@@ -700,12 +704,49 @@ export const api = {
     return invokeReal<FavoriteServer[]>("list_favorite_servers");
   },
 
-  async addFavoriteServer(name: string, address: string, notes?: string | null): Promise<FavoriteServer> {
-    return invokeReal<FavoriteServer>("add_favorite_server", { name, address, notes: notes ?? null });
+  async addFavoriteServer(
+    name: string,
+    address: string,
+    notes?: string | null,
+    loaderHint?: string | null,
+    fromPlayit?: boolean,
+    bedrockPort?: number | null,
+  ): Promise<FavoriteServer> {
+    return invokeReal<FavoriteServer>("add_favorite_server", {
+      name,
+      address,
+      notes: notes ?? null,
+      loaderHint: loaderHint ?? null,
+      fromPlayit: fromPlayit ?? null,
+      bedrockPort: bedrockPort ?? null,
+    });
   },
 
   async removeFavoriteServer(id: string): Promise<void> {
     await invokeReal<void>("remove_favorite_server", { id });
+  },
+
+  async suggestFavoriteProfile(id: string): Promise<string> {
+    return invokeReal<string>("suggest_favorite_profile", { id });
+  },
+
+  async joinFavoriteServer(id: string): Promise<number> {
+    return invokeReal<number>("join_favorite_server", { id });
+  },
+
+  async addFavoriteFromServer(serverId: string, bedrockPort?: number | null): Promise<FavoriteServer> {
+    return invokeReal<FavoriteServer>("add_favorite_from_server", {
+      serverId,
+      bedrockPort: bedrockPort ?? null,
+    });
+  },
+
+  async favoriteBedrockAddress(id: string): Promise<string> {
+    return invokeReal<string>("favorite_bedrock_address", { id });
+  },
+
+  async joinFavoriteBedrock(id: string): Promise<string> {
+    return invokeReal<string>("join_favorite_bedrock", { id });
   },
 
   async getDownloads(): Promise<DownloadTask[]> {
@@ -717,8 +758,16 @@ export const api = {
     return invokeReal<CrashDiagnosis>("diagnose_instance", { instanceId, exitCode });
   },
 
-  async aiAssist(prompt: string, diagnosis?: CrashDiagnosis | null): Promise<AiAssistResponse> {
-    return invokeReal<AiAssistResponse>("ai_assist", { prompt, diagnosis: diagnosis ?? null });
+  async aiAssist(
+    prompt: string,
+    diagnosis?: CrashDiagnosis | null,
+    activeInstanceId?: string | null,
+  ): Promise<AiAssistResponse> {
+    return invokeReal<AiAssistResponse>("ai_assist", {
+      prompt,
+      diagnosis: diagnosis ?? null,
+      activeInstanceId: activeInstanceId ?? null,
+    });
   },
 
   async aiStatus(): Promise<{ configured: boolean; provider: string | null }> {
@@ -803,6 +852,10 @@ export const api = {
 
   async stopPlayit(id: string): Promise<void> {
     await invokeReal<void>("stop_playit", { id });
+  },
+
+  async markPlayitClaimed(id: string): Promise<void> {
+    await invokeReal<void>("mark_playit_claimed", { id });
   },
 
   async getServerLog(id: string, maxLines?: number): Promise<string[]> {

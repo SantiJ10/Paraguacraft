@@ -240,6 +240,7 @@ pub async fn update_instance_content(
     state: State<'_, AppState>,
     instance_id: String,
 ) -> AppResult<u32> {
+    let key = keys::curseforge_api_key();
     let (http, _net) = state.net_scope();
-    store::autoupdate::update_instance(&app, &http, &instance_id).await
+    store::autoupdate::update_instance(&app, &http, &key, &instance_id).await
 }

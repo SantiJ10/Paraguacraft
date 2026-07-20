@@ -135,6 +135,30 @@ pub fn resolve_server(
     }
 }
 
+/// Join inteligente: decide si un favorito abre `modern-pvp` o `pvp-compete`.
+///
+/// Orden de decisión: 1) `loaderHint` explícito guardado con el favorito,
+/// 2) Server List Ping al host (protocolo 47 = 1.8.x, 700+ = 1.19+/1.21.x),
+/// 3) `pvp-compete` como fallback (cliente más usado para servidores random).
+pub fn infer_profile_id_for_favorite(fav: &favorites::FavoriteServer) -> String {
+    if let Some(hint) = fav.loader_hint.as_deref() {
+        match hint {
+            "modern" => return "modern-pvp".into(),
+            "189" | "legacy" => return "pvp-compete".into(),
+            _ => {}
+        }
+    }
+    let (host, port) = favorites::parse_address(&fav.address);
+    let port = port.unwrap_or(25565);
+    if let Some(info) = crate::core::mc_ping::ping(&host, port, std::time::Duration::from_millis(1200)) {
+        if info.protocol >= 700 {
+            return "modern-pvp".into();
+        }
+        return "pvp-compete".into();
+    }
+    "pvp-compete".into()
+}
+
 fn enrich(profile: &mut GameProfile, instances: &[Instance]) {
     if profile.id == "modern-pvp" {
         let tier = modern_pvp::tier_from_hardware();

@@ -1,0 +1,10 @@
+name: ParaguacraftBadges
+version: ${version}
+main: com.paraguacraft.badges.paper.ParaguacraftBadgesPlugin
+api-version: '1.21'
+author: Paraguacraft
+description: Insignias Paraguacraft en el nametag (Fase 4.3) — puente con el cliente PvP (1.8.9 y Modern).
+permissions:
+  paraguacraft.badge.staff:
+    description: Otorga la insignia de staff en el nametag a quienes usen el cliente Paraguacraft.
+    default: op

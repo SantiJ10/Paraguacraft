@@ -50,3 +50,5 @@ pub mod modern_servers;
 pub mod mod_conflicts;
 pub mod tray_lite;
 pub mod updater;
+pub mod mc_ping;
+pub mod music_art_cache;

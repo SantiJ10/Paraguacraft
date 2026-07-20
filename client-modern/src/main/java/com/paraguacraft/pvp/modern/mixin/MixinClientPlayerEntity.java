@@ -23,6 +23,9 @@ public class MixinClientPlayerEntity {
         if (ModernConfig.toggleSprint) {
             client.options.sprintKey.setPressed(true);
         }
+        if (ModernConfig.toggleSneak && ModernConfig.isSneakingToggled) {
+            client.options.sneakKey.setPressed(true);
+        }
     }
 
     @Inject(method = "tickMovement", at = @At("RETURN"))
@@ -37,6 +40,12 @@ public class MixinClientPlayerEntity {
             InputUtil.Key bound = ((KeyBindingAccessor) sprintKey).paraguacraft$getBoundKey();
             boolean physical = InputUtil.isKeyPressed(client.getWindow(), bound.getCode());
             sprintKey.setPressed(physical);
+        }
+        if (ModernConfig.toggleSneak && ModernConfig.isSneakingToggled) {
+            KeyBinding sneakKey = client.options.sneakKey;
+            InputUtil.Key bound = ((KeyBindingAccessor) sneakKey).paraguacraft$getBoundKey();
+            boolean physical = InputUtil.isKeyPressed(client.getWindow(), bound.getCode());
+            sneakKey.setPressed(physical);
         }
 
         if (!ModernConfig.toggleSprintLegacy) {

@@ -8,10 +8,12 @@ import com.paraguacraft.pvp.modern.core.LauncherIpcHandler;
 import com.paraguacraft.pvp.modern.core.PerformanceBootstrap;
 import com.paraguacraft.pvp.modern.core.QuickPlayState;
 import com.paraguacraft.pvp.modern.core.QoLBootstrap;
+import com.paraguacraft.pvp.modern.core.SkinManager;
 import com.paraguacraft.pvp.modern.core.TrainingWorldHelper;
 import com.paraguacraft.pvp.modern.hud.HudCpsTracker;
 import com.paraguacraft.pvp.modern.hud.HudRenderer;
 import com.paraguacraft.pvp.modern.input.ModKeybinds;
+import com.paraguacraft.pvp.modern.network.BadgeNetHandler;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.minecraft.client.MinecraftClient;
@@ -19,12 +21,17 @@ import net.minecraft.client.MinecraftClient;
 public class ParaguacraftPvPModern implements ClientModInitializer {
 
     public static final String MOD_ID = "paraguacraftpvp-modern";
-    public static final String VERSION = "0.6.17";
+    public static final String VERSION = "0.7.0";
 
     @Override
     public void onInitializeClient() {
         QuickPlayState.load();
         LauncherProfile.apply();
+        // Skins unificadas (Fase 2.3): si el launcher escribio una skin
+        // offline/local, la aplica sola al arrancar (sin abrir Skin Changer).
+        if (ModernConfig.customSkinUrl != null && !ModernConfig.customSkinUrl.isBlank()) {
+            SkinManager.apply(ModernConfig.customSkinUrl);
+        }
         PerformanceBootstrap.register();
         QoLBootstrap.register();
         TrainingWorldHelper.register();
@@ -34,6 +41,7 @@ public class ParaguacraftPvPModern implements ClientModInitializer {
         HudRenderer.register();
         ColoredBedsBootstrap.register();
         ModKeybinds.register();
+        BadgeNetHandler.register();
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
             applyClientOptions(client);
             com.paraguacraft.pvp.modern.resourcepack.ResourcePackService.restoreSavedPack();

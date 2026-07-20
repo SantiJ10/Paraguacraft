@@ -228,24 +228,40 @@ async fn setup_paper_plugins(
     }
 
     if mc.starts_with("1.8") {
-        let _ = ensure_paraguacraft_badges_plugin(client, &plugins.join("ParaguacraftBadges.jar")).await;
+        let _ = ensure_paraguacraft_badges_plugin(
+            client,
+            "ParaguacraftBadges-1.0.0.jar",
+            &plugins.join("ParaguacraftBadges.jar"),
+        )
+        .await;
+    } else {
+        // Fase 4.3: puente de insignias para servidores Paper modernos (PvP Modern 1.21+).
+        let _ = ensure_paraguacraft_badges_plugin(
+            client,
+            "ParaguacraftBadges-Paper-1.0.0.jar",
+            &plugins.join("ParaguacraftBadges.jar"),
+        )
+        .await;
     }
     Ok(())
 }
 
 async fn ensure_paraguacraft_badges_plugin(
     client: &reqwest::Client,
+    bundled_name: &str,
     dest: &Path,
 ) -> AppResult<()> {
     if dest.is_file() && dest.metadata().map(|m| m.len()).unwrap_or(0) > 1_000 {
         return Ok(());
     }
-    let url = "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/bundled/server/ParaguacraftBadges-1.0.0.jar";
+    let url = format!(
+        "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/bundled/server/{bundled_name}"
+    );
     if let Some(parent) = dest.parent() {
         std::fs::create_dir_all(parent)?;
     }
     let tmp = dest.with_extension("part");
-    net::download_one(client, &DownloadItem::new(url.to_string(), tmp.clone())).await?;
+    net::download_one(client, &DownloadItem::new(url, tmp.clone())).await?;
     if dest.exists() {
         let _ = std::fs::remove_file(dest);
     }

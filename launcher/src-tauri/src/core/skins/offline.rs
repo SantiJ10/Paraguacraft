@@ -3,8 +3,10 @@
 
 use std::path::{Path, PathBuf};
 
+use crate::core::accounts;
 use crate::core::branding;
 use crate::core::instances;
+use crate::core::loaders;
 use crate::core::paths;
 use crate::core::servers;
 use crate::error::{AppError, AppResult};
@@ -91,7 +93,52 @@ pub fn apply_to_game_dir(game_dir: &Path, skin_path: &Path, mc_version: &str) ->
     copy_skin_textures(&pack_path, skin_path)?;
     rebuild_brand_pack_zip(game_dir)?;
     branding::sync_brand_options(game_dir, mc_version, false)?;
+    write_modern_skin_property(game_dir, skin_path);
     Ok(())
+}
+
+/// Skins unificadas (Fase 2.3): en instancias PvP Modern, ademas del
+/// resourcepack (afecta a jugadores offline sin skin real), escribe
+/// `customSkinUrl=file://…` para que `SkinManager.java` la aplique al
+/// arrancar — mismo PNG que usa el launcher, sin pasos manuales en el
+/// Skin Changer in-game.
+fn write_modern_skin_property(game_dir: &Path, skin_path: &Path) {
+    // Premium: se mantiene la skin real de Mojang (cola normal); esta
+    // sincronizacion es solo para cuentas offline/no-premium.
+    if accounts::active_account().map(|a| a.premium).unwrap_or(false) {
+        return;
+    }
+    let folder = game_dir.file_name().and_then(|n| n.to_str());
+    let meta = folder.and_then(instances::read_meta);
+    let is_modern = meta
+        .map(|m| loaders::normalize(&m.loader) == "paraguacraft-pvp-modern")
+        .unwrap_or(false);
+    if !is_modern {
+        return;
+    }
+    let props_path = game_dir.join("config").join("paraguacraftpvp-modern.properties");
+    let Some(parent) = props_path.parent() else {
+        return;
+    };
+    if std::fs::create_dir_all(parent).is_err() {
+        return;
+    }
+    let mut lines: Vec<String> = Vec::new();
+    let mut replaced = false;
+    if let Ok(existing) = std::fs::read_to_string(&props_path) {
+        for line in existing.lines() {
+            if line.trim_start().starts_with("customSkinUrl=") {
+                lines.push(format!("customSkinUrl=file://{}", skin_path.to_string_lossy()));
+                replaced = true;
+            } else {
+                lines.push(line.to_string());
+            }
+        }
+    }
+    if !replaced {
+        lines.push(format!("customSkinUrl=file://{}", skin_path.to_string_lossy()));
+    }
+    let _ = std::fs::write(&props_path, format!("{}\n", lines.join("\n")));
 }
 
 /// Sincroniza la skin con SkinsRestorer en servidores locales.

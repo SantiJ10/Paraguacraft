@@ -3,23 +3,80 @@ package com.paraguacraft.pvp.modern.core;
 import com.paraguacraft.pvp.modern.config.LauncherProfile;
 import com.paraguacraft.pvp.modern.config.ModernConfig;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.CloudRenderMode;
 import net.minecraft.client.option.GameOptions;
 import net.minecraft.client.option.GraphicsMode;
 import net.minecraft.particle.ParticlesMode;
+import org.lwjgl.glfw.GLFW;
 
 import java.nio.file.Path;
 
 /** Aplica preset PvP al arrancar; respeta tier de hardware del launcher. */
 public final class PerformanceBootstrap {
 
+    private static Integer savedMaxFps;
+    private static boolean idleFpsActive;
+
     private PerformanceBootstrap() {}
 
     public static void register() {
         ClientLifecycleEvents.CLIENT_STARTED.register(PerformanceBootstrap::onClientStarted);
+        ClientLifecycleEvents.CLIENT_STOPPING.register(PerformanceBootstrap::restoreMaxFps);
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> onWorldJoin(client));
+        ClientTickEvents.END_CLIENT_TICK.register(PerformanceBootstrap::tickIdleFps);
+        ClientTickEvents.END_CLIENT_TICK.register(PerformanceBootstrap::tickCulling);
+    }
+
+    /**
+     * Entity/nametag cull (paridad 1.8.9): en vez de un mixin de render (alto
+     * riesgo sin poder probar en vivo), reduce `entityDistanceScaling`
+     * (API vanilla) — menos entidades dibujadas = menos nametags visibles.
+     */
+    private static void tickCulling(MinecraftClient client) {
+        if (client.player == null || client.currentScreen != null) {
+            return;
+        }
+        if (!ModernConfig.entityCull && !ModernConfig.nametagCull) {
+            return;
+        }
+        double current = client.options.getEntityDistanceScaling().getValue();
+        double target = Math.min(current, 0.35);
+        if (Math.abs(current - target) > 0.001) {
+            client.options.getEntityDistanceScaling().setValue(target);
+        }
+    }
+
+    /**
+     * Idle FPS (paridad 1.8.9): baja el limite de FPS cuando la ventana no
+     * tiene foco (minimizada/alt-tab) para no gastar CPU/GPU de fondo, y lo
+     * restaura al volver — sin escribir `options.txt` (cambio transitorio).
+     */
+    private static void tickIdleFps(MinecraftClient client) {
+        if (!PerformanceConfig.reduceFpsWhenMinimized) {
+            if (idleFpsActive) {
+                restoreMaxFps(client);
+            }
+            return;
+        }
+        boolean focused = client.getWindow() != null
+            && GLFW.glfwGetWindowAttrib(client.getWindow().getHandle(), GLFW.GLFW_FOCUSED) == GLFW.GLFW_TRUE;
+        if (!focused && !idleFpsActive) {
+            savedMaxFps = client.options.getMaxFps().getValue();
+            client.options.getMaxFps().setValue(Math.max(1, PerformanceConfig.minimizedFps));
+            idleFpsActive = true;
+        } else if (focused && idleFpsActive) {
+            restoreMaxFps(client);
+        }
+    }
+
+    private static void restoreMaxFps(MinecraftClient client) {
+        if (idleFpsActive && savedMaxFps != null) {
+            client.options.getMaxFps().setValue(savedMaxFps);
+        }
+        idleFpsActive = false;
     }
 
     private static void onClientStarted(MinecraftClient client) {

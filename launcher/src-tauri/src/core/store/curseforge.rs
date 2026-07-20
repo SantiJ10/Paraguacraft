@@ -5,7 +5,9 @@
 //! devolvemos un error estructurado (`cf_distribution_blocked`) con la URL del
 //! proyecto para descarga manual — la cola no se aborta.
 
-use serde_json::Value;
+use std::collections::HashMap;
+
+use serde_json::{json, Value};
 
 use crate::core::net::{self, DownloadItem};
 use crate::error::{AppError, AppResult, StructuredError};
@@ -160,15 +162,17 @@ fn file_to_version(f: &Value) -> StoreVersion {
     }
 }
 
-/// Lista archivos/versiones del mod compatibles con mc + loader.
-pub async fn list_versions(
+/// Archivos crudos (JSON) del mod compatibles con mc + loader. Se asume que
+/// CurseForge devuelve `/files` ordenado del mas reciente al mas viejo
+/// (mismo supuesto que ya usan `install`/`install_file_id` con `files.first()`).
+pub async fn list_files_raw(
     client: &reqwest::Client,
     key: &str,
     mod_id: &str,
     project_type: &str,
     mc: &str,
     loader: &str,
-) -> AppResult<Vec<StoreVersion>> {
+) -> AppResult<Vec<Value>> {
     if key.trim().is_empty() {
         return Err(AppError::msg(
             "CurseForge requiere una API key (.env o Ajustes).",
@@ -184,8 +188,63 @@ pub async fn list_versions(
         }
     }
     let resp = get_json(client, &url, key).await?;
-    let files = resp["data"].as_array().cloned().unwrap_or_default();
+    Ok(resp["data"].as_array().cloned().unwrap_or_default())
+}
+
+/// Lista archivos/versiones del mod compatibles con mc + loader.
+pub async fn list_versions(
+    client: &reqwest::Client,
+    key: &str,
+    mod_id: &str,
+    project_type: &str,
+    mc: &str,
+    loader: &str,
+) -> AppResult<Vec<StoreVersion>> {
+    let files = list_files_raw(client, key, mod_id, project_type, mc, loader).await?;
     Ok(files.iter().map(file_to_version).collect())
+}
+
+/// Fingerprint modificado de murmur2 que usa CurseForge para identificar
+/// archivos sin depender de su mod_id (recorta whitespace, seed=1).
+pub fn cf_fingerprint(bytes: &[u8]) -> u32 {
+    let filtered: Vec<u8> = bytes
+        .iter()
+        .copied()
+        .filter(|&b| b != 9 && b != 10 && b != 13 && b != 32)
+        .collect();
+    murmur2::murmur2(&filtered, 1)
+}
+
+/// Busca coincidencias exactas de fingerprint (jars instalados) via
+/// `POST /fingerprints/{gameId}`. Devuelve mapa fingerprint -> (mod_id, file JSON).
+pub async fn check_fingerprints(
+    client: &reqwest::Client,
+    key: &str,
+    fingerprints: &[u32],
+) -> AppResult<HashMap<u32, (u64, Value)>> {
+    if key.trim().is_empty() || fingerprints.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let body = json!({ "fingerprints": fingerprints });
+    let resp = client
+        .post(format!("{API}/fingerprints/{GAME_ID}"))
+        .header("x-api-key", key)
+        .header("Accept", "application/json")
+        .json(&body)
+        .send()
+        .await?
+        .error_for_status()?;
+    let data: Value = resp.json().await?;
+    let matches = data["data"]["exactMatches"].as_array().cloned().unwrap_or_default();
+    let mut out = HashMap::new();
+    for m in matches {
+        let mod_id = m["id"].as_u64().unwrap_or(0);
+        let file = m["file"].clone();
+        if let Some(fp) = file["fileFingerprint"].as_u64() {
+            out.insert(fp as u32, (mod_id, file));
+        }
+    }
+    Ok(out)
 }
 
 /// Todas las versiones/archivos del proyecto (sin filtro mc/loader).

@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import type { AiMessage, CrashDiagnosis } from "@/lib/types";
 import { api, parseInvokeError } from "@/lib/ipc";
+import { useInstancesStore } from "@/stores/instances";
 
 export const useAiStore = defineStore("ai", () => {
   const open = ref(false);
@@ -52,8 +53,14 @@ export const useAiStore = defineStore("ai", () => {
     messages.value.push({ id: `u-${Date.now()}`, role: "user", content: clean });
     thinking.value = true;
     try {
-      const res = await api.aiAssist(clean, null);
-      messages.value.push({ id: `a-${Date.now()}`, role: "assistant", content: res.message });
+      const instances = useInstancesStore();
+      const res = await api.aiAssist(clean, null, instances.selectedId);
+      messages.value.push({
+        id: `a-${Date.now()}`,
+        role: "assistant",
+        content: res.message,
+        actions: res.actions,
+      });
       for (const s of res.suggestions) {
         messages.value.push({ id: `as-${Date.now()}-${s.slice(0, 8)}`, role: "assistant", content: `• ${s}` });
       }
@@ -69,5 +76,9 @@ export const useAiStore = defineStore("ai", () => {
     }
   }
 
-  return { open, messages, thinking, lastDiagnosis, lastCrashInstanceId, toggle, send, pushDiagnosis };
+  function pushNote(content: string) {
+    messages.value.push({ id: `note-${Date.now()}`, role: "assistant", content });
+  }
+
+  return { open, messages, thinking, lastDiagnosis, lastCrashInstanceId, toggle, send, pushDiagnosis, pushNote };
 });

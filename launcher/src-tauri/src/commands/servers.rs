@@ -106,6 +106,11 @@ pub fn stop_playit(id: String) -> AppResult<()> {
 }
 
 #[tauri::command]
+pub fn mark_playit_claimed(id: String) -> AppResult<()> {
+    servers::mark_playit_claimed(&id)
+}
+
+#[tauri::command]
 pub async fn prepare_server_jar(
     app: AppHandle,
     state: State<'_, AppState>,

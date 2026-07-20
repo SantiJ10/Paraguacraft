@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.29",
-  "release_tag": "pvp-client-2.1.29",
-  "descripcion": "Cliente PvP 2.1.29 — Quick Play reconectar, practica flat y perfil entrenamiento.",
+  "client_version": "2.1.30",
+  "release_tag": "pvp-client-2.1.30",
+  "descripcion": "Mundo de entrenamiento con kit PvP y cofres pre-configurados (vanilla/pot/UHC).",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.29.jar",
-      "sha1": "3ea4bcc2c2d1032c1353e1aee6e0ffc6a15f5615"
+      "filename": "ParaguacraftPvP-2.1.30.jar",
+      "sha1": "2ba566a4f122fbc6809ecf6996891904838034e4"
     },
     {
       "filename": "Hytils-Reborn-1.8.9-forge-1.7.5.jar",

@@ -4,6 +4,7 @@ use serde_json::json;
 
 use crate::config::keys;
 use crate::core::diagnostics::CrashDiagnosis;
+use crate::core::{favorites, instances, servers};
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
@@ -12,6 +13,89 @@ pub struct AiRequest {
     pub prompt: String,
     pub log_tail: Option<String>,
     pub diagnosis: Option<CrashDiagnosis>,
+    /// Instancia seleccionada/activa en la UI al momento de preguntar (Fase 7).
+    pub active_instance_id: Option<String>,
+}
+
+/// Junta datos livianos (sin red) del estado actual del launcher para que
+/// Paraguabot pueda responder con contexto real en vez de generico.
+fn build_context_summary(active_instance_id: Option<&str>) -> String {
+    let mut lines = Vec::new();
+
+    if let Some(id) = active_instance_id {
+        let meta = if id.starts_with("ext::") {
+            instances::resolve_external_meta(id)
+        } else {
+            instances::ensure_meta(id).ok()
+        };
+        if let Some(m) = meta {
+            lines.push(format!(
+                "Instancia activa: \"{}\" (MC {}, loader {}).",
+                m.name, m.mc_version, m.loader
+            ));
+        }
+    }
+
+    let favs = favorites::list();
+    if favs.is_empty() {
+        lines.push("Favoritos: ninguno guardado todavia.".into());
+    } else {
+        let names: Vec<String> = favs.iter().take(5).map(|f| f.name.clone()).collect();
+        lines.push(format!(
+            "Favoritos ({}): {}.",
+            favs.len(),
+            names.join(", ")
+        ));
+    }
+
+    let profiles = servers::list();
+    let mut running_lines = Vec::new();
+    for p in &profiles {
+        if let Ok(st) = servers::status(&p.id) {
+            if st.running || st.playit_running {
+                let addr = st
+                    .playit_address
+                    .or(p.playit_address.clone())
+                    .unwrap_or_else(|| "sin direccion Playit todavia".into());
+                running_lines.push(format!(
+                    "\"{}\" ({}, {}) — {}{}",
+                    p.name,
+                    p.mc_version,
+                    p.server_type,
+                    if st.running { "corriendo" } else { "detenido" },
+                    if st.playit_running {
+                        format!(", Playit activo en {addr}")
+                    } else {
+                        String::new()
+                    }
+                ));
+            }
+        }
+    }
+    if !profiles.is_empty() {
+        lines.push(format!(
+            "Servidores locales: {} configurado(s).{}",
+            profiles.len(),
+            if running_lines.is_empty() {
+                String::new()
+            } else {
+                format!(" Activos ahora: {}", running_lines.join(" | "))
+            }
+        ));
+    }
+
+    lines.join("\n")
+}
+
+/// Accion clicable que la UI puede ejecutar directo (Fase 7).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiAction {
+    pub label: String,
+    /// Identificador que el frontend mapea a un comando/navegacion concreto.
+    pub action: String,
+    #[serde(default)]
+    pub param: Option<String>,
 }
 
 /// Respuesta uniforme del proveedor.
@@ -20,6 +104,8 @@ pub struct AiRequest {
 pub struct AiResponse {
     pub message: String,
     pub suggestions: Vec<String>,
+    #[serde(default)]
+    pub actions: Vec<AiAction>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -64,6 +150,7 @@ impl AiProvider for LocalHeuristic {
             return Ok(AiResponse {
                 message,
                 suggestions: d.suggestions.clone(),
+                actions: vec![],
             });
         }
         Ok(AiResponse {
@@ -79,6 +166,7 @@ impl AiProvider for LocalHeuristic {
                 "Reinicia el launcher despues de editar .env.".into(),
                 "Usa el panel de diagnostico para crashes automaticos.".into(),
             ],
+            actions: vec![],
         })
     }
 }
@@ -87,13 +175,22 @@ const KNOWLEDGE: &str = r#"
 LAUNCHER Paraguacraft (Tauri v2 + Rust + Vue 3):
 - 0% CPU en segundo plano al jugar. Instancias vanilla/Fabric/Forge/NeoForge/Quilt + preset PvP 1.8.9.
 - Tienda Modrinth + CurseForge (key CF en Ajustes). Modpacks .mrpack/.zip. Servidores Paper/Fabric/Forge + Playit.gg.
+- Auto-update de contenido: Modrinth por SHA-1, CurseForge por fingerprint (murmur2), respeta mods deshabilitados (*.jar.disabled).
+- Favoritos con join inteligente: infiere el perfil correcto (PvP 1.8.9 vs Modern) por hint o Server List Ping, sin depender de la instancia seleccionada.
+- Asistente Playit primera vez en el detalle del servidor: detecta el link de vinculacion, confirma el claim, copia IP Java/Bedrock y agrega a favoritos con un clic.
+- Puente Bedrock-Java: favoritos con puerto Geyser muestran boton "Bedrock" (abre la app UWP; copiar IP a mano por limitacion de esa app).
 - Ajustes: RAM, GC, options.txt, cerrar al jugar, Discord RPC, Java Temurin 17/21, reparar instancia, auto-update SHA-256.
 
-CLIENTE Paraguacraft PvP Modern (Fabric 1.21.11 + Iris/Sodium, v0.6.4):
-- Loader paraguacraft-pvp-modern. Mod Menu (Right Shift), menu custom, Hypixel Quick Play, borderless LWJGL3.
-- HUD: FPS, ping, CPS, keystrokes, armadura vertical, bloques, musica Spotify/YT, pociones estilo 1.8.9.
-- Toggle sprint legacy (W). Config persiste en options.txt (launcher ya no la resetea al actualizar).
+CLIENTE Paraguacraft PvP Modern (Fabric 1.21.11 + Iris/Sodium):
+- Loader paraguacraft-pvp-modern. Mod Menu (Right Shift, con buscador), menu custom, Hypixel Quick Play, borderless LWJGL3.
+- HUD: FPS, ping, CPS, keystrokes, armadura vertical, bloques, musica Spotify/YT (con caratula cacheada localmente), pociones estilo 1.8.9, HUD de servidor conectado.
+- Toggle sprint y toggle sneak (mismo comportamiento que 1.8.9). Culling de entidades/nametags e idle FPS configurables en Mod Menu.
+- Paridad social: insignias (badges) en el nametag via plugin Paper/Fabric, ping del rival, perfiles de config exportables/importables.
+- Mundo de entrenamiento con kit PvP (espada, arco, perlas, comida) y 3 cofres pre-armados (vanilla/pot/UHC) al crearlo por primera vez.
+- Skin personalizada offline sincronizada automaticamente desde el launcher (customSkinUrl).
+- Config persiste en options.txt + config/paraguacraftpvp-modern.properties (launcher ya no la resetea al actualizar).
 - Discord RPC in-game: usuario - version - loader + servidor/mundo/menu.
+- Modo Competir (Hypixel/favoritos) aplica boost FPS, culling, HUD minimo y toggles automaticamente al lanzar.
 
 CLIENTE Paraguacraft PvP (Forge 1.8.9 + OptiFine + mod propio, v2.1.28):
 - Hypixel-safe: solo HUD/visual/rendimiento. Mod Menu (Right Shift). Hytils camas, OptiFine, mod ParaguacraftPvP.
@@ -145,14 +242,70 @@ pub fn suggestions_for_category(category: &str) -> Vec<String> {
 }
 
 pub fn analyze_prompt(req: &AiRequest) -> AiResponse {
-    LocalHeuristic.complete(req).unwrap_or(AiResponse {
+    let mut res = LocalHeuristic.complete(req).unwrap_or(AiResponse {
         message: "Error interno de Paraguabot.".into(),
         suggestions: vec![],
-    })
+        actions: vec![],
+    });
+    res.actions = suggested_actions(req);
+    res
+}
+
+/// Acciones clicables deterministicas segun el contexto (no dependen del LLM).
+fn suggested_actions(req: &AiRequest) -> Vec<AiAction> {
+    let mut actions = Vec::new();
+
+    if let Some(id) = &req.active_instance_id {
+        actions.push(AiAction {
+            label: "Reparar instancia".into(),
+            action: "repair_instance".into(),
+            param: Some(id.clone()),
+        });
+
+        let loader = if id.starts_with("ext::") {
+            instances::resolve_external_meta(id).map(|m| m.loader)
+        } else {
+            instances::ensure_meta(id).ok().map(|m| m.loader)
+        };
+        if let Some(loader) = loader {
+            let normalized = crate::core::loaders::normalize(&loader);
+            if normalized == "paraguacraft-pvp-modern" || normalized == "paraguacraft-pvp" {
+                actions.push(AiAction {
+                    label: if normalized == "paraguacraft-pvp-modern" {
+                        "Sincronizar PvP Modern".into()
+                    } else {
+                        "Sincronizar PvP 1.8.9".into()
+                    },
+                    action: "sync_pvp_config".into(),
+                    param: Some(id.clone()),
+                });
+            }
+        }
+    }
+
+    if let Some(srv) = servers::list().into_iter().find_map(|p| {
+        servers::status(&p.id)
+            .ok()
+            .filter(|st| st.running || st.playit_running)
+            .map(|_| p.id)
+    }) {
+        actions.push(AiAction {
+            label: "Abrir consola servidor".into(),
+            action: "open_server_console".into(),
+            param: Some(srv),
+        });
+    }
+
+    actions
 }
 
 fn build_user_content(req: &AiRequest) -> String {
     let mut parts = vec![req.prompt.trim().to_string()];
+
+    let context = build_context_summary(req.active_instance_id.as_deref());
+    if !context.trim().is_empty() {
+        parts.push(format!("\n\n[Contexto actual del launcher]\n{context}"));
+    }
 
     if let Some(d) = &req.diagnosis {
         parts.push(format!(
@@ -256,11 +409,12 @@ pub async fn analyze_prompt_async(state: &AppState, req: &AiRequest) -> AppResul
         return Ok(AiResponse {
             message,
             suggestions: vec![],
+            actions: suggested_actions(req),
         });
     }
 
     Err(AppError::msg(if last_err.is_empty() {
-        "Paraguabot no pudo contactar al proveedor.".into()
+        "Paraguabot no pudo contactar al proveedor. Verifica tu conexion o la API key en Ajustes > Paraguabot.".into()
     } else {
         last_err
     }))

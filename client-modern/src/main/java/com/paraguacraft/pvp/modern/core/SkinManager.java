@@ -9,6 +9,8 @@ import net.minecraft.util.Identifier;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 /** Aplica skins custom por URL o nick (estilo Lunar). */
 public final class SkinManager {
@@ -58,24 +60,37 @@ public final class SkinManager {
     }
 
     private static String resolveUrl(String value) {
-        if (value.startsWith("http://") || value.startsWith("https://")) {
+        if (value.startsWith("http://") || value.startsWith("https://") || value.startsWith("file://")) {
             return value;
         }
         return "https://minotar.net/skin/" + value;
     }
 
+    /** Skins unificadas (Fase 2.3): `file://` = misma skin offline que aplicó el launcher (sin red). */
     private static void downloadAndRegister(String urlStr) throws Exception {
-        HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
-        conn.setRequestProperty("User-Agent", "Paraguacraft-Modern/1.0");
-        conn.setConnectTimeout(8000);
-        conn.setReadTimeout(15000);
-        try (InputStream in = conn.getInputStream()) {
-            NativeImage image = NativeImage.read(in);
-            MinecraftClient.getInstance().execute(() -> {
-                NativeImageBackedTexture tex = new NativeImageBackedTexture(() -> "paraguacraft_custom_skin", image);
-                MinecraftClient.getInstance().getTextureManager().registerTexture(CUSTOM_TEX, tex);
-            });
+        NativeImage image;
+        if (urlStr.startsWith("file://")) {
+            Path path = Path.of(urlStr.substring("file://".length()));
+            if (!Files.isRegularFile(path)) {
+                return;
+            }
+            try (InputStream in = Files.newInputStream(path)) {
+                image = NativeImage.read(in);
+            }
+        } else {
+            HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
+            conn.setRequestProperty("User-Agent", "Paraguacraft-Modern/1.0");
+            conn.setConnectTimeout(8000);
+            conn.setReadTimeout(15000);
+            try (InputStream in = conn.getInputStream()) {
+                image = NativeImage.read(in);
+            }
         }
+        NativeImage finalImage = image;
+        MinecraftClient.getInstance().execute(() -> {
+            NativeImageBackedTexture tex = new NativeImageBackedTexture(() -> "paraguacraft_custom_skin", finalImage);
+            MinecraftClient.getInstance().getTextureManager().registerTexture(CUSTOM_TEX, tex);
+        });
     }
 
     /** Reservado para mixin de skin; la textura custom se registra en {@link #apply}. */

@@ -70,12 +70,18 @@ pub async fn launch_game_profile(
             let _ = modern_pvp::sync_instance_content(&app, &http, &id).await?;
             id
         };
+        // Modo Competir tambien para PvP Modern: Game Mode, turbo y RAM alta
+        // al conectar a un servidor real (no en menu/practica).
+        let use_compete = matches!(
+            dest,
+            "hypixel" | "favorite" | "cubecraft" | "minelatino" | "regorland" | "hylex"
+        );
         return crate::commands::launch::launch_instance(
             app,
             state,
             instance_id,
             server,
-            Some(false),
+            Some(use_compete),
         )
         .await;
     }

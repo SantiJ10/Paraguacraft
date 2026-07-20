@@ -44,17 +44,19 @@ public final class PerformanceConfig {
         loadTierFromProperties(props);
     }
 
-    /** Solo distancias/partículas del launcher; boostFps vive en paraguacraftpvp-modern.properties. */
+    /** Solo distancias/partículas del launcher; boostFps/reduceFpsWhenMinimized viven en paraguacraftpvp-modern.properties. */
     public static void loadTierFromProperties(Properties props) {
-        if (props.containsKey("boostFps") && !userConfigHasBoostFps()) {
+        if (props.containsKey("boostFps") && !userConfigHasKey("boostFps")) {
             boostFps = Boolean.parseBoolean(props.getProperty("boostFps", "true"));
         }
         applyVanillaPreset = Boolean.parseBoolean(props.getProperty("applyVanillaPreset", "true"));
         memoryCleanupOnWorldChange = Boolean.parseBoolean(props.getProperty("memoryCleanup", "true"));
         skipCombatFx = Boolean.parseBoolean(props.getProperty("skipCombatFx", "true"));
-        reduceFpsWhenMinimized = Boolean.parseBoolean(
-            props.getProperty("reduceFpsWhenMinimized", "true")
-        );
+        if (!userConfigHasKey("reduceFpsWhenMinimized")) {
+            reduceFpsWhenMinimized = Boolean.parseBoolean(
+                props.getProperty("reduceFpsWhenMinimized", "true")
+            );
+        }
         minimizedFps = parseInt(props.getProperty("minimizedFps"), 5);
         particleMode = ParticleMode.fromName(props.getProperty("particleMode"));
         renderDistance = parseInt(props.getProperty("renderDistance"), renderDistance);
@@ -66,7 +68,7 @@ public final class PerformanceConfig {
         oldAnimations = Boolean.parseBoolean(props.getProperty("oldAnimations", "false"));
     }
 
-    private static boolean userConfigHasBoostFps() {
+    private static boolean userConfigHasKey(String key) {
         Path path = net.fabricmc.loader.api.FabricLoader.getInstance()
             .getGameDir()
             .resolve("config")
@@ -79,7 +81,7 @@ public final class PerformanceConfig {
             try (var in = Files.newInputStream(path)) {
                 p.load(in);
             }
-            return p.containsKey("boostFps");
+            return p.containsKey(key);
         } catch (Exception e) {
             return false;
         }

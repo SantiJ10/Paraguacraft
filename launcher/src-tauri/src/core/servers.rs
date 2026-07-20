@@ -39,6 +39,11 @@ pub struct ServerStatus {
     pub playit_running: bool,
     pub playit_address: Option<String>,
     pub pid: Option<u32>,
+    /// El usuario confirmó haber vinculado el agente Playit a su cuenta
+    /// (asistente primera vez). Persistido en `_paragua_srv.json`.
+    pub playit_claimed: bool,
+    /// Última línea `…/claim` vista en el log de Playit (para mostrar el link).
+    pub playit_claim_hint: Option<String>,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -490,6 +495,7 @@ pub fn status(id: &str) -> AppResult<ServerStatus> {
             }
         }
     }
+    let dir = folder_for(&prof);
     Ok(ServerStatus {
         id: id.to_string(),
         running,
@@ -497,8 +503,10 @@ pub fn status(id: &str) -> AppResult<ServerStatus> {
         playit_address: prof
             .playit_address
             .clone()
-            .or_else(|| playit_address_from_meta(&folder_for(&prof))),
+            .or_else(|| playit_address_from_meta(&dir)),
         pid,
+        playit_claimed: playit_claimed_from_meta(&dir),
+        playit_claim_hint: playit_claim_hint_from_meta(&dir),
     })
 }
 
@@ -509,6 +517,47 @@ fn playit_address_from_meta(dir: &Path) -> Option<String> {
         .and_then(|x| x.as_str())
         .filter(|s| !s.is_empty())
         .map(String::from)
+}
+
+fn playit_claimed_from_meta(dir: &Path) -> bool {
+    let path = dir.join("_paragua_srv.json");
+    let Some(v) = config::read_json::<serde_json::Value>(&path) else {
+        return false;
+    };
+    v.get("playit_claimed").and_then(|x| x.as_bool()).unwrap_or(false)
+}
+
+fn playit_claim_hint_from_meta(dir: &Path) -> Option<String> {
+    let path = dir.join("_paragua_srv.json");
+    let v: serde_json::Value = config::read_json(&path)?;
+    v.get("playit_claim_hint")
+        .and_then(|x| x.as_str())
+        .filter(|s| !s.is_empty())
+        .map(String::from)
+}
+
+/// Marca el asistente Playit primera vez como completado (el usuario confirmó
+/// que vinculó el agente a su cuenta playit.gg).
+pub fn mark_playit_claimed(id: &str) -> AppResult<()> {
+    let dir = folder_for_id(id)?;
+    let meta_path = dir.join("_paragua_srv.json");
+    let mut meta: serde_json::Value = config::read_json(&meta_path).unwrap_or(serde_json::json!({}));
+    if let Some(obj) = meta.as_object_mut() {
+        obj.insert("playit_claimed".into(), serde_json::Value::Bool(true));
+    }
+    config::write_json_atomic(&meta_path, &meta)
+}
+
+fn save_playit_claim_hint(dir: &Path, line: &str) {
+    let meta_path = dir.join("_paragua_srv.json");
+    let mut meta: serde_json::Value = config::read_json(&meta_path).unwrap_or(serde_json::json!({}));
+    if let Some(obj) = meta.as_object_mut() {
+        obj.insert(
+            "playit_claim_hint".into(),
+            serde_json::Value::String(line.to_string()),
+        );
+    }
+    let _ = config::write_json_atomic(&meta_path, &meta);
 }
 
 fn set_playit_address(id: &str, address: &str) -> AppResult<()> {
@@ -603,6 +652,9 @@ fn process_playit_log_chunk(id: &str, chunk: &str, seen: &mut HashSet<String>) {
                     id,
                     "[playit] ⚠ Vinculá tu agente en el enlace claim de arriba (cuenta playit.gg).",
                 );
+                if let Ok(dir) = folder_for_id(id) {
+                    save_playit_claim_hint(&dir, &line);
+                }
             }
         }
     }
