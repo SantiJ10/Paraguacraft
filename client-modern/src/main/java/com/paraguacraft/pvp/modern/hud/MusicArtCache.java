@@ -19,7 +19,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /** Descarga y cachea la caratula de Spotify/YouTube para el HUD de musica. */
 public final class MusicArtCache {
 
-    private static final int ART_PX = 64;
+    /** Textura nativa 16x16 (como 1.8.9 ART_SIZE=16). */
+    private static final int ART_PX = 16;
 
     private static String cachedUrl = "";
     private static Identifier textureId;
@@ -67,6 +68,9 @@ public final class MusicArtCache {
             conn.setReadTimeout(10000);
             conn.setRequestProperty("User-Agent", "ParaguacraftPvP-Modern/0.6");
             conn.setRequestProperty("Accept", "image/jpeg,image/png,image/webp,image/*,*/*");
+            if (fetchUrl.contains("scdn.co") || fetchUrl.contains("spotify")) {
+                conn.setRequestProperty("Referer", "https://open.spotify.com/");
+            }
             conn.connect();
             byte[] bytes;
             try (InputStream in = conn.getInputStream(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
@@ -96,28 +100,28 @@ public final class MusicArtCache {
 
     private static NativeImage decodeImage(byte[] bytes) throws Exception {
         BufferedImage src = ImageIO.read(new ByteArrayInputStream(bytes));
-        if (src == null) {
-            NativeImage direct = NativeImage.read(new ByteArrayInputStream(bytes));
-            if (direct == null) {
-                return null;
+        if (src != null) {
+            BufferedImage scaled = new BufferedImage(ART_PX, ART_PX, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g = scaled.createGraphics();
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+            g.drawImage(src, 0, 0, ART_PX, ART_PX, null);
+            g.dispose();
+            NativeImage out = new NativeImage(ART_PX, ART_PX, false);
+            for (int y = 0; y < ART_PX; y++) {
+                for (int x = 0; x < ART_PX; x++) {
+                    out.setColorArgb(x, y, toAbgr(scaled.getRGB(x, y)));
+                }
             }
-            return resizeToArt(direct);
+            return out;
         }
-        BufferedImage scaled = new BufferedImage(ART_PX, ART_PX, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g = scaled.createGraphics();
-        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        g.drawImage(src, 0, 0, ART_PX, ART_PX, null);
-        g.dispose();
-        NativeImage out = new NativeImage(ART_PX, ART_PX, false);
-        for (int y = 0; y < ART_PX; y++) {
-            for (int x = 0; x < ART_PX; x++) {
-                out.setColorArgb(x, y, toAbgr(scaled.getRGB(x, y)));
-            }
+        NativeImage direct = NativeImage.read(new ByteArrayInputStream(bytes));
+        if (direct == null) {
+            return null;
         }
-        return out;
+        return resizeNearest(direct);
     }
 
-    private static NativeImage resizeToArt(NativeImage src) {
+    private static NativeImage resizeNearest(NativeImage src) {
         int w = src.getWidth();
         int h = src.getHeight();
         if (w == ART_PX && h == ART_PX) {
@@ -128,7 +132,7 @@ public final class MusicArtCache {
             for (int x = 0; x < ART_PX; x++) {
                 int sx = x * w / ART_PX;
                 int sy = y * h / ART_PX;
-                out.setColorArgb(x, y, toAbgrFromNative(src.getColorArgb(sx, sy)));
+                out.setColorArgb(x, y, src.getColorArgb(sx, sy));
             }
         }
         src.close();
@@ -141,15 +145,6 @@ public final class MusicArtCache {
         int r = (argb >> 16) & 0xFF;
         int g = (argb >> 8) & 0xFF;
         int b = argb & 0xFF;
-        return (a << 24) | (b << 16) | (g << 8) | r;
-    }
-
-    /** NativeImage.read devuelve ABGR en getColorArgb; reempaquetar por si acaso. */
-    private static int toAbgrFromNative(int abgr) {
-        int a = (abgr >> 24) & 0xFF;
-        int b = (abgr >> 16) & 0xFF;
-        int g = (abgr >> 8) & 0xFF;
-        int r = abgr & 0xFF;
         return (a << 24) | (b << 16) | (g << 8) | r;
     }
 

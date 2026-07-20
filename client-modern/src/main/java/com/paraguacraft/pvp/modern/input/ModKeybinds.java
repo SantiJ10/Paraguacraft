@@ -4,6 +4,7 @@ import com.paraguacraft.pvp.modern.config.ModernConfig;
 import com.paraguacraft.pvp.modern.core.FreelookManager;
 import com.paraguacraft.pvp.modern.gui.GuiEditHudScreen;
 import com.paraguacraft.pvp.modern.gui.HypixelQuickPlayScreen;
+import com.paraguacraft.pvp.modern.gui.NickFinderScreen;
 import com.paraguacraft.pvp.modern.gui.ModMenuScreen;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
@@ -20,6 +21,7 @@ public final class ModKeybinds {
     private static KeyBinding freelook;
     private static KeyBinding fullbright;
     private static KeyBinding quickPlay;
+    private static KeyBinding nickFinder;
 
     private ModKeybinds() {}
 
@@ -29,6 +31,7 @@ public final class ModKeybinds {
         freelook = bind("freelook", GLFW.GLFW_KEY_LEFT_ALT);
         fullbright = bind("fullbright", GLFW.GLFW_KEY_G);
         quickPlay = bind("quick_play", GLFW.GLFW_KEY_GRAVE_ACCENT);
+        nickFinder = bind("nick_finder", GLFW.GLFW_KEY_N);
         ClientTickEvents.END_CLIENT_TICK.register(ModKeybinds::tick);
     }
 
@@ -57,6 +60,11 @@ public final class ModKeybinds {
         }
         while (quickPlay.wasPressed()) {
             client.setScreen(new HypixelQuickPlayScreen(client.currentScreen));
+        }
+        while (nickFinder.wasPressed()) {
+            if (ModernConfig.nickFinderEnabled) {
+                client.setScreen(new NickFinderScreen(client.currentScreen));
+            }
         }
         if (ModernConfig.freelookEnabled) {
             if (freelook.isPressed()) {

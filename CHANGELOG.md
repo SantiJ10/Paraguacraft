@@ -3,6 +3,16 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## Cliente PvP Modern 0.6.10 - 2026-07-19
+
+### Added
+- **NickFinder**: tecla `N`, busqueda parcial en tab y resaltado cian.
+- **Camas coloridas** BedWars segun lana adyacente (estilo Hytils).
+
+### Changed
+- HUD musica alineado a 1.8.9: metricas CPU/RAM/GPU cian+blanco, artista `#8899AA`, alpha 255, pos Y 260.
+- Caratula 16x16 nearest-neighbor + Referer Spotify; ancho panel ajustado al texto.
+
 ## Cliente PvP Modern 0.6.9 - 2026-07-19
 
 ### Added
