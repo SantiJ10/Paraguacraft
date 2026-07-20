@@ -3,6 +3,11 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## Cliente PvP Modern 0.6.13 - 2026-07-19
+
+### Fixed
+- Crash al iniciar: NickFinder en tab usa `getPlayerName` en lugar de `drawTextWithShadow` (API 1.21.11).
+
 ## Cliente PvP Modern 0.6.12 - 2026-07-19
 
 ### Fixed
