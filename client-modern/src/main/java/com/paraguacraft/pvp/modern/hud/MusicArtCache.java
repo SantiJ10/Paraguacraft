@@ -19,17 +19,25 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /** Descarga y cachea la caratula de Spotify/YouTube para el HUD de musica. */
 public final class MusicArtCache {
 
-    /** Textura nativa 16x16 (como 1.8.9 ART_SIZE=16). */
-    private static final int ART_PX = 16;
+    /** Textura 64x64 como 1.8.9; se dibuja a 16px en pantalla. */
+    private static final int TEX_PX = 64;
+    private static final int DISPLAY_PX = 16;
+    private static final long RETRY_MS = 12_000L;
 
     private static String cachedUrl = "";
+    private static String failedUrl = "";
+    private static long failedAt;
     private static Identifier textureId;
     private static NativeImageBackedTexture texture;
-    private static int texW = ART_PX;
-    private static int texH = ART_PX;
+    private static int texW = TEX_PX;
+    private static int texH = TEX_PX;
     private static final AtomicBoolean loading = new AtomicBoolean(false);
 
     private MusicArtCache() {}
+
+    public static int displaySize() {
+        return DISPLAY_PX;
+    }
 
     public static Identifier get(String url) {
         if (url == null || url.isEmpty()) {
@@ -37,11 +45,15 @@ public final class MusicArtCache {
         }
         if (!url.equals(cachedUrl)) {
             cachedUrl = url;
+            failedUrl = "";
             clearTexture();
             loading.set(false);
         }
         if (textureId != null) {
             return textureId;
+        }
+        if (url.equals(failedUrl) && System.currentTimeMillis() - failedAt < RETRY_MS) {
+            return null;
         }
         if (loading.compareAndSet(false, true)) {
             final String fetchUrl = url;
@@ -78,7 +90,7 @@ public final class MusicArtCache {
                 bytes = out.toByteArray();
             }
             if (bytes.length == 0) {
-                loading.set(false);
+                markFailed(fetchUrl);
                 return;
             }
             NativeImage image = decodeImage(bytes);
@@ -93,23 +105,29 @@ public final class MusicArtCache {
                 image.close();
             }
         } catch (Exception ignored) {
-            /* retry next poll */
+            /* retry later */
         }
+        markFailed(fetchUrl);
+    }
+
+    private static void markFailed(String url) {
+        failedUrl = url;
+        failedAt = System.currentTimeMillis();
         loading.set(false);
     }
 
     private static NativeImage decodeImage(byte[] bytes) throws Exception {
         BufferedImage src = ImageIO.read(new ByteArrayInputStream(bytes));
         if (src != null) {
-            BufferedImage scaled = new BufferedImage(ART_PX, ART_PX, BufferedImage.TYPE_INT_ARGB);
+            BufferedImage scaled = new BufferedImage(TEX_PX, TEX_PX, BufferedImage.TYPE_INT_ARGB);
             Graphics2D g = scaled.createGraphics();
-            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-            g.drawImage(src, 0, 0, ART_PX, ART_PX, null);
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g.drawImage(src, 0, 0, TEX_PX, TEX_PX, null);
             g.dispose();
-            NativeImage out = new NativeImage(ART_PX, ART_PX, false);
-            for (int y = 0; y < ART_PX; y++) {
-                for (int x = 0; x < ART_PX; x++) {
-                    out.setColorArgb(x, y, toAbgr(scaled.getRGB(x, y)));
+            NativeImage out = new NativeImage(TEX_PX, TEX_PX, false);
+            for (int y = 0; y < TEX_PX; y++) {
+                for (int x = 0; x < TEX_PX; x++) {
+                    out.setColorArgb(x, y, scaled.getRGB(x, y));
                 }
             }
             return out;
@@ -118,34 +136,25 @@ public final class MusicArtCache {
         if (direct == null) {
             return null;
         }
-        return resizeNearest(direct);
+        return resizeBilinear(direct);
     }
 
-    private static NativeImage resizeNearest(NativeImage src) {
+    private static NativeImage resizeBilinear(NativeImage src) {
         int w = src.getWidth();
         int h = src.getHeight();
-        if (w == ART_PX && h == ART_PX) {
+        if (w == TEX_PX && h == TEX_PX) {
             return src;
         }
-        NativeImage out = new NativeImage(ART_PX, ART_PX, false);
-        for (int y = 0; y < ART_PX; y++) {
-            for (int x = 0; x < ART_PX; x++) {
-                int sx = x * w / ART_PX;
-                int sy = y * h / ART_PX;
+        NativeImage out = new NativeImage(TEX_PX, TEX_PX, false);
+        for (int y = 0; y < TEX_PX; y++) {
+            for (int x = 0; x < TEX_PX; x++) {
+                int sx = x * w / TEX_PX;
+                int sy = y * h / TEX_PX;
                 out.setColorArgb(x, y, src.getColorArgb(sx, sy));
             }
         }
         src.close();
         return out;
-    }
-
-    /** BufferedImage ARGB -> NativeImage ABGR. */
-    private static int toAbgr(int argb) {
-        int a = (argb >> 24) & 0xFF;
-        int r = (argb >> 16) & 0xFF;
-        int g = (argb >> 8) & 0xFF;
-        int b = argb & 0xFF;
-        return (a << 24) | (b << 16) | (g << 8) | r;
     }
 
     private static void registerImage(NativeImage image, int w, int h) {
@@ -156,6 +165,7 @@ public final class MusicArtCache {
         textureId = Identifier.of("paraguacraftpvp-modern", "music_art/live");
         MinecraftClient.getInstance().getTextureManager().registerTexture(textureId, texture);
         loading.set(false);
+        failedUrl = "";
     }
 
     private static void clearTexture() {
@@ -167,12 +177,13 @@ public final class MusicArtCache {
         }
         textureId = null;
         texture = null;
-        texW = ART_PX;
-        texH = ART_PX;
+        texW = TEX_PX;
+        texH = TEX_PX;
     }
 
     public static void clear() {
         cachedUrl = "";
+        failedUrl = "";
         clearTexture();
         loading.set(false);
     }

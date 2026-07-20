@@ -22,6 +22,7 @@ public final class ModKeybinds {
     private static KeyBinding fullbright;
     private static KeyBinding quickPlay;
     private static KeyBinding nickFinder;
+    private static KeyBinding toggleSprint;
 
     private ModKeybinds() {}
 
@@ -32,6 +33,7 @@ public final class ModKeybinds {
         fullbright = bind("fullbright", GLFW.GLFW_KEY_G);
         quickPlay = bind("quick_play", GLFW.GLFW_KEY_GRAVE_ACCENT);
         nickFinder = bind("nick_finder", GLFW.GLFW_KEY_N);
+        toggleSprint = bind("toggle_sprint", GLFW.GLFW_KEY_M);
         ClientTickEvents.END_CLIENT_TICK.register(ModKeybinds::tick);
     }
 
@@ -64,6 +66,16 @@ public final class ModKeybinds {
         while (nickFinder.wasPressed()) {
             if (ModernConfig.nickFinderEnabled) {
                 client.setScreen(new NickFinderScreen(client.currentScreen));
+            }
+        }
+        while (toggleSprint.wasPressed()) {
+            ModernConfig.toggleSprint = !ModernConfig.toggleSprint;
+            ModernConfig.save();
+            if (client.player != null) {
+                client.player.sendMessage(
+                    net.minecraft.text.Text.literal("Toggle sprint (M): " + (ModernConfig.toggleSprint ? "ON" : "OFF")),
+                    true
+                );
             }
         }
         if (ModernConfig.freelookEnabled) {

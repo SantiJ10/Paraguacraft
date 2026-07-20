@@ -69,9 +69,14 @@ public class GuiEditHudScreen extends Screen {
         if (ModernConfig.showHeldItem) {
             drawEditBox(ctx, 5, ModernConfig.heldX, ModernConfig.heldY, 130, 40);
         }
-        if (ModernConfig.showMusicHud || ModernConfig.showHardwareHud) {
+        if (ModernConfig.showHardwareHud) {
             LauncherIpc.Snapshot snap = LauncherIpc.get();
-            drawEditBox(ctx, 7, ModernConfig.overlayHudX, ModernConfig.overlayHudY,
+            drawEditBox(ctx, 7, ModernConfig.hardwareHudX, ModernConfig.hardwareHudY,
+                HudRenderer.hardwarePanelWidth(snap), HudRenderer.hardwarePanelHeight(snap));
+        }
+        if (ModernConfig.showMusicHud) {
+            LauncherIpc.Snapshot snap = LauncherIpc.get();
+            drawEditBox(ctx, 13, ModernConfig.musicHudX, ModernConfig.musicHudY,
                 HudRenderer.musicPanelWidth(snap, true), HudRenderer.musicPanelHeight(snap, true));
         }
         if (ModernConfig.showBedwarsResources) {
@@ -142,11 +147,18 @@ public class GuiEditHudScreen extends Screen {
         if (ModernConfig.showArmor && inBox(mx, my, ModernConfig.armorX, ModernConfig.armorY, 45, HudRenderer.armorPanelHeight(client))) return 4;
         if (ModernConfig.showHeldItem && inBox(mx, my, ModernConfig.heldX, ModernConfig.heldY, 130, 40)) return 5;
         if (ModernConfig.showBedwarsResources && inBox(mx, my, ModernConfig.bwResX, ModernConfig.bwResY, 42, 68)) return 6;
-        if (ModernConfig.showMusicHud || ModernConfig.showHardwareHud) {
+        if (ModernConfig.showHardwareHud) {
             LauncherIpc.Snapshot snap = LauncherIpc.get();
-            if (inBox(mx, my, ModernConfig.overlayHudX, ModernConfig.overlayHudY,
-                HudRenderer.musicPanelWidth(snap, true), HudRenderer.musicPanelHeight(snap, true))) {
+            if (inBox(mx, my, ModernConfig.hardwareHudX, ModernConfig.hardwareHudY,
+                HudRenderer.hardwarePanelWidth(snap), HudRenderer.hardwarePanelHeight(snap))) {
                 return 7;
+            }
+        }
+        if (ModernConfig.showMusicHud) {
+            LauncherIpc.Snapshot snap = LauncherIpc.get();
+            if (inBox(mx, my, ModernConfig.musicHudX, ModernConfig.musicHudY,
+                HudRenderer.musicPanelWidth(snap, true), HudRenderer.musicPanelHeight(snap, true))) {
+                return 13;
             }
         }
         if (ModernConfig.showBlockCount && inBox(mx, my, ModernConfig.blocksX, ModernConfig.blocksY, 36, 16)) return 8;
@@ -173,7 +185,8 @@ public class GuiEditHudScreen extends Screen {
             case 4 -> new int[] {ModernConfig.armorX, ModernConfig.armorY};
             case 5 -> new int[] {ModernConfig.heldX, ModernConfig.heldY};
             case 6 -> new int[] {ModernConfig.bwResX, ModernConfig.bwResY};
-            case 7 -> new int[] {ModernConfig.overlayHudX, ModernConfig.overlayHudY};
+            case 7 -> new int[] {ModernConfig.hardwareHudX, ModernConfig.hardwareHudY};
+            case 13 -> new int[] {ModernConfig.musicHudX, ModernConfig.musicHudY};
             case 8 -> new int[] {ModernConfig.blocksX, ModernConfig.blocksY};
             case 10 -> new int[] {ModernConfig.coordsX, ModernConfig.coordsY};
             case 11 -> new int[] {width / 2 - 110, ModernConfig.compassY};
@@ -191,7 +204,8 @@ public class GuiEditHudScreen extends Screen {
             case 4 -> { ModernConfig.armorX = x; ModernConfig.armorY = y; }
             case 5 -> { ModernConfig.heldX = x; ModernConfig.heldY = y; }
             case 6 -> { ModernConfig.bwResX = x; ModernConfig.bwResY = y; }
-            case 7 -> { ModernConfig.overlayHudX = x; ModernConfig.overlayHudY = y; }
+            case 7 -> { ModernConfig.hardwareHudX = x; ModernConfig.hardwareHudY = y; }
+            case 13 -> { ModernConfig.musicHudX = x; ModernConfig.musicHudY = y; }
             case 8 -> { ModernConfig.blocksX = x; ModernConfig.blocksY = y; }
             case 10 -> { ModernConfig.coordsX = x; ModernConfig.coordsY = y; }
             case 11 -> { ModernConfig.compassY = y; }
