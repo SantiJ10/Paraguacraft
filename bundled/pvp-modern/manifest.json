@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP Modern",
   "mc_version": "1.21.11",
   "loader": "fabric",
-  "client_version": "0.6.15",
-  "release_tag": "pvp-modern-0.6.15",
-  "descripcion": "Caratula real Spotify/YouTube descargada en HUD de musica.",
+  "client_version": "0.6.16",
+  "release_tag": "pvp-modern-0.6.16",
+  "descripcion": "Caratula real Spotify/YouTube; disco cuando la opcion de descarga esta OFF.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-Modern-0.6.15.jar",
-      "sha1": "72018c48122f76cbfbc91cf3f5a7fe149f8230d0"
+      "filename": "ParaguacraftPvP-Modern-0.6.16.jar",
+      "sha1": "b375576e80a73d6fce4f8715b4c5b9951f12c2bc"
     }
   ]
 }

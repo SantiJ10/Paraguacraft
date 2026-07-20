@@ -29,6 +29,32 @@ pub fn set_music(playing: bool, title: &str, artist: &str, image_url: &str) {
             image_url.to_string(),
         );
     }
+    flush_music_fields();
+}
+
+fn flush_music_fields() {
+    let path = ipc_path();
+    let mut buf = match std::fs::read(&path) {
+        Ok(data) if data.len() >= SIZE => data,
+        Ok(mut data) => {
+            data.resize(SIZE, 0);
+            data
+        }
+        _ => vec![0u8; SIZE],
+    };
+    let (playing, title, artist, image) = MUSIC
+        .lock()
+        .map(|g| (g.0, g.1.clone(), g.2.clone(), g.3.clone()))
+        .unwrap_or((false, String::new(), String::new(), String::new()));
+    buf[0..4].copy_from_slice(MAGIC);
+    if buf.len() >= 8 {
+        buf[4..8].copy_from_slice(&1i32.to_le_bytes());
+    }
+    buf[24] = if playing { 1 } else { 0 };
+    write_fixed_str(&mut buf, 25, 128, &title);
+    write_fixed_str(&mut buf, 153, 64, &artist);
+    write_fixed_str(&mut buf, 217, 256, &image);
+    let _ = std::fs::write(&path, &buf[..SIZE]);
 }
 
 fn write_fixed_str(buf: &mut [u8], off: usize, max: usize, text: &str) {

@@ -3,6 +3,12 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## Cliente PvP Modern 0.6.16 - 2026-07-20
+
+### Fixed
+- Caratula Spotify/YouTube: decode con ImageIO (como 1.8.9), prefetch al leer IPC y flush inmediato de URL en launcher.
+- Opcion "Descargar portada OFF" muestra disco; ON descarga la portada real.
+
 ## Cliente PvP Modern 0.6.15 - 2026-07-20
 
 ### Fixed
