@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP Modern",
   "mc_version": "1.21.11",
   "loader": "fabric",
-  "client_version": "0.6.16",
-  "release_tag": "pvp-modern-0.6.16",
-  "descripcion": "Caratula real Spotify/YouTube; disco cuando la opcion de descarga esta OFF.",
+  "client_version": "0.6.17",
+  "release_tag": "pvp-modern-0.6.17",
+  "descripcion": "Caratula musica corregida; servidores Regorland y CubeCraft actualizados.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-Modern-0.6.16.jar",
-      "sha1": "b375576e80a73d6fce4f8715b4c5b9951f12c2bc"
+      "filename": "ParaguacraftPvP-Modern-0.6.17.jar",
+      "sha1": "c70887f2096aec55a70ca0a42a6598c997d818b6"
     }
   ]
 }

@@ -58,6 +58,11 @@ fn flush_music_fields() {
 }
 
 fn write_fixed_str(buf: &mut [u8], off: usize, max: usize, text: &str) {
+    let end = off.saturating_add(max).min(buf.len());
+    if off >= end {
+        return;
+    }
+    buf[off..end].fill(0);
     let bytes = text.as_bytes();
     let len = bytes.len().min(max.saturating_sub(1));
     buf[off..off + len].copy_from_slice(&bytes[..len]);

@@ -3,6 +3,12 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## Cliente PvP Modern 0.6.17 - 2026-07-20
+
+### Fixed
+- Caratula musica: sin header WebP/AVIF, escala bilineal 64px, IPC sin basura en URL.
+- Multijugador: Regorland (`regorland.net`), CubeCraft (`play.cubecraft.net`), lista v2.
+
 ## Cliente PvP Modern 0.6.16 - 2026-07-20
 
 ### Fixed
