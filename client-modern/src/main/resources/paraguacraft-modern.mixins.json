@@ -15,6 +15,7 @@
     "MixinInGameHudTitles",
     "MixinInGameHudCrosshair",
     "MixinPlayerListHudNickTeam",
+    "MixinEntityRendererNickfinder",
     "MixinInGameHudScoreboard",
     "MixinInGameHudLowFire",
     "MixinItemEntityRenderer",

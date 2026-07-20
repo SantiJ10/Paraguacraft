@@ -2,8 +2,11 @@ package com.paraguacraft.pvp.modern.core;
 
 import com.paraguacraft.pvp.modern.config.ModernConfig;
 import com.paraguacraft.pvp.modern.gui.theme.TextUtil;
+import com.paraguacraft.pvp.modern.gui.theme.UiTheme;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.PlayerListEntry;
+import net.minecraft.text.Text;
+import net.minecraft.text.TextColor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,6 +36,19 @@ public final class NickFinderManager {
         String clean = TextUtil.sanitizeForMcFont(playerName).toLowerCase(Locale.ROOT);
         String q = query().toLowerCase(Locale.ROOT);
         return clean.contains(q);
+    }
+
+    /** Nametag/tab: texto cian en negrita si coincide la busqueda. */
+    public static Text highlightLabel(Text source) {
+        if (!isActive() || source == null) {
+            return source;
+        }
+        String plain = TextUtil.sanitizeForMcFont(source.getString());
+        if (!matches(plain)) {
+            return source;
+        }
+        int rgb = UiTheme.accent() & 0xFFFFFF;
+        return Text.literal(plain).styled(s -> s.withColor(TextColor.fromRgb(rgb)).withBold(true));
     }
 
     public static List<PlayerListEntry> findEntries() {
