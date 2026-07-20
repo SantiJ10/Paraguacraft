@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP Modern",
   "mc_version": "1.21.11",
   "loader": "fabric",
-  "client_version": "0.6.11",
-  "release_tag": "pvp-modern-0.6.11",
-  "descripcion": "NickFinder en nametags 3D y colores de equipo en etiquetas.",
+  "client_version": "0.6.12",
+  "release_tag": "pvp-modern-0.6.12",
+  "descripcion": "Hotfix crash al iniciar (MixinCameraFreelook).",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-Modern-0.6.11.jar",
-      "sha1": "acf394faa8abcfb2434da9d146842cc9e5a500ba"
+      "filename": "ParaguacraftPvP-Modern-0.6.12.jar",
+      "sha1": "e3b05c0de6f282a75d4ddbe324798a4c3bde9232"
     }
   ]
 }
