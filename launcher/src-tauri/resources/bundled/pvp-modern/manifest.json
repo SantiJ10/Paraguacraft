@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP Modern",
   "mc_version": "1.21.11",
   "loader": "fabric",
-  "client_version": "0.6.12",
-  "release_tag": "pvp-modern-0.6.12",
-  "descripcion": "Hotfix crash al iniciar (MixinCameraFreelook).",
+  "client_version": "0.6.13",
+  "release_tag": "pvp-modern-0.6.13",
+  "descripcion": "Hotfix NickFinder tab (getPlayerName) y crash MixinCameraFreelook.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-Modern-0.6.12.jar",
-      "sha1": "e3b05c0de6f282a75d4ddbe324798a4c3bde9232"
+      "filename": "ParaguacraftPvP-Modern-0.6.13.jar",
+      "sha1": "f127ec50f6a0afb15a5f928319ae4780ecb62e2d"
     }
   ]
 }

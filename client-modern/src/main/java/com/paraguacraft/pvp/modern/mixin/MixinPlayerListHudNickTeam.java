@@ -2,35 +2,29 @@ package com.paraguacraft.pvp.modern.mixin;
 
 import com.paraguacraft.pvp.modern.config.ModernConfig;
 import com.paraguacraft.pvp.modern.core.NickFinderManager;
-import com.paraguacraft.pvp.modern.gui.theme.UiTheme;
 import net.minecraft.client.gui.hud.PlayerListHud;
+import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.text.Text;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.ModifyArg;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(PlayerListHud.class)
 public class MixinPlayerListHudNickTeam {
 
-    @ModifyArg(
-        method = "render",
-        at = @At(
-            value = "INVOKE",
-            target = "Lnet/minecraft/client/gui/DrawContext;drawTextWithShadow(Lnet/minecraft/client/font/TextRenderer;Lnet/minecraft/text/Text;III)I"
-        ),
-        index = 4
-    )
-    private int paraguacraft$highlightNick(int color, Text text) {
-        if (!ModernConfig.nickFinderEnabled || text == null) {
-            return color;
+    @Inject(method = "getPlayerName", at = @At("RETURN"), cancellable = true)
+    private void paraguacraft$highlightNick(PlayerListEntry entry, CallbackInfoReturnable<Text> cir) {
+        if (!ModernConfig.nickFinderEnabled || !NickFinderManager.isActive()) {
+            return;
         }
-        String plain = text.getString();
-        if (plain.isEmpty() || plain.length() > 20 || plain.contains(" ")) {
-            return color;
+        Text original = cir.getReturnValue();
+        if (original == null) {
+            return;
         }
-        if (NickFinderManager.matches(plain)) {
-            return UiTheme.accent();
+        Text highlighted = NickFinderManager.highlightLabel(original);
+        if (highlighted != original) {
+            cir.setReturnValue(highlighted);
         }
-        return color;
     }
 }
