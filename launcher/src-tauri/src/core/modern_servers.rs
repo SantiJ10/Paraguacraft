@@ -31,7 +31,7 @@ fn default_servers() -> Vec<ServerEntry> {
         },
         ServerEntry {
             name: "CubeCraft".into(),
-            address: "m.cubecraft.net".into(),
+            address: "play.cubecraft.net".into(),
             description: "EggWars · SkyWars".into(),
         },
         ServerEntry {
@@ -55,7 +55,7 @@ fn default_servers() -> Vec<ServerEntry> {
 /// Escribe `paraguacraft_servers.json` para que el mod muestre servidores en multijugador.
 pub fn write_default_servers(instance_dir: &Path) -> AppResult<()> {
     let file = ServerListFile {
-        version: 1,
+        version: 2,
         servers: default_servers(),
     };
     let path = instance_dir.join("paraguacraft_servers.json");

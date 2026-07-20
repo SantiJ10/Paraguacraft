@@ -109,7 +109,7 @@ pub fn resolve_server(
         "menu" => Ok(None),
         "training" => Ok(None),
         "hypixel" => Ok(Some("mc.hypixel.net".into())),
-        "cubecraft" => Ok(Some("m.cubecraft.net".into())),
+        "cubecraft" => Ok(Some("play.cubecraft.net".into())),
         "minelatino" => Ok(Some("play.minelatino.net".into())),
         "regorland" => Ok(Some("regorland.net".into())),
         "hylex" => Ok(Some("original.hylex.net".into())),
@@ -231,8 +231,8 @@ fn modern_destinations() -> Vec<GameProfileDestination> {
         GameProfileDestination {
             id: "cubecraft".into(),
             label: "CubeCraft".into(),
-            description: Some("m.cubecraft.net".into()),
-            server_address: Some("m.cubecraft.net".into()),
+            description: Some("play.cubecraft.net".into()),
+            server_address: Some("play.cubecraft.net".into()),
             needs_favorite: false,
         },
         GameProfileDestination {
