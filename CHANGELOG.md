@@ -3,6 +3,11 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## Cliente PvP Modern 0.6.15 - 2026-07-20
+
+### Fixed
+- Caratula de musica: descarga real de Spotify/YouTube via `NativeImage.read` (sin conversion manual que corrompia colores).
+
 ## Cliente PvP Modern 0.6.14 - 2026-07-20
 
 ### Changed
