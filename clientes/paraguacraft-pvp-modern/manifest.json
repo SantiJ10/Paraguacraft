@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP Modern",
   "mc_version": "1.21.11",
   "loader": "fabric",
-  "client_version": "0.6.17",
-  "release_tag": "pvp-modern-0.6.17",
-  "descripcion": "Caratula musica corregida; servidores Regorland y CubeCraft actualizados.",
+  "client_version": "0.7.0",
+  "release_tag": "pvp-modern-0.7.0",
+  "descripcion": "Paridad PvP/social con 1.8.9: toggle sneak, badges, culling, perfiles, training kits y caratula robusta.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-Modern-0.6.17.jar",
-      "sha1": "c70887f2096aec55a70ca0a42a6598c997d818b6"
+      "filename": "ParaguacraftPvP-Modern-0.7.0.jar",
+      "sha1": "4a6595262d494eba70923e7326f17e6a96beea73"
     }
   ]
 }

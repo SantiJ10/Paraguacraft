@@ -66,9 +66,12 @@ async function launch(profile: GameProfile) {
   try {
     await app.initGameEvents();
     const destLabel = dest?.label ?? profile.name;
+    const realServerDest = dest?.id !== "menu" && dest?.id !== "training";
+    const competesHere =
+      (profile.competeMode || profile.id === "modern-pvp") && realServerDest;
     app.setLaunch(
       "preparing",
-      profile.competeMode && (dest?.id === "hypixel" || dest?.id === "favorite")
+      competesHere
         ? `Competir — ${destLabel}…`
         : dest?.id === "training"
           ? `Práctica PvP — ${destLabel}…`

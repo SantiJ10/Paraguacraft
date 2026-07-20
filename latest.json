@@ -1,12 +1,12 @@
 {
-  "version": "7.7.5",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.7.5/Instalar_Paraguacraft_v7.7.5.exe",
-  "size_bytes": 92031166,
-  "sha256": "5aacd5e251c6b1fc7065ad5584d014cb0580b0dff61f2070f1740a27c6aaa318",
-  "notes": "- Discord RPC Bedrock: usuario, edicion y estado dinamico (menu/mundo)\n- Discord RPC Ajustes: Explorando Ajustes al entrar a configuracion\n- RPC respeta sesion Java/Bedrock activa",
+  "version": "7.8.0",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.8.0/Instalar_Paraguacraft_v7.8.0.exe",
+  "size_bytes": 92599379,
+  "sha256": "67ece1a6123db7442a09d4a0c5dad0cf8489942b0a01b72ddf1c96f3cf861183",
+  "notes": "- Join inteligente desde favoritos (PvP 1.8.9 vs Modern automatico)\n- Compete mode PvP Modern + asistente Playit primera vez\n- Consola servidor con botones rapidos e historial\n- Tienda servidor con plugins recomendados + badges Paper 1.21\n- Auto-update CurseForge + Bedrock desde favoritos\n- Paraguabot con contexto y acciones clicables\n- Cliente Modern 0.7.0: paridad PvP/social, training kits, Mod Menu busqueda\n- Cliente 1.8.9 2.1.30: training world con kits y cofres PvP",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.7.5/Instalar_Paraguacraft_v7.7.5.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.8.0/Instalar_Paraguacraft_v7.8.0.exe",
       "signature": ""
     }
   }

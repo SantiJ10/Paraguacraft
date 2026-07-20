@@ -14,6 +14,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Descarga y cachea la caratula de Spotify/YouTube (mismo flujo que 1.8.9). */
@@ -91,8 +93,15 @@ public final class MusicArtCache {
         }
     }
 
-    /** Igual que 1.8.9: solo User-Agent (sin pedir WebP/AVIF que ImageIO no decodifica). */
+    /**
+     * Prioridad: archivo local ya cacheado por el launcher (`file://...`,
+     * ver `music_art_cache.rs`) → HTTP directo. El local evita red por
+     * completo (mas rapido y sin depender de que ImageIO soporte el Content-Type).
+     */
     private static byte[] fetchBytes(String fetchUrl) throws Exception {
+        if (fetchUrl.startsWith("file://")) {
+            return fetchLocalFile(fetchUrl);
+        }
         HttpURLConnection conn = (HttpURLConnection) new URL(fetchUrl).openConnection();
         conn.setInstanceFollowRedirects(true);
         conn.setConnectTimeout(4000);
@@ -107,6 +116,15 @@ public final class MusicArtCache {
             in.transferTo(out);
             return out.toByteArray();
         }
+    }
+
+    private static byte[] fetchLocalFile(String fileUrl) throws Exception {
+        String raw = fileUrl.substring("file://".length());
+        Path path = Path.of(raw);
+        if (!Files.isRegularFile(path)) {
+            return null;
+        }
+        return Files.readAllBytes(path);
     }
 
     private static NativeImage decodeImage(byte[] bytes) throws Exception {

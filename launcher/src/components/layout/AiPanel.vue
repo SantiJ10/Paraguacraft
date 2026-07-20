@@ -1,15 +1,45 @@
 <script setup lang="ts">
 import { nextTick, ref, watch } from "vue";
+import { useRouter } from "vue-router";
 import { useAiStore } from "@/stores/ai";
+import { api, parseInvokeError } from "@/lib/ipc";
+import type { AiAction } from "@/lib/types";
 import BaseButton from "@/components/common/BaseButton.vue";
 
 const ai = useAiStore();
+const router = useRouter();
 const draft = ref("");
 const scroller = ref<HTMLElement | null>(null);
+const runningAction = ref<string | null>(null);
 
 function submit() {
   ai.send(draft.value);
   draft.value = "";
+}
+
+async function runAction(action: AiAction) {
+  const key = `${action.action}:${action.param ?? ""}`;
+  runningAction.value = key;
+  try {
+    if (action.action === "repair_instance" && action.param) {
+      const report = await api.repairInstance(action.param);
+      ai.pushNote(
+        report.fixedCount > 0
+          ? `Reparación completada: ${report.fixedCount} corrección(es).`
+          : "Análisis completado: no se encontraron problemas.",
+      );
+    } else if (action.action === "sync_pvp_config" && action.param) {
+      const msg = await api.syncPvpConfig(action.param);
+      ai.pushNote(msg);
+    } else if (action.action === "open_server_console" && action.param) {
+      ai.toggle();
+      await router.push(`/servers/${action.param}`);
+    }
+  } catch (e) {
+    ai.pushNote(`No se pudo completar la acción: ${parseInvokeError(e).message}`);
+  } finally {
+    runningAction.value = null;
+  }
 }
 
 watch(
@@ -45,12 +75,23 @@ watch(
       </header>
 
       <div ref="scroller" class="flex-1 space-y-3 overflow-y-auto p-4">
-        <div v-for="m in ai.messages" :key="m.id" class="flex" :class="m.role === 'user' ? 'justify-end' : 'justify-start'">
+        <div v-for="m in ai.messages" :key="m.id" class="flex flex-col gap-1.5" :class="m.role === 'user' ? 'items-end' : 'items-start'">
           <div
             class="max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm"
             :class="m.role === 'user' ? 'bg-pc-green text-black' : 'bg-surface-3 text-gray-200'"
           >
             {{ m.content }}
+          </div>
+          <div v-if="m.actions?.length" class="flex max-w-[85%] flex-wrap gap-1.5">
+            <button
+              v-for="act in m.actions"
+              :key="`${act.action}:${act.param ?? ''}`"
+              class="rounded-full border border-pc-ai/40 bg-pc-ai/10 px-3 py-1 text-xs font-medium text-pc-ai transition hover:bg-pc-ai/20 disabled:opacity-50"
+              :disabled="runningAction === `${act.action}:${act.param ?? ''}`"
+              @click="runAction(act)"
+            >
+              {{ runningAction === `${act.action}:${act.param ?? ''}` ? "..." : act.label }}
+            </button>
           </div>
         </div>
         <div v-if="ai.thinking" class="flex gap-1 px-2">

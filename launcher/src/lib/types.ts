@@ -269,6 +269,8 @@ export interface ServerStatus {
   playitRunning: boolean;
   playitAddress: string | null;
   pid: number | null;
+  playitClaimed: boolean;
+  playitClaimHint: string | null;
 }
 
 export interface ServerContentItem {
@@ -305,9 +307,16 @@ export interface ServerRepairReport {
   warningCount: number;
 }
 
+export interface AiAction {
+  label: string;
+  action: string;
+  param?: string | null;
+}
+
 export interface AiAssistResponse {
   message: string;
   suggestions: string[];
+  actions: AiAction[];
 }
 
 export type DownloadStatus = "queued" | "downloading" | "done" | "error" | "paused";
@@ -504,12 +513,16 @@ export interface FavoriteServer {
   address: string;
   notes?: string | null;
   createdAt: number;
+  loaderHint?: "modern" | "189" | null;
+  fromPlayit?: boolean;
+  bedrockPort?: number | null;
 }
 
 export interface AiMessage {
   id: string;
   role: "user" | "assistant" | "system";
   content: string;
+  actions?: AiAction[];
 }
 
 // --- Fase 2: Java, backups y login Microsoft ---

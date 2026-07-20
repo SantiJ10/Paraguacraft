@@ -13,21 +13,28 @@ use tauri::AppHandle;
 use crate::core::instances;
 use crate::core::loaders;
 use crate::core::net::{self, sha1_hex, DownloadItem};
+use crate::core::store::curseforge;
 use crate::error::{AppError, AppResult};
 
 const API: &str = "https://api.modrinth.com/v2";
 
+fn jars_in_dir(dir: &PathBuf) -> Vec<PathBuf> {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    entries
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| {
+            // Respeta mods deshabilitados (*.jar.disabled): extension() solo ve "disabled".
+            p.extension().and_then(|x| x.to_str()).map(|x| x.eq_ignore_ascii_case("jar")) == Some(true)
+        })
+        .collect()
+}
+
 fn jar_hashes(dir: &PathBuf) -> HashMap<String, PathBuf> {
     let mut map = HashMap::new();
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return map;
-    };
-    for e in entries.flatten() {
-        let p = e.path();
-        if p.extension().and_then(|x| x.to_str()).map(|x| x.eq_ignore_ascii_case("jar")) != Some(true)
-        {
-            continue;
-        }
+    for p in jars_in_dir(dir) {
         if let Ok(bytes) = std::fs::read(&p) {
             map.insert(sha1_hex(&bytes), p);
         }
@@ -35,11 +42,22 @@ fn jar_hashes(dir: &PathBuf) -> HashMap<String, PathBuf> {
     map
 }
 
-/// Actualiza mods/resourcepacks/shaders de una instancia. Devuelve cuantos
-/// archivos se actualizaron.
+fn jar_fingerprints(dir: &PathBuf) -> HashMap<u32, PathBuf> {
+    let mut map = HashMap::new();
+    for p in jars_in_dir(dir) {
+        if let Ok(bytes) = std::fs::read(&p) {
+            map.insert(curseforge::cf_fingerprint(&bytes), p);
+        }
+    }
+    map
+}
+
+/// Actualiza mods/resourcepacks/shaders de una instancia (Modrinth por sha1 +
+/// CurseForge por fingerprint murmur2). Devuelve cuantos archivos se actualizaron.
 pub async fn update_instance(
     app: &AppHandle,
     client: &reqwest::Client,
+    cf_key: &str,
     instance_id: &str,
 ) -> AppResult<u32> {
     let meta = if instance_id.starts_with("ext::") {
@@ -120,7 +138,103 @@ pub async fn update_instance(
                 let _ = std::fs::remove_file(old);
             }
         }
+
+        // Segunda pasada: jars que no matchean Modrinth pueden venir de CurseForge.
+        // Se identifican por fingerprint (murmur2 modificado), no por nombre/hash sha1.
+        if !cf_key.trim().is_empty() {
+            updated += update_curseforge_dir(app, client, cf_key, &dir, sub, &mc, &loader).await;
+        }
     }
 
     Ok(updated)
+}
+
+/// Actualiza los archivos de `dir` que CurseForge identifica por fingerprint.
+/// No aborta el resto de la cola si un mod esta bloqueado o falla individualmente.
+async fn update_curseforge_dir(
+    app: &AppHandle,
+    client: &reqwest::Client,
+    cf_key: &str,
+    dir: &PathBuf,
+    sub: &str,
+    mc: &str,
+    loader: &str,
+) -> u32 {
+    let installed = jar_fingerprints(dir);
+    if installed.is_empty() {
+        return 0;
+    }
+    let fingerprints: Vec<u32> = installed.keys().copied().collect();
+    let matches = match curseforge::check_fingerprints(client, cf_key, &fingerprints).await {
+        Ok(m) => m,
+        Err(_) => return 0,
+    };
+    if matches.is_empty() {
+        return 0;
+    }
+
+    let project_type = if sub == "mods" { "mod" } else { "resourcepack" };
+    let mut items = Vec::new();
+    let mut to_remove = Vec::new();
+    let mut updated = 0u32;
+
+    for (fingerprint, (mod_id, current_file)) in &matches {
+        let Some(old_path) = installed.get(fingerprint) else { continue };
+        let current_file_id = current_file["id"].as_u64();
+
+        let files = match curseforge::list_files_raw(
+            client,
+            cf_key,
+            &mod_id.to_string(),
+            project_type,
+            mc,
+            loader,
+        )
+        .await
+        {
+            Ok(f) => f,
+            Err(_) => continue,
+        };
+        // Se asume la respuesta de CurseForge ordenada del mas reciente al mas viejo.
+        let Some(latest) = files.first() else { continue };
+        if latest["isAvailable"].as_bool() == Some(false) {
+            continue;
+        }
+        if latest["id"].as_u64() == current_file_id {
+            continue; // Ya esta al dia.
+        }
+        let Some(filename) = latest["fileName"].as_str() else { continue };
+        let url = curseforge::file_download_url(latest);
+        if url.is_empty() {
+            continue;
+        }
+        let sha1 = curseforge::file_sha1(latest);
+        items.push(DownloadItem::new(url, dir.join(filename)).with_sha1(sha1));
+        if old_path.file_name().and_then(|n| n.to_str()) != Some(filename) {
+            to_remove.push(old_path.clone());
+        }
+        updated += 1;
+    }
+
+    if !items.is_empty() {
+        if net::download_all(
+            client,
+            items,
+            8,
+            app,
+            &format!("update-cf-{sub}"),
+            "Actualizando contenido (CurseForge)",
+        )
+        .await
+        .is_ok()
+        {
+            for old in to_remove {
+                let _ = std::fs::remove_file(old);
+            }
+        } else {
+            updated = 0;
+        }
+    }
+
+    updated
 }

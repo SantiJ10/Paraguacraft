@@ -45,6 +45,8 @@ const serverWorlds = ref<WorldInfo[]>([]);
 const modVersions = ref<StoreVersion[]>([]);
 const projectVersions = ref<StoreVersion[]>([]);
 const selectedVersionId = ref("");
+/** Nombres de archivo ya presentes en la instancia destino (badge "Instalada"). */
+const installedFilenames = ref<Set<string>>(new Set());
 
 const loadingLoaders = ref(false);
 const loadingProjectVersions = ref(false);
@@ -52,6 +54,7 @@ const loadingWorlds = ref(false);
 const loadingVersions = ref(false);
 const busy = ref(false);
 const error = ref<string | null>(null);
+const message = ref<string | null>(null);
 const distributionUrl = ref<string | null>(null);
 const installedModpackName = ref<string | null>(null);
 
@@ -342,6 +345,8 @@ async function loadServerWorlds() {
 async function resetWizard() {
   step.value = 0;
   error.value = null;
+  message.value = null;
+  recommendedInstalled.value = new Set();
   distributionUrl.value = null;
   installedModpackName.value = null;
   instanceId.value = "";
@@ -486,12 +491,25 @@ watch([localCompatible, externalCompatible, modCompatibleServers], () => {
   if (open.value && isInstanceFlow.value) syncInstallTargetDefault();
 });
 
+/** Carga los nombres de archivo ya instalados en la instancia local elegida (Fase 5.2). */
+async function loadInstalledFilenames() {
+  installedFilenames.value = new Set();
+  if (!isInstanceFlow.value || installTarget.value !== "local" || !instanceId.value) return;
+  try {
+    const content = await api.listInstanceContent(instanceId.value);
+    installedFilenames.value = new Set(content.map((c) => c.name));
+  } catch {
+    installedFilenames.value = new Set();
+  }
+}
+
 async function loadModVersions() {
   if (!props.item || !mcVersion.value) return;
   loadingVersions.value = true;
   error.value = null;
   modVersions.value = [];
   selectedVersionId.value = "";
+  await loadInstalledFilenames();
   try {
     if (isModpack.value) {
       const ext = props.item.provider === "curseforge" ? ".zip" : ".mrpack";
@@ -651,6 +669,61 @@ function serverTypeLabel(t: string): string {
   if (t.startsWith("paper")) return "Paper";
   if (t.startsWith("forge")) return "Forge";
   return t;
+}
+
+// --- Recomendados Paraguacraft para el servidor seleccionado (Fase 4.2) ---
+interface RecommendedPlugin {
+  key: string;
+  owner: string;
+  slug: string;
+  name: string;
+  description: string;
+  bedrockOnly?: boolean;
+  comingSoon?: boolean;
+}
+
+const RECOMMENDED_PLUGINS: RecommendedPlugin[] = [
+  { key: "viaversion", owner: "ViaVersion", slug: "ViaVersion", name: "ViaVersion", description: "Deja entrar clientes de versiones más nuevas que la del servidor." },
+  { key: "viabackwards", owner: "ViaVersion", slug: "ViaBackwards", name: "ViaBackwards", description: "Deja entrar clientes de versiones más viejas (requiere ViaVersion)." },
+  { key: "skinsrestorer", owner: "SRTeam", slug: "SkinsRestorer", name: "SkinsRestorer", description: "Skins personalizadas para cuentas no premium (offline mode)." },
+  { key: "geyser", owner: "GeyserMC", slug: "Geyser", name: "Geyser", description: "Deja entrar jugadores de Minecraft Bedrock a tu servidor Java.", bedrockOnly: true },
+  { key: "paraguacraft-badges", owner: "", slug: "", name: "ParaguacraftBadges", description: "Insignias Paraguacraft en el nametag. Se instala solo al preparar el servidor.", comingSoon: true },
+];
+
+const recommendedInstalling = ref<string | null>(null);
+const recommendedInstalled = ref<Set<string>>(new Set());
+
+/** Solo tiene sentido para servidores Paper/Bukkit; Fabric usa mods/, no plugins/. */
+function serverAllowsPlugins(id: string): boolean {
+  const srv = servers.servers.find((s) => s.id === id);
+  return !!srv && !srv.serverType.startsWith("fabric");
+}
+
+const showRecommendedFor = computed(() => {
+  if (isPlugin.value && step.value === targetStep.value && serverId.value) {
+    return serverAllowsPlugins(serverId.value) ? serverId.value : "";
+  }
+  return "";
+});
+
+const recommendedForServerIsBedrock = computed(() => {
+  const srv = servers.servers.find((s) => s.id === showRecommendedFor.value);
+  return !!srv && srv.serverType.includes("geyser");
+});
+
+async function installRecommended(p: RecommendedPlugin) {
+  if (p.comingSoon || !showRecommendedFor.value) return;
+  recommendedInstalling.value = p.key;
+  error.value = null;
+  try {
+    await api.hangarInstallPlugin(showRecommendedFor.value, p.owner, p.slug);
+    recommendedInstalled.value = new Set([...recommendedInstalled.value, p.key]);
+    message.value = `${p.name} instalado.`;
+  } catch (e) {
+    error.value = String(e);
+  } finally {
+    recommendedInstalling.value = null;
+  }
 }
 </script>
 
@@ -964,6 +1037,41 @@ function serverTypeLabel(t: string): string {
                   </div>
                 </button>
               </div>
+
+              <!-- Recomendados Paraguacraft (Fase 4.2) -->
+              <div v-if="showRecommendedFor" class="mt-4 rounded-xl border border-surface-4 bg-surface-2 p-3">
+                <h4 class="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">
+                  Recomendados Paraguacraft para este servidor
+                </h4>
+                <ul class="space-y-1.5">
+                  <li
+                    v-for="p in RECOMMENDED_PLUGINS.filter((r) => !r.bedrockOnly || recommendedForServerIsBedrock)"
+                    :key="p.key"
+                    class="flex items-center justify-between gap-3 rounded-lg bg-surface-3 px-3 py-2"
+                  >
+                    <div class="min-w-0">
+                      <p class="text-sm font-semibold">{{ p.name }}</p>
+                      <p class="truncate text-xs text-gray-500">{{ p.description }}</p>
+                    </div>
+                    <BaseButton
+                      size="sm"
+                      variant="secondary"
+                      :disabled="p.comingSoon || recommendedInstalling === p.key || recommendedInstalled.has(p.key)"
+                      @click="installRecommended(p)"
+                    >
+                      {{
+                        p.comingSoon
+                          ? "Automático"
+                          : recommendedInstalled.has(p.key)
+                            ? "Instalado ✓"
+                            : recommendedInstalling === p.key
+                              ? "Instalando…"
+                              : "Instalar"
+                      }}
+                    </BaseButton>
+                  </li>
+                </ul>
+              </div>
             </div>
 
             <!-- Paso: Ubicación (mods, shaders, rp) -->
@@ -1138,13 +1246,22 @@ function serverTypeLabel(t: string): string {
                   "
                   @click="selectedVersionId = ver.id"
                 >
-                  <span class="font-semibold">{{ ver.name || ver.versionNumber }}</span>
+                  <span class="flex items-center gap-2">
+                    <span class="font-semibold">{{ ver.name || ver.versionNumber }}</span>
+                    <span
+                      v-if="installedFilenames.has(ver.filename)"
+                      class="rounded bg-pc-green/20 px-1.5 py-0.5 text-[10px] font-bold uppercase text-pc-green"
+                    >
+                      Instalada
+                    </span>
+                  </span>
                   <span class="text-xs text-gray-500">{{ ver.filename }}</span>
                   <span v-if="ver.publishedAt" class="text-xs text-gray-600">{{ formatDate(ver.publishedAt) }}</span>
                 </button>
               </div>
             </div>
 
+            <p v-if="message" class="mt-4 rounded-lg bg-pc-green/10 px-3 py-2 text-sm text-pc-green">{{ message }}</p>
             <p v-if="error" class="mt-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">{{ error }}</p>
             <div v-if="distributionUrl" class="mt-2">
               <BaseButton size="sm" variant="secondary" @click="openUrl(distributionUrl!)">

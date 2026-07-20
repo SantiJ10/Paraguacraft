@@ -17,6 +17,7 @@ pub async fn ai_assist(
     state: State<'_, AppState>,
     prompt: String,
     diagnosis: Option<CrashDiagnosis>,
+    active_instance_id: Option<String>,
 ) -> AppResult<ai::AiResponse> {
     ai::analyze_prompt_async(
         &state,
@@ -24,6 +25,7 @@ pub async fn ai_assist(
             prompt,
             log_tail: diagnosis.as_ref().map(|d| d.log_tail.clone()),
             diagnosis,
+            active_instance_id,
         },
     )
     .await

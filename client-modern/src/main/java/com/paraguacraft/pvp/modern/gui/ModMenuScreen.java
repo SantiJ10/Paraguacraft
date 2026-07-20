@@ -6,6 +6,7 @@ import com.paraguacraft.pvp.modern.gui.theme.UiTheme;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.text.Text;
 
 import java.util.ArrayList;
@@ -24,6 +25,7 @@ public class ModMenuScreen extends ParaguacraftScreen {
     private int selectedCategory;
     private String search = "";
     private float scroll;
+    private TextFieldWidget searchField;
 
     public ModMenuScreen(Screen parent) {
         super(Text.literal("Paraguacraft Mods"), parent);
@@ -62,8 +64,39 @@ public class ModMenuScreen extends ParaguacraftScreen {
         int closeY = panelY + panelH - 26;
         addDrawableChild(FlatMenuButton.create(panelX + 12, closeY, 100, 20,
             Text.literal("Editar HUD"), () -> client.setScreen(new GuiEditHudScreen(this))));
+        addDrawableChild(FlatMenuButton.create(panelX + 118, closeY, 100, 20,
+            Text.literal("Atajos"), () -> client.setScreen(
+                new net.minecraft.client.gui.screen.option.ControlsOptionsScreen(this, client.options))));
+        addDrawableChild(FlatMenuButton.create(panelX + 224, closeY, 100, 20,
+            Text.literal("Perfiles"), () -> client.setScreen(new ModProfilesScreen(this))));
         addDrawableChild(FlatMenuButton.create(panelX + panelW - 112, closeY, 100, 20,
             Text.literal("Cerrar"), this::goBack));
+
+        initSearchField(panelX, panelY, panelW);
+    }
+
+    /** Campo de busqueda real (teclado nativo: backspace, pegar, seleccion). */
+    private void initSearchField(int panelX, int panelY, int panelW) {
+        int fieldW = 160;
+        int fieldX = panelX + panelW - fieldW - 14;
+        int fieldY = panelY + 12;
+        if (searchField == null) {
+            searchField = new TextFieldWidget(textRenderer, fieldX, fieldY, fieldW, 16, Text.literal("Buscar"));
+            searchField.setMaxLength(32);
+            searchField.setPlaceholder(Text.literal("Buscar mods…"));
+            searchField.setText(search);
+            searchField.setChangedListener(text -> {
+                search = text;
+                scroll = 0;
+                clearChildren();
+                init();
+            });
+        } else {
+            searchField.setX(fieldX);
+            searchField.setY(fieldY);
+        }
+        addDrawableChild(searchField);
+        setFocused(searchField);
     }
 
     private void addCardButton(ModCard card, int x, int y, int w, int h) {
@@ -139,8 +172,16 @@ public class ModMenuScreen extends ParaguacraftScreen {
         cards.add(toggle(2, "Item physics", () -> ModernConfig.itemPhysics, v -> ModernConfig.itemPhysics = v));
         cards.add(toggle(2, "TNT countdown", () -> ModernConfig.showTntCountdown, v -> ModernConfig.showTntCountdown = v));
         cards.add(toggle(2, "Reach display", () -> ModernConfig.reachDisplay, v -> ModernConfig.reachDisplay = v));
+        cards.add(toggle(2, "Insignia propia", () -> ModernConfig.showNametagLogo, v -> ModernConfig.showNametagLogo = v));
+        cards.add(toggle(2, "Insignias de rivales", () -> ModernConfig.showNametagLogoOthers, v -> ModernConfig.showNametagLogoOthers = v));
+        cards.add(toggle(2, "Ping rival en nametag", () -> ModernConfig.showOpponentPing, v -> ModernConfig.showOpponentPing = v));
+        cards.add(toggle(1, "HUD servidor (nombre/IP)", () -> ModernConfig.showServerHud, v -> ModernConfig.showServerHud = v));
         cards.add(toggle(3, "Toggle sprint (M)", () -> ModernConfig.toggleSprint, v -> ModernConfig.toggleSprint = v));
         cards.add(toggle(3, "Auto sprint (W)", () -> ModernConfig.toggleSprintLegacy, v -> ModernConfig.toggleSprintLegacy = v));
+        cards.add(toggle(3, "Toggle sneak (Shift)", () -> ModernConfig.toggleSneak, v -> {
+            ModernConfig.toggleSneak = v;
+            ModernConfig.isSneakingToggled = false;
+        }));
         cards.add(toggle(3, "Pantalla sin bordes", () -> ModernConfig.windowedFullscreen, v -> ModernConfig.windowedFullscreen = v));
         cards.add(toggle(3, "Fullbright", () -> ModernConfig.fullbright, v -> ModernConfig.fullbright = v));
         cards.add(toggle(3, "FOV dinamico", () -> ModernConfig.dynamicFov, v -> ModernConfig.dynamicFov = v));
@@ -151,6 +192,12 @@ public class ModMenuScreen extends ParaguacraftScreen {
         cards.add(toggle(3, "Scoreboard", () -> ModernConfig.scoreboardEnabled, v -> ModernConfig.scoreboardEnabled = v));
         cards.add(toggle(4, "Boost FPS", () -> PerformanceConfig.boostFps, v -> {
             PerformanceConfig.boostFps = v;
+            ModernConfig.save();
+        }));
+        cards.add(toggle(4, "Entity cull", () -> ModernConfig.entityCull, v -> ModernConfig.entityCull = v));
+        cards.add(toggle(4, "Nametag cull", () -> ModernConfig.nametagCull, v -> ModernConfig.nametagCull = v));
+        cards.add(toggle(4, "FPS bajo minimizado", () -> PerformanceConfig.reduceFpsWhenMinimized, v -> {
+            PerformanceConfig.reduceFpsWhenMinimized = v;
             ModernConfig.save();
         }));
         cards.add(open(4, "Crosshair: " + ModernConfig.crosshairModeLabel(), "crosshair"));
@@ -238,7 +285,6 @@ public class ModMenuScreen extends ParaguacraftScreen {
             int color = i == selectedCategory ? UiTheme.accent() : UiTheme.textDim();
             ctx.drawText(textRenderer, Text.literal(CATEGORIES[i]), panelX + 14, catY + i * 22, color, true);
         }
-        ctx.drawText(textRenderer, Text.literal("Buscar: " + search), panelX + SIDEBAR + 12, panelY + 16, UiTheme.textDim(), true);
     }
 
     private void goBack() {

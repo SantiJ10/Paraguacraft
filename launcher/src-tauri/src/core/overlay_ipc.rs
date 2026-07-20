@@ -3,18 +3,39 @@
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 use sysinfo::System;
 
 use crate::core::hardware;
+use crate::core::music_art_cache;
 use crate::core::paths;
 
 const MAGIC: &[u8; 4] = b"PGIP";
 const SIZE: usize = 512;
 
 static MUSIC: Mutex<(bool, String, String, String)> = Mutex::new((false, String::new(), String::new(), String::new()));
+static ART_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+
+fn art_client() -> reqwest::Client {
+    ART_CLIENT.get_or_init(reqwest::Client::new).clone()
+}
+
+/// Si `image_url` es http(s), intenta resolverlo a un archivo local ya
+/// cacheado por `music_art_cache` (más rápido y sin depender de que el juego
+/// mismo pueda descargarlo). Si aún no está cacheada, dispara la descarga en
+/// background y devuelve la URL original para que el cliente la use mientras.
+fn resolve_image_field(image_url: &str) -> String {
+    let trimmed = image_url.trim();
+    if trimmed.is_empty() || !(trimmed.starts_with("http://") || trimmed.starts_with("https://")) {
+        return trimmed.to_string();
+    }
+    match music_art_cache::ensure_cached(art_client(), trimmed) {
+        Some(path) => format!("file://{}", path.to_string_lossy()),
+        None => trimmed.to_string(),
+    }
+}
 
 pub fn ipc_path() -> PathBuf {
     paths::data_dir().join("game-overlay.dat")
@@ -46,6 +67,7 @@ fn flush_music_fields() {
         .lock()
         .map(|g| (g.0, g.1.clone(), g.2.clone(), g.3.clone()))
         .unwrap_or((false, String::new(), String::new(), String::new()));
+    let image_field = resolve_image_field(&image);
     buf[0..4].copy_from_slice(MAGIC);
     if buf.len() >= 8 {
         buf[4..8].copy_from_slice(&1i32.to_le_bytes());
@@ -53,7 +75,7 @@ fn flush_music_fields() {
     buf[24] = if playing { 1 } else { 0 };
     write_fixed_str(&mut buf, 25, 128, &title);
     write_fixed_str(&mut buf, 153, 64, &artist);
-    write_fixed_str(&mut buf, 217, 256, &image);
+    write_fixed_str(&mut buf, 217, 256, &image_field);
     let _ = std::fs::write(&path, &buf[..SIZE]);
 }
 
@@ -99,7 +121,7 @@ pub fn write_snapshot(sys: &mut System) {
     buf[24] = if music_playing { 1 } else { 0 };
     write_fixed_str(&mut buf, 25, 128, &music_title);
     write_fixed_str(&mut buf, 153, 64, &music_artist);
-    write_fixed_str(&mut buf, 217, 256, &music_image);
+    write_fixed_str(&mut buf, 217, 256, &resolve_image_field(&music_image));
 
     let path = ipc_path();
     if let Ok(mut f) = std::fs::File::create(&path) {

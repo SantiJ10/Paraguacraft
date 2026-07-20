@@ -18,6 +18,16 @@ pub struct FavoriteServer {
     #[serde(default)]
     pub notes: Option<String>,
     pub created_at: u64,
+    /// Pista de loader/version para el join inteligente: "modern" (1.21.11),
+    /// "189" (1.8.9) o None (auto-detectar con Server List Ping).
+    #[serde(default)]
+    pub loader_hint: Option<String>,
+    /// true si se guardó desde una dirección de túnel Playit detectada.
+    #[serde(default)]
+    pub from_playit: bool,
+    /// Puerto Bedrock (Geyser) opcional, para amigos que juegan en consola/móvil.
+    #[serde(default)]
+    pub bedrock_port: Option<u16>,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -53,7 +63,19 @@ pub fn list() -> Vec<FavoriteServer> {
     load()
 }
 
-pub fn add(name: &str, address: &str, notes: Option<String>) -> AppResult<FavoriteServer> {
+pub fn get(id: &str) -> Option<FavoriteServer> {
+    load().into_iter().find(|f| f.id == id)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn add(
+    name: &str,
+    address: &str,
+    notes: Option<String>,
+    loader_hint: Option<String>,
+    from_playit: bool,
+    bedrock_port: Option<u16>,
+) -> AppResult<FavoriteServer> {
     let name = name.trim();
     let address = address.trim();
     if name.is_empty() || address.is_empty() {
@@ -66,6 +88,9 @@ pub fn add(name: &str, address: &str, notes: Option<String>) -> AppResult<Favori
         address: address.to_string(),
         notes: notes.filter(|n| !n.trim().is_empty()),
         created_at: now(),
+        loader_hint: loader_hint.filter(|h| !h.trim().is_empty()),
+        from_playit,
+        bedrock_port,
     };
     list.push(fav.clone());
     save(&list)?;

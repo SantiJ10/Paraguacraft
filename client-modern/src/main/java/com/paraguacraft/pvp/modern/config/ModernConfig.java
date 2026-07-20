@@ -56,6 +56,20 @@ public final class ModernConfig {
     public static boolean teamColors = true;
     public static boolean toggleSprint = true;
     public static boolean toggleSprintLegacy = false;
+    /** Modo activado desde Mod Menu; el estado real vive en {@link #isSneakingToggled} (no persistido). */
+    public static boolean toggleSneak = false;
+    public static boolean isSneakingToggled = false;
+    /** Culling (Fase 3 — paridad 1.8.9). Idle FPS vive en {@code PerformanceConfig.reduceFpsWhenMinimized}. */
+    public static boolean entityCull = false;
+    public static boolean nametagCull = false;
+    /** Insignias + ping rival en nametags (Fase 3 — paridad social 1.8.9). */
+    public static boolean showNametagLogo = true;
+    public static boolean showNametagLogoOthers = true;
+    public static boolean showOpponentPing = false;
+    /** HUD con nombre/IP del servidor conectado (Fase 3 — paridad `drawServerHUD` 1.8.9). */
+    public static boolean showServerHud = false;
+    public static int serverHudX = 5;
+    public static int serverHudY = 72;
     public static boolean windowedFullscreen = false;
     public static boolean pvpTrainingAutoWorld = false;
     public static int hudX = 4;
@@ -210,6 +224,15 @@ public final class ModernConfig {
             teamColors = bool(props, "teamColors", teamColors);
             toggleSprint = bool(props, "toggleSprint", toggleSprint);
             toggleSprintLegacy = bool(props, "toggleSprintLegacy", toggleSprintLegacy);
+            toggleSneak = bool(props, "toggleSneak", toggleSneak);
+            entityCull = bool(props, "entityCull", entityCull);
+            nametagCull = bool(props, "nametagCull", nametagCull);
+            showNametagLogo = bool(props, "showNametagLogo", showNametagLogo);
+            showNametagLogoOthers = bool(props, "showNametagLogoOthers", showNametagLogoOthers);
+            showOpponentPing = bool(props, "showOpponentPing", showOpponentPing);
+            showServerHud = bool(props, "showServerHud", showServerHud);
+            serverHudX = intProp(props, "serverHudX", serverHudX);
+            serverHudY = intProp(props, "serverHudY", serverHudY);
             windowedFullscreen = bool(props, "windowedFullscreen", windowedFullscreen);
             pvpTrainingAutoWorld = bool(props, "pvpTrainingAutoWorld", pvpTrainingAutoWorld);
             hudX = intProp(props, "hudX", hudX);
@@ -256,6 +279,10 @@ public final class ModernConfig {
             customSkinUrl = props.getProperty("customSkinUrl", customSkinUrl);
             if (props.containsKey("boostFps")) {
                 PerformanceConfig.boostFps = bool(props, "boostFps", PerformanceConfig.boostFps);
+            }
+            if (props.containsKey("reduceFpsWhenMinimized")) {
+                PerformanceConfig.reduceFpsWhenMinimized =
+                    bool(props, "reduceFpsWhenMinimized", PerformanceConfig.reduceFpsWhenMinimized);
             }
         } catch (IOException ignored) {
         }
@@ -306,8 +333,18 @@ public final class ModernConfig {
         props.setProperty("coloredBeds", String.valueOf(coloredBeds));
         props.setProperty("teamColors", String.valueOf(teamColors));
         props.setProperty("boostFps", String.valueOf(PerformanceConfig.boostFps));
+        props.setProperty("reduceFpsWhenMinimized", String.valueOf(PerformanceConfig.reduceFpsWhenMinimized));
         props.setProperty("toggleSprint", String.valueOf(toggleSprint));
         props.setProperty("toggleSprintLegacy", String.valueOf(toggleSprintLegacy));
+        props.setProperty("toggleSneak", String.valueOf(toggleSneak));
+        props.setProperty("entityCull", String.valueOf(entityCull));
+        props.setProperty("nametagCull", String.valueOf(nametagCull));
+        props.setProperty("showNametagLogo", String.valueOf(showNametagLogo));
+        props.setProperty("showNametagLogoOthers", String.valueOf(showNametagLogoOthers));
+        props.setProperty("showOpponentPing", String.valueOf(showOpponentPing));
+        props.setProperty("showServerHud", String.valueOf(showServerHud));
+        props.setProperty("serverHudX", String.valueOf(serverHudX));
+        props.setProperty("serverHudY", String.valueOf(serverHudY));
         props.setProperty("windowedFullscreen", String.valueOf(windowedFullscreen));
         props.setProperty("pvpTrainingAutoWorld", String.valueOf(pvpTrainingAutoWorld));
         props.setProperty("hudX", String.valueOf(hudX));

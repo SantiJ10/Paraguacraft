@@ -3,6 +3,40 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.8.0] - 2026-07-20
+
+### Added
+- **Join inteligente desde favoritos**: infiere perfil PvP 1.8.9 vs Modern por hint o Server List Ping; botón Unirse sin depender de la instancia seleccionada.
+- **Compete mode PvP Modern**: presets agresivos al lanzar Hypixel/favoritos (culling, HUD mínimo, toggles).
+- **Asistente Playit primera vez**: checklist con claim link, IP Java/Bedrock copiables y guardar favorito.
+- **Consola de servidor mejorada**: botones rápidos (/whitelist, /op, /gamemode, /time, historial).
+- **Tienda servidor**: recomendados Paraguacraft (ViaVersion, Geyser, SkinsRestorer) en Paper.
+- **Plugin badges Paper 1.21+**: auto-instalación según versión del servidor.
+- **Auto-update CurseForge**: fingerprint murmur2 + badge "Instalada" en tienda.
+- **Bedrock ↔ Java**: favoritos con puerto Geyser, botón Bedrock y copiar instrucciones para amigos.
+- **Paraguabot mejorado**: contexto de instancia/favoritos/servidor + acciones clicables (Reparar, Sincronizar PvP, Abrir consola).
+
+### Changed
+- Cache de carátula musical en disco (`file://`) para cliente Modern más robusto.
+- Skins offline unificadas launcher → `paraguacraftpvp-modern.properties`.
+
+## Cliente PvP Modern 0.7.0 - 2026-07-20
+
+### Added
+- **Paridad PvP con 1.8.9**: toggle sneak, culling entidades/nametags, idle FPS, perfiles export/import.
+- **Paridad social**: badges en nametag, ping del rival, HUD de servidor conectado.
+- **Mod Menu**: buscador funcional, atajos vanilla, pantalla de perfiles.
+- **Training world**: kit PvP + 3 cofres (vanilla/pot/UHC) al crear mundo nuevo.
+- **BadgeProtocol** Fabric compatible con plugin Paper/Fabric del servidor.
+
+### Fixed
+- Caratula musica via cache local del launcher (`file://`); skins offline auto-aplicadas al iniciar.
+
+## Cliente PvP 1.8.9 2.1.30 - 2026-07-20
+
+### Added
+- **Training world**: kit inicial (espada, arco, perlas, bloques) y cofres con loadouts vanilla/pot/UHC.
+
 ## Cliente PvP Modern 0.6.17 - 2026-07-20
 
 ### Fixed

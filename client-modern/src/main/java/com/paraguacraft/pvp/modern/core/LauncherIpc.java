@@ -91,7 +91,8 @@ public final class LauncherIpc {
         }
         int https = raw.indexOf("https://");
         int http = raw.indexOf("http://");
-        int start = https >= 0 ? https : http;
+        int file = raw.indexOf("file://");
+        int start = https >= 0 ? https : (http >= 0 ? http : file);
         if (start < 0) {
             return "";
         }

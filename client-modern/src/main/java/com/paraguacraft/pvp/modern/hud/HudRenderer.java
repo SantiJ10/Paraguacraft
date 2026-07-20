@@ -136,6 +136,29 @@ public final class HudRenderer {
         if (ModernConfig.showTntCountdown) {
             drawNearestTnt(context, client.textRenderer, client);
         }
+        if (ModernConfig.showServerHud) {
+            drawServerHud(context, client.textRenderer, client);
+        }
+    }
+
+    /** Nombre + IP del servidor conectado (paridad `drawServerHUD` 1.8.9, sin favicon por simplicidad/seguridad). */
+    private static void drawServerHud(DrawContext ctx, TextRenderer tr, MinecraftClient client) {
+        if (client.isIntegratedServerRunning()) {
+            return;
+        }
+        var entry = client.getCurrentServerEntry();
+        if (entry == null) {
+            return;
+        }
+        int x = ModernConfig.serverHudX;
+        int y = ModernConfig.serverHudY;
+        String name = entry.name != null && !entry.name.isEmpty() ? entry.name : "Servidor";
+        String address = entry.address != null ? entry.address : "";
+        ctx.drawItem(new ItemStack(Items.ENDER_PEARL), x, y);
+        ctx.drawText(tr, Text.literal(name), x + 20, y + 1, UiTheme.accent(), true);
+        if (!address.isEmpty()) {
+            ctx.drawText(tr, Text.literal(address), x + 20, y + 11, UiTheme.textDim(), true);
+        }
     }
 
     public static int musicPanelWidth() {

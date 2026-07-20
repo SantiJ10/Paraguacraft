@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useServersStore } from "@/stores/servers";
+import { useFavoritesStore } from "@/stores/favorites";
 import { api, isTauri } from "@/lib/ipc";
 import type { HangarPlugin, ServerContentItem, ServerRepairReport, ServerStatus } from "@/lib/types";
 import BaseButton from "@/components/common/BaseButton.vue";
@@ -25,6 +26,7 @@ const PROP_FIELDS: Array<{ key: string; label: string; type?: "select"; options?
 const route = useRoute();
 const router = useRouter();
 const serversStore = useServersStore();
+const favoritesStore = useFavoritesStore();
 
 const tab = ref<TabId>("console");
 const status = ref<ServerStatus | null>(null);
@@ -49,6 +51,59 @@ const message = ref<string | null>(null);
 const newWhitelist = ref("");
 const newOp = ref("");
 const newBan = ref("");
+
+// --- Consola: jugador objetivo + historial (Fase 4.1) ---
+const targetPlayer = ref("");
+const commandHistory = ref<string[]>([]);
+const HISTORY_KEY = "pc_server_console_history";
+const HISTORY_MAX = 12;
+
+function loadHistory() {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    commandHistory.value = raw ? JSON.parse(raw) : [];
+  } catch {
+    commandHistory.value = [];
+  }
+}
+
+function pushHistory(cmd: string) {
+  const trimmed = cmd.trim();
+  if (!trimmed) return;
+  commandHistory.value = [trimmed, ...commandHistory.value.filter((c) => c !== trimmed)].slice(0, HISTORY_MAX);
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(commandHistory.value));
+  } catch {
+    // ignorar (localStorage lleno o deshabilitado)
+  }
+}
+
+interface QuickCommand {
+  label: string;
+  build: (player: string) => string;
+  needsPlayer?: boolean;
+}
+
+const quickCommands: QuickCommand[] = [
+  { label: "Día", build: () => "time set day" },
+  { label: "Noche", build: () => "time set night" },
+  { label: "Clima despejado", build: () => "weather clear" },
+  { label: "Dificultad: fácil", build: () => "difficulty easy" },
+  { label: "Dificultad: normal", build: () => "difficulty normal" },
+  { label: "Dificultad: difícil", build: () => "difficulty hard" },
+  { label: "PvP on", build: () => "pvp true" },
+  { label: "PvP off", build: () => "pvp false" },
+  { label: "Guardar mundo", build: () => "save-all" },
+];
+
+const playerCommands: QuickCommand[] = [
+  { label: "Whitelist add", build: (p) => `whitelist add ${p}`, needsPlayer: true },
+  { label: "OP", build: (p) => `op ${p}`, needsPlayer: true },
+  { label: "Modo survival", build: (p) => `gamemode survival ${p}`, needsPlayer: true },
+  { label: "Modo creative", build: (p) => `gamemode creative ${p}`, needsPlayer: true },
+  { label: "Kick", build: (p) => `kick ${p}`, needsPlayer: true },
+  { label: "Curar", build: (p) => `effect give ${p} minecraft:instant_health 1 10`, needsPlayer: true },
+];
 
 const serverId = computed(() => String(route.params.id ?? ""));
 const server = computed(
@@ -198,6 +253,7 @@ async function openLatestLog() {
 }
 
 onMounted(() => {
+  loadHistory();
   void loadAll();
   startPolling();
 });
@@ -261,11 +317,33 @@ async function sendCmd() {
   if (!cmd) return;
   try {
     await api.sendServerCommand(serverId.value, cmd);
+    pushHistory(cmd);
     command.value = "";
     await refreshLog();
   } catch (e) {
     error.value = String(e);
   }
+}
+
+async function runQuickCommand(qc: QuickCommand) {
+  if (qc.needsPlayer && !targetPlayer.value.trim()) {
+    error.value = "Escribí el nombre del jugador arriba primero.";
+    return;
+  }
+  const cmd = qc.build(targetPlayer.value.trim());
+  try {
+    await api.sendServerCommand(serverId.value, cmd);
+    pushHistory(cmd);
+    message.value = `Enviado: /${cmd}`;
+    await refreshLog();
+  } catch (e) {
+    error.value = String(e);
+  }
+}
+
+async function runHistoryCommand(cmd: string) {
+  command.value = cmd;
+  await sendCmd();
 }
 
 async function saveProps() {
@@ -354,6 +432,61 @@ async function savePlayitAddr() {
   await api.setPlayitAddress(serverId.value, playitAddr.value);
   message.value = "Dirección Playit guardada.";
   await serversStore.load(true);
+}
+
+// --- Asistente Playit primera vez (Fase 1.3) ---
+const isGeyser = computed(() => server.value?.serverType.includes("geyser") ?? false);
+const effectiveAddress = computed(() => status.value?.playitAddress ?? playitAddr.value);
+const addressHost = computed(() => effectiveAddress.value.split(":")[0] ?? "");
+const bedrockAddress = computed(() => (addressHost.value ? `${addressHost.value}:19132` : ""));
+
+const claimLink = computed(() => {
+  const hint = status.value?.playitClaimHint ?? "";
+  const match = hint.match(/https?:\/\/\S*playit\.gg\/claim\S*/i);
+  return match ? match[0] : null;
+});
+
+function bedrockInstructions(): string {
+  const name = server.value?.name ?? "el servidor";
+  return [
+    `¡Unite a ${name}!`,
+    `- Java (PC): agregá el servidor con la IP ${effectiveAddress.value}`,
+    `- Bedrock (consola/móvil/Win10): agregá un servidor nuevo con IP ${addressHost.value} y puerto 19132`,
+  ].join("\n");
+}
+
+async function copyBedrockInstructions() {
+  await copyText(bedrockInstructions(), "Instrucciones copiadas — pegalas en el chat con tu amigo.");
+}
+
+async function copyText(text: string, okMessage: string) {
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    message.value = okMessage;
+  } catch {
+    error.value = "No se pudo copiar al portapapeles.";
+  }
+}
+
+async function confirmPlayitClaimed() {
+  try {
+    await api.markPlayitClaimed(serverId.value);
+    await refreshStatus();
+    message.value = "¡Listo! Cuenta Playit vinculada.";
+  } catch (e) {
+    error.value = String(e);
+  }
+}
+
+async function addThisServerToFavorites() {
+  if (!server.value) return;
+  try {
+    await favoritesStore.addFromServer(serverId.value, isGeyser.value ? 19132 : undefined);
+    message.value = `«${server.value.name}» agregado a favoritos.`;
+  } catch (e) {
+    error.value = String(e);
+  }
 }
 
 async function repairServer() {
@@ -522,10 +655,137 @@ function serverTypeLabel(t: string) {
           />
           <BaseButton :disabled="!status?.running" @click="sendCmd">Enviar</BaseButton>
         </div>
+
+        <div v-if="commandHistory.length" class="flex flex-wrap gap-1.5">
+          <span class="mt-1 text-xs text-gray-500">Recientes:</span>
+          <button
+            v-for="(h, i) in commandHistory"
+            :key="i"
+            class="rounded-full border border-surface-5 bg-surface-3 px-2.5 py-0.5 font-mono text-xs text-gray-300 transition hover:border-pc-green hover:text-white"
+            :disabled="!status?.running"
+            @click="runHistoryCommand(h)"
+          >
+            /{{ h }}
+          </button>
+        </div>
+
+        <!-- Acciones rápidas (Fase 4.1) -->
+        <div class="rounded-xl border border-surface-4 bg-surface-2 p-4">
+          <h3 class="mb-3 text-sm font-bold">Acciones rápidas</h3>
+          <div class="mb-3 flex flex-wrap gap-2">
+            <BaseButton
+              v-for="qc in quickCommands"
+              :key="qc.label"
+              size="sm"
+              variant="secondary"
+              :disabled="!status?.running"
+              @click="runQuickCommand(qc)"
+            >
+              {{ qc.label }}
+            </BaseButton>
+          </div>
+          <label class="mb-2 block text-sm">
+            <span class="mb-1 block text-gray-400">Jugador objetivo (para las acciones de abajo)</span>
+            <input
+              v-model="targetPlayer"
+              placeholder="Nombre del jugador"
+              class="w-full max-w-xs rounded-lg border border-surface-5 bg-surface-3 px-3 py-2 text-sm outline-none focus:border-pc-green"
+            />
+          </label>
+          <div class="flex flex-wrap gap-2">
+            <BaseButton
+              v-for="qc in playerCommands"
+              :key="qc.label"
+              size="sm"
+              variant="secondary"
+              :disabled="!status?.running"
+              @click="runQuickCommand(qc)"
+            >
+              {{ qc.label }}
+            </BaseButton>
+          </div>
+        </div>
+
         <div class="flex flex-wrap gap-2">
           <BaseButton size="sm" variant="secondary" :disabled="!isTauri()" @click="startPlayit">Playit.gg</BaseButton>
           <BaseButton size="sm" variant="ghost" :disabled="!status?.playitRunning" @click="stopPlayit">Detener Playit</BaseButton>
         </div>
+
+        <!-- Asistente Playit primera vez -->
+        <div class="rounded-xl border border-surface-4 bg-surface-2 p-4">
+          <h3 class="mb-3 text-sm font-bold">Asistente Playit — jugar con amigos</h3>
+          <ol class="space-y-3 text-sm">
+            <li class="flex items-start gap-2">
+              <span :class="status?.playitRunning ? 'text-pc-green' : 'text-gray-500'">
+                {{ status?.playitRunning ? "✅" : "①" }}
+              </span>
+              <div>
+                <p class="font-semibold">Túnel iniciado</p>
+                <p class="text-xs text-gray-500">
+                  {{ status?.playitRunning ? "El agente playit.exe está corriendo." : "Apretá «Playit.gg» arriba para iniciarlo." }}
+                </p>
+              </div>
+            </li>
+            <li class="flex items-start gap-2">
+              <span :class="status?.playitClaimed ? 'text-pc-green' : 'text-gray-500'">
+                {{ status?.playitClaimed ? "✅" : "②" }}
+              </span>
+              <div class="min-w-0 flex-1">
+                <p class="font-semibold">Vincular cuenta playit.gg (para que el túnel no expire)</p>
+                <p v-if="!status?.playitClaimed && claimLink" class="mt-1 text-xs">
+                  <a :href="claimLink" target="_blank" class="break-all text-pc-green underline">{{ claimLink }}</a>
+                </p>
+                <p v-else-if="!status?.playitClaimed" class="text-xs text-gray-500">
+                  El link de vinculación aparece en la consola al iniciar el túnel.
+                </p>
+                <BaseButton
+                  v-if="!status?.playitClaimed"
+                  size="sm"
+                  variant="ghost"
+                  class="mt-1"
+                  @click="confirmPlayitClaimed"
+                >
+                  Ya vinculé mi cuenta
+                </BaseButton>
+              </div>
+            </li>
+            <li class="flex items-start gap-2">
+              <span :class="effectiveAddress ? 'text-pc-green' : 'text-gray-500'">
+                {{ effectiveAddress ? "✅" : "③" }}
+              </span>
+              <div class="min-w-0 flex-1">
+                <p class="font-semibold">Dirección lista para compartir</p>
+                <div v-if="effectiveAddress" class="mt-1 flex flex-wrap items-center gap-2">
+                  <code class="rounded bg-black/40 px-2 py-1 text-xs text-pc-green">{{ effectiveAddress }}</code>
+                  <BaseButton size="sm" variant="ghost" @click="copyText(effectiveAddress, 'IP Java copiada.')">
+                    Copiar IP Java
+                  </BaseButton>
+                  <BaseButton
+                    v-if="isGeyser"
+                    size="sm"
+                    variant="ghost"
+                    @click="copyText(bedrockAddress, 'IP Bedrock copiada.')"
+                  >
+                    Copiar IP Bedrock
+                  </BaseButton>
+                  <BaseButton
+                    v-if="isGeyser"
+                    size="sm"
+                    variant="ghost"
+                    @click="copyBedrockInstructions"
+                  >
+                    Copiar instrucciones para amigo Bedrock
+                  </BaseButton>
+                  <BaseButton size="sm" variant="secondary" @click="addThisServerToFavorites">
+                    + Agregar a favoritos
+                  </BaseButton>
+                </div>
+                <p v-else class="text-xs text-gray-500">Esperando a que playit asigne una dirección…</p>
+              </div>
+            </li>
+          </ol>
+        </div>
+
         <div class="flex flex-wrap items-end gap-2">
           <label class="flex-1 text-sm">
             <span class="mb-1 block text-gray-400">Dirección Java (manual)</span>

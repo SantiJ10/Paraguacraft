@@ -41,8 +41,11 @@ pub fn apply_pre_launch(
     let _ = performance::apply_min_graphics(game_dir);
 
     let mut overlay_ipc = false;
-    if loaders::normalize(loader) == "paraguacraft-pvp" {
+    let normalized_loader = loaders::normalize(loader);
+    if normalized_loader == "paraguacraft-pvp" {
         overlay_ipc = apply_pvp_compete_profile(game_dir, &hw.perfil_sugerido)?;
+    } else if normalized_loader == "paraguacraft-pvp-modern" {
+        overlay_ipc = apply_modern_compete_profile(game_dir, &hw.perfil_sugerido)?;
     }
 
     Ok(CompeteLaunchPlan {
@@ -85,7 +88,7 @@ fn hud_ipc_from_properties(path: &Path) -> Option<bool> {
     Some(music || hw_hud)
 }
 
-fn apply_pvp_compete_profile(game_dir: &Path, tier: &str) -> AppResult<bool> {
+pub(crate) fn apply_pvp_compete_profile(game_dir: &Path, tier: &str) -> AppResult<bool> {
     let path = game_dir.join("paraguacraft_v2.properties");
     let mut props = read_properties(&path);
 
@@ -123,6 +126,61 @@ fn apply_pvp_compete_profile(game_dir: &Path, tier: &str) -> AppResult<bool> {
         }
         _ => {
             props.insert("particleMode".into(), "REDUCED".into());
+            props.insert("showMusicHud".into(), "true".into());
+            props.insert("showHardwareHud".into(), "false".into());
+            props.insert("showMusicAlbumArt".into(), "false".into());
+        }
+    }
+
+    write_properties(&path, &props)?;
+
+    let music = props
+        .get("showMusicHud")
+        .is_some_and(|v| v.eq_ignore_ascii_case("true"));
+    let hw_hud = props
+        .get("showHardwareHud")
+        .is_some_and(|v| v.eq_ignore_ascii_case("true"));
+    Ok(music || hw_hud)
+}
+
+/// Espejo de `apply_pvp_compete_profile` para el cliente PvP Modern (1.21.11).
+/// Escribe en `config/paraguacraftpvp-modern.properties` (mismo archivo que
+/// lee `ModernConfig.java` in-game), a diferencia de `paraguacraft_modern.properties`
+/// (raiz de instancia) que usa el preset de rendimiento por hardware.
+pub(crate) fn apply_modern_compete_profile(game_dir: &Path, tier: &str) -> AppResult<bool> {
+    let path = game_dir.join("config").join("paraguacraftpvp-modern.properties");
+    let mut props = read_properties(&path);
+
+    props.insert("boostFps".into(), "true".into());
+    props.insert("entityCull".into(), "true".into());
+    props.insert("nametagCull".into(), "true".into());
+    props.insert("particleLimit".into(), "true".into());
+    props.insert("scoreboardHideStats".into(), "true".into());
+    props.insert("scoreboardHideRedNumbers".into(), "true".into());
+    props.insert("toggleSprint".into(), "true".into());
+    props.insert("toggleSprintLegacy".into(), "false".into());
+    props.insert("pvpTrainingAutoWorld".into(), "false".into());
+    props.insert("reachDisplay".into(), "true".into());
+    props.insert("comboCounter".into(), "true".into());
+    props.insert("showFps".into(), "true".into());
+    props.insert("showPing".into(), "true".into());
+    props.insert("showCps".into(), "true".into());
+    props.insert("showKeystrokes".into(), "true".into());
+    props.insert("lowFire".into(), "true".into());
+    props.insert("chatTriggers".into(), "true".into());
+
+    match tier {
+        "baja" => {
+            props.insert("showMusicHud".into(), "true".into());
+            props.insert("showHardwareHud".into(), "false".into());
+            props.insert("showMusicAlbumArt".into(), "false".into());
+        }
+        "alta" => {
+            props.insert("showMusicHud".into(), "true".into());
+            props.insert("showHardwareHud".into(), "true".into());
+            props.insert("showMusicAlbumArt".into(), "true".into());
+        }
+        _ => {
             props.insert("showMusicHud".into(), "true".into());
             props.insert("showHardwareHud".into(), "false".into());
             props.insert("showMusicAlbumArt".into(), "false".into());
