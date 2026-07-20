@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP Modern",
   "mc_version": "1.21.11",
   "loader": "fabric",
-  "client_version": "0.6.10",
-  "release_tag": "pvp-modern-0.6.10",
-  "descripcion": "HUD musica 1.8.9, NickFinder, camas coloridas BW y ajustes de caratula.",
+  "client_version": "0.6.11",
+  "release_tag": "pvp-modern-0.6.11",
+  "descripcion": "NickFinder en nametags 3D y colores de equipo en etiquetas.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-Modern-0.6.10.jar",
-      "sha1": "dcf25c2e585e7fd06a3d9f1208e894e96fc7ddc2"
+      "filename": "ParaguacraftPvP-Modern-0.6.11.jar",
+      "sha1": "acf394faa8abcfb2434da9d146842cc9e5a500ba"
     }
   ]
 }
