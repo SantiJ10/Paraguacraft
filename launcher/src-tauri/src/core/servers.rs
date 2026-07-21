@@ -179,9 +179,10 @@ pub fn needs_prepare(dir: &Path, server_type: &str) -> bool {
     let Ok(kind) = crate::core::server_setup::normalize_server_type(server_type) else {
         return true;
     };
-    if kind == "forge" {
+    if crate::core::server_setup::is_forge_style(&kind) {
         return !dir.join("run.bat").is_file()
-            && crate::core::server_setup::find_server_jar(dir, "forge").is_none();
+            && !dir.join("run.sh").is_file()
+            && crate::core::server_setup::find_server_jar(dir, &kind).is_none();
     }
     if kind.starts_with("fabric") {
         return !dir.join("fabric-server-launch.jar").is_file() && !dir.join("server.jar").is_file();
@@ -256,9 +257,13 @@ fn resolve_server_java(mc: &str) -> AppResult<PathBuf> {
 
 fn resolve_server_jar(dir: &Path, server_type: &str) -> AppResult<PathBuf> {
     let kind = crate::core::server_setup::normalize_server_type(server_type)?;
-    if kind == "forge" {
-        return crate::core::server_setup::find_server_jar(dir, "forge")
-            .ok_or_else(|| AppError::msg("Forge no preparado. Usa «Preparar servidor» primero."));
+    if crate::core::server_setup::is_forge_style(&kind) {
+        return crate::core::server_setup::find_server_jar(dir, &kind).ok_or_else(|| {
+            AppError::msg(format!(
+                "{} no preparado. Usa «Preparar servidor» primero.",
+                crate::core::server_setup::type_label(&kind)
+            ))
+        });
     }
     let jar = dir.join("server.jar");
     if jar.is_file() {
@@ -339,8 +344,14 @@ pub fn start_mc(id: &str) -> AppResult<u32> {
     crate::core::server_console::append(id, "[launcher] Iniciando servidor…");
 
     let run_bat = dir.join("run.bat");
-    let mut child = if kind == "forge" && run_bat.is_file() {
-        crate::core::server_console::append(id, "[launcher] Forge: cmd /C call run.bat nogui");
+    let mut child = if crate::core::server_setup::is_forge_style(&kind) && run_bat.is_file() {
+        crate::core::server_console::append(
+            id,
+            &format!(
+                "[launcher] {}: cmd /C call run.bat nogui",
+                crate::core::server_setup::type_label(&kind)
+            ),
+        );
         let (stdin, stdout, stderr) = crate::core::server_console::pipe_stdio();
         let mut cmd = Command::new("cmd");
         cmd.current_dir(&dir).args(["/C", "call", "run.bat", "nogui"]);
@@ -1102,7 +1113,21 @@ fn detect_server_type(dir: &Path) -> String {
     } else if has_geyser {
         "paper-geyser".into()
     } else if dir.join("run.bat").is_file() || dir.join("libraries").is_dir() {
-        "forge".into()
+        // No hay metadata propia (carpeta importada a mano): heurística por nombre de
+        // librerías/jars para no confundir Forge con NeoForge (cambia el maven usado
+        // al reparar/re-preparar el servidor).
+        let is_neoforge = dir.join("libraries").join("net").join("neoforged").is_dir()
+            || std::fs::read_dir(&dir)
+                .map(|rd| {
+                    rd.flatten().any(|e| {
+                        e.file_name()
+                            .to_string_lossy()
+                            .to_lowercase()
+                            .contains("neoforge")
+                    })
+                })
+                .unwrap_or(false);
+        if is_neoforge { "neoforge".into() } else { "forge".into() }
     } else {
         "paper".into()
     }

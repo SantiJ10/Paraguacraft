@@ -16,7 +16,14 @@ pub const SERVER_TYPES: &[&str] = &[
     "fabric",
     "fabric-geyser",
     "forge",
+    "neoforge",
 ];
+
+/// Loaders que usan el mecanismo de instalador Maven `--installServer` (Forge/NeoForge):
+/// desde MC 1.17 no generan un jar único, sino `run.bat`/`run.sh` + `libraries/`.
+pub fn is_forge_style(kind: &str) -> bool {
+    kind == "forge" || kind == "neoforge"
+}
 
 pub fn normalize_server_type(raw: &str) -> AppResult<String> {
     match raw.trim().to_lowercase().replace('_', "-").as_str() {
@@ -25,8 +32,9 @@ pub fn normalize_server_type(raw: &str) -> AppResult<String> {
         "fabric" => Ok("fabric".into()),
         "fabric-geyser" | "fabric+geyser" => Ok("fabric-geyser".into()),
         "forge" => Ok("forge".into()),
+        "neoforge" => Ok("neoforge".into()),
         other => Err(AppError::msg(format!(
-            "Tipo de servidor invalido: {other}. Usa: paper, paper-geyser, fabric, fabric-geyser, forge."
+            "Tipo de servidor invalido: {other}. Usa: paper, paper-geyser, fabric, fabric-geyser, forge, neoforge."
         ))),
     }
 }
@@ -37,6 +45,7 @@ pub fn type_label(t: &str) -> &'static str {
         "fabric-geyser" => "Fabric + Geyser",
         "fabric" => "Fabric",
         "forge" => "Forge",
+        "neoforge" => "NeoForge",
         _ => "Paper",
     }
 }
@@ -55,29 +64,30 @@ pub async fn prepare(
 
     let kind = normalize_server_type(&prof.server_type)?;
     let jar = dir.join("server.jar");
+    let sid = prof.id.as_str();
 
     let result = match kind.as_str() {
         "paper" => {
             download_paper(client, app, &prof.mc_version, &jar).await?;
-            setup_paper_plugins(client, app, dir, &prof.mc_version, false).await?;
+            setup_paper_plugins(client, app, dir, sid, &prof.mc_version, false).await?;
             jar
         }
         "paper-geyser" => {
             download_paper(client, app, &prof.mc_version, &jar).await?;
-            setup_paper_plugins(client, app, dir, &prof.mc_version, true).await?;
+            setup_paper_plugins(client, app, dir, sid, &prof.mc_version, true).await?;
             jar
         }
         "fabric" => {
             download_fabric(client, app, &prof.mc_version, &jar).await?;
-            setup_fabric_mods(client, app, dir, &prof.mc_version, false).await?;
+            setup_fabric_mods(client, app, dir, sid, &prof.mc_version, false).await?;
             jar
         }
         "fabric-geyser" => {
             download_fabric(client, app, &prof.mc_version, &jar).await?;
-            setup_fabric_mods(client, app, dir, &prof.mc_version, true).await?;
+            setup_fabric_mods(client, app, dir, sid, &prof.mc_version, true).await?;
             jar
         }
-        "forge" => setup_forge(client, app, dir, &prof.mc_version).await?,
+        "forge" | "neoforge" => setup_forge_style(client, app, dir, &prof.mc_version, &kind).await?,
         other => return Err(AppError::msg(format!("Tipo no implementado: {other}"))),
     };
 
@@ -140,6 +150,21 @@ fn write_eula(dir: &Path) -> AppResult<()> {
     server_manager::write_eula(dir)
 }
 
+/// Plugins/mods opcionales (ViaVersion, Geyser, SkinsRestorer…): un fallo no debe abortar
+/// la preparación del server.jar, pero sí debe quedar registrado en la consola integrada.
+async fn try_optional<F, Fut>(server_id: &str, label: &str, f: F)
+where
+    F: FnOnce() -> Fut,
+    Fut: std::future::Future<Output = AppResult<()>>,
+{
+    if let Err(e) = f().await {
+        crate::core::server_console::append(
+            server_id,
+            &format!("[launcher] ⚠ {label}: {e}"),
+        );
+    }
+}
+
 async fn download_paper(
     client: &reqwest::Client,
     app: &AppHandle,
@@ -164,32 +189,46 @@ async fn download_fabric(
     server_manager::download_fabric_server(client, app, mc, jar).await
 }
 
-async fn setup_forge(
+async fn setup_forge_style(
     client: &reqwest::Client,
     app: &AppHandle,
     dir: &Path,
     mc: &str,
+    kind: &str,
 ) -> AppResult<PathBuf> {
-    if let Some(existing) = find_server_jar(dir, "forge") {
+    if let Some(existing) = find_server_jar(dir, kind) {
         return Ok(existing);
     }
-    server_manager::download_forge_server(client, app, mc, dir).await
+    if kind == "neoforge" {
+        server_manager::download_neoforge_server(client, app, mc, dir).await
+    } else {
+        server_manager::download_forge_server(client, app, mc, dir).await
+    }
 }
 
-/// Localiza el jar ejecutable del servidor en `dir`.
+/// Localiza el jar/launcher ejecutable del servidor en `dir`. Para Forge/NeoForge (1.17+)
+/// no hay un jar único: cuenta como "ya preparado" si existe `run.bat`/`run.sh`.
 pub fn find_server_jar(dir: &Path, kind: &str) -> Option<PathBuf> {
     let direct = dir.join("server.jar");
-    if direct.is_file() && kind != "forge" {
+    if direct.is_file() && !is_forge_style(kind) {
         return Some(direct);
     }
-    if let Ok(rd) = std::fs::read_dir(dir) {
-        for e in rd.flatten() {
-            let p = e.path();
-            if p.extension().and_then(|x| x.to_str()) != Some("jar") {
-                continue;
+    if is_forge_style(kind) {
+        if let Ok(rd) = std::fs::read_dir(dir) {
+            for e in rd.flatten() {
+                let p = e.path();
+                if p.extension().and_then(|x| x.to_str()) != Some("jar") {
+                    continue;
+                }
+                let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                if name.contains(kind) || name.contains("minecraft") || name.ends_with("-universal.jar") {
+                    return Some(p);
+                }
             }
-            let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
-            if kind == "forge" && (name.contains("forge") || name.contains("minecraft")) {
+        }
+        for script in ["run.bat", "run.sh"] {
+            let p = dir.join(script);
+            if p.is_file() {
                 return Some(p);
             }
         }
@@ -204,45 +243,59 @@ async fn setup_paper_plugins(
     client: &reqwest::Client,
     app: &AppHandle,
     dir: &Path,
+    server_id: &str,
     mc: &str,
     with_geyser: bool,
 ) -> AppResult<()> {
     let plugins = dir.join("plugins");
     std::fs::create_dir_all(&plugins)?;
 
-    let _ = download_github_release(client, app, "ViaVersion/ViaVersion", &plugins.join("ViaVersion.jar")).await;
-    let _ = download_github_release(client, app, "ViaVersion/ViaBackwards", &plugins.join("ViaBackwards.jar")).await;
-    let _ = download_modrinth_file(
-        client,
-        app,
-        "skinsrestorer",
-        &["paper", "spigot"],
-        mc,
-        plugins.join("SkinsRestorer.jar"),
-    )
+    let via_version = plugins.join("ViaVersion.jar");
+    try_optional(server_id, "ViaVersion", || {
+        download_github_release(client, app, "ViaVersion/ViaVersion", &via_version)
+    })
+    .await;
+    let via_backwards = plugins.join("ViaBackwards.jar");
+    try_optional(server_id, "ViaBackwards", || {
+        download_github_release(client, app, "ViaVersion/ViaBackwards", &via_backwards)
+    })
+    .await;
+    let skins = plugins.join("SkinsRestorer.jar");
+    try_optional(server_id, "SkinsRestorer", || {
+        download_modrinth_file(
+            client,
+            app,
+            "skinsrestorer",
+            &["paper", "spigot"],
+            mc,
+            skins,
+        )
+    })
     .await;
 
     if with_geyser {
-        let _ = download_geyser_plugin(client, app, "geyser", "paper", &plugins.join("Geyser-Spigot.jar")).await;
-        let _ = download_geyser_plugin(client, app, "floodgate", "paper", &plugins.join("Floodgate-Spigot.jar")).await;
+        let geyser = plugins.join("Geyser-Spigot.jar");
+        try_optional(server_id, "Geyser", || {
+            download_geyser_plugin(client, app, "geyser", "paper", mc, &geyser)
+        })
+        .await;
+        let floodgate = plugins.join("Floodgate-Spigot.jar");
+        try_optional(server_id, "Floodgate", || {
+            download_geyser_plugin(client, app, "floodgate", "paper", mc, &floodgate)
+        })
+        .await;
     }
 
-    if mc.starts_with("1.8") {
-        let _ = ensure_paraguacraft_badges_plugin(
-            client,
-            "ParaguacraftBadges-1.0.0.jar",
-            &plugins.join("ParaguacraftBadges.jar"),
-        )
-        .await;
+    let badges_name = if mc.starts_with("1.8") {
+        "ParaguacraftBadges-1.0.0.jar"
     } else {
-        // Fase 4.3: puente de insignias para servidores Paper modernos (PvP Modern 1.21+).
-        let _ = ensure_paraguacraft_badges_plugin(
-            client,
-            "ParaguacraftBadges-Paper-1.0.0.jar",
-            &plugins.join("ParaguacraftBadges.jar"),
-        )
-        .await;
-    }
+        "ParaguacraftBadges-Paper-1.0.0.jar"
+    };
+    let badges = plugins.join("ParaguacraftBadges.jar");
+    try_optional(server_id, "ParaguacraftBadges", || {
+        ensure_paraguacraft_badges_plugin(client, badges_name, &badges)
+    })
+    .await;
     Ok(())
 }
 
@@ -273,34 +326,42 @@ async fn setup_fabric_mods(
     client: &reqwest::Client,
     app: &AppHandle,
     dir: &Path,
+    server_id: &str,
     mc: &str,
     with_geyser: bool,
 ) -> AppResult<()> {
     let mods = dir.join("mods");
     std::fs::create_dir_all(&mods)?;
 
-    let _ = download_modrinth_file(
-        client,
-        app,
-        "fabric-api",
-        &["fabric"],
-        mc,
-        mods.join("fabric-api.jar"),
-    )
+    let fabric_api = mods.join("fabric-api.jar");
+    try_optional(server_id, "Fabric API", || {
+        download_modrinth_file(client, app, "fabric-api", &["fabric"], mc, fabric_api)
+    })
     .await;
-    let _ = download_modrinth_file(
-        client,
-        app,
-        "skinsrestorer",
-        &["fabric"],
-        mc,
-        mods.join("SkinsRestorer.jar"),
-    )
+    let skins = mods.join("SkinsRestorer.jar");
+    try_optional(server_id, "SkinsRestorer", || {
+        download_modrinth_file(
+            client,
+            app,
+            "skinsrestorer",
+            &["fabric"],
+            mc,
+            skins,
+        )
+    })
     .await;
 
     if with_geyser {
-        let _ = download_geyser_plugin(client, app, "geyser", "fabric", &mods.join("Geyser-Fabric.jar")).await;
-        let _ = download_geyser_plugin(client, app, "floodgate", "fabric", &mods.join("Floodgate-Fabric.jar")).await;
+        let geyser = mods.join("Geyser-Fabric.jar");
+        try_optional(server_id, "Geyser", || {
+            download_geyser_plugin(client, app, "geyser", "fabric", mc, &geyser)
+        })
+        .await;
+        let floodgate = mods.join("Floodgate-Fabric.jar");
+        try_optional(server_id, "Floodgate", || {
+            download_geyser_plugin(client, app, "floodgate", "fabric", mc, &floodgate)
+        })
+        .await;
     }
     Ok(())
 }
@@ -400,20 +461,50 @@ async fn download_modrinth_file(
     Ok(())
 }
 
-async fn download_geyser_plugin(
+const GEYSER_DOWNLOAD_API: &str = "https://download.geysermc.org/v2";
+
+/// La API de descargas de GeyserMC ya no acepta `versions/latest/builds/latest` (alias
+/// retirado); hay que resolver la última versión y el último build a mano. Tampoco existe
+/// una clave de plataforma "paper": el jar de Spigot cubre Spigot y Paper por igual.
+fn geyser_platform_key(platform: &str) -> &'static str {
+    if platform == "fabric" { "fabric" } else { "spigot" }
+}
+
+async fn download_geyser_official(
     client: &reqwest::Client,
     app: &AppHandle,
     project: &str,
     platform: &str,
     dest: &Path,
 ) -> AppResult<()> {
-    if dest.is_file() && dest.metadata().map(|m| m.len()).unwrap_or(0) > 100_000 {
-        return Ok(());
-    }
+    let info: Value =
+        net::fetch_json(client, &format!("{GEYSER_DOWNLOAD_API}/projects/{project}")).await?;
+    let version = info["versions"]
+        .as_array()
+        .and_then(|a| a.last())
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| AppError::msg(format!("GeyserMC: sin versiones publicadas para {project}")))?
+        .to_string();
+    let builds: Value = net::fetch_json(
+        client,
+        &format!("{GEYSER_DOWNLOAD_API}/projects/{project}/versions/{version}/builds"),
+    )
+    .await?;
+    let key = geyser_platform_key(platform);
+    let build_num = builds["builds"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|b| !b["downloads"][key].is_null())
+        .filter_map(|b| b["build"].as_u64())
+        .max()
+        .ok_or_else(|| {
+            AppError::msg(format!("GeyserMC: {project} {version} no publica build para '{key}'"))
+        })?;
     let url = format!(
-        "https://download.geysermc.org/v2/projects/{project}/versions/latest/builds/latest/downloads/{platform}"
+        "{GEYSER_DOWNLOAD_API}/projects/{project}/versions/{version}/builds/{build_num}/downloads/{key}"
     );
-    match net::download_all(
+    net::download_all(
         client,
         vec![DownloadItem::new(url, dest.to_path_buf())],
         1,
@@ -422,41 +513,26 @@ async fn download_geyser_plugin(
         dest.file_name().and_then(|n| n.to_str()).unwrap_or("geyser"),
     )
     .await
-    {
+}
+
+async fn download_geyser_plugin(
+    client: &reqwest::Client,
+    app: &AppHandle,
+    project: &str,
+    platform: &str,
+    mc: &str,
+    dest: &Path,
+) -> AppResult<()> {
+    if dest.is_file() && dest.metadata().map(|m| m.len()).unwrap_or(0) > 100_000 {
+        return Ok(());
+    }
+    match download_geyser_official(client, app, project, platform, dest).await {
         Ok(()) => Ok(()),
+        // Fallback Modrinth (mismo helper con doble intento con/sin filtro de mc que usan
+        // fabric-api/SkinsRestorer más arriba) si la web oficial no tiene ese build/plataforma.
         Err(_) => {
-            let loaders: Vec<&str> = if platform == "fabric" {
-                vec!["fabric"]
-            } else {
-                vec!["paper", "spigot"]
-            };
-            let loaders_json = format!(
-                "[{}]",
-                loaders.iter().map(|l| format!("\"{l}\"")).collect::<Vec<_>>().join(",")
-            );
-            let url = format!(
-                "https://api.modrinth.com/v2/project/{project}/version?loaders={}",
-                net::url_encode(&loaders_json)
-            );
-            if let Ok(versions) = net::fetch_json::<Value>(client, &url).await {
-                if let Some(ver) = versions.as_array().and_then(|a| a.first()) {
-                    if let Some(file) = ver["files"].as_array().and_then(|f| f.first()) {
-                        if let Some(dl) = file["url"].as_str() {
-                            return net::download_all(
-                                client,
-                                vec![DownloadItem::new(dl.to_string(), dest.to_path_buf())],
-                                1,
-                                app,
-                                &format!("geyser-mr-{project}"),
-                                project,
-                            )
-                            .await
-                            .map(|_| ());
-                        }
-                    }
-                }
-            }
-            Ok(())
+            let loaders: &[&str] = if platform == "fabric" { &["fabric"] } else { &["paper", "spigot"] };
+            download_modrinth_file(client, app, project, loaders, mc, dest.to_path_buf()).await
         }
     }
 }

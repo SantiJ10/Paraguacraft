@@ -267,7 +267,13 @@ export interface PvpClientStatus {
   manifestUrl: string;
 }
 
-export type ServerType = "paper" | "paper-geyser" | "fabric" | "fabric-geyser" | "forge";
+export type ServerType =
+  | "paper"
+  | "paper-geyser"
+  | "fabric"
+  | "fabric-geyser"
+  | "forge"
+  | "neoforge";
 
 export interface ServerProfile {
   id: string;
