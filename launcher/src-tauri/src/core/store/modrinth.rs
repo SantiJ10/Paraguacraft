@@ -8,9 +8,10 @@ use std::path::{Path, PathBuf};
 use serde_json::Value;
 use tauri::AppHandle;
 
+use super::jar_already_present;
 use crate::core::net::{self, DownloadItem};
 use crate::error::{AppError, AppResult};
-use crate::models::{StoreItem, StoreVersion};
+use crate::models::{StoreDependency, StoreItem, StoreSearchResult, StoreVersion};
 
 const API: &str = "https://api.modrinth.com/v2";
 
@@ -96,16 +97,26 @@ pub async fn search(
     project_type: &str,
     mc: &str,
     loader: &str,
-) -> AppResult<Vec<StoreItem>> {
+    offset: u32,
+    limit: u32,
+) -> AppResult<StoreSearchResult> {
     let facets = build_facets(project_type, mc, loader);
+    let limit = limit.clamp(1, 100);
     let url = format!(
-        "{API}/search?query={}&limit=40&index=relevance&facets={}",
+        "{API}/search?query={}&limit={limit}&offset={offset}&index=relevance&facets={}",
         net::url_encode(query),
         net::url_encode(&facets)
     );
     let resp: Value = net::fetch_json(client, &url).await?;
     let hits = resp["hits"].as_array().cloned().unwrap_or_default();
-    Ok(hits.iter().map(hit_to_item).collect())
+    let items = hits.iter().map(hit_to_item).collect();
+    let total_hits = resp["total_hits"].as_u64().unwrap_or(0);
+    Ok(StoreSearchResult {
+        items,
+        total_hits,
+        offset,
+        limit,
+    })
 }
 
 fn pick_file<'a>(files: &'a [Value], project_type: &str) -> Option<&'a Value> {
@@ -283,21 +294,6 @@ fn file_from_version(version: &Value, project_type: &str) -> AppResult<(String, 
     Ok((filename, dl, sha1))
 }
 
-fn jar_already_present(dest_dir: &Path, filename: &str) -> bool {
-    let target = dest_dir.join(filename);
-    if target.is_file() {
-        return true;
-    }
-    let stem = filename
-        .trim_end_matches(".jar")
-        .trim_end_matches(".disabled")
-        .to_lowercase();
-    dest_dir.read_dir().into_iter().flatten().flatten().any(|e| {
-        let n = e.file_name().to_string_lossy().to_lowercase();
-        (n.ends_with(".jar") || n.ends_with(".jar.disabled")) && n.contains(&stem)
-    })
-}
-
 async fn install_recursive(
     app: &AppHandle,
     client: &reqwest::Client,
@@ -353,6 +349,65 @@ async fn install_recursive(
     )
     .await?;
     Ok(filename)
+}
+
+async fn fetch_project_brief(client: &reqwest::Client, project_id: &str) -> AppResult<(String, String)> {
+    let p: Value = net::fetch_json(client, &format!("{API}/project/{project_id}")).await?;
+    let title = p["title"].as_str().unwrap_or(project_id).to_string();
+    let icon = p["icon_url"].as_str().unwrap_or_default().to_string();
+    Ok((title, icon))
+}
+
+/// Dependencias requeridas/embebidas declaradas en una version concreta (Modrinth ya
+/// las trae en el JSON de `/version/{id}`), para el modal de confirmacion antes de instalar.
+pub async fn list_required_dependencies(
+    client: &reqwest::Client,
+    version_id: &str,
+    mc: &str,
+    loader: &str,
+    dest_dir: Option<&Path>,
+) -> AppResult<Vec<StoreDependency>> {
+    let version: Value = net::fetch_json(client, &format!("{API}/version/{version_id}")).await?;
+    let deps = version["dependencies"].as_array().cloned().unwrap_or_default();
+    let mut out = Vec::new();
+    for dep in deps {
+        let dep_type = dep["dependency_type"].as_str().unwrap_or("").to_string();
+        if dep_type != "required" && dep_type != "embedded" {
+            continue;
+        }
+        let Some(project_id) = dep["project_id"].as_str().map(String::from) else {
+            continue;
+        };
+        let (title, icon_url) = fetch_project_brief(client, &project_id)
+            .await
+            .unwrap_or_else(|_| (project_id.clone(), String::new()));
+
+        let mut version_id_out = dep["version_id"].as_str().map(String::from);
+        let mut filename: Option<String> = None;
+        if let Some(vid) = version_id_out.clone() {
+            if let Ok(v) = net::fetch_json::<Value>(client, &format!("{API}/version/{vid}")).await {
+                filename = file_from_version(&v, "mod").ok().map(|(f, _, _)| f);
+            }
+        } else if let Ok(best) = fetch_best_version(client, &project_id, "mod", mc, loader).await {
+            version_id_out = best["id"].as_str().map(String::from);
+            filename = file_from_version(&best, "mod").ok().map(|(f, _, _)| f);
+        }
+
+        let already_installed = match (dest_dir, filename.as_deref()) {
+            (Some(dir), Some(f)) => jar_already_present(dir, f),
+            _ => false,
+        };
+
+        out.push(StoreDependency {
+            project_id,
+            version_id: version_id_out,
+            title,
+            icon_url,
+            dependency_type: dep_type,
+            already_installed,
+        });
+    }
+    Ok(out)
 }
 
 /// Instala el contenido en `dest_dir`. Devuelve el filename instalado.

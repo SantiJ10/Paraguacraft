@@ -120,13 +120,11 @@ async fn spawn_for_instance(
     server_address: Option<String>,
     compete: Option<crate::core::compete_mode::CompeteLaunchPlan>,
 ) -> AppResult<u32> {
-    if settings.deep_clean_on_launch {
-        let _ = crate::core::extras::maintenance::run("both");
-    }
-
-    if settings.optimize_graphics {
-        let _ = crate::core::performance::apply_min_graphics(&game_dir);
-    }
+    // Motor de optimizacion dinamica: limpieza + perfil de graficos diferenciado por
+    // gama de PC (Baja/Media/Alta) y por loader (1.8.9 Forge+OptiFine, 1.21.11
+    // Fabric+Sodium+Iris, o generico), en vez del preset fijo que se aplicaba antes.
+    let hw_tier = crate::core::hardware::detect().perfil_sugerido;
+    crate::core::launch::optimizer::apply_pre_launch(&game_dir, &loader, &hw_tier, settings);
 
     if crate::core::branding::should_apply(&loader) {
         let _ = crate::core::branding::inject_logos(

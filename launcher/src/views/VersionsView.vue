@@ -1,4 +1,5 @@
 <script setup lang="ts">
+defineOptions({ name: "versions" });
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import SearchInput from "@/components/common/SearchInput.vue";

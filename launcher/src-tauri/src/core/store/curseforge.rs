@@ -9,9 +9,10 @@ use std::collections::HashMap;
 
 use serde_json::{json, Value};
 
+use super::jar_already_present;
 use crate::core::net::{self, DownloadItem};
 use crate::error::{AppError, AppResult, StructuredError};
-use crate::models::{StoreItem, StoreVersion};
+use crate::models::{StoreDependency, StoreItem, StoreSearchResult, StoreVersion};
 
 const API: &str = "https://api.curseforge.com/v1";
 const GAME_ID: &str = "432"; // Minecraft
@@ -114,14 +115,17 @@ pub async fn search(
     project_type: &str,
     mc: &str,
     loader: &str,
-) -> AppResult<Vec<StoreItem>> {
+    offset: u32,
+    limit: u32,
+) -> AppResult<StoreSearchResult> {
     if key.trim().is_empty() {
         return Err(AppError::msg(
             "CurseForge requiere una API key. Configurala en .env (CURSEFORGE_API_KEY) o en Ajustes.",
         ));
     }
+    let limit = limit.clamp(1, 50);
     let mut url = format!(
-        "{API}/mods/search?gameId={GAME_ID}&searchFilter={}&pageSize=40&sortField=2&sortOrder=desc",
+        "{API}/mods/search?gameId={GAME_ID}&searchFilter={}&pageSize={limit}&index={offset}&sortField=2&sortOrder=desc",
         net::url_encode(query)
     );
     if let Some(cid) = class_id(project_type) {
@@ -137,7 +141,14 @@ pub async fn search(
     }
     let resp = get_json(client, &url, key).await?;
     let data = resp["data"].as_array().cloned().unwrap_or_default();
-    Ok(data.iter().map(|m| mod_to_item(m, project_type)).collect())
+    let items = data.iter().map(|m| mod_to_item(m, project_type)).collect();
+    let total_hits = resp["pagination"]["totalCount"].as_u64().unwrap_or(0);
+    Ok(StoreSearchResult {
+        items,
+        total_hits,
+        offset,
+        limit,
+    })
 }
 
 fn file_to_version(f: &Value) -> StoreVersion {
@@ -273,6 +284,64 @@ pub async fn list_all_versions(
             }
         })
         .collect())
+}
+
+/// Dependencias requeridas declaradas en el archivo (relationType 3 = RequiredDependency),
+/// para el modal de confirmacion antes de instalar.
+pub async fn list_required_dependencies(
+    client: &reqwest::Client,
+    key: &str,
+    mod_id: &str,
+    file_id: &str,
+    project_type: &str,
+    mc: &str,
+    loader: &str,
+    dest_dir: Option<&std::path::Path>,
+) -> AppResult<Vec<StoreDependency>> {
+    if key.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+    let file = get_file_metadata(client, key, mod_id, file_id).await?;
+    let deps = file["dependencies"].as_array().cloned().unwrap_or_default();
+    let mut out = Vec::new();
+    for dep in deps {
+        let relation = dep["relationType"].as_u64().unwrap_or(0);
+        // 3 = RequiredDependency (1 = EmbeddedLibrary ya viene dentro del jar).
+        if relation != 3 {
+            continue;
+        }
+        let Some(dep_mod_id) = dep["modId"].as_u64().map(|n| n.to_string()) else {
+            continue;
+        };
+        let Ok(mod_resp) = get_json(client, &format!("{API}/mods/{dep_mod_id}"), key).await else {
+            continue;
+        };
+        let meta = &mod_resp["data"];
+        let title = meta["name"].as_str().unwrap_or(&dep_mod_id).to_string();
+        let icon_url = meta["logo"]["url"].as_str().unwrap_or_default().to_string();
+
+        let files = list_files_raw(client, key, &dep_mod_id, project_type, mc, loader)
+            .await
+            .unwrap_or_default();
+        let best = files.first();
+        let version_id = best.and_then(|f| f["id"].as_u64()).map(|n| n.to_string());
+        let filename = best.and_then(|f| f["fileName"].as_str()).map(String::from);
+
+        let already_installed = match (dest_dir, filename.as_deref()) {
+            (Some(dir), Some(f)) => jar_already_present(dir, f),
+            _ => false,
+        };
+
+        out.push(StoreDependency {
+            project_id: dep_mod_id,
+            version_id,
+            title,
+            icon_url,
+            dependency_type: "required".into(),
+            already_installed,
+        });
+    }
+    Ok(out)
 }
 
 /// Instala un archivo concreto de CurseForge por id.

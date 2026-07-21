@@ -15,6 +15,13 @@ import { useDownloadsStore } from "@/stores/downloads";
 import { useMusicStore } from "@/stores/music";
 import { useSkinsStore } from "@/stores/skins";
 
+/**
+ * Vistas cacheadas (Fase Optimización UI): coincide con `defineOptions({ name })`
+ * de cada vista. `instance-detail`/`server-detail` quedan afuera a propósito
+ * (tienen datos por id que conviene refrescar al entrar).
+ */
+const KEEP_ALIVE_VIEWS = ["home", "instances", "store", "skins", "versions", "servers", "settings"];
+
 const app = useAppStore();
 const accounts = useAccountsStore();
 const instances = useInstancesStore();
@@ -51,9 +58,11 @@ onMounted(() => {
       <UpdateBanner />
       <TopBar />
       <main class="flex-1 overflow-y-auto">
-        <RouterView v-slot="{ Component }">
+        <RouterView v-slot="{ Component, route }">
           <Transition name="fade" mode="out-in">
-            <component :is="Component" />
+            <KeepAlive :include="KEEP_ALIVE_VIEWS" :max="7">
+              <component :is="Component" :key="route.fullPath" />
+            </KeepAlive>
           </Transition>
         </RouterView>
       </main>

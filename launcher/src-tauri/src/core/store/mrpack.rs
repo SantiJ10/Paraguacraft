@@ -118,9 +118,12 @@ pub async fn import_modrinth(
         .ok_or_else(|| AppError::msg("Sin archivo .mrpack"))?;
     let mrpack_url = mrpack["url"].as_str().ok_or_else(|| AppError::msg("Sin URL .mrpack"))?;
 
-    // 2) Descargar y leer el index.
+    // 2) Descargar y leer el index (ZIP en spawn_blocking: no bloquear el runtime async).
     let bytes = net::fetch_bytes(client, mrpack_url).await?;
-    let index = read_index(&bytes)?;
+    let index = {
+        let b = bytes.clone();
+        super::run_blocking(move || read_index(&b)).await?
+    };
     let name = index["name"].as_str().unwrap_or(&slug).to_string();
     let deps = &index["dependencies"];
     let mc = deps["minecraft"].as_str().unwrap_or_default().to_string();
@@ -153,8 +156,13 @@ pub async fn import_modrinth(
     }
     net::download_all(client, items, 12, app, "mrpack-import", &format!("Modpack {name}")).await?;
 
-    // 5) Aplicar overrides.
-    apply_overrides(&bytes, &dest)?;
+    // 5) Aplicar overrides (ZIP en spawn_blocking).
+    super::run_blocking({
+        let b = bytes.clone();
+        let d = dest.clone();
+        move || apply_overrides(&b, &d)
+    })
+    .await?;
 
     instances::read_meta(&inst.id)
         .map(|m| m.into_instance(&inst.id, &dest))
@@ -180,7 +188,10 @@ pub async fn import_by_version_id(
         .to_string();
 
     let bytes = net::fetch_bytes(client, mrpack_url).await?;
-    let index = read_index(&bytes)?;
+    let index = {
+        let b = bytes.clone();
+        super::run_blocking(move || read_index(&b)).await?
+    };
     let name = index["name"].as_str().unwrap_or(&slug).to_string();
     let deps = &index["dependencies"];
     let mc = deps["minecraft"].as_str().unwrap_or_default().to_string();
@@ -210,7 +221,12 @@ pub async fn import_by_version_id(
         }
     }
     net::download_all(client, items, 12, app, "mrpack-import", &format!("Modpack {name}")).await?;
-    apply_overrides(&bytes, &dest)?;
+    super::run_blocking({
+        let b = bytes.clone();
+        let d = dest.clone();
+        move || apply_overrides(&b, &d)
+    })
+    .await?;
 
     instances::read_meta(&inst.id)
         .map(|m| m.into_instance(&inst.id, &dest))

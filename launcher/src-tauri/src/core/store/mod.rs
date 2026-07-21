@@ -20,7 +20,37 @@ use crate::core::instances;
 use crate::core::loaders;
 use crate::core::servers;
 use crate::error::{AppError, AppResult};
-use crate::models::{StoreItem, StoreVersion};
+use crate::models::{StoreDependency, StoreSearchResult, StoreVersion};
+
+/// Ejecuta trabajo bloqueante (ZIP, hashing, I/O de disco grande) en el pool de
+/// `tokio::spawn_blocking` en vez del runtime async, para que la UI de Tauri
+/// nunca vea el hilo principal ocupado ("No responde") durante instalaciones grandes.
+pub async fn run_blocking<F, T>(f: F) -> AppResult<T>
+where
+    F: FnOnce() -> AppResult<T> + Send + 'static,
+    T: Send + 'static,
+{
+    tokio::task::spawn_blocking(f)
+        .await
+        .map_err(|e| AppError::msg(format!("Tarea interna interrumpida: {e}")))?
+}
+
+/// Devuelve true si ya hay un jar de este nombre (o variante `.disabled`/parcial por
+/// coincidencia de "stem") en `dest_dir`. Evita re-descargar dependencias ya instaladas.
+pub fn jar_already_present(dest_dir: &std::path::Path, filename: &str) -> bool {
+    let target = dest_dir.join(filename);
+    if target.is_file() {
+        return true;
+    }
+    let stem = filename
+        .trim_end_matches(".jar")
+        .trim_end_matches(".disabled")
+        .to_lowercase();
+    dest_dir.read_dir().into_iter().flatten().flatten().any(|e| {
+        let n = e.file_name().to_string_lossy().to_lowercase();
+        (n.ends_with(".jar") || n.ends_with(".jar.disabled")) && n.contains(&stem)
+    })
+}
 
 /// Subcarpeta de la instancia segun el tipo de contenido.
 pub fn content_subdir(project_type: &str) -> &'static str {
@@ -34,6 +64,7 @@ pub fn content_subdir(project_type: &str) -> &'static str {
 }
 
 /// Busca en el proveedor indicado. Con `mc`/`loader` vacíos explora el catálogo global.
+/// `offset`/`limit` habilitan paginación real (no solo los primeros resultados).
 pub async fn search(
     client: &reqwest::Client,
     provider: &str,
@@ -42,11 +73,52 @@ pub async fn search(
     project_type: &str,
     mc: &str,
     loader: &str,
-) -> AppResult<Vec<StoreItem>> {
+    offset: u32,
+    limit: u32,
+) -> AppResult<StoreSearchResult> {
     let loader = loaders::store_loader(loader);
     match provider {
-        "modrinth" => modrinth::search(client, query, project_type, mc, &loader).await,
-        "curseforge" => curseforge::search(client, cf_key, query, project_type, mc, &loader).await,
+        "modrinth" => modrinth::search(client, query, project_type, mc, &loader, offset, limit).await,
+        "curseforge" => {
+            curseforge::search(client, cf_key, query, project_type, mc, &loader, offset, limit).await
+        }
+        other => Err(AppError::msg(format!("Proveedor desconocido: {other}"))),
+    }
+}
+
+/// Dependencias requeridas/embebidas de una version concreta, para el modal de
+/// "descarga inteligente de dependencias" antes de instalar (Fase Tienda).
+/// `dest_dir` (si se conoce el destino) marca `already_installed` por dependencia.
+pub async fn list_required_dependencies(
+    client: &reqwest::Client,
+    provider: &str,
+    cf_key: &str,
+    project_id: &str,
+    file_id_or_version_id: &str,
+    project_type: &str,
+    mc: &str,
+    loader: &str,
+    dest_dir: Option<&std::path::Path>,
+) -> AppResult<Vec<StoreDependency>> {
+    let loader = loaders::store_loader(loader);
+    match provider {
+        "modrinth" => {
+            modrinth::list_required_dependencies(client, file_id_or_version_id, mc, &loader, dest_dir)
+                .await
+        }
+        "curseforge" => {
+            curseforge::list_required_dependencies(
+                client,
+                cf_key,
+                project_id,
+                file_id_or_version_id,
+                project_type,
+                mc,
+                &loader,
+                dest_dir,
+            )
+            .await
+        }
         other => Err(AppError::msg(format!("Proveedor desconocido: {other}"))),
     }
 }
@@ -180,7 +252,9 @@ pub struct InstallDestination {
     pub world_name: Option<String>,
 }
 
-fn resolve_dest_dir(
+/// Resuelve la carpeta destino de una instalacion (instancia/servidor/mundo). Publica
+/// para que los comandos puedan usarla al listar dependencias sin duplicar la instancia.
+pub fn resolve_dest_dir(
     project_type: &str,
     dest: &InstallDestination,
     mc: &str,

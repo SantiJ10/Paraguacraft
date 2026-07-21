@@ -3,6 +3,18 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.9.0] - 2026-07-21
+
+### Added
+- **Tienda paginada**: paginación real (no solo destacados) en Mods, Resource Packs, Plugins, Shaders y Modpacks, con componente `<Pagination>` reutilizable.
+- **Filtrado dinámico de compatibilidad**: los selectores de versión/loader en el modal de instalación solo muestran combinaciones que el proyecto realmente publica en Modrinth/CurseForge.
+- **Descarga inteligente de dependencias**: modal de confirmación con checkboxes al instalar un mod con dependencias requeridas/embebidas; se puede omitir sin frenar la instalación.
+- **Motor de optimización dinámica**: antes de lanzar cualquier instancia, el launcher detecta RAM/CPU y aplica argumentos JVM y perfil de `options.txt` diferenciados por gama de PC (Baja/Media/Alta) y por loader (1.8.9 Forge+OptiFine, 1.21.11 Fabric+Sodium+Iris, o genérico), sin pisar los presets PvP ya afinados.
+
+### Changed
+- **Rendimiento de la UI**: Tienda, Ajustes, Skins, Instancias, Versiones y Servidores quedan en caché (`KeepAlive` + Pinia) al cambiar de pestaña, sin repetir pantallas de carga.
+- **Backend sin bloqueos**: descompresión de `.mrpack`/CurseForge y hashing de auto-update de mods ahora corren en `tokio::spawn_blocking`, para que la ventana nunca aparezca como "No responde" durante instalaciones o auto-updates pesados.
+
 ## Cliente PvP Modern 0.8.0 - 2026-07-21
 
 ### Added

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+defineOptions({ name: "settings" });
 import { computed, onMounted, ref } from "vue";
 import { useSettingsStore } from "@/stores/settings";
 import { useAccountsStore } from "@/stores/accounts";

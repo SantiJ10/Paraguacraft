@@ -1,4 +1,5 @@
 <script setup lang="ts">
+defineOptions({ name: "home" });
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import mainBanner from "@/assets/main_banner.png";

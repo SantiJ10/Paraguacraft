@@ -134,7 +134,10 @@ async fn import_from_manifest_bytes(
     zip_bytes: &[u8],
     name_override: Option<&str>,
 ) -> AppResult<Instance> {
-    let manifest = read_manifest(zip_bytes)?;
+    let manifest = {
+        let b = zip_bytes.to_vec();
+        super::run_blocking(move || read_manifest(&b)).await?
+    };
     if manifest["manifestType"].as_str() != Some("minecraftModpack") {
         return Err(AppError::msg("No es un modpack de Minecraft (manifestType invalido)"));
     }
@@ -163,8 +166,14 @@ async fn import_from_manifest_bytes(
     let overrides = manifest["overrides"]
         .as_str()
         .unwrap_or("overrides")
-        .trim_end_matches('/');
-    apply_overrides(zip_bytes, &dest, overrides)?;
+        .trim_end_matches('/')
+        .to_string();
+    super::run_blocking({
+        let b = zip_bytes.to_vec();
+        let d = dest.clone();
+        move || apply_overrides(&b, &d, &overrides)
+    })
+    .await?;
 
     instances::read_meta(&inst.id)
         .map(|m| m.into_instance(&inst.id, &dest))
@@ -204,7 +213,11 @@ pub async fn import_from_zip_path(
     key: &str,
     path: &std::path::Path,
 ) -> AppResult<Instance> {
-    let bytes = std::fs::read(path)?;
+    let bytes = super::run_blocking({
+        let p = path.to_path_buf();
+        move || Ok(std::fs::read(&p)?)
+    })
+    .await?;
     import_from_manifest_bytes(app, client, key, &bytes, None).await
 }
 
