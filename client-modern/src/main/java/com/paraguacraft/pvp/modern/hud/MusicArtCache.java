@@ -15,9 +15,11 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.MessageDigest;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Descarga y cachea la caratula de Spotify/YouTube (portada original, sin regenerar). */
@@ -39,8 +41,13 @@ public final class MusicArtCache {
         if (url == null || url.isEmpty()) {
             return null;
         }
-        if (!url.equals(cachedUrl)) {
-            cachedUrl = url;
+        String normalized = normalizeUrl(url);
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        if (!normalized.equals(cachedUrl)) {
+            cachedUrl = normalized;
+            cachedSource = "";
             clearTexture();
             loading.set(false);
         }
@@ -48,7 +55,7 @@ public final class MusicArtCache {
             return textureId;
         }
         if (loading.compareAndSet(false, true)) {
-            final String fetchUrl = url;
+            final String fetchUrl = normalized;
             Thread t = new Thread(() -> download(fetchUrl), "Paraguacraft-MusicArt");
             t.setDaemon(true);
             t.start();
@@ -107,11 +114,23 @@ public final class MusicArtCache {
         if (fetchUrl.startsWith("file://")) {
             return fetchLocalFile(fetchUrl);
         }
+        if (fetchUrl.startsWith("http://") || fetchUrl.startsWith("https://")) {
+            byte[] cached = readLauncherCache(fetchUrl);
+            if (cached != null) {
+                return cached;
+            }
+            return fetchHttp(fetchUrl);
+        }
+        return null;
+    }
+
+    private static byte[] fetchHttp(String fetchUrl) throws Exception {
         HttpURLConnection conn = (HttpURLConnection) new URL(fetchUrl).openConnection();
         conn.setInstanceFollowRedirects(true);
-        conn.setConnectTimeout(4000);
-        conn.setReadTimeout(6000);
+        conn.setConnectTimeout(5000);
+        conn.setReadTimeout(8000);
         conn.setRequestProperty("User-Agent", "ParaguacraftPvP/2.0");
+        conn.setRequestProperty("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8");
         conn.connect();
         int code = conn.getResponseCode();
         if (code < 200 || code >= 300) {
@@ -120,6 +139,45 @@ public final class MusicArtCache {
         try (InputStream in = conn.getInputStream(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             in.transferTo(out);
             return out.toByteArray();
+        }
+    }
+
+    private static byte[] readLauncherCache(String httpsUrl) {
+        Path path = launcherCachePath(httpsUrl);
+        if (path == null || !Files.isRegularFile(path)) {
+            return null;
+        }
+        try {
+            return Files.readAllBytes(path);
+        } catch (Exception e) {
+            LOGGER.debug("Cache local de caratula no legible ({})", path, e);
+            return null;
+        }
+    }
+
+    private static Path launcherCachePath(String httpsUrl) {
+        String hash = sha1Hex(httpsUrl.getBytes(StandardCharsets.UTF_8));
+        if (hash.isEmpty()) {
+            return null;
+        }
+        String appData = System.getenv("APPDATA");
+        Path base = appData != null && !appData.isEmpty()
+            ? Paths.get(appData, "ParaguacraftLauncher", "music-art")
+            : Paths.get(System.getProperty("user.home"), ".config", "ParaguacraftLauncher", "music-art");
+        return base.resolve(hash + ".jpg");
+    }
+
+    private static String sha1Hex(byte[] bytes) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-1");
+            byte[] digest = md.digest(bytes);
+            StringBuilder sb = new StringBuilder(digest.length * 2);
+            for (byte b : digest) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            return "";
         }
     }
 
@@ -136,11 +194,35 @@ public final class MusicArtCache {
             return Paths.get(URI.create(fileUrl));
         } catch (Exception ignored) {
             String raw = fileUrl.substring("file://".length());
-            if (raw.startsWith("/") && raw.length() > 2 && raw.charAt(2) == ':') {
+            while (raw.startsWith("/") && raw.length() > 2 && raw.charAt(2) == ':') {
                 raw = raw.substring(1);
             }
             return Path.of(raw);
         }
+    }
+
+    private static String normalizeUrl(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        String trimmed = raw.trim();
+        int https = trimmed.indexOf("https://");
+        int http = trimmed.indexOf("http://");
+        int file = trimmed.indexOf("file://");
+        int start = https >= 0 ? https : (http >= 0 ? http : file);
+        if (start < 0) {
+            return "";
+        }
+        String url = trimmed.substring(start);
+        int end = url.length();
+        for (int i = 0; i < url.length(); i++) {
+            char c = url.charAt(i);
+            if (c <= 32) {
+                end = i;
+                break;
+            }
+        }
+        return url.substring(0, end);
     }
 
     private static NativeImage decodeImage(byte[] bytes) throws Exception {

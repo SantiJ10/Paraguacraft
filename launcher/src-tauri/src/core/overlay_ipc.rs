@@ -44,10 +44,9 @@ fn resolve_image_field(image_url: &str) -> String {
     if trimmed.is_empty() || !(trimmed.starts_with("http://") || trimmed.starts_with("https://")) {
         return trimmed.to_string();
     }
-    match music_art_cache::ensure_cached(art_client(), trimmed) {
-        Some(path) => path_to_file_url(&path),
-        None => trimmed.to_string(),
-    }
+    // Mantener la URL https en el IPC: el cliente lee la cache local del launcher por SHA-1.
+    let _ = music_art_cache::ensure_cached(art_client(), trimmed);
+    trimmed.to_string()
 }
 
 pub fn ipc_path() -> PathBuf {

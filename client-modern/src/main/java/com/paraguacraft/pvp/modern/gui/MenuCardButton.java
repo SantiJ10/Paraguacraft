@@ -2,44 +2,35 @@ package com.paraguacraft.pvp.modern.gui;
 
 import com.paraguacraft.pvp.modern.gui.theme.UiTheme;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.client.gui.widget.PressableWidget;
 import net.minecraft.client.input.AbstractInput;
 import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
-
 /** Tarjeta estilo Mod Menu 1.8.9 (negro + borde azul al hover). */
 public class MenuCardButton extends PressableWidget {
-
-    private static final Identifier MOD_ICON = Identifier.of("paraguacraftpvp-modern", "textures/gui/mod_icon.png");
 
     private final Text title;
     private final Text subtitle;
     private final Runnable action;
-    private final Identifier icon;
+    private final String modLabel;
     private float hoverAnim;
 
-    public MenuCardButton(int x, int y, int width, int height, Text title, Text subtitle, Runnable action) {
-        this(x, y, width, height, title, subtitle, action, MOD_ICON);
-    }
-
-    public MenuCardButton(int x, int y, int width, int height, Text title, Text subtitle, Runnable action, Identifier icon) {
+    public MenuCardButton(int x, int y, int width, int height, Text title, Text subtitle, Runnable action, String modLabel) {
         super(x, y, width, height, title);
         this.title = title;
         this.subtitle = subtitle;
         this.action = action;
-        this.icon = icon;
+        this.modLabel = modLabel;
     }
 
     public static MenuCardButton create(int x, int y, int w, int h, String label, boolean on, Runnable action) {
         Text sub = Text.literal(on ? "ON" : "OFF");
-        return new MenuCardButton(x, y, w, h, Text.literal(label), sub, action);
+        return new MenuCardButton(x, y, w, h, Text.literal(label), sub, action, label);
     }
 
     public static MenuCardButton open(int x, int y, int w, int h, String label, Runnable action) {
-        return new MenuCardButton(x, y, w, h, Text.literal(label), Text.literal("ABRIR"), action);
+        return new MenuCardButton(x, y, w, h, Text.literal(label), Text.literal("ABRIR"), action, label);
     }
 
     public void setSubtitle(Text sub) {
@@ -71,13 +62,9 @@ public class MenuCardButton extends PressableWidget {
         ctx.fill(getX() + getWidth() - 1, getY(), getX() + getWidth(), getY() + getHeight(), border);
 
         var tr = MinecraftClient.getInstance().textRenderer;
-        int tx = getX() + 8;
-        if (icon != null) {
-            int iconSize = Math.min(28, getHeight() - 12);
-            ctx.drawTexture(RenderPipelines.GUI_TEXTURED, icon, getX() + 8, getY() + (getHeight() - iconSize) / 2,
-                0f, 0f, iconSize, iconSize, iconSize, iconSize);
-            tx = getX() + 8 + iconSize + 6;
-        }
+        int iconSize = Math.min(28, getHeight() - 12);
+        ModCardIcons.draw(ctx, modLabel, getX() + 8, getY() + (getHeight() - iconSize) / 2, iconSize);
+        int tx = getX() + 8 + iconSize + 6;
         ctx.drawText(tr, title, tx, getY() + 8, UiTheme.TEXT, true);
         if (subtitle != null) {
             int subColor = subtitle.getString().equals("ON") ? 0xFF55FF88

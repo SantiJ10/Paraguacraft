@@ -16,6 +16,16 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 ### Fixed
 - Soporte `file://` para carátulas cacheadas por el launcher; dibujo con dimensiones reales de la textura.
 
+## Cliente PvP Modern 0.8.2 - 2026-07-21
+
+### Fixed
+- **Fullbright**: mixin en lightmap + gamma alto; ya no queda todo negro en cuevas.
+- **TNT countdown**: segundos flotando sobre la TNT (como 1.8.9).
+- **Carátula de música**: lee cache local del launcher por SHA-1; disco solo si «Descargar portada» está OFF.
+
+### Changed
+- **Mod Menu interno**: icono único por mod (items temáticos); logo Paraguacraft solo en Mod Menu de Fabric (`icon.png`).
+
 ## Cliente PvP Modern 0.8.1 - 2026-07-21
 
 ### Fixed
