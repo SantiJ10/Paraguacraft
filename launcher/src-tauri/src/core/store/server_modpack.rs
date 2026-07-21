@@ -123,7 +123,10 @@ pub async fn import_mrpack_version_to_server(
     let mrpack_url = mrpack["url"].as_str().ok_or_else(|| AppError::msg("Sin URL .mrpack"))?;
 
     let bytes = net::fetch_bytes(client, mrpack_url).await?;
-    let index = read_mr_index(&bytes)?;
+    let index = {
+        let b = bytes.clone();
+        super::run_blocking(move || read_mr_index(&b)).await?
+    };
     let name = index["name"].as_str().unwrap_or("Modpack").to_string();
     let deps = &index["dependencies"];
     let mc = deps["minecraft"]
@@ -165,7 +168,12 @@ pub async fn import_mrpack_version_to_server(
         )
         .await?;
     }
-    apply_zip_prefixes(&bytes, &dest, &["overrides", "server-overrides"])?;
+    super::run_blocking({
+        let b = bytes.clone();
+        let d = dest.clone();
+        move || apply_zip_prefixes(&b, &d, &["overrides", "server-overrides"])
+    })
+    .await?;
 
     Ok(prof)
 }
@@ -284,7 +292,10 @@ pub async fn import_cfpack_version_to_server(
         .unwrap_or_else(|_| "Modpack CurseForge".into());
     let url = curseforge::file_download_url(&file_resp);
     let bytes = net::fetch_bytes(client, &url).await?;
-    let manifest = read_cf_manifest(&bytes)?;
+    let manifest = {
+        let b = bytes.clone();
+        super::run_blocking(move || read_cf_manifest(&b)).await?
+    };
     if manifest["manifestType"].as_str() != Some("minecraftModpack") {
         return Err(AppError::msg("No es un modpack de Minecraft válido"));
     }
@@ -302,8 +313,14 @@ pub async fn import_cfpack_version_to_server(
     let overrides = manifest["overrides"]
         .as_str()
         .unwrap_or("overrides")
-        .trim_end_matches('/');
-    apply_zip_prefixes(&bytes, &dest, &[overrides])?;
+        .trim_end_matches('/')
+        .to_string();
+    super::run_blocking({
+        let b = bytes.clone();
+        let d = dest.clone();
+        move || apply_zip_prefixes(&b, &d, &[&overrides])
+    })
+    .await?;
 
     Ok(prof)
 }

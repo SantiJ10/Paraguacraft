@@ -136,6 +136,24 @@ export interface StoreVersion {
   publishedAt: string;
 }
 
+/** Pagina de resultados de busqueda (paginacion global de la tienda). */
+export interface StoreSearchResult {
+  items: StoreItem[];
+  totalHits: number;
+  offset: number;
+  limit: number;
+}
+
+/** Dependencia requerida/embebida de una version, para el modal de confirmacion. */
+export interface StoreDependency {
+  projectId: string;
+  versionId?: string | null;
+  title: string;
+  iconUrl: string;
+  dependencyType: "required" | "optional" | "embedded" | string;
+  alreadyInstalled: boolean;
+}
+
 export interface WorldInfo {
   name: string;
   active: boolean;

@@ -75,7 +75,13 @@ pub async fn update_instance(
 
     for sub in ["mods", "resourcepacks", "shaderpacks"] {
         let dir = base.join(sub);
-        let installed = jar_hashes(&dir);
+        // Hashear todos los jars es I/O + CPU; nunca en el hilo del runtime async.
+        let installed = tokio::task::spawn_blocking({
+            let d = dir.clone();
+            move || jar_hashes(&d)
+        })
+        .await
+        .unwrap_or_default();
         if installed.is_empty() {
             continue;
         }
@@ -160,7 +166,12 @@ async fn update_curseforge_dir(
     mc: &str,
     loader: &str,
 ) -> u32 {
-    let installed = jar_fingerprints(dir);
+    let installed = tokio::task::spawn_blocking({
+        let d = dir.clone();
+        move || jar_fingerprints(&d)
+    })
+    .await
+    .unwrap_or_default();
     if installed.is_empty() {
         return 0;
     }

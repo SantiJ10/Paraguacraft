@@ -50,8 +50,9 @@ import type {
   JavaInstallation,
   LoaderInfo,
   MinecraftVersion,
-  StoreItem,
   StoreVersion,
+  StoreSearchResult,
+  StoreDependency,
   StoreInstallDestination,
   WorldInfo,
   ServerWorldsResult,
@@ -437,7 +438,7 @@ export const api = {
     });
   },
 
-  // --- Tienda: catálogo global (browse) + install por instancia ---
+  // --- Tienda: catálogo global (browse, paginado) + install por instancia ---
   async searchStore(payload: {
     provider: ContentProvider;
     query: string;
@@ -446,23 +447,52 @@ export const api = {
     mc?: string;
     /** Vacío = exploración global sin filtro de loader */
     loader?: string;
-  }): Promise<StoreItem[]> {
+    /** Paginación global (no solo destacados). Offset en resultados, no en páginas. */
+    offset?: number;
+    limit?: number;
+  }): Promise<StoreSearchResult> {
     const mc = payload.mc ?? "";
     const loader = payload.loader ?? "";
+    const offset = payload.offset ?? 0;
+    const limit = payload.limit ?? 40;
     if (isTauri()) {
-      return invokeReal<StoreItem[]>("store_search", {
+      return invokeReal<StoreSearchResult>("store_search", {
         provider: payload.provider,
         query: payload.query,
         projectType: payload.projectType,
         mc,
         loader,
+        offset,
+        limit,
       });
     }
     const q = payload.query.trim().toLowerCase();
-    const items = q
+    const all = q
       ? mockStoreItems.filter((i) => i.title.toLowerCase().includes(q))
       : mockStoreItems;
-    return delay(items);
+    return delay({
+      items: all.slice(offset, offset + limit),
+      totalHits: all.length,
+      offset,
+      limit,
+    });
+  },
+
+  /** Dependencias requeridas/embebidas de una version, para el modal de confirmacion. */
+  async listStoreDependencies(payload: {
+    provider: ContentProvider;
+    projectId: string;
+    projectType: ContentType;
+    versionId: string;
+    mc: string;
+    loader: string;
+    instanceId?: string;
+    destination?: StoreInstallDestination;
+    serverId?: string;
+    worldName?: string;
+  }): Promise<StoreDependency[]> {
+    if (!isTauri()) return delay([]);
+    return invokeReal<StoreDependency[]>("store_list_dependencies", { ...payload });
   },
 
   async installContent(payload: {

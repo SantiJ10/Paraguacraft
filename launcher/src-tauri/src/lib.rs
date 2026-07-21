@@ -161,6 +161,7 @@ pub fn run() {
             commands::store::store_search,
             commands::store::store_list_versions,
             commands::store::store_list_project_versions,
+            commands::store::store_list_dependencies,
             commands::store::store_install,
             commands::store::store_install_version,
             commands::store::import_mrpack,

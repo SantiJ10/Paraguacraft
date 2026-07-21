@@ -204,6 +204,33 @@ pub struct StoreVersion {
     pub published_at: String,
 }
 
+/// Pagina de resultados de busqueda en la tienda (paginacion global, no solo destacados).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoreSearchResult {
+    pub items: Vec<StoreItem>,
+    /// Total de resultados reportado por el proveedor (para calcular numero de paginas).
+    pub total_hits: u64,
+    pub offset: u32,
+    pub limit: u32,
+}
+
+/// Dependencia requerida/opcional de una version concreta, para el modal de
+/// "descarga inteligente de dependencias" antes de instalar.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoreDependency {
+    pub project_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version_id: Option<String>,
+    pub title: String,
+    pub icon_url: String,
+    /// "required" | "optional" | "embedded"
+    pub dependency_type: String,
+    /// true si ya hay un archivo de este proyecto instalado en el destino.
+    pub already_installed: bool,
+}
+
 /// Mundo detectado en saves/ o carpeta de servidor.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

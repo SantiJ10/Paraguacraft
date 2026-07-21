@@ -1,4 +1,5 @@
 <script setup lang="ts">
+defineOptions({ name: "instances" });
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useInstancesStore } from "@/stores/instances";

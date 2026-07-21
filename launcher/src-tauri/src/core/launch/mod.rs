@@ -11,6 +11,7 @@
 pub mod window_title;
 pub mod pvp_jvm;
 pub mod modern_pvp_jvm;
+pub mod optimizer;
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -414,6 +415,11 @@ fn build_jvm_ram_gc(jvm: &JvmCtx) -> Vec<String> {
             ),
         }
     }
+
+    // Motor de optimizacion dinamica: tuning extra por gama de PC para instancias
+    // genericas (los presets PvP de arriba ya tienen el suyo y no se duplican).
+    let tier = crate::core::hardware::detect().perfil_sugerido;
+    args.extend(optimizer::extra_jvm_args_for(&tier, &jvm.loader, &jvm.mc_version, jvm.java_major));
 
     merge_extra_jvm_args(&mut args, &jvm.extra_args);
     args

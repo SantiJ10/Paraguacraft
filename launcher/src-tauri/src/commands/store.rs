@@ -6,7 +6,7 @@ use crate::config::keys;
 use crate::core::store::{self, destinations, InstallDestination};
 use crate::error::AppResult;
 use crate::core::servers::ServerProfile;
-use crate::models::{Instance, ServerWorldsResult, StoreItem, StoreVersion, WorldInfo};
+use crate::models::{Instance, ServerWorldsResult, StoreDependency, StoreSearchResult, StoreVersion, WorldInfo};
 use crate::state::AppState;
 
 #[tauri::command]
@@ -17,10 +17,67 @@ pub async fn store_search(
     project_type: String,
     mc: String,
     loader: String,
-) -> AppResult<Vec<StoreItem>> {
+    offset: Option<u32>,
+    limit: Option<u32>,
+) -> AppResult<StoreSearchResult> {
     let key = keys::curseforge_api_key();
     let (http, _net) = state.net_scope();
-    store::search(&http, &provider, &key, &query, &project_type, &mc, &loader).await
+    store::search(
+        &http,
+        &provider,
+        &key,
+        &query,
+        &project_type,
+        &mc,
+        &loader,
+        offset.unwrap_or(0),
+        limit.unwrap_or(40),
+    )
+    .await
+}
+
+/// Dependencias requeridas de una version/archivo concreto, para el modal de
+/// confirmacion antes de instalar. `dest_dir` se resuelve igual que en `store_install_version`
+/// para marcar `alreadyInstalled` por dependencia cuando ya se conoce el destino.
+#[tauri::command]
+pub async fn store_list_dependencies(
+    state: State<'_, AppState>,
+    provider: String,
+    project_id: String,
+    project_type: String,
+    version_id: String,
+    mc: String,
+    loader: String,
+    instance_id: Option<String>,
+    destination: Option<String>,
+    server_id: Option<String>,
+    world_name: Option<String>,
+) -> AppResult<Vec<StoreDependency>> {
+    let key = keys::curseforge_api_key();
+    let (http, _net) = state.net_scope();
+    let dest_dir = if project_type == "modpack" {
+        None
+    } else {
+        let dest = InstallDestination {
+            kind: destination.unwrap_or_else(|| "instance".into()),
+            instance_id,
+            server_id,
+            world_name,
+        };
+        store::resolve_dest_dir(&project_type, &dest, &mc, &loader, project_type == "mod").ok()
+    };
+    store::list_required_dependencies(
+        &http,
+        &provider,
+        &key,
+        &project_id,
+        &version_id,
+        &project_type,
+        &mc,
+        &loader,
+        dest_dir.as_deref(),
+    )
+    .await
 }
 
 #[tauri::command]

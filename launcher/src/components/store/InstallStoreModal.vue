@@ -7,6 +7,7 @@ import type {
   LoaderId,
   LoaderInfo,
   MinecraftVersion,
+  StoreDependency,
   StoreInstallDestination,
   StoreItem,
   StoreVersion,
@@ -57,6 +58,16 @@ const error = ref<string | null>(null);
 const message = ref<string | null>(null);
 const distributionUrl = ref<string | null>(null);
 const installedModpackName = ref<string | null>(null);
+
+// --- Descarga inteligente de dependencias ---
+/** Dependencias requeridas/embebidas pendientes (no instaladas aún) de la versión elegida. */
+const pendingDependencies = ref<StoreDependency[]>([]);
+/** Ids de proyecto marcados para instalar en el modal de confirmación. */
+const dependenciesChecked = ref<Set<string>>(new Set());
+const showDependenciesModal = ref(false);
+const loadingDependencies = ref(false);
+/** Dependencias ya confirmadas por el usuario, consumidas por `install()`. */
+const dependenciesToInstall = ref<StoreDependency[]>([]);
 
 const LOADER_TYPES: ContentType[] = ["mod", "modpack"];
 
@@ -121,8 +132,13 @@ const visibleMcVersions = computed(() =>
   mcVersions.value.filter((v) => mcChannel.value === "all" || v.channel === mcChannel.value),
 );
 
-/** MC disponibles según las versiones publicadas del modpack. */
-const modpackMcOptions = computed(() => {
+/**
+ * MC disponibles según las versiones que el proyecto publicó realmente en Modrinth/CurseForge
+ * (`versions[].game_versions`). Filtrado dinámico de compatibilidad: si el proyecto solo
+ * publicó 1.20.1, el resto de versiones del catálogo global quedan ocultas. Aplica a
+ * mods/shaders/resourcepacks/plugins/datapacks/modpacks por igual.
+ */
+const projectMcOptions = computed(() => {
   const published = new Set<string>();
   for (const v of projectVersions.value) {
     for (const gv of v.gameVersions) published.add(gv);
@@ -130,7 +146,12 @@ const modpackMcOptions = computed(() => {
   return visibleMcVersions.value.filter((v) => published.has(v.id));
 });
 
-const wizardMcVersions = computed(() => (isModpack.value ? modpackMcOptions.value : visibleMcVersions.value));
+/** Alias legado usado por el flujo de modpacks (misma fuente que `projectMcOptions`). */
+const modpackMcOptions = projectMcOptions;
+
+const wizardMcVersions = computed(() =>
+  props.item && projectVersions.value.length ? projectMcOptions.value : visibleMcVersions.value,
+);
 
 /** Loaders reales del modpack para la MC elegida (p. ej. solo Fabric o solo Forge). */
 const modpackLoadersForMc = computed(() => {
@@ -146,6 +167,21 @@ const modpackLoadersForMc = computed(() => {
   return [...found].sort();
 });
 
+/**
+ * Loaders reales publicados por el proyecto (mod/shader/resourcepack/plugin) para la MC
+ * elegida. `null` = todavía no hay datos del proyecto (fallback: no filtrar, mostrar todo
+ * el catálogo de loaders del launcher) para no bloquear la UI mientras carga.
+ */
+const projectLoadersForMc = computed<Set<string> | null>(() => {
+  if (!mcVersion.value || !projectVersions.value.length) return null;
+  const found = new Set<string>();
+  for (const v of projectVersions.value) {
+    if (!v.gameVersions.includes(mcVersion.value)) continue;
+    for (const l of v.loaders) found.add(normalizeModrinthLoader(l));
+  }
+  return found;
+});
+
 const installLoaders = computed(() => {
   if (isModpack.value) {
     return modpackLoadersForMc.value.map((id) => ({
@@ -155,7 +191,14 @@ const installLoaders = computed(() => {
       versions: [""],
     }));
   }
-  return loaders.value.filter((l) => l.id !== "vanilla" && l.versions.length > 0);
+  const base = loaders.value.filter((l) => l.id !== "vanilla" && l.versions.length > 0);
+  const published = projectLoadersForMc.value;
+  if (!published) return base;
+  const filtered = base.filter((l) => published.has(normalizeModrinthLoader(l.id)));
+  // Si el filtrado dinámico no deja nada (proyecto sin versiones para esta MC todavía
+  // resueltas, o loaders no reconocidos), preferimos mostrar el catálogo completo antes
+  // que bloquear al usuario con una lista vacía.
+  return filtered.length ? filtered : base;
 });
 
 function isExternal(id: string): boolean {
@@ -271,8 +314,13 @@ watch(mcChannel, () => {
   }
 });
 
+/**
+ * Trae TODAS las versiones publicadas del proyecto (sin filtrar por mc/loader) para
+ * poblar dinámicamente los selectores de "Versión del juego" y "Plataforma" solo con
+ * lo realmente compatible. Se usa para todos los tipos de contenido, no solo modpacks.
+ */
 async function loadProjectVersions() {
-  if (!props.item || !isModpack.value) {
+  if (!props.item) {
     projectVersions.value = [];
     return;
   }
@@ -349,6 +397,10 @@ async function resetWizard() {
   recommendedInstalled.value = new Set();
   distributionUrl.value = null;
   installedModpackName.value = null;
+  pendingDependencies.value = [];
+  dependenciesChecked.value = new Set();
+  dependenciesToInstall.value = [];
+  showDependenciesModal.value = false;
   instanceId.value = "";
   serverId.value = "";
   worldName.value = "";
@@ -368,10 +420,9 @@ async function resetWizard() {
     mcVersions.value = await api.getVersions();
   }
 
-  await Promise.all([instances.scan(), servers.load(true)]);
+  await Promise.all([instances.scan(), servers.load(true), loadProjectVersions()]);
 
   if (props.item && isModpack.value) {
-    await loadProjectVersions();
     const opts = modpackMcOptions.value;
     mcVersion.value =
       opts.find((v) => v.channel === "release")?.id ??
@@ -379,8 +430,10 @@ async function resetWizard() {
       "";
     syncModpackLoader();
   } else {
+    const opts = wizardMcVersions.value;
     mcVersion.value =
-      mcVersions.value.find((v) => v.channel === "release")?.id ??
+      opts.find((v) => v.channel === "release")?.id ??
+      opts[0]?.id ??
       mcVersions.value[0]?.id ??
       "";
   }
@@ -567,6 +620,64 @@ function prevStep() {
   if (step.value > 0) step.value -= 1;
 }
 
+/** Instancia/servidor/mundo destino elegido en el wizard (mods/shaders/RP/plugins/datapacks). */
+function currentDestPayload() {
+  return {
+    instanceId:
+      isInstanceFlow.value && installTarget.value !== "server"
+        ? instanceId.value
+        : isDatapack.value && destination.value === "instance"
+          ? instanceId.value
+          : undefined,
+    destination: (isDatapack.value
+      ? destination.value
+      : isPlugin.value || (isInstanceFlow.value && installTarget.value === "server")
+        ? "server"
+        : "instance") as StoreInstallDestination,
+    serverId:
+      isPlugin.value ||
+      (isDatapack.value && destination.value === "server") ||
+      (isInstanceFlow.value && installTarget.value === "server")
+        ? serverId.value
+        : undefined,
+    worldName: isDatapack.value ? worldName.value : undefined,
+  };
+}
+
+/** Instala las dependencias que el usuario confirmó, sin abortar si alguna falla. */
+async function installConfirmedDependencies() {
+  if (!props.item || !dependenciesToInstall.value.length) return;
+  const dest = currentDestPayload();
+  for (const dep of dependenciesToInstall.value) {
+    try {
+      if (dep.versionId) {
+        await api.installStoreVersion({
+          provider: props.item.provider,
+          projectId: dep.projectId,
+          projectType: "mod",
+          versionId: dep.versionId,
+          mc: mcVersion.value,
+          loader: effectiveLoader.value,
+          instanceId: dest.instanceId,
+          destination: dest.destination,
+          serverId: dest.serverId,
+        });
+      } else if (dest.instanceId) {
+        await api.installContent({
+          provider: props.item.provider,
+          projectId: dep.projectId,
+          projectType: "mod",
+          instanceId: dest.instanceId,
+        });
+      }
+    } catch {
+      // Una dependencia individual puede fallar (sin build para esta mc/loader, etc.);
+      // no abortamos el resto de la instalación por eso.
+    }
+  }
+  dependenciesToInstall.value = [];
+}
+
 async function install() {
   if (!props.item || !selectedVersionId.value) return;
   busy.value = true;
@@ -599,6 +710,7 @@ async function install() {
       return;
     }
 
+    const dest = currentDestPayload();
     await api.installStoreVersion({
       provider: props.item.provider,
       projectId: props.item.id,
@@ -609,25 +721,13 @@ async function install() {
       filename: selectedVersion.value?.filename,
       downloadUrl: selectedVersion.value?.downloadUrl ?? undefined,
       sha1: selectedVersion.value?.sha1 ?? undefined,
-      instanceId:
-        isInstanceFlow.value && installTarget.value !== "server"
-          ? instanceId.value
-          : isDatapack.value && destination.value === "instance"
-            ? instanceId.value
-            : undefined,
-      destination: isDatapack.value
-        ? destination.value
-        : isPlugin.value || (isInstanceFlow.value && installTarget.value === "server")
-          ? "server"
-          : "instance",
-      serverId:
-        isPlugin.value ||
-        (isDatapack.value && destination.value === "server") ||
-        (isInstanceFlow.value && installTarget.value === "server")
-          ? serverId.value
-          : undefined,
-      worldName: isDatapack.value ? worldName.value : undefined,
+      instanceId: dest.instanceId,
+      destination: dest.destination,
+      serverId: dest.serverId,
+      worldName: dest.worldName,
     });
+
+    await installConfirmedDependencies();
 
     await instances.load(true);
     emit("installed");
@@ -641,6 +741,72 @@ async function install() {
   } finally {
     busy.value = false;
   }
+}
+
+/**
+ * Punto de entrada del botón final del wizard. Modpacks van directo a `install()`
+ * (sus dependencias ya vienen resueltas por el índice del propio .mrpack/.zip).
+ * Para el resto, primero consulta si la versión elegida requiere dependencias y,
+ * si las hay, muestra el modal de confirmación antes de instalar.
+ */
+async function onFinalizeClick() {
+  if (!props.item || !selectedVersionId.value) return;
+  if (isModpack.value) {
+    await install();
+    return;
+  }
+
+  loadingDependencies.value = true;
+  error.value = null;
+  try {
+    const dest = currentDestPayload();
+    const deps = await api.listStoreDependencies({
+      provider: props.item.provider,
+      projectId: props.item.id,
+      projectType: props.item.projectType,
+      versionId: selectedVersionId.value,
+      mc: mcVersion.value,
+      loader: effectiveLoader.value,
+      instanceId: dest.instanceId,
+      destination: dest.destination,
+      serverId: dest.serverId,
+      worldName: dest.worldName,
+    });
+    pendingDependencies.value = deps.filter((d) => !d.alreadyInstalled);
+  } catch {
+    // Si la consulta de dependencias falla (red, endpoint), no bloqueamos la instalación principal.
+    pendingDependencies.value = [];
+  } finally {
+    loadingDependencies.value = false;
+  }
+
+  if (!pendingDependencies.value.length) {
+    await install();
+    return;
+  }
+  dependenciesChecked.value = new Set(pendingDependencies.value.map((d) => d.projectId));
+  showDependenciesModal.value = true;
+}
+
+function toggleDependencyChecked(projectId: string) {
+  const next = new Set(dependenciesChecked.value);
+  if (next.has(projectId)) next.delete(projectId);
+  else next.add(projectId);
+  dependenciesChecked.value = next;
+}
+
+async function confirmDependenciesModal() {
+  dependenciesToInstall.value = pendingDependencies.value.filter((d) =>
+    dependenciesChecked.value.has(d.projectId),
+  );
+  showDependenciesModal.value = false;
+  await install();
+}
+
+function skipDependenciesModal() {
+  dependenciesToInstall.value = [];
+  showDependenciesModal.value = false;
+  void install();
 }
 
 function formatDate(iso: string) {
@@ -797,8 +963,8 @@ async function installRecommended(p: RecommendedPlugin) {
                 </template>
                 <template v-else>Elegí el canal y la versión de Minecraft.</template>
               </p>
-              <p v-if="isModpack && loadingProjectVersions" class="text-sm text-gray-500">
-                Consultando versiones del modpack…
+              <p v-if="loadingProjectVersions" class="text-sm text-gray-500">
+                Consultando versiones publicadas del proyecto…
               </p>
               <div class="flex flex-wrap gap-1.5">
                 <button
@@ -819,18 +985,18 @@ async function installRecommended(p: RecommendedPlugin) {
               <select
                 v-model="mcVersion"
                 class="w-full rounded-lg border border-surface-5 bg-surface-3 px-3 py-2.5 text-sm outline-none focus:border-pc-green"
-                :disabled="isModpack && loadingProjectVersions"
+                :disabled="loadingProjectVersions"
               >
                 <option v-for="v in wizardMcVersions" :key="v.id" :value="v.id" class="bg-surface-2">
                   {{ v.id }}
                   <template v-if="v.channel !== 'release'"> ({{ v.channel.replace("_", " ") }})</template>
                 </option>
               </select>
-              <p v-if="!wizardMcVersions.length" class="text-sm text-amber-400">
+              <p v-if="!wizardMcVersions.length && !loadingProjectVersions" class="text-sm text-amber-400">
                 <template v-if="isModpack">
                   Este modpack no tiene releases compatibles en el canal seleccionado.
                 </template>
-                <template v-else>No hay versiones en este canal.</template>
+                <template v-else>Este proyecto no publicó versiones compatibles en este canal.</template>
               </p>
             </div>
 
@@ -1285,12 +1451,70 @@ async function installRecommended(p: RecommendedPlugin) {
               </BaseButton>
               <BaseButton
                 v-else
-                :disabled="!canInstall"
-                @click="install"
+                :disabled="!canInstall || loadingDependencies"
+                @click="onFinalizeClick"
               >
-                {{ busy ? "Instalando…" : isModpack ? (modpackTarget === "server" ? "Crear servidor" : "Crear instancia") : "Instalar" }}
+                {{
+                  loadingDependencies
+                    ? "Revisando dependencias…"
+                    : busy
+                      ? "Instalando…"
+                      : isModpack
+                        ? (modpackTarget === "server" ? "Crear servidor" : "Crear instancia")
+                        : "Instalar"
+                }}
               </BaseButton>
             </div>
+          </footer>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
+
+  <!-- Descarga inteligente de dependencias: modal de confirmación previo a instalar. -->
+  <Teleport to="body">
+    <Transition name="modal">
+      <div
+        v-if="showDependenciesModal"
+        class="fixed inset-0 z-[310] flex items-center justify-center bg-black/70 p-4"
+        @click.self="skipDependenciesModal"
+      >
+        <div class="flex max-h-[85vh] w-full max-w-md flex-col rounded-2xl border border-surface-5 bg-surface-2 shadow-2xl">
+          <header class="shrink-0 border-b border-surface-4 px-6 py-4">
+            <h3 class="text-lg font-bold">Dependencias requeridas</h3>
+            <p class="text-xs text-gray-500">
+              {{ item?.title }} necesita estos mods para funcionar. Elegí cuáles instalar también.
+            </p>
+          </header>
+          <div class="flex-1 space-y-2 overflow-y-auto px-6 py-4">
+            <label
+              v-for="dep in pendingDependencies"
+              :key="dep.projectId"
+              class="flex items-center gap-3 rounded-lg border border-surface-4 bg-surface-3 p-3 transition-colors hover:border-surface-6"
+            >
+              <input
+                type="checkbox"
+                class="h-4 w-4 shrink-0 accent-pc-green"
+                :checked="dependenciesChecked.has(dep.projectId)"
+                @change="toggleDependencyChecked(dep.projectId)"
+              />
+              <div class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded bg-surface-4 text-sm">
+                <img v-if="dep.iconUrl" :src="dep.iconUrl" :alt="dep.title" class="h-full w-full object-cover" />
+                <span v-else>{{ dep.title[0] }}</span>
+              </div>
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-semibold">{{ dep.title }}</p>
+                <p class="text-[11px] uppercase tracking-wide text-gray-500">
+                  {{ dep.dependencyType === "required" ? "Requerida" : dep.dependencyType }}
+                </p>
+              </div>
+            </label>
+          </div>
+          <footer class="flex shrink-0 items-center justify-end gap-2 border-t border-surface-4 px-6 py-4">
+            <BaseButton variant="ghost" :disabled="busy" @click="skipDependenciesModal">Omitir</BaseButton>
+            <BaseButton :disabled="busy" @click="confirmDependenciesModal">
+              {{ busy ? "Instalando…" : `Instalar (${dependenciesChecked.size + 1})` }}
+            </BaseButton>
           </footer>
         </div>
       </div>

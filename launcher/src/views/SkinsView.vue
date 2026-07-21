@@ -1,4 +1,5 @@
 <script setup lang="ts">
+defineOptions({ name: "skins" });
 import { computed, onMounted, ref, watch } from "vue";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { api, isTauri } from "@/lib/ipc";
