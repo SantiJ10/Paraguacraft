@@ -17,10 +17,14 @@ const MR_API: &str = "https://api.modrinth.com/v2";
 
 fn loader_to_server_type(loader: &str) -> AppResult<&'static str> {
     match loaders::normalize(loader).as_str() {
+        // Quilt es compatible binariamente con mods Fabric server-side; NeoForge es un
+        // loader propio (no corre sobre un server jar Forge) y necesita su propio
+        // instalador Maven, así que ya no se colapsa dentro de "forge".
         "fabric" | "quilt" => Ok("fabric"),
-        "forge" | "neoforge" => Ok("forge"),
+        "forge" => Ok("forge"),
+        "neoforge" => Ok("neoforge"),
         other => Err(AppError::msg(format!(
-            "El modpack usa {other}; solo servidores Fabric o Forge están soportados."
+            "El modpack usa {other}; solo servidores Fabric, Forge o NeoForge están soportados."
         ))),
     }
 }

@@ -541,6 +541,7 @@ function serverTypeLabel(t: string) {
     fabric: "Fabric",
     "fabric-geyser": "Fabric + Geyser",
     forge: "Forge",
+    neoforge: "NeoForge",
   };
   return map[t] ?? t;
 }

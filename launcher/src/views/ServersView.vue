@@ -13,7 +13,8 @@ const SERVER_TYPES: Array<{ id: ServerType; label: string; icon: string; desc: s
   { id: "paper-geyser", label: "Paper + Geyser", icon: "🌐", desc: "Plugins + Bedrock" },
   { id: "fabric", label: "Fabric", icon: "🧵", desc: "Mods · server side" },
   { id: "fabric-geyser", label: "Fabric + Geyser", icon: "🧵🌐", desc: "Mods + Bedrock" },
-  { id: "forge", label: "Forge", icon: "🔧", desc: "Modpacks CurseForge" },
+  { id: "forge", label: "Forge", icon: "🔧", desc: "Modpacks CurseForge · MC ≤1.20.1" },
+  { id: "neoforge", label: "NeoForge", icon: "⚙️", desc: "Modpacks modernos · MC 1.20.2+" },
 ];
 
 const SERVER_TYPE_LABELS: Record<string, string> = Object.fromEntries(

@@ -3,6 +3,15 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.9.1] - 2026-07-21
+
+### Fixed
+- **Servidores Paper (todas las versiones)**: migración a Paper Fill API v3 (`fill.papermc.io`); la v2 devolvía **410 Gone** y bloqueaba «Preparar»/«Iniciar» (ej. MC 26.2, 1.21.11, 1.20.x).
+- **Paper/Fabric + Geyser**: descarga oficial de Geyser/Floodgate corregida (ya no usa `latest/latest` ni la clave inexistente `paper`; usa `spigot` + último build) con fallback Modrinth.
+- **Fabric + Iris (instancias)**: Iris ya no se salta al instalar el bundle — se resuelve Iris primero y se fija la versión exacta de Sodium que Iris exige (compatible con 1.21.11).
+- **Servidores NeoForge**: loader propio (1.20.2+) en lugar de confundirse con Forge; modpacks NeoForge de Modrinth/CurseForge también.
+- **Plugins/mods opcionales**: si ViaVersion, Geyser, SkinsRestorer, etc. fallan al preparar, se registra un aviso en la consola del servidor sin abortar la descarga del `server.jar`.
+
 ## [7.9.0] - 2026-07-21
 
 ### Added

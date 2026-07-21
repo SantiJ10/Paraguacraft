@@ -83,8 +83,25 @@ pub async fn install_bundle(
         }
         let mut items = Vec::new();
         let mut picked: HashMap<String, String> = HashMap::new();
-        for slug in BUNDLE_SLUGS {
-            if let Some(item) = resolve_modrinth_jar(client, slug, mc, &picked).await? {
+        // Sodium sale con más frecuencia que Iris, así que la última versión de Sodium
+        // casi siempre es más nueva que la que Iris soporta (Iris fija una versión exacta
+        // de Sodium en sus dependencias). Por eso resolvemos Iris primero y forzamos esa
+        // versión exacta al elegir Sodium, en vez de tomar el Sodium más nuevo a ciegas
+        // y esperar (casi siempre en vano) que coincida con lo que Iris requiere.
+        let mut forced: HashMap<String, String> = HashMap::new();
+        if let Some(iris_item) = resolve_modrinth_jar(client, "iris", mc, &picked, None).await? {
+            if let Some(sodium_vid) = iris_item.required_dep_version.clone() {
+                forced.insert("sodium".into(), sodium_vid);
+            }
+            picked.insert("iris".into(), iris_item.version_id.clone());
+            items.push(
+                DownloadItem::new(iris_item.url, cache.join(&iris_item.filename))
+                    .with_sha1(iris_item.sha1),
+            );
+        }
+        for slug in BUNDLE_SLUGS.iter().filter(|s| **s != "iris") {
+            let forced_vid = forced.get(*slug).map(String::as_str);
+            if let Some(item) = resolve_modrinth_jar(client, slug, mc, &picked, forced_vid).await? {
                 picked.insert(slug.to_string(), item.version_id.clone());
                 items.push(
                     DownloadItem::new(item.url, cache.join(&item.filename)).with_sha1(item.sha1),
@@ -142,6 +159,10 @@ struct JarItem {
     filename: String,
     sha1: Option<String>,
     version_id: String,
+    /// Si esta versión fija una dependencia requerida con `version_id` exacto (p.ej. Iris
+    /// pineando una versión concreta de Sodium), queda acá para forzar esa misma versión
+    /// al resolver esa dependencia más abajo en el bundle.
+    required_dep_version: Option<String>,
 }
 
 async fn modrinth_project_id(client: &reqwest::Client, slug: &str) -> AppResult<String> {
@@ -175,11 +196,47 @@ fn deps_ok(version: &Value, picked: &HashMap<String, String>, ids: &HashMap<Stri
     true
 }
 
+/// Extrae, si existe, la dependencia requerida de `version` hacia `dep_project_id` con
+/// `version_id` exacto pineado (p.ej. la versión de Sodium que una versión de Iris exige).
+fn pinned_dependency_version(version: &Value, dep_project_id: &str) -> Option<String> {
+    version["dependencies"].as_array()?.iter().find_map(|d| {
+        if d["dependency_type"].as_str() == Some("incompatible") {
+            return None;
+        }
+        if d["project_id"].as_str() != Some(dep_project_id) {
+            return None;
+        }
+        d["version_id"].as_str().map(String::from)
+    })
+}
+
+fn jar_item_from_version(slug: &str, version: &Value) -> AppResult<JarItem> {
+    let vid = version["id"].as_str().unwrap_or_default().to_string();
+    let files = version["files"].as_array().cloned().unwrap_or_default();
+    let file = files
+        .iter()
+        .find(|f| f["primary"].as_bool().unwrap_or(false))
+        .or_else(|| files.first())
+        .ok_or_else(|| AppError::msg(format!("Modrinth: {slug} sin archivos")))?;
+    Ok(JarItem {
+        url: file["url"].as_str().unwrap_or_default().to_string(),
+        filename: file["filename"].as_str().unwrap_or("mod.jar").to_string(),
+        sha1: file["hashes"]["sha1"].as_str().map(String::from),
+        version_id: vid,
+        required_dep_version: None,
+    })
+}
+
 async fn resolve_modrinth_jar(
     client: &reqwest::Client,
     slug: &str,
     mc: &str,
     picked: &HashMap<String, String>,
+    // Si viene seteado (p.ej. Sodium forzado por el pin de Iris), se busca esa versión
+    // exacta en vez de aplicar la heurística "más nueva compatible". Si no aparece en el
+    // listado filtrado por mc/loader, se la busca directo por id (Modrinth la sigue
+    // devolviendo aunque no sea la última).
+    forced_version_id: Option<&str>,
 ) -> AppResult<Option<JarItem>> {
     let url = format!(
         "{MODRINTH}/project/{slug}/version?loaders={}&game_versions={}",
@@ -188,6 +245,20 @@ async fn resolve_modrinth_jar(
     );
     let versions: Value = net::fetch_json(client, &url).await?;
     let arr = versions.as_array().cloned().unwrap_or_default();
+
+    if let Some(forced) = forced_version_id {
+        if let Some(version) = arr.iter().find(|v| v["id"].as_str() == Some(forced)) {
+            return Ok(Some(jar_item_from_version(slug, version)?));
+        }
+        // No vino en el listado filtrado (puede pasar si Modrinth no le marcó ese
+        // game_version explícitamente) — la pedimos directo por id, es la que Iris exige.
+        let version: Value = net::fetch_json(client, &format!("{MODRINTH}/version/{forced}")).await?;
+        if version["id"].as_str() == Some(forced) {
+            return Ok(Some(jar_item_from_version(slug, &version)?));
+        }
+        return Ok(None);
+    }
+
     if arr.is_empty() {
         return Ok(None);
     }
@@ -203,36 +274,72 @@ async fn resolve_modrinth_jar(
         if !deps_ok(version, picked, &ids) {
             continue;
         }
+        let mut item = jar_item_from_version(slug, version)?;
         if slug == "iris" {
-            if let Some(sodium_vid) = picked.get("sodium") {
-                let deps = version["dependencies"].as_array().cloned().unwrap_or_default();
-                let sodium_pid = ids.get("sodium");
-                let iris_needs_sodium = deps.iter().any(|d| {
-                    sodium_pid.is_some_and(|pid| d["project_id"].as_str() == Some(pid.as_str()))
-                });
-                if iris_needs_sodium
-                    && !deps.iter().any(|d| {
-                        d["project_id"].as_str() == sodium_pid.map(String::as_str)
-                            && d["version_id"].as_str() == Some(sodium_vid.as_str())
-                    })
-                {
-                    continue;
-                }
-            }
+            item.required_dep_version = ids
+                .get("sodium")
+                .and_then(|pid| pinned_dependency_version(version, pid));
         }
-        let vid = version["id"].as_str().unwrap_or_default().to_string();
-        let files = version["files"].as_array().cloned().unwrap_or_default();
-        let file = files
-            .iter()
-            .find(|f| f["primary"].as_bool().unwrap_or(false))
-            .or_else(|| files.first())
-            .ok_or_else(|| AppError::msg(format!("Modrinth: {slug} sin archivos")))?;
-        return Ok(Some(JarItem {
-            url: file["url"].as_str().unwrap_or_default().to_string(),
-            filename: file["filename"].as_str().unwrap_or("mod.jar").to_string(),
-            sha1: file["hashes"]["sha1"].as_str().map(String::from),
-            version_id: vid,
-        }));
+        return Ok(Some(item));
     }
     Ok(None)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    /// JSON real de Modrinth: Iris 1.10.7 para Fabric 1.21.11 exige exactamente
+    /// Sodium `UddlN6L4` (mc1.21.11-0.8.7-fabric), que ya no es la última versión de
+    /// Sodium publicada (siempre hay una más nueva). Sin este pin, el bundle se queda
+    /// intentando emparejar el Sodium más nuevo contra el pin de Iris y nunca coincide,
+    /// por lo que Iris termina sin descargarse.
+    fn iris_1_21_11_version() -> Value {
+        json!({
+            "id": "fDpuVzVr",
+            "version_number": "1.10.7+1.21.11-fabric",
+            "dependencies": [
+                { "version_id": "UddlN6L4", "project_id": "AANobbMI", "dependency_type": "required" }
+            ],
+            "files": [{
+                "primary": true,
+                "url": "https://cdn.modrinth.com/data/YL57xq9U/versions/fDpuVzVr/iris-fabric-1.10.7%2Bmc1.21.11.jar",
+                "filename": "iris-fabric-1.10.7+mc1.21.11.jar",
+                "hashes": { "sha1": "aae8567bd9ea397d50aff1d0b680a82ffe67040c" }
+            }]
+        })
+    }
+
+    #[test]
+    fn extracts_pinned_sodium_version_from_iris() {
+        let v = iris_1_21_11_version();
+        assert_eq!(
+            pinned_dependency_version(&v, "AANobbMI"),
+            Some("UddlN6L4".to_string())
+        );
+        // Un project_id que no aparece en las dependencias no debe devolver nada.
+        assert_eq!(pinned_dependency_version(&v, "otro-proyecto"), None);
+    }
+
+    #[test]
+    fn jar_item_carries_filename_and_sha1() {
+        let v = iris_1_21_11_version();
+        let item = jar_item_from_version("iris", &v).unwrap();
+        assert_eq!(item.version_id, "fDpuVzVr");
+        assert_eq!(item.filename, "iris-fabric-1.10.7+mc1.21.11.jar");
+        assert_eq!(item.sha1, Some("aae8567bd9ea397d50aff1d0b680a82ffe67040c".to_string()));
+    }
+
+    #[test]
+    fn incompatible_dependency_is_ignored_when_pinning() {
+        let v = json!({
+            "id": "x",
+            "dependencies": [
+                { "version_id": "should-not-count", "project_id": "AANobbMI", "dependency_type": "incompatible" }
+            ],
+            "files": [{ "primary": true, "url": "u", "filename": "f.jar", "hashes": {} }]
+        });
+        assert_eq!(pinned_dependency_version(&v, "AANobbMI"), None);
+    }
 }
