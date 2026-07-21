@@ -134,6 +134,20 @@ async fn spawn_for_instance(
         );
     }
 
+    if loaders::normalize(&loader) == "paraguacraft-pvp"
+        || loaders::normalize(&loader) == "paraguacraft-pvp-modern"
+    {
+        let http = state.client();
+        let _ = crate::core::pvp_packs::prepare_launch(
+            app,
+            &http,
+            &game_dir,
+            &loader,
+            &mc,
+        )
+        .await;
+    }
+
     if crate::core::skins::offline::has_global_skin() {
         let _ = crate::core::skins::offline::ensure_for_launch(&game_dir, &mc);
     }

@@ -9,7 +9,10 @@ import com.paraguacraft.pvp.resourcepack.ResourcePackManager;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiScreen;
+import net.minecraft.util.ResourceLocation;
 import org.lwjgl.input.Keyboard;
+import org.lwjgl.input.Mouse;
+import org.lwjgl.opengl.GL11;
 import org.lwjgl.input.Mouse;
 
 import javax.swing.JFileChooser;
@@ -22,6 +25,8 @@ import java.util.List;
  * Gestor de resource packs — descargas GitHub / Google Drive, importación y drag &amp; drop.
  */
 public class GuiResourcePacks extends GuiScreen {
+
+    private static final ResourceLocation PACK_ICON = new ResourceLocation("paraguacraft", "textures/gui/pack_icon.png");
 
     private static final int CARD_W = 220;
     private static final int CARD_H = 88;
@@ -168,9 +173,14 @@ public class GuiResourcePacks extends GuiScreen {
         boolean hover = mouseX >= x && mouseX <= x + CARD_W && mouseY >= y && mouseY <= y + CARD_H;
         Gui.drawRect(x, y, x + CARD_W, y + CARD_H, hover ? 0xCC161A24 : 0xAA101218);
         Gui.drawRect(x + CARD_W - 36, y + 8, x + CARD_W - 8, y + 24, 0x3300E5FF);
+        if ("paraguacraft-pvp".equals(pack.id)) {
+            mc.getTextureManager().bindTexture(PACK_ICON);
+            GL11.glColor4f(1f, 1f, 1f, 1f);
+            Gui.drawModalRectWithCustomSizedTexture(x + 8, y + 10, 0, 0, 32, 32, 32, 32);
+        }
         fr.drawStringWithShadow(pack.badge, x + CARD_W - 22 - fr.getStringWidth(pack.badge) / 2, y + 12, UiTheme.ACCENT);
-        fr.drawStringWithShadow(pack.title, x + 10, y + 12, UiTheme.TEXT);
-        fr.drawStringWithShadow(pack.subtitle, x + 10, y + 30, UiTheme.TEXT_DIM);
+        fr.drawStringWithShadow(pack.title, x + 46, y + 12, UiTheme.TEXT);
+        fr.drawStringWithShadow(pack.subtitle, x + 46, y + 30, UiTheme.TEXT_DIM);
         int btnY = y + CARD_H - 24;
         boolean dlHover = mouseX >= x + 10 && mouseX <= x + CARD_W - 10 && mouseY >= btnY && mouseY <= btnY + 16;
         Gui.drawRect(x + 10, btnY, x + CARD_W - 10, btnY + 16, dlHover && !busy ? UiTheme.ACCENT : 0xFF226688);

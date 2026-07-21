@@ -149,7 +149,12 @@ public final class AdvancedHud {
             GlStateManager.enableAlpha();
             GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
             mc.getTextureManager().bindTexture(art);
-            Gui.drawScaledCustomSizeModalRect(x, y, 0, 0, 64, 64, ART_SIZE, ART_SIZE, 64, 64);
+            Gui.drawScaledCustomSizeModalRect(
+                x, y, 0, 0,
+                MusicArtCache.getTexWidth(), MusicArtCache.getTexHeight(),
+                ART_SIZE, ART_SIZE,
+                MusicArtCache.getTexWidth(), MusicArtCache.getTexHeight()
+            );
             GlStateManager.disableBlend();
         }
         GlStateManager.popMatrix();

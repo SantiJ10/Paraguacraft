@@ -1,15 +1,20 @@
 package com.paraguacraft.pvp.modern.gui;
 
+import com.paraguacraft.pvp.modern.ParaguacraftPvPModern;
 import com.paraguacraft.pvp.modern.gui.theme.UiTheme;
 import com.paraguacraft.pvp.modern.resourcepack.CatalogLoader;
 import com.paraguacraft.pvp.modern.resourcepack.CatalogPack;
 import com.paraguacraft.pvp.modern.resourcepack.ResourcePackService;
+import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 
 /** Selector de texture packs PvP 1.21.11. */
 public class PackSelectScreen extends ParaguacraftScreen {
+
+    private static final Identifier PACK_ICON = Identifier.of(ParaguacraftPvPModern.MOD_ID, "textures/gui/mod_icon.png");
 
     private String status = "";
     private CatalogPack[] packs = new CatalogPack[0];
@@ -79,6 +84,17 @@ public class PackSelectScreen extends ParaguacraftScreen {
             48,
             UiTheme.accent()
         );
+        int iconSize = 32;
+        int listX = width / 2 - 130;
+        int startY = 72;
+        int gap = 24;
+        for (int i = 0; i < packs.length; i++) {
+            int y = startY + i * gap;
+            if ("paraguacraft-pvp".equals(packs[i].id)) {
+                context.drawTexture(RenderPipelines.GUI_TEXTURED, PACK_ICON,
+                    listX - iconSize - 8, y - 5, 0f, 0f, iconSize, iconSize, iconSize, iconSize);
+            }
+        }
         if (!status.isEmpty()) {
             context.drawCenteredTextWithShadow(textRenderer, Text.literal(status), width / 2, height - 56, UiTheme.textDim());
         }

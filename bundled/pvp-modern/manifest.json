@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP Modern",
   "mc_version": "1.21.11",
   "loader": "fabric",
-  "client_version": "0.8.0",
-  "release_tag": "pvp-modern-0.8.0",
-  "descripcion": "Mod Menu reorganizado, paridad rendimiento 1.8.9, estadisticas de combate por sesion y fix de HUD armadura/caratula.",
+  "client_version": "0.8.1",
+  "release_tag": "pvp-modern-0.8.1",
+  "descripcion": "Auto-aplica pack PvP al lanzar y fix de caratula de musica (portada original desde cache del launcher).",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-Modern-0.8.0.jar",
-      "sha1": "03e01a74805e209697e269f2a2925bf0e06f4bc2"
+      "filename": "ParaguacraftPvP-Modern-0.8.1.jar",
+      "sha1": "1d603bd3e88cb0878445f3b9578eb0a58e37201d"
     }
   ]
 }

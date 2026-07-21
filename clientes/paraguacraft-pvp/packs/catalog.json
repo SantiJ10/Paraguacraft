@@ -5,6 +5,14 @@
   "driveFolderUrl": "https://drive.google.com/drive/folders/1kiGI_iWfoiAxDAHfnhlHya-MxYs7Fwbt",
   "packs": [
     {
+      "id": "paraguacraft-pvp",
+      "title": "Paraguacraft PvP",
+      "subtitle": "Dewier×Blue · cielo · fuego bajo · ores · tools chicas",
+      "badge": "16x",
+      "fileName": "paraguacraft-pvp-189.zip",
+      "sha1": "79599f36fe957d6443c9388c452bc93d67291bdd"
+    },
+    {
       "id": "faithful",
       "title": "Faithful 32x",
       "subtitle": "Vanilla en alta resolución",

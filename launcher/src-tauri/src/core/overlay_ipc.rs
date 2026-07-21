@@ -26,13 +26,26 @@ fn art_client() -> reqwest::Client {
 /// cacheado por `music_art_cache` (más rápido y sin depender de que el juego
 /// mismo pueda descargarlo). Si aún no está cacheada, dispara la descarga en
 /// background y devuelve la URL original para que el cliente la use mientras.
+fn path_to_file_url(path: &std::path::Path) -> String {
+    let p = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+    let mut s = p.to_string_lossy().replace('\\', "/");
+    if s.starts_with("//") {
+        s = s.trim_start_matches('/').to_string();
+    }
+    if s.len() >= 2 && s.as_bytes()[1] == b':' {
+        format!("file:///{}", s)
+    } else {
+        format!("file://{}", s)
+    }
+}
+
 fn resolve_image_field(image_url: &str) -> String {
     let trimmed = image_url.trim();
     if trimmed.is_empty() || !(trimmed.starts_with("http://") || trimmed.starts_with("https://")) {
         return trimmed.to_string();
     }
     match music_art_cache::ensure_cached(art_client(), trimmed) {
-        Some(path) => format!("file://{}", path.to_string_lossy()),
+        Some(path) => path_to_file_url(&path),
         None => trimmed.to_string(),
     }
 }
