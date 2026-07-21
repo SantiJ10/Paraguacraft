@@ -139,6 +139,25 @@ public final class HudRenderer {
         if (ModernConfig.showServerHud) {
             drawServerHud(context, client.textRenderer, client);
         }
+        if (ModernConfig.showCombatStatsHud) {
+            drawCombatStats(context, client.textRenderer);
+        }
+    }
+
+    /**
+     * Panel opcional de estadisticas de combate por sesion. Golpes/mejor combo/muertes son
+     * exactos (cliente-only); "posibles bajas" es un heuristico y se marca como estimado
+     * porque sin plugin de servidor no hay confirmacion real de kill.
+     */
+    private static void drawCombatStats(DrawContext ctx, TextRenderer tr) {
+        int x = ModernConfig.combatStatsX;
+        int y = ModernConfig.combatStatsY;
+        ctx.fill(x - 4, y - 4, x + 118, y + 50, 0x99000000);
+        ctx.drawText(tr, Text.literal("Combate (sesion)"), x, y, UiTheme.accent(), true);
+        drawLabeled(tr, ctx, "Golpes: ", String.valueOf(CombatStats.hits), x, y + 12);
+        drawLabeled(tr, ctx, "Mejor combo: ", String.valueOf(CombatStats.bestCombo), x, y + 23);
+        drawLabeled(tr, ctx, "Muertes: ", String.valueOf(CombatStats.deaths), x, y + 34);
+        ctx.drawText(tr, Text.literal("Bajas (est.): " + CombatStats.possibleKills), x, y + 45, ARTIST_COLOR, true);
     }
 
     /** Nombre + IP del servidor conectado (paridad `drawServerHUD` 1.8.9, sin favicon por simplicidad/seguridad). */

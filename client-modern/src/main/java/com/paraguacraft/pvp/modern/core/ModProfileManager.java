@@ -78,6 +78,9 @@ public final class ModProfileManager {
         mods.addProperty("showNametagLogoOthers", ModernConfig.showNametagLogoOthers);
         mods.addProperty("showOpponentPing", ModernConfig.showOpponentPing);
         mods.addProperty("showServerHud", ModernConfig.showServerHud);
+        mods.addProperty("showMusicHud", ModernConfig.showMusicHud);
+        mods.addProperty("showMusicAlbumArt", ModernConfig.showMusicAlbumArt);
+        mods.addProperty("showCombatStatsHud", ModernConfig.showCombatStatsHud);
         root.add("mods", mods);
 
         JsonObject perf = new JsonObject();
@@ -133,6 +136,9 @@ public final class ModProfileManager {
             ModernConfig.showNametagLogoOthers = bool(m, "showNametagLogoOthers", ModernConfig.showNametagLogoOthers);
             ModernConfig.showOpponentPing = bool(m, "showOpponentPing", ModernConfig.showOpponentPing);
             ModernConfig.showServerHud = bool(m, "showServerHud", ModernConfig.showServerHud);
+            ModernConfig.showMusicHud = bool(m, "showMusicHud", ModernConfig.showMusicHud);
+            ModernConfig.showMusicAlbumArt = bool(m, "showMusicAlbumArt", ModernConfig.showMusicAlbumArt);
+            ModernConfig.showCombatStatsHud = bool(m, "showCombatStatsHud", ModernConfig.showCombatStatsHud);
         }
         if (root.has("performance")) {
             JsonObject p = root.getAsJsonObject("performance");

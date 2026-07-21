@@ -92,6 +92,9 @@ public class GuiEditHudScreen extends Screen {
         if (ModernConfig.comboCounter) {
             drawEditBox(ctx, 12, ModernConfig.comboX, ModernConfig.comboY, 70, 10);
         }
+        if (ModernConfig.showCombatStatsHud) {
+            drawEditBox(ctx, 14, ModernConfig.combatStatsX, ModernConfig.combatStatsY, 114, 46);
+        }
 
         super.render(ctx, mouseX, mouseY, delta);
     }
@@ -169,6 +172,7 @@ public class GuiEditHudScreen extends Screen {
             if (inBox(mx, my, cx - 110, ModernConfig.compassY, 220, 16)) return 11;
         }
         if (ModernConfig.comboCounter && inBox(mx, my, ModernConfig.comboX, ModernConfig.comboY, 70, 10)) return 12;
+        if (ModernConfig.showCombatStatsHud && inBox(mx, my, ModernConfig.combatStatsX, ModernConfig.combatStatsY, 114, 46)) return 14;
         return -1;
     }
 
@@ -191,6 +195,7 @@ public class GuiEditHudScreen extends Screen {
             case 10 -> new int[] {ModernConfig.coordsX, ModernConfig.coordsY};
             case 11 -> new int[] {width / 2 - 110, ModernConfig.compassY};
             case 12 -> new int[] {ModernConfig.comboX, ModernConfig.comboY};
+            case 14 -> new int[] {ModernConfig.combatStatsX, ModernConfig.combatStatsY};
             default -> new int[] {ModernConfig.potionX, ModernConfig.potionY};
         };
     }
@@ -210,6 +215,7 @@ public class GuiEditHudScreen extends Screen {
             case 10 -> { ModernConfig.coordsX = x; ModernConfig.coordsY = y; }
             case 11 -> { ModernConfig.compassY = y; }
             case 12 -> { ModernConfig.comboX = x; ModernConfig.comboY = y; }
+            case 14 -> { ModernConfig.combatStatsX = x; ModernConfig.combatStatsY = y; }
             default -> { ModernConfig.potionX = x; ModernConfig.potionY = y; }
         }
     }

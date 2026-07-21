@@ -40,6 +40,19 @@ public final class PerformanceConfig {
 
     private PerformanceConfig() {}
 
+    public static void cycleParticleMode() {
+        ParticleMode[] values = ParticleMode.values();
+        particleMode = values[(particleMode.ordinal() + 1) % values.length];
+    }
+
+    public static String particleModeLabel() {
+        return switch (particleMode) {
+            case MINIMAL -> "Minimas";
+            case REDUCED -> "Reducidas";
+            case ALL -> "Todas";
+        };
+    }
+
     public static void loadFromProperties(Properties props) {
         loadTierFromProperties(props);
     }
@@ -58,7 +71,9 @@ public final class PerformanceConfig {
             );
         }
         minimizedFps = parseInt(props.getProperty("minimizedFps"), 5);
-        particleMode = ParticleMode.fromName(props.getProperty("particleMode"));
+        if (!userConfigHasKey("particleMode")) {
+            particleMode = ParticleMode.fromName(props.getProperty("particleMode"));
+        }
         renderDistance = parseInt(props.getProperty("renderDistance"), renderDistance);
         simulationDistance = parseInt(props.getProperty("simulationDistance"), simulationDistance);
         entityDistanceScaling = parseDouble(

@@ -1,6 +1,7 @@
 package com.paraguacraft.pvp.modern.gui;
 
 import com.paraguacraft.pvp.modern.config.ModernConfig;
+import com.paraguacraft.pvp.modern.core.PerformanceBootstrap;
 import com.paraguacraft.pvp.modern.core.PerformanceConfig;
 import com.paraguacraft.pvp.modern.gui.theme.UiTheme;
 import net.minecraft.client.gui.Click;
@@ -122,12 +123,23 @@ public class ModMenuScreen extends ParaguacraftScreen {
             case "theme" -> client.setScreen(new ThemeSelectScreen(this));
             case "nickfinder" -> client.setScreen(new NickFinderScreen(this));
             case "music_hud" -> client.setScreen(new GuiMusicHudOptionsScreen(this));
+            case "badges_ping" -> client.setScreen(new GuiBadgesPingOptionsScreen(this));
+            case "sprint" -> client.setScreen(new GuiSprintOptionsScreen(this));
             case "crosshair" -> {
                 ModernConfig.cycleCrosshairMode();
                 ModernConfig.save();
                 clearChildren();
                 init();
             }
+            case "particles" -> {
+                PerformanceConfig.cycleParticleMode();
+                PerformanceBootstrap.applyParticleModeNow(client);
+                ModernConfig.save();
+                clearChildren();
+                init();
+            }
+            case "clean_memory" -> PerformanceBootstrap.cleanMemoryNow();
+            case "apply_hw_preset" -> PerformanceBootstrap.applyPresetNow(client);
             default -> {}
         }
     }
@@ -160,9 +172,8 @@ public class ModMenuScreen extends ParaguacraftScreen {
         cards.add(toggle(1, "Objeto en mano", () -> ModernConfig.showHeldItem, v -> ModernConfig.showHeldItem = v));
         cards.add(toggle(1, "Recursos BedWars", () -> ModernConfig.showBedwarsResources, v -> ModernConfig.showBedwarsResources = v));
         cards.add(toggle(1, "BW fondo transparente", () -> ModernConfig.bwResTransparentBg, v -> ModernConfig.bwResTransparentBg = v));
-        cards.add(toggle(1, "Musica (Spotify/YT)", () -> ModernConfig.showMusicHud, v -> ModernConfig.showMusicHud = v));
         cards.add(toggle(1, "Hardware HUD", () -> ModernConfig.showHardwareHud, v -> ModernConfig.showHardwareHud = v));
-        cards.add(open(1, "Opciones HUD Musica", "music_hud"));
+        cards.add(open(1, "Musica", "music_hud"));
         cards.add(toggle(1, "Pociones HUD", () -> ModernConfig.showPotions, v -> ModernConfig.showPotions = v));
         cards.add(toggle(1, "Brújula", () -> ModernConfig.showCompass, v -> ModernConfig.showCompass = v));
         cards.add(toggle(1, "Combo counter", () -> ModernConfig.comboCounter, v -> ModernConfig.comboCounter = v));
@@ -172,12 +183,10 @@ public class ModMenuScreen extends ParaguacraftScreen {
         cards.add(toggle(2, "Item physics", () -> ModernConfig.itemPhysics, v -> ModernConfig.itemPhysics = v));
         cards.add(toggle(2, "TNT countdown", () -> ModernConfig.showTntCountdown, v -> ModernConfig.showTntCountdown = v));
         cards.add(toggle(2, "Reach display", () -> ModernConfig.reachDisplay, v -> ModernConfig.reachDisplay = v));
-        cards.add(toggle(2, "Insignia propia", () -> ModernConfig.showNametagLogo, v -> ModernConfig.showNametagLogo = v));
-        cards.add(toggle(2, "Insignias de rivales", () -> ModernConfig.showNametagLogoOthers, v -> ModernConfig.showNametagLogoOthers = v));
-        cards.add(toggle(2, "Ping rival en nametag", () -> ModernConfig.showOpponentPing, v -> ModernConfig.showOpponentPing = v));
+        cards.add(open(2, "Insignias y Ping", "badges_ping"));
+        cards.add(toggle(2, "Estadisticas de combate", () -> ModernConfig.showCombatStatsHud, v -> ModernConfig.showCombatStatsHud = v));
         cards.add(toggle(1, "HUD servidor (nombre/IP)", () -> ModernConfig.showServerHud, v -> ModernConfig.showServerHud = v));
-        cards.add(toggle(3, "Toggle sprint (M)", () -> ModernConfig.toggleSprint, v -> ModernConfig.toggleSprint = v));
-        cards.add(toggle(3, "Auto sprint (W)", () -> ModernConfig.toggleSprintLegacy, v -> ModernConfig.toggleSprintLegacy = v));
+        cards.add(open(3, "Sprint", "sprint"));
         cards.add(toggle(3, "Toggle sneak (Shift)", () -> ModernConfig.toggleSneak, v -> {
             ModernConfig.toggleSneak = v;
             ModernConfig.isSneakingToggled = false;
@@ -196,10 +205,14 @@ public class ModMenuScreen extends ParaguacraftScreen {
         }));
         cards.add(toggle(4, "Entity cull", () -> ModernConfig.entityCull, v -> ModernConfig.entityCull = v));
         cards.add(toggle(4, "Nametag cull", () -> ModernConfig.nametagCull, v -> ModernConfig.nametagCull = v));
-        cards.add(toggle(4, "FPS bajo minimizado", () -> PerformanceConfig.reduceFpsWhenMinimized, v -> {
+        cards.add(toggle(4, "FPS bajo sin foco", () -> PerformanceConfig.reduceFpsWhenMinimized, v -> {
             PerformanceConfig.reduceFpsWhenMinimized = v;
             ModernConfig.save();
         }));
+        cards.add(toggle(4, "Armadura %", () -> ModernConfig.showArmorPercentage, v -> ModernConfig.showArmorPercentage = v));
+        cards.add(open(4, "Particulas: " + PerformanceConfig.particleModeLabel(), "particles"));
+        cards.add(open(4, "Limpiar memoria", "clean_memory"));
+        cards.add(open(4, "Aplicar preset de hardware", "apply_hw_preset"));
         cards.add(open(4, "Crosshair: " + ModernConfig.crosshairModeLabel(), "crosshair"));
         cards.add(open(5, "Hypixel Quick Play", "quickplay"));
         cards.add(open(5, "Texture packs", "packs"));
