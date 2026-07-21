@@ -4,6 +4,14 @@
   "baseUrl": "https://github.com/SantiJ10/Paraguacraft/releases/download/pvp-packs-modern-1.0",
   "packs": [
     {
+      "id": "paraguacraft-pvp",
+      "title": "Paraguacraft PvP",
+      "subtitle": "Dewier×Blue · completo 1.21 · partículas · tools chicas",
+      "badge": "16x",
+      "fileName": "paraguacraft-pvp-modern.zip",
+      "sha1": "c5ded191f70b03658eb8774e1e69148243d4fde5"
+    },
+    {
       "id": "tom1xi",
       "title": "Tom1xi Remade",
       "subtitle": "Pack PvP competitivo",

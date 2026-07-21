@@ -12,8 +12,11 @@ pub fn is_system_pack(inner: &str) -> bool {
     inner == "vanilla"
         || inner.starts_with("file/ParaguacraftBrandPack")
         || inner.starts_with("file/Pack_Graficos_Minimos")
+        || inner.starts_with("file/paraguacraft-pvp")
         || inner == "ParaguacraftBrandPack"
         || inner.starts_with("Pack_Graficos_Minimos")
+        || inner.contains("paraguacraft-pvp-189")
+        || inner.contains("paraguacraft-pvp-modern")
 }
 
 fn brand_tokens(profile: PackProfile) -> Vec<String> {

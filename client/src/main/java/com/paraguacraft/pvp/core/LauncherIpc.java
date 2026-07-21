@@ -68,7 +68,7 @@ public final class LauncherIpc {
             s.musicPlaying = bb.get(24) != 0;
             s.musicTitle = readUtf8(buf, 25, 128);
             s.musicArtist = readUtf8(buf, 153, 64);
-            s.musicImageUrl = readUtf8(buf, 217, 256);
+            s.musicImageUrl = sanitizeUrl(readUtf8(buf, 217, 256));
             s.valid = true;
             last = s;
         } catch (Exception e) {
@@ -85,6 +85,29 @@ public final class LauncherIpc {
         if (len == 0) {
             return "";
         }
-        return new String(buf, off, len, StandardCharsets.UTF_8);
+        return new String(buf, off, len, StandardCharsets.UTF_8).trim();
+    }
+
+    private static String sanitizeUrl(String raw) {
+        if (raw == null || raw.isEmpty()) {
+            return "";
+        }
+        int https = raw.indexOf("https://");
+        int http = raw.indexOf("http://");
+        int file = raw.indexOf("file://");
+        int start = https >= 0 ? https : (http >= 0 ? http : file);
+        if (start < 0) {
+            return "";
+        }
+        String url = raw.substring(start);
+        int end = url.length();
+        for (int i = 0; i < url.length(); i++) {
+            char c = url.charAt(i);
+            if (c <= 32 || c == 0) {
+                end = i;
+                break;
+            }
+        }
+        return url.substring(0, end);
     }
 }

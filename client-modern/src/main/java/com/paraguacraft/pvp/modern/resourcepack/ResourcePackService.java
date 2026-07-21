@@ -99,7 +99,10 @@ public final class ResourcePackService {
 
     public static void restoreSavedPack() {
         String saved = com.paraguacraft.pvp.modern.config.ModernConfig.selectedResourcePack;
-        if (saved == null || saved.isBlank() || !isInstalled(saved)) {
+        if (saved == null || saved.isBlank()) {
+            saved = "paraguacraft-pvp-modern.zip";
+        }
+        if (!isInstalled(saved)) {
             return;
         }
         applyPack(saved);

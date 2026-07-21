@@ -6,6 +6,7 @@ use serde_json::Value;
 use tauri::AppHandle;
 
 use crate::core::net::{self, DownloadItem};
+use crate::core::server_hangar;
 use crate::core::server_manager;
 use crate::core::servers::ServerProfile;
 use crate::error::{AppError, AppResult};
@@ -97,6 +98,12 @@ pub async fn prepare(
 
 const PLAYIT_MIN_BYTES: u64 = 2_000_000;
 
+/// Descarga directa sin GitHub API (evita 403 rate limit al preparar servidores).
+const PLAYIT_WIN_URLS: &[&str] = &[
+    "https://github.com/playit-cloud/playit-agent/releases/download/v1.0.10/playit-windows-x86_64-signed.exe",
+    "https://github.com/playit-cloud/playit-agent/releases/download/v1.0.10/playit-windows-x86_64.exe",
+];
+
 /// Descarga playit.exe si no existe o es demasiado pequeño (espejo de modelo.py).
 async fn ensure_playit_exe(
     client: &reqwest::Client,
@@ -116,34 +123,30 @@ async fn ensure_playit_exe(
         return Ok(());
     }
 
-    let release: Value = net::fetch_json(
-        client,
-        "https://api.github.com/repos/playit-cloud/playit-agent/releases/latest",
-    )
-    .await?;
-    let assets = release["assets"].as_array().cloned().unwrap_or_default();
-    let exe_url = assets
-        .iter()
-        .find_map(|a| {
-            let n = a["name"].as_str()?.to_lowercase();
-            if n.ends_with(".exe") && (n.contains("win") || n.contains("windows")) {
-                a["browser_download_url"].as_str().map(String::from)
-            } else {
-                None
-            }
-        })
-        .ok_or_else(|| AppError::msg("No hay .exe Windows en el release de playit"))?;
-
-    net::download_one(
-        client,
-        &DownloadItem::new(exe_url, &playit_path),
-    )
-    .await?;
-    if playit_path.metadata().map(|m| m.len()).unwrap_or(0) < PLAYIT_MIN_BYTES {
-        let _ = std::fs::remove_file(&playit_path);
-        return Err(AppError::msg("Descarga de playit.exe truncada"));
+    let tmp = playit_path.with_extension("part");
+    for url in PLAYIT_WIN_URLS {
+        if net::download_one(client, &DownloadItem::new(url.to_string(), tmp.clone()))
+            .await
+            .is_err()
+        {
+            let _ = std::fs::remove_file(&tmp);
+            continue;
+        }
+        if tmp.metadata().map(|m| m.len()).unwrap_or(0) < PLAYIT_MIN_BYTES {
+            let _ = std::fs::remove_file(&tmp);
+            continue;
+        }
+        if playit_path.exists() {
+            let _ = std::fs::remove_file(&playit_path);
+        }
+        std::fs::rename(&tmp, &playit_path)?;
+        let _ = std::fs::copy(&playit_path, &global);
+        return Ok(());
     }
-    Ok(())
+
+    Err(AppError::msg(
+        "No se pudo descargar playit.exe (URLs directas fallaron). Descargalo manualmente desde playit.gg.",
+    ))
 }
 
 fn write_eula(dir: &Path) -> AppResult<()> {
@@ -252,12 +255,12 @@ async fn setup_paper_plugins(
 
     let via_version = plugins.join("ViaVersion.jar");
     try_optional(server_id, "ViaVersion", || {
-        download_github_release(client, app, "ViaVersion/ViaVersion", &via_version)
+        download_hangar_plugin(client, dir, "ViaVersion", "ViaVersion", mc, &via_version)
     })
     .await;
     let via_backwards = plugins.join("ViaBackwards.jar");
     try_optional(server_id, "ViaBackwards", || {
-        download_github_release(client, app, "ViaVersion/ViaBackwards", &via_backwards)
+        download_hangar_plugin(client, dir, "ViaVersion", "ViaBackwards", mc, &via_backwards)
     })
     .await;
     let skins = plugins.join("SkinsRestorer.jar");
@@ -366,44 +369,25 @@ async fn setup_fabric_mods(
     Ok(())
 }
 
-async fn download_github_release(
+async fn download_hangar_plugin(
     client: &reqwest::Client,
-    app: &AppHandle,
-    repo: &str,
+    dir: &Path,
+    owner: &str,
+    slug: &str,
+    mc: &str,
     dest: &Path,
 ) -> AppResult<()> {
     if dest.is_file() && dest.metadata().map(|m| m.len()).unwrap_or(0) > 100_000 {
         return Ok(());
     }
-    let api: Value = net::fetch_json(
-        client,
-        &format!("https://api.github.com/repos/{repo}/releases/latest"),
-    )
-    .await?;
-    let assets = api["assets"].as_array().cloned().unwrap_or_default();
-    let url = assets
-        .iter()
-        .find(|a| {
-            a["name"]
-                .as_str()
-                .map(|n| {
-                    n.to_lowercase().ends_with(".jar")
-                        && !n.to_lowercase().contains("sources")
-                        && !n.to_lowercase().contains("javadoc")
-                })
-                .unwrap_or(false)
-        })
-        .and_then(|a| a["browser_download_url"].as_str())
-        .ok_or_else(|| AppError::msg(format!("GitHub: sin jar en {repo}")))?;
-    net::download_all(
-        client,
-        vec![DownloadItem::new(url.to_string(), dest.to_path_buf())],
-        1,
-        app,
-        &format!("plugin-{repo}"),
-        dest.file_name().and_then(|n| n.to_str()).unwrap_or("plugin"),
-    )
-    .await?;
+    let installed = server_hangar::install_plugin(client, dir, owner, slug, mc, false).await?;
+    let default_path = dir.join("plugins").join(&installed);
+    if default_path != dest && default_path.is_file() {
+        if dest.exists() {
+            let _ = std::fs::remove_file(dest);
+        }
+        std::fs::rename(&default_path, dest)?;
+    }
     Ok(())
 }
 

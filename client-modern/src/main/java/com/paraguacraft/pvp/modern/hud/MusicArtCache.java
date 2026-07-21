@@ -8,30 +8,29 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.imageio.ImageIO;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/** Descarga y cachea la caratula de Spotify/YouTube (mismo flujo que 1.8.9). */
+/** Descarga y cachea la caratula de Spotify/YouTube (portada original, sin regenerar). */
 public final class MusicArtCache {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("ParaguacraftPvP-MusicArt");
     public static final int DISPLAY_PX = 16;
-    private static final int TEX_PX = 64;
 
     private static String cachedUrl = "";
     private static Identifier textureId;
     private static NativeImageBackedTexture texture;
-    private static int texW = TEX_PX;
-    private static int texH = TEX_PX;
+    private static int texW = 1;
+    private static int texH = 1;
     private static final AtomicBoolean loading = new AtomicBoolean(false);
 
     private MusicArtCache() {}
@@ -89,8 +88,6 @@ public final class MusicArtCache {
                     loading.set(false);
                     return;
                 }
-                // Cualquier excepcion registrando la textura NUNCA debe dejar `loading` pegado en
-                // true, o esa URL se queda con el disco generico para siempre (nunca se reintenta).
                 try {
                     registerImage(image);
                 } catch (Exception e) {
@@ -106,11 +103,6 @@ public final class MusicArtCache {
         }
     }
 
-    /**
-     * Prioridad: archivo local ya cacheado por el launcher (`file://...`,
-     * ver `music_art_cache.rs`) → HTTP directo. El local evita red por
-     * completo (mas rapido y sin depender de que ImageIO soporte el Content-Type).
-     */
     private static byte[] fetchBytes(String fetchUrl) throws Exception {
         if (fetchUrl.startsWith("file://")) {
             return fetchLocalFile(fetchUrl);
@@ -132,54 +124,44 @@ public final class MusicArtCache {
     }
 
     private static byte[] fetchLocalFile(String fileUrl) throws Exception {
-        String raw = fileUrl.substring("file://".length());
-        Path path = Path.of(raw);
+        Path path = fileUrlToPath(fileUrl);
         if (!Files.isRegularFile(path)) {
             return null;
         }
         return Files.readAllBytes(path);
     }
 
-    private static NativeImage decodeImage(byte[] bytes) throws Exception {
-        BufferedImage src = ImageIO.read(new ByteArrayInputStream(bytes));
-        if (src != null) {
-            return toNativeTexture(src);
+    private static Path fileUrlToPath(String fileUrl) throws Exception {
+        try {
+            return Paths.get(URI.create(fileUrl));
+        } catch (Exception ignored) {
+            String raw = fileUrl.substring("file://".length());
+            if (raw.startsWith("/") && raw.length() > 2 && raw.charAt(2) == ':') {
+                raw = raw.substring(1);
+            }
+            return Path.of(raw);
         }
-        NativeImage direct = NativeImage.read(new ByteArrayInputStream(bytes));
-        if (direct == null) {
-            return null;
-        }
-        BufferedImage fromNative = toBufferedImage(direct);
-        direct.close();
-        return toNativeTexture(fromNative);
     }
 
-    private static NativeImage toNativeTexture(BufferedImage src) {
-        BufferedImage scaled = src;
-        if (src.getWidth() != TEX_PX || src.getHeight() != TEX_PX) {
-            scaled = new BufferedImage(TEX_PX, TEX_PX, BufferedImage.TYPE_INT_ARGB);
-            Graphics2D g = scaled.createGraphics();
-            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-            g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-            g.drawImage(src, 0, 0, TEX_PX, TEX_PX, null);
-            g.dispose();
-        }
-        NativeImage out = new NativeImage(TEX_PX, TEX_PX, false);
-        for (int y = 0; y < TEX_PX; y++) {
-            for (int x = 0; x < TEX_PX; x++) {
-                out.setColorArgb(x, y, scaled.getRGB(x, y));
+    private static NativeImage decodeImage(byte[] bytes) throws Exception {
+        try (ByteArrayInputStream in = new ByteArrayInputStream(bytes)) {
+            BufferedImage src = ImageIO.read(in);
+            if (src != null) {
+                return bufferedToNative(src);
             }
         }
-        return out;
+        try (ByteArrayInputStream in = new ByteArrayInputStream(bytes)) {
+            return NativeImage.read(in);
+        }
     }
 
-    private static BufferedImage toBufferedImage(NativeImage src) {
+    private static NativeImage bufferedToNative(BufferedImage src) {
         int w = src.getWidth();
         int h = src.getHeight();
-        BufferedImage out = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+        NativeImage out = new NativeImage(w, h, false);
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
-                out.setRGB(x, y, src.getColorArgb(x, y));
+                out.setColorArgb(x, y, src.getRGB(x, y));
             }
         }
         return out;
@@ -192,7 +174,6 @@ public final class MusicArtCache {
         texture = new NativeImageBackedTexture(() -> "paraguacraft_music_art", image);
         textureId = Identifier.of("paraguacraftpvp-modern", "music_art/live");
         MinecraftClient.getInstance().getTextureManager().registerTexture(textureId, texture);
-        loading.set(false);
     }
 
     private static void clearTexture() {
@@ -204,8 +185,8 @@ public final class MusicArtCache {
         }
         textureId = null;
         texture = null;
-        texW = TEX_PX;
-        texH = TEX_PX;
+        texW = 1;
+        texH = 1;
     }
 
     public static void clear() {

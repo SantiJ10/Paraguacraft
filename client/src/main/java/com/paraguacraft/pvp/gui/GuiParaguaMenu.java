@@ -11,6 +11,7 @@ import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.util.ResourceLocation;
 import com.paraguacraft.pvp.core.ModLang;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
@@ -26,6 +27,8 @@ import java.util.Map;
  * Mod Menu estilo Lunar — panel translúcido, categorías, buscador y tarjetas con toggle.
  */
 public class GuiParaguaMenu extends GuiScreen {
+
+    private static final ResourceLocation MOD_ICON = new ResourceLocation("paraguacraft", "textures/gui/logo.png");
 
     private static final int SIDEBAR = 148;
     private static final int TOPBAR = 52;
@@ -241,9 +244,10 @@ public class GuiParaguaMenu extends GuiScreen {
         Gui.drawRect(x, y, x + CARD_W, y + 1, 0x28FFFFFF);
 
         Gui.drawRect(x + 10, y + 10, x + 42, y + 42, 0x3300E5FF);
+        mc.getTextureManager().bindTexture(MOD_ICON);
+        GlStateManager.color(1f, 1f, 1f, 1f);
+        Gui.drawModalRectWithCustomSizedTexture(x + 10, y + 10, 0, 0, 32, 32, 32, 32);
         String display = modDisplayName(mod.id);
-        String icon = display.isEmpty() ? "?" : display.substring(0, 1).toUpperCase();
-        fr.drawStringWithShadow(icon, x + 22 - fr.getStringWidth(icon) / 2, y + 18, UiTheme.ACCENT);
         fr.drawStringWithShadow(display, x + 50, y + 16, isScreen || enabled ? UiTheme.TEXT : UiTheme.TEXT_DIM);
 
         int toggleY = y + CARD_H - 22;

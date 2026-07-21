@@ -3,6 +3,24 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.9.2] - 2026-07-21
+
+### Added
+- **Pack PvP auto-aplicado**: al lanzar instancias `paraguacraft-pvp` (1.8.9) y `paraguacraft-pvp-modern` (1.21.11), el launcher descarga y activa `paraguacraft-pvp-189.zip` / `paraguacraft-pvp-modern.zip` en `options.txt` (como `ParaguacraftBrandPack`).
+
+### Fixed
+- **Carátula de música in-game**: URLs `file://` corregidas en Windows; el cliente lee la imagen cacheada del launcher y muestra la portada original de Spotify/YouTube (1.8.9 y 1.21.11).
+
+## Cliente PvP 2.1.31 - 2026-07-21
+
+### Fixed
+- Soporte `file://` para carátulas cacheadas por el launcher; dibujo con dimensiones reales de la textura.
+
+## Cliente PvP Modern 0.8.1 - 2026-07-21
+
+### Fixed
+- Carátula de música: decodificación directa sin reescalar a 64×64; pack PvP aplicado por defecto si no hay otro guardado.
+
 ## [7.9.1] - 2026-07-21
 
 ### Fixed

@@ -2,25 +2,35 @@ package com.paraguacraft.pvp.modern.gui;
 
 import com.paraguacraft.pvp.modern.gui.theme.UiTheme;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.client.gui.widget.PressableWidget;
 import net.minecraft.client.input.AbstractInput;
 import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 
 /** Tarjeta estilo Mod Menu 1.8.9 (negro + borde azul al hover). */
 public class MenuCardButton extends PressableWidget {
 
+    private static final Identifier MOD_ICON = Identifier.of("paraguacraftpvp-modern", "textures/gui/mod_icon.png");
+
     private final Text title;
     private final Text subtitle;
     private final Runnable action;
+    private final Identifier icon;
     private float hoverAnim;
 
     public MenuCardButton(int x, int y, int width, int height, Text title, Text subtitle, Runnable action) {
+        this(x, y, width, height, title, subtitle, action, MOD_ICON);
+    }
+
+    public MenuCardButton(int x, int y, int width, int height, Text title, Text subtitle, Runnable action, Identifier icon) {
         super(x, y, width, height, title);
         this.title = title;
         this.subtitle = subtitle;
         this.action = action;
+        this.icon = icon;
     }
 
     public static MenuCardButton create(int x, int y, int w, int h, String label, boolean on, Runnable action) {
@@ -62,6 +72,12 @@ public class MenuCardButton extends PressableWidget {
 
         var tr = MinecraftClient.getInstance().textRenderer;
         int tx = getX() + 8;
+        if (icon != null) {
+            int iconSize = Math.min(28, getHeight() - 12);
+            ctx.drawTexture(RenderPipelines.GUI_TEXTURED, icon, getX() + 8, getY() + (getHeight() - iconSize) / 2,
+                0f, 0f, iconSize, iconSize, iconSize, iconSize);
+            tx = getX() + 8 + iconSize + 6;
+        }
         ctx.drawText(tr, title, tx, getY() + 8, UiTheme.TEXT, true);
         if (subtitle != null) {
             int subColor = subtitle.getString().equals("ON") ? 0xFF55FF88

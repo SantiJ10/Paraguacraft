@@ -46,6 +46,7 @@ pub mod instance_weight;
 pub mod game_profiles;
 pub mod modern_pvp;
 pub mod modern_packs;
+pub mod pvp_packs;
 pub mod modern_servers;
 pub mod mod_conflicts;
 pub mod tray_lite;
