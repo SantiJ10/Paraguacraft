@@ -3,6 +3,20 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## Cliente PvP Modern 0.8.0 - 2026-07-21
+
+### Added
+- **Mod Menu reorganizado**: tarjetas "Musica", "Insignias y Ping" y "Sprint" agrupan mods relacionados en una sola pantalla en vez de tarjetas sueltas.
+- **Paridad 1.8.9 en Rendimiento**: tarjeta "Armadura %", ciclo de "Particulas" (Minimas/Reducidas/Todas), botones "Limpiar memoria" y "Aplicar preset de hardware".
+- **Estadisticas de combate por sesion** (nuevo, ninguno de Lunar/Badlion lo tiene): golpes, mejor combo y muertes 100% confiables (cliente-only) + "posibles bajas" heuristico marcado siempre como estimado, con panel HUD opcional y reset automatico al unirse a un mundo/servidor.
+
+### Fixed
+- **HUD armadura + contador de bloques**: se eliminó el clamp que forzaba la posición de vuelta al valor viejo en cada carga, impidiendo reposicionar el HUD de forma permanente. Nuevo default junto al hotbar (esquina inferior derecha), con migración automática para quien nunca lo movió a mano.
+- **Carátula de música**: si el registro de la textura fallaba con una excepción, el flag de carga quedaba pegado y esa canción se quedaba con el disco genérico para siempre. Ahora cualquier error libera el flag y se reintenta en el siguiente poll (con log para diagnóstico).
+
+### Changed
+- "FPS bajo minimizado" ahora se llama "FPS bajo sin foco" (la lógica ya usaba el foco de ventana, no solo minimizado).
+
 ## [7.8.0] - 2026-07-20
 
 ### Added

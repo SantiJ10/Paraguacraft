@@ -4,6 +4,8 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
 import net.minecraft.util.Identifier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.imageio.ImageIO;
 import java.awt.Graphics2D;
@@ -21,6 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /** Descarga y cachea la caratula de Spotify/YouTube (mismo flujo que 1.8.9). */
 public final class MusicArtCache {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger("ParaguacraftPvP-MusicArt");
     public static final int DISPLAY_PX = 16;
     private static final int TEX_PX = 64;
 
@@ -86,9 +89,19 @@ public final class MusicArtCache {
                     loading.set(false);
                     return;
                 }
-                registerImage(image);
+                // Cualquier excepcion registrando la textura NUNCA debe dejar `loading` pegado en
+                // true, o esa URL se queda con el disco generico para siempre (nunca se reintenta).
+                try {
+                    registerImage(image);
+                } catch (Exception e) {
+                    LOGGER.warn("No se pudo registrar la textura de la caratula ({})", fetchUrl, e);
+                    image.close();
+                } finally {
+                    loading.set(false);
+                }
             });
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            LOGGER.warn("No se pudo descargar/decodificar la caratula ({})", fetchUrl, e);
             loading.set(false);
         }
     }

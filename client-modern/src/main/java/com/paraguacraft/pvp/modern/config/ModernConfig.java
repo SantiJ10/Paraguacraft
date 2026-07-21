@@ -72,6 +72,10 @@ public final class ModernConfig {
     public static int serverHudY = 72;
     public static boolean windowedFullscreen = false;
     public static boolean pvpTrainingAutoWorld = false;
+    /** Estadisticas de combate por sesion (Fase 5 — feature innovadora, ver CombatStats). */
+    public static boolean showCombatStatsHud = false;
+    public static int combatStatsX = 5;
+    public static int combatStatsY = 185;
     public static int hudX = 4;
     public static int hudY = 4;
     public static int fpsX = 5;
@@ -82,10 +86,17 @@ public final class ModernConfig {
     public static int cpsY = 31;
     public static int keysX = 5;
     public static int keysY = 55;
-    public static int armorX = 5;
-    public static int armorY = 140;
-    public static int blocksX = 5;
-    public static int blocksY = 260;
+    /** Junto al hotbar, esquina inferior derecha (paridad visual con 1.8.9/vanilla). */
+    public static int armorX = 300;
+    public static int armorY = 222;
+    public static int blocksX = 300;
+    public static int blocksY = 200;
+    /** Migracion one-shot del layout viejo (arriba a la izquierda) al nuevo. No se re-evalua despues. */
+    public static boolean armorLayoutMigrated = false;
+    private static final int OLD_ARMOR_X = 5;
+    private static final int OLD_ARMOR_Y = 140;
+    private static final int OLD_BLOCKS_X = 5;
+    private static final int OLD_BLOCKS_Y = 260;
     public static int heldX = 5;
     public static int heldY = 140;
     public static int bwResX = 5;
@@ -235,6 +246,9 @@ public final class ModernConfig {
             serverHudY = intProp(props, "serverHudY", serverHudY);
             windowedFullscreen = bool(props, "windowedFullscreen", windowedFullscreen);
             pvpTrainingAutoWorld = bool(props, "pvpTrainingAutoWorld", pvpTrainingAutoWorld);
+            showCombatStatsHud = bool(props, "showCombatStatsHud", showCombatStatsHud);
+            combatStatsX = intProp(props, "combatStatsX", combatStatsX);
+            combatStatsY = intProp(props, "combatStatsY", combatStatsY);
             hudX = intProp(props, "hudX", hudX);
             hudY = intProp(props, "hudY", hudY);
             fpsX = intProp(props, "fpsX", fpsX);
@@ -245,13 +259,24 @@ public final class ModernConfig {
             cpsY = intProp(props, "cpsY", cpsY);
             keysX = intProp(props, "keysX", keysX);
             keysY = intProp(props, "keysY", keysY);
+            armorLayoutMigrated = bool(props, "armorLayoutMigrated", armorLayoutMigrated);
             armorX = intProp(props, "armorX", armorX);
             armorY = intProp(props, "armorY", armorY);
-            if (armorY > 170) {
-                armorY = 140;
-            }
             blocksX = intProp(props, "blocksX", blocksX);
             blocksY = intProp(props, "blocksY", blocksY);
+            if (!armorLayoutMigrated) {
+                // Solo migra si nunca se tocaron a mano (siguen en el default viejo).
+                // Si el jugador ya los arrastro a otro lado, se respeta tal cual.
+                if (armorX == OLD_ARMOR_X && armorY == OLD_ARMOR_Y) {
+                    armorX = 300;
+                    armorY = 222;
+                }
+                if (blocksX == OLD_BLOCKS_X && blocksY == OLD_BLOCKS_Y) {
+                    blocksX = 300;
+                    blocksY = 200;
+                }
+                armorLayoutMigrated = true;
+            }
             heldX = intProp(props, "heldX", heldX);
             heldY = intProp(props, "heldY", heldY);
             bwResX = intProp(props, "bwResX", bwResX);
@@ -283,6 +308,10 @@ public final class ModernConfig {
             if (props.containsKey("reduceFpsWhenMinimized")) {
                 PerformanceConfig.reduceFpsWhenMinimized =
                     bool(props, "reduceFpsWhenMinimized", PerformanceConfig.reduceFpsWhenMinimized);
+            }
+            if (props.containsKey("particleMode")) {
+                PerformanceConfig.particleMode =
+                    PerformanceConfig.ParticleMode.fromName(props.getProperty("particleMode"));
             }
         } catch (IOException ignored) {
         }
@@ -334,6 +363,7 @@ public final class ModernConfig {
         props.setProperty("teamColors", String.valueOf(teamColors));
         props.setProperty("boostFps", String.valueOf(PerformanceConfig.boostFps));
         props.setProperty("reduceFpsWhenMinimized", String.valueOf(PerformanceConfig.reduceFpsWhenMinimized));
+        props.setProperty("particleMode", PerformanceConfig.particleMode.name());
         props.setProperty("toggleSprint", String.valueOf(toggleSprint));
         props.setProperty("toggleSprintLegacy", String.valueOf(toggleSprintLegacy));
         props.setProperty("toggleSneak", String.valueOf(toggleSneak));
@@ -347,6 +377,9 @@ public final class ModernConfig {
         props.setProperty("serverHudY", String.valueOf(serverHudY));
         props.setProperty("windowedFullscreen", String.valueOf(windowedFullscreen));
         props.setProperty("pvpTrainingAutoWorld", String.valueOf(pvpTrainingAutoWorld));
+        props.setProperty("showCombatStatsHud", String.valueOf(showCombatStatsHud));
+        props.setProperty("combatStatsX", String.valueOf(combatStatsX));
+        props.setProperty("combatStatsY", String.valueOf(combatStatsY));
         props.setProperty("hudX", String.valueOf(hudX));
         props.setProperty("hudY", String.valueOf(hudY));
         props.setProperty("fpsX", String.valueOf(fpsX));
@@ -361,6 +394,7 @@ public final class ModernConfig {
         props.setProperty("armorY", String.valueOf(armorY));
         props.setProperty("blocksX", String.valueOf(blocksX));
         props.setProperty("blocksY", String.valueOf(blocksY));
+        props.setProperty("armorLayoutMigrated", String.valueOf(armorLayoutMigrated));
         props.setProperty("heldX", String.valueOf(heldX));
         props.setProperty("heldY", String.valueOf(heldY));
         props.setProperty("bwResX", String.valueOf(bwResX));

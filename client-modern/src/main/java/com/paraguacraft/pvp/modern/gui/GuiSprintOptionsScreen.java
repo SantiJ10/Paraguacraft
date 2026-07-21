@@ -7,28 +7,30 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
 
-/** Opciones del HUD de musica: mostrar/ocultar, portada, transparencia y tamano. */
-public class GuiMusicHudOptionsScreen extends ParaguacraftScreen {
+/** Modos de sprint: Toggle Sprint (estilo Lunar) y Auto Sprint (corre solo). Se pueden combinar. */
+public class GuiSprintOptionsScreen extends ParaguacraftScreen {
 
-    private static final int ROWS = 4;
+    private static final int ROWS = 2;
+    private static final int ROW_H = 44;
 
-    public GuiMusicHudOptionsScreen(Screen parent) {
-        super(Text.literal("Musica"), parent);
+    public GuiSprintOptionsScreen(Screen parent) {
+        super(Text.literal("Sprint"), parent);
     }
 
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
         renderBackground(ctx, mouseX, mouseY, delta);
         int px = width / 2 - 160;
-        int py = height / 2 - 100;
-        ctx.fill(px, py, px + 320, py + 200, 0xCC0A0C14);
-        ctx.drawText(textRenderer, Text.literal("Musica (Spotify / YouTube)"), px + 16, py + 12, UiTheme.accent(), true);
+        int py = height / 2 - 80;
+        ctx.fill(px, py, px + 320, py + 160, 0xCC0A0C14);
+        ctx.drawText(textRenderer, Text.literal("Sprint"), px + 16, py + 12, UiTheme.accent(), true);
         for (int i = 0; i < ROWS; i++) {
-            int rowY = py + 44 + i * 32;
+            int rowY = py + 44 + i * ROW_H;
             ctx.fill(px + 12, rowY, px + 308, rowY + 22, 0x44000000);
             ctx.drawText(textRenderer, Text.literal(rowLabel(i)), px + 20, rowY + 7, UiTheme.TEXT, true);
             String value = rowValue(i);
             ctx.drawText(textRenderer, Text.literal(value), px + 288 - textRenderer.getWidth(value), rowY + 7, rowColor(i), true);
+            ctx.drawText(textRenderer, Text.literal(rowDescription(i)), px + 20, rowY + 26, UiTheme.textDim(), false);
         }
         super.render(ctx, mouseX, mouseY, delta);
     }
@@ -39,9 +41,9 @@ public class GuiMusicHudOptionsScreen extends ParaguacraftScreen {
             return super.mouseClicked(click, doubled);
         }
         int px = width / 2 - 160;
-        int py = height / 2 - 100;
+        int py = height / 2 - 80;
         for (int i = 0; i < ROWS; i++) {
-            int rowY = py + 44 + i * 32;
+            int rowY = py + 44 + i * ROW_H;
             if (click.x() >= px + 12 && click.x() <= px + 308 && click.y() >= rowY && click.y() <= rowY + 22) {
                 toggleRow(i);
                 ModernConfig.save();
@@ -53,40 +55,41 @@ public class GuiMusicHudOptionsScreen extends ParaguacraftScreen {
 
     private static String rowLabel(int i) {
         return switch (i) {
-            case 0 -> "Mostrar HUD de musica";
-            case 1 -> "Descargar portada (caratula)";
-            case 2 -> "Transparencia del panel";
-            case 3 -> "Tamano del HUD";
+            case 0 -> "Toggle Sprint (M)";
+            case 1 -> "Auto Sprint (W)";
+            default -> "";
+        };
+    }
+
+    private static String rowDescription(int i) {
+        return switch (i) {
+            case 0 -> "Mantiene el sprint activo con una tecla, estilo Lunar Client.";
+            case 1 -> "Corre automaticamente al ir hacia adelante, sin apretar tecla.";
             default -> "";
         };
     }
 
     private String rowValue(int i) {
         return switch (i) {
-            case 0 -> ModernConfig.showMusicHud ? "ON" : "OFF";
-            case 1 -> ModernConfig.showMusicAlbumArt ? "ON" : "OFF";
-            case 2 -> ModernConfig.musicHudAlphaLabel();
-            case 3 -> ModernConfig.musicHudScaleLabel();
+            case 0 -> ModernConfig.toggleSprint ? "ON" : "OFF";
+            case 1 -> ModernConfig.toggleSprintLegacy ? "ON" : "OFF";
             default -> "";
         };
     }
 
     private static int rowColor(int i) {
-        if (i == 0) {
-            return ModernConfig.showMusicHud ? 0xFF22CC66 : 0xFFCC4444;
-        }
-        if (i == 1) {
-            return ModernConfig.showMusicAlbumArt ? 0xFF22CC66 : 0xFFCC4444;
-        }
-        return UiTheme.accent();
+        boolean on = switch (i) {
+            case 0 -> ModernConfig.toggleSprint;
+            case 1 -> ModernConfig.toggleSprintLegacy;
+            default -> false;
+        };
+        return on ? 0xFF22CC66 : 0xFFCC4444;
     }
 
     private static void toggleRow(int i) {
         switch (i) {
-            case 0 -> ModernConfig.showMusicHud = !ModernConfig.showMusicHud;
-            case 1 -> ModernConfig.showMusicAlbumArt = !ModernConfig.showMusicAlbumArt;
-            case 2 -> ModernConfig.cycleMusicHudAlpha();
-            case 3 -> ModernConfig.cycleMusicHudScale();
+            case 0 -> ModernConfig.toggleSprint = !ModernConfig.toggleSprint;
+            case 1 -> ModernConfig.toggleSprintLegacy = !ModernConfig.toggleSprintLegacy;
             default -> {}
         }
     }

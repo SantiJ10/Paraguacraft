@@ -2,8 +2,10 @@ package com.paraguacraft.pvp.modern.core;
 
 import com.paraguacraft.pvp.modern.config.ModernConfig;
 import com.paraguacraft.pvp.modern.mixin.KeyBindingAccessor;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
@@ -15,6 +17,7 @@ public final class QoLBootstrap {
 
     private static float lastHealth = -1F;
     private static boolean sneakKeyWasPressed = false;
+    private static boolean wasDead = false;
 
     private QoLBootstrap() {}
 
@@ -25,9 +28,16 @@ public final class QoLBootstrap {
             CombatStats.onAttack(entity);
             return ActionResult.PASS;
         });
+        ClientEntityEvents.ENTITY_UNLOAD.register((entity, world) -> CombatStats.onEntityUnload(entity));
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+            CombatStats.reset();
+            lastHealth = -1F;
+            wasDead = false;
+        });
     }
 
     private static void tick(MinecraftClient client) {
+        CombatStats.pruneRecentHits();
         if (client.player == null) {
             return;
         }
@@ -38,6 +48,11 @@ public final class QoLBootstrap {
         if (lastHealth >= 0 && hp < lastHealth) {
             CombatStats.onPlayerHurt();
         }
+        boolean dead = client.player.isDead();
+        if (dead && !wasDead) {
+            CombatStats.onOwnDeath();
+        }
+        wasDead = dead;
         lastHealth = hp;
         tickToggleSneak(client);
     }

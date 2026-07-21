@@ -34,6 +34,11 @@ public final class PerformanceBootstrap {
      * Entity/nametag cull (paridad 1.8.9): en vez de un mixin de render (alto
      * riesgo sin poder probar en vivo), reduce `entityDistanceScaling`
      * (API vanilla) — menos entidades dibujadas = menos nametags visibles.
+     *
+     * <p>Cull de block entities (cofres/carteles lejanos) queda fuera de esta
+     * pasada: vanilla/Fabric no expone un equivalente API-safe (solo mixins de
+     * render, mismo riesgo que arriba), asi que no se fuerza y se deja para
+     * una fase futura si aparece una forma segura de hacerlo.
      */
     private static void tickCulling(MinecraftClient client) {
         if (client.player == null || client.currentScreen != null) {
@@ -98,6 +103,21 @@ public final class PerformanceBootstrap {
         if (ModernConfig.windowedFullscreen) {
             WindowedFullscreenManager.enable(client);
         }
+    }
+
+    /** Boton "Aplicar preset de hardware" del Mod Menu: re-ejecuta el auto-preset a demanda, sin esperar al marker de arranque. */
+    public static void applyPresetNow(MinecraftClient client) {
+        applyGameOptions(client.options);
+    }
+
+    /** Boton "Particulas" del Mod Menu: aplica el modo elegido de inmediato (sin esperar a reiniciar). */
+    public static void applyParticleModeNow(MinecraftClient client) {
+        client.options.getParticles().setValue(toParticlesMode(PerformanceConfig.particleMode));
+    }
+
+    /** Boton "Limpiar memoria" del Mod Menu: misma rutina que ya corre sola al cambiar de mundo, pero manual. */
+    public static void cleanMemoryNow() {
+        System.gc();
     }
 
     private static void onWorldJoin(MinecraftClient client) {
