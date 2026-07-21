@@ -106,6 +106,9 @@ public class ModMenuScreen extends ParaguacraftScreen {
         } else {
             addDrawableChild(MenuCardButton.create(x, y, w, h, card.label, card.getter.getAsBoolean(), () -> {
                 card.setter.accept(!card.getter.getAsBoolean());
+                if ("Fullbright".equals(card.label) && !ModernConfig.fullbright) {
+                    client.options.getGamma().setValue(1.0);
+                }
                 ModernConfig.save();
                 if ("Pantalla sin bordes".equals(card.label)) {
                     com.paraguacraft.pvp.modern.core.WindowedFullscreenManager.sync(client);

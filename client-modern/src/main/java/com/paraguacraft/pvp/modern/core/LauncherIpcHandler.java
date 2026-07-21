@@ -7,19 +7,15 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 /** Poll del archivo IPC del launcher (musica + hardware). */
 public final class LauncherIpcHandler {
 
-    private static int tick;
-
     private LauncherIpcHandler() {}
 
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            if (++tick % 5 == 0) {
-                LauncherIpc.poll();
-                LauncherIpc.Snapshot snap = LauncherIpc.get();
-                if (snap.valid && snap.musicPlaying && ModernConfig.showMusicAlbumArt
-                    && snap.musicImageUrl != null && !snap.musicImageUrl.isEmpty()) {
-                    MusicArtCache.get(snap.musicImageUrl);
-                }
+            LauncherIpc.poll();
+            LauncherIpc.Snapshot snap = LauncherIpc.get();
+            if (snap.valid && snap.musicPlaying && ModernConfig.showMusicAlbumArt
+                && snap.musicImageUrl != null && !snap.musicImageUrl.isEmpty()) {
+                MusicArtCache.get(snap.musicImageUrl);
             }
         });
     }

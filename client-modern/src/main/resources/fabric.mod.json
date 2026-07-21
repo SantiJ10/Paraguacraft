@@ -9,6 +9,7 @@
     "homepage": "https://paraguacraft.pages.dev"
   },
   "license": "All-Rights-Reserved",
+  "icon": "assets/paraguacraftpvp-modern/icon.png",
   "environment": "client",
   "entrypoints": {
     "client": [

@@ -20,7 +20,6 @@ import net.minecraft.component.type.ItemEnchantmentsComponent;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.entity.TntEntity;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffectUtil;
 import net.minecraft.item.BlockItem;
@@ -132,9 +131,6 @@ public final class HudRenderer {
         }
         if (ModernConfig.showCompass) {
             drawCompass(context, client.textRenderer, client);
-        }
-        if (ModernConfig.showTntCountdown) {
-            drawNearestTnt(context, client.textRenderer, client);
         }
         if (ModernConfig.showServerHud) {
             drawServerHud(context, client.textRenderer, client);
@@ -518,29 +514,6 @@ public final class HudRenderer {
             return 0xFFFFFFFF;
         }
         return 0xFFAAAAAA;
-    }
-
-    private static void drawNearestTnt(DrawContext ctx, TextRenderer tr, MinecraftClient client) {
-        if (client.world == null) {
-            return;
-        }
-        TntEntity nearest = null;
-        double best = 256;
-        for (var entity : client.world.getEntities()) {
-            if (!(entity instanceof TntEntity tnt) || tnt.getFuse() <= 0) {
-                continue;
-            }
-            double d = client.player.squaredDistanceTo(entity);
-            if (d < best) {
-                best = d;
-                nearest = tnt;
-            }
-        }
-        if (nearest == null) {
-            return;
-        }
-        String label = String.format("TNT: %.1fs", nearest.getFuse() / 20.0f);
-        ctx.drawText(tr, Text.literal(label), ModernConfig.hudX, ModernConfig.hudY + 52, 0xFFFF5555, true);
     }
 
     private static void drawHardwareOverlay(DrawContext ctx, TextRenderer tr, MinecraftClient client) {

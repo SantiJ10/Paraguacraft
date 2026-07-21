@@ -23,7 +23,9 @@
     "MixinLivingEntitySwing",
     "MixinScreenBackground",
     "MixinScreenClose",
-    "MixinWindowFullscreen"
+    "MixinWindowFullscreen",
+    "MixinLightmapTextureManager",
+    "MixinTntEntityRenderer"
   ],
   "injectors": {
     "defaultRequire": 1
