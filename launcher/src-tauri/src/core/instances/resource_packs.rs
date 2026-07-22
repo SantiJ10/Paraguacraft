@@ -98,6 +98,45 @@ pub fn set_enabled(
     Ok(())
 }
 
+/// Activa un pack como principal: quita otros `file/` no oficiales y deja vanilla + sistema + el pack pedido.
+pub fn set_primary(game_dir: &Path, mc_version: &str, pack_name: &str, is_dir: bool) -> AppResult<()> {
+    let major = mc_major(mc_version);
+    let token = pack_token(pack_name, is_dir, major);
+    let options_path = game_dir.join("options.txt");
+    let mut lines: Vec<String> = if options_path.is_file() {
+        std::fs::read_to_string(&options_path)?
+            .lines()
+            .map(String::from)
+            .collect()
+    } else {
+        Vec::new()
+    };
+
+    if major < 6 {
+        lines.retain(|l| !l.starts_with("texturepack:"));
+        lines.push(format!("texturepack:{token}"));
+    } else if major < 13 {
+        let packs = vec![token.clone()];
+        lines.retain(|l| !l.starts_with("resourcePacks:"));
+        let quoted: Vec<String> = packs.iter().map(|p| format!("\"{p}\"")).collect();
+        lines.push(format!("resourcePacks:[{}]", quoted.join(",")));
+    } else {
+        let mut packs: Vec<String> = vec!["vanilla".into()];
+        if !packs.iter().any(|p| p == &token) {
+            packs.push(token);
+        }
+        lines.retain(|l| !l.starts_with("resourcePacks:"));
+        let quoted: Vec<String> = packs.iter().map(|p| format!("\"{p}\"")).collect();
+        lines.push(format!("resourcePacks:[{}]", quoted.join(",")));
+    }
+
+    if let Some(parent) = options_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(&options_path, format!("{}\n", lines.join("\n")))?;
+    Ok(())
+}
+
 pub fn is_enabled_in_options(game_dir: &Path, mc_version: &str, pack_name: &str, is_dir: bool) -> bool {
     let options_path = game_dir.join("options.txt");
     let Ok(raw) = std::fs::read_to_string(&options_path) else {

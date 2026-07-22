@@ -59,6 +59,7 @@ async fn download(client: &reqwest::Client, url: &str, path: &PathBuf) -> Result
     let resp = client
         .get(url)
         .header("User-Agent", "ParaguacraftLauncher/1.0")
+        .header("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8")
         .send()
         .await
         .map_err(|e| e.to_string())?;
@@ -69,13 +70,25 @@ async fn download(client: &reqwest::Client, url: &str, path: &PathBuf) -> Result
     if bytes.len() < 64 {
         return Err("Respuesta demasiado corta para ser una imagen".into());
     }
+    let jpeg = normalize_to_jpeg(&bytes)?;
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     let tmp = path.with_extension("jpg.tmp");
-    std::fs::write(&tmp, &bytes).map_err(|e| e.to_string())?;
+    std::fs::write(&tmp, &jpeg).map_err(|e| e.to_string())?;
     std::fs::rename(&tmp, path).map_err(|e| e.to_string())?;
     Ok(())
+}
+
+fn normalize_to_jpeg(bytes: &[u8]) -> Result<Vec<u8>, String> {
+    let img = image::load_from_memory(bytes).map_err(|e| format!("decode: {e}"))?;
+    let mut out = Vec::new();
+    img.write_to(
+        &mut std::io::Cursor::new(&mut out),
+        image::ImageFormat::Jpeg,
+    )
+    .map_err(|e| format!("encode: {e}"))?;
+    Ok(out)
 }
 
 /// Limpieza opcional: evita que la carpeta crezca sin límite (mantiene las

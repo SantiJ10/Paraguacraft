@@ -31,13 +31,17 @@ struct HudMod {
 }
 
 const HUD_MODS: &[HudMod] = &[
-    // Dependencias de Controlling / Zoomify (instalar antes que los mods que las usan).
+    // Dependencias de Controlling / Zoomify / Gamma Utils (instalar antes que los mods que las usan).
     HudMod {
         slug: "searchables",
         min_tier: 0,
     },
     HudMod {
         slug: "fabric-language-kotlin",
+        min_tier: 0,
+    },
+    HudMod {
+        slug: "cloth-config",
         min_tier: 0,
     },
     HudMod {
@@ -49,6 +53,10 @@ const HUD_MODS: &[HudMod] = &[
         min_tier: 0,
     },
     HudMod {
+        slug: "gamma-utils",
+        min_tier: 0,
+    },
+    HudMod {
         slug: "appleskin",
         min_tier: 0,
     },
@@ -57,11 +65,27 @@ const HUD_MODS: &[HudMod] = &[
         min_tier: 0,
     },
     HudMod {
-        slug: "smooth-scrolling",
+        slug: "smooth-scroll",
         min_tier: 0,
     },
     HudMod {
         slug: "zoomify",
+        min_tier: 0,
+    },
+    HudMod {
+        slug: "reeses-sodium-options",
+        min_tier: 0,
+    },
+    HudMod {
+        slug: "sodium-extra",
+        min_tier: 0,
+    },
+    HudMod {
+        slug: "chat-heads",
+        min_tier: 0,
+    },
+    HudMod {
+        slug: "fast-ip-ping",
         min_tier: 0,
     },
     HudMod {
@@ -70,6 +94,18 @@ const HUD_MODS: &[HudMod] = &[
     },
     HudMod {
         slug: "shulkerboxtooltip",
+        min_tier: 1,
+    },
+    HudMod {
+        slug: "krypton",
+        min_tier: 1,
+    },
+    HudMod {
+        slug: "debugify",
+        min_tier: 1,
+    },
+    HudMod {
+        slug: "moreculling",
         min_tier: 1,
     },
     HudMod {
@@ -83,6 +119,8 @@ const TIER_BAJA_OFF: &[&str] = &[
     "ferrite",
     "entityculling",
     "immediatelyfast",
+    "moreculling",
+    "debugify",
 ];
 
 const TIER_MEDIA_OFF: &[&str] = &["entityculling"];
@@ -199,7 +237,9 @@ pub async fn sync_instance_bundles(
     instance_id: &str,
 ) -> AppResult<()> {
     let dir = instances::instance_dir(instance_id);
-    pvp_modern::sync_instance(app, client, MC, &dir).await
+    pvp_modern::sync_instance(app, client, MC, &dir).await?;
+    let _ = sync_hud_mods(app, client, instance_id).await;
+    Ok(())
 }
 
 pub fn apply_hardware_profile(instance_id: &str) -> AppResult<()> {

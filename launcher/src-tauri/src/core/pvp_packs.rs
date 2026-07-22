@@ -131,7 +131,7 @@ async fn ensure_primary_189(
 }
 
 fn enable_primary_pack(game_dir: &Path, mc_version: &str, pack_name: &str) -> AppResult<()> {
-    resource_packs::set_enabled(game_dir, mc_version, pack_name, false, true)
+    resource_packs::set_primary(game_dir, mc_version, pack_name, false)
 }
 
 /// Descarga el pack oficial (si falta) y lo activa en `options.txt` antes del lanzamiento.
@@ -150,6 +150,8 @@ pub async fn prepare_launch(
         "paraguacraft-pvp-modern" => {
             let _ = modern_packs::sync_instance_packs(app, client, game_dir).await?;
             enable_primary_pack(game_dir, mc_version, PACK_MODERN)?;
+            let tier = crate::core::hardware::detect().perfil_sugerido;
+            let _ = crate::core::performance::apply_modern_pvp_mod_configs(game_dir, &tier);
         }
         "paraguacraft-pvp" => {
             ensure_primary_189(app, client, &packs_dir).await?;

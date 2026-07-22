@@ -4,6 +4,7 @@ import com.paraguacraft.pvp.modern.config.LauncherProfile;
 import com.paraguacraft.pvp.modern.config.ModernConfig;
 import com.paraguacraft.pvp.modern.core.ColoredBedsBootstrap;
 import com.paraguacraft.pvp.modern.core.DiscordPresenceHandler;
+import com.paraguacraft.pvp.modern.core.GammaUtilsBootstrap;
 import com.paraguacraft.pvp.modern.core.LauncherIpcHandler;
 import com.paraguacraft.pvp.modern.core.PerformanceBootstrap;
 import com.paraguacraft.pvp.modern.core.QuickPlayState;
@@ -21,7 +22,7 @@ import net.minecraft.client.MinecraftClient;
 public class ParaguacraftPvPModern implements ClientModInitializer {
 
     public static final String MOD_ID = "paraguacraftpvp-modern";
-    public static final String VERSION = "0.8.3";
+    public static final String VERSION = "0.8.4";
 
     @Override
     public void onInitializeClient() {
@@ -34,6 +35,7 @@ public class ParaguacraftPvPModern implements ClientModInitializer {
         }
         PerformanceBootstrap.register();
         QoLBootstrap.register();
+        GammaUtilsBootstrap.register();
         TrainingWorldHelper.register();
         LauncherIpcHandler.register();
         DiscordPresenceHandler.register();

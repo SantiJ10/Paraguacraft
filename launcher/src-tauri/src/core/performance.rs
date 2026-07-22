@@ -301,7 +301,110 @@ fn repair_dynamic_fps_config(path: &Path) -> AppResult<()> {
     Ok(())
 }
 
-/// Ajusta configs de Sodium, Lithium y Dynamic FPS según tier PvP modern.
+fn default_gammautils_json() -> &'static str {
+    r#"{
+  "gamma": {
+    "defaultGamma": 100,
+    "toggledGamma": 1500,
+    "updateToggle": false,
+    "gammaStep": 10,
+    "showStatusEffect": false,
+    "resetOnClose": false,
+    "transition": {
+      "smoothTransition": false,
+      "transitionSpeed": 3000
+    },
+    "dynamic": {
+      "enabled": false,
+      "minGamma": 100,
+      "maxGamma": 1000,
+      "transitionSpeed": 200,
+      "averagingLightRange": 8,
+      "skyBrightnessOverride": 0
+    },
+    "dimensionPreference": {
+      "enabled": false,
+      "overworldPreference": 1500,
+      "netherPreference": 1500,
+      "endPreference": 1500
+    },
+    "limiter": {
+      "limitCheck": true,
+      "minGamma": -750,
+      "maxGamma": 1500
+    },
+    "hudMessage": {
+      "showMessage": true,
+      "defaultColor": 43520,
+      "positiveColor": 16755200,
+      "negativeColor": 11141120
+    }
+  },
+  "nightVision": {
+    "toggledNightVision": 100,
+    "updateToggle": false,
+    "nightVisionStep": 2,
+    "brightenFogColor": true,
+    "showStatusEffect": false,
+    "resetOnClose": false,
+    "transition": {
+      "smoothTransition": false,
+      "transitionSpeed": 200
+    },
+    "dynamic": {
+      "enabled": false,
+      "minNightVision": 0,
+      "maxNightVision": 100,
+      "transitionSpeed": 15,
+      "averagingLightRange": 8,
+      "skyBrightnessOverride": 0
+    },
+    "dimensionPreference": {
+      "enabled": false,
+      "overworldPreference": 100,
+      "netherPreference": 100,
+      "endPreference": 100
+    },
+    "limiter": {
+      "limitCheck": true,
+      "minNightVision": 0,
+      "maxNightVision": 100
+    },
+    "hudMessage": {
+      "showMessage": true,
+      "defaultColor": 43520,
+      "positiveColor": 16755200,
+      "negativeColor": 11141120,
+      "enabledColor": 43520,
+      "disabledColor": 11141120
+    }
+  },
+  "other": {
+    "namespacedCommands": false
+  }
+}
+"#
+}
+
+fn seed_gammautils_config(config: &Path) -> AppResult<()> {
+    let path = config.join("gammautils.json");
+    if path.is_file() {
+        let Ok(text) = std::fs::read_to_string(&path) else {
+            let _ = std::fs::remove_file(&path);
+            std::fs::write(&path, default_gammautils_json())?;
+            return Ok(());
+        };
+        if text.trim().is_empty() || serde_json::from_str::<serde_json::Value>(&text).is_err() {
+            let _ = std::fs::remove_file(&path);
+            std::fs::write(&path, default_gammautils_json())?;
+        }
+        return Ok(());
+    }
+    std::fs::write(&path, default_gammautils_json())?;
+    Ok(())
+}
+
+/// Ajusta configs de Sodium, Lithium, Dynamic FPS y Gamma Utils según tier PvP modern.
 pub fn apply_modern_pvp_mod_configs(game_dir: &Path, tier: &str) -> AppResult<()> {
     let config = game_dir.join("config");
     std::fs::create_dir_all(&config)?;
@@ -322,6 +425,7 @@ pub fn apply_modern_pvp_mod_configs(game_dir: &Path, tier: &str) -> AppResult<()
     patch_properties_file(&config.join("lithium.properties"), lithium_entries)?;
 
     repair_dynamic_fps_config(&config.join("dynamic_fps.json"))?;
+    seed_gammautils_config(&config)?;
 
     // No parchear sodium-options.json: el esquema cambia entre versiones y puede corromper el archivo.
     // Si quedó inválido de un parche anterior, borrarlo para que Sodium regenere defaults.
