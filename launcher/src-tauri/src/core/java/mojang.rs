@@ -9,6 +9,7 @@ use tauri::AppHandle;
 use crate::core::net::{self, DownloadItem};
 use crate::core::paths;
 use crate::core::versions;
+use crate::core::java::{is_compatible, verify::verify as verify_java};
 use crate::error::{AppError, AppResult};
 
 const JVM_MANIFEST_URL: &str =
@@ -40,8 +41,8 @@ pub fn component_candidates(mc_version: &str) -> Vec<&'static str> {
     let major: u32 = parts.first().and_then(|p| p.parse().ok()).unwrap_or(1);
     if major >= 26 {
         return vec![
+            "java-runtime-epsilon",
             "java-runtime-delta",
-            "java-runtime-loom",
             "java-runtime-gamma",
         ];
     }
@@ -200,19 +201,29 @@ async fn install_runtime(
     Ok(())
 }
 
-/// Busca el mejor runtime Mojang ya instalado para una versión de MC.
+/// Busca el mejor runtime Mojang ya instalado para una versión de MC (compatible).
 pub fn find_for_mc(mc_version: &str, version_id: Option<&str>) -> Option<PathBuf> {
     if let Some(vid) = version_id {
         if let Some(comp) = component_from_version_id(vid) {
             if let Some(p) = find_executable(&comp) {
-                return Some(p);
+                if runtime_compatible(&p, mc_version) {
+                    return Some(p);
+                }
             }
         }
     }
     for comp in component_candidates(mc_version) {
         if let Some(p) = find_executable(comp) {
-            return Some(p);
+            if runtime_compatible(&p, mc_version) {
+                return Some(p);
+            }
         }
     }
     None
+}
+
+fn runtime_compatible(path: &PathBuf, mc_version: &str) -> bool {
+    verify_java(path, "mojang")
+        .map(|j| is_compatible(j.version_major, mc_version))
+        .unwrap_or(false)
 }

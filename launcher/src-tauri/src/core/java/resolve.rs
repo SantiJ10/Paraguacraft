@@ -166,22 +166,67 @@ pub async fn ensure_launch_java(
     Ok(format_path(Path::new(&path), JavaRole::Launch))
 }
 
+/// Asegura Java para servidores locales (Paper, Fabric, Forge, etc.).
+pub async fn ensure_server_java(
+    app: &AppHandle,
+    state: &AppState,
+    mc_version: &str,
+) -> AppResult<PathBuf> {
+    use crate::config;
+    use crate::models::AppSettings;
+
+    let settings: AppSettings = config::read_json(&crate::core::paths::config_file()).unwrap_or_default();
+    if let Some(p) = settings.java_path.as_deref().filter(|s| !s.is_empty()) {
+        validate_override(p, mc_version)?;
+        return Ok(format_path(Path::new(p), JavaRole::Installer));
+    }
+
+    if crate::core::versions::read_local_json(mc_version).is_some() {
+        if let Some(comp) = mojang::component_from_version_id(mc_version) {
+            let (http, _guard) = state.net_scope();
+            if let Ok(p) = mojang::ensure_runtime(app, &http, &comp).await {
+                validate_override(p.to_string_lossy().as_ref(), mc_version)?;
+                return Ok(format_path(&p, JavaRole::Installer));
+            }
+        }
+    }
+
+    if let Some(p) = mojang::find_for_mc(mc_version, Some(mc_version)) {
+        return Ok(format_path(&p, JavaRole::Installer));
+    }
+
+    if let Some(j) = pick_compatible(&detect_all(), mc_version) {
+        return Ok(format_path(Path::new(&j.path), JavaRole::Installer));
+    }
+
+    let required = required_for_mc(mc_version);
+    for comp in mojang::component_candidates(mc_version) {
+        let (http, _guard) = state.net_scope();
+        if let Ok(p) = mojang::ensure_runtime(app, &http, comp).await {
+            if let Some(info) = crate::core::java::verify::verify(&p, "mojang") {
+                if is_compatible(info.version_major, mc_version) {
+                    return Ok(format_path(&p, JavaRole::Installer));
+                }
+            }
+        }
+    }
+
+    if let Some(p) = adoptium::find_installed(required) {
+        return Ok(format_path(&p, JavaRole::Installer));
+    }
+
+    let (http, _guard) = state.net_scope();
+    let path = adoptium::download(app, &http, required, false).await?;
+    Ok(format_path(Path::new(&path), JavaRole::Installer))
+}
+
 /// Java para instaladores de loaders (Forge, etc.). Descarga Temurin si falta.
 pub async fn ensure_installer_java(
     app: &AppHandle,
     state: &AppState,
     mc_version: &str,
 ) -> AppResult<PathBuf> {
-    if let Ok(p) = resolve_sync(mc_version, None, None, JavaRole::Installer) {
-        return Ok(p);
-    }
-    let required = required_for_mc(mc_version);
-    if let Some(p) = adoptium::find_installed(required) {
-        return Ok(format_path(&p, JavaRole::Installer));
-    }
-    let (http, _guard) = state.net_scope();
-    let path = adoptium::download(app, &http, required, false).await?;
-    Ok(format_path(Path::new(&path), JavaRole::Installer))
+    ensure_server_java(app, state, mc_version).await
 }
 
 /// Java para instaladores (sync, sin descarga). Preferí `ensure_installer_java`.

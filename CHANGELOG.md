@@ -18,6 +18,13 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - Mod Menu categoria Rendimiento: 7 toggles de cull + export en perfiles.
 - **Fullbright unificado** (`FullbrightManager`): Gamma Utils o integrado, misma tarjeta y tecla G.
 
+## [7.9.16] - 2026-07-22
+
+### Fixed
+- **Servidores locales**: MC 26.x+ usa Java 25 (`java-runtime-epsilon`) en lugar de Java 21; descarga automática si falta.
+- **Playit.gg**: agente por servidor con `--secret-path` (`playit-agent.toml`); recuperación ante `InvalidAgentKey`.
+- Forge/NeoForge: `JAVA_HOME` al iniciar `run.bat`.
+
 ## [7.9.15] - 2026-07-22
 
 ### Fixed

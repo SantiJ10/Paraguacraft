@@ -1,6 +1,6 @@
 {
   "name": "paraguacraft-launcher",
-  "version": "7.9.15",
+  "version": "7.9.16",
   "private": true,
   "type": "module",
   "description": "Paraguacraft Launcher - cliente de Minecraft Java multiplataforma (Tauri v2 + Vue 3)",
