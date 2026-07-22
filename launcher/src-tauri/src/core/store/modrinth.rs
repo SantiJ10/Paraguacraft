@@ -9,11 +9,18 @@ use serde_json::Value;
 use tauri::AppHandle;
 
 use super::jar_already_present;
+use super::mod_family_present;
 use crate::core::net::{self, DownloadItem};
 use crate::error::{AppError, AppResult};
 use crate::models::{StoreDependency, StoreItem, StoreSearchResult, StoreVersion};
 
 const API: &str = "https://api.modrinth.com/v2";
+
+/// Proyectos que el bundle Fabric+Iris ya fija (Iris pinea Sodium 0.8.7 para 1.21.11).
+const BUNDLE_MANAGED_PROJECTS: &[(&str, &str, &[&str])] = &[
+    ("AANobbMI", "sodium", &["sodium-extra", "reeses-sodium"]),
+    ("YL57xq9U", "iris", &[] as &[&str]),
+];
 
 /// Indica si un tipo de contenido depende del loader (para filtrar por loader).
 pub fn loader_relevant(project_type: &str) -> bool {
@@ -318,6 +325,14 @@ async fn install_recursive(
                 continue;
             }
             if let Some(dep_project) = dep["project_id"].as_str() {
+                if let Some((_, family, exclude)) = BUNDLE_MANAGED_PROJECTS
+                    .iter()
+                    .find(|(pid, _, _)| *pid == dep_project)
+                {
+                    if mod_family_present(&dest_dir, family, exclude) {
+                        continue;
+                    }
+                }
                 let _ = Box::pin(install_recursive(
                     app,
                     client,

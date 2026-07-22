@@ -160,6 +160,21 @@ pub async fn repair(
                 Some(dir.join("mods")),
             ),
         }
+        match crate::core::modern_pvp::sync_hud_mods(app, client, instance_id).await {
+            Ok(n) if n > 0 => push_fixed(
+                &mut report,
+                "Mods HUD PvP actualizados",
+                format!("Se instalaron o corrigieron {n} mods HUD."),
+                Some(dir.join("mods")),
+            ),
+            Ok(_) => {}
+            Err(e) => push_warning(
+                &mut report,
+                "Mods HUD PvP incompletos",
+                e.to_string(),
+                Some(dir.join("mods")),
+            ),
+        }
     }
 
     let log_path = dir.join("logs").join("latest.log");
