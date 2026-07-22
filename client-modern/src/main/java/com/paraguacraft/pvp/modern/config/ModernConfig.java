@@ -41,7 +41,15 @@ public final class ModernConfig {
     public static boolean comboCounter = true;
     public static boolean showTntCountdown = true;
     public static boolean chatTriggers = true;
+    public static boolean chatAlertsEnabled = true;
     public static boolean freelookEnabled = true;
+    /** Bloquea freelook en Hypixel/Cubecraft (reglas del servidor). */
+    public static boolean freelookBlacklistServers = true;
+    public static boolean shaderAutoOffInMatch = true;
+    public static boolean reachDisplayPracticeOnly = false;
+    public static boolean autoGameModeProfiles = true;
+    public static boolean showGameModeHud = true;
+    public static boolean showBridgeTimer = true;
     public static boolean showCompass = true;
     public static boolean showHardwareHud = true;
     public static boolean reachDisplay = true;
@@ -50,6 +58,8 @@ public final class ModernConfig {
     public static int reachDisplayX = 5;
     public static int reachDisplayY = 58;
     public static String selectedResourcePack = "";
+    /** Pack extra encima del oficial (no se pisa al reconectar). */
+    public static String secondaryResourcePack = "";
     public static boolean nickFinderEnabled = true;
     public static String nickFinderQuery = "";
     public static boolean coloredBeds = true;
@@ -116,6 +126,10 @@ public final class ModernConfig {
     private static final int[] MUSIC_ALPHA_PRESETS = {255, 64, 0};
     public static int comboX = 5;
     public static int comboY = 45;
+    public static int gameModeHudX = 5;
+    public static int gameModeHudY = 72;
+    public static int bridgeTimerX = 5;
+    public static int bridgeTimerY = 86;
     public static int potionX = 150;
     public static int potionY = 5;
     public static int compassY = 10;
@@ -215,7 +229,14 @@ public final class ModernConfig {
             comboCounter = bool(props, "comboCounter", comboCounter);
             showTntCountdown = bool(props, "showTntCountdown", showTntCountdown);
             chatTriggers = bool(props, "chatTriggers", chatTriggers);
+            chatAlertsEnabled = bool(props, "chatAlertsEnabled", chatAlertsEnabled);
             freelookEnabled = bool(props, "freelookEnabled", freelookEnabled);
+            freelookBlacklistServers = bool(props, "freelookBlacklistServers", freelookBlacklistServers);
+            shaderAutoOffInMatch = bool(props, "shaderAutoOffInMatch", shaderAutoOffInMatch);
+            reachDisplayPracticeOnly = bool(props, "reachDisplayPracticeOnly", reachDisplayPracticeOnly);
+            autoGameModeProfiles = bool(props, "autoGameModeProfiles", autoGameModeProfiles);
+            showGameModeHud = bool(props, "showGameModeHud", showGameModeHud);
+            showBridgeTimer = bool(props, "showBridgeTimer", showBridgeTimer);
             showCompass = bool(props, "showCompass", showCompass);
             showHardwareHud = bool(props, "showHardwareHud", showHardwareHud);
             reachDisplay = bool(props, "reachDisplay", reachDisplay);
@@ -225,6 +246,10 @@ public final class ModernConfig {
             selectedResourcePack = props.getProperty("selectedResourcePack", selectedResourcePack);
             if (selectedResourcePack == null) {
                 selectedResourcePack = "";
+            }
+            secondaryResourcePack = props.getProperty("secondaryResourcePack", secondaryResourcePack);
+            if (secondaryResourcePack == null) {
+                secondaryResourcePack = "";
             }
             nickFinderEnabled = bool(props, "nickFinderEnabled", nickFinderEnabled);
             nickFinderQuery = props.getProperty("nickFinderQuery", nickFinderQuery);
@@ -297,6 +322,10 @@ public final class ModernConfig {
             coordsY = intProp(props, "coordsY", coordsY);
             comboX = intProp(props, "comboX", comboX);
             comboY = intProp(props, "comboY", comboY);
+            gameModeHudX = intProp(props, "gameModeHudX", gameModeHudX);
+            gameModeHudY = intProp(props, "gameModeHudY", gameModeHudY);
+            bridgeTimerX = intProp(props, "bridgeTimerX", bridgeTimerX);
+            bridgeTimerY = intProp(props, "bridgeTimerY", bridgeTimerY);
             potionX = intProp(props, "potionX", potionX);
             potionY = intProp(props, "potionY", potionY);
             compassY = intProp(props, "compassY", compassY);
@@ -349,7 +378,14 @@ public final class ModernConfig {
         props.setProperty("comboCounter", String.valueOf(comboCounter));
         props.setProperty("showTntCountdown", String.valueOf(showTntCountdown));
         props.setProperty("chatTriggers", String.valueOf(chatTriggers));
+        props.setProperty("chatAlertsEnabled", String.valueOf(chatAlertsEnabled));
         props.setProperty("freelookEnabled", String.valueOf(freelookEnabled));
+        props.setProperty("freelookBlacklistServers", String.valueOf(freelookBlacklistServers));
+        props.setProperty("shaderAutoOffInMatch", String.valueOf(shaderAutoOffInMatch));
+        props.setProperty("reachDisplayPracticeOnly", String.valueOf(reachDisplayPracticeOnly));
+        props.setProperty("autoGameModeProfiles", String.valueOf(autoGameModeProfiles));
+        props.setProperty("showGameModeHud", String.valueOf(showGameModeHud));
+        props.setProperty("showBridgeTimer", String.valueOf(showBridgeTimer));
         props.setProperty("showCompass", String.valueOf(showCompass));
         props.setProperty("showHardwareHud", String.valueOf(showHardwareHud));
         props.setProperty("reachDisplay", String.valueOf(reachDisplay));
@@ -357,6 +393,7 @@ public final class ModernConfig {
         props.setProperty("reachDisplayX", String.valueOf(reachDisplayX));
         props.setProperty("reachDisplayY", String.valueOf(reachDisplayY));
         props.setProperty("selectedResourcePack", selectedResourcePack == null ? "" : selectedResourcePack);
+        props.setProperty("secondaryResourcePack", secondaryResourcePack == null ? "" : secondaryResourcePack);
         props.setProperty("nickFinderEnabled", String.valueOf(nickFinderEnabled));
         props.setProperty("nickFinderQuery", nickFinderQuery == null ? "" : nickFinderQuery);
         props.setProperty("coloredBeds", String.valueOf(coloredBeds));
@@ -412,6 +449,10 @@ public final class ModernConfig {
         props.setProperty("coordsY", String.valueOf(coordsY));
         props.setProperty("comboX", String.valueOf(comboX));
         props.setProperty("comboY", String.valueOf(comboY));
+        props.setProperty("gameModeHudX", String.valueOf(gameModeHudX));
+        props.setProperty("gameModeHudY", String.valueOf(gameModeHudY));
+        props.setProperty("bridgeTimerX", String.valueOf(bridgeTimerX));
+        props.setProperty("bridgeTimerY", String.valueOf(bridgeTimerY));
         props.setProperty("potionX", String.valueOf(potionX));
         props.setProperty("potionY", String.valueOf(potionY));
         props.setProperty("compassY", String.valueOf(compassY));

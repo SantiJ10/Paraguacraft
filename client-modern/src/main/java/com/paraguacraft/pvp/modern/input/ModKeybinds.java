@@ -2,6 +2,7 @@ package com.paraguacraft.pvp.modern.input;
 
 import com.paraguacraft.pvp.modern.config.ModernConfig;
 import com.paraguacraft.pvp.modern.core.FreelookManager;
+import com.paraguacraft.pvp.modern.core.ServerContext;
 import com.paraguacraft.pvp.modern.gui.GuiEditHudScreen;
 import com.paraguacraft.pvp.modern.gui.HypixelQuickPlayScreen;
 import com.paraguacraft.pvp.modern.gui.NickFinderScreen;
@@ -81,7 +82,7 @@ public final class ModKeybinds {
                 );
             }
         }
-        if (ModernConfig.freelookEnabled) {
+        if (ServerContext.freelookAllowed(client)) {
             if (freelook.isPressed()) {
                 if (!FreelookManager.active) {
                     FreelookManager.onPress(client);
@@ -89,6 +90,8 @@ public final class ModKeybinds {
             } else if (FreelookManager.active) {
                 FreelookManager.onRelease(client);
             }
+        } else if (FreelookManager.active) {
+            FreelookManager.onRelease(client);
         }
     }
 }

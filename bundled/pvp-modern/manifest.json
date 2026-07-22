@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP Modern",
   "mc_version": "1.21.11",
   "loader": "fabric",
-  "client_version": "0.8.4",
-  "release_tag": "pvp-modern-0.8.4",
-  "descripcion": "PvP 1.21.11: Gamma Utils fullbright, freelook, caratula musica, pack forzado, mods Hypixel.",
+  "client_version": "0.9.0",
+  "release_tag": "pvp-modern-0.9.0",
+  "descripcion": "PvP 1.21.11: perfiles por modo, Quick Play Cubecraft, pack dual, shaders auto-off, scoreboard limpio.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-Modern-0.8.4.jar",
-      "sha1": "d2f516eae7bd548118d71438b267637139faee2d"
+      "filename": "ParaguacraftPvP-Modern-0.9.0.jar",
+      "sha1": "676d3ac9547f0f8edb99ed35243a170dec9ae305"
     }
   ]
 }

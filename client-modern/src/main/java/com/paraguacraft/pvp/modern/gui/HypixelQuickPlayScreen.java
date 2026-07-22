@@ -35,10 +35,10 @@ public class HypixelQuickPlayScreen extends ParaguacraftScreen {
         int gap = 24;
         int i = 0;
 
-        if (QuickPlayState.hasLast()) {
+        if (QuickPlayState.hasLastFor(QuickPlayState.TargetServer.HYPIXEL)) {
             addDrawableChild(FlatMenuButton.create(width / 2 - btnW / 2, startY, btnW, btnH,
                 Text.literal("Reconectar: " + QuickPlayState.lastLabel),
-                () -> QuickPlayState.reconnect(client)));
+                () -> QuickPlayState.reconnect(client, QuickPlayState.TargetServer.HYPIXEL)));
             startY += gap;
             i++;
         }
@@ -56,12 +56,12 @@ public class HypixelQuickPlayScreen extends ParaguacraftScreen {
     }
 
     private void play(GameEntry game) {
-        QuickPlayState.remember(game.command(), game.name());
+        QuickPlayState.remember(QuickPlayState.TargetServer.HYPIXEL, game.command(), game.name());
         if (HypixelHelper.isOnHypixel(client)) {
             HypixelHelper.sendCommand(client, game.command());
             client.setScreen(null);
         } else {
-            QuickPlayState.queue(game.command());
+            QuickPlayState.queue(QuickPlayState.TargetServer.HYPIXEL, game.command());
             HypixelHelper.connect(client, parent != null ? parent : this);
         }
     }

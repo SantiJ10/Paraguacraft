@@ -29,7 +29,7 @@ public final class FreelookManager {
     private FreelookManager() {}
 
     public static void onPress(MinecraftClient client) {
-        if (!ModernConfig.freelookEnabled || client.player == null) {
+        if (!ServerContext.freelookAllowed(client) || client.player == null) {
             return;
         }
         active = true;

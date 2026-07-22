@@ -6,17 +6,11 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
+import java.util.List;
 import java.util.Locale;
 
 /** Alertas en chat por palabras clave (BedWars / Hypixel). */
 public final class ChatTriggerManager {
-
-    private static final String[][] RULES = {
-        {"bed", "¡CAMA!", Formatting.RED.getName()},
-        {"final kill", "FINAL KILL", Formatting.GOLD.getName()},
-        {"trapped", "TRAMPA", Formatting.DARK_RED.getName()},
-        {"bridge", "BRIDGE", Formatting.AQUA.getName()},
-    };
 
     private ChatTriggerManager() {}
 
@@ -28,17 +22,26 @@ public final class ChatTriggerManager {
         if (plain.isEmpty()) {
             return;
         }
+        ChatTriggerConfig.ensureLoaded();
         MinecraftClient client = MinecraftClient.getInstance();
-        for (String[] rule : RULES) {
-            if (plain.contains(rule[0])) {
-                Formatting fmt = parseColor(rule[2]);
-                client.inGameHud.setTitle(Text.literal(rule[1]).formatted(fmt, Formatting.BOLD));
-                client.inGameHud.setSubtitle(Text.empty());
-                client.inGameHud.setTitleTicks(5, 30, 10);
-                if (client.player != null) {
-                    client.player.playSound(SoundEvents.BLOCK_NOTE_BLOCK_PLING.value(), 1.0F, 1.2F);
+        for (ChatTriggerConfig.Rule rule : ChatTriggerConfig.getRules()) {
+            if (rule == null || !rule.enabled) {
+                continue;
+            }
+            if (rule.hypixelOnly && !HypixelHelper.isOnHypixel(client)) {
+                continue;
+            }
+            for (String keyword : ChatTriggerConfig.keywords(rule)) {
+                if (plain.contains(keyword)) {
+                    Formatting fmt = parseColor(rule.color);
+                    client.inGameHud.setTitle(Text.literal(rule.title).formatted(fmt, Formatting.BOLD));
+                    client.inGameHud.setSubtitle(Text.empty());
+                    client.inGameHud.setTitleTicks(rule.fadeIn, rule.stay, rule.fadeOut);
+                    if (client.player != null) {
+                        client.player.playSound(SoundEvents.BLOCK_NOTE_BLOCK_PLING.value(), 1.0F, 1.2F);
+                    }
+                    return;
                 }
-                return;
             }
         }
     }
