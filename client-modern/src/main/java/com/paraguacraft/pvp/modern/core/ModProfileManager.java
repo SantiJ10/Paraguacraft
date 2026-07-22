@@ -72,6 +72,7 @@ public final class ModProfileManager {
         mods.addProperty("showCompass", ModernConfig.showCompass);
         mods.addProperty("reachDisplay", ModernConfig.reachDisplay);
         mods.addProperty("comboCounter", ModernConfig.comboCounter);
+        mods.addProperty("oldAnimations", ModernConfig.oldAnimations);
         mods.addProperty("chatTriggers", ModernConfig.chatTriggers);
         mods.addProperty("chatAlertsEnabled", ModernConfig.chatAlertsEnabled);
         mods.addProperty("freelookEnabled", ModernConfig.freelookEnabled);
@@ -144,6 +145,8 @@ public final class ModProfileManager {
             ModernConfig.showCompass = bool(m, "showCompass", ModernConfig.showCompass);
             ModernConfig.reachDisplay = bool(m, "reachDisplay", ModernConfig.reachDisplay);
             ModernConfig.comboCounter = bool(m, "comboCounter", ModernConfig.comboCounter);
+            ModernConfig.oldAnimations = bool(m, "oldAnimations", ModernConfig.oldAnimations);
+            PerformanceConfig.oldAnimations = ModernConfig.oldAnimations;
             ModernConfig.chatTriggers = bool(m, "chatTriggers", ModernConfig.chatTriggers);
             ModernConfig.chatAlertsEnabled = bool(m, "chatAlertsEnabled", ModernConfig.chatAlertsEnabled);
             ModernConfig.freelookEnabled = bool(m, "freelookEnabled", ModernConfig.freelookEnabled);

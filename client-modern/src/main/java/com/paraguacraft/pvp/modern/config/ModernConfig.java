@@ -37,7 +37,7 @@ public final class ModernConfig {
     public static boolean scoreboardHideStats = false;
     public static boolean lowFire = true;
     public static boolean itemPhysics = true;
-    public static boolean oldAnimations = false;
+    public static boolean oldAnimations = true;
     public static boolean comboCounter = true;
     public static boolean showTntCountdown = true;
     public static boolean chatTriggers = true;

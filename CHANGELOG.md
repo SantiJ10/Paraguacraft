@@ -3,6 +3,18 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## Cliente PvP Modern 0.9.2 - 2026-07-21
+
+### Added
+- **Animaciones 1.7 fase 2**: swing visual, comer/beber y blockhit (escudo) en primera persona.
+- **Editor in-game** de keywords en chat triggers.
+- **GameModeDetector** lee lineas del scoreboard, no solo el titulo.
+- **Shaders auto-off**: notificacion y reload Iris al entrar/salir de partida.
+- **Freelook**: aviso en action bar cuando esta bloqueado en ranked.
+
+### Changed
+- Animaciones 1.7 activadas por defecto; toggle renombrado en Mod Menu; incluido en perfiles.
+
 ## Cliente PvP Modern 0.9.1 - 2026-07-21
 
 ### Added
@@ -15,6 +27,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - Scoreboard: lineas filtradas ya no dejan huecos vacios.
 - Perfiles export/import incluyen toggles nuevos de 0.9.0.
 - Gamma Utils: toggle desde Mod Menu y tecla G.
+
+## [7.9.9] - 2026-07-21
+
+### Changed
+- Cliente PvP Modern **0.9.2** (animaciones 1.7, chat triggers editor, shaders reload).
 
 ## [7.9.8] - 2026-07-21
 
