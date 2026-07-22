@@ -25,6 +25,8 @@ const BUNDLE_SLUGS: &[&str] = &[
 ];
 
 const CACHE_DAYS: u64 = 30;
+const CACHE_MARKER_NAME: &str = ".cache_ok_v3";
+const BUNDLE_MANIFEST: &str = "bundle_manifest.json";
 const MODRINTH: &str = "https://api.modrinth.com/v2";
 
 fn cache_root(mc: &str) -> PathBuf {
@@ -70,72 +72,107 @@ pub async fn install_bundle(
     std::fs::create_dir_all(&cache)?;
     let mods_dir = instance_dir.join("mods");
     std::fs::create_dir_all(&mods_dir)?;
-    let marker = cache.join(".cache_ok");
+    let marker = cache.join(CACHE_MARKER_NAME);
+    let manifest_path = cache.join(BUNDLE_MANIFEST);
 
-    if !cache_valid(&marker) {
-        if marker.exists() {
-            for e in std::fs::read_dir(&cache).into_iter().flatten().flatten() {
-                let p = e.path();
-                if p.extension().and_then(|x| x.to_str()) == Some("jar") {
-                    let _ = std::fs::remove_file(p);
-                }
-            }
-        }
-        let mut items = Vec::new();
-        let mut picked: HashMap<String, String> = HashMap::new();
-        // Sodium sale con más frecuencia que Iris, así que la última versión de Sodium
-        // casi siempre es más nueva que la que Iris soporta (Iris fija una versión exacta
-        // de Sodium en sus dependencias). Por eso resolvemos Iris primero y forzamos esa
-        // versión exacta al elegir Sodium, en vez de tomar el Sodium más nuevo a ciegas
-        // y esperar (casi siempre en vano) que coincida con lo que Iris requiere.
-        let mut forced: HashMap<String, String> = HashMap::new();
-        if let Some(iris_item) = resolve_modrinth_jar(client, "iris", mc, &picked, None).await? {
-            if let Some(sodium_vid) = iris_item.required_dep_version.clone() {
-                forced.insert("sodium".into(), sodium_vid);
-            }
-            picked.insert("iris".into(), iris_item.version_id.clone());
-            items.push(
-                DownloadItem::new(iris_item.url, cache.join(&iris_item.filename))
-                    .with_sha1(iris_item.sha1),
-            );
-        }
-        for slug in BUNDLE_SLUGS.iter().filter(|s| **s != "iris") {
-            let forced_vid = forced.get(*slug).map(String::as_str);
-            if let Some(item) = resolve_modrinth_jar(client, slug, mc, &picked, forced_vid).await? {
-                picked.insert(slug.to_string(), item.version_id.clone());
-                items.push(
-                    DownloadItem::new(item.url, cache.join(&item.filename)).with_sha1(item.sha1),
-                );
-            }
-        }
-        if !items.is_empty() {
-            net::download_all(
-                client,
-                items,
-                6,
-                app,
-                "fabric-iris-bundle",
-                &format!("Mods Fabric + Iris ({mc})"),
-            )
-            .await?;
-        }
-        let _ = std::fs::write(&marker, b"ok");
+    if !cache_valid(&marker) || !manifest_path.is_file() {
+        rebuild_cache(app, client, mc, &cache, &marker, &manifest_path).await?;
     }
 
-    for e in std::fs::read_dir(&cache).into_iter().flatten().flatten() {
+    let manifest = read_manifest(&manifest_path)?;
+    sync_bundle_to_instance(&cache, &mods_dir, &manifest)?;
+    enforce_render_stack(&mods_dir, mc);
+    Ok(())
+}
+
+async fn rebuild_cache(
+    app: &AppHandle,
+    client: &reqwest::Client,
+    mc: &str,
+    cache: &Path,
+    marker: &Path,
+    manifest_path: &Path,
+) -> AppResult<()> {
+    for e in std::fs::read_dir(cache).into_iter().flatten().flatten() {
         let p = e.path();
-        if p.extension().and_then(|x| x.to_str()) != Some("jar") {
+        if p.extension().and_then(|x| x.to_str()) == Some("jar") {
+            let _ = std::fs::remove_file(p);
+        }
+    }
+    if manifest_path.is_file() {
+        let _ = std::fs::remove_file(manifest_path);
+    }
+    if marker.is_file() {
+        let _ = std::fs::remove_file(marker);
+    }
+
+    let mut items = Vec::new();
+    let mut picked: HashMap<String, String> = HashMap::new();
+    let mut manifest: HashMap<String, String> = HashMap::new();
+    let mut forced: HashMap<String, String> = HashMap::new();
+
+    if let Some(iris_item) = resolve_modrinth_jar(client, "iris", mc, &picked, None).await? {
+        if let Some(sodium_vid) = iris_item.required_dep_version.clone() {
+            forced.insert("sodium".into(), sodium_vid);
+        }
+        picked.insert("iris".into(), iris_item.version_id.clone());
+        manifest.insert("iris".into(), iris_item.filename.clone());
+        items.push(
+            DownloadItem::new(iris_item.url, cache.join(&iris_item.filename))
+                .with_sha1(iris_item.sha1),
+        );
+    }
+    for slug in BUNDLE_SLUGS.iter().filter(|s| **s != "iris") {
+        let forced_vid = forced.get(*slug).map(String::as_str);
+        if let Some(item) = resolve_modrinth_jar(client, slug, mc, &picked, forced_vid).await? {
+            picked.insert(slug.to_string(), item.version_id.clone());
+            manifest.insert(slug.to_string(), item.filename.clone());
+            items.push(
+                DownloadItem::new(item.url, cache.join(&item.filename)).with_sha1(item.sha1),
+            );
+        }
+    }
+    if !items.is_empty() {
+        net::download_all(
+            client,
+            items,
+            6,
+            app,
+            "fabric-iris-bundle",
+            &format!("Mods Fabric + Iris ({mc})"),
+        )
+        .await?;
+    }
+    let body = serde_json::to_string_pretty(&manifest)
+        .map_err(|e| AppError::msg(format!("Manifest bundle: {e}")))?;
+    std::fs::write(manifest_path, body)?;
+    let _ = std::fs::write(marker, b"ok");
+    Ok(())
+}
+
+fn read_manifest(path: &Path) -> AppResult<HashMap<String, String>> {
+    let text = std::fs::read_to_string(path)
+        .map_err(|e| AppError::msg(format!("No se pudo leer {BUNDLE_MANIFEST}: {e}")))?;
+    serde_json::from_str(&text).map_err(|e| AppError::msg(format!("Manifest invalido: {e}")))
+}
+
+fn sync_bundle_to_instance(
+    cache: &Path,
+    mods_dir: &Path,
+    manifest: &HashMap<String, String>,
+) -> AppResult<()> {
+    for slug in BUNDLE_SLUGS {
+        remove_bundle_slug_jars(mods_dir, slug);
+    }
+    for slug in BUNDLE_SLUGS {
+        let Some(fname) = manifest.get(*slug) else {
+            continue;
+        };
+        let src = cache.join(fname);
+        if !src.is_file() {
             continue;
         }
-        let fname = p.file_name().unwrap_or_default().to_string_lossy().to_string();
-        let fname_lower = fname.to_lowercase();
-        if let Some(slug) = BUNDLE_SLUGS
-            .iter()
-            .find(|s| fname_lower.contains(&s.to_lowercase()))
-        {
-            remove_bundle_slug_jars(&mods_dir, slug);
-        }
-        let dest = mods_dir.join(&fname);
+        let dest = mods_dir.join(fname);
         if dest.is_file() {
             let _ = std::fs::remove_file(&dest);
         }
@@ -143,9 +180,56 @@ pub async fn install_bundle(
         if disabled.is_file() {
             let _ = std::fs::remove_file(disabled);
         }
-        let _ = std::fs::copy(&p, &dest);
+        std::fs::copy(&src, &dest)
+            .map_err(|e| AppError::msg(format!("No se pudo copiar {fname}: {e}")))?;
     }
     Ok(())
+}
+
+/// Iris 1.10.7 (1.21.11) rompe con Sodium >=0.8.13; quitamos copias sueltas del mod.
+pub fn enforce_render_stack(mods_dir: &Path, mc: &str) {
+    if mc != "1.21.11" {
+        return;
+    }
+    let Ok(entries) = std::fs::read_dir(mods_dir) else {
+        return;
+    };
+    let mut has_iris_1107 = false;
+    let mut sodium_paths: Vec<PathBuf> = Vec::new();
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .to_lowercase();
+        if !name.ends_with(".jar") && !name.ends_with(".jar.disabled") {
+            continue;
+        }
+        if name.contains("iris-fabric-1.10.7") {
+            has_iris_1107 = true;
+        }
+        if name.contains("sodium-fabric")
+            && !name.contains("sodium-extra")
+            && !name.contains("reeses-sodium")
+        {
+            sodium_paths.push(path);
+        }
+    }
+    if !has_iris_1107 {
+        return;
+    }
+    const OK: &str = "sodium-fabric-0.8.7+mc1.21.11.jar";
+    for path in sodium_paths {
+        let name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .to_lowercase();
+        if name.trim_end_matches(".disabled") != OK {
+            let _ = std::fs::remove_file(path);
+        }
+    }
 }
 
 /// Quita JARs del bundle en `mods/` (p.ej. sodium) sin tocar sub-mods (`sodium-extra`).
@@ -358,5 +442,34 @@ mod tests {
             "files": [{ "primary": true, "url": "u", "filename": "f.jar", "hashes": {} }]
         });
         assert_eq!(pinned_dependency_version(&v, "AANobbMI"), None);
+    }
+
+    #[test]
+    fn enforce_render_stack_removes_sodium_813_with_iris_1107() {
+        let tmp = std::env::temp_dir().join(format!(
+            "paraguacraft-enforce-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+        std::fs::write(
+            tmp.join("iris-fabric-1.10.7+mc1.21.11.jar"),
+            b"iris",
+        )
+        .unwrap();
+        std::fs::write(
+            tmp.join("sodium-fabric-0.8.13+mc1.21.11.jar"),
+            b"bad",
+        )
+        .unwrap();
+        std::fs::write(
+            tmp.join("sodium-fabric-0.8.7+mc1.21.11.jar"),
+            b"ok",
+        )
+        .unwrap();
+        enforce_render_stack(&tmp, "1.21.11");
+        assert!(!tmp.join("sodium-fabric-0.8.13+mc1.21.11.jar").exists());
+        assert!(tmp.join("sodium-fabric-0.8.7+mc1.21.11.jar").exists());
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 }
