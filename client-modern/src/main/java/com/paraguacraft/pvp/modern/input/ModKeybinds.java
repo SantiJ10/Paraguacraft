@@ -4,12 +4,12 @@ import com.paraguacraft.pvp.modern.config.ModernConfig;
 import com.paraguacraft.pvp.modern.core.FreelookManager;
 import com.paraguacraft.pvp.modern.core.ServerContext;
 import com.paraguacraft.pvp.modern.gui.GuiEditHudScreen;
-import com.paraguacraft.pvp.modern.gui.HypixelQuickPlayScreen;
+import com.paraguacraft.pvp.modern.core.GammaUtilsBootstrap;
+import com.paraguacraft.pvp.modern.gui.QuickPlayChooserScreen;
 import com.paraguacraft.pvp.modern.gui.NickFinderScreen;
 import com.paraguacraft.pvp.modern.gui.ModMenuScreen;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
@@ -32,9 +32,7 @@ public final class ModKeybinds {
         openModMenu = bind("mod_menu", GLFW.GLFW_KEY_RIGHT_SHIFT);
         editHud = bind("edit_hud", GLFW.GLFW_KEY_RIGHT_CONTROL);
         freelook = bind("freelook", GLFW.GLFW_KEY_LEFT_ALT);
-        if (!FabricLoader.getInstance().isModLoaded("gammautils")) {
-            fullbright = bind("fullbright", GLFW.GLFW_KEY_G);
-        }
+        fullbright = bind("fullbright", GLFW.GLFW_KEY_G);
         quickPlay = bind("quick_play", GLFW.GLFW_KEY_GRAVE_ACCENT);
         nickFinder = bind("nick_finder", GLFW.GLFW_KEY_N);
         toggleSprint = bind("toggle_sprint", GLFW.GLFW_KEY_M);
@@ -58,14 +56,18 @@ public final class ModKeybinds {
             client.setScreen(new GuiEditHudScreen(client.currentScreen));
         }
         while (fullbright != null && fullbright.wasPressed()) {
-            ModernConfig.fullbright = !ModernConfig.fullbright;
-            if (!ModernConfig.fullbright) {
-                client.options.getGamma().setValue(1.0);
+            if (GammaUtilsBootstrap.isLoaded()) {
+                GammaUtilsBootstrap.toggleFullbright(client);
+            } else {
+                ModernConfig.fullbright = !ModernConfig.fullbright;
+                if (!ModernConfig.fullbright) {
+                    client.options.getGamma().setValue(1.0);
+                }
+                ModernConfig.save();
             }
-            ModernConfig.save();
         }
         while (quickPlay.wasPressed()) {
-            client.setScreen(new HypixelQuickPlayScreen(client.currentScreen));
+            client.setScreen(new QuickPlayChooserScreen(client.currentScreen));
         }
         while (nickFinder.wasPressed()) {
             if (ModernConfig.nickFinderEnabled) {

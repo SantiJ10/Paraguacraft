@@ -21,6 +21,7 @@ public final class SessionBootstrap {
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
             ChatTriggerConfig.ensureLoaded();
             ChatAlerts.ensureLoaded();
+            ChatAlerts.enabled = ModernConfig.chatAlertsEnabled;
             MusicArtCache.preloadFromLauncherCache();
         });
         ClientTickEvents.END_CLIENT_TICK.register(SessionBootstrap::tick);

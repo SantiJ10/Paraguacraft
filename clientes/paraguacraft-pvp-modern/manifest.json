@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP Modern",
   "mc_version": "1.21.11",
   "loader": "fabric",
-  "client_version": "0.9.0",
-  "release_tag": "pvp-modern-0.9.0",
-  "descripcion": "PvP 1.21.11: perfiles por modo, Quick Play Cubecraft, pack dual, shaders auto-off, scoreboard limpio.",
+  "client_version": "0.9.1",
+  "release_tag": "pvp-modern-0.9.1",
+  "descripcion": "PvP 1.21.11: pack dual UI, editor HUD, Quick Play, chat config y pulidos 0.9.1.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-Modern-0.9.0.jar",
-      "sha1": "676d3ac9547f0f8edb99ed35243a170dec9ae305"
+      "filename": "ParaguacraftPvP-Modern-0.9.1.jar",
+      "sha1": "05f53d6ca40a83eaf14480fdb0670a027d006501"
     }
   ]
 }
