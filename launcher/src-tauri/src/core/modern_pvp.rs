@@ -506,5 +506,6 @@ pub async fn sync_hud_mods(
             installed += 1;
         }
     }
+    loaders::fabric_iris::enforce_render_stack(&mods_dir, MC);
     Ok(installed)
 }

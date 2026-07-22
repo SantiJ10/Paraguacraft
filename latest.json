@@ -1,12 +1,12 @@
 {
-  "version": "7.9.11",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.9.11/Instalar_Paraguacraft_v7.9.11.exe",
+  "version": "7.9.12",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.9.12/Instalar_Paraguacraft_v7.9.12.exe",
   "size_bytes": 109895063,
   "sha256": "1c321ae1e7e03d356dc01e8b1cc1c41d7bf1e27f42c0e8a46c74851f406291a8",
   "notes": "- Cliente PvP Modern 0.9.3: cull real, GameMode override manual, editor chat alerts\n- BedWars resources con fallback scoreboard + filtros Cubecraft\n- Fullbright unificado (Gamma Utils o integrado, tecla G)\n- Join inteligente desde favoritos (PvP 1.8.9 vs Modern automatico)\n- Compete mode PvP Modern + asistente Playit primera vez",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.9.11/Instalar_Paraguacraft_v7.9.11.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.9.12/Instalar_Paraguacraft_v7.9.12.exe",
       "signature": ""
     }
   }
