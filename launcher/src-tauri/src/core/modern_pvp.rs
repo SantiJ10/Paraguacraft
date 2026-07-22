@@ -148,7 +148,48 @@ pub async fn sync_instance_bundles(
 ) -> AppResult<()> {
     let dir = instances::instance_dir(instance_id);
     pvp_modern::sync_instance(app, client, MC, &dir).await?;
-    let _ = sync_hud_mods(app, client, instance_id).await;
+    sync_pinned_mods(app, client, instance_id).await?;
+    Ok(())
+}
+
+/// Descarga todos los mods HUD pinneados del stack y falla si falta alguno.
+pub async fn sync_pinned_mods(
+    app: &AppHandle,
+    client: &reqwest::Client,
+    instance_id: &str,
+) -> AppResult<()> {
+    let tier = tier_level(&tier_from_hardware());
+    let mods_dir = instances::instance_dir(instance_id).join("mods");
+    std::fs::create_dir_all(&mods_dir)?;
+
+    pvp_mod_stack::enforce_pinned_stack(&mods_dir, MC, tier);
+
+    for pin in pvp_mod_stack::pins_for_tier(MC, tier) {
+        if pin.min_tier.is_none() {
+            continue;
+        }
+        if mods_dir.join(pin.filename).is_file() {
+            continue;
+        }
+        modrinth::install_version_id(app, client, pin.version_id, mods_dir.clone(), None)
+            .await
+            .map_err(|e| {
+                AppError::msg(format!(
+                    "No se pudo instalar {} ({}): {e}",
+                    pin.slug, pin.filename
+                ))
+            })?;
+    }
+
+    loaders::fabric_iris::enforce_render_stack_for_instance(&mods_dir, MC, tier);
+
+    let missing = pvp_mod_stack::missing_pin_filenames(&mods_dir, MC, tier);
+    if !missing.is_empty() {
+        return Err(AppError::msg(format!(
+            "Mods pinneados faltantes tras la sync: {}",
+            missing.join(", ")
+        )));
+    }
     Ok(())
 }
 
@@ -341,27 +382,9 @@ pub async fn sync_hud_mods(
     client: &reqwest::Client,
     instance_id: &str,
 ) -> AppResult<u32> {
-    let tier = tier_level(&tier_from_hardware());
-    let mods_dir = instances::instance_dir(instance_id).join("mods");
-    std::fs::create_dir_all(&mods_dir)?;
-    let mut installed = 0u32;
-    pvp_mod_stack::enforce_pinned_stack(&mods_dir, MC, tier);
-
-    for pin in pvp_mod_stack::pins_for_tier(MC, tier) {
-        if pin.min_tier.is_none() {
-            continue;
-        }
-        if mods_dir.join(pin.filename).is_file() {
-            continue;
-        }
-        if modrinth::install_version_id(app, client, pin.version_id, mods_dir.clone(), None)
-            .await
-            .is_ok()
-        {
-            installed += 1;
-        }
-    }
-
-    loaders::fabric_iris::enforce_render_stack_for_instance(&mods_dir, MC, tier);
-    Ok(installed)
+    sync_pinned_mods(app, client, instance_id).await?;
+    Ok(pvp_mod_stack::pins_for_tier(MC, tier_level(&tier_from_hardware()))
+        .into_iter()
+        .filter(|p| p.min_tier.is_some())
+        .count() as u32)
 }

@@ -416,9 +416,7 @@ pub async fn launch_instance(
             loaders::fabric_iris::install_bundle(&app, &http, &mc, &inst_dir).await?;
         }
         if loader == "paraguacraft-pvp-modern" {
-            let inst_dir = instances::instance_dir(&instance_id);
-            loaders::pvp_modern::sync_instance(&app, &http, &mc, &inst_dir).await?;
-            let _ = modern_pvp::sync_hud_mods(&app, &http, &instance_id).await;
+            modern_pvp::sync_instance_bundles(&app, &http, &instance_id).await?;
             let tier = crate::core::hardware::detect().perfil_sugerido;
             let _ = modern_pvp::ensure_launch_defaults(&instance_id, &tier);
             let _ = modern_pvp::sync_instance_content(&app, &http, &instance_id).await;

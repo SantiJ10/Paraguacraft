@@ -146,31 +146,16 @@ pub async fn repair(
     }
 
     if loader == "paraguacraft-pvp-modern" {
-        match loaders::pvp_modern::sync_instance(app, client, &meta.mc_version, &dir).await {
+        match crate::core::modern_pvp::sync_instance_bundles(app, client, instance_id).await {
             Ok(()) => push_fixed(
                 &mut report,
                 "Cliente PvP 1.21.11 sincronizado",
-                "Iris + mod ParaguacraftPvP-Modern verificados.",
+                "Stack pinneado completo (Iris, Sodium, HUD y mod Paraguacraft).",
                 Some(dir.join("mods")),
             ),
             Err(e) => push_warning(
                 &mut report,
                 "Cliente PvP 1.21.11 incompleto",
-                e.to_string(),
-                Some(dir.join("mods")),
-            ),
-        }
-        match crate::core::modern_pvp::sync_hud_mods(app, client, instance_id).await {
-            Ok(n) if n > 0 => push_fixed(
-                &mut report,
-                "Mods HUD PvP actualizados",
-                format!("Se instalaron o corrigieron {n} mods HUD."),
-                Some(dir.join("mods")),
-            ),
-            Ok(_) => {}
-            Err(e) => push_warning(
-                &mut report,
-                "Mods HUD PvP incompletos",
                 e.to_string(),
                 Some(dir.join("mods")),
             ),

@@ -206,6 +206,23 @@ pub fn bundle_pins(mc: &str) -> Vec<&'static PinnedMod> {
     all.iter().filter(|p| p.min_tier.is_none()).collect()
 }
 
+/// Slugs de mods pinneados que faltan en `mods/`.
+pub fn missing_pins(mods_dir: &std::path::Path, mc: &str, tier: u8) -> Vec<&'static str> {
+    pins_for_tier(mc, tier)
+        .into_iter()
+        .filter(|p| !mods_dir.join(p.filename).is_file())
+        .map(|p| p.slug)
+        .collect()
+}
+
+pub fn missing_pin_filenames(mods_dir: &std::path::Path, mc: &str, tier: u8) -> Vec<&'static str> {
+    pins_for_tier(mc, tier)
+        .into_iter()
+        .filter(|p| !mods_dir.join(p.filename).is_file())
+        .map(|p| p.filename)
+        .collect()
+}
+
 /// Quita JARs de mods pinneados cuya versión no coincide (p.ej. Sodium 0.8.13 con Iris 1.10.7).
 pub fn enforce_pinned_stack(mods_dir: &std::path::Path, mc: &str, tier: u8) {
     let pins = pins_for_tier(mc, tier);

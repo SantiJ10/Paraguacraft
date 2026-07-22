@@ -18,6 +18,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - Mod Menu categoria Rendimiento: 7 toggles de cull + export en perfiles.
 - **Fullbright unificado** (`FullbrightManager`): Gamma Utils o integrado, misma tarjeta y tecla G.
 
+## [7.9.14] - 2026-07-22
+
+### Fixed
+- Instalación PvP Modern: al crear/reparar/lanzar la instancia se descargan **todos** los mods pinneados (HUD + stack), no solo Iris + mod Paraguacraft. Errores explícitos si falta alguno.
+
 ## [7.9.13] - 2026-07-22
 
 ### Fixed

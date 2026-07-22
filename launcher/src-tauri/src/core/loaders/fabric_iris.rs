@@ -83,6 +83,18 @@ pub async fn install_bundle(
     let manifest = read_manifest(&manifest_path)?;
     sync_bundle_to_instance(&cache, &mods_dir, &manifest)?;
     enforce_render_stack(&mods_dir, mc, 2);
+
+    let missing: Vec<_> = manifest
+        .values()
+        .filter(|fname| !mods_dir.join(*fname).is_file())
+        .cloned()
+        .collect();
+    if !missing.is_empty() {
+        return Err(AppError::msg(format!(
+            "Bundle Fabric+Iris incompleto: {}",
+            missing.join(", ")
+        )));
+    }
     Ok(())
 }
 
