@@ -29,7 +29,12 @@ fn art_client() -> reqwest::Client {
 fn path_to_file_url(path: &std::path::Path) -> String {
     let p = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
     let mut s = p.to_string_lossy().replace('\\', "/");
-    if s.starts_with("//") {
+    // canonicalize en Windows puede devolver \\?\C:\... → file://?/C:/...
+    if s.starts_with("//?/") {
+        s = s[4..].to_string();
+    } else if s.starts_with("/?/") {
+        s = s[3..].to_string();
+    } else if s.starts_with("//") {
         s = s.trim_start_matches('/').to_string();
     }
     if s.len() >= 2 && s.as_bytes()[1] == b':' {
