@@ -1,30 +1,28 @@
 package com.paraguacraft.pvp.modern.gui;
 
-import com.paraguacraft.pvp.modern.core.HypixelHelper;
+import com.paraguacraft.pvp.modern.core.CubecraftHelper;
 import com.paraguacraft.pvp.modern.core.QuickPlayState;
 import com.paraguacraft.pvp.modern.gui.theme.UiTheme;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
 
-/** Hypixel Quick Play — reconectar y elegir modo. */
-public class HypixelQuickPlayScreen extends ParaguacraftScreen {
+/** Cubecraft Quick Play — reconectar y elegir modo. */
+public class CubecraftQuickPlayScreen extends ParaguacraftScreen {
 
     private record GameEntry(String name, String command) {}
 
     private static final GameEntry[] GAMES = {
-        new GameEntry("Bed Wars", "play bedwars_eight_one"),
-        new GameEntry("SkyWars Solo", "play solo_normal"),
-        new GameEntry("Duels", "play duels_classic_duel"),
-        new GameEntry("The Pit", "lobby pit"),
-        new GameEntry("Arcade Mini Walls", "play arcade_mini_walls"),
-        new GameEntry("Murder Mystery", "play murder_classic"),
-        new GameEntry("Build Battle", "play build_battle_speed_builders"),
-        new GameEntry("Wool Wars", "play wool_wool_wars"),
+        new GameEntry("EggWars Solo", "server EggWars-Solo"),
+        new GameEntry("SkyWars Solo", "server SkyWars-Solo"),
+        new GameEntry("Lucky Islands", "server LuckyIslands-Solo"),
+        new GameEntry("BlockWars Solo", "server BlockWars-Solo"),
+        new GameEntry("Survival Games", "server SurvivalGames-Solo"),
+        new GameEntry("PvP", "server PvP"),
     };
 
-    public HypixelQuickPlayScreen(Screen parent) {
-        super(Text.literal("Hypixel Quick Play"), parent);
+    public CubecraftQuickPlayScreen(Screen parent) {
+        super(Text.literal("Cubecraft Quick Play"), parent);
     }
 
     @Override
@@ -35,10 +33,10 @@ public class HypixelQuickPlayScreen extends ParaguacraftScreen {
         int gap = 24;
         int i = 0;
 
-        if (QuickPlayState.hasLastFor(QuickPlayState.TargetServer.HYPIXEL)) {
+        if (QuickPlayState.hasLastFor(QuickPlayState.TargetServer.CUBECRAFT)) {
             addDrawableChild(FlatMenuButton.create(width / 2 - btnW / 2, startY, btnW, btnH,
                 Text.literal("Reconectar: " + QuickPlayState.lastLabel),
-                () -> QuickPlayState.reconnect(client, QuickPlayState.TargetServer.HYPIXEL)));
+                () -> QuickPlayState.reconnect(client, QuickPlayState.TargetServer.CUBECRAFT)));
             startY += gap;
             i++;
         }
@@ -56,23 +54,23 @@ public class HypixelQuickPlayScreen extends ParaguacraftScreen {
     }
 
     private void play(GameEntry game) {
-        QuickPlayState.remember(QuickPlayState.TargetServer.HYPIXEL, game.command(), game.name());
-        if (HypixelHelper.isOnHypixel(client)) {
-            HypixelHelper.sendCommand(client, game.command());
+        QuickPlayState.remember(QuickPlayState.TargetServer.CUBECRAFT, game.command(), game.name());
+        if (CubecraftHelper.isOnCubecraft(client)) {
+            CubecraftHelper.sendCommand(client, game.command());
             client.setScreen(null);
         } else {
-            QuickPlayState.queue(QuickPlayState.TargetServer.HYPIXEL, game.command());
-            HypixelHelper.connect(client, parent != null ? parent : this);
+            QuickPlayState.queue(QuickPlayState.TargetServer.CUBECRAFT, game.command());
+            CubecraftHelper.connect(client, parent != null ? parent : this);
         }
     }
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         super.render(context, mouseX, mouseY, delta);
-        String hint = HypixelHelper.isOnHypixel(client)
-            ? "Conectado a Hypixel"
-            : "Conectate a Hypixel para jugar";
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal("Hypixel Quick Play"), width / 2, 40, UiTheme.accent());
+        String hint = CubecraftHelper.isOnCubecraft(client)
+            ? "Conectado a Cubecraft"
+            : "Conectate a Cubecraft para jugar";
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal("Cubecraft Quick Play"), width / 2, 40, UiTheme.accent());
         context.drawCenteredTextWithShadow(textRenderer, Text.literal(hint), width / 2, 52, UiTheme.textDim());
     }
 }

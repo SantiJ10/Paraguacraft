@@ -2,8 +2,11 @@ package com.paraguacraft.pvp.modern.hud;
 
 import com.paraguacraft.pvp.modern.ParaguacraftPvPModern;
 import com.paraguacraft.pvp.modern.config.ModernConfig;
+import com.paraguacraft.pvp.modern.core.BridgeTimer;
 import com.paraguacraft.pvp.modern.core.CombatStats;
+import com.paraguacraft.pvp.modern.core.GameModeDetector;
 import com.paraguacraft.pvp.modern.core.LauncherIpc;
+import com.paraguacraft.pvp.modern.core.ServerContext;
 import com.paraguacraft.pvp.modern.gui.GuiEditHudScreen;
 import com.paraguacraft.pvp.modern.gui.theme.TextUtil;
 import com.paraguacraft.pvp.modern.gui.theme.UiTheme;
@@ -112,7 +115,7 @@ public final class HudRenderer {
         if (ModernConfig.showMusicHud) {
             drawMusicOverlay(context, client.textRenderer, client, previewMusic);
         }
-        if (ModernConfig.reachDisplay && CombatStats.lastReach > 0.0) {
+        if (ServerContext.reachDisplayAllowed(client) && CombatStats.lastReach > 0.0) {
             drawLabeled(
                 client.textRenderer,
                 context,
@@ -137,6 +140,28 @@ public final class HudRenderer {
         }
         if (ModernConfig.showCombatStatsHud) {
             drawCombatStats(context, client.textRenderer);
+        }
+        if (ModernConfig.showGameModeHud && ServerContext.isCompetitive(client)) {
+            drawLabeled(
+                client.textRenderer,
+                context,
+                "Modo: ",
+                GameModeDetector.currentLabel(),
+                ModernConfig.gameModeHudX,
+                ModernConfig.gameModeHudY,
+                0xFFAAFFAA
+            );
+        }
+        if (ModernConfig.showBridgeTimer && BridgeTimer.active()) {
+            drawLabeled(
+                client.textRenderer,
+                context,
+                "Bridge: ",
+                String.format("%.1fs", BridgeTimer.seconds()),
+                ModernConfig.bridgeTimerX,
+                ModernConfig.bridgeTimerY,
+                0xFF55FFFF
+            );
         }
     }
 

@@ -10,7 +10,12 @@ import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
+import net.minecraft.util.Formatting;
+
+import java.util.Locale;
 
 /** Registra eventos QoL: fullbright, combo, chat triggers y toggle sneak. */
 public final class QoLBootstrap {
@@ -23,7 +28,7 @@ public final class QoLBootstrap {
 
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(QoLBootstrap::tick);
-        ClientReceiveMessageEvents.GAME.register(ChatTriggerManager::onChatMessage);
+        ClientReceiveMessageEvents.GAME.register(QoLBootstrap::onChatMessage);
         AttackEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
             CombatStats.onAttack(entity);
             return ActionResult.PASS;
@@ -52,6 +57,29 @@ public final class QoLBootstrap {
         wasDead = dead;
         lastHealth = hp;
         tickToggleSneak(client);
+    }
+
+    private static void onChatMessage(Text message, boolean overlay) {
+        ChatTriggerManager.onChatMessage(message, overlay);
+        if (overlay || !ModernConfig.chatAlertsEnabled || message == null) {
+            return;
+        }
+        String plain = ScoreboardFilter.strip(message).toLowerCase(Locale.ROOT);
+        String match = ChatAlerts.firstMatch(plain);
+        if (match == null) {
+            return;
+        }
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (ChatAlerts.highlight && client.player != null) {
+            client.player.sendMessage(
+                Text.literal("[Alerta] ").formatted(Formatting.GOLD)
+                    .append(Text.literal(match).formatted(ChatAlerts.colorFmt(), Formatting.BOLD)),
+                false
+            );
+        }
+        if (ChatAlerts.sound && client.player != null) {
+            client.player.playSound(SoundEvents.BLOCK_NOTE_BLOCK_BELL.value(), 0.8F, 1.4F);
+        }
     }
 
     /** Toggle sneak (paridad 1.8.9 `QoLManager`): flanco de bajada de Shift alterna sneak permanente. */

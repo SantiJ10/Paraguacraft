@@ -89,7 +89,7 @@ public final class TrainingWorldHelper {
             HypixelHelper.sendCommand(client, "gamerule doMobSpawning false");
         }
         if (pendingKitSetup && rulesTicks == 40) {
-            TrainingKits.giveKit(client);
+            TrainingKits.giveKitForMode(client, GameModeDetector.Mode.PVP);
             TrainingKits.placeChests(client);
             pendingKitSetup = false;
         }

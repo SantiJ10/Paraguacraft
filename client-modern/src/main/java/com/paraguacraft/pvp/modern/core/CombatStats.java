@@ -39,7 +39,7 @@ public final class CombatStats {
         if (client.player == null || target == null) {
             return;
         }
-        if (ModernConfig.reachDisplay) {
+        if (ServerContext.reachDisplayAllowed(client)) {
             double dx = target.getX() - client.player.getX();
             double dy = target.getEyeY() - client.player.getEyeY();
             double dz = target.getZ() - client.player.getZ();

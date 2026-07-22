@@ -15,14 +15,41 @@ public final class TrainingKits {
 
     /** Da el kit personal al jugador (espada, arco, perlas, bloques, comida). */
     public static void giveKit(MinecraftClient client) {
-        String[] kit = {
-            "give @s minecraft:diamond_sword 1",
-            "give @s minecraft:bow 1",
-            "give @s minecraft:arrow 64",
-            "give @s minecraft:ender_pearl 16",
-            "give @s minecraft:golden_apple 8",
-            "give @s minecraft:cobblestone 64",
-            "give @s minecraft:potion[potion_contents=minecraft:healing] 3",
+        giveKitForMode(client, GameModeDetector.Mode.PVP);
+    }
+
+    /** Kit segun modo de juego (practica / minijuegos). */
+    public static void giveKitForMode(MinecraftClient client, GameModeDetector.Mode mode) {
+        String[] kit = switch (mode) {
+            case BEDWARS -> new String[] {
+                "give @s minecraft:iron_sword 1",
+                "give @s minecraft:iron_pickaxe 1",
+                "give @s minecraft:white_wool 64",
+                "give @s minecraft:oak_planks 64",
+                "give @s minecraft:golden_apple 4",
+            };
+            case SKYWARS, LUCKY_ISLANDS -> new String[] {
+                "give @s minecraft:iron_sword 1",
+                "give @s minecraft:bow 1",
+                "give @s minecraft:arrow 32",
+                "give @s minecraft:golden_apple 6",
+                "give @s minecraft:ender_pearl 8",
+            };
+            case DUELS -> new String[] {
+                "give @s minecraft:diamond_sword 1",
+                "give @s minecraft:bow 1",
+                "give @s minecraft:arrow 64",
+                "give @s minecraft:golden_apple 8",
+            };
+            default -> new String[] {
+                "give @s minecraft:diamond_sword 1",
+                "give @s minecraft:bow 1",
+                "give @s minecraft:arrow 64",
+                "give @s minecraft:ender_pearl 16",
+                "give @s minecraft:golden_apple 8",
+                "give @s minecraft:cobblestone 64",
+                "give @s minecraft:potion[potion_contents=minecraft:healing] 3",
+            };
         };
         for (String cmd : kit) {
             HypixelHelper.sendCommand(client, cmd);

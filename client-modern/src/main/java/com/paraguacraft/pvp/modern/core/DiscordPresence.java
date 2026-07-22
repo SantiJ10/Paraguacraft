@@ -116,6 +116,9 @@ public final class DiscordPresence {
         if (client.world == null) {
             return "En el menú";
         }
+        if (ServerContext.isCompetitive(client)) {
+            return ServerContext.serverLabel(client) + " · " + GameModeDetector.currentLabel();
+        }
         ServerInfo server = client.getCurrentServerEntry();
         if (server != null && server.address != null && !server.address.isEmpty()) {
             return server.address;

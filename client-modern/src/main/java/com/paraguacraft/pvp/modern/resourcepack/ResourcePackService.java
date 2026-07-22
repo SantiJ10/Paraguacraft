@@ -1,5 +1,6 @@
 package com.paraguacraft.pvp.modern.resourcepack;
 
+import com.paraguacraft.pvp.modern.config.ModernConfig;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.resource.ResourcePackManager;
 
@@ -51,6 +52,9 @@ public final class ResourcePackService {
     }
 
     public static boolean isInstalled(String fileName) {
+        if (fileName == null || fileName.isBlank()) {
+            return false;
+        }
         return new File(packsDir(), fileName).isFile();
     }
 
@@ -77,41 +81,74 @@ public final class ResourcePackService {
     }
 
     public static void applyPack(String fileName) {
+        applyPacks(List.of(fileName));
+    }
+
+    /** Pack oficial + secundario opcional (orden: oficial primero). */
+    public static void applySessionPacks() {
+        List<String> packs = new ArrayList<>();
+        String primary = ModernConfig.selectedResourcePack;
+        if (primary == null || primary.isBlank()) {
+            primary = OFFICIAL_PACK;
+        }
+        if (isInstalled(primary)) {
+            packs.add(primary);
+        } else if (isInstalled(OFFICIAL_PACK)) {
+            packs.add(OFFICIAL_PACK);
+        }
+        String secondary = ModernConfig.secondaryResourcePack;
+        if (secondary != null && !secondary.isBlank() && isInstalled(secondary) && !packs.contains(secondary)) {
+            packs.add(secondary);
+        }
+        if (packs.isEmpty()) {
+            return;
+        }
+        applyPacks(packs);
+    }
+
+    public static void applyPacks(List<String> fileNames) {
         MinecraftClient client = MinecraftClient.getInstance();
-        File file = new File(packsDir(), fileName);
-        if (!file.isFile()) {
+        if (client == null || fileNames == null || fileNames.isEmpty()) {
             return;
         }
         ResourcePackManager manager = client.getResourcePackManager();
         manager.scanPacks();
-        String packId = resolvePackId(manager, fileName);
-        if (packId == null) {
+        Set<String> enabled = new LinkedHashSet<>();
+        for (String fileName : fileNames) {
+            if (!isInstalled(fileName)) {
+                continue;
+            }
+            String packId = resolvePackId(manager, fileName);
+            if (packId != null) {
+                enabled.add(packId);
+            }
+        }
+        if (enabled.isEmpty()) {
             return;
         }
-        Set<String> enabled = new LinkedHashSet<>(manager.getEnabledIds());
-        enabled.removeIf(id -> id.startsWith("file/"));
-        enabled.add(packId);
+        for (String id : manager.getEnabledIds()) {
+            if (!id.startsWith("file/")) {
+                enabled.add(id);
+            }
+        }
         manager.setEnabledProfiles(enabled);
         client.options.refreshResourcePacks(manager);
         client.options.write();
-        com.paraguacraft.pvp.modern.config.ModernConfig.selectedResourcePack = fileName;
-        com.paraguacraft.pvp.modern.config.ModernConfig.save();
+        if (!fileNames.isEmpty()) {
+            ModernConfig.selectedResourcePack = fileNames.get(0);
+        }
+        ModernConfig.save();
         client.reloadResources();
     }
 
     public static void restoreSavedPack() {
-        if (isInstalled(OFFICIAL_PACK)) {
-            applyPack(OFFICIAL_PACK);
-            return;
-        }
-        String saved = com.paraguacraft.pvp.modern.config.ModernConfig.selectedResourcePack;
-        if (saved == null || saved.isBlank()) {
-            saved = OFFICIAL_PACK;
-        }
-        if (!isInstalled(saved)) {
-            return;
-        }
-        applyPack(saved);
+        applySessionPacks();
+    }
+
+    public static void setSecondaryPack(String fileName) {
+        ModernConfig.secondaryResourcePack = fileName == null ? "" : fileName;
+        ModernConfig.save();
+        applySessionPacks();
     }
 
     private static String resolvePackId(ResourcePackManager manager, String fileName) {

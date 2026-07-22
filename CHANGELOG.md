@@ -3,6 +3,27 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## Cliente PvP Modern 0.9.0 - 2026-07-21
+
+### Added
+- **Perfiles auto por modo**: HUD y toggles según BedWars, SkyWars, Duels, etc. (scoreboard).
+- **Quick Play Cubecraft**: reconexión y modos EggWars, SkyWars, Lucky Islands, etc.
+- **Pack dual**: oficial + pack secundario sin pisarlo al reconectar.
+- **Shaders auto-off** en partida competitiva (Hypixel/Cubecraft).
+- **Scoreboard limpio**: fondo transparente, ocultar stats y números rojos.
+- **Chat triggers/alerts** configurables; **timer bridge**; **HUD modo juego**; **reach solo práctica**.
+- **Freelook blacklist** en servidores ranked; **Discord RPC** con modo; **export stats** al desconectar.
+
+## [7.9.7] - 2026-07-21
+
+### Changed
+- Cliente PvP Modern embebido y fallback actualizados a **0.9.0**.
+
+## Cliente PvP Modern 0.8.4 - 2026-07-21
+
+### Fixed
+- Gamma Utils fullbright, freelook pitch, carátula música, pack forzado, mods auto-install.
+
 ## Cliente PvP Modern 0.8.3 - 2026-07-21
 
 ### Fixed

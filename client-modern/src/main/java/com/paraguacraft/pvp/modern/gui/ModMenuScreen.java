@@ -122,6 +122,7 @@ public class ModMenuScreen extends ParaguacraftScreen {
     private void open(String target) {
         switch (target) {
             case "quickplay" -> client.setScreen(new HypixelQuickPlayScreen(this));
+            case "cubecraft_qp" -> client.setScreen(new CubecraftQuickPlayScreen(this));
             case "packs" -> client.setScreen(new PackSelectScreen(this));
             case "theme" -> client.setScreen(new ThemeSelectScreen(this));
             case "nickfinder" -> client.setScreen(new NickFinderScreen(this));
@@ -198,10 +199,20 @@ public class ModMenuScreen extends ParaguacraftScreen {
         cards.add(toggle(3, "Fullbright", () -> ModernConfig.fullbright, v -> ModernConfig.fullbright = v));
         cards.add(toggle(3, "FOV dinamico", () -> ModernConfig.dynamicFov, v -> ModernConfig.dynamicFov = v));
         cards.add(toggle(3, "Freelook (Alt)", () -> ModernConfig.freelookEnabled, v -> ModernConfig.freelookEnabled = v));
+        cards.add(toggle(3, "Freelook blacklist ranked", () -> ModernConfig.freelookBlacklistServers, v -> ModernConfig.freelookBlacklistServers = v));
+        cards.add(toggle(3, "Shaders auto-off en partida", () -> ModernConfig.shaderAutoOffInMatch, v -> ModernConfig.shaderAutoOffInMatch = v));
+        cards.add(toggle(3, "Perfiles auto por modo", () -> ModernConfig.autoGameModeProfiles, v -> ModernConfig.autoGameModeProfiles = v));
+        cards.add(toggle(3, "Reach solo practica", () -> ModernConfig.reachDisplayPracticeOnly, v -> ModernConfig.reachDisplayPracticeOnly = v));
         cards.add(toggle(3, "Old animations", () -> ModernConfig.oldAnimations, v -> ModernConfig.oldAnimations = v));
         cards.add(toggle(3, "Ocultar titulos", () -> ModernConfig.hideTitles, v -> ModernConfig.hideTitles = v));
         cards.add(toggle(3, "Chat triggers", () -> ModernConfig.chatTriggers, v -> ModernConfig.chatTriggers = v));
+        cards.add(toggle(3, "Chat alerts", () -> ModernConfig.chatAlertsEnabled, v -> ModernConfig.chatAlertsEnabled = v));
         cards.add(toggle(3, "Scoreboard", () -> ModernConfig.scoreboardEnabled, v -> ModernConfig.scoreboardEnabled = v));
+        cards.add(toggle(3, "Scoreboard fondo transparente", () -> ModernConfig.scoreboardTransparentBg, v -> ModernConfig.scoreboardTransparentBg = v));
+        cards.add(toggle(3, "Scoreboard ocultar numeros rojos", () -> ModernConfig.scoreboardHideRedNumbers, v -> ModernConfig.scoreboardHideRedNumbers = v));
+        cards.add(toggle(3, "Scoreboard ocultar stats", () -> ModernConfig.scoreboardHideStats, v -> ModernConfig.scoreboardHideStats = v));
+        cards.add(toggle(1, "HUD modo de juego", () -> ModernConfig.showGameModeHud, v -> ModernConfig.showGameModeHud = v));
+        cards.add(toggle(1, "Timer bridge", () -> ModernConfig.showBridgeTimer, v -> ModernConfig.showBridgeTimer = v));
         cards.add(toggle(4, "Boost FPS", () -> PerformanceConfig.boostFps, v -> {
             PerformanceConfig.boostFps = v;
             ModernConfig.save();
@@ -218,6 +229,7 @@ public class ModMenuScreen extends ParaguacraftScreen {
         cards.add(open(4, "Aplicar preset de hardware", "apply_hw_preset"));
         cards.add(open(4, "Crosshair: " + ModernConfig.crosshairModeLabel(), "crosshair"));
         cards.add(open(5, "Hypixel Quick Play", "quickplay"));
+        cards.add(open(5, "Cubecraft Quick Play", "cubecraft_qp"));
         cards.add(open(5, "Texture packs", "packs"));
         cards.add(open(5, "NickFinder (N)", "nickfinder"));
         cards.add(toggle(5, "Camas coloridas BW", () -> ModernConfig.coloredBeds, v -> ModernConfig.coloredBeds = v));

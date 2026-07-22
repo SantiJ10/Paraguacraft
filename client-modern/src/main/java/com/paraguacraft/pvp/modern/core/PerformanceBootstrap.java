@@ -121,7 +121,6 @@ public final class PerformanceBootstrap {
     }
 
     private static void onWorldJoin(MinecraftClient client) {
-        QuickPlayState.onJoin(client);
         if (!PerformanceConfig.memoryCleanupOnWorldChange) {
             return;
         }

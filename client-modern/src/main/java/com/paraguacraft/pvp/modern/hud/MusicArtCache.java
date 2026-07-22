@@ -376,4 +376,39 @@ public final class MusicArtCache {
         clearTexture();
         loading.set(false);
     }
+
+    /** Precarga la ultima caratula del launcher al arrancar (reduce delay en el HUD). */
+    public static void preloadFromLauncherCache() {
+        Thread t = new Thread(() -> {
+            byte[] bytes = readLatestLauncherCacheFile();
+            if (bytes == null || bytes.length == 0) {
+                return;
+            }
+            try {
+                NativeImage image = decodeImage(bytes);
+                if (image == null) {
+                    return;
+                }
+                MinecraftClient client = MinecraftClient.getInstance();
+                if (client == null) {
+                    image.close();
+                    return;
+                }
+                client.execute(() -> {
+                    try {
+                        if (textureId == null) {
+                            registerImage(image);
+                        } else {
+                            image.close();
+                        }
+                    } catch (Exception e) {
+                        image.close();
+                    }
+                });
+            } catch (Exception ignored) {
+            }
+        }, "Paraguacraft-MusicArtPreload");
+        t.setDaemon(true);
+        t.start();
+    }
 }
