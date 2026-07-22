@@ -2,6 +2,7 @@ package com.paraguacraft.pvp.modern.core;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.MinecraftClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,13 +14,38 @@ public final class GammaUtilsBootstrap {
 
     private GammaUtilsBootstrap() {}
 
+    public static boolean isLoaded() {
+        return FabricLoader.getInstance().isModLoaded(MOD_ID);
+    }
+
     public static void register() {
-        if (!FabricLoader.getInstance().isModLoaded(MOD_ID)) {
+        if (!isLoaded()) {
             return;
         }
         ClientLifecycleEvents.CLIENT_STARTED.register(client ->
             client.execute(GammaUtilsBootstrap::enableFullbright)
         );
+    }
+
+    /** Alterna fullbright via API de Gamma Utils (Mod Menu / tecla G). */
+    public static void toggleFullbright(MinecraftClient client) {
+        if (!isLoaded() || client == null) {
+            return;
+        }
+        try {
+            Class<?> gammaUtils = Class.forName("io.github.sjouwer.gammautils.GammaUtils");
+            Object config = gammaUtils.getMethod("getConfig").invoke(null);
+            Object gamma = config.getClass().getField("gamma").get(config);
+            boolean enabled = (boolean) gamma.getClass().getMethod("isEnabled").invoke(gamma);
+            if (enabled) {
+                Class<?> gammaManager = Class.forName("io.github.sjouwer.gammautils.GammaManager");
+                gammaManager.getMethod("resetGamma", boolean.class).invoke(null, false);
+            } else {
+                enableFullbright();
+            }
+        } catch (Throwable t) {
+            LOGGER.debug("No se pudo alternar Gamma Utils", t);
+        }
     }
 
     private static void enableFullbright() {

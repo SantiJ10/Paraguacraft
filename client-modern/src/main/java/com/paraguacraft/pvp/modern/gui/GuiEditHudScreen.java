@@ -2,6 +2,7 @@ package com.paraguacraft.pvp.modern.gui;
 
 import com.paraguacraft.pvp.modern.config.ModernConfig;
 import com.paraguacraft.pvp.modern.core.LauncherIpc;
+import com.paraguacraft.pvp.modern.core.ServerContext;
 import com.paraguacraft.pvp.modern.gui.theme.UiTheme;
 import com.paraguacraft.pvp.modern.hud.HudRenderer;
 import net.minecraft.client.gui.Click;
@@ -95,6 +96,18 @@ public class GuiEditHudScreen extends Screen {
         if (ModernConfig.showCombatStatsHud) {
             drawEditBox(ctx, 14, ModernConfig.combatStatsX, ModernConfig.combatStatsY, 114, 46);
         }
+        if (ModernConfig.showGameModeHud) {
+            drawEditBox(ctx, 15, ModernConfig.gameModeHudX, ModernConfig.gameModeHudY, 90, 10);
+        }
+        if (ModernConfig.showBridgeTimer) {
+            drawEditBox(ctx, 16, ModernConfig.bridgeTimerX, ModernConfig.bridgeTimerY, 80, 10);
+        }
+        if (ModernConfig.reachDisplay && ServerContext.reachDisplayAllowed(client)) {
+            drawEditBox(ctx, 17, ModernConfig.reachDisplayX, ModernConfig.reachDisplayY, 70, 10);
+        }
+        if (ModernConfig.showServerHud) {
+            drawEditBox(ctx, 18, ModernConfig.serverHudX, ModernConfig.serverHudY, 120, 10);
+        }
 
         super.render(ctx, mouseX, mouseY, delta);
     }
@@ -173,6 +186,13 @@ public class GuiEditHudScreen extends Screen {
         }
         if (ModernConfig.comboCounter && inBox(mx, my, ModernConfig.comboX, ModernConfig.comboY, 70, 10)) return 12;
         if (ModernConfig.showCombatStatsHud && inBox(mx, my, ModernConfig.combatStatsX, ModernConfig.combatStatsY, 114, 46)) return 14;
+        if (ModernConfig.showGameModeHud && inBox(mx, my, ModernConfig.gameModeHudX, ModernConfig.gameModeHudY, 90, 10)) return 15;
+        if (ModernConfig.showBridgeTimer && inBox(mx, my, ModernConfig.bridgeTimerX, ModernConfig.bridgeTimerY, 80, 10)) return 16;
+        if (ModernConfig.reachDisplay && ServerContext.reachDisplayAllowed(client)
+            && inBox(mx, my, ModernConfig.reachDisplayX, ModernConfig.reachDisplayY, 70, 10)) {
+            return 17;
+        }
+        if (ModernConfig.showServerHud && inBox(mx, my, ModernConfig.serverHudX, ModernConfig.serverHudY, 120, 10)) return 18;
         return -1;
     }
 
@@ -196,6 +216,10 @@ public class GuiEditHudScreen extends Screen {
             case 11 -> new int[] {width / 2 - 110, ModernConfig.compassY};
             case 12 -> new int[] {ModernConfig.comboX, ModernConfig.comboY};
             case 14 -> new int[] {ModernConfig.combatStatsX, ModernConfig.combatStatsY};
+            case 15 -> new int[] {ModernConfig.gameModeHudX, ModernConfig.gameModeHudY};
+            case 16 -> new int[] {ModernConfig.bridgeTimerX, ModernConfig.bridgeTimerY};
+            case 17 -> new int[] {ModernConfig.reachDisplayX, ModernConfig.reachDisplayY};
+            case 18 -> new int[] {ModernConfig.serverHudX, ModernConfig.serverHudY};
             default -> new int[] {ModernConfig.potionX, ModernConfig.potionY};
         };
     }
@@ -216,6 +240,10 @@ public class GuiEditHudScreen extends Screen {
             case 11 -> { ModernConfig.compassY = y; }
             case 12 -> { ModernConfig.comboX = x; ModernConfig.comboY = y; }
             case 14 -> { ModernConfig.combatStatsX = x; ModernConfig.combatStatsY = y; }
+            case 15 -> { ModernConfig.gameModeHudX = x; ModernConfig.gameModeHudY = y; }
+            case 16 -> { ModernConfig.bridgeTimerX = x; ModernConfig.bridgeTimerY = y; }
+            case 17 -> { ModernConfig.reachDisplayX = x; ModernConfig.reachDisplayY = y; }
+            case 18 -> { ModernConfig.serverHudX = x; ModernConfig.serverHudY = y; }
             default -> { ModernConfig.potionX = x; ModernConfig.potionY = y; }
         }
     }

@@ -75,6 +75,11 @@ public final class ChatTriggerConfig {
         }
     }
 
+    public static void resetDefaults() {
+        rules = defaultRules();
+        save();
+    }
+
     public static void save() {
         try {
             Path file = configFile();

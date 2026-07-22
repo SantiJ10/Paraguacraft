@@ -3,6 +3,24 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## Cliente PvP Modern 0.9.1 - 2026-07-21
+
+### Added
+- **Pack dual UI**: principal + secundario en Texture packs.
+- **Editor HUD**: arrastrar modo de juego, timer bridge y reach.
+- **Quick Play (`)**: selector Hypixel / Cubecraft.
+- **Pantallas** de config chat alerts y chat triggers.
+
+### Fixed
+- Scoreboard: lineas filtradas ya no dejan huecos vacios.
+- Perfiles export/import incluyen toggles nuevos de 0.9.0.
+- Gamma Utils: toggle desde Mod Menu y tecla G.
+
+## [7.9.8] - 2026-07-21
+
+### Changed
+- Pulidos UX 0.9.1; cliente embebido y `latest.json` actualizados.
+
 ## Cliente PvP Modern 0.9.0 - 2026-07-21
 
 ### Added

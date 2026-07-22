@@ -1,6 +1,7 @@
 package com.paraguacraft.pvp.modern.gui;
 
 import com.paraguacraft.pvp.modern.config.ModernConfig;
+import com.paraguacraft.pvp.modern.core.GammaUtilsBootstrap;
 import com.paraguacraft.pvp.modern.core.PerformanceBootstrap;
 import com.paraguacraft.pvp.modern.core.PerformanceConfig;
 import com.paraguacraft.pvp.modern.gui.theme.UiTheme;
@@ -121,8 +122,11 @@ public class ModMenuScreen extends ParaguacraftScreen {
 
     private void open(String target) {
         switch (target) {
-            case "quickplay" -> client.setScreen(new HypixelQuickPlayScreen(this));
+            case "quickplay" -> client.setScreen(new QuickPlayChooserScreen(this));
             case "cubecraft_qp" -> client.setScreen(new CubecraftQuickPlayScreen(this));
+            case "chat_alerts" -> client.setScreen(new GuiChatAlertsScreen(this));
+            case "chat_triggers_cfg" -> client.setScreen(new GuiChatTriggersScreen(this));
+            case "gamma_utils" -> GammaUtilsBootstrap.toggleFullbright(client);
             case "packs" -> client.setScreen(new PackSelectScreen(this));
             case "theme" -> client.setScreen(new ThemeSelectScreen(this));
             case "nickfinder" -> client.setScreen(new NickFinderScreen(this));
@@ -196,7 +200,11 @@ public class ModMenuScreen extends ParaguacraftScreen {
             ModernConfig.isSneakingToggled = false;
         }));
         cards.add(toggle(3, "Pantalla sin bordes", () -> ModernConfig.windowedFullscreen, v -> ModernConfig.windowedFullscreen = v));
-        cards.add(toggle(3, "Fullbright", () -> ModernConfig.fullbright, v -> ModernConfig.fullbright = v));
+        if (GammaUtilsBootstrap.isLoaded()) {
+            cards.add(open(3, "Gamma Utils (G)", "gamma_utils"));
+        } else {
+            cards.add(toggle(3, "Fullbright", () -> ModernConfig.fullbright, v -> ModernConfig.fullbright = v));
+        }
         cards.add(toggle(3, "FOV dinamico", () -> ModernConfig.dynamicFov, v -> ModernConfig.dynamicFov = v));
         cards.add(toggle(3, "Freelook (Alt)", () -> ModernConfig.freelookEnabled, v -> ModernConfig.freelookEnabled = v));
         cards.add(toggle(3, "Freelook blacklist ranked", () -> ModernConfig.freelookBlacklistServers, v -> ModernConfig.freelookBlacklistServers = v));
@@ -206,7 +214,13 @@ public class ModMenuScreen extends ParaguacraftScreen {
         cards.add(toggle(3, "Old animations", () -> ModernConfig.oldAnimations, v -> ModernConfig.oldAnimations = v));
         cards.add(toggle(3, "Ocultar titulos", () -> ModernConfig.hideTitles, v -> ModernConfig.hideTitles = v));
         cards.add(toggle(3, "Chat triggers", () -> ModernConfig.chatTriggers, v -> ModernConfig.chatTriggers = v));
-        cards.add(toggle(3, "Chat alerts", () -> ModernConfig.chatAlertsEnabled, v -> ModernConfig.chatAlertsEnabled = v));
+        cards.add(open(3, "Config chat triggers", "chat_triggers_cfg"));
+        cards.add(toggle(3, "Chat alerts", () -> ModernConfig.chatAlertsEnabled, v -> {
+            ModernConfig.chatAlertsEnabled = v;
+            com.paraguacraft.pvp.modern.core.ChatAlerts.enabled = v;
+            com.paraguacraft.pvp.modern.core.ChatAlerts.save();
+        }));
+        cards.add(open(3, "Config chat alerts", "chat_alerts"));
         cards.add(toggle(3, "Scoreboard", () -> ModernConfig.scoreboardEnabled, v -> ModernConfig.scoreboardEnabled = v));
         cards.add(toggle(3, "Scoreboard fondo transparente", () -> ModernConfig.scoreboardTransparentBg, v -> ModernConfig.scoreboardTransparentBg = v));
         cards.add(toggle(3, "Scoreboard ocultar numeros rojos", () -> ModernConfig.scoreboardHideRedNumbers, v -> ModernConfig.scoreboardHideRedNumbers = v));
@@ -228,7 +242,7 @@ public class ModMenuScreen extends ParaguacraftScreen {
         cards.add(open(4, "Limpiar memoria", "clean_memory"));
         cards.add(open(4, "Aplicar preset de hardware", "apply_hw_preset"));
         cards.add(open(4, "Crosshair: " + ModernConfig.crosshairModeLabel(), "crosshair"));
-        cards.add(open(5, "Hypixel Quick Play", "quickplay"));
+        cards.add(open(5, "Quick Play (`)", "quickplay"));
         cards.add(open(5, "Cubecraft Quick Play", "cubecraft_qp"));
         cards.add(open(5, "Texture packs", "packs"));
         cards.add(open(5, "NickFinder (N)", "nickfinder"));

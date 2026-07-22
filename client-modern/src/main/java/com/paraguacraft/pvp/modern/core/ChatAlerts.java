@@ -101,6 +101,11 @@ public final class ChatAlerts {
         }
     }
 
+    public static void resetDefaults() {
+        seedDefaults();
+        save();
+    }
+
     private static void seedDefaults() {
         WORDS.clear();
         WORDS.add("gg");
