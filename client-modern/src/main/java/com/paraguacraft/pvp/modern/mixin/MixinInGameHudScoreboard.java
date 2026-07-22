@@ -19,24 +19,43 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(InGameHud.class)
 public class MixinInGameHudScoreboard {
 
-    @Inject(method = "renderScoreboardSidebar", at = @At("HEAD"), cancellable = true)
+    private static final String SIDEBAR_ENTRY =
+        "renderScoreboardSidebar(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/client/render/RenderTickCounter;)V";
+    private static final String SIDEBAR_DRAW =
+        "renderScoreboardSidebar(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/scoreboard/ScoreboardObjective;)V";
+
+    @Inject(method = SIDEBAR_ENTRY, at = @At("HEAD"), cancellable = true)
     private void paraguacraft$disableSidebar(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
         if (!ModernConfig.scoreboardEnabled) {
             ci.cancel();
         }
     }
 
+    /** 1.21.11+ dibuja el fondo con {@code fill(RenderPipeline, ...)} en lugar de {@code fill(IIIII)}. */
     @ModifyArg(
-        method = "renderScoreboardSidebar",
-        at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/DrawContext;fill(IIIII)V"),
-        index = 4
+        method = SIDEBAR_DRAW,
+        at = @At(
+            value = "INVOKE",
+            target = "Lnet/minecraft/client/gui/DrawContext;fill(Lnet/minecraft/client/render/RenderPipeline;IIIII)V"
+        ),
+        index = 5
     )
-    private int paraguacraft$transparentBg(int color) {
+    private int paraguacraft$transparentBgPipeline(int color) {
+        return ModernConfig.scoreboardTransparentBg ? 0 : color;
+    }
+
+    @ModifyArg(
+        method = SIDEBAR_DRAW,
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/DrawContext;fill(IIIII)V"),
+        index = 4,
+        require = 0
+    )
+    private int paraguacraft$transparentBgLegacy(int color) {
         return ModernConfig.scoreboardTransparentBg ? 0 : color;
     }
 
     @Redirect(
-        method = "renderScoreboardSidebar",
+        method = SIDEBAR_DRAW,
         at = @At(
             value = "INVOKE",
             target = "Lnet/minecraft/client/gui/DrawContext;drawText(Lnet/minecraft/client/font/TextRenderer;Lnet/minecraft/text/Text;IIIZ)V"
