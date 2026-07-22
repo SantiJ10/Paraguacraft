@@ -98,8 +98,7 @@ pub async fn install_pvp_modern_bundle(
         ));
     }
     let (http, _net) = state.net_scope();
-    let dir = crate::core::instances::instance_dir(&instance_id);
-    loaders::pvp_modern::sync_instance(&app, &http, &meta.mc_version, &dir).await
+    crate::core::modern_pvp::sync_instance_bundles(&app, &http, &instance_id).await
 }
 
 /// Estado del cliente PvP publicado (manifest) vs instalado en una instancia.
