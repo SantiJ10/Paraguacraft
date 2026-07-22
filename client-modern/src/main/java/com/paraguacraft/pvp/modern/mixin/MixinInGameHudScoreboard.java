@@ -31,26 +31,13 @@ public class MixinInGameHudScoreboard {
         }
     }
 
-    /** 1.21.11+ dibuja el fondo con {@code fill(RenderPipeline, ...)} en lugar de {@code fill(IIIII)}. */
-    @ModifyArg(
-        method = SIDEBAR_DRAW,
-        at = @At(
-            value = "INVOKE",
-            target = "Lnet/minecraft/client/gui/DrawContext;fill(Lnet/minecraft/client/render/RenderPipeline;IIIII)V"
-        ),
-        index = 5
-    )
-    private int paraguacraft$transparentBgPipeline(int color) {
-        return ModernConfig.scoreboardTransparentBg ? 0 : color;
-    }
-
+    /** 1.21.11 sigue usando {@code DrawContext.fill(IIIII)} dentro de {@link #SIDEBAR_DRAW}. */
     @ModifyArg(
         method = SIDEBAR_DRAW,
         at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/DrawContext;fill(IIIII)V"),
-        index = 4,
-        require = 0
+        index = 4
     )
-    private int paraguacraft$transparentBgLegacy(int color) {
+    private int paraguacraft$transparentBg(int color) {
         return ModernConfig.scoreboardTransparentBg ? 0 : color;
     }
 

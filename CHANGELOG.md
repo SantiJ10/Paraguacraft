@@ -3,6 +3,11 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## Cliente PvP Modern 0.9.5 - 2026-07-22
+
+### Fixed
+- Crash al iniciar: mixin del scoreboard apuntaba a `fill(RenderPipeline)` inexistente; usa `fill(IIIII)` en el overload correcto.
+
 ## Cliente PvP Modern 0.9.4 - 2026-07-22
 
 ### Fixed
