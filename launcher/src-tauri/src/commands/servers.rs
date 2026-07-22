@@ -67,7 +67,7 @@ pub async fn start_server(
         let (http, _net) = state.net_scope();
         servers::ensure_server_jar(&app, &http, &id).await?;
     }
-    let _ = crate::core::java::resolve::ensure_installer_java(&app, &state, &prof.mc_version).await?;
+    let _ = crate::core::java::resolve::ensure_server_java(&app, &state, &prof.mc_version).await?;
     let pid = servers::start_mc(&id)?;
     if servers::playit_available(&id) {
         if let Err(e) = servers::start_playit(&id) {

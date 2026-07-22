@@ -249,7 +249,7 @@ fn resolve_server_java(mc: &str) -> AppResult<PathBuf> {
     let settings: AppSettings = config::read_json(&paths::config_file()).unwrap_or_default();
     crate::core::java::resolve::resolve_sync(
         mc,
-        None,
+        Some(mc),
         settings.java_path.as_deref(),
         crate::core::java::resolve::JavaRole::Installer,
     )
@@ -337,6 +337,10 @@ pub fn start_mc(id: &str) -> AppResult<u32> {
     ensure_eula(&dir)?;
     ensure_server_properties(&dir)?;
     let java = resolve_server_java(&prof.mc_version)?;
+    let java_home = java
+        .parent()
+        .and_then(|bin| bin.parent())
+        .map(|h| h.to_path_buf());
     let ram = prof.ram_mb;
     let kind = crate::core::server_setup::normalize_server_type(&prof.server_type)?;
 
@@ -355,6 +359,9 @@ pub fn start_mc(id: &str) -> AppResult<u32> {
         let (stdin, stdout, stderr) = crate::core::server_console::pipe_stdio();
         let mut cmd = Command::new("cmd");
         cmd.current_dir(&dir).args(["/C", "call", "run.bat", "nogui"]);
+        if let Some(ref home) = java_home {
+            cmd.env("JAVA_HOME", home);
+        }
         cmd.stdin(stdin).stdout(stdout).stderr(stderr);
         hide_console(&mut cmd);
         cmd.spawn()
@@ -374,6 +381,9 @@ pub fn start_mc(id: &str) -> AppResult<u32> {
         cmd.current_dir(&dir)
             .arg(format!("-Xmx{ram}M"))
             .arg(format!("-Xms{xms}M"));
+        if let Some(ref home) = java_home {
+            cmd.env("JAVA_HOME", home);
+        }
         for flag in aikar_flags(ram) {
             cmd.arg(flag);
         }
@@ -658,6 +668,22 @@ fn process_playit_log_chunk(id: &str, chunk: &str, seen: &mut HashSet<String>) {
             if let Some(addr) = parse_playit_address(&line) {
                 let _ = set_playit_address(id, &addr);
             }
+            if line.contains("InvalidAgentKey") || line.contains("no longer valid") {
+                crate::core::server_console::append(
+                    id,
+                    "[playit] ⚠ Clave de agente inválida o expirada. Borrá playit-agent.toml en la carpeta del servidor y reiniciá Playit para generar un enlace claim nuevo.",
+                );
+                if let Ok(dir) = folder_for_id(id) {
+                    let secret = playit_secret_path(&dir);
+                    if secret.is_file() {
+                        let _ = std::fs::remove_file(&secret);
+                        crate::core::server_console::append(
+                            id,
+                            "[playit] Se eliminó playit-agent.toml — al reiniciar Playit aparecerá un enlace claim nuevo.",
+                        );
+                    }
+                }
+            }
             if line.contains("playit.gg/claim") {
                 crate::core::server_console::append(
                     id,
@@ -876,8 +902,11 @@ pub fn start_playit(id: &str) -> AppResult<String> {
         .try_clone()
         .map_err(|e| AppError::msg(format!("No se pudo duplicar log de playit: {e}")))?;
 
+    let secret_path = playit_secret_path(&dir);
     let mut cmd = Command::new(&playit);
     cmd.current_dir(&dir)
+        .arg("--secret-path")
+        .arg(&secret_path)
         .stdin(Stdio::null())
         .stdout(Stdio::from(log_file))
         .stderr(Stdio::from(stderr_file));
@@ -924,6 +953,10 @@ fn find_playit_exe(dir: &Path) -> Option<PathBuf> {
         return Some(global);
     }
     None
+}
+
+fn playit_secret_path(dir: &Path) -> PathBuf {
+    dir.join("playit-agent.toml")
 }
 
 pub fn playit_available(id: &str) -> bool {

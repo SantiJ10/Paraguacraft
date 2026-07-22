@@ -16,8 +16,9 @@ pub fn required_for_mc(mc_version: &str) -> u32 {
     }
     let parts: Vec<&str> = v.split('.').collect();
     let major: u32 = parts[0].parse().unwrap_or(1);
-    if major >= 23 {
-        return 21;
+    // MC 26.x+ (nombres por año) requieren Java 25+.
+    if major >= 26 {
+        return 25;
     }
     if major != 1 {
         return 17;
@@ -61,4 +62,25 @@ pub fn pick_best(accepted: &[u32], javas: &[JavaInstallation]) -> Option<JavaIns
         .iter()
         .find(|j| accepted.contains(&j.version_major))
         .cloned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mc_26_requires_java_25() {
+        assert_eq!(required_for_mc("26.1"), 25);
+        assert_eq!(required_for_mc("26.1.2"), 25);
+    }
+
+    #[test]
+    fn mc_121_requires_java_21() {
+        assert_eq!(required_for_mc("1.21.11"), 21);
+    }
+
+    #[test]
+    fn mc_18_requires_java_8() {
+        assert_eq!(required_for_mc("1.8.9"), 8);
+    }
 }
