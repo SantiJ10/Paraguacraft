@@ -52,6 +52,22 @@ pub fn jar_already_present(dest_dir: &std::path::Path, filename: &str) -> bool {
     })
 }
 
+/// True si `mods/` ya tiene un JAR de la familia (p.ej. `sodium`), ignorando sub-modulos
+/// como `sodium-extra` o `reeses-sodium-options`.
+pub fn mod_family_present(dest_dir: &std::path::Path, family: &str, exclude_substrings: &[&str]) -> bool {
+    let family = family.to_lowercase();
+    dest_dir.read_dir().into_iter().flatten().flatten().any(|e| {
+        let n = e.file_name().to_string_lossy().to_lowercase();
+        if !n.ends_with(".jar") && !n.ends_with(".jar.disabled") {
+            return false;
+        }
+        if exclude_substrings.iter().any(|x| n.contains(x)) {
+            return false;
+        }
+        n.contains(&family)
+    })
+}
+
 /// Subcarpeta de la instancia segun el tipo de contenido.
 pub fn content_subdir(project_type: &str) -> &'static str {
     match project_type {

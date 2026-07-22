@@ -28,6 +28,8 @@ struct HudMod {
     slug: &'static str,
     /// 0=baja, 1=media, 2=alta
     min_tier: u8,
+    /// Version Modrinth fijada cuando la última rompe el pin Iris↔Sodium del bundle.
+    pinned_version_id: Option<&'static str>,
 }
 
 const HUD_MODS: &[HudMod] = &[
@@ -35,82 +37,103 @@ const HUD_MODS: &[HudMod] = &[
     HudMod {
         slug: "searchables",
         min_tier: 0,
+        pinned_version_id: None,
     },
     HudMod {
         slug: "fabric-language-kotlin",
         min_tier: 0,
+        pinned_version_id: None,
     },
     HudMod {
         slug: "cloth-config",
         min_tier: 0,
+        pinned_version_id: None,
     },
     HudMod {
         slug: "yacl",
         min_tier: 0,
+        pinned_version_id: None,
     },
     HudMod {
         slug: "modmenu",
         min_tier: 0,
+        pinned_version_id: None,
     },
     HudMod {
         slug: "gamma-utils",
         min_tier: 0,
+        pinned_version_id: None,
     },
     HudMod {
         slug: "appleskin",
         min_tier: 0,
+        pinned_version_id: None,
     },
     HudMod {
         slug: "controlling",
         min_tier: 0,
+        pinned_version_id: None,
     },
     HudMod {
         slug: "smooth-scroll",
         min_tier: 0,
+        pinned_version_id: None,
     },
     HudMod {
         slug: "zoomify",
         min_tier: 0,
+        pinned_version_id: None,
     },
     HudMod {
         slug: "reeses-sodium-options",
         min_tier: 0,
+        pinned_version_id: None,
     },
     HudMod {
         slug: "sodium-extra",
         min_tier: 0,
+        // 0.9.x exige Sodium >=0.8.13, incompatible con Iris 1.10.7 (pin 0.8.7 en 1.21.11).
+        pinned_version_id: Some("yqY1efrC"),
     },
     HudMod {
         slug: "chat-heads",
         min_tier: 0,
+        pinned_version_id: None,
     },
     HudMod {
         slug: "fast-ip-ping",
         min_tier: 0,
+        pinned_version_id: None,
     },
     HudMod {
         slug: "better-ping-display-fabric",
         min_tier: 1,
+        pinned_version_id: None,
     },
     HudMod {
         slug: "shulkerboxtooltip",
         min_tier: 1,
+        pinned_version_id: None,
     },
     HudMod {
         slug: "krypton",
         min_tier: 1,
+        pinned_version_id: None,
     },
     HudMod {
         slug: "debugify",
         min_tier: 1,
+        pinned_version_id: None,
     },
     HudMod {
         slug: "moreculling",
         min_tier: 1,
+        pinned_version_id: None,
     },
     HudMod {
         slug: "dynamic-fps",
         min_tier: 2,
+        pinned_version_id: None,
     },
 ];
 
@@ -439,16 +462,33 @@ pub async fn sync_hud_mods(
         if spec.min_tier > tier {
             continue;
         }
-        if mods_dir
+        let already = mods_dir
             .read_dir()
             .into_iter()
             .flatten()
             .flatten()
-            .any(|e| {
+            .find(|e| {
                 let n = e.file_name().to_string_lossy().to_lowercase();
                 n.contains(spec.slug) && n.ends_with(".jar")
-            })
-        {
+            });
+        if let Some(vid) = spec.pinned_version_id {
+            if let Some(entry) = already {
+                let name = entry.file_name().to_string_lossy().to_lowercase();
+                if !name.contains("0.8.3") && !name.contains("0.8.2") {
+                    let _ = std::fs::remove_file(entry.path());
+                } else {
+                    continue;
+                }
+            }
+            if modrinth::install_version_id(app, client, vid, mods_dir.clone(), None)
+                .await
+                .is_ok()
+            {
+                installed += 1;
+            }
+            continue;
+        }
+        if already.is_some() {
             continue;
         }
         if modrinth::install(

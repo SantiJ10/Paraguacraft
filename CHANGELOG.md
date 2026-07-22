@@ -18,6 +18,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - Mod Menu categoria Rendimiento: 7 toggles de cull + export en perfiles.
 - **Fullbright unificado** (`FullbrightManager`): Gamma Utils o integrado, misma tarjeta y tecla G.
 
+## [7.9.11] - 2026-07-22
+
+### Fixed
+- Cliente PvP 1.21.11: conflicto Sodium 0.8.13 + Iris 1.10.7 al instalar `sodium-extra` 0.9.x (pin 0.8.3, dedupe bundle, reparar HUD).
+
 ## [7.9.10] - 2026-07-22
 
 ### Changed

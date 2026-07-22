@@ -122,36 +122,53 @@ pub async fn install_bundle(
         let _ = std::fs::write(&marker, b"ok");
     }
 
-    let inst_lower: std::collections::HashSet<String> = std::fs::read_dir(&mods_dir)
-        .into_iter()
-        .flatten()
-        .flatten()
-        .map(|e| e.file_name().to_string_lossy().to_lowercase())
-        .collect();
-
     for e in std::fs::read_dir(&cache).into_iter().flatten().flatten() {
         let p = e.path();
         if p.extension().and_then(|x| x.to_str()) != Some("jar") {
             continue;
         }
         let fname = p.file_name().unwrap_or_default().to_string_lossy().to_string();
-        let dest = mods_dir.join(&fname);
-        if dest.exists() || dest.with_extension("jar.disabled").exists() {
-            continue;
-        }
-        let slug_hit = BUNDLE_SLUGS
+        let fname_lower = fname.to_lowercase();
+        if let Some(slug) = BUNDLE_SLUGS
             .iter()
-            .any(|s| fname.to_lowercase().contains(&s.to_lowercase()));
-        if slug_hit
-            && BUNDLE_SLUGS
-                .iter()
-                .any(|s| inst_lower.iter().any(|f| f.contains(&s.to_lowercase())))
+            .find(|s| fname_lower.contains(&s.to_lowercase()))
         {
-            continue;
+            remove_bundle_slug_jars(&mods_dir, slug);
+        }
+        let dest = mods_dir.join(&fname);
+        if dest.is_file() {
+            let _ = std::fs::remove_file(&dest);
+        }
+        let disabled = dest.with_extension("jar.disabled");
+        if disabled.is_file() {
+            let _ = std::fs::remove_file(disabled);
         }
         let _ = std::fs::copy(&p, &dest);
     }
     Ok(())
+}
+
+/// Quita JARs del bundle en `mods/` (p.ej. sodium) sin tocar sub-mods (`sodium-extra`).
+fn remove_bundle_slug_jars(mods_dir: &Path, slug: &str) {
+    let slug = slug.to_lowercase();
+    let exclude: &[&str] = match slug.as_str() {
+        "sodium" => &["sodium-extra", "reeses-sodium"],
+        "fabric-api" => &[],
+        _ => &[],
+    };
+    for entry in std::fs::read_dir(mods_dir).into_iter().flatten().flatten() {
+        let path = entry.path();
+        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("").to_lowercase();
+        if !name.ends_with(".jar") && !name.ends_with(".jar.disabled") {
+            continue;
+        }
+        if exclude.iter().any(|x| name.contains(x)) {
+            continue;
+        }
+        if name.contains(&slug) {
+            let _ = std::fs::remove_file(path);
+        }
+    }
 }
 
 struct JarItem {
