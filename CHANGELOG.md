@@ -3,6 +3,11 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## Cliente PvP Modern 0.9.4 - 2026-07-22
+
+### Fixed
+- Crash al iniciar: mixin del scoreboard actualizado para Minecraft 1.21.11 (`fill` con RenderPipeline).
+
 ## Cliente PvP Modern 0.9.3 - 2026-07-21
 
 ### Added
@@ -17,6 +22,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - Eliminado hack de `entityDistanceScaling` como sustituto de cull; toggles activos por defecto en instalaciones nuevas.
 - Mod Menu categoria Rendimiento: 7 toggles de cull + export en perfiles.
 - **Fullbright unificado** (`FullbrightManager`): Gamma Utils o integrado, misma tarjeta y tecla G.
+
+## [7.9.18] - 2026-07-22
+
+### Fixed
+- Cliente PvP Modern **0.9.4**: crash por mixin de scoreboard incompatible con 1.21.11.
 
 ## [7.9.17] - 2026-07-22
 
