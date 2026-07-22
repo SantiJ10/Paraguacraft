@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP Modern",
   "mc_version": "1.21.11",
   "loader": "fabric",
-  "client_version": "0.9.5",
-  "release_tag": "pvp-modern-0.9.5",
-  "descripcion": "PvP 1.21.11: fix mixin scoreboard (fill II IIII en method_1757).",
+  "client_version": "0.9.6",
+  "release_tag": "pvp-modern-0.9.6",
+  "descripcion": "PvP 1.21.11: fix crash chat Hypixel (recursion) + pack oficial primario.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-Modern-0.9.5.jar",
-      "sha1": "3958f2c3eb43967856747fd9952eb418463ce31c"
+      "filename": "ParaguacraftPvP-Modern-0.9.6.jar",
+      "sha1": "ff7b75d2cdca91388c2488c1f98112987a5a7b53"
     }
   ]
 }
