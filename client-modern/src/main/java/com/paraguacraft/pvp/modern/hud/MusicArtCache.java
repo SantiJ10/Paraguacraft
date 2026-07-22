@@ -53,6 +53,11 @@ public final class MusicArtCache {
         if (textureId != null) {
             return textureId;
         }
+        byte[] cached = readCachedBytes(normalized);
+        if (cached != null && cached.length > 0) {
+            registerFromBytes(normalized, cached);
+            return textureId;
+        }
         if (loading.compareAndSet(false, true)) {
             final String fetchUrl = normalized;
             Thread t = new Thread(() -> download(fetchUrl), "Paraguacraft-MusicArt");
@@ -77,6 +82,15 @@ public final class MusicArtCache {
                 loading.set(false);
                 return;
             }
+            registerFromBytesAsync(fetchUrl, bytes);
+        } catch (Exception e) {
+            LOGGER.warn("No se pudo descargar/decodificar la caratula ({})", fetchUrl, e);
+            loading.set(false);
+        }
+    }
+
+    private static void registerFromBytesAsync(String fetchUrl, byte[] bytes) {
+        try {
             NativeImage image = decodeImage(bytes);
             if (image == null) {
                 loading.set(false);
@@ -104,8 +118,25 @@ public final class MusicArtCache {
                 }
             });
         } catch (Exception e) {
-            LOGGER.warn("No se pudo descargar/decodificar la caratula ({})", fetchUrl, e);
+            LOGGER.warn("No se pudo decodificar la caratula ({})", fetchUrl, e);
             loading.set(false);
+        }
+    }
+
+    private static void registerFromBytes(String fetchUrl, byte[] bytes) {
+        try {
+            NativeImage image = decodeImage(bytes);
+            if (image == null) {
+                return;
+            }
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client == null || !fetchUrl.equals(cachedUrl)) {
+                image.close();
+                return;
+            }
+            registerImage(image);
+        } catch (Exception e) {
+            LOGGER.debug("Cache local de caratula no usable ({})", fetchUrl, e);
         }
     }
 
@@ -138,6 +169,57 @@ public final class MusicArtCache {
         try (InputStream in = conn.getInputStream(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             in.transferTo(out);
             return out.toByteArray();
+        }
+    }
+
+    private static byte[] readCachedBytes(String httpsUrl) {
+        if (httpsUrl.startsWith("http://") || httpsUrl.startsWith("https://")) {
+            byte[] fromHash = readLauncherCache(httpsUrl);
+            if (fromHash != null) {
+                return fromHash;
+            }
+            return readLatestLauncherCacheFile();
+        }
+        if (httpsUrl.startsWith("file://")) {
+            try {
+                Path path = fileUrlToPath(httpsUrl);
+                if (Files.isRegularFile(path)) {
+                    return Files.readAllBytes(path);
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        return null;
+    }
+
+    private static byte[] readLatestLauncherCacheFile() {
+        Path dir = launcherCacheDir();
+        if (!Files.isDirectory(dir)) {
+            return null;
+        }
+        try (var stream = Files.list(dir)) {
+            return stream
+                .filter(p -> {
+                    String name = p.getFileName().toString().toLowerCase();
+                    return name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".png");
+                })
+                .max((a, b) -> {
+                    try {
+                        return Files.getLastModifiedTime(a).compareTo(Files.getLastModifiedTime(b));
+                    } catch (Exception e) {
+                        return 0;
+                    }
+                })
+                .map(p -> {
+                    try {
+                        return Files.readAllBytes(p);
+                    } catch (Exception e) {
+                        return null;
+                    }
+                })
+                .orElse(null);
+        } catch (Exception e) {
+            return null;
         }
     }
 

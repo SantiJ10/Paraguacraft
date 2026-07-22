@@ -17,6 +17,8 @@ import java.util.Set;
 
 public final class ResourcePackService {
 
+    public static final String OFFICIAL_PACK = "paraguacraft-pvp-modern.zip";
+
     public interface ProgressListener {
         void onProgress(String status, float ratio);
         void onComplete(String fileName);
@@ -98,9 +100,13 @@ public final class ResourcePackService {
     }
 
     public static void restoreSavedPack() {
+        if (isInstalled(OFFICIAL_PACK)) {
+            applyPack(OFFICIAL_PACK);
+            return;
+        }
         String saved = com.paraguacraft.pvp.modern.config.ModernConfig.selectedResourcePack;
         if (saved == null || saved.isBlank()) {
-            saved = "paraguacraft-pvp-modern.zip";
+            saved = OFFICIAL_PACK;
         }
         if (!isInstalled(saved)) {
             return;

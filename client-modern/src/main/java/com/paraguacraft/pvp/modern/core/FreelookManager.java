@@ -57,7 +57,7 @@ public final class FreelookManager {
         prevCameraYaw = cameraYaw;
         prevCameraPitch = cameraPitch;
         cameraYaw += yaw * 0.15F;
-        cameraPitch -= pitch * 0.15F;
+        cameraPitch += pitch * 0.15F;
         cameraPitch = Math.max(-90.0F, Math.min(90.0F, cameraPitch));
     }
 

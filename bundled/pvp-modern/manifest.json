@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP Modern",
   "mc_version": "1.21.11",
   "loader": "fabric",
-  "client_version": "0.8.3",
-  "release_tag": "pvp-modern-0.8.3",
-  "descripcion": "Fix caratula file://?/ Windows, fullbright sin gamma ilegal, TNT countdown 3D.",
+  "client_version": "0.8.4",
+  "release_tag": "pvp-modern-0.8.4",
+  "descripcion": "PvP 1.21.11: Gamma Utils fullbright, freelook, caratula musica, pack forzado, mods Hypixel.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-Modern-0.8.3.jar",
-      "sha1": "bfae95ad1388cef11b4fdc924da012ae89e6cec0"
+      "filename": "ParaguacraftPvP-Modern-0.8.4.jar",
+      "sha1": "d2f516eae7bd548118d71438b267637139faee2d"
     }
   ]
 }

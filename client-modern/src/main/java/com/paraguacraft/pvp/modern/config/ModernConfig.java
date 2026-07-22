@@ -28,7 +28,7 @@ public final class ModernConfig {
     public static boolean showBlockOutline = true;
     public static boolean showCps = true;
     public static boolean noHurtCam = true;
-    public static boolean fullbright = true;
+    public static boolean fullbright = false;
     public static boolean dynamicFov = true;
     public static boolean hideTitles = true;
     public static boolean scoreboardEnabled = true;
