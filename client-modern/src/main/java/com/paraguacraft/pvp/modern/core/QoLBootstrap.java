@@ -23,6 +23,9 @@ public final class QoLBootstrap {
     private static float lastHealth = -1F;
     private static boolean sneakKeyWasPressed = false;
     private static boolean wasDead = false;
+    /** Evita recursión: sendMessage() vuelve a disparar GAME. */
+    private static final ThreadLocal<Boolean> HANDLING_GAME_MESSAGE =
+        ThreadLocal.withInitial(() -> false);
 
     private QoLBootstrap() {}
 
@@ -60,25 +63,33 @@ public final class QoLBootstrap {
     }
 
     private static void onChatMessage(Text message, boolean overlay) {
-        ChatTriggerManager.onChatMessage(message, overlay);
-        if (overlay || !ModernConfig.chatAlertsEnabled || message == null) {
+        if (HANDLING_GAME_MESSAGE.get()) {
             return;
         }
-        String plain = ScoreboardFilter.strip(message).toLowerCase(Locale.ROOT);
-        String match = ChatAlerts.firstMatch(plain);
-        if (match == null) {
-            return;
-        }
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (ChatAlerts.highlight && client.player != null) {
-            client.player.sendMessage(
-                Text.literal("[Alerta] ").formatted(Formatting.GOLD)
-                    .append(Text.literal(match).formatted(ChatAlerts.colorFmt(), Formatting.BOLD)),
-                false
-            );
-        }
-        if (ChatAlerts.sound && client.player != null) {
-            client.player.playSound(SoundEvents.BLOCK_NOTE_BLOCK_BELL.value(), 0.8F, 1.4F);
+        HANDLING_GAME_MESSAGE.set(true);
+        try {
+            ChatTriggerManager.onChatMessage(message, overlay);
+            if (overlay || !ModernConfig.chatAlertsEnabled || message == null) {
+                return;
+            }
+            String plain = ScoreboardFilter.strip(message).toLowerCase(Locale.ROOT);
+            String match = ChatAlerts.firstMatch(plain);
+            if (match == null) {
+                return;
+            }
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (ChatAlerts.highlight && client.player != null) {
+                client.player.sendMessage(
+                    Text.literal("[Alerta] ").formatted(Formatting.GOLD)
+                        .append(Text.literal(match).formatted(ChatAlerts.colorFmt(), Formatting.BOLD)),
+                    false
+                );
+            }
+            if (ChatAlerts.sound && client.player != null) {
+                client.player.playSound(SoundEvents.BLOCK_NOTE_BLOCK_BELL.value(), 0.8F, 1.4F);
+            }
+        } finally {
+            HANDLING_GAME_MESSAGE.set(false);
         }
     }
 

@@ -104,6 +104,17 @@ public final class ScoreboardFilter {
         if (text == null) {
             return "";
         }
-        return text.replaceAll("§.", "");
+        StringBuilder out = new StringBuilder(text.length());
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '\u00A7' || c == '§') {
+                if (i + 1 < text.length()) {
+                    i++;
+                }
+                continue;
+            }
+            out.append(c);
+        }
+        return out.toString();
     }
 }

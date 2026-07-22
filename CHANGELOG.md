@@ -3,6 +3,13 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## Cliente PvP Modern 0.9.6 - 2026-07-22
+
+### Fixed
+- Crash en Hypixel BedWars: bucle infinito al mostrar alertas de chat (`sendMessage` re-disparaba el evento GAME).
+- `ScoreboardFilter.strip` ya no usa regex sobre códigos de formato (más seguro con texto de Hypixel).
+- Resource pack: `paraguacraft-pvp-modern.zip` queda siempre como principal si está instalado; packs cosméticos (p. ej. Mr Blue Sky) pasan a secundario.
+
 ## Cliente PvP Modern 0.9.5 - 2026-07-22
 
 ### Fixed

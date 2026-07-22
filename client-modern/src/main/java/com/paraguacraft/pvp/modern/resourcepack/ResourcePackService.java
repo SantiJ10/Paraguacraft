@@ -86,15 +86,15 @@ public final class ResourcePackService {
 
     /** Pack oficial + secundario opcional (orden: oficial primero). */
     public static void applySessionPacks() {
+        migrateLegacyPrimarySelection();
         List<String> packs = new ArrayList<>();
-        String primary = ModernConfig.selectedResourcePack;
-        if (primary == null || primary.isBlank()) {
-            primary = OFFICIAL_PACK;
-        }
-        if (isInstalled(primary)) {
-            packs.add(primary);
-        } else if (isInstalled(OFFICIAL_PACK)) {
+        if (isInstalled(OFFICIAL_PACK)) {
             packs.add(OFFICIAL_PACK);
+        } else {
+            String fallback = ModernConfig.selectedResourcePack;
+            if (fallback != null && !fallback.isBlank() && isInstalled(fallback)) {
+                packs.add(fallback);
+            }
         }
         String secondary = ModernConfig.secondaryResourcePack;
         if (secondary != null && !secondary.isBlank() && isInstalled(secondary) && !packs.contains(secondary)) {
@@ -104,6 +104,26 @@ public final class ResourcePackService {
             return;
         }
         applyPacks(packs);
+    }
+
+    /** Si un pack cosmético quedó como principal, pásalo a secundario y usa el oficial. */
+    private static void migrateLegacyPrimarySelection() {
+        String saved = ModernConfig.selectedResourcePack;
+        if (saved == null || saved.isBlank() || OFFICIAL_PACK.equalsIgnoreCase(saved)) {
+            if (isInstalled(OFFICIAL_PACK)) {
+                ModernConfig.selectedResourcePack = OFFICIAL_PACK;
+            }
+            return;
+        }
+        if (!isInstalled(OFFICIAL_PACK)) {
+            return;
+        }
+        String secondary = ModernConfig.secondaryResourcePack;
+        if ((secondary == null || secondary.isBlank()) && isInstalled(saved)) {
+            ModernConfig.secondaryResourcePack = saved;
+        }
+        ModernConfig.selectedResourcePack = OFFICIAL_PACK;
+        ModernConfig.save();
     }
 
     public static void applyPacks(List<String> fileNames) {

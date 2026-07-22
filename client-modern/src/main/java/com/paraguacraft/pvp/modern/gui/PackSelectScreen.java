@@ -114,6 +114,13 @@ public class PackSelectScreen extends ParaguacraftScreen {
     }
 
     private void setPrimary(CatalogPack pack) {
+        if (!ResourcePackService.OFFICIAL_PACK.equalsIgnoreCase(pack.fileName)) {
+            if (ResourcePackService.isInstalled(ResourcePackService.OFFICIAL_PACK)) {
+                setSecondary(pack);
+                status = pack.title + " aplicado como secundario (el oficial es siempre principal)";
+                return;
+            }
+        }
         ModernConfig.selectedResourcePack = pack.fileName;
         ModernConfig.save();
         ResourcePackService.applySessionPacks();
