@@ -18,6 +18,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - Mod Menu categoria Rendimiento: 7 toggles de cull + export en perfiles.
 - **Fullbright unificado** (`FullbrightManager`): Gamma Utils o integrado, misma tarjeta y tecla G.
 
+## [7.9.13] - 2026-07-22
+
+### Fixed
+- Stack PvP Modern 1.21.11 con versiones fijadas (Sodium 0.8.7 + Iris 1.10.7 + FLK/YACL/Fabric API/etc.) y purge de JARs viejos.
+
 ## [7.9.12] - 2026-07-22
 
 ### Fixed

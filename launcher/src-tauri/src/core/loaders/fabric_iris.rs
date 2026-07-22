@@ -12,6 +12,7 @@ use crate::core::paths;
 use crate::error::{AppError, AppResult};
 
 use super::fabric;
+use crate::core::pvp_mod_stack;
 
 const BUNDLE_SLUGS: &[&str] = &[
     "fabric-api",
@@ -25,7 +26,7 @@ const BUNDLE_SLUGS: &[&str] = &[
 ];
 
 const CACHE_DAYS: u64 = 30;
-const CACHE_MARKER_NAME: &str = ".cache_ok_v3";
+const CACHE_MARKER_NAME: &str = ".cache_ok_v4";
 const BUNDLE_MANIFEST: &str = "bundle_manifest.json";
 const MODRINTH: &str = "https://api.modrinth.com/v2";
 
@@ -81,8 +82,16 @@ pub async fn install_bundle(
 
     let manifest = read_manifest(&manifest_path)?;
     sync_bundle_to_instance(&cache, &mods_dir, &manifest)?;
-    enforce_render_stack(&mods_dir, mc);
+    enforce_render_stack(&mods_dir, mc, 2);
     Ok(())
+}
+
+fn enforce_render_stack(mods_dir: &Path, mc: &str, tier: u8) {
+    pvp_mod_stack::enforce_pinned_stack(mods_dir, mc, tier);
+}
+
+pub fn enforce_render_stack_for_instance(mods_dir: &Path, mc: &str, tier: u8) {
+    enforce_render_stack(mods_dir, mc, tier);
 }
 
 async fn rebuild_cache(
@@ -104,6 +113,10 @@ async fn rebuild_cache(
     }
     if marker.is_file() {
         let _ = std::fs::remove_file(marker);
+    }
+
+    if mc == "1.21.11" {
+        return rebuild_cache_pinned(app, client, mc, cache, marker, manifest_path).await;
     }
 
     let mut items = Vec::new();
@@ -132,6 +145,51 @@ async fn rebuild_cache(
             );
         }
     }
+    if !items.is_empty() {
+        net::download_all(
+            client,
+            items,
+            6,
+            app,
+            "fabric-iris-bundle",
+            &format!("Mods Fabric + Iris ({mc})"),
+        )
+        .await?;
+    }
+    let body = serde_json::to_string_pretty(&manifest)
+        .map_err(|e| AppError::msg(format!("Manifest bundle: {e}")))?;
+    std::fs::write(manifest_path, body)?;
+    let _ = std::fs::write(marker, b"ok");
+    Ok(())
+}
+
+async fn rebuild_cache_pinned(
+    app: &AppHandle,
+    client: &reqwest::Client,
+    mc: &str,
+    cache: &Path,
+    marker: &Path,
+    manifest_path: &Path,
+) -> AppResult<()> {
+    let mut items = Vec::new();
+    let mut manifest: HashMap<String, String> = HashMap::new();
+
+    for pin in pvp_mod_stack::bundle_pins(mc) {
+        let version: Value =
+            net::fetch_json(client, &format!("{MODRINTH}/version/{}", pin.version_id)).await?;
+        let item = jar_item_from_version(pin.slug, &version)?;
+        if item.filename != pin.filename {
+            return Err(AppError::msg(format!(
+                "Pin desactualizado: {} esperaba {}, Modrinth devolvió {}",
+                pin.slug, pin.filename, item.filename
+            )));
+        }
+        manifest.insert(pin.slug.to_string(), pin.filename.to_string());
+        items.push(
+            DownloadItem::new(item.url, cache.join(&item.filename)).with_sha1(item.sha1),
+        );
+    }
+
     if !items.is_empty() {
         net::download_all(
             client,
@@ -184,52 +242,6 @@ fn sync_bundle_to_instance(
             .map_err(|e| AppError::msg(format!("No se pudo copiar {fname}: {e}")))?;
     }
     Ok(())
-}
-
-/// Iris 1.10.7 (1.21.11) rompe con Sodium >=0.8.13; quitamos copias sueltas del mod.
-pub fn enforce_render_stack(mods_dir: &Path, mc: &str) {
-    if mc != "1.21.11" {
-        return;
-    }
-    let Ok(entries) = std::fs::read_dir(mods_dir) else {
-        return;
-    };
-    let mut has_iris_1107 = false;
-    let mut sodium_paths: Vec<PathBuf> = Vec::new();
-    for entry in entries.flatten() {
-        let path = entry.path();
-        let name = path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("")
-            .to_lowercase();
-        if !name.ends_with(".jar") && !name.ends_with(".jar.disabled") {
-            continue;
-        }
-        if name.contains("iris-fabric-1.10.7") {
-            has_iris_1107 = true;
-        }
-        if name.contains("sodium-fabric")
-            && !name.contains("sodium-extra")
-            && !name.contains("reeses-sodium")
-        {
-            sodium_paths.push(path);
-        }
-    }
-    if !has_iris_1107 {
-        return;
-    }
-    const OK: &str = "sodium-fabric-0.8.7+mc1.21.11.jar";
-    for path in sodium_paths {
-        let name = path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("")
-            .to_lowercase();
-        if name.trim_end_matches(".disabled") != OK {
-            let _ = std::fs::remove_file(path);
-        }
-    }
 }
 
 /// Quita JARs del bundle en `mods/` (p.ej. sodium) sin tocar sub-mods (`sodium-extra`).
@@ -467,7 +479,7 @@ mod tests {
             b"ok",
         )
         .unwrap();
-        enforce_render_stack(&tmp, "1.21.11");
+        enforce_render_stack(&tmp, "1.21.11", 2);
         assert!(!tmp.join("sodium-fabric-0.8.13+mc1.21.11.jar").exists());
         assert!(tmp.join("sodium-fabric-0.8.7+mc1.21.11.jar").exists());
         let _ = std::fs::remove_dir_all(&tmp);

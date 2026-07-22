@@ -45,6 +45,7 @@ pub mod pre_launch;
 pub mod instance_weight;
 pub mod game_profiles;
 pub mod modern_pvp;
+pub mod pvp_mod_stack;
 pub mod modern_packs;
 pub mod pvp_packs;
 pub mod modern_servers;

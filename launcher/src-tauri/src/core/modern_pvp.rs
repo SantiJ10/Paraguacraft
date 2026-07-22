@@ -15,6 +15,7 @@ use crate::core::loaders::{self, pvp_modern};
 use crate::core::modern_packs;
 use crate::core::modern_servers;
 use crate::core::performance;
+use crate::core::pvp_mod_stack;
 use crate::core::store::modrinth;
 use crate::error::{AppError, AppResult};
 use crate::models::Instance;
@@ -22,120 +23,6 @@ use crate::models::Instance;
 pub const MC: &str = pvp_modern::MC;
 pub const LOADER: &str = "paraguacraft-pvp-modern";
 pub const DISPLAY_NAME: &str = "Paraguacraft PvP 1.21.11";
-
-/// Mods extra (HUD/QoL) vía Modrinth — además del bundle Iris y del mod Paraguacraft.
-struct HudMod {
-    slug: &'static str,
-    /// 0=baja, 1=media, 2=alta
-    min_tier: u8,
-    /// Version Modrinth fijada cuando la última rompe el pin Iris↔Sodium del bundle.
-    pinned_version_id: Option<&'static str>,
-}
-
-const HUD_MODS: &[HudMod] = &[
-    // Dependencias de Controlling / Zoomify / Gamma Utils (instalar antes que los mods que las usan).
-    HudMod {
-        slug: "searchables",
-        min_tier: 0,
-        pinned_version_id: None,
-    },
-    HudMod {
-        slug: "fabric-language-kotlin",
-        min_tier: 0,
-        pinned_version_id: None,
-    },
-    HudMod {
-        slug: "cloth-config",
-        min_tier: 0,
-        pinned_version_id: None,
-    },
-    HudMod {
-        slug: "yacl",
-        min_tier: 0,
-        pinned_version_id: None,
-    },
-    HudMod {
-        slug: "modmenu",
-        min_tier: 0,
-        pinned_version_id: None,
-    },
-    HudMod {
-        slug: "gamma-utils",
-        min_tier: 0,
-        pinned_version_id: None,
-    },
-    HudMod {
-        slug: "appleskin",
-        min_tier: 0,
-        pinned_version_id: None,
-    },
-    HudMod {
-        slug: "controlling",
-        min_tier: 0,
-        pinned_version_id: None,
-    },
-    HudMod {
-        slug: "smooth-scroll",
-        min_tier: 0,
-        pinned_version_id: None,
-    },
-    HudMod {
-        slug: "zoomify",
-        min_tier: 0,
-        pinned_version_id: None,
-    },
-    HudMod {
-        slug: "reeses-sodium-options",
-        min_tier: 0,
-        pinned_version_id: None,
-    },
-    HudMod {
-        slug: "sodium-extra",
-        min_tier: 0,
-        // 0.9.x exige Sodium >=0.8.13, incompatible con Iris 1.10.7 (pin 0.8.7 en 1.21.11).
-        pinned_version_id: Some("yqY1efrC"),
-    },
-    HudMod {
-        slug: "chat-heads",
-        min_tier: 0,
-        pinned_version_id: None,
-    },
-    HudMod {
-        slug: "fast-ip-ping",
-        min_tier: 0,
-        pinned_version_id: None,
-    },
-    HudMod {
-        slug: "better-ping-display-fabric",
-        min_tier: 1,
-        pinned_version_id: None,
-    },
-    HudMod {
-        slug: "shulkerboxtooltip",
-        min_tier: 1,
-        pinned_version_id: None,
-    },
-    HudMod {
-        slug: "krypton",
-        min_tier: 1,
-        pinned_version_id: None,
-    },
-    HudMod {
-        slug: "debugify",
-        min_tier: 1,
-        pinned_version_id: None,
-    },
-    HudMod {
-        slug: "moreculling",
-        min_tier: 1,
-        pinned_version_id: None,
-    },
-    HudMod {
-        slug: "dynamic-fps",
-        min_tier: 2,
-        pinned_version_id: None,
-    },
-];
 
 const TIER_BAJA_OFF: &[&str] = &[
     "lithium",
@@ -458,54 +345,23 @@ pub async fn sync_hud_mods(
     let mods_dir = instances::instance_dir(instance_id).join("mods");
     std::fs::create_dir_all(&mods_dir)?;
     let mut installed = 0u32;
-    for spec in HUD_MODS {
-        if spec.min_tier > tier {
+    pvp_mod_stack::enforce_pinned_stack(&mods_dir, MC, tier);
+
+    for pin in pvp_mod_stack::pins_for_tier(MC, tier) {
+        if pin.min_tier.is_none() {
             continue;
         }
-        let already = mods_dir
-            .read_dir()
-            .into_iter()
-            .flatten()
-            .flatten()
-            .find(|e| {
-                let n = e.file_name().to_string_lossy().to_lowercase();
-                n.contains(spec.slug) && n.ends_with(".jar")
-            });
-        if let Some(vid) = spec.pinned_version_id {
-            if let Some(entry) = already {
-                let name = entry.file_name().to_string_lossy().to_lowercase();
-                if !name.contains("0.8.3") && !name.contains("0.8.2") {
-                    let _ = std::fs::remove_file(entry.path());
-                } else {
-                    continue;
-                }
-            }
-            if modrinth::install_version_id(app, client, vid, mods_dir.clone(), None)
-                .await
-                .is_ok()
-            {
-                installed += 1;
-            }
+        if mods_dir.join(pin.filename).is_file() {
             continue;
         }
-        if already.is_some() {
-            continue;
-        }
-        if modrinth::install(
-            app,
-            client,
-            spec.slug,
-            "mod",
-            MC,
-            "fabric",
-            mods_dir.clone(),
-        )
-        .await
-        .is_ok()
+        if modrinth::install_version_id(app, client, pin.version_id, mods_dir.clone(), None)
+            .await
+            .is_ok()
         {
             installed += 1;
         }
     }
-    loaders::fabric_iris::enforce_render_stack(&mods_dir, MC);
+
+    loaders::fabric_iris::enforce_render_stack_for_instance(&mods_dir, MC, tier);
     Ok(installed)
 }
