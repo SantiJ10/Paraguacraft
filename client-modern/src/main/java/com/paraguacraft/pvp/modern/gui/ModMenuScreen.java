@@ -1,7 +1,7 @@
 package com.paraguacraft.pvp.modern.gui;
 
 import com.paraguacraft.pvp.modern.config.ModernConfig;
-import com.paraguacraft.pvp.modern.core.GammaUtilsBootstrap;
+import com.paraguacraft.pvp.modern.core.FullbrightManager;
 import com.paraguacraft.pvp.modern.core.PerformanceBootstrap;
 import com.paraguacraft.pvp.modern.core.PerformanceConfig;
 import com.paraguacraft.pvp.modern.gui.theme.UiTheme;
@@ -125,8 +125,13 @@ public class ModMenuScreen extends ParaguacraftScreen {
             case "quickplay" -> client.setScreen(new QuickPlayChooserScreen(this));
             case "cubecraft_qp" -> client.setScreen(new CubecraftQuickPlayScreen(this));
             case "chat_alerts" -> client.setScreen(new GuiChatAlertsScreen(this));
+            case "gamemode_override" -> client.setScreen(new GuiGameModeOverrideScreen(this));
+            case "fullbright", "gamma_utils" -> {
+                FullbrightManager.toggle(client);
+                clearChildren();
+                init();
+            }
             case "chat_triggers_cfg" -> client.setScreen(new GuiChatTriggersScreen(this));
-            case "gamma_utils" -> GammaUtilsBootstrap.toggleFullbright(client);
             case "packs" -> client.setScreen(new PackSelectScreen(this));
             case "theme" -> client.setScreen(new ThemeSelectScreen(this));
             case "nickfinder" -> client.setScreen(new NickFinderScreen(this));
@@ -200,11 +205,7 @@ public class ModMenuScreen extends ParaguacraftScreen {
             ModernConfig.isSneakingToggled = false;
         }));
         cards.add(toggle(3, "Pantalla sin bordes", () -> ModernConfig.windowedFullscreen, v -> ModernConfig.windowedFullscreen = v));
-        if (GammaUtilsBootstrap.isLoaded()) {
-            cards.add(open(3, "Gamma Utils (G)", "gamma_utils"));
-        } else {
-            cards.add(toggle(3, "Fullbright", () -> ModernConfig.fullbright, v -> ModernConfig.fullbright = v));
-        }
+        cards.add(open(3, FullbrightManager.menuLabel(), "fullbright"));
         cards.add(toggle(3, "FOV dinamico", () -> ModernConfig.dynamicFov, v -> ModernConfig.dynamicFov = v));
         cards.add(toggle(3, "Freelook (Alt)", () -> ModernConfig.freelookEnabled, v -> ModernConfig.freelookEnabled = v));
         cards.add(toggle(3, "Freelook blacklist ranked", () -> ModernConfig.freelookBlacklistServers, v -> ModernConfig.freelookBlacklistServers = v));
@@ -228,6 +229,7 @@ public class ModMenuScreen extends ParaguacraftScreen {
         cards.add(toggle(3, "Scoreboard fondo transparente", () -> ModernConfig.scoreboardTransparentBg, v -> ModernConfig.scoreboardTransparentBg = v));
         cards.add(toggle(3, "Scoreboard ocultar numeros rojos", () -> ModernConfig.scoreboardHideRedNumbers, v -> ModernConfig.scoreboardHideRedNumbers = v));
         cards.add(toggle(3, "Scoreboard ocultar stats", () -> ModernConfig.scoreboardHideStats, v -> ModernConfig.scoreboardHideStats = v));
+        cards.add(open(1, "Modo de juego (manual)", "gamemode_override"));
         cards.add(toggle(1, "HUD modo de juego", () -> ModernConfig.showGameModeHud, v -> ModernConfig.showGameModeHud = v));
         cards.add(toggle(1, "Timer bridge", () -> ModernConfig.showBridgeTimer, v -> ModernConfig.showBridgeTimer = v));
         cards.add(toggle(4, "Boost FPS", () -> PerformanceConfig.boostFps, v -> {
@@ -236,6 +238,11 @@ public class ModMenuScreen extends ParaguacraftScreen {
         }));
         cards.add(toggle(4, "Entity cull", () -> ModernConfig.entityCull, v -> ModernConfig.entityCull = v));
         cards.add(toggle(4, "Nametag cull", () -> ModernConfig.nametagCull, v -> ModernConfig.nametagCull = v));
+        cards.add(toggle(4, "Nametag LOD (mirar)", () -> ModernConfig.nametagLod, v -> ModernConfig.nametagLod = v));
+        cards.add(toggle(4, "Block entity cull", () -> ModernConfig.blockEntityCull, v -> ModernConfig.blockEntityCull = v));
+        cards.add(toggle(4, "Anim freeze lejos", () -> ModernConfig.entityAnimCull, v -> ModernConfig.entityAnimCull = v));
+        cards.add(toggle(4, "Armor stand cull", () -> ModernConfig.armorStandCull, v -> ModernConfig.armorStandCull = v));
+        cards.add(toggle(4, "Item frame cull", () -> ModernConfig.itemFrameCull, v -> ModernConfig.itemFrameCull = v));
         cards.add(toggle(4, "FPS bajo sin foco", () -> PerformanceConfig.reduceFpsWhenMinimized, v -> {
             PerformanceConfig.reduceFpsWhenMinimized = v;
             ModernConfig.save();

@@ -28,6 +28,20 @@ public final class GammaUtilsBootstrap {
     }
 
     /** Alterna fullbright via API de Gamma Utils (Mod Menu / tecla G). */
+    public static boolean isEnabled() {
+        if (!isLoaded()) {
+            return false;
+        }
+        try {
+            Class<?> gammaUtils = Class.forName("io.github.sjouwer.gammautils.GammaUtils");
+            Object config = gammaUtils.getMethod("getConfig").invoke(null);
+            Object gamma = config.getClass().getField("gamma").get(config);
+            return (boolean) gamma.getClass().getMethod("isEnabled").invoke(gamma);
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
     public static void toggleFullbright(MinecraftClient client) {
         if (!isLoaded() || client == null) {
             return;

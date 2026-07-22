@@ -2,6 +2,7 @@ package com.paraguacraft.pvp.modern.core;
 
 import com.paraguacraft.pvp.modern.config.LauncherProfile;
 import com.paraguacraft.pvp.modern.config.ModernConfig;
+import com.paraguacraft.pvp.modern.core.CullHelper;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -27,37 +28,15 @@ public final class PerformanceBootstrap {
         ClientLifecycleEvents.CLIENT_STOPPING.register(PerformanceBootstrap::restoreMaxFps);
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> onWorldJoin(client));
         ClientTickEvents.END_CLIENT_TICK.register(PerformanceBootstrap::tickIdleFps);
-        ClientTickEvents.END_CLIENT_TICK.register(PerformanceBootstrap::tickCulling);
-    }
-
-    /**
-     * Entity/nametag cull (paridad 1.8.9): en vez de un mixin de render (alto
-     * riesgo sin poder probar en vivo), reduce `entityDistanceScaling`
-     * (API vanilla) — menos entidades dibujadas = menos nametags visibles.
-     *
-     * <p>Cull de block entities (cofres/carteles lejanos) queda fuera de esta
-     * pasada: vanilla/Fabric no expone un equivalente API-safe (solo mixins de
-     * render, mismo riesgo que arriba), asi que no se fuerza y se deja para
-     * una fase futura si aparece una forma segura de hacerlo.
-     */
-    private static void tickCulling(MinecraftClient client) {
-        if (client.player == null || client.currentScreen != null) {
-            return;
-        }
-        if (!ModernConfig.entityCull && !ModernConfig.nametagCull) {
-            return;
-        }
-        double current = client.options.getEntityDistanceScaling().getValue();
-        double target = Math.min(current, 0.35);
-        if (Math.abs(current - target) > 0.001) {
-            client.options.getEntityDistanceScaling().setValue(target);
-        }
     }
 
     /**
      * Idle FPS (paridad 1.8.9): baja el limite de FPS cuando la ventana no
      * tiene foco (minimizada/alt-tab) para no gastar CPU/GPU de fondo, y lo
-     * restaura al volver — sin escribir `options.txt` (cambio transitorio).
+     * restaura al volver (cambio transitorio, sin tocar options.txt).
+     *
+     * <p>Cull real (entity/nametag/block entity/anim/decor) vive en mixins
+     * performance y {@link CullHelper}.
      */
     private static void tickIdleFps(MinecraftClient client) {
         if (!PerformanceConfig.reduceFpsWhenMinimized) {

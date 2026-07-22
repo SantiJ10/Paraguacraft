@@ -43,11 +43,13 @@ public class GuiChatAlertsScreen extends ParaguacraftScreen {
                 rebuild();
             }));
         addDrawableChild(FlatMenuButton.create(width / 2 - btnW / 2, y + gap * 3, btnW, btnH,
+            Text.literal("Editar palabras y color"), () -> client.setScreen(new GuiChatAlertsEditScreen(this))));
+        addDrawableChild(FlatMenuButton.create(width / 2 - btnW / 2, y + gap * 4, btnW, btnH,
             Text.literal("Restaurar palabras default"), () -> {
                 ChatAlerts.resetDefaults();
                 rebuild();
             }));
-        addDrawableChild(FlatMenuButton.create(width / 2 - btnW / 2, y + gap * 4 + 8, btnW, btnH,
+        addDrawableChild(FlatMenuButton.create(width / 2 - btnW / 2, y + gap * 5 + 8, btnW, btnH,
             Text.literal("Volver"), () -> client.setScreen(parent)));
     }
 
@@ -66,7 +68,7 @@ public class GuiChatAlertsScreen extends ParaguacraftScreen {
         context.drawCenteredTextWithShadow(textRenderer, Text.literal("Chat alerts"), width / 2, 40, UiTheme.accent());
         context.drawCenteredTextWithShadow(
             textRenderer,
-            Text.literal("Palabras en paraguacraft/chat_alerts.json"),
+            Text.literal("Palabras: " + ChatAlerts.wordsCsv()),
             width / 2,
             52,
             UiTheme.textDim()

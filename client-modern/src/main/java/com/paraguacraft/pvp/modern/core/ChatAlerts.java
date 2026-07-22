@@ -70,6 +70,25 @@ public final class ChatAlerts {
         }
     }
 
+    public static String wordsCsv() {
+        ensureLoaded();
+        return String.join(", ", WORDS);
+    }
+
+    public static void setWordsFromCsv(String csv) {
+        ensureLoaded();
+        WORDS.clear();
+        if (csv == null || csv.isBlank()) {
+            return;
+        }
+        for (String part : csv.split(",")) {
+            String trimmed = part.trim().toLowerCase(Locale.ROOT);
+            if (!trimmed.isEmpty()) {
+                WORDS.add(trimmed);
+            }
+        }
+    }
+
     public static void load() {
         loaded = true;
         Path file = configFile();
