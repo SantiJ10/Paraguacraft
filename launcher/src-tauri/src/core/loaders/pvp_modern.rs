@@ -280,11 +280,43 @@ fn copy_to_dest(src: &Path, dest: &Path) -> AppResult<()> {
     Ok(())
 }
 
+fn sha_matches_or_fallback(path: &Path, expected: &str, filename: &str) -> bool {
+    if sha_matches(path, expected) {
+        return true;
+    }
+    if let Some((_, fb)) = FALLBACK_MODS.iter().find(|(f, _)| *f == filename) {
+        if let Some(got) = file_sha1(path) {
+            return got.eq_ignore_ascii_case(fb);
+        }
+    }
+    false
+}
+
+fn try_local_bundled(
+    app: &AppHandle,
+    filename: &str,
+    sha_expected: &str,
+    dest: &Path,
+) -> AppResult<bool> {
+    let Some(src) = find_local_file(app, filename) else {
+        return Ok(false);
+    };
+    if !sha_matches_or_fallback(&src, sha_expected, filename) {
+        return Ok(false);
+    }
+    copy_to_dest(&src, dest)?;
+    Ok(true)
+}
+
 fn remote_urls(filename: &str) -> Vec<String> {
     vec![
         format!("https://raw.githubusercontent.com/{GITHUB_REPO}/main/bundled/pvp-modern/{filename}"),
+        format!("https://github.com/{GITHUB_REPO}/raw/main/bundled/pvp-modern/{filename}"),
         format!(
             "https://raw.githubusercontent.com/{GITHUB_REPO}/main/clientes/paraguacraft-pvp-modern/{filename}"
+        ),
+        format!(
+            "https://github.com/{GITHUB_REPO}/raw/main/clientes/paraguacraft-pvp-modern/{filename}"
         ),
     ]
 }
@@ -359,15 +391,12 @@ async fn ensure_mod(
         return Ok(());
     }
 
-    if let Some(src) = find_local_file(app, filename) {
-        if sha_matches(&src, sha_expected) {
-            copy_to_dest(&src, &dest)?;
-            let _ = std::fs::copy(&dest, &cache_path);
-            return Ok(());
-        }
+    if try_local_bundled(app, filename, sha_expected, &dest)? {
+        let _ = std::fs::copy(&dest, &cache_path);
+        return Ok(());
     }
 
-    if download_verified(
+    if let Err(e) = download_verified(
         client,
         remote_urls(filename),
         &dest,
@@ -375,16 +404,13 @@ async fn ensure_mod(
         filename,
     )
     .await
-    .is_err()
     {
-        if find_local_file(app, filename).is_some() {
-            if let Some(src) = find_local_file(app, filename) {
-                copy_to_dest(&src, &dest)?;
-                return Ok(());
-            }
+        if try_local_bundled(app, filename, sha_expected, &dest)? {
+            let _ = std::fs::copy(&dest, &cache_path);
+            return Ok(());
         }
         return Err(AppError::msg(format!(
-            "No se pudo obtener {filename} (Paraguacraft PvP 1.21.11). Compilá client-modern o usá bundled/pvp-modern/."
+            "No se pudo obtener {filename} (Paraguacraft PvP 1.21.11). Actualizá el launcher o usá Reparar instancia. ({e})"
         )));
     }
     let _ = std::fs::copy(&dest, &cache_path);

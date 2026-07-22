@@ -48,6 +48,8 @@ client-modern/run/
 *.jar
 !bundled/pvp/*.jar
 !bundled/pvp-modern/*.jar
+!clientes/paraguacraft-pvp/*.jar
+!clientes/paraguacraft-pvp-modern/*.jar
 !**/gradle/wrapper/gradle-wrapper.jar
 bundled/pvp/resourcepacks/*.zip
 !bundled/pvp-modern/resourcepacks/*.zip

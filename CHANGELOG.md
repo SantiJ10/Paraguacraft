@@ -3,6 +3,12 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [7.9.3] - 2026-07-21
+
+### Fixed
+- **Cliente PvP 1.21.11 (0.8.2)**: mirrors extra de descarga (GitHub raw + `github.com/raw`); JAR publicado también en `clientes/`; cliente embebido en el instalador para sincronizar sin depender solo de la red.
+- **IPC música**: el campo de imagen mantiene URL https (el mod lee la cache local del launcher).
+
 ## [7.9.2] - 2026-07-21
 
 ### Added
