@@ -41,11 +41,6 @@ public final class QoLBootstrap {
         if (client.player == null) {
             return;
         }
-        if (ModernConfig.fullbright) {
-            client.options.getGamma().setValue(100.0);
-        } else if (client.options.getGamma().getValue() > 16.0) {
-            client.options.getGamma().setValue(1.0);
-        }
         float hp = client.player.getHealth();
         if (lastHealth >= 0 && hp < lastHealth) {
             CombatStats.onPlayerHurt();

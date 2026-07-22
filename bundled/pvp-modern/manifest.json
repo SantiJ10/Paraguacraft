@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP Modern",
   "mc_version": "1.21.11",
   "loader": "fabric",
-  "client_version": "0.8.2",
-  "release_tag": "pvp-modern-0.8.2",
-  "descripcion": "Fullbright real, iconos por mod, TNT countdown 3D, caratula de musica desde cache del launcher.",
+  "client_version": "0.8.3",
+  "release_tag": "pvp-modern-0.8.3",
+  "descripcion": "Fix caratula file://?/ Windows, fullbright sin gamma ilegal, TNT countdown 3D.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-Modern-0.8.2.jar",
-      "sha1": "a79dcfd851459aeb15af779a4ee8f0954f76696"
+      "filename": "ParaguacraftPvP-Modern-0.8.3.jar",
+      "sha1": "bfae95ad1388cef11b4fdc924da012ae89e6cec0"
     }
   ]
 }

@@ -3,6 +3,17 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## Cliente PvP Modern 0.8.3 - 2026-07-21
+
+### Fixed
+- **Carátula de música**: rutas `file://?/C:/...` de Windows (prefijo `\\?\`) y fallback por nombre en `music-art/`.
+- **Fullbright**: ya no fuerza gamma ilegal (16/100); solo mixin de lightmap.
+
+## [7.9.4] - 2026-07-21
+
+### Fixed
+- **IPC música**: URLs `file://` sin prefijo `?/` inválido en Windows (canonicalize).
+
 ## [7.9.3] - 2026-07-21
 
 ### Fixed

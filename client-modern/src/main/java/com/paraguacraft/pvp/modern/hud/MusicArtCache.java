@@ -47,7 +47,6 @@ public final class MusicArtCache {
         }
         if (!normalized.equals(cachedUrl)) {
             cachedUrl = normalized;
-            cachedSource = "";
             clearTexture();
             loading.set(false);
         }
@@ -160,11 +159,7 @@ public final class MusicArtCache {
         if (hash.isEmpty()) {
             return null;
         }
-        String appData = System.getenv("APPDATA");
-        Path base = appData != null && !appData.isEmpty()
-            ? Paths.get(appData, "ParaguacraftLauncher", "music-art")
-            : Paths.get(System.getProperty("user.home"), ".config", "ParaguacraftLauncher", "music-art");
-        return base.resolve(hash + ".jpg");
+        return launcherCacheDir().resolve(hash + ".jpg");
     }
 
     private static String sha1Hex(byte[] bytes) {
@@ -183,22 +178,45 @@ public final class MusicArtCache {
 
     private static byte[] fetchLocalFile(String fileUrl) throws Exception {
         Path path = fileUrlToPath(fileUrl);
-        if (!Files.isRegularFile(path)) {
-            return null;
+        if (Files.isRegularFile(path)) {
+            return Files.readAllBytes(path);
         }
-        return Files.readAllBytes(path);
+        String name = path.getFileName() != null ? path.getFileName().toString() : "";
+        if (!name.isEmpty()) {
+            Path byName = launcherCacheDir().resolve(name);
+            if (Files.isRegularFile(byName)) {
+                return Files.readAllBytes(byName);
+            }
+        }
+        return null;
     }
 
-    private static Path fileUrlToPath(String fileUrl) throws Exception {
+    private static Path fileUrlToPath(String fileUrl) {
+        String raw = fileUrl;
+        if (raw.regionMatches(true, 0, "file://", 0, 7)) {
+            raw = raw.substring(7);
+        }
+        // Windows canonicalize a veces produce file://?/C:/... (prefijo \\?\ del SO).
+        if (raw.startsWith("?/")) {
+            raw = raw.substring(2);
+        } else if (raw.startsWith("/?/")) {
+            raw = raw.substring(3);
+        }
+        while (raw.startsWith("/") && raw.length() > 2 && raw.charAt(2) == ':') {
+            raw = raw.substring(1);
+        }
         try {
-            return Paths.get(URI.create(fileUrl));
+            return Paths.get(URI.create("file:///" + raw.replace('\\', '/')));
         } catch (Exception ignored) {
-            String raw = fileUrl.substring("file://".length());
-            while (raw.startsWith("/") && raw.length() > 2 && raw.charAt(2) == ':') {
-                raw = raw.substring(1);
-            }
             return Path.of(raw);
         }
+    }
+
+    private static Path launcherCacheDir() {
+        String appData = System.getenv("APPDATA");
+        return appData != null && !appData.isEmpty()
+            ? Paths.get(appData, "ParaguacraftLauncher", "music-art")
+            : Paths.get(System.getProperty("user.home"), ".config", "ParaguacraftLauncher", "music-art");
     }
 
     private static String normalizeUrl(String raw) {
