@@ -26,7 +26,7 @@ const BUNDLE_SLUGS: &[&str] = &[
 ];
 
 const CACHE_DAYS: u64 = 30;
-const CACHE_MARKER_NAME: &str = ".cache_ok_v5";
+const CACHE_MARKER_NAME: &str = ".cache_ok_v6";
 const BUNDLE_MANIFEST: &str = "bundle_manifest.json";
 const MODRINTH: &str = "https://api.modrinth.com/v2";
 /// Mods que todo bundle Fabric+Iris debe tener; si falta alguno, se invalida el cache.
@@ -608,13 +608,13 @@ mod tests {
         )
         .unwrap();
         std::fs::write(
-            tmp.join("sodium-fabric-0.8.7+mc1.21.11.jar"),
+            tmp.join("sodium-fabric-0.8.12+mc1.21.11.jar"),
             b"ok",
         )
         .unwrap();
         enforce_render_stack(&tmp, "1.21.11", 2);
         assert!(!tmp.join("sodium-fabric-0.8.13+mc1.21.11.jar").exists());
-        assert!(tmp.join("sodium-fabric-0.8.7+mc1.21.11.jar").exists());
+        assert!(tmp.join("sodium-fabric-0.8.12+mc1.21.11.jar").exists());
         let _ = std::fs::remove_dir_all(&tmp);
     }
 }

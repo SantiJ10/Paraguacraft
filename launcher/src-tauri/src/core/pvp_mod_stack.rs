@@ -1,7 +1,8 @@
 //! Stack de mods **fijado** para Paraguacraft PvP Modern 1.21.11 (Fabric 0.19.x).
 //!
-//! Iris 1.10.7 (última en Modrinth para 1.21.11) exige Sodium **0.8.7** y Sodium 0.8.13+
-//! declara `breaks iris <= 1.10.7`. No existe hoy un par Iris+Sodium 0.8.13 estable en Modrinth.
+//! Iris 1.10.7 (última en Modrinth para 1.21.11) acepta Sodium **0.8.x**; 0.8.13+
+//! declara `breaks iris <= 1.10.7`. Reese's Sodium Options 2.2.x exige Sodium >= 0.8.11.
+//! Pin estable: **0.8.12** (Iris + Reese's + sodium-extra 0.8.3).
 
 /// Mod con versión Modrinth fijada para evitar mezclas incompatibles.
 pub struct PinnedMod {
@@ -16,8 +17,8 @@ const STACK_1_21_11: &[PinnedMod] = &[
     // --- Render / optimización base (bundle) ---
     PinnedMod {
         slug: "sodium",
-        version_id: "UddlN6L4",
-        filename: "sodium-fabric-0.8.7+mc1.21.11.jar",
+        version_id: "NFkjnzWE",
+        filename: "sodium-fabric-0.8.12+mc1.21.11.jar",
         min_tier: None,
     },
     PinnedMod {
@@ -62,7 +63,7 @@ const STACK_1_21_11: &[PinnedMod] = &[
         filename: "modmenu-17.0.1-beta.1.jar",
         min_tier: None,
     },
-    // --- Sodium extras (requieren Sodium 0.8.7 con Iris 1.10.7) ---
+    // --- Sodium extras (Sodium 0.8.12 + Iris 1.10.7) ---
     PinnedMod {
         slug: "sodium-extra",
         version_id: "yqY1efrC",

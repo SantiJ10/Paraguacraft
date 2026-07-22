@@ -18,6 +18,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - Mod Menu categoria Rendimiento: 7 toggles de cull + export en perfiles.
 - **Fullbright unificado** (`FullbrightManager`): Gamma Utils o integrado, misma tarjeta y tecla G.
 
+## [7.9.17] - 2026-07-22
+
+### Fixed
+- Stack PvP 1.21.11: Sodium **0.8.12** (compatible con Iris 1.10.7 y Reese's Sodium Options 2.2.3; evita conflicto 0.8.7 vs Reese's).
+
 ## [7.9.16] - 2026-07-22
 
 ### Fixed
