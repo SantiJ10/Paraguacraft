@@ -91,7 +91,7 @@ const STACK_1_21_11: &[PinnedMod] = &[
     PinnedMod {
         slug: "cloth-config",
         version_id: "xuX40TN5",
-        filename: "cloth-config-21.11.153+fabric.jar",
+        filename: "cloth-config-21.11.153-fabric.jar",
         min_tier: Some(0),
     },
     PinnedMod {
@@ -272,6 +272,7 @@ fn slug_matches(filename: &str, slug: &str) -> bool {
                 && !filename.contains("reeses-sodium")
         }
         "fabric-api" => filename.contains("fabric-api"),
+        "cloth-config" => filename.contains("cloth-config") || filename.contains("clothconfig"),
         "fabric-language-kotlin" => filename.contains("fabric-language-kotlin"),
         "ferrite-core" => filename.contains("ferritecore"),
         "immediatelyfast" => filename.contains("immediatelyfast"),

@@ -26,9 +26,11 @@ const BUNDLE_SLUGS: &[&str] = &[
 ];
 
 const CACHE_DAYS: u64 = 30;
-const CACHE_MARKER_NAME: &str = ".cache_ok_v4";
+const CACHE_MARKER_NAME: &str = ".cache_ok_v5";
 const BUNDLE_MANIFEST: &str = "bundle_manifest.json";
 const MODRINTH: &str = "https://api.modrinth.com/v2";
+/// Mods que todo bundle Fabric+Iris debe tener; si falta alguno, se invalida el cache.
+const REQUIRED_BUNDLE: &[&str] = &["fabric-api", "sodium", "iris", "lithium"];
 
 fn cache_root(mc: &str) -> PathBuf {
     paths::default_minecraft_dir()
@@ -76,18 +78,20 @@ pub async fn install_bundle(
     let marker = cache.join(CACHE_MARKER_NAME);
     let manifest_path = cache.join(BUNDLE_MANIFEST);
 
-    if !cache_valid(&marker) || !manifest_path.is_file() {
+    if !cache_valid(&marker) || !manifest_path.is_file() || !manifest_complete(&manifest_path)? {
         rebuild_cache(app, client, mc, &cache, &marker, &manifest_path).await?;
     }
 
     let manifest = read_manifest(&manifest_path)?;
     sync_bundle_to_instance(&cache, &mods_dir, &manifest)?;
     enforce_render_stack(&mods_dir, mc, 2);
+    enforce_bundle_manifest(&mods_dir, &manifest);
 
-    let missing: Vec<_> = manifest
-        .values()
-        .filter(|fname| !mods_dir.join(*fname).is_file())
-        .cloned()
+    let missing: Vec<_> = REQUIRED_BUNDLE
+        .iter()
+        .filter_map(|slug| manifest.get(*slug).map(|fname| (*slug, fname.as_str())))
+        .filter(|(_, fname)| !mods_dir.join(*fname).is_file())
+        .map(|(slug, fname)| format!("{slug} ({fname})"))
         .collect();
     if !missing.is_empty() {
         return Err(AppError::msg(format!(
@@ -136,26 +140,35 @@ async fn rebuild_cache(
     let mut manifest: HashMap<String, String> = HashMap::new();
     let mut forced: HashMap<String, String> = HashMap::new();
 
-    if let Some(iris_item) = resolve_modrinth_jar(client, "iris", mc, &picked, None).await? {
-        if let Some(sodium_vid) = iris_item.required_dep_version.clone() {
-            forced.insert("sodium".into(), sodium_vid);
-        }
-        picked.insert("iris".into(), iris_item.version_id.clone());
-        manifest.insert("iris".into(), iris_item.filename.clone());
-        items.push(
-            DownloadItem::new(iris_item.url, cache.join(&iris_item.filename))
-                .with_sha1(iris_item.sha1),
-        );
+    let Some((iris_item, sodium_forced)) = resolve_compatible_iris(client, mc).await? else {
+        return Err(AppError::msg(format!(
+            "No se encontró par Iris+Sodium compatible para Minecraft {mc}"
+        )));
+    };
+    if let Some(sodium_vid) = sodium_forced {
+        forced.insert("sodium".into(), sodium_vid);
     }
+    picked.insert("iris".into(), iris_item.version_id.clone());
+    manifest.insert("iris".into(), iris_item.filename.clone());
+    items.push(
+        DownloadItem::new(iris_item.url, cache.join(&iris_item.filename)).with_sha1(iris_item.sha1),
+    );
+
     for slug in BUNDLE_SLUGS.iter().filter(|s| **s != "iris") {
         let forced_vid = forced.get(*slug).map(String::as_str);
-        if let Some(item) = resolve_modrinth_jar(client, slug, mc, &picked, forced_vid).await? {
-            picked.insert(slug.to_string(), item.version_id.clone());
-            manifest.insert(slug.to_string(), item.filename.clone());
-            items.push(
-                DownloadItem::new(item.url, cache.join(&item.filename)).with_sha1(item.sha1),
-            );
-        }
+        let Some(item) = resolve_modrinth_jar(client, slug, mc, &picked, forced_vid).await? else {
+            if REQUIRED_BUNDLE.contains(slug) {
+                return Err(AppError::msg(format!(
+                    "No se pudo resolver {slug} compatible para Fabric+Iris ({mc})"
+                )));
+            }
+            continue;
+        };
+        picked.insert(slug.to_string(), item.version_id.clone());
+        manifest.insert(slug.to_string(), item.filename.clone());
+        items.push(
+            DownloadItem::new(item.url, cache.join(&item.filename)).with_sha1(item.sha1),
+        );
     }
     if !items.is_empty() {
         net::download_all(
@@ -168,6 +181,7 @@ async fn rebuild_cache(
         )
         .await?;
     }
+    validate_manifest(&manifest, mc)?;
     let body = serde_json::to_string_pretty(&manifest)
         .map_err(|e| AppError::msg(format!("Manifest bundle: {e}")))?;
     std::fs::write(manifest_path, body)?;
@@ -213,11 +227,118 @@ async fn rebuild_cache_pinned(
         )
         .await?;
     }
+    validate_manifest(&manifest, mc)?;
     let body = serde_json::to_string_pretty(&manifest)
         .map_err(|e| AppError::msg(format!("Manifest bundle: {e}")))?;
     std::fs::write(manifest_path, body)?;
     let _ = std::fs::write(marker, b"ok");
     Ok(())
+}
+
+fn manifest_complete(path: &Path) -> AppResult<bool> {
+    if !path.is_file() {
+        return Ok(false);
+    }
+    let manifest = read_manifest(path)?;
+    Ok(REQUIRED_BUNDLE.iter().all(|slug| manifest.contains_key(*slug)))
+}
+
+fn validate_manifest(manifest: &HashMap<String, String>, mc: &str) -> AppResult<()> {
+    let missing: Vec<_> = REQUIRED_BUNDLE
+        .iter()
+        .filter(|slug| !manifest.contains_key(**slug))
+        .copied()
+        .collect();
+    if !missing.is_empty() {
+        return Err(AppError::msg(format!(
+            "Bundle Fabric+Iris incompleto para {mc}: faltan {}",
+            missing.join(", ")
+        )));
+    }
+    Ok(())
+}
+
+/// Quita JARs del bundle cuyo nombre no coincide con el manifest (p.ej. Sodium 0.8.13).
+fn enforce_bundle_manifest(mods_dir: &Path, manifest: &HashMap<String, String>) {
+    for slug in BUNDLE_SLUGS {
+        let Some(keep) = manifest.get(*slug) else {
+            continue;
+        };
+        let keep_lower = keep.to_lowercase();
+        let exclude: &[&str] = match *slug {
+            "sodium" => &["sodium-extra", "reeses-sodium"],
+            _ => &[],
+        };
+        for entry in std::fs::read_dir(mods_dir).into_iter().flatten().flatten() {
+            let path = entry.path();
+            let name = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("")
+                .to_lowercase();
+            if !name.ends_with(".jar") && !name.ends_with(".jar.disabled") {
+                continue;
+            }
+            if exclude.iter().any(|x| name.contains(x)) {
+                continue;
+            }
+            if !name.contains(&slug.to_lowercase()) {
+                continue;
+            }
+            if name.trim_end_matches(".disabled") != keep_lower {
+                let _ = std::fs::remove_file(path);
+            }
+        }
+    }
+}
+
+/// Busca Iris con pin explícito de Sodium resoluble (evita Iris reciente + Sodium incompatible).
+async fn resolve_compatible_iris(
+    client: &reqwest::Client,
+    mc: &str,
+) -> AppResult<Option<(JarItem, Option<String>)>> {
+    let url = format!(
+        "{MODRINTH}/project/iris/version?loaders={}&game_versions={}",
+        net::url_encode(r#"["fabric"]"#),
+        net::url_encode(&format!(r#"["{mc}"]"#))
+    );
+    let versions: Value = net::fetch_json(client, &url).await?;
+    let arr = versions.as_array().cloned().unwrap_or_default();
+    if arr.is_empty() {
+        return Ok(None);
+    }
+
+    let sodium_pid = modrinth_project_id(client, "sodium").await.ok();
+
+    for version in &arr {
+        let mut item = jar_item_from_version("iris", version)?;
+        let Some(ref pid) = sodium_pid else {
+            return Ok(Some((item, None)));
+        };
+        let Some(forced_sodium) = pinned_dependency_version(version, pid) else {
+            continue;
+        };
+        if resolve_modrinth_jar(
+            client,
+            "sodium",
+            mc,
+            &HashMap::new(),
+            Some(&forced_sodium),
+        )
+        .await?
+        .is_some()
+        {
+            item.required_dep_version = Some(forced_sodium.clone());
+            return Ok(Some((item, Some(forced_sodium))));
+        }
+    }
+
+    // Fallback: primera Iris publicada (versiones viejas sin pin exacto de Sodium).
+    let item = jar_item_from_version("iris", &arr[0])?;
+    let forced = sodium_pid
+        .as_ref()
+        .and_then(|pid| pinned_dependency_version(&arr[0], pid));
+    Ok(Some((item, forced)))
 }
 
 fn read_manifest(path: &Path) -> AppResult<HashMap<String, String>> {

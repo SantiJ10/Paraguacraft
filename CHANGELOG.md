@@ -18,6 +18,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - Mod Menu categoria Rendimiento: 7 toggles de cull + export en perfiles.
 - **Fullbright unificado** (`FullbrightManager`): Gamma Utils o integrado, misma tarjeta y tecla G.
 
+## [7.9.15] - 2026-07-22
+
+### Fixed
+- Pin de **Cloth Config** con nombre de archivo correcto (`-fabric`, no `+fabric`): el mod se descargaba pero la sync fallaba.
+- **Fabric + Iris** (todas las versiones MC): cache v5, par Iris+Sodium compatible obligatorio, validación de fabric-api/sodium/iris/lithium y purge de Sodium incorrecto.
+
 ## [7.9.14] - 2026-07-22
 
 ### Fixed
