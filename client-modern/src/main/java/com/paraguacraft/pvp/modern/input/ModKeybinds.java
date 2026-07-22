@@ -4,7 +4,7 @@ import com.paraguacraft.pvp.modern.config.ModernConfig;
 import com.paraguacraft.pvp.modern.core.FreelookManager;
 import com.paraguacraft.pvp.modern.core.ServerContext;
 import com.paraguacraft.pvp.modern.gui.GuiEditHudScreen;
-import com.paraguacraft.pvp.modern.core.GammaUtilsBootstrap;
+import com.paraguacraft.pvp.modern.core.FullbrightManager;
 import com.paraguacraft.pvp.modern.gui.QuickPlayChooserScreen;
 import com.paraguacraft.pvp.modern.gui.NickFinderScreen;
 import com.paraguacraft.pvp.modern.gui.ModMenuScreen;
@@ -56,15 +56,7 @@ public final class ModKeybinds {
             client.setScreen(new GuiEditHudScreen(client.currentScreen));
         }
         while (fullbright != null && fullbright.wasPressed()) {
-            if (GammaUtilsBootstrap.isLoaded()) {
-                GammaUtilsBootstrap.toggleFullbright(client);
-            } else {
-                ModernConfig.fullbright = !ModernConfig.fullbright;
-                if (!ModernConfig.fullbright) {
-                    client.options.getGamma().setValue(1.0);
-                }
-                ModernConfig.save();
-            }
+            FullbrightManager.toggle(client);
         }
         while (quickPlay.wasPressed()) {
             client.setScreen(new QuickPlayChooserScreen(client.currentScreen));

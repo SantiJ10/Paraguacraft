@@ -3,6 +3,26 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## Cliente PvP Modern 0.9.3 - 2026-07-21
+
+### Added
+- **Cull real 1.21** (paridad 1.8.9): entity, nametag + LOD, block entity, anim freeze, armor stand e item frame.
+- Mixins en render pipeline moderno (`EntityRenderManager`, `PlayerEntityRenderer`, `BlockEntityRenderer`, `LivingEntityRenderer`).
+- **GameModeDetector por servidor** (Hypixel / Cubecraft) con **override manual** desde Mod Menu.
+- **Editor in-game** de palabras y color en chat alerts.
+- **BedWars resources**: inventario + fallback scoreboard (iron/gold/diamond/emerald).
+- Filtros de scoreboard especificos para **Cubecraft** ademas de Hypixel.
+
+### Changed
+- Eliminado hack de `entityDistanceScaling` como sustituto de cull; toggles activos por defecto en instalaciones nuevas.
+- Mod Menu categoria Rendimiento: 7 toggles de cull + export en perfiles.
+- **Fullbright unificado** (`FullbrightManager`): Gamma Utils o integrado, misma tarjeta y tecla G.
+
+## [7.9.10] - 2026-07-22
+
+### Changed
+- Cliente PvP Modern **0.9.3** (cull real, GameMode override, chat alerts editor, BW scoreboard, Cubecraft filters).
+
 ## Cliente PvP Modern 0.9.2 - 2026-07-21
 
 ### Added

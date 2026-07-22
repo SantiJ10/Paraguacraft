@@ -81,6 +81,7 @@ public final class ModProfileManager {
         mods.addProperty("reachDisplayPracticeOnly", ModernConfig.reachDisplayPracticeOnly);
         mods.addProperty("autoGameModeProfiles", ModernConfig.autoGameModeProfiles);
         mods.addProperty("showGameModeHud", ModernConfig.showGameModeHud);
+        mods.addProperty("gameModeOverride", ModernConfig.gameModeOverride == null ? "" : ModernConfig.gameModeOverride);
         mods.addProperty("showBridgeTimer", ModernConfig.showBridgeTimer);
         mods.addProperty("secondaryResourcePack", ModernConfig.secondaryResourcePack == null ? "" : ModernConfig.secondaryResourcePack);
         mods.addProperty("gameModeHudX", ModernConfig.gameModeHudX);
@@ -102,6 +103,11 @@ public final class ModProfileManager {
         perf.addProperty("boostFps", PerformanceConfig.boostFps);
         perf.addProperty("entityCull", ModernConfig.entityCull);
         perf.addProperty("nametagCull", ModernConfig.nametagCull);
+        perf.addProperty("nametagLod", ModernConfig.nametagLod);
+        perf.addProperty("blockEntityCull", ModernConfig.blockEntityCull);
+        perf.addProperty("entityAnimCull", ModernConfig.entityAnimCull);
+        perf.addProperty("armorStandCull", ModernConfig.armorStandCull);
+        perf.addProperty("itemFrameCull", ModernConfig.itemFrameCull);
         perf.addProperty("particleMode", PerformanceConfig.particleMode.name());
         perf.addProperty("memoryCleanup", PerformanceConfig.memoryCleanupOnWorldChange);
         perf.addProperty("applyVanillaPreset", PerformanceConfig.applyVanillaPreset);
@@ -155,6 +161,8 @@ public final class ModProfileManager {
             ModernConfig.reachDisplayPracticeOnly = bool(m, "reachDisplayPracticeOnly", ModernConfig.reachDisplayPracticeOnly);
             ModernConfig.autoGameModeProfiles = bool(m, "autoGameModeProfiles", ModernConfig.autoGameModeProfiles);
             ModernConfig.showGameModeHud = bool(m, "showGameModeHud", ModernConfig.showGameModeHud);
+            ModernConfig.gameModeOverride = str(m, "gameModeOverride", ModernConfig.gameModeOverride);
+            GameModeDetector.loadOverrideFromConfig();
             ModernConfig.showBridgeTimer = bool(m, "showBridgeTimer", ModernConfig.showBridgeTimer);
             ModernConfig.secondaryResourcePack = str(m, "secondaryResourcePack", ModernConfig.secondaryResourcePack);
             ModernConfig.gameModeHudX = num(m, "gameModeHudX", ModernConfig.gameModeHudX);
@@ -176,6 +184,11 @@ public final class ModProfileManager {
             PerformanceConfig.boostFps = bool(p, "boostFps", PerformanceConfig.boostFps);
             ModernConfig.entityCull = bool(p, "entityCull", ModernConfig.entityCull);
             ModernConfig.nametagCull = bool(p, "nametagCull", ModernConfig.nametagCull);
+            ModernConfig.nametagLod = bool(p, "nametagLod", ModernConfig.nametagLod);
+            ModernConfig.blockEntityCull = bool(p, "blockEntityCull", ModernConfig.blockEntityCull);
+            ModernConfig.entityAnimCull = bool(p, "entityAnimCull", ModernConfig.entityAnimCull);
+            ModernConfig.armorStandCull = bool(p, "armorStandCull", ModernConfig.armorStandCull);
+            ModernConfig.itemFrameCull = bool(p, "itemFrameCull", ModernConfig.itemFrameCull);
             PerformanceConfig.particleMode = PerformanceConfig.ParticleMode.fromName(
                 str(p, "particleMode", PerformanceConfig.particleMode.name())
             );

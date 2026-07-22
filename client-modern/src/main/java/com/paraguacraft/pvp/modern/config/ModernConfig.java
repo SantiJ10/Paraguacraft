@@ -48,6 +48,8 @@ public final class ModernConfig {
     public static boolean shaderAutoOffInMatch = true;
     public static boolean reachDisplayPracticeOnly = false;
     public static boolean autoGameModeProfiles = true;
+    /** Override manual del modo detectado; vacio = auto. */
+    public static String gameModeOverride = "";
     public static boolean showGameModeHud = true;
     public static boolean showBridgeTimer = true;
     public static boolean showCompass = true;
@@ -70,8 +72,13 @@ public final class ModernConfig {
     public static boolean toggleSneak = false;
     public static boolean isSneakingToggled = false;
     /** Culling (Fase 3 — paridad 1.8.9). Idle FPS vive en {@code PerformanceConfig.reduceFpsWhenMinimized}. */
-    public static boolean entityCull = false;
-    public static boolean nametagCull = false;
+    public static boolean entityCull = true;
+    public static boolean nametagCull = true;
+    public static boolean nametagLod = true;
+    public static boolean blockEntityCull = true;
+    public static boolean entityAnimCull = true;
+    public static boolean armorStandCull = true;
+    public static boolean itemFrameCull = true;
     /** Insignias + ping rival en nametags (Fase 3 — paridad social 1.8.9). */
     public static boolean showNametagLogo = true;
     public static boolean showNametagLogoOthers = true;
@@ -235,6 +242,10 @@ public final class ModernConfig {
             shaderAutoOffInMatch = bool(props, "shaderAutoOffInMatch", shaderAutoOffInMatch);
             reachDisplayPracticeOnly = bool(props, "reachDisplayPracticeOnly", reachDisplayPracticeOnly);
             autoGameModeProfiles = bool(props, "autoGameModeProfiles", autoGameModeProfiles);
+            gameModeOverride = props.getProperty("gameModeOverride", gameModeOverride);
+            if (gameModeOverride == null) {
+                gameModeOverride = "";
+            }
             showGameModeHud = bool(props, "showGameModeHud", showGameModeHud);
             showBridgeTimer = bool(props, "showBridgeTimer", showBridgeTimer);
             showCompass = bool(props, "showCompass", showCompass);
@@ -263,6 +274,11 @@ public final class ModernConfig {
             toggleSneak = bool(props, "toggleSneak", toggleSneak);
             entityCull = bool(props, "entityCull", entityCull);
             nametagCull = bool(props, "nametagCull", nametagCull);
+            nametagLod = bool(props, "nametagLod", nametagLod);
+            blockEntityCull = bool(props, "blockEntityCull", blockEntityCull);
+            entityAnimCull = bool(props, "entityAnimCull", entityAnimCull);
+            armorStandCull = bool(props, "armorStandCull", armorStandCull);
+            itemFrameCull = bool(props, "itemFrameCull", itemFrameCull);
             showNametagLogo = bool(props, "showNametagLogo", showNametagLogo);
             showNametagLogoOthers = bool(props, "showNametagLogoOthers", showNametagLogoOthers);
             showOpponentPing = bool(props, "showOpponentPing", showOpponentPing);
@@ -384,6 +400,7 @@ public final class ModernConfig {
         props.setProperty("shaderAutoOffInMatch", String.valueOf(shaderAutoOffInMatch));
         props.setProperty("reachDisplayPracticeOnly", String.valueOf(reachDisplayPracticeOnly));
         props.setProperty("autoGameModeProfiles", String.valueOf(autoGameModeProfiles));
+        props.setProperty("gameModeOverride", gameModeOverride == null ? "" : gameModeOverride);
         props.setProperty("showGameModeHud", String.valueOf(showGameModeHud));
         props.setProperty("showBridgeTimer", String.valueOf(showBridgeTimer));
         props.setProperty("showCompass", String.valueOf(showCompass));
@@ -406,6 +423,11 @@ public final class ModernConfig {
         props.setProperty("toggleSneak", String.valueOf(toggleSneak));
         props.setProperty("entityCull", String.valueOf(entityCull));
         props.setProperty("nametagCull", String.valueOf(nametagCull));
+        props.setProperty("nametagLod", String.valueOf(nametagLod));
+        props.setProperty("blockEntityCull", String.valueOf(blockEntityCull));
+        props.setProperty("entityAnimCull", String.valueOf(entityAnimCull));
+        props.setProperty("armorStandCull", String.valueOf(armorStandCull));
+        props.setProperty("itemFrameCull", String.valueOf(itemFrameCull));
         props.setProperty("showNametagLogo", String.valueOf(showNametagLogo));
         props.setProperty("showNametagLogoOthers", String.valueOf(showNametagLogoOthers));
         props.setProperty("showOpponentPing", String.valueOf(showOpponentPing));

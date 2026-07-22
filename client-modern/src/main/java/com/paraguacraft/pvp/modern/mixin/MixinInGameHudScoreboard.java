@@ -2,6 +2,8 @@ package com.paraguacraft.pvp.modern.mixin;
 
 import com.paraguacraft.pvp.modern.config.ModernConfig;
 import com.paraguacraft.pvp.modern.core.ScoreboardFilter;
+import com.paraguacraft.pvp.modern.core.ServerContext;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.hud.InGameHud;
@@ -62,6 +64,8 @@ public class MixinInGameHudScoreboard {
         if (ModernConfig.scoreboardHideRedNumbers && ScoreboardFilter.isScoreColumnNumber(plain)) {
             return true;
         }
-        return ModernConfig.scoreboardHideStats && ScoreboardFilter.shouldHide(plain);
+        MinecraftClient client = MinecraftClient.getInstance();
+        return ModernConfig.scoreboardHideStats
+            && ScoreboardFilter.shouldHide(plain, ServerContext.kind(client));
     }
 }

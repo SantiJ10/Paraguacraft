@@ -4,12 +4,12 @@ import net.minecraft.text.Text;
 
 import java.util.regex.Pattern;
 
-/** Filtros del scoreboard Hypixel (como 1.8.9). */
+/** Filtros del scoreboard por servidor (Hypixel / Cubecraft). */
 public final class ScoreboardFilter {
 
     private static final Pattern SCORE_COLUMN = Pattern.compile("^\\d{1,2}$");
 
-    private static final Pattern[] HIDE_LINES = new Pattern[] {
+    private static final Pattern[] HYPIXEL_HIDE_LINES = new Pattern[] {
         Pattern.compile("(?i).*\\bprogreso\\s*:.*"),
         Pattern.compile("(?i).*\\btokens\\s*:.*"),
         Pattern.compile("(?i).*\\bkills?\\s+totales?\\s*:.*"),
@@ -24,6 +24,25 @@ public final class ScoreboardFilter {
         Pattern.compile("(?i).*\\brank\\s*:.*"),
         Pattern.compile("(?i).*\\blevel\\s*:.*"),
         Pattern.compile("(?i).*\\bexperience\\s*:.*"),
+    };
+
+    private static final Pattern[] CUBECRAFT_HIDE_LINES = new Pattern[] {
+        Pattern.compile("(?i).*\\bcubecraft\\.(net|gg).*"),
+        Pattern.compile("(?i).*\\bplay\\.cubecraft.*"),
+        Pattern.compile("(?i).*\\bstore\\b.*"),
+        Pattern.compile("(?i).*\\bwebsite\\b.*"),
+        Pattern.compile("(?i).*\\bvotes?\\b.*"),
+        Pattern.compile("(?i).*\\bcoins?\\b.*"),
+        Pattern.compile("(?i).*\\bgems?\\b.*"),
+        Pattern.compile("(?i).*\\brank\\b.*"),
+        Pattern.compile("(?i).*\\blevel\\b.*"),
+        Pattern.compile("(?i).*\\bexperience\\b.*"),
+        Pattern.compile("(?i).*\\bplaytime\\b.*"),
+        Pattern.compile("(?i).*\\bfriends?\\s+online\\b.*"),
+        Pattern.compile("(?i).*\\bonline\\s*players?\\b.*"),
+        Pattern.compile("(?i).*\\bhub\\b.*"),
+        Pattern.compile("(?i).*\\bnews\\b.*"),
+        Pattern.compile("(?i).*\\bannouncement\\b.*"),
     };
 
     private static final String BLOCK_CHARS =
@@ -44,6 +63,10 @@ public final class ScoreboardFilter {
     }
 
     public static boolean shouldHide(String plainLine) {
+        return shouldHide(plainLine, ServerContext.Kind.UNKNOWN);
+    }
+
+    public static boolean shouldHide(String plainLine, ServerContext.Kind server) {
         if (plainLine == null) {
             return false;
         }
@@ -54,7 +77,18 @@ public final class ScoreboardFilter {
         if (PROGRESS_BAR.matcher(t).matches()) {
             return true;
         }
-        for (Pattern p : HIDE_LINES) {
+        Pattern[] patterns = server == ServerContext.Kind.CUBECRAFT
+            ? CUBECRAFT_HIDE_LINES
+            : HYPIXEL_HIDE_LINES;
+        for (Pattern p : patterns) {
+            if (p.matcher(t).matches()) {
+                return true;
+            }
+        }
+        if (server != ServerContext.Kind.CUBECRAFT) {
+            return false;
+        }
+        for (Pattern p : HYPIXEL_HIDE_LINES) {
             if (p.matcher(t).matches()) {
                 return true;
             }

@@ -1,12 +1,12 @@
 {
-  "version": "7.9.9",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.9.9/Instalar_Paraguacraft_v7.9.9.exe",
+  "version": "7.9.10",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.9.10/Instalar_Paraguacraft_v7.9.10.exe",
   "size_bytes": 109895063,
   "sha256": "1c321ae1e7e03d356dc01e8b1cc1c41d7bf1e27f42c0e8a46c74851f406291a8",
-  "notes": "- Join inteligente desde favoritos (PvP 1.8.9 vs Modern automatico)\n- Compete mode PvP Modern + asistente Playit primera vez\n- Consola servidor con botones rapidos e historial\n- Tienda servidor con plugins recomendados + badges Paper 1.21\n- Auto-update CurseForge + Bedrock desde favoritos\n- Paraguabot con contexto y acciones clicables\n- Cliente Modern 0.7.0: paridad PvP/social, training kits, Mod Menu busqueda\n- Cliente 1.8.9 2.1.30: training world con kits y cofres PvP",
+  "notes": "- Cliente PvP Modern 0.9.3: cull real, GameMode override manual, editor chat alerts\n- BedWars resources con fallback scoreboard + filtros Cubecraft\n- Fullbright unificado (Gamma Utils o integrado, tecla G)\n- Join inteligente desde favoritos (PvP 1.8.9 vs Modern automatico)\n- Compete mode PvP Modern + asistente Playit primera vez",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.9.9/Instalar_Paraguacraft_v7.9.9.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v7.9.10/Instalar_Paraguacraft_v7.9.10.exe",
       "signature": ""
     }
   }

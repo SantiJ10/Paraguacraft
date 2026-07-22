@@ -2,6 +2,7 @@ package com.paraguacraft.pvp.modern.hud;
 
 import com.paraguacraft.pvp.modern.ParaguacraftPvPModern;
 import com.paraguacraft.pvp.modern.config.ModernConfig;
+import com.paraguacraft.pvp.modern.core.BedwarsResourceHelper;
 import com.paraguacraft.pvp.modern.core.BridgeTimer;
 import com.paraguacraft.pvp.modern.core.CombatStats;
 import com.paraguacraft.pvp.modern.core.GameModeDetector;
@@ -437,25 +438,11 @@ public final class HudRenderer {
     }
 
     private static void drawBedwarsResources(DrawContext ctx, TextRenderer tr, MinecraftClient client) {
-        int iron = 0;
-        int gold = 0;
-        int diamond = 0;
-        int emerald = 0;
-        for (int i = 0; i < client.player.getInventory().size(); i++) {
-            ItemStack stack = client.player.getInventory().getStack(i);
-            if (stack.isEmpty()) {
-                continue;
-            }
-            if (stack.isOf(Items.IRON_INGOT)) {
-                iron += stack.getCount();
-            } else if (stack.isOf(Items.GOLD_INGOT)) {
-                gold += stack.getCount();
-            } else if (stack.isOf(Items.DIAMOND)) {
-                diamond += stack.getCount();
-            } else if (stack.isOf(Items.EMERALD)) {
-                emerald += stack.getCount();
-            }
-        }
+        BedwarsResourceHelper.Counts counts = BedwarsResourceHelper.resolve(client);
+        int iron = counts.iron();
+        int gold = counts.gold();
+        int diamond = counts.diamond();
+        int emerald = counts.emerald();
         int x = ModernConfig.bwResX;
         int y = ModernConfig.bwResY;
         int rowH = 16;
