@@ -3,8 +3,10 @@ package com.paraguacraft.pvp.modern.core;
 import com.paraguacraft.pvp.modern.config.ModernConfig;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.text.Text;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -14,6 +16,7 @@ import java.util.List;
 public final class ShaderAutoManager {
 
     private static String savedShaderLine;
+    private static boolean disabledThisSession;
 
     private ShaderAutoManager() {}
 
@@ -28,11 +31,14 @@ public final class ShaderAutoManager {
         if (!GameModeDetector.inMatch()) {
             return;
         }
-        disableShaders(client);
+        if (disableShaders(client)) {
+            notifyPlayer(client, "Shaders desactivados para la partida");
+        }
     }
 
     public static void onDisconnect() {
         if (savedShaderLine == null) {
+            disabledThisSession = false;
             return;
         }
         Path options = FabricLoader.getInstance().getGameDir().resolve("options.txt");
@@ -53,13 +59,23 @@ public final class ShaderAutoManager {
                 lines.add(savedShaderLine);
             }
             Files.write(options, lines, StandardCharsets.UTF_8);
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client != null) {
+                client.options.write();
+                reloadShaders(client);
+                notifyPlayer(client, "Shaders restaurados");
+            }
         } catch (IOException ignored) {
         } finally {
             savedShaderLine = null;
+            disabledThisSession = false;
         }
     }
 
-    private static void disableShaders(MinecraftClient client) {
+    private static boolean disableShaders(MinecraftClient client) {
+        if (disabledThisSession) {
+            return false;
+        }
         Path options = FabricLoader.getInstance().getGameDir().resolve("options.txt");
         Path iris = FabricLoader.getInstance().getGameDir().resolve("config/iris.properties");
         try {
@@ -68,16 +84,19 @@ public final class ShaderAutoManager {
                 for (int i = 0; i < lines.size(); i++) {
                     String line = lines.get(i).trim();
                     if (line.startsWith("shaderPack=") && !line.equals("shaderPack=")) {
+                        savedShaderLine = lines.get(i);
                         lines.set(i, "shaderPack=");
                         Files.write(iris, lines, StandardCharsets.UTF_8);
-                        return;
+                        reloadShaders(client);
+                        disabledThisSession = true;
+                        return true;
                     }
                 }
             }
         } catch (IOException ignored) {
         }
         if (!Files.isRegularFile(options)) {
-            return;
+            return false;
         }
         try {
             List<String> lines = Files.readAllLines(options, StandardCharsets.UTF_8);
@@ -88,10 +107,46 @@ public final class ShaderAutoManager {
                     lines.set(i, "shaderPack:");
                     Files.write(options, lines, StandardCharsets.UTF_8);
                     client.options.write();
-                    return;
+                    reloadShaders(client);
+                    disabledThisSession = true;
+                    return true;
                 }
             }
         } catch (IOException ignored) {
+        }
+        return false;
+    }
+
+    private static void reloadShaders(MinecraftClient client) {
+        if (client == null) {
+            return;
+        }
+        if (FabricLoader.getInstance().isModLoaded("iris")) {
+            try {
+                Class<?> apiClass = Class.forName("net.irisshaders.iris.api.v0.IrisApi");
+                Object api = apiClass.getMethod("getInstance").invoke(null);
+                for (String methodName : new String[] {"reload", "loadShaderpack"}) {
+                    try {
+                        Method method = apiClass.getMethod(methodName);
+                        method.invoke(api);
+                        return;
+                    } catch (NoSuchMethodException ignored) {
+                    }
+                }
+                Object config = apiClass.getMethod("getIrisConfig").invoke(api);
+                if (config != null) {
+                    Method load = config.getClass().getMethod("loadShaderpack");
+                    load.invoke(config);
+                }
+            } catch (ReflectiveOperationException ignored) {
+            }
+        }
+        client.options.write();
+    }
+
+    private static void notifyPlayer(MinecraftClient client, String message) {
+        if (client.player != null) {
+            client.player.sendMessage(Text.literal(message), true);
         }
     }
 }

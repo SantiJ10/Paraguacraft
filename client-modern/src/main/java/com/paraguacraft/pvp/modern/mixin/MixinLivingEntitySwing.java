@@ -1,7 +1,6 @@
 package com.paraguacraft.pvp.modern.mixin;
 
-import com.paraguacraft.pvp.modern.config.ModernConfig;
-import com.paraguacraft.pvp.modern.core.PerformanceConfig;
+import com.paraguacraft.pvp.modern.animations.OldAnimations;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.entity.LivingEntity;
 import org.spongepowered.asm.mixin.Mixin;
@@ -18,7 +17,7 @@ public abstract class MixinLivingEntitySwing {
 
     @Inject(method = "getHandSwingProgress", at = @At("HEAD"), cancellable = true)
     private void paraguacraft$fasterSwing(float tickProgress, CallbackInfoReturnable<Float> cir) {
-        if (!ModernConfig.oldAnimations && !PerformanceConfig.oldAnimations) {
+        if (!OldAnimations.enabled()) {
             return;
         }
         if (!((Object) this instanceof ClientPlayerEntity)) {

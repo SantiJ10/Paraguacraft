@@ -92,8 +92,16 @@ public final class ModKeybinds {
             } else if (FreelookManager.active) {
                 FreelookManager.onRelease(client);
             }
-        } else if (FreelookManager.active) {
-            FreelookManager.onRelease(client);
+        } else {
+            if (FreelookManager.active) {
+                FreelookManager.onRelease(client);
+            }
+            if (ModernConfig.freelookEnabled && freelook.wasPressed() && client.player != null) {
+                client.player.sendMessage(
+                    net.minecraft.text.Text.literal("Freelook bloqueado en servidores ranked (Hypixel/Cubecraft)"),
+                    true
+                );
+            }
         }
     }
 }

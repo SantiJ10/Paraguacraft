@@ -3,9 +3,11 @@ package com.paraguacraft.pvp.modern.core;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.scoreboard.Scoreboard;
 import net.minecraft.scoreboard.ScoreboardDisplaySlot;
+import net.minecraft.scoreboard.ScoreboardEntry;
 import net.minecraft.scoreboard.ScoreboardObjective;
 import net.minecraft.text.Text;
 
+import java.util.Collection;
 import java.util.Locale;
 
 /** Deduce el modo de juego desde el scoreboard (Hypixel / Cubecraft). */
@@ -58,14 +60,41 @@ public final class GameModeDetector {
         }
         Scoreboard board = client.world.getScoreboard();
         ScoreboardObjective obj = board.getObjectiveForSlot(ScoreboardDisplaySlot.SIDEBAR);
-        String haystack = "";
-        if (obj != null) {
-            Text title = obj.getDisplayName();
-            haystack = ScoreboardFilter.strip(title).toUpperCase(Locale.ROOT);
-        }
+        String haystack = collectSidebarText(board, obj);
         Mode detected = detectFromText(haystack);
         current = detected;
         currentLabel = labelFor(detected);
+    }
+
+    private static String collectSidebarText(Scoreboard board, ScoreboardObjective obj) {
+        if (obj == null) {
+            return "";
+        }
+        StringBuilder out = new StringBuilder();
+        appendText(out, obj.getDisplayName());
+        Collection<ScoreboardEntry> entries = board.getScoreboardEntries(obj);
+        for (ScoreboardEntry entry : entries) {
+            if (entry.hidden()) {
+                continue;
+            }
+            appendText(out, entry.display());
+            appendText(out, entry.name());
+        }
+        return out.toString().toUpperCase(Locale.ROOT);
+    }
+
+    private static void appendText(StringBuilder out, Text text) {
+        if (text == null) {
+            return;
+        }
+        String plain = ScoreboardFilter.strip(text);
+        if (plain.isEmpty()) {
+            return;
+        }
+        if (!out.isEmpty()) {
+            out.append(' ');
+        }
+        out.append(plain);
     }
 
     private static Mode detectFromText(String t) {

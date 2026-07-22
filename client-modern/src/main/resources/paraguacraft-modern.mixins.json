@@ -21,6 +21,7 @@
     "MixinInGameHudLowFire",
     "MixinItemEntityRenderer",
     "MixinLivingEntitySwing",
+    "MixinHeldItemRenderer",
     "MixinScreenBackground",
     "MixinScreenClose",
     "MixinWindowFullscreen",

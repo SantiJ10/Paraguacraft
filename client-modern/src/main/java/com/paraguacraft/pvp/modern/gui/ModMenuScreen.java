@@ -211,7 +211,10 @@ public class ModMenuScreen extends ParaguacraftScreen {
         cards.add(toggle(3, "Shaders auto-off en partida", () -> ModernConfig.shaderAutoOffInMatch, v -> ModernConfig.shaderAutoOffInMatch = v));
         cards.add(toggle(3, "Perfiles auto por modo", () -> ModernConfig.autoGameModeProfiles, v -> ModernConfig.autoGameModeProfiles = v));
         cards.add(toggle(3, "Reach solo practica", () -> ModernConfig.reachDisplayPracticeOnly, v -> ModernConfig.reachDisplayPracticeOnly = v));
-        cards.add(toggle(3, "Old animations", () -> ModernConfig.oldAnimations, v -> ModernConfig.oldAnimations = v));
+        cards.add(toggle(3, "Animaciones 1.7 (swing/block)", () -> ModernConfig.oldAnimations, v -> {
+            ModernConfig.oldAnimations = v;
+            PerformanceConfig.oldAnimations = v;
+        }));
         cards.add(toggle(3, "Ocultar titulos", () -> ModernConfig.hideTitles, v -> ModernConfig.hideTitles = v));
         cards.add(toggle(3, "Chat triggers", () -> ModernConfig.chatTriggers, v -> ModernConfig.chatTriggers = v));
         cards.add(open(3, "Config chat triggers", "chat_triggers_cfg"));
