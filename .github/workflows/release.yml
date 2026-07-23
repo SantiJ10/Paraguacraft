@@ -69,6 +69,7 @@ jobs:
         shell: pwsh
         env:
           CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
           $max = 2
           for ($i = 1; $i -le $max; $i++) {

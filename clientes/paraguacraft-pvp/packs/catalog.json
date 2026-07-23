@@ -2,103 +2,14 @@
   "version": 2,
   "releaseTag": "pvp-packs-1.0",
   "baseUrl": "https://github.com/SantiJ10/Paraguacraft/releases/download/pvp-packs-1.0",
-  "driveFolderUrl": "https://drive.google.com/drive/folders/1kiGI_iWfoiAxDAHfnhlHya-MxYs7Fwbt",
   "packs": [
     {
       "id": "paraguacraft-pvp",
       "title": "Paraguacraft PvP",
-      "subtitle": "Dewier×Blue · cielo · fuego bajo · ores · tools chicas",
+      "subtitle": "Pack oficial Paraguacraft · PvP 1.8.9",
       "badge": "16x",
       "fileName": "paraguacraft-pvp-189.zip",
       "sha1": "79599f36fe957d6443c9388c452bc93d67291bdd"
-    },
-    {
-      "id": "faithful",
-      "title": "Faithful 32x",
-      "subtitle": "Vanilla en alta resolución",
-      "badge": "32x",
-      "fileName": "faithful-32x-1.8.9.zip",
-      "sha1": "967a032e8b1224868c2684c360b41a0fc9d930ad"
-    },
-    {
-      "id": "tightfault",
-      "title": "Tightfault PvP",
-      "subtitle": "Estilo Techno · Revamp",
-      "badge": "16x",
-      "fileName": "tightfault-revamp-techno.zip",
-      "sha1": "bc282865d57ea623d8d5812219e34faf25e90bf5"
-    },
-    {
-      "id": "glorious",
-      "title": "Glorious 16x",
-      "subtitle": "Pack PvP clásico",
-      "badge": "16x",
-      "fileName": "glorious-16x.zip",
-      "sha1": "46cae936b4bc4630861785f81ae9a3071b128131"
-    },
-    {
-      "id": "2sa-250k",
-      "title": "2sa 250k 128x",
-      "subtitle": "Alta resolución competitivo",
-      "badge": "128x",
-      "fileName": "2sa-250k-128x.zip",
-      "sha1": "b0b759ee95116bf23f6dd345b272326355c0afbb"
-    },
-    {
-      "id": "pastelic-twilight",
-      "title": "Pastelic v3 Twilight",
-      "subtitle": "Estética suave PvP",
-      "badge": "32x",
-      "fileName": "pastelic-v3-twilight.zip",
-      "sha1": "5827b6d6aa7c683c8800e6892f22f046efc37a8a"
-    },
-    {
-      "id": "technolot",
-      "title": "Technolot 180k",
-      "subtitle": "Pack techno popular",
-      "badge": "16x",
-      "fileName": "technolot-180k.zip",
-      "sha1": "fe2436df04c2f6611e6dab61beb0ae0cac2b5f9c"
-    },
-    {
-      "id": "mori",
-      "title": "Mori 16x",
-      "subtitle": "Minimalista PvP",
-      "badge": "16x",
-      "fileName": "mori-16x.zip",
-      "sha1": "402270bda334561af379ba96226c96ec2ce2121d"
-    },
-    {
-      "id": "cheerleader",
-      "title": "Cheerleader x16",
-      "subtitle": "Colores vibrantes",
-      "badge": "16x",
-      "fileName": "cheerleader-x16.zip",
-      "sha1": "0ecdf0accb15f370acfc5cf318722647cb64534c"
-    },
-    {
-      "id": "egirl",
-      "title": "Egirl Exposed for Cheating",
-      "subtitle": "Pack meme PvP",
-      "badge": "16x",
-      "fileName": "egirl-exposed.zip",
-      "sha1": "65d9f296986dab74215350ac8d6f2fc7523e623c"
-    },
-    {
-      "id": "mango",
-      "title": "Mango 16x",
-      "subtitle": "CPvP clásico",
-      "badge": "16x",
-      "fileName": "mango-16x.zip",
-      "sha1": "0c607238cc825edd71fba0716a650607514811d5"
-    },
-    {
-      "id": "dewier",
-      "title": "Dewier 20k",
-      "subtitle": "Pack compacto PvP",
-      "badge": "16x",
-      "fileName": "dewier-20k.zip",
-      "sha1": "b00f379a7efc885c3d27f6e891a5f93afe406e19"
     }
   ]
 }

@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP Modern",
   "mc_version": "1.21.11",
   "loader": "fabric",
-  "client_version": "0.9.6",
-  "release_tag": "pvp-modern-0.9.6",
-  "descripcion": "PvP 1.21.11: fix crash chat Hypixel (recursion) + pack oficial primario.",
+  "client_version": "0.9.7",
+  "release_tag": "pvp-modern-0.9.7",
+  "descripcion": "PvP 1.21.11: TNT countdown, pack oficial unico, Discord RPC via launcher.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-Modern-0.9.6.jar",
-      "sha1": "ff7b75d2cdca91388c2488c1f98112987a5a7b53"
+      "filename": "ParaguacraftPvP-Modern-0.9.7.jar",
+      "sha1": "805b6f088c77d623db25ec8bed42c742fa108582"
     }
   ]
 }

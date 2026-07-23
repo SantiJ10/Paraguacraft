@@ -42,7 +42,7 @@ pub fn watch(ctx: PresenceCtx, stop: Arc<AtomicBool>) {
 }
 
 fn detect_mode(game_dir: &Path, launch_server: Option<&str>) -> String {
-    if let Some(line) = parse_log_mode(game_dir) {
+    if let Some(line) = parse_log_mode(game_dir, launch_server) {
         return line;
     }
     if let Some(addr) = launch_server.filter(|s| !s.trim().is_empty()) {
@@ -54,7 +54,7 @@ fn detect_mode(game_dir: &Path, launch_server: Option<&str>) -> String {
     "En el menú".into()
 }
 
-fn parse_log_mode(game_dir: &Path) -> Option<String> {
+fn parse_log_mode(game_dir: &Path, launch_server: Option<&str>) -> Option<String> {
     let log = game_dir.join("logs").join("latest.log");
     let content = std::fs::read_to_string(&log).ok()?;
     let tail: String = content
@@ -77,6 +77,20 @@ fn parse_log_mode(game_dir: &Path) -> Option<String> {
             let host = host.trim();
             if !host.is_empty() {
                 return Some(host.to_string());
+            }
+        }
+        if let Some(host) = line.split("Connecting to ").nth(1) {
+            let host = host.trim().trim_end_matches('.');
+            if !host.is_empty() && !host.contains(' ') {
+                return Some(host.to_string());
+            }
+        }
+        if line.contains("Joined server") || line.contains("Logged in with entity id") {
+            if let Some(server) = launch_server.filter(|s| !s.trim().is_empty()) {
+                let (host, _) = crate::core::favorites::parse_address(server.trim());
+                if !host.is_empty() {
+                    return Some(host.to_string());
+                }
             }
         }
     }

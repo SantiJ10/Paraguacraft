@@ -184,32 +184,71 @@ async fn ensure_pack(
     )))
 }
 
-/// Descarga los texture packs PvP 1.21.11 al directorio `resourcepacks/` de la instancia.
+const OFFICIAL_PACK: &str = "paraguacraft-pvp-modern.zip";
+
+/// Elimina packs PvP de terceros dejando solo el oficial.
+pub fn purge_non_official_packs(instance_dir: &Path) {
+    let dir = instance_dir.join("resourcepacks");
+    let Ok(entries) = std::fs::read_dir(&dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if name.eq_ignore_ascii_case(OFFICIAL_PACK) {
+            continue;
+        }
+        if name.ends_with(".zip") {
+            let _ = std::fs::remove_file(path);
+        }
+    }
+}
+
+fn official_entry(catalog: &PackCatalog) -> Option<PackEntry> {
+    catalog
+        .packs
+        .iter()
+        .find(|p| p.file_name.eq_ignore_ascii_case(OFFICIAL_PACK))
+        .cloned()
+        .or_else(|| {
+            catalog.packs.first().filter(|p| {
+                p.file_name.eq_ignore_ascii_case(OFFICIAL_PACK)
+                    || p.file_name.to_lowercase().starts_with("paraguacraft-pvp")
+            }).cloned()
+        })
+}
+
+/// Descarga solo el pack oficial PvP 1.21.11 al directorio `resourcepacks/` de la instancia.
 pub async fn sync_instance_packs(
     app: &AppHandle,
     client: &reqwest::Client,
     instance_dir: &Path,
 ) -> AppResult<u32> {
     let catalog = fetch_catalog(app, client).await;
-    if catalog.packs.is_empty() {
-        return Ok(0);
-    }
     let dest = instance_dir.join("resourcepacks");
     std::fs::create_dir_all(&dest)?;
-    let mut installed = 0u32;
-    for entry in &catalog.packs {
-        if ensure_pack(
-            app,
-            client,
-            &catalog.base_url,
-            &catalog.release_tag,
-            entry,
-            &dest,
-        )
-        .await?
-        {
-            installed += 1;
-        }
-    }
+    purge_non_official_packs(instance_dir);
+    let Some(entry) = official_entry(&catalog) else {
+        return Err(AppError::msg(format!(
+            "Catálogo sin pack oficial {OFFICIAL_PACK}"
+        )));
+    };
+    let installed = if ensure_pack(
+        app,
+        client,
+        &catalog.base_url,
+        &catalog.release_tag,
+        &entry,
+        &dest,
+    )
+    .await?
+    {
+        1
+    } else {
+        0
+    };
     Ok(installed)
 }

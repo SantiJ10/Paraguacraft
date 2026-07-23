@@ -37,6 +37,11 @@ pub fn ai_status() -> ai::AiStatus {
 }
 
 #[tauri::command]
+pub fn api_keys_managed() -> bool {
+    crate::config::keys::api_keys_managed_by_launcher()
+}
+
+#[tauri::command]
 pub fn save_groq_api_key(key: String) -> AppResult<()> {
     crate::config::keys::save_groq_api_key(&key)
 }

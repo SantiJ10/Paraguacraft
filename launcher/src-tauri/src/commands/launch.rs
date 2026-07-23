@@ -210,18 +210,15 @@ async fn spawn_for_instance(
         launch::append_server_join(&mut args, addr.trim());
     }
     let has_pvp_mod = launch::has_paraguacraft_pvp_mod(&game_dir);
-    let has_pg_rpc = settings.discord_rpc && has_pvp_mod;
     let overlay_ipc = compete
         .as_ref()
         .map(|p| p.overlay_ipc)
         .unwrap_or_else(|| crate::core::compete_mode::overlay_ipc_needed(&game_dir));
     let ipc_path_owned = crate::core::overlay_ipc::ipc_path().to_string_lossy().into_owned();
     let mut launch_env_owned: Vec<(String, String)> = Vec::new();
-    if has_pg_rpc {
-        launch_env_owned.push(("PARAGUACRAFT_LAUNCHER_RPC".into(), "1".into()));
-        launch_env_owned.push(("PARAGUACRAFT_RPC_USER".into(), auth.username.clone()));
-        launch_env_owned.push(("PARAGUACRAFT_RPC_MC".into(), mc.clone()));
-        launch_env_owned.push(("PARAGUACRAFT_RPC_LOADER".into(), loaders::display_label(&loader)));
+    if has_pvp_mod {
+        // El launcher mantiene el RPC; evita que el mod compita por el pipe de Discord.
+        launch_env_owned.push(("PARAGUACRAFT_DISABLE_RPC".into(), "1".into()));
     }
     if has_pvp_mod && overlay_ipc {
         launch_env_owned.push(("PARAGUACRAFT_OVERLAY_IPC".into(), ipc_path_owned));
@@ -246,17 +243,13 @@ async fn spawn_for_instance(
     let _ = crate::core::extras::java_priority::set_level(java_priority);
 
     if settings.discord_rpc {
-        if has_pg_rpc {
-            crate::core::extras::discord_rpc::disconnect();
-        } else {
-            crate::core::extras::discord_rpc::set_playing(
-                &auth.username,
-                &mc,
-                &loader,
-                settings.discord_rpc_version,
-                settings.discord_rpc_time,
-            );
-        }
+        crate::core::extras::discord_rpc::set_playing(
+            &auth.username,
+            &mc,
+            &loader,
+            settings.discord_rpc_version,
+            settings.discord_rpc_time,
+        );
     }
 
     launch::emit_started(app, instance_id, pid);
@@ -275,7 +268,7 @@ async fn spawn_for_instance(
         game_dir.clone(),
         server_address.clone(),
         settings.clone(),
-        has_pg_rpc,
+        false,
         overlay_ipc,
         compete.is_some(),
         compete.is_some(),

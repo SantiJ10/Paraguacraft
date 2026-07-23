@@ -91,13 +91,40 @@ fn baked_curseforge_key() -> Option<&'static str> {
     option_env!("CURSEFORGE_API_KEY").filter(|s| !s.is_empty())
 }
 
+/// Key embebida en compile-time (release CI con `GROQ_API_KEY`).
+fn baked_groq_key() -> Option<&'static str> {
+    option_env!("GROQ_API_KEY").filter(|s| !s.is_empty())
+}
+
+/// True si las keys vienen del launcher (env / compile-time) y no hace falta pedirlas al usuario.
+pub fn api_keys_managed_by_launcher() -> bool {
+    curseforge_api_key_from_env_or_baked().is_some() && groq_api_key_from_env_or_baked().is_some()
+}
+
+fn curseforge_api_key_from_env_or_baked() -> Option<String> {
+    if let Ok(v) = std::env::var(ENV_CF_KEY) {
+        let t = v.trim();
+        if !t.is_empty() {
+            return Some(t.to_string());
+        }
+    }
+    baked_curseforge_key().map(|s| s.to_string())
+}
+
+fn groq_api_key_from_env_or_baked() -> Option<String> {
+    if let Ok(v) = std::env::var(ENV_GROQ_KEY) {
+        let t = v.trim();
+        if !t.is_empty() {
+            return Some(t.to_string());
+        }
+    }
+    baked_groq_key().map(|s| s.to_string())
+}
+
 /// Resuelve la API key de CurseForge sin exponerla en el codigo fuente.
 pub fn curseforge_api_key() -> String {
-    if let Ok(v) = std::env::var(ENV_CF_KEY) {
-        let t = v.trim().to_string();
-        if !t.is_empty() {
-            return t;
-        }
+    if let Some(k) = curseforge_api_key_from_env_or_baked() {
+        return k;
     }
     if let Some(k) = read_app_secrets().curseforge_api_key {
         let t = k.trim().to_string();
@@ -113,7 +140,7 @@ pub fn curseforge_api_key() -> String {
     if !t.is_empty() {
         return t.to_string();
     }
-    baked_curseforge_key().unwrap_or_default().to_string()
+    String::new()
 }
 
 /// Persiste la key en `app_secrets.json` (permisos restringidos en Unix).
@@ -203,11 +230,8 @@ pub struct LlmConfig {
 }
 
 pub fn groq_api_key() -> Option<String> {
-    if let Ok(v) = std::env::var(ENV_GROQ_KEY) {
-        let t = v.trim().to_string();
-        if !t.is_empty() {
-            return Some(t);
-        }
+    if let Some(k) = groq_api_key_from_env_or_baked() {
+        return Some(k);
     }
     read_app_secrets()
         .groq_api_key
