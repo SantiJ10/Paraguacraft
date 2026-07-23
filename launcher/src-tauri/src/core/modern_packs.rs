@@ -185,8 +185,9 @@ async fn ensure_pack(
 }
 
 const OFFICIAL_PACK: &str = "paraguacraft-pvp-modern.zip";
+const BRAND_PACK: &str = "ParaguacraftBrandPack";
 
-/// Elimina packs PvP de terceros dejando solo el oficial.
+/// Elimina packs PvP de terceros dejando solo el oficial y el brand del launcher.
 pub fn purge_non_official_packs(instance_dir: &Path) {
     let dir = instance_dir.join("resourcepacks");
     let Ok(entries) = std::fs::read_dir(&dir) else {
@@ -194,11 +195,11 @@ pub fn purge_non_official_packs(instance_dir: &Path) {
     };
     for entry in entries.flatten() {
         let path = entry.path();
-        if !path.is_file() {
+        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if name.eq_ignore_ascii_case(OFFICIAL_PACK) || name.eq_ignore_ascii_case(BRAND_PACK) {
             continue;
         }
-        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-        if name.eq_ignore_ascii_case(OFFICIAL_PACK) {
+        if path.is_dir() {
             continue;
         }
         if name.ends_with(".zip") {

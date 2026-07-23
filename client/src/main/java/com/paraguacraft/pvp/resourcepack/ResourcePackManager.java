@@ -94,6 +94,9 @@ public final class ResourcePackManager {
             return;
         }
         for (File f : files) {
+            if (f.isDirectory()) {
+                continue;
+            }
             if (!f.isFile()) {
                 continue;
             }
@@ -105,6 +108,15 @@ public final class ResourcePackManager {
                 f.delete();
             }
         }
+    }
+
+    /** Solo pack oficial activo (prioridad sobre vanilla en 1.8.9). */
+    public static void applyOfficialPack() {
+        purgeNonOfficialPacks();
+        if (!new File(packsDir(), OFFICIAL_PACK).isFile()) {
+            return;
+        }
+        applyPack(OFFICIAL_PACK);
     }
 
     public static void clearActivePack() {

@@ -3,6 +3,17 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## Cliente PvP Modern 0.9.8 - 2026-07-23
+
+### Fixed
+- TNT countdown visible en 1.21.11 (usa `displayName` del pipeline de labels vanilla).
+- Resource packs: orden vanilla → brand → PvP oficial (máxima prioridad); purge conserva brand.
+
+## [1.0.1] - 2026-07-23
+
+### Fixed
+- Stack de resource packs al lanzar: PvP oficial arriba de vanilla + brand preservado.
+
 ## Cliente PvP Modern 0.9.7 - 2026-07-23
 
 ### Added

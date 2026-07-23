@@ -14,7 +14,6 @@ import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 
 public final class ResourcePackService {
 
@@ -106,6 +105,9 @@ public final class ResourcePackService {
             return;
         }
         for (File f : files) {
+            if (f.isDirectory() && "ParaguacraftBrandPack".equalsIgnoreCase(f.getName())) {
+                continue;
+            }
             if (!f.isFile()) {
                 continue;
             }
@@ -127,7 +129,19 @@ public final class ResourcePackService {
         }
         ResourcePackManager manager = client.getResourcePackManager();
         manager.scanPacks();
-        Set<String> enabled = new LinkedHashSet<>();
+
+        // Orden MC 1.21+: primero vanilla (baja prioridad), brand, pack PvP al final (máxima).
+        LinkedHashSet<String> enabled = new LinkedHashSet<>();
+        enabled.add("vanilla");
+
+        File brandDir = new File(packsDir(), "ParaguacraftBrandPack");
+        if (brandDir.isDirectory()) {
+            String brandId = resolvePackId(manager, "ParaguacraftBrandPack");
+            if (brandId != null) {
+                enabled.add(brandId);
+            }
+        }
+
         for (String fileName : fileNames) {
             if (!isInstalled(fileName)) {
                 continue;
@@ -137,13 +151,9 @@ public final class ResourcePackService {
                 enabled.add(packId);
             }
         }
-        if (enabled.isEmpty()) {
+
+        if (enabled.size() <= 1) {
             return;
-        }
-        for (String id : manager.getEnabledIds()) {
-            if (!id.startsWith("file/")) {
-                enabled.add(id);
-            }
         }
         manager.setEnabledProfiles(enabled);
         client.options.refreshResourcePacks(manager);
@@ -151,6 +161,7 @@ public final class ResourcePackService {
         if (!fileNames.isEmpty()) {
             ModernConfig.selectedResourcePack = fileNames.get(0);
         }
+        ModernConfig.secondaryResourcePack = "";
         ModernConfig.save();
         client.reloadResources();
     }

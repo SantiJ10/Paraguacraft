@@ -98,10 +98,12 @@ pub fn set_enabled(
     Ok(())
 }
 
-/// Activa un pack como principal: quita otros `file/` no oficiales y deja vanilla + sistema + el pack pedido.
-pub fn set_primary(game_dir: &Path, mc_version: &str, pack_name: &str, is_dir: bool) -> AppResult<()> {
+/// Activa el stack PvP: vanilla (base) → brand Paraguacraft → pack oficial (máxima prioridad).
+pub fn set_pvp_stack(game_dir: &Path, mc_version: &str, pack_name: &str) -> AppResult<()> {
+    use crate::core::branding::PACK_NAME as BRAND_PACK;
+
     let major = mc_major(mc_version);
-    let token = pack_token(pack_name, is_dir, major);
+    let official_token = pack_token(pack_name, false, major);
     let options_path = game_dir.join("options.txt");
     let mut lines: Vec<String> = if options_path.is_file() {
         std::fs::read_to_string(&options_path)?
@@ -114,17 +116,20 @@ pub fn set_primary(game_dir: &Path, mc_version: &str, pack_name: &str, is_dir: b
 
     if major < 6 {
         lines.retain(|l| !l.starts_with("texturepack:"));
-        lines.push(format!("texturepack:{token}"));
+        lines.push(format!("texturepack:{official_token}"));
     } else if major < 13 {
-        let packs = vec![token.clone()];
+        let packs = vec![official_token.clone()];
         lines.retain(|l| !l.starts_with("resourcePacks:"));
         let quoted: Vec<String> = packs.iter().map(|p| format!("\"{p}\"")).collect();
         lines.push(format!("resourcePacks:[{}]", quoted.join(",")));
     } else {
+        let brand_dir = game_dir.join("resourcepacks").join(BRAND_PACK);
+        let brand_token = pack_token(BRAND_PACK, brand_dir.is_dir(), major);
         let mut packs: Vec<String> = vec!["vanilla".into()];
-        if !packs.iter().any(|p| p == &token) {
-            packs.push(token);
+        if brand_dir.is_dir() {
+            packs.push(brand_token);
         }
+        packs.push(official_token);
         lines.retain(|l| !l.starts_with("resourcePacks:"));
         let quoted: Vec<String> = packs.iter().map(|p| format!("\"{p}\"")).collect();
         lines.push(format!("resourcePacks:[{}]", quoted.join(",")));
@@ -135,6 +140,12 @@ pub fn set_primary(game_dir: &Path, mc_version: &str, pack_name: &str, is_dir: b
     }
     std::fs::write(&options_path, format!("{}\n", lines.join("\n")))?;
     Ok(())
+}
+
+/// Activa un pack como principal: quita otros `file/` no oficiales y deja vanilla + sistema + el pack pedido.
+pub fn set_primary(game_dir: &Path, mc_version: &str, pack_name: &str, is_dir: bool) -> AppResult<()> {
+    let _ = is_dir;
+    set_pvp_stack(game_dir, mc_version, pack_name)
 }
 
 pub fn is_enabled_in_options(game_dir: &Path, mc_version: &str, pack_name: &str, is_dir: bool) -> bool {
