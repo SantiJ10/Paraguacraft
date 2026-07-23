@@ -34,7 +34,11 @@ public abstract class MixinRenderTNTPrimed {
             return;
         }
         float sec = entity.fuse / 20.0f;
-        String text = String.format("%.1f", sec);
+        int seconds = (int) Math.ceil(sec);
+        if (seconds <= 0) {
+            return;
+        }
+        String text = String.valueOf(seconds);
         GlStateManager.pushMatrix();
         GlStateManager.translate((float) x, (float) y + entity.height + 0.45f, (float) z);
         GlStateManager.rotate(-rm.playerViewY, 0.0F, 1.0F, 0.0F);

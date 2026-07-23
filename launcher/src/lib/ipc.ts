@@ -804,6 +804,10 @@ export const api = {
     return invokeReal("ai_status");
   },
 
+  async apiKeysManaged(): Promise<boolean> {
+    return invokeReal("api_keys_managed");
+  },
+
   async saveGroqApiKey(key: string): Promise<void> {
     return invokeReal("save_groq_api_key", { key });
   },

@@ -134,6 +134,25 @@ fn enable_primary_pack(game_dir: &Path, mc_version: &str, pack_name: &str) -> Ap
     resource_packs::set_primary(game_dir, mc_version, pack_name, false)
 }
 
+fn purge_non_official_packs(packs_dir: &Path, official: &str) {
+    let Ok(entries) = std::fs::read_dir(packs_dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if name.eq_ignore_ascii_case(official) {
+            continue;
+        }
+        if name.ends_with(".zip") {
+            let _ = std::fs::remove_file(path);
+        }
+    }
+}
+
 /// Descarga el pack oficial (si falta) y lo activa en `options.txt` antes del lanzamiento.
 pub async fn prepare_launch(
     app: &AppHandle,
@@ -149,12 +168,14 @@ pub async fn prepare_launch(
     match norm.as_str() {
         "paraguacraft-pvp-modern" => {
             let _ = modern_packs::sync_instance_packs(app, client, game_dir).await?;
+            purge_non_official_packs(&packs_dir, PACK_MODERN);
             enable_primary_pack(game_dir, mc_version, PACK_MODERN)?;
             let tier = crate::core::hardware::detect().perfil_sugerido;
             let _ = crate::core::performance::apply_modern_pvp_mod_configs(game_dir, &tier);
         }
         "paraguacraft-pvp" => {
             ensure_primary_189(app, client, &packs_dir).await?;
+            purge_non_official_packs(&packs_dir, PACK_189);
             enable_primary_pack(game_dir, mc_version, PACK_189)?;
         }
         _ => {}

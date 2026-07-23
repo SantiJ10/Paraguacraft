@@ -39,14 +39,17 @@ const extrasMessage = ref<string | null>(null);
 const groqKey = ref("");
 const groqKeyMessage = ref<string | null>(null);
 const aiConfigured = ref<boolean | null>(null);
+const keysManaged = ref(false);
 
 async function loadAiStatus() {
   if (!isTauri()) return;
   try {
-    const st = await api.aiStatus();
+    const [st, managed] = await Promise.all([api.aiStatus(), api.apiKeysManaged()]);
     aiConfigured.value = st.configured;
+    keysManaged.value = managed;
   } catch {
     aiConfigured.value = false;
+    keysManaged.value = false;
   }
 }
 
@@ -788,11 +791,14 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
           <span class="font-emoji">&#129302;</span> Paraguabot
         </h2>
         <p class="mb-4 text-sm text-gray-400">
-          Asistente con IA para settings PvP, crashes y el launcher. Usa Groq (gratis en
-          <a href="https://console.groq.com" class="text-pc-green underline" target="_blank" rel="noopener">console.groq.com</a>).
+          Asistente con IA para settings PvP, crashes y el launcher.
         </p>
-        <p v-if="aiConfigured === true" class="mb-3 text-xs text-pc-green">Paraguabot configurado (Groq/OpenAI detectado).</p>
+        <p v-if="keysManaged" class="mb-3 text-xs text-pc-green">
+          Paraguabot y CurseForge están habilitados por el launcher (no necesitás API keys).
+        </p>
+        <p v-else-if="aiConfigured === true" class="mb-3 text-xs text-pc-green">Paraguabot configurado (Groq/OpenAI detectado).</p>
         <p v-else-if="aiConfigured === false" class="mb-3 text-xs text-amber-400">Sin API key — Paraguabot no puede responder con IA.</p>
+        <template v-if="!keysManaged">
         <label class="block">
           <span class="mb-1 block text-sm text-gray-300">Groq API Key</span>
           <input
@@ -801,9 +807,6 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
             placeholder="gsk_..."
             class="w-full rounded-lg border border-surface-5 bg-surface-3 px-3 py-2.5 text-sm outline-none focus:border-pc-green"
           />
-          <span class="mt-1 block text-xs text-gray-500">
-            También podés poner GROQ_API_KEY en launcher/.env o %APPDATA%/ParaguacraftLauncher/.env
-          </span>
         </label>
         <div class="mt-3">
           <BaseButton size="sm" variant="secondary" @click="saveGroqKey">Guardar key</BaseButton>
@@ -811,12 +814,14 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
         <p v-if="groqKeyMessage" class="mt-2 text-xs" :class="groqKeyMessage.includes('guardada') ? 'text-pc-green' : 'text-red-400'">
           {{ groqKeyMessage }}
         </p>
+        </template>
       </section>
 
       <!-- Tienda -->
       <section class="rounded-xl border border-surface-4 bg-surface-2 p-6">
         <h2 class="mb-4 flex items-center gap-2 text-lg font-bold"><span class="font-emoji">&#128722;</span> Tienda</h2>
-        <label class="block">
+        <p v-if="keysManaged" class="mb-3 text-xs text-pc-green">CurseForge habilitado por el launcher.</p>
+        <label v-if="!keysManaged" class="block">
           <span class="mb-1 block text-sm text-gray-300">CurseForge API Key (opcional)</span>
           <input
             type="password"

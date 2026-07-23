@@ -25,13 +25,18 @@ public final class DiscordPresence {
     private static FileInputStream pipeIn;
     private static boolean connected;
     private static long sessionStart = System.currentTimeMillis() / 1000L;
+    private static String lastDetails = "";
     private static String lastState = "";
 
     private DiscordPresence() {}
 
     public static boolean isEnabled() {
         String off = System.getenv("PARAGUACRAFT_DISABLE_RPC");
-        return off == null || off.isEmpty();
+        if (off != null && !off.isEmpty()) {
+            return false;
+        }
+        String launcher = System.getenv("PARAGUACRAFT_LAUNCHER_RPC");
+        return launcher == null || launcher.isEmpty();
     }
 
     public static void connect() {
@@ -61,6 +66,7 @@ public final class DiscordPresence {
     public static void disconnect() {
         closeQuietly();
         connected = false;
+        lastDetails = "";
         lastState = "";
     }
 
@@ -69,12 +75,12 @@ public final class DiscordPresence {
             return;
         }
         Minecraft mc = Minecraft.getMinecraft();
-        String user = mc.getSession().getUsername();
-        String details = user + " - 1.8.9 - Forge + OptiFine";
+        String details = buildDetails(mc);
         String state = buildState(mc);
-        if (state.equals(lastState)) {
+        if (state.equals(lastState) && details.equals(lastDetails)) {
             return;
         }
+        lastDetails = details;
         lastState = state;
         long pid = getPid();
         String nonce = UUID.randomUUID().toString();
@@ -99,6 +105,21 @@ public final class DiscordPresence {
         } catch (IOException ignored) {
             disconnect();
         }
+    }
+
+    private static String buildDetails(Minecraft mc) {
+        String user = envOr("PARAGUACRAFT_RPC_USER", mc.getSession().getUsername());
+        String mcVer = envOr("PARAGUACRAFT_RPC_MC", "1.8.9");
+        String loader = envOr("PARAGUACRAFT_RPC_LOADER", "Forge + OptiFine");
+        return user + " - " + mcVer + " - " + loader;
+    }
+
+    private static String envOr(String key, String fallback) {
+        String v = System.getenv(key);
+        if (v != null && !v.isBlank()) {
+            return v.trim();
+        }
+        return fallback;
     }
 
     private static String buildState(Minecraft mc) {

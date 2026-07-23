@@ -31,7 +31,11 @@ public final class DiscordPresence {
 
     public static boolean isEnabled() {
         String off = System.getenv("PARAGUACRAFT_DISABLE_RPC");
-        return off == null || off.isEmpty();
+        if (off != null && !off.isEmpty()) {
+            return false;
+        }
+        String launcher = System.getenv("PARAGUACRAFT_LAUNCHER_RPC");
+        return launcher == null || launcher.isEmpty();
     }
 
     public static void connect() {

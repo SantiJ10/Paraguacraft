@@ -11,8 +11,57 @@ use image::{GenericImageView, Rgba, RgbaImage};
 use zip::write::SimpleFileOptions;
 use zip::ZipWriter;
 
+/// Embebe GROQ/CurseForge en el binario (compile-time) sin commitear `.env`.
+fn embed_api_keys(manifest: &Path) {
+    let env_path = manifest.join("../.env");
+    println!("cargo:rerun-if-changed={}", env_path.display());
+
+    for key in ["GROQ_API_KEY", "CURSEFORGE_API_KEY"] {
+        if let Ok(v) = env::var(key) {
+            let t = v.trim();
+            if !t.is_empty() {
+                println!("cargo:rustc-env={key}={t}");
+            }
+        }
+    }
+
+    if !env_path.is_file() {
+        return;
+    }
+    let Ok(contents) = fs::read_to_string(&env_path) else {
+        return;
+    };
+    for line in contents.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let Some((k, raw)) = line.split_once('=') else {
+            continue;
+        };
+        let k = k.trim();
+        if k != "GROQ_API_KEY" && k != "CURSEFORGE_API_KEY" {
+            continue;
+        }
+        if env::var(k).is_ok() {
+            continue;
+        }
+        let mut v = raw.trim().to_string();
+        if v.len() >= 2
+            && ((v.starts_with('"') && v.ends_with('"'))
+                || (v.starts_with('\'') && v.ends_with('\'')))
+        {
+            v = v[1..v.len() - 1].to_string();
+        }
+        if !v.is_empty() {
+            println!("cargo:rustc-env={k}={v}");
+        }
+    }
+}
+
 fn main() {
     let manifest = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+    embed_api_keys(&manifest);
     let out = PathBuf::from(env::var("OUT_DIR").unwrap());
     let res = manifest.join("resources/branding");
     let packs_out = out.join("packs");

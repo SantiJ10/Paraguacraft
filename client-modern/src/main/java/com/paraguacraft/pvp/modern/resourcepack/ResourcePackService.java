@@ -84,46 +84,40 @@ public final class ResourcePackService {
         applyPacks(List.of(fileName));
     }
 
-    /** Pack oficial + secundario opcional (orden: oficial primero). */
+    /** Aplica solo el pack oficial Paraguacraft (descargado por el launcher). */
     public static void applySessionPacks() {
-        migrateLegacyPrimarySelection();
-        List<String> packs = new ArrayList<>();
-        if (isInstalled(OFFICIAL_PACK)) {
-            packs.add(OFFICIAL_PACK);
-        } else {
-            String fallback = ModernConfig.selectedResourcePack;
-            if (fallback != null && !fallback.isBlank() && isInstalled(fallback)) {
-                packs.add(fallback);
-            }
-        }
-        String secondary = ModernConfig.secondaryResourcePack;
-        if (secondary != null && !secondary.isBlank() && isInstalled(secondary) && !packs.contains(secondary)) {
-            packs.add(secondary);
-        }
-        if (packs.isEmpty()) {
-            return;
-        }
-        applyPacks(packs);
-    }
-
-    /** Si un pack cosmético quedó como principal, pásalo a secundario y usa el oficial. */
-    private static void migrateLegacyPrimarySelection() {
-        String saved = ModernConfig.selectedResourcePack;
-        if (saved == null || saved.isBlank() || OFFICIAL_PACK.equalsIgnoreCase(saved)) {
-            if (isInstalled(OFFICIAL_PACK)) {
-                ModernConfig.selectedResourcePack = OFFICIAL_PACK;
-            }
-            return;
-        }
+        purgeNonOfficialPacks();
+        ModernConfig.selectedResourcePack = OFFICIAL_PACK;
+        ModernConfig.secondaryResourcePack = "";
+        ModernConfig.save();
         if (!isInstalled(OFFICIAL_PACK)) {
             return;
         }
-        String secondary = ModernConfig.secondaryResourcePack;
-        if ((secondary == null || secondary.isBlank()) && isInstalled(saved)) {
-            ModernConfig.secondaryResourcePack = saved;
+        applyPacks(List.of(OFFICIAL_PACK));
+    }
+
+    private static void purgeNonOfficialPacks() {
+        File dir = packsDir();
+        if (!dir.isDirectory()) {
+            return;
         }
-        ModernConfig.selectedResourcePack = OFFICIAL_PACK;
-        ModernConfig.save();
+        File[] files = dir.listFiles();
+        if (files == null) {
+            return;
+        }
+        for (File f : files) {
+            if (!f.isFile()) {
+                continue;
+            }
+            String name = f.getName();
+            if (name.equalsIgnoreCase(OFFICIAL_PACK)) {
+                continue;
+            }
+            if (name.toLowerCase().endsWith(".zip")) {
+                //noinspection ResultOfMethodCallIgnored
+                f.delete();
+            }
+        }
     }
 
     public static void applyPacks(List<String> fileNames) {
@@ -166,7 +160,7 @@ public final class ResourcePackService {
     }
 
     public static void setSecondaryPack(String fileName) {
-        ModernConfig.secondaryResourcePack = fileName == null ? "" : fileName;
+        ModernConfig.secondaryResourcePack = "";
         ModernConfig.save();
         applySessionPacks();
     }

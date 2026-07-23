@@ -3,6 +3,26 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## Cliente PvP Modern 0.9.7 - 2026-07-23
+
+### Added
+- TNT countdown: segundos restantes visibles sobre la entidad TNT (1.21.11 y 1.8.9).
+- Discord Rich Presence desde el launcher para todas las instancias; el mod respeta `PARAGUACRAFT_DISABLE_RPC`.
+
+### Changed
+- Resource packs: solo `paraguacraft-pvp-modern` oficial; purge de packs extra al instalar/lanzar.
+- Groq + CurseForge integrados en el launcher (keys embebidas en build, ocultas en Ajustes).
+
+## [1.0.0] - 2026-07-23
+
+### Added
+- Instalador NSIS per-machine con branding Paraguacraft.
+- Keys de Groq y CurseForge gestionadas por el launcher (sin pedirlas al usuario).
+
+### Changed
+- Reset de versión del launcher a **1.0.0**.
+- Discord RPC unificado vía launcher para vanilla, Fabric, Forge y servidores locales.
+
 ## Cliente PvP Modern 0.9.6 - 2026-07-22
 
 ### Fixed

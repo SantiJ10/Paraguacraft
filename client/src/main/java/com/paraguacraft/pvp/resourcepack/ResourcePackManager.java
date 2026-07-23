@@ -15,6 +15,8 @@ import java.util.List;
 
 public final class ResourcePackManager {
 
+    public static final String OFFICIAL_PACK = "paraguacraft-pvp-189.zip";
+
     public interface ProgressListener {
         void onProgress(String status, float ratio);
         void onComplete(String fileName);
@@ -73,6 +75,9 @@ public final class ResourcePackManager {
     }
 
     public static void applyPack(String fileName) {
+        if (OFFICIAL_PACK.equalsIgnoreCase(fileName)) {
+            purgeNonOfficialPacks();
+        }
         Minecraft mc = Minecraft.getMinecraft();
         List<String> packs = new ArrayList<String>();
         packs.add("file/" + fileName);
@@ -80,6 +85,26 @@ public final class ResourcePackManager {
         mc.gameSettings.saveOptions();
         mc.getResourcePackRepository().updateRepositoryEntriesAll();
         mc.refreshResources();
+    }
+
+    private static void purgeNonOfficialPacks() {
+        File dir = packsDir();
+        File[] files = dir.listFiles();
+        if (files == null) {
+            return;
+        }
+        for (File f : files) {
+            if (!f.isFile()) {
+                continue;
+            }
+            String name = f.getName();
+            if (OFFICIAL_PACK.equalsIgnoreCase(name)) {
+                continue;
+            }
+            if (name.toLowerCase().endsWith(".zip")) {
+                f.delete();
+            }
+        }
     }
 
     public static void clearActivePack() {
