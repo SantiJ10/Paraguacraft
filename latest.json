@@ -1,12 +1,12 @@
 {
-  "version": "1.0.0",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.0.0/Instalar_Paraguacraft_v1.0.0.exe",
-  "size_bytes": 152141943,
-  "sha256": "fb2c573a6ad13c9429fbe6b9835d67fccca331ecb44ff003f3993849b76cec03",
-  "notes": "- Launcher 1.0.0: Groq + CurseForge integrados, Discord RPC unificado, instalador NSIS\n- Cliente PvP Modern 0.9.7: TNT countdown, pack oficial unico\n- Resource packs: solo paraguacraft-pvp-modern oficial",
+  "version": "1.1.0",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.0/Instalar_Paraguacraft_v1.1.0.exe",
+  "size_bytes": 160588314,
+  "sha256": "65f60682df21e1ff98784fdda8d84242bd5f709c62224454d604a56f92de4fae",
+  "notes": "- Launcher 1.1.0: TNT countdown fix, orden resource packs, cliente Modern 0.9.8 embebido\n- Groq + CurseForge integrados, Discord RPC unificado\n- Resource packs: PvP oficial arriba de vanilla + brand",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.0.0/Instalar_Paraguacraft_v1.0.0.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.0/Instalar_Paraguacraft_v1.1.0.exe",
       "signature": ""
     }
   }

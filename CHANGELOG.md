@@ -9,6 +9,15 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - TNT countdown visible en 1.21.11 (usa `displayName` del pipeline de labels vanilla).
 - Resource packs: orden vanilla → brand → PvP oficial (máxima prioridad); purge conserva brand.
 
+## [1.1.0] - 2026-07-23
+
+### Fixed
+- TNT countdown en cliente PvP Modern 0.9.8.
+- Resource packs: orden vanilla → brand → PvP oficial (máxima prioridad).
+
+### Cliente PvP Modern 0.9.8
+- Incluido embebido en el instalador (sin release separada del cliente).
+
 ## [1.0.1] - 2026-07-23
 
 ### Fixed
