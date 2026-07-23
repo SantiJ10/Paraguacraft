@@ -135,16 +135,17 @@ fn enable_primary_pack(game_dir: &Path, mc_version: &str, pack_name: &str) -> Ap
 }
 
 fn purge_non_official_packs(packs_dir: &Path, official: &str) {
+    const BRAND_PACK: &str = "ParaguacraftBrandPack";
     let Ok(entries) = std::fs::read_dir(packs_dir) else {
         return;
     };
     for entry in entries.flatten() {
         let path = entry.path();
-        if !path.is_file() {
+        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if name.eq_ignore_ascii_case(official) || name.eq_ignore_ascii_case(BRAND_PACK) {
             continue;
         }
-        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-        if name.eq_ignore_ascii_case(official) {
+        if path.is_dir() {
             continue;
         }
         if name.ends_with(".zip") {

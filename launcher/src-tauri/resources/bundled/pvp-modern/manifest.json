@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP Modern",
   "mc_version": "1.21.11",
   "loader": "fabric",
-  "client_version": "0.9.7",
-  "release_tag": "pvp-modern-0.9.7",
-  "descripcion": "PvP 1.21.11: TNT countdown, pack oficial unico, Discord RPC via launcher.",
+  "client_version": "0.9.8",
+  "release_tag": "pvp-modern-0.9.8",
+  "descripcion": "Fix TNT countdown + orden packs (PvP arriba de vanilla, brand preservado).",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-Modern-0.9.7.jar",
-      "sha1": "805b6f088c77d623db25ec8bed42c742fa108582"
+      "filename": "ParaguacraftPvP-Modern-0.9.8.jar",
+      "sha1": "5ebd1635f85a65ed03c657e1dee751dd2227a1a2"
     }
   ]
 }

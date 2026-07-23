@@ -39,15 +39,19 @@ public abstract class MixinRenderTNTPrimed {
             return;
         }
         String text = String.valueOf(seconds);
+
         GlStateManager.pushMatrix();
-        GlStateManager.translate((float) x, (float) y + entity.height + 0.45f, (float) z);
+        GlStateManager.translate((float) x, (float) y + entity.height + 0.5f, (float) z);
         GlStateManager.rotate(-rm.playerViewY, 0.0F, 1.0F, 0.0F);
-        GlStateManager.rotate(rm.playerViewX, 1.0F, 0.0F, 0.0F);
+        GlStateManager.rotate((float) (rm.playerViewX * (Minecraft.getMinecraft().gameSettings.thirdPersonView == 2 ? -1 : 1)), 1.0F, 0.0F, 0.0F);
         GlStateManager.scale(-0.025F, -0.025F, 0.025F);
         GlStateManager.disableLighting();
+        GlStateManager.disableDepth();
         GlStateManager.enableBlend();
+        GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
         font.drawString(text, -font.getStringWidth(text) / 2, 0, 0xFFFF5555);
         GlStateManager.disableBlend();
+        GlStateManager.enableDepth();
         GlStateManager.enableLighting();
         GlStateManager.popMatrix();
     }
