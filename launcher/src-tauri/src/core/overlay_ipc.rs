@@ -49,8 +49,15 @@ fn resolve_image_field(image_url: &str) -> String {
     if trimmed.is_empty() || !(trimmed.starts_with("http://") || trimmed.starts_with("https://")) {
         return trimmed.to_string();
     }
-    // Mantener la URL https en el IPC: el cliente lee la cache local del launcher por SHA-1.
-    let _ = music_art_cache::ensure_cached(art_client(), trimmed);
+    // Si la carátula ya está en disco, mandar file:// al juego (carga instantánea).
+    // Si no, disparar descarga y dejar https para que el cliente lea la cache por SHA-1.
+    if let Some(path) = music_art_cache::ensure_cached(art_client(), trimmed) {
+        let file_url = path_to_file_url(&path);
+        // El campo IPC es de 256 bytes; si la ruta es demasiado larga, caer a https.
+        if file_url.len() < 250 {
+            return file_url;
+        }
+    }
     trimmed.to_string()
 }
 

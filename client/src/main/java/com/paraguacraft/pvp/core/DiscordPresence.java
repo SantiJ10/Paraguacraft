@@ -116,7 +116,7 @@ public final class DiscordPresence {
 
     private static String envOr(String key, String fallback) {
         String v = System.getenv(key);
-        if (v != null && !v.isBlank()) {
+        if (v != null && !v.trim().isEmpty()) {
             return v.trim();
         }
         return fallback;

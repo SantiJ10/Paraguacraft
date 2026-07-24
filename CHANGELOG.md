@@ -3,6 +3,14 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## Cliente PvP Modern 0.9.9 / 1.8.9 2.1.32 - 2026-07-24
+
+### Fixed
+- Portada de Spotify/YouTube en el HUD: se muestra la imagen original (antes cuadrado negro o disco amarillo).
+- Modern: `drawTexture` escalaba mal (solo 16×16 px de esquina de la carátula).
+- 1.8.9: lee la cache del launcher (`music-art/{sha1}.jpg`) además de HTTP.
+- Launcher: cuando la carátula ya está en disco, el IPC manda `file://` para carga instantánea.
+
 ## Cliente PvP Modern 0.9.8 - 2026-07-23
 
 ### Fixed
