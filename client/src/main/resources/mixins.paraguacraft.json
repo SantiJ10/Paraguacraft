@@ -9,7 +9,6 @@
     "MixinScoreboard",
     "MixinItemRenderer",
     "MixinRendererLivingEntity",
-    "MixinRenderTNTPrimed",
     "MixinRenderEntityItem",
     "performance.MixinRenderManager",
     "performance.MixinEffectRenderer",
@@ -28,6 +27,7 @@
     "client.MixinEntityRendererFreelook",
     "client.MixinEntityFreelook",
     "client.MixinMinecraftFullscreen",
+    "client.MixinGuiMultiplayerIcons",
     "client.MixinRenderPlayerCleanup",
     "client.MixinEntityPlayerSPQoL"
   ],

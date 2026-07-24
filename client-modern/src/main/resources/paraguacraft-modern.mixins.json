@@ -30,7 +30,7 @@
     "MixinScreenClose",
     "MixinWindowFullscreen",
     "MixinLightmapTextureManager",
-    "MixinTntEntityRenderer"
+    "MixinMultiplayerScreenIcons"
   ],
   "injectors": {
     "defaultRequire": 1

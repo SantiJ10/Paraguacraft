@@ -13,7 +13,7 @@ buildscript {
 apply plugin: 'net.minecraftforge.gradle.forge'
 apply plugin: 'org.spongepowered.mixin'
 
-version = "2.1.32"
+version = "2.1.35"
 group = "com.paraguacraft.pvp"
 archivesBaseName = "ParaguacraftPvP"
 

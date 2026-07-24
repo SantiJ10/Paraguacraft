@@ -1,15 +1,15 @@
-{
+﻿{
   "id": "paraguacraft-pvp-modern",
   "nombre": "Paraguacraft PvP Modern",
   "mc_version": "1.21.11",
   "loader": "fabric",
-  "client_version": "0.9.9",
-  "release_tag": "pvp-modern-0.9.9",
-  "descripcion": "Fix portada Spotify/YouTube en HUD (escala textura completa).",
+  "client_version": "0.9.12",
+  "release_tag": "pvp-modern-0.9.12",
+  "descripcion": "Borderless/Discord, iconos servidores, Mod Menu agrupado.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-Modern-0.9.9.jar",
-      "sha1": "a1d05b47941b6952d4a49a99d6163ffe32ceebcb"
+      "filename": "ParaguacraftPvP-Modern-0.9.12.jar",
+      "sha1": "2c3c90bb6e22fca5e2ef67a7f903aab89e434b08"
     }
   ]
 }

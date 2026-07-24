@@ -1,15 +1,15 @@
-{
+﻿{
   "id": "paraguacraft-pvp",
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.32",
-  "release_tag": "pvp-client-2.1.32",
-  "descripcion": "Portada Spotify/YouTube desde cache del launcher + HTTP fallback.",
+  "client_version": "2.1.35",
+  "release_tag": "pvp-client-2.1.35",
+  "descripcion": "Borderless/Discord, iconos servidores, Mod Menu agrupado.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.32.jar",
-      "sha1": "faa4a52600213044427f97b10df234f436e210ab"
+      "filename": "ParaguacraftPvP-2.1.35.jar",
+      "sha1": "59beabc0ab37ada4d49e98f77ed8fc1d961495cd"
     },
     {
       "filename": "Hytils-Reborn-1.8.9-forge-1.7.5.jar",

@@ -3,6 +3,42 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [1.1.3] - 2026-07-24
+
+### Fixed
+- Discord: menos renombres de título de ventana (evita romper Overlay / compartir pantalla).
+- Clientes embebidos Modern 0.9.12 / PvP 2.1.35 (borderless, iconos de servidores, Mod Menu agrupado).
+
+## Cliente PvP Modern 0.9.12 / 1.8.9 2.1.35 - 2026-07-24
+
+
+### Fixed
+- Borderless más estable con Discord (menos pelea con Overlay / captura de ventana).
+- Iconos de servidores en lista multiplayer: si el ping no trae favicon, se descarga desde mcsrvstat.us.
+
+### Changed
+- Mod Menu: Armadura (+%), FPS, Entity/cull, BedWars, Chat y Scoreboard agrupados en tarjetas con submods (estilo Música).
+
+## Cliente PvP Modern 0.9.11 / 1.8.9 2.1.34 - 2026-07-24
+
+
+### Fixed
+- TNT countdown estilo Lunar (`1,35`) ahora se dibuja de forma fiable:
+  - **1.8.9:** `RenderWorldLastEvent` (no depende del renderer que OptiFine reemplaza).
+  - **1.21.11:** `WorldRenderEvents.AFTER_ENTITIES` (texto billboard sobre la TNT).
+
+## [1.1.2] - 2026-07-24
+
+### Fixed
+- TNT countdown en clientes embebidos (Modern 0.9.11, PvP 2.1.34).
+
+## Cliente PvP Modern 0.9.10 / 1.8.9 2.1.33 - 2026-07-24
+
+### Fixed
+- TNT countdown estilo Lunar: segundos con 2 decimales (ej. `1,35`) sobre la TNT encendida.
+- Modern: el label usaba coords del mundo en vez de offset local (el texto no se veía).
+- 1.8.9: render tipo nametag (blanco + sombra + fondo).
+
 ## Cliente PvP Modern 0.9.9 / 1.8.9 2.1.32 - 2026-07-24
 
 ### Fixed
