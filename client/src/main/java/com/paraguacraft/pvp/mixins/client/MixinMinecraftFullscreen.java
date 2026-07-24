@@ -99,22 +99,22 @@ public abstract class MixinMinecraftFullscreen {
                 centerWindow(mode);
             }
 
-            // NUNCA fullscreen exclusivo: así se mantiene el alt-tab y la captura.
+            // NUNCA fullscreen exclusivo: Discord puede listar/capturar la ventana.
             Display.setFullscreen(false);
 
             this.displayWidth = Math.max(mode.getWidth(), 1);
             this.displayHeight = Math.max(mode.getHeight(), 1);
 
-            // Fuerza a LWJGL a reaplicar el estilo (con/sin borde) en caliente.
-            Display.setResizable(false);
-            Display.setResizable(true);
+            // Un solo toggle de resizable (doble pelea con Discord Overlay).
+            try {
+                Display.setResizable(true);
+            } catch (Throwable ignored) {
+            }
 
             if (grabbed) {
                 Mouse.setGrabbed(true);
             }
 
-            // Aplica el nuevo tamaño al instante (framebuffer + GUI) para que NO
-            // se vea la ventana "achicada" hasta el próximo F11.
             try {
                 Display.update();
                 this.resize(this.displayWidth, this.displayHeight);

@@ -11,6 +11,7 @@ import com.paraguacraft.pvp.modern.core.SessionBootstrap;
 import com.paraguacraft.pvp.modern.core.QoLBootstrap;
 import com.paraguacraft.pvp.modern.core.SkinManager;
 import com.paraguacraft.pvp.modern.core.TrainingWorldHelper;
+import com.paraguacraft.pvp.modern.core.TntCountdownBootstrap;
 import com.paraguacraft.pvp.modern.hud.HudCpsTracker;
 import com.paraguacraft.pvp.modern.hud.HudRenderer;
 import com.paraguacraft.pvp.modern.input.ModKeybinds;
@@ -23,7 +24,7 @@ import net.minecraft.client.MinecraftClient;
 public class ParaguacraftPvPModern implements ClientModInitializer {
 
     public static final String MOD_ID = "paraguacraftpvp-modern";
-    public static final String VERSION = "0.9.6";
+    public static final String VERSION = "0.9.12";
 
     @Override
     public void onInitializeClient() {
@@ -43,6 +44,7 @@ public class ParaguacraftPvPModern implements ClientModInitializer {
         HudCpsTracker.register();
         HudRenderer.register();
         ColoredBedsBootstrap.register();
+        TntCountdownBootstrap.register();
         ModKeybinds.register();
         BadgeNetHandler.register();
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {

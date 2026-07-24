@@ -10,8 +10,10 @@ import org.lwjgl.system.MemoryStack;
 import java.nio.IntBuffer;
 
 /**
- * Pantalla completa en ventana (borderless) estilo Patcher/Lunar — LWJGL3 + Java 21.
- * Sin fullscreen exclusivo: alt-tab instantáneo y captura por ventana.
+ * Borderless (ventana sin bordes a tamaño de monitor) compatible con captura/overlay de Discord.
+ * <p>
+ * Importante: no reaplicar {@code glfwSetWindowMonitor} en cada tick — Discord Overlay
+ * toca el estilo de la ventana y un "heal" agresivo pelea con él (ventana rota / sale del juego).
  */
 public final class WindowedFullscreenManager {
 
@@ -20,6 +22,7 @@ public final class WindowedFullscreenManager {
     private static int savedW;
     private static int savedH;
     private static boolean active;
+    private static long lastHealMs;
 
     private WindowedFullscreenManager() {}
 
@@ -75,12 +78,30 @@ public final class WindowedFullscreenManager {
         }
         savedW = Math.max(window.getWidth(), 854);
         savedH = Math.max(window.getHeight(), 480);
-        GLFW.glfwSetWindowAttrib(handle, GLFW.GLFW_DECORATED, GLFW.GLFW_FALSE);
+
         long monitor = GLFW.glfwGetPrimaryMonitor();
         GLFWVidMode mode = monitor != 0 ? GLFW.glfwGetVideoMode(monitor) : null;
-        if (mode != null) {
-            GLFW.glfwSetWindowMonitor(handle, 0, 0, 0, mode.width(), mode.height(), mode.refreshRate());
+        int monX = 0;
+        int monY = 0;
+        int monW = mode != null ? mode.width() : savedW;
+        int monH = mode != null ? mode.height() : savedH;
+        if (monitor != 0) {
+            try (MemoryStack stack = MemoryStack.stackPush()) {
+                IntBuffer mx = stack.mallocInt(1);
+                IntBuffer my = stack.mallocInt(1);
+                GLFW.glfwGetMonitorPos(monitor, mx, my);
+                monX = mx.get(0);
+                monY = my.get(0);
+            }
         }
+
+        // Ventana normal sin decoración (NO fullscreen exclusivo): Discord la lista para compartir.
+        GLFW.glfwSetWindowAttrib(handle, GLFW.GLFW_AUTO_ICONIFY, GLFW.GLFW_FALSE);
+        GLFW.glfwSetWindowAttrib(handle, GLFW.GLFW_DECORATED, GLFW.GLFW_FALSE);
+        // Evitar glfwSetWindowMonitor: deja el HWND más "estable" para overlay/captura.
+        GLFW.glfwSetWindowMonitor(handle, 0, monX, monY, monW, monH, GLFW.GLFW_DONT_CARE);
+        GLFW.glfwSetWindowPos(handle, monX, monY);
+        GLFW.glfwSetWindowSize(handle, monW, monH);
         active = true;
         client.onResolutionChanged();
     }
@@ -94,19 +115,25 @@ public final class WindowedFullscreenManager {
         client.onResolutionChanged();
     }
 
-    /** Reaplica borderless si el mod está ON y la ventana perdió el estado (resize, alt-tab). */
+    /**
+     * Heal suave: solo restaura decoración si se perdió, con cooldown.
+     * No pelear con Discord Overlay (que puede tocar el estilo temporalmente).
+     */
     public static void heal(MinecraftClient client) {
-        if (!active || client == null) {
+        if (!active || !ModernConfig.windowedFullscreen || client == null) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (now - lastHealMs < 2500L) {
             return;
         }
         long handle = client.getWindow().getHandle();
-        if (GLFW.glfwGetWindowAttrib(handle, GLFW.GLFW_DECORATED) != 0) {
-            GLFW.glfwSetWindowAttrib(handle, GLFW.GLFW_DECORATED, GLFW.GLFW_FALSE);
-            long monitor = GLFW.glfwGetPrimaryMonitor();
-            GLFWVidMode mode = monitor != 0 ? GLFW.glfwGetVideoMode(monitor) : null;
-            if (mode != null) {
-                GLFW.glfwSetWindowMonitor(handle, 0, 0, 0, mode.width(), mode.height(), mode.refreshRate());
-            }
+        if (GLFW.glfwGetWindowAttrib(handle, GLFW.GLFW_DECORATED) == 0) {
+            return;
         }
+        // Solo quitar bordes; no redimensionar/monitor (rompe overlay).
+        lastHealMs = now;
+        GLFW.glfwSetWindowAttrib(handle, GLFW.GLFW_DECORATED, GLFW.GLFW_FALSE);
+        GLFW.glfwSetWindowAttrib(handle, GLFW.GLFW_AUTO_ICONIFY, GLFW.GLFW_FALSE);
     }
 }

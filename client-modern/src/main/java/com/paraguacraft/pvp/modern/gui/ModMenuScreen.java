@@ -136,6 +136,12 @@ public class ModMenuScreen extends ParaguacraftScreen {
             case "theme" -> client.setScreen(new ThemeSelectScreen(this));
             case "nickfinder" -> client.setScreen(new NickFinderScreen(this));
             case "music_hud" -> client.setScreen(new GuiMusicHudOptionsScreen(this));
+            case "armor_hud" -> client.setScreen(GuiSubmodOptionsScreen.armor(this));
+            case "fps_group" -> client.setScreen(GuiSubmodOptionsScreen.fps(this));
+            case "entity_group" -> client.setScreen(GuiSubmodOptionsScreen.entity(this));
+            case "bedwars_group" -> client.setScreen(GuiSubmodOptionsScreen.bedwars(this));
+            case "chat_group" -> client.setScreen(GuiSubmodOptionsScreen.chat(this));
+            case "scoreboard_group" -> client.setScreen(GuiSubmodOptionsScreen.scoreboard(this));
             case "badges_ping" -> client.setScreen(new GuiBadgesPingOptionsScreen(this));
             case "sprint" -> client.setScreen(new GuiSprintOptionsScreen(this));
             case "crosshair" -> {
@@ -175,16 +181,15 @@ public class ModMenuScreen extends ParaguacraftScreen {
 
     private List<ModCard> allCards() {
         List<ModCard> cards = new ArrayList<>();
-        cards.add(toggle(1, "FPS", () -> ModernConfig.showFps, v -> ModernConfig.showFps = v));
+        cards.add(open(1, "FPS", "fps_group"));
         cards.add(toggle(1, "Ping", () -> ModernConfig.showPing, v -> ModernConfig.showPing = v));
         cards.add(toggle(1, "CPS", () -> ModernConfig.showCps, v -> ModernConfig.showCps = v));
         cards.add(toggle(1, "Keystrokes", () -> ModernConfig.showKeystrokes, v -> ModernConfig.showKeystrokes = v));
         cards.add(toggle(1, "Coordenadas", () -> ModernConfig.showCoords, v -> ModernConfig.showCoords = v));
-        cards.add(toggle(1, "Armadura + iconos", () -> ModernConfig.showArmor, v -> ModernConfig.showArmor = v));
+        cards.add(open(1, "Armadura HUD", "armor_hud"));
         cards.add(toggle(1, "Contador bloques", () -> ModernConfig.showBlockCount, v -> ModernConfig.showBlockCount = v));
         cards.add(toggle(1, "Objeto en mano", () -> ModernConfig.showHeldItem, v -> ModernConfig.showHeldItem = v));
-        cards.add(toggle(1, "Recursos BedWars", () -> ModernConfig.showBedwarsResources, v -> ModernConfig.showBedwarsResources = v));
-        cards.add(toggle(1, "BW fondo transparente", () -> ModernConfig.bwResTransparentBg, v -> ModernConfig.bwResTransparentBg = v));
+        cards.add(open(1, "BedWars", "bedwars_group"));
         cards.add(toggle(1, "Hardware HUD", () -> ModernConfig.showHardwareHud, v -> ModernConfig.showHardwareHud = v));
         cards.add(open(1, "Musica", "music_hud"));
         cards.add(toggle(1, "Pociones HUD", () -> ModernConfig.showPotions, v -> ModernConfig.showPotions = v));
@@ -217,37 +222,17 @@ public class ModMenuScreen extends ParaguacraftScreen {
             PerformanceConfig.oldAnimations = v;
         }));
         cards.add(toggle(3, "Ocultar titulos", () -> ModernConfig.hideTitles, v -> ModernConfig.hideTitles = v));
-        cards.add(toggle(3, "Chat triggers", () -> ModernConfig.chatTriggers, v -> ModernConfig.chatTriggers = v));
+        cards.add(open(3, "Chat", "chat_group"));
         cards.add(open(3, "Config chat triggers", "chat_triggers_cfg"));
-        cards.add(toggle(3, "Chat alerts", () -> ModernConfig.chatAlertsEnabled, v -> {
-            ModernConfig.chatAlertsEnabled = v;
-            com.paraguacraft.pvp.modern.core.ChatAlerts.enabled = v;
-            com.paraguacraft.pvp.modern.core.ChatAlerts.save();
-        }));
         cards.add(open(3, "Config chat alerts", "chat_alerts"));
-        cards.add(toggle(3, "Scoreboard", () -> ModernConfig.scoreboardEnabled, v -> ModernConfig.scoreboardEnabled = v));
-        cards.add(toggle(3, "Scoreboard fondo transparente", () -> ModernConfig.scoreboardTransparentBg, v -> ModernConfig.scoreboardTransparentBg = v));
-        cards.add(toggle(3, "Scoreboard ocultar numeros rojos", () -> ModernConfig.scoreboardHideRedNumbers, v -> ModernConfig.scoreboardHideRedNumbers = v));
-        cards.add(toggle(3, "Scoreboard ocultar stats", () -> ModernConfig.scoreboardHideStats, v -> ModernConfig.scoreboardHideStats = v));
+        cards.add(open(3, "Scoreboard", "scoreboard_group"));
         cards.add(open(1, "Modo de juego (manual)", "gamemode_override"));
         cards.add(toggle(1, "HUD modo de juego", () -> ModernConfig.showGameModeHud, v -> ModernConfig.showGameModeHud = v));
-        cards.add(toggle(1, "Timer bridge", () -> ModernConfig.showBridgeTimer, v -> ModernConfig.showBridgeTimer = v));
         cards.add(toggle(4, "Boost FPS", () -> PerformanceConfig.boostFps, v -> {
             PerformanceConfig.boostFps = v;
             ModernConfig.save();
         }));
-        cards.add(toggle(4, "Entity cull", () -> ModernConfig.entityCull, v -> ModernConfig.entityCull = v));
-        cards.add(toggle(4, "Nametag cull", () -> ModernConfig.nametagCull, v -> ModernConfig.nametagCull = v));
-        cards.add(toggle(4, "Nametag LOD (mirar)", () -> ModernConfig.nametagLod, v -> ModernConfig.nametagLod = v));
-        cards.add(toggle(4, "Block entity cull", () -> ModernConfig.blockEntityCull, v -> ModernConfig.blockEntityCull = v));
-        cards.add(toggle(4, "Anim freeze lejos", () -> ModernConfig.entityAnimCull, v -> ModernConfig.entityAnimCull = v));
-        cards.add(toggle(4, "Armor stand cull", () -> ModernConfig.armorStandCull, v -> ModernConfig.armorStandCull = v));
-        cards.add(toggle(4, "Item frame cull", () -> ModernConfig.itemFrameCull, v -> ModernConfig.itemFrameCull = v));
-        cards.add(toggle(4, "FPS bajo sin foco", () -> PerformanceConfig.reduceFpsWhenMinimized, v -> {
-            PerformanceConfig.reduceFpsWhenMinimized = v;
-            ModernConfig.save();
-        }));
-        cards.add(toggle(4, "Armadura %", () -> ModernConfig.showArmorPercentage, v -> ModernConfig.showArmorPercentage = v));
+        cards.add(open(4, "Entity / cull", "entity_group"));
         cards.add(open(4, "Particulas: " + PerformanceConfig.particleModeLabel(), "particles"));
         cards.add(open(4, "Limpiar memoria", "clean_memory"));
         cards.add(open(4, "Aplicar preset de hardware", "apply_hw_preset"));
@@ -256,7 +241,6 @@ public class ModMenuScreen extends ParaguacraftScreen {
         cards.add(open(5, "Cubecraft Quick Play", "cubecraft_qp"));
         cards.add(open(5, "Texture packs", "packs"));
         cards.add(open(5, "NickFinder (N)", "nickfinder"));
-        cards.add(toggle(5, "Camas coloridas BW", () -> ModernConfig.coloredBeds, v -> ModernConfig.coloredBeds = v));
         cards.add(toggle(5, "Colores de equipo", () -> ModernConfig.teamColors, v -> ModernConfig.teamColors = v));
         cards.add(toggle(5, "NickFinder activo", () -> ModernConfig.nickFinderEnabled, v -> ModernConfig.nickFinderEnabled = v));
         cards.add(open(5, "Tema del menu", "theme"));

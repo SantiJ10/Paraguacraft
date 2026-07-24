@@ -58,13 +58,12 @@ public class GuiParaguaMenu extends GuiScreen {
     }
 
     private static final ModEntry[] ALL_MODS = {
-        new ModEntry(0, "paraguacraft.menu.mod.fps", 1),
+        new ModEntry(60, "paraguacraft.menu.mod.fps", 1),
         new ModEntry(1, "paraguacraft.menu.mod.ping", 1),
         new ModEntry(2, "paraguacraft.menu.mod.cps", 1),
         new ModEntry(3, "paraguacraft.menu.mod.keystrokes", 1),
         new ModEntry(5, "paraguacraft.menu.mod.coords", 1),
         new ModEntry(6, "paraguacraft.menu.mod.armor", 1),
-        new ModEntry(7, "paraguacraft.menu.mod.armor_pct", 1),
         new ModEntry(8, "paraguacraft.menu.mod.potions", 1),
         new ModEntry(12, "paraguacraft.menu.mod.held_item", 1),
         new ModEntry(14, "paraguacraft.menu.mod.server_hud", 4),
@@ -81,16 +80,10 @@ public class GuiParaguaMenu extends GuiScreen {
         new ModEntry(13, "paraguacraft.menu.mod.windowed_fullscreen", 3),
         new ModEntry(20, "paraguacraft.menu.mod.old_anim", 3),
         new ModEntry(19, "paraguacraft.menu.mod.boost_fps", 6),
-        new ModEntry(21, "paraguacraft.menu.mod.entity_cull", 6),
-        new ModEntry(22, "paraguacraft.menu.mod.nametag_cull", 6),
+        new ModEntry(61, "paraguacraft.menu.mod.entity_cull", 6),
         new ModEntry(23, "paraguacraft.menu.mod.particles", 6),
-        new ModEntry(24, "paraguacraft.menu.mod.block_entity", 6),
-        new ModEntry(25, "paraguacraft.menu.mod.anim_cull", 6),
         new ModEntry(26, "paraguacraft.menu.mod.memory_clean", 6),
         new ModEntry(27, "paraguacraft.menu.mod.optifine_preset", 6),
-        new ModEntry(28, "paraguacraft.menu.mod.armor_stand", 6),
-        new ModEntry(29, "paraguacraft.menu.mod.item_frame", 6),
-        new ModEntry(30, "paraguacraft.menu.mod.nametag_lod", 6),
         new ModEntry(31, "paraguacraft.menu.mod.skip_combat_fx", 6),
         new ModEntry(32, "paraguacraft.menu.mod.hw_preset", 6),
         new ModEntry(33, "paraguacraft.menu.mod.profiles", 3),
@@ -109,8 +102,6 @@ public class GuiParaguaMenu extends GuiScreen {
         new ModEntry(48, "paraguacraft.menu.mod.combo_counter", 2),
         new ModEntry(49, "paraguacraft.menu.mod.item_physics", 3),
         new ModEntry(50, "paraguacraft.menu.mod.hide_titles", 2),
-        new ModEntry(51, "paraguacraft.menu.mod.idle_fps_min", 6),
-        new ModEntry(52, "paraguacraft.menu.mod.idle_fps_unfocus", 6),
     };
 
     @Override
@@ -255,7 +246,7 @@ public class GuiParaguaMenu extends GuiScreen {
             String openLbl = ModLang.format("paraguacraft.menu.open");
             Gui.drawRect(x + 8, toggleY, x + CARD_W - 8, toggleY + 16, hover ? UiTheme.ACCENT : 0xFF226688);
             fr.drawStringWithShadow(openLbl, x + CARD_W / 2 - fr.getStringWidth(openLbl) / 2, toggleY + 4, 0xFFFFFF);
-        } else if (mod.id == 9 || mod.id == 36 || mod.id == 38 || mod.id == 45) {
+        } else if (mod.id == 6 || mod.id == 9 || mod.id == 36 || mod.id == 38 || mod.id == 45 || mod.id == 60 || mod.id == 61) {
             int half = (CARD_W - 20) / 2;
             int optX = x + 8;
             int togX = x + 8 + half + 4;
@@ -355,21 +346,27 @@ public class GuiParaguaMenu extends GuiScreen {
             int cardY = gridY + 8 + cy * (CARD_H + GAP) - (int) scrollOffset;
             if (cardY + CARD_H >= gridY && cardY <= gridY + panelH - TOPBAR - 12
                 && mouseX >= cardX && mouseX <= cardX + CARD_W && mouseY >= cardY && mouseY <= cardY + CARD_H) {
-                if (mod.id == 9 || mod.id == 36 || mod.id == 38 || mod.id == 45) {
+                if (mod.id == 6 || mod.id == 9 || mod.id == 36 || mod.id == 38 || mod.id == 45 || mod.id == 60 || mod.id == 61) {
                     int toggleY = cardY + CARD_H - 22;
                     int half = (CARD_W - 20) / 2;
                     int optX = cardX + 8;
                     int togX = cardX + 8 + half + 4;
                     if (mouseY >= toggleY && mouseY <= toggleY + 16) {
                         if (mouseX >= optX && mouseX <= optX + half) {
-                            if (mod.id == 9) {
+                            if (mod.id == 6) {
+                                mc.displayGuiScreen(GuiSubmodOptions.armor());
+                            } else if (mod.id == 9) {
                                 mc.displayGuiScreen(new GuiScoreboardOptions());
                             } else if (mod.id == 36) {
                                 mc.displayGuiScreen(new GuiMusicHudOptions());
+                            } else if (mod.id == 38) {
+                                mc.displayGuiScreen(GuiSubmodOptions.bedwars());
                             } else if (mod.id == 45) {
                                 mc.displayGuiScreen(new GuiChatTriggersOptions());
+                            } else if (mod.id == 60) {
+                                mc.displayGuiScreen(GuiSubmodOptions.fps());
                             } else {
-                                mc.displayGuiScreen(new GuiBwResourcesOptions());
+                                mc.displayGuiScreen(GuiSubmodOptions.entity());
                             }
                             return;
                         }
@@ -473,7 +470,6 @@ public class GuiParaguaMenu extends GuiScreen {
             case 4: return ModConfig.noHurtCam;
             case 5: return ModConfig.showCoords;
             case 6: return ModConfig.showArmor;
-            case 7: return ModConfig.showArmorPercentage;
             case 8: return ModConfig.showPotions;
             case 9: return ModConfig.scoreboardEnabled;
             case 10: return ModConfig.toggleSneak;
@@ -489,16 +485,9 @@ public class GuiParaguaMenu extends GuiScreen {
             case 18: return ModConfig.showNametagLogoOthers;
             case 19: return PerformanceConfig.boostFps;
             case 20: return PerformanceConfig.oldAnimations;
-            case 21: return PerformanceConfig.entityCull;
-            case 22: return PerformanceConfig.nametagCull;
             case 23: return PerformanceConfig.particleMode != PerformanceConfig.ParticleMode.OFF;
-            case 24: return PerformanceConfig.blockEntityCull;
-            case 25: return PerformanceConfig.entityAnimCull;
             case 26: return PerformanceConfig.memoryCleanupOnWorldChange;
             case 27: return PerformanceConfig.applyVanillaPreset;
-            case 28: return PerformanceConfig.armorStandCull;
-            case 29: return PerformanceConfig.itemFrameCull;
-            case 30: return PerformanceConfig.nametagLod;
             case 31: return PerformanceConfig.skipCombatFx;
             case 32: return PerformanceConfig.hardwareAutoPreset;
             case 33: return true;
@@ -517,8 +506,8 @@ public class GuiParaguaMenu extends GuiScreen {
             case 48: return ModConfig.comboCounter;
             case 49: return ModConfig.itemPhysics;
             case 50: return ModConfig.hideTitles;
-            case 51: return PerformanceConfig.reduceFpsWhenMinimized;
-            case 52: return PerformanceConfig.reduceFpsWhenUnfocused;
+            case 60: return ModConfig.showFPS;
+            case 61: return PerformanceConfig.entityCull;
             default: return false;
         }
     }
@@ -532,7 +521,6 @@ public class GuiParaguaMenu extends GuiScreen {
             case 4: ModConfig.noHurtCam = !ModConfig.noHurtCam; break;
             case 5: ModConfig.showCoords = !ModConfig.showCoords; break;
             case 6: ModConfig.showArmor = !ModConfig.showArmor; break;
-            case 7: ModConfig.showArmorPercentage = !ModConfig.showArmorPercentage; break;
             case 8: ModConfig.showPotions = !ModConfig.showPotions; break;
             case 9: ModConfig.scoreboardEnabled = !ModConfig.scoreboardEnabled; break;
             case 10: ModConfig.toggleSneak = !ModConfig.toggleSneak; ModConfig.isSneakingToggled = false; break;
@@ -561,24 +549,13 @@ public class GuiParaguaMenu extends GuiScreen {
                 PerformanceConfig.oldAnimations = !PerformanceConfig.oldAnimations;
                 ModConfig.save();
                 break;
-            case 21:
+            case 60: ModConfig.showFPS = !ModConfig.showFPS; break;
+            case 61:
                 PerformanceConfig.entityCull = !PerformanceConfig.entityCull;
-                ModConfig.save();
-                break;
-            case 22:
-                PerformanceConfig.nametagCull = !PerformanceConfig.nametagCull;
                 ModConfig.save();
                 break;
             case 23:
                 PerformanceConfig.cycleParticleMode();
-                ModConfig.save();
-                break;
-            case 24:
-                PerformanceConfig.blockEntityCull = !PerformanceConfig.blockEntityCull;
-                ModConfig.save();
-                break;
-            case 25:
-                PerformanceConfig.entityAnimCull = !PerformanceConfig.entityAnimCull;
                 ModConfig.save();
                 break;
             case 26:
@@ -590,18 +567,6 @@ public class GuiParaguaMenu extends GuiScreen {
                 if (PerformanceConfig.applyVanillaPreset) {
                     OptifinePreset.applyIfEnabled();
                 }
-                ModConfig.save();
-                break;
-            case 28:
-                PerformanceConfig.armorStandCull = !PerformanceConfig.armorStandCull;
-                ModConfig.save();
-                break;
-            case 29:
-                PerformanceConfig.itemFrameCull = !PerformanceConfig.itemFrameCull;
-                ModConfig.save();
-                break;
-            case 30:
-                PerformanceConfig.nametagLod = !PerformanceConfig.nametagLod;
                 ModConfig.save();
                 break;
             case 31:
