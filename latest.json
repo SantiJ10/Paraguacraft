@@ -1,12 +1,12 @@
 {
-  "version": "1.1.0",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.0/Instalar_Paraguacraft_v1.1.0.exe",
-  "size_bytes": 160588314,
-  "sha256": "65f60682df21e1ff98784fdda8d84242bd5f709c62224454d604a56f92de4fae",
-  "notes": "- Launcher 1.1.0: TNT countdown fix, orden resource packs, cliente Modern 0.9.8 embebido\n- Groq + CurseForge integrados, Discord RPC unificado\n- Resource packs: PvP oficial arriba de vanilla + brand",
+  "version": "1.1.1",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.1/Instalar_Paraguacraft_v1.1.1.exe",
+  "size_bytes": 169046006,
+  "sha256": "1eacc64745b2b1c13c25874fd03469957dbeab8c53c3fa98f01ecd26c22ea8a7",
+  "notes": "- Launcher 1.1.1: portada Spotify/YouTube original en HUD (Modern 0.9.9 + PvP 2.1.32)\n- IPC manda file:// cuando la carátula ya está cacheada\n- Fix escala de textura (ya no se ve cuadrado negro/disco)",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.0/Instalar_Paraguacraft_v1.1.0.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.1/Instalar_Paraguacraft_v1.1.1.exe",
       "signature": ""
     }
   }
