@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP Modern",
   "mc_version": "1.21.11",
   "loader": "fabric",
-  "client_version": "0.9.8",
-  "release_tag": "pvp-modern-0.9.8",
-  "descripcion": "Fix TNT countdown + orden packs (PvP arriba de vanilla, brand preservado).",
+  "client_version": "0.9.9",
+  "release_tag": "pvp-modern-0.9.9",
+  "descripcion": "Fix portada Spotify/YouTube en HUD (escala textura completa).",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-Modern-0.9.8.jar",
-      "sha1": "5ebd1635f85a65ed03c657e1dee751dd2227a1a2"
+      "filename": "ParaguacraftPvP-Modern-0.9.9.jar",
+      "sha1": "a1d05b47941b6952d4a49a99d6163ffe32ceebcb"
     }
   ]
 }

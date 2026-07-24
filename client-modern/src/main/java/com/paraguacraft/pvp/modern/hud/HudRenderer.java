@@ -599,6 +599,10 @@ public final class HudRenderer {
             } else {
                 Identifier art = MusicArtCache.get(imageUrl);
                 if (art != null) {
+                    int tw = Math.max(1, MusicArtCache.getTexWidth());
+                    int th = Math.max(1, MusicArtCache.getTexHeight());
+                    // region = textura completa; width/height = tamaño en pantalla
+                    // (el overload corto usa region=width y solo muestra 16px de esquina → negro)
                     ctx.drawTexture(
                         RenderPipelines.GUI_TEXTURED,
                         art,
@@ -608,8 +612,10 @@ public final class HudRenderer {
                         0f,
                         artSize,
                         artSize,
-                        MusicArtCache.getTexWidth(),
-                        MusicArtCache.getTexHeight()
+                        tw,
+                        th,
+                        tw,
+                        th
                     );
                 } else {
                     drawMusicDisc(ctx, artX, artY);

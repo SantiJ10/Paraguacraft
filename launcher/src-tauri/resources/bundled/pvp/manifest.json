@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.31",
-  "release_tag": "pvp-client-2.1.31",
-  "descripcion": "Auto-aplica pack PvP al lanzar y muestra la portada original de Spotify/YouTube en el HUD.",
+  "client_version": "2.1.32",
+  "release_tag": "pvp-client-2.1.32",
+  "descripcion": "Portada Spotify/YouTube desde cache del launcher + HTTP fallback.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.31.jar",
-      "sha1": "a5f487acdaec9bb7eda73d8cedf0f357ef321718"
+      "filename": "ParaguacraftPvP-2.1.32.jar",
+      "sha1": "faa4a52600213044427f97b10df234f436e210ab"
     },
     {
       "filename": "Hytils-Reborn-1.8.9-forge-1.7.5.jar",
