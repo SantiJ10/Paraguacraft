@@ -17,6 +17,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - TNT countdown visible en 1.21.11 (usa `displayName` del pipeline de labels vanilla).
 - Resource packs: orden vanilla → brand → PvP oficial (máxima prioridad); purge conserva brand.
 
+## [1.1.1] - 2026-07-24
+
+### Fixed
+- Portada Spotify/YouTube en HUD in-game (imagen original, no disco/negro).
+- Clientes embebidos: Modern **0.9.9**, PvP 1.8.9 **2.1.32**.
+
 ## [1.1.0] - 2026-07-23
 
 ### Fixed
