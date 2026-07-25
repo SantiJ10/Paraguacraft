@@ -66,7 +66,14 @@ public final class ResourcePackService {
                     dir.mkdirs();
                 }
                 File dest = new File(dir, pack.fileName);
-                downloadHttp(pack.downloadUrl, dest);
+                try {
+                    downloadHttp(pack.downloadUrl, dest);
+                } catch (Exception primary) {
+                    if (!pack.hasFallback()) {
+                        throw primary;
+                    }
+                    downloadHttp(pack.fallbackDownloadUrl, dest);
+                }
                 if (pack.sha1 != null && !pack.sha1.isEmpty() && !verifySha1(dest, pack.sha1)) {
                     throw new IllegalStateException("SHA1 inválido");
                 }
@@ -191,9 +198,14 @@ public final class ResourcePackService {
 
     private static void downloadHttp(String urlStr, File dest) throws Exception {
         HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
+        conn.setInstanceFollowRedirects(true);
         conn.setRequestProperty("User-Agent", "Paraguacraft-Modern/1.0");
         conn.setConnectTimeout(12000);
-        conn.setReadTimeout(60000);
+        conn.setReadTimeout(120000);
+        int code = conn.getResponseCode();
+        if (code < 200 || code >= 300) {
+            throw new IllegalStateException("CDN HTTP " + code);
+        }
         try (InputStream in = conn.getInputStream(); FileOutputStream out = new FileOutputStream(dest)) {
             byte[] buf = new byte[8192];
             int read;

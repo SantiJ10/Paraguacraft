@@ -16,6 +16,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import sys
 import zipfile
 from pathlib import Path
@@ -223,10 +224,22 @@ def build_modern() -> tuple[Path, str]:
     return OUT_MODERN, sha1_file(OUT_MODERN)
 
 
-def update_catalog(catalog_path: Path, pack_id: str, title: str, subtitle: str, file_name: str, sha1: str) -> None:
+def update_catalog(
+    catalog_path: Path,
+    pack_id: str,
+    title: str,
+    subtitle: str,
+    file_name: str,
+    sha1: str,
+    *,
+    base_url: str,
+    fallback_url: str,
+) -> None:
     if not catalog_path.is_file():
         return
     data = json.loads(catalog_path.read_text(encoding="utf-8"))
+    data["releaseTag"] = "main"
+    data["baseUrl"] = base_url
     entry = {
         "id": pack_id,
         "title": title,
@@ -234,6 +247,7 @@ def update_catalog(catalog_path: Path, pack_id: str, title: str, subtitle: str, 
         "badge": "16x",
         "fileName": file_name,
         "sha1": sha1,
+        "fallbackDownloadUrl": fallback_url,
     }
     packs = [p for p in data.get("packs", []) if p.get("id") != pack_id]
     packs.insert(0, entry)
@@ -244,6 +258,10 @@ def update_catalog(catalog_path: Path, pack_id: str, title: str, subtitle: str, 
 def sync_catalogs(file_189: str, sha_189: str, file_modern: str, sha_modern: str) -> None:
     subtitle_189 = "Dewier×Blue · cielo · fuego bajo · ores · tools chicas"
     subtitle_modern = "Dewier×Blue · completo 1.21 · partículas · tools chicas"
+    base_189 = "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/clientes/paraguacraft-pvp/packs"
+    base_modern = "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/clientes/paraguacraft-pvp-modern/packs"
+    fb_189 = f"https://cdn.jsdelivr.net/gh/SantiJ10/Paraguacraft@main/clientes/paraguacraft-pvp/packs/{file_189}"
+    fb_modern = f"https://cdn.jsdelivr.net/gh/SantiJ10/Paraguacraft@main/clientes/paraguacraft-pvp-modern/packs/{file_modern}"
     paths_189 = [
         ROOT / "clientes" / "paraguacraft-pvp" / "packs" / "catalog.json",
         ROOT / "client" / "src" / "main" / "resources" / "assets" / "paraguacraft" / "packs" / "catalog.json",
@@ -256,9 +274,15 @@ def sync_catalogs(file_189: str, sha_189: str, file_modern: str, sha_modern: str
         ROOT / "launcher" / "src-tauri" / "resources" / "bundled" / "pvp-modern" / "packs" / "catalog.json",
     ]
     for p in paths_189:
-        update_catalog(p, "paraguacraft-pvp", "Paraguacraft PvP", subtitle_189, file_189, sha_189)
+        update_catalog(
+            p, "paraguacraft-pvp", "Paraguacraft PvP", subtitle_189, file_189, sha_189,
+            base_url=base_189, fallback_url=fb_189,
+        )
     for p in paths_modern:
-        update_catalog(p, "paraguacraft-pvp", "Paraguacraft PvP", subtitle_modern, file_modern, sha_modern)
+        update_catalog(
+            p, "paraguacraft-pvp", "Paraguacraft PvP", subtitle_modern, file_modern, sha_modern,
+            base_url=base_modern, fallback_url=fb_modern,
+        )
 
 
 def main() -> int:
@@ -279,7 +303,14 @@ def main() -> int:
     print(f"1.21   -> {out_modern.name}  sha1={sha_modern}  size={out_modern.stat().st_size // 1024}KB")
 
     sync_catalogs(out189.name, sha189, out_modern.name, sha_modern)
-    print("Catálogos actualizados. Subí los .zip a GitHub Releases cuando publiques.")
+    # Copia al bundle del instalador (offline + raw mirror).
+    (ROOT / "bundled" / "pvp" / "resourcepacks").mkdir(parents=True, exist_ok=True)
+    (ROOT / "bundled" / "pvp-modern" / "resourcepacks").mkdir(parents=True, exist_ok=True)
+    (ROOT / "bundled" / "pvp-modern" / "packs").mkdir(parents=True, exist_ok=True)
+    shutil.copy2(out189, ROOT / "bundled" / "pvp" / "resourcepacks" / out189.name)
+    shutil.copy2(out_modern, ROOT / "bundled" / "pvp-modern" / "resourcepacks" / out_modern.name)
+    shutil.copy2(out_modern, ROOT / "bundled" / "pvp-modern" / "packs" / out_modern.name)
+    print("Catálogos y bundled actualizados (raw GitHub + jsDelivr).")
     return 0
 
 

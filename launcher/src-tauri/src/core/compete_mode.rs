@@ -198,6 +198,30 @@ pub(crate) fn apply_modern_compete_profile(game_dir: &Path, tier: &str) -> AppRe
     Ok(music || hw_hud)
 }
 
+/// Apaga el modo practica sticky (1.8.9) para que un Play normal / Hypixel no abra el mundo flat.
+pub fn clear_training_flags_189(game_dir: &Path) -> AppResult<()> {
+    let path = game_dir.join("paraguacraft_v2.properties");
+    let mut props = read_properties(&path);
+    props.insert("pvpTrainingMode".into(), "false".into());
+    props.insert("pvpTrainingAutoWorld".into(), "false".into());
+    write_properties(&path, &props)
+}
+
+/// Apaga auto-mundo de practica en el archivo que lee el mod Fabric.
+pub fn clear_training_flags_modern(game_dir: &Path) -> AppResult<()> {
+    let path = game_dir.join("config").join("paraguacraftpvp-modern.properties");
+    let mut props = read_properties(&path);
+    props.insert("pvpTrainingAutoWorld".into(), "false".into());
+    write_properties(&path, &props)?;
+    let legacy = game_dir.join("paraguacraft_modern.properties");
+    if legacy.is_file() {
+        let mut legacy_props = read_properties(&legacy);
+        legacy_props.insert("pvpTrainingAutoWorld".into(), "false".into());
+        write_properties(&legacy, &legacy_props)?;
+    }
+    Ok(())
+}
+
 /// Perfil entrenamiento: Boost FPS + HUD de practica, sin turbo Competir ni auto-servidor.
 pub fn apply_training_profile(game_dir: &Path, tier: &str, auto_world: bool) -> AppResult<()> {
     let path = game_dir.join("paraguacraft_v2.properties");

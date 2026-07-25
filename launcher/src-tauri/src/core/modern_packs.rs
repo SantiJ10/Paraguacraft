@@ -1,4 +1,4 @@
-//! Resource packs PvP 1.21.11 — descarga global vía GitHub Releases (como 1.8.9).
+//! Resource packs PvP 1.21.11 — descarga desde el repo (raw/jsDelivr) + bundle local.
 
 use std::path::{Path, PathBuf};
 
@@ -11,6 +11,7 @@ use crate::core::paths;
 use crate::error::{AppError, AppResult};
 
 const GITHUB_REPO: &str = "SantiJ10/Paraguacraft";
+const PACKS_PATH: &str = "clientes/paraguacraft-pvp-modern/packs";
 const CATALOG_URL: &str =
     "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/clientes/paraguacraft-pvp-modern/packs/catalog.json";
 
@@ -34,10 +35,12 @@ struct PackEntry {
     #[serde(rename = "fileName")]
     file_name: String,
     sha1: String,
+    #[serde(default, rename = "fallbackDownloadUrl")]
+    fallback_download_url: String,
 }
 
 fn default_release_tag() -> String {
-    "pvp-packs-modern-1.0".into()
+    "main".into()
 }
 
 impl Default for PackCatalog {
@@ -45,7 +48,7 @@ impl Default for PackCatalog {
         Self {
             release_tag: default_release_tag(),
             base_url: format!(
-                "https://github.com/{GITHUB_REPO}/releases/download/pvp-packs-modern-1.0"
+                "https://raw.githubusercontent.com/{GITHUB_REPO}/main/{PACKS_PATH}"
             ),
             packs: vec![],
         }
@@ -110,31 +113,59 @@ fn sha_matches(path: &Path, expected: &str) -> bool {
 
 fn find_local_pack(app: &AppHandle, filename: &str) -> Option<PathBuf> {
     for root in bundled_roots(app) {
-        let p = root.join("resourcepacks").join(filename);
-        if p.is_file() && p.metadata().map(|m| m.len()).unwrap_or(0) > 1024 {
-            return Some(p);
+        for rel in [
+            root.join("resourcepacks").join(filename),
+            root.join("packs").join(filename),
+        ] {
+            if rel.is_file() && rel.metadata().map(|m| m.len()).unwrap_or(0) > 1024 {
+                return Some(rel);
+            }
+        }
+    }
+    if let Ok(cwd) = std::env::current_dir() {
+        for base in [
+            cwd.join("clientes/paraguacraft-pvp-modern/packs"),
+            cwd.join("../clientes/paraguacraft-pvp-modern/packs"),
+            cwd.join("../../clientes/paraguacraft-pvp-modern/packs"),
+        ] {
+            let p = base.join(filename);
+            if p.is_file() {
+                return Some(p);
+            }
         }
     }
     None
 }
 
-fn pack_urls(base_url: &str, release_tag: &str, filename: &str) -> Vec<String> {
+fn pack_urls(base_url: &str, entry: &PackEntry) -> Vec<String> {
+    let filename = &entry.file_name;
     let base = if base_url.is_empty() {
-        format!("https://github.com/{GITHUB_REPO}/releases/download/{release_tag}")
+        format!("https://raw.githubusercontent.com/{GITHUB_REPO}/main/{PACKS_PATH}")
     } else {
         base_url.trim_end_matches('/').to_string()
     };
-    vec![
+    let mut urls = vec![
         format!("{base}/{filename}"),
-        format!("https://github.com/{GITHUB_REPO}/releases/download/{release_tag}/{filename}"),
-    ]
+        format!(
+            "https://cdn.jsdelivr.net/gh/{GITHUB_REPO}@main/{PACKS_PATH}/{filename}"
+        ),
+        format!(
+            "https://raw.githubusercontent.com/{GITHUB_REPO}/main/bundled/pvp-modern/resourcepacks/{filename}"
+        ),
+        format!(
+            "https://cdn.jsdelivr.net/gh/{GITHUB_REPO}@main/bundled/pvp-modern/resourcepacks/{filename}"
+        ),
+    ];
+    if !entry.fallback_download_url.is_empty() {
+        urls.insert(1, entry.fallback_download_url.clone());
+    }
+    urls
 }
 
 async fn ensure_pack(
     app: &AppHandle,
     client: &reqwest::Client,
     base_url: &str,
-    release_tag: &str,
     entry: &PackEntry,
     dest_dir: &Path,
 ) -> AppResult<bool> {
@@ -152,7 +183,7 @@ async fn ensure_pack(
     }
 
     let tmp = dest.with_extension("part");
-    for url in pack_urls(base_url, release_tag, &entry.file_name) {
+    for url in pack_urls(base_url, entry) {
         if net::download_one(client, &DownloadItem::new(url, tmp.clone()))
             .await
             .is_err()
@@ -237,16 +268,7 @@ pub async fn sync_instance_packs(
             "Catálogo sin pack oficial {OFFICIAL_PACK}"
         )));
     };
-    let installed = if ensure_pack(
-        app,
-        client,
-        &catalog.base_url,
-        &catalog.release_tag,
-        &entry,
-        &dest,
-    )
-    .await?
-    {
+    let installed = if ensure_pack(app, client, &catalog.base_url, &entry, &dest).await? {
         1
     } else {
         0

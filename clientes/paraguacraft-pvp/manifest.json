@@ -1,15 +1,15 @@
-﻿{
+{
   "id": "paraguacraft-pvp",
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.35",
-  "release_tag": "pvp-client-2.1.35",
-  "descripcion": "Borderless/Discord, iconos servidores, Mod Menu agrupado.",
+  "client_version": "2.1.36",
+  "release_tag": "pvp-client-2.1.36",
+  "descripcion": "Resource pack CDN (raw), practica sticky fix, iconos/TNT.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.35.jar",
-      "sha1": "59beabc0ab37ada4d49e98f77ed8fc1d961495cd"
+      "filename": "ParaguacraftPvP-2.1.36.jar",
+      "sha1": "518ae42770fb6e129cbbcc06c8b2e9b79319f30e"
     },
     {
       "filename": "Hytils-Reborn-1.8.9-forge-1.7.5.jar",

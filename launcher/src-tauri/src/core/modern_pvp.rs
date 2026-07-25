@@ -152,7 +152,8 @@ pub async fn sync_instance_bundles(
     Ok(())
 }
 
-/// Descarga todos los mods HUD pinneados del stack y falla si falta alguno.
+/// Descarga los mods HUD pinneados del stack (best-effort).
+/// No bloquea el lanzamiento a Hypixel si Modrinth falla o falta un pin opcional.
 pub async fn sync_pinned_mods(
     app: &AppHandle,
     client: &reqwest::Client,
@@ -171,24 +172,24 @@ pub async fn sync_pinned_mods(
         if mods_dir.join(pin.filename).is_file() {
             continue;
         }
-        modrinth::install_version_id(app, client, pin.version_id, mods_dir.clone(), None)
-            .await
-            .map_err(|e| {
-                AppError::msg(format!(
-                    "No se pudo instalar {} ({}): {e}",
-                    pin.slug, pin.filename
-                ))
-            })?;
+        if let Err(e) =
+            modrinth::install_version_id(app, client, pin.version_id, mods_dir.clone(), None).await
+        {
+            eprintln!(
+                "[paraguacraft] pin {} ({}): {e}",
+                pin.slug, pin.filename
+            );
+        }
     }
 
     loaders::fabric_iris::enforce_render_stack_for_instance(&mods_dir, MC, tier);
 
     let missing = pvp_mod_stack::missing_pin_filenames(&mods_dir, MC, tier);
     if !missing.is_empty() {
-        return Err(AppError::msg(format!(
-            "Mods pinneados faltantes tras la sync: {}",
+        eprintln!(
+            "[paraguacraft] mods pinneados faltantes (se continua igual): {}",
             missing.join(", ")
-        )));
+        );
     }
     Ok(())
 }
@@ -304,13 +305,16 @@ fn default_launch_props(tier: &str) -> HashMap<String, String> {
 }
 
 /// Perfil practica PvP: HUD de entrenamiento y mundo flat automatico.
+/// Escribe en `config/paraguacraftpvp-modern.properties` (lo que lee `ModernConfig`).
 pub fn apply_training_profile(instance_id: &str, tier: &str, auto_world: bool) -> AppResult<()> {
-    let path = instances::instance_dir(instance_id).join("paraguacraft_modern.properties");
+    let dir = instances::instance_dir(instance_id);
+    let path = dir.join("config").join("paraguacraftpvp-modern.properties");
     let mut props = read_properties(&path);
     if props.is_empty() {
+        // Semilla desde defaults de hardware si aún no hay config del mod.
         apply_launch_properties(instance_id, tier)?;
-        props = read_properties(&path);
     }
+    props = read_properties(&path);
     props.insert("pvpTrainingAutoWorld".into(), auto_world.to_string());
     if auto_world {
         props.entry("showCoords".into()).or_insert("true".into());
@@ -323,7 +327,12 @@ pub fn apply_training_profile(instance_id: &str, tier: &str, auto_world: bool) -
             props.insert("particleMode".into(), "REDUCED".into());
         }
     }
-    write_properties(&path, &props)
+    write_properties(&path, &props)?;
+    // Mantener legacy en sync por si algún path antiguo lo lee.
+    let legacy = dir.join("paraguacraft_modern.properties");
+    let mut legacy_props = read_properties(&legacy);
+    legacy_props.insert("pvpTrainingAutoWorld".into(), auto_world.to_string());
+    write_properties(&legacy, &legacy_props)
 }
 
 fn read_properties(path: &Path) -> HashMap<String, String> {

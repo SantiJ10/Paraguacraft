@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "releaseTag": "pvp-packs-1.0",
-  "baseUrl": "https://github.com/SantiJ10/Paraguacraft/releases/download/pvp-packs-1.0",
+  "releaseTag": "main",
+  "baseUrl": "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/clientes/paraguacraft-pvp/packs",
   "packs": [
     {
       "id": "paraguacraft-pvp",
@@ -9,7 +9,8 @@
       "subtitle": "Pack oficial Paraguacraft · PvP 1.8.9",
       "badge": "16x",
       "fileName": "paraguacraft-pvp-189.zip",
-      "sha1": "79599f36fe957d6443c9388c452bc93d67291bdd"
+      "sha1": "79599f36fe957d6443c9388c452bc93d67291bdd",
+      "fallbackDownloadUrl": "https://cdn.jsdelivr.net/gh/SantiJ10/Paraguacraft@main/clientes/paraguacraft-pvp/packs/paraguacraft-pvp-189.zip"
     }
   ]
 }

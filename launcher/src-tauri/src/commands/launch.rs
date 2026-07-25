@@ -134,18 +134,34 @@ async fn spawn_for_instance(
         );
     }
 
-    if loaders::normalize(&loader) == "paraguacraft-pvp"
-        || loaders::normalize(&loader) == "paraguacraft-pvp-modern"
-    {
+    let loader_norm = loaders::normalize(&loader);
+    if loader_norm == "paraguacraft-pvp" || loader_norm == "paraguacraft-pvp-modern" {
+        // Marker one-shot desde perfiles → Practica. Sin marker: limpia sticky
+        // (Home/Play/Hypixel) para no reabrir el mundo flat.
+        let training_marker = game_dir.join(".paraguacraft_launch_training");
+        let launch_training = training_marker.is_file();
+        if launch_training {
+            let _ = std::fs::remove_file(&training_marker);
+        } else {
+            if loader_norm == "paraguacraft-pvp" {
+                let _ = crate::core::compete_mode::clear_training_flags_189(&game_dir);
+            } else {
+                let _ = crate::core::compete_mode::clear_training_flags_modern(&game_dir);
+            }
+        }
+
         let http = state.client();
-        let _ = crate::core::pvp_packs::prepare_launch(
+        if let Err(e) = crate::core::pvp_packs::prepare_launch(
             app,
             &http,
             &game_dir,
             &loader,
             &mc,
         )
-        .await;
+        .await
+        {
+            eprintln!("[paraguacraft] resource pack prepare_launch: {e}");
+        }
     }
 
     if crate::core::skins::offline::has_global_skin() {

@@ -147,7 +147,7 @@ fn main() {
 
     println!("cargo:rerun-if-changed=resources/branding");
 
-    // JARs PvP embebidos en el instalador (offline / sin depender del release remoto).
+    // JARs + resource pack oficial PvP embebidos en el instalador (offline).
     let repo_bundled = manifest.join("../../bundled/pvp");
     let res_pvp = manifest.join("resources/bundled/pvp");
     if repo_bundled.is_dir() {
@@ -156,8 +156,8 @@ fn main() {
             let p = entry.path();
             let name = entry.file_name();
             if p.is_dir() {
-                if name == "defaults" {
-                    let _ = copy_dir_all(&p, &res_pvp.join("defaults"));
+                if name == "defaults" || name == "resourcepacks" || name == "packs" {
+                    let _ = copy_dir_all(&p, &res_pvp.join(name));
                 }
                 continue;
             }

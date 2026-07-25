@@ -25,7 +25,7 @@ public final class CatalogLoader {
     private static CatalogPack[] cached;
     private static long cachedAt;
     private static String remoteBaseUrl =
-        "https://github.com/SantiJ10/Paraguacraft/releases/download/pvp-packs-1.0";
+        "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/clientes/paraguacraft-pvp/packs";
     private static String driveFolderUrl = "";
 
     private CatalogLoader() {}
@@ -122,14 +122,23 @@ public final class CatalogLoader {
             String fileName = str(o, "fileName");
             String downloadUrl = str(o, "downloadUrl");
             if ((downloadUrl == null || downloadUrl.isEmpty()) && fileName != null && !fileName.isEmpty()) {
-                downloadUrl = remoteBaseUrl + "/" + fileName;
+                String base = remoteBaseUrl;
+                if (base.endsWith("/")) {
+                    base = base.substring(0, base.length() - 1);
+                }
+                downloadUrl = base + "/" + fileName;
+            }
+            String fallback = str(o, "fallbackDownloadUrl");
+            if ((fallback == null || fallback.isEmpty()) && fileName != null && !fileName.isEmpty()) {
+                fallback = "https://cdn.jsdelivr.net/gh/SantiJ10/Paraguacraft@main/clientes/paraguacraft-pvp/packs/"
+                    + fileName;
             }
             out.add(new CatalogPack(
                 str(o, "id"),
                 str(o, "title"),
                 str(o, "subtitle"),
                 downloadUrl,
-                str(o, "fallbackDownloadUrl"),
+                fallback,
                 fileName,
                 str(o, "sha1"),
                 str(o, "badge")

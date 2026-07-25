@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "releaseTag": "pvp-packs-modern-1.0",
-  "baseUrl": "https://github.com/SantiJ10/Paraguacraft/releases/download/pvp-packs-modern-1.0",
+  "releaseTag": "main",
+  "baseUrl": "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/clientes/paraguacraft-pvp-modern/packs",
   "packs": [
     {
       "id": "paraguacraft-pvp",
@@ -9,7 +9,8 @@
       "subtitle": "Pack oficial Paraguacraft · PvP 1.21.11",
       "badge": "16x",
       "fileName": "paraguacraft-pvp-modern.zip",
-      "sha1": "c5ded191f70b03658eb8774e1e69148243d4fde5"
+      "sha1": "c5ded191f70b03658eb8774e1e69148243d4fde5",
+      "fallbackDownloadUrl": "https://cdn.jsdelivr.net/gh/SantiJ10/Paraguacraft@main/clientes/paraguacraft-pvp-modern/packs/paraguacraft-pvp-modern.zip"
     }
   ]
 }

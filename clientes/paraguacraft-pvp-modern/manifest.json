@@ -1,15 +1,15 @@
-﻿{
+{
   "id": "paraguacraft-pvp-modern",
   "nombre": "Paraguacraft PvP Modern",
   "mc_version": "1.21.11",
   "loader": "fabric",
-  "client_version": "0.9.12",
-  "release_tag": "pvp-modern-0.9.12",
-  "descripcion": "Borderless/Discord, iconos servidores, Mod Menu agrupado.",
+  "client_version": "0.9.13",
+  "release_tag": "pvp-modern-0.9.13",
+  "descripcion": "Resource pack CDN (raw), practica sticky fix, iconos/TNT.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-Modern-0.9.12.jar",
-      "sha1": "2c3c90bb6e22fca5e2ef67a7f903aab89e434b08"
+      "filename": "ParaguacraftPvP-Modern-0.9.13.jar",
+      "sha1": "4f39fcad346989872bd5b961a5246bbce5e19926"
     }
   ]
 }

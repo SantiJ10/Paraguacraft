@@ -63,11 +63,16 @@ pub async fn launch_game_profile(
             let tier = hardware::detect().perfil_sugerido;
             let _ = modern_pvp::apply_launch_properties(&id, &tier)?;
             let _ = modern_pvp::ensure_launch_defaults(&id, &tier)?;
+            let inst_dir = instances::instance_dir(&id);
             if dest == "training" {
                 let _ = modern_pvp::apply_training_profile(&id, &tier, true)?;
+                let _ = std::fs::write(inst_dir.join(".paraguacraft_launch_training"), "1");
+            } else {
+                let _ = compete_mode::clear_training_flags_modern(&inst_dir);
             }
-            let _ = modern_pvp::sync_hud_mods(&app, &http, &id).await?;
-            let _ = modern_pvp::sync_instance_content(&app, &http, &id).await?;
+            // Mods pinneados: best-effort — no bloquear Hypixel si Modrinth falla.
+            let _ = modern_pvp::sync_hud_mods(&app, &http, &id).await;
+            let _ = modern_pvp::sync_instance_content(&app, &http, &id).await;
             id
         };
         // Modo Competir tambien para PvP Modern: Game Mode, turbo y RAM alta
@@ -92,9 +97,16 @@ pub async fn launch_game_profile(
         let tier = hardware::detect().perfil_sugerido;
         let inst_dir = instances::instance_dir(&instance_id);
         match dest {
-            "training" => compete_mode::apply_training_profile(&inst_dir, &tier, true)?,
-            "menu" => compete_mode::apply_training_profile(&inst_dir, &tier, false)?,
-            _ => {}
+            "training" => {
+                compete_mode::apply_training_profile(&inst_dir, &tier, true)?;
+                let _ = std::fs::write(inst_dir.join(".paraguacraft_launch_training"), "1");
+            }
+            "menu" => {
+                let _ = compete_mode::clear_training_flags_189(&inst_dir);
+            }
+            _ => {
+                let _ = compete_mode::clear_training_flags_189(&inst_dir);
+            }
         }
     }
     let use_compete = profile_id == "pvp-compete" && matches!(dest, "hypixel" | "favorite");
