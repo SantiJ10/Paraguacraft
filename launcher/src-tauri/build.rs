@@ -147,50 +147,16 @@ fn main() {
 
     println!("cargo:rerun-if-changed=resources/branding");
 
-    // JARs + resource pack oficial PvP embebidos en el instalador (offline).
-    let repo_bundled = manifest.join("../../bundled/pvp");
-    let res_pvp = manifest.join("resources/bundled/pvp");
-    if repo_bundled.is_dir() {
-        let _ = fs::create_dir_all(&res_pvp);
-        for entry in fs::read_dir(&repo_bundled).into_iter().flatten().flatten() {
-            let p = entry.path();
-            let name = entry.file_name();
-            if p.is_dir() {
-                if name == "defaults" || name == "resourcepacks" || name == "packs" {
-                    let _ = copy_dir_all(&p, &res_pvp.join(name));
-                }
-                continue;
-            }
-            let is_jar = p.extension().and_then(|e| e.to_str()) == Some("jar");
-            let is_manifest = name == "manifest.json";
-            if is_jar || is_manifest {
-                let _ = fs::copy(&p, res_pvp.join(name));
-            }
-        }
-        println!("cargo:rerun-if-changed=../../bundled/pvp");
-    }
-
-    // Cliente PvP Modern embebido (Fabric 1.21.11, offline).
-    let repo_modern = manifest.join("../../bundled/pvp-modern");
-    let res_modern = manifest.join("resources/bundled/pvp-modern");
-    if repo_modern.is_dir() {
-        let _ = fs::create_dir_all(&res_modern);
-        for entry in fs::read_dir(&repo_modern).into_iter().flatten().flatten() {
-            let p = entry.path();
-            let name = entry.file_name();
-            if p.is_dir() {
-                if name == "packs" || name == "resourcepacks" {
-                    let _ = copy_dir_all(&p, &res_modern.join(name));
-                }
-                continue;
-            }
-            let is_jar = p.extension().and_then(|e| e.to_str()) == Some("jar");
-            let is_manifest = name == "manifest.json";
-            if is_jar || is_manifest {
-                let _ = fs::copy(&p, res_modern.join(name));
-            }
-        }
-        println!("cargo:rerun-if-changed=../../bundled/pvp-modern");
+    // Instalador flaco (estilo Lunar): NO embebe clientes PvP, OptiFine, Hytils ni
+    // resource packs. Eso se descarga en runtime desde GitHub (manifest + raw).
+    // Solo se embeben defaults minúsculos de OneConfig/Hytils para el primer seed.
+    let repo_defaults = manifest.join("../../bundled/pvp/defaults");
+    let res_defaults = manifest.join("resources/bundled/pvp/defaults");
+    if repo_defaults.is_dir() {
+        let _ = fs::remove_dir_all(manifest.join("resources/bundled/pvp"));
+        let _ = fs::remove_dir_all(manifest.join("resources/bundled/pvp-modern"));
+        let _ = copy_dir_all(&repo_defaults, &res_defaults);
+        println!("cargo:rerun-if-changed=../../bundled/pvp/defaults");
     }
 
     tauri_build::build();
