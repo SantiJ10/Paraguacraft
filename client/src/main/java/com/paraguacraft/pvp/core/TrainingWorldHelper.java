@@ -1,5 +1,6 @@
 package com.paraguacraft.pvp.core;
 
+import com.paraguacraft.pvp.gui.CustomMainMenu;
 import com.paraguacraft.pvp.modules.ModConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiMainMenu;
@@ -22,6 +23,8 @@ public final class TrainingWorldHelper {
     private static final String WORLD_NAME = "Paraguacraft Training";
     private static boolean launched;
     private static boolean pendingKitSetup;
+    /** Sesión actual de practica (el flag en disco es one-shot). */
+    private static boolean sessionTraining;
     private static int rulesTicks;
 
     @SubscribeEvent
@@ -33,7 +36,10 @@ public final class TrainingWorldHelper {
         if (!ModConfig.pvpTrainingAutoWorld || launched) {
             return;
         }
-        if (!(mc.currentScreen instanceof GuiMainMenu) || mc.theWorld != null) {
+        // CustomMainMenu reemplaza GuiMainMenu; aceptar ambos.
+        boolean onTitle = mc.currentScreen instanceof GuiMainMenu
+            || mc.currentScreen instanceof CustomMainMenu;
+        if (!onTitle || mc.theWorld != null) {
             return;
         }
         openTrainingWorld();
@@ -44,7 +50,7 @@ public final class TrainingWorldHelper {
         if (event.phase != TickEvent.Phase.END || event.world.isRemote) {
             return;
         }
-        if (!ModConfig.pvpTrainingAutoWorld || rulesTicks > 60) {
+        if (!sessionTraining || rulesTicks > 60) {
             return;
         }
         rulesTicks++;
@@ -63,7 +69,10 @@ public final class TrainingWorldHelper {
     }
 
     public static void openTrainingWorld() {
-        ModConfig.pvpTrainingAutoWorld = true;
+        // One-shot persistido: no reabrir el flat en el próximo arranque.
+        ModConfig.pvpTrainingAutoWorld = false;
+        ModConfig.save();
+        sessionTraining = true;
         launched = true;
         rulesTicks = 0;
         pendingKitSetup = isFreshWorld();

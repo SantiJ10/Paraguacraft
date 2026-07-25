@@ -17,9 +17,10 @@ pub const PACK_189: &str = "paraguacraft-pvp-189.zip";
 pub const PACK_189_SHA1: &str = "79599f36fe957d6443c9388c452bc93d67291bdd";
 pub const PACK_MODERN: &str = "paraguacraft-pvp-modern.zip";
 
-const RELEASE_189: &str = "pvp-packs-1.0";
 const BASE_URL_189: &str =
-    "https://github.com/SantiJ10/Paraguacraft/releases/download/pvp-packs-1.0";
+    "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/clientes/paraguacraft-pvp/packs";
+const MIRROR_189: &str =
+    "https://cdn.jsdelivr.net/gh/SantiJ10/Paraguacraft@main/clientes/paraguacraft-pvp/packs";
 
 fn bundled_roots_189(app: &AppHandle) -> Vec<PathBuf> {
     let mut roots = Vec::new();
@@ -51,9 +52,13 @@ fn sha_matches(path: &Path, expected: &str) -> bool {
 
 fn find_local_pack(app: &AppHandle, filename: &str) -> Option<PathBuf> {
     for root in bundled_roots_189(app) {
-        let p = root.join("resourcepacks").join(filename);
-        if p.is_file() && p.metadata().map(|m| m.len()).unwrap_or(0) > 1024 {
-            return Some(p);
+        for rel in [
+            root.join("resourcepacks").join(filename),
+            root.join("packs").join(filename),
+        ] {
+            if rel.is_file() && rel.metadata().map(|m| m.len()).unwrap_or(0) > 1024 {
+                return Some(rel);
+            }
         }
     }
     // Desarrollo: zip generado en el repo.
@@ -61,6 +66,7 @@ fn find_local_pack(app: &AppHandle, filename: &str) -> Option<PathBuf> {
         for base in [
             cwd.join("clientes/paraguacraft-pvp/packs"),
             cwd.join("../clientes/paraguacraft-pvp/packs"),
+            cwd.join("../../clientes/paraguacraft-pvp/packs"),
         ] {
             let p = base.join(filename);
             if p.is_file() {
@@ -74,8 +80,12 @@ fn find_local_pack(app: &AppHandle, filename: &str) -> Option<PathBuf> {
 fn pack_urls_189(filename: &str) -> Vec<String> {
     vec![
         format!("{BASE_URL_189}/{filename}"),
+        format!("{MIRROR_189}/{filename}"),
         format!(
-            "https://github.com/SantiJ10/Paraguacraft/releases/download/{RELEASE_189}/{filename}"
+            "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/bundled/pvp/resourcepacks/{filename}"
+        ),
+        format!(
+            "https://cdn.jsdelivr.net/gh/SantiJ10/Paraguacraft@main/bundled/pvp/resourcepacks/{filename}"
         ),
     ]
 }

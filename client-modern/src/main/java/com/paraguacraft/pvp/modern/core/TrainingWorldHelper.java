@@ -25,6 +25,8 @@ public final class TrainingWorldHelper {
     private static boolean launched;
     private static boolean pendingFlatCreate;
     private static boolean pendingKitSetup;
+    /** Sesión actual de practica (independiente del flag persistido one-shot). */
+    private static boolean sessionTraining;
     private static int rulesTicks;
     private static int autoCreateTicks;
 
@@ -75,7 +77,7 @@ public final class TrainingWorldHelper {
     }
 
     private static void onWorldJoin(MinecraftClient client) {
-        if (!ModernConfig.pvpTrainingAutoWorld || !client.isIntegratedServerRunning()) {
+        if (!sessionTraining || !client.isIntegratedServerRunning()) {
             return;
         }
         rulesTicks++;
@@ -96,7 +98,10 @@ public final class TrainingWorldHelper {
     }
 
     public static void openTrainingWorld(MinecraftClient client) {
-        ModernConfig.pvpTrainingAutoWorld = true;
+        // One-shot persistido: no reabrir el flat en el próximo arranque.
+        ModernConfig.pvpTrainingAutoWorld = false;
+        ModernConfig.save();
+        sessionTraining = true;
         launched = true;
         rulesTicks = 0;
 

@@ -6,6 +6,7 @@ public final class CatalogPack {
     public final String title;
     public final String subtitle;
     public final String downloadUrl;
+    public final String fallbackDownloadUrl;
     public final String fileName;
     public final String sha1;
     public final String badge;
@@ -15,6 +16,7 @@ public final class CatalogPack {
         String title,
         String subtitle,
         String downloadUrl,
+        String fallbackDownloadUrl,
         String fileName,
         String sha1,
         String badge
@@ -23,8 +25,13 @@ public final class CatalogPack {
         this.title = title;
         this.subtitle = subtitle;
         this.downloadUrl = downloadUrl;
+        this.fallbackDownloadUrl = fallbackDownloadUrl == null ? "" : fallbackDownloadUrl;
         this.fileName = fileName;
         this.sha1 = sha1;
         this.badge = badge;
+    }
+
+    public boolean hasFallback() {
+        return fallbackDownloadUrl != null && !fallbackDownloadUrl.isEmpty();
     }
 }

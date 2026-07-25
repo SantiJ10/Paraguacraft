@@ -25,7 +25,7 @@ public final class CatalogLoader {
     private static CatalogPack[] cached;
     private static long cachedAt;
     private static String baseUrl =
-        "https://github.com/SantiJ10/Paraguacraft/releases/download/pvp-packs-modern-1.0";
+        "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/clientes/paraguacraft-pvp-modern/packs";
 
     private CatalogLoader() {}
 
@@ -97,12 +97,18 @@ public final class CatalogLoader {
         for (JsonElement el : arr) {
             JsonObject o = el.getAsJsonObject();
             String fileName = str(o, "fileName");
-            String url = baseUrl + "/" + fileName;
+            String url = baseUrl.replaceAll("/$", "") + "/" + fileName;
+            String fallback = str(o, "fallbackDownloadUrl");
+            if (fallback.isEmpty()) {
+                fallback = "https://cdn.jsdelivr.net/gh/SantiJ10/Paraguacraft@main/clientes/paraguacraft-pvp-modern/packs/"
+                    + fileName;
+            }
             out.add(new CatalogPack(
                 str(o, "id"),
                 str(o, "title"),
                 str(o, "subtitle"),
                 url,
+                fallback,
                 fileName,
                 str(o, "sha1"),
                 str(o, "badge")
