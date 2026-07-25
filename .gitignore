@@ -51,10 +51,19 @@ client-modern/run/
 !clientes/paraguacraft-pvp/*.jar
 !clientes/paraguacraft-pvp-modern/*.jar
 !**/gradle/wrapper/gradle-wrapper.jar
-bundled/pvp/resourcepacks/*.zip
+# Solo packs oficiales Paraguacraft en git/CDN (nada de 9blue/mr-blue/etc.).
+bundled/pvp/resourcepacks/*
 !bundled/pvp/resourcepacks/paraguacraft-pvp-189.zip
-!bundled/pvp-modern/resourcepacks/*.zip
+bundled/pvp-modern/resourcepacks/*
+!bundled/pvp-modern/resourcepacks/paraguacraft-pvp-modern.zip
+bundled/pvp-modern/packs/*
+!bundled/pvp-modern/packs/catalog.json
 !bundled/pvp-modern/packs/paraguacraft-pvp-modern.zip
+# No embeber assets de juego en el build del launcher (instalador flaco).
+launcher/src-tauri/resources/bundled/**
+!launcher/src-tauri/resources/bundled/pvp/
+!launcher/src-tauri/resources/bundled/pvp/defaults/
+!launcher/src-tauri/resources/bundled/pvp/defaults/**
 !client/src/**/*.jar
 
 # --- Datos locales / IDE ---
