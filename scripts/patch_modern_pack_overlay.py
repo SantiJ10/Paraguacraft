@@ -88,7 +88,7 @@ def update_catalogs(sha: str, file_name: str) -> None:
             {
                 "id": "paraguacraft-pvp",
                 "title": "Paraguacraft PvP",
-                "subtitle": "SkyWars/BedWars/PvP HUD, soft glint, 1.21.11",
+                "subtitle": "BedWars beds/TNT, SkyWars bridging, PvP HUD",
                 "badge": "16x",
                 "fileName": file_name,
                 "sha1": sha,
