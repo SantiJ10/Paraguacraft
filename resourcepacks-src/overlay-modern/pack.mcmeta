@@ -1,8 +1,8 @@
-{
+﻿{
   "pack": {
-    "pack_format": 75,
-    "description": "§9Paraguacraft §fPvP §8· §7Dewier×Blue §8· §fcielo · tools chicas · vanilla terrain",
-    "min_format": [75, 0],
-    "max_format": [75, 0]
+    "pack_format": 69,
+    "min_format": 34,
+    "max_format": 99,
+    "description": "Paraguacraft PvP Modern — hotbar limpia, totem/ballesta/escudo compactos, low fire"
   }
 }
