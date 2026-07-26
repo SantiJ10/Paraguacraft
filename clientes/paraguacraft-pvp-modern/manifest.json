@@ -2,13 +2,13 @@
   "version": 1,
   "loader": "fabric",
   "mc": "1.21.11",
-  "client_version": "0.9.14",
-  "release_tag": "pvp-modern-0.9.14",
+  "client_version": "0.9.15",
+  "release_tag": "pvp-modern-0.9.15",
   "files": [
     {
       "id": "client",
-      "filename": "ParaguacraftPvP-Modern-0.9.14.jar",
-      "sha1": "f62e52b6d5e8cca618fe9095f445d3f8010525e1"
+      "filename": "ParaguacraftPvP-Modern-0.9.15.jar",
+      "sha1": "29aa56c059a760fa0063fa55b41a94efa53fdffc"
     }
   ]
 }

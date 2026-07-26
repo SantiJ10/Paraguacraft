@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP Modern",
   "mc_version": "1.21.11",
   "loader": "fabric",
-  "client_version": "0.9.14",
-  "release_tag": "pvp-modern-0.9.14",
-  "descripcion": "Menu negro/celeste, crosshair Vanilla/PG/Dewiers, pack Dewiers wool/armor.",
+  "client_version": "0.9.15",
+  "release_tag": "pvp-modern-0.9.15",
+  "descripcion": "GUI creativo legible negro/celeste, crosshairs, Dewiers wool/armor.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-Modern-0.9.14.jar",
-      "sha1": "f62e52b6d5e8cca618fe9095f445d3f8010525e1"
+      "filename": "ParaguacraftPvP-Modern-0.9.15.jar",
+      "sha1": "29aa56c059a760fa0063fa55b41a94efa53fdffc"
     }
   ]
 }
