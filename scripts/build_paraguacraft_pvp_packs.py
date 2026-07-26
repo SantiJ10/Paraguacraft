@@ -53,13 +53,15 @@ ALWAYS_PREFIXES_MODERN = (
     "assets/minecraft/textures/particle/",
 )
 
+# Solo herramientas simples. bow/crossbow/shield/fishing_rod tienen estados
+# (carga/bloqueo) y viven en overlay-modern con defs items/*.json correctas.
 MODERN_TOOLS = [
     "wooden_sword", "stone_sword", "iron_sword", "golden_sword", "diamond_sword", "netherite_sword",
     "wooden_axe", "stone_axe", "iron_axe", "golden_axe", "diamond_axe", "netherite_axe",
     "wooden_pickaxe", "stone_pickaxe", "iron_pickaxe", "golden_pickaxe", "diamond_pickaxe", "netherite_pickaxe",
     "wooden_shovel", "stone_shovel", "iron_shovel", "golden_shovel", "diamond_shovel", "netherite_shovel",
     "wooden_hoe", "stone_hoe", "iron_hoe", "golden_hoe", "diamond_hoe", "netherite_hoe",
-    "mace", "trident", "bow", "crossbow", "fishing_rod", "shield",
+    "mace", "trident",
 ]
 
 SMALL_TOOL_MODEL = """{{
