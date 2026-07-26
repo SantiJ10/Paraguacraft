@@ -108,10 +108,10 @@ public final class MenuBackground {
         }
     }
 
-    /** Reemplaza el fondo negro/vanilla en menus fuera del mundo. */
+    /** Reemplaza el fondo negro/vanilla en menus (tambien opciones en partida). */
     public static boolean shouldReplace(Screen screen) {
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.world != null) {
+        if (client == null) {
             return false;
         }
         if (screen instanceof CustomTitleScreen) {
@@ -126,11 +126,33 @@ public final class MenuBackground {
             || screen instanceof GuiEditHudScreen) {
             return false;
         }
+        if (isOptionsFamily(screen)) {
+            return true;
+        }
+        if (client.world != null) {
+            return false;
+        }
         return screen instanceof MultiplayerScreen
             || screen instanceof ConnectScreen
             || screen instanceof SelectWorldScreen
-            || screen instanceof OptionsScreen
             || screen.getClass().getName().contains("ProgressScreen")
             || screen.getClass().getName().contains("Loading");
+    }
+
+    private static boolean isOptionsFamily(Screen screen) {
+        if (screen instanceof OptionsScreen) {
+            return true;
+        }
+        String n = screen.getClass().getName();
+        return n.contains(".option.")
+            || n.contains("Language")
+            || n.contains("Video")
+            || n.contains("Controls")
+            || n.contains("SoundOptions")
+            || n.contains("ChatOptions")
+            || n.contains("Accessibility")
+            || n.contains("SkinOptions")
+            || n.contains("ResourcePack")
+            || n.contains("PackScreen");
     }
 }

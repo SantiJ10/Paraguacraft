@@ -55,7 +55,7 @@ public final class ModernConfig {
     public static boolean showCompass = true;
     public static boolean showHardwareHud = true;
     public static boolean reachDisplay = true;
-    /** 0=vanilla, 1=cruz, 2=gap, 3=punto, 4=icono */
+    /** 0=vanilla, 1=Paraguacraft (pack), 2=Dewiers */
     public static int crosshairMode = 0;
     public static int reachDisplayX = 5;
     public static int reachDisplayY = 58;
@@ -179,15 +179,13 @@ public final class ModernConfig {
     }
 
     public static void cycleCrosshairMode() {
-        crosshairMode = (crosshairMode + 1) % 5;
+        crosshairMode = (crosshairMode + 1) % 3;
     }
 
     public static String crosshairModeLabel() {
         return switch (crosshairMode) {
-            case 1 -> "Cruz";
-            case 2 -> "Gap";
-            case 3 -> "Punto";
-            case 4 -> "Icono";
+            case 1 -> "Paraguacraft";
+            case 2 -> "Dewiers";
             default -> "Vanilla";
         };
     }
@@ -252,6 +250,9 @@ public final class ModernConfig {
             showHardwareHud = bool(props, "showHardwareHud", showHardwareHud);
             reachDisplay = bool(props, "reachDisplay", reachDisplay);
             crosshairMode = intProp(props, "crosshairMode", crosshairMode);
+            if (crosshairMode < 0 || crosshairMode > 2) {
+                crosshairMode = 0;
+            }
             reachDisplayX = intProp(props, "reachDisplayX", reachDisplayX);
             reachDisplayY = intProp(props, "reachDisplayY", reachDisplayY);
             selectedResourcePack = props.getProperty("selectedResourcePack", selectedResourcePack);
