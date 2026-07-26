@@ -1,8 +1,8 @@
 ﻿{
   "pack": {
-    "pack_format": 69,
-    "min_format": 34,
-    "max_format": 99,
-    "description": "Paraguacraft PvP Modern — hotbar limpia, totem/ballesta/escudo compactos, low fire"
+    "pack_format": 75,
+    "description": "Paraguacraft PvP Modern 1.21.11",
+    "min_format": [75, 0],
+    "max_format": [99, 0]
   }
 }
