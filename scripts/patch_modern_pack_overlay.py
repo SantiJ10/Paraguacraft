@@ -16,10 +16,13 @@ OUT = ROOT / "clientes" / "paraguacraft-pvp-modern" / "packs" / "paraguacraft-pv
 BUNDLED_RP = ROOT / "bundled" / "pvp-modern" / "resourcepacks" / "paraguacraft-pvp-modern.zip"
 BUNDLED_PACKS = ROOT / "bundled" / "pvp-modern" / "packs" / "paraguacraft-pvp-modern.zip"
 
-# Modelos rotos generados antes (ballesta como handheld sin textura).
+# Basura / duplicados que no deben quedar en el pack publicado.
 DROP_PREFIXES = ()
 DROP_EXACT = {
-    # Se reemplazan por el overlay; forzar drop por si el zip viejo tiene basura
+    "assets/minecraft/textures/block/fire_layer_0 - kopie.png",
+    "assets/minecraft/textures/block/fire_layer_1 - kopie.png",
+    "assets/minecraft/textures/block/fire_layer_0old.png",
+    "assets/minecraft/textures/block/fire_layer_1old.png",
 }
 
 
@@ -76,7 +79,7 @@ def update_catalogs(sha: str, file_name: str) -> None:
     for catalog_path in paths:
         if not catalog_path.is_file():
             continue
-        data = json.loads(catalog_path.read_text(encoding="utf-8"))
+        data = json.loads(catalog_path.read_text(encoding="utf-8-sig"))
         data["releaseTag"] = "main"
         data["baseUrl"] = base
         packs = [p for p in data.get("packs", []) if p.get("id") != "paraguacraft-pvp"]
@@ -85,7 +88,7 @@ def update_catalogs(sha: str, file_name: str) -> None:
             {
                 "id": "paraguacraft-pvp",
                 "title": "Paraguacraft PvP",
-                "subtitle": "Totem/ballesta/hotbar PvP · low fire · 1.21.11",
+                "subtitle": "SkyWars/BedWars/PvP HUD, soft glint, 1.21.11",
                 "badge": "16x",
                 "fileName": file_name,
                 "sha1": sha,
@@ -103,9 +106,12 @@ def main() -> int:
         raise SystemExit(f"No existe overlay: {OVERLAY}")
 
     entries = load_zip(OUT)
-    # Quitar modelo roto de ballesta si quedara basura con nombre viejo
     for drop in list(DROP_EXACT):
         entries.pop(drop, None)
+    for prefix in DROP_PREFIXES:
+        for key in list(entries):
+            if key.startswith(prefix):
+                entries.pop(key, None)
     apply_overlay(entries)
     write_zip(entries, OUT)
     sha = sha1_file(OUT)

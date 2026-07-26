@@ -1,4 +1,4 @@
-﻿{
+{
   "version": 1,
   "releaseTag": "main",
   "baseUrl": "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/clientes/paraguacraft-pvp-modern/packs",
@@ -6,10 +6,10 @@
     {
       "id": "paraguacraft-pvp",
       "title": "Paraguacraft PvP",
-      "subtitle": "Totem/ballesta/hotbar PvP, low fire, 1.21.11",
+      "subtitle": "SkyWars/BedWars/PvP HUD, soft glint, 1.21.11",
       "badge": "16x",
       "fileName": "paraguacraft-pvp-modern.zip",
-      "sha1": "95fc3ac521d3ef08dbb73cfe37dc7aeb98e43635",
+      "sha1": "eb72cd445ee8ffbb4f98754448b468228656d0b6",
       "fallbackDownloadUrl": "https://cdn.jsdelivr.net/gh/SantiJ10/Paraguacraft@main/clientes/paraguacraft-pvp-modern/packs/paraguacraft-pvp-modern.zip"
     }
   ]
