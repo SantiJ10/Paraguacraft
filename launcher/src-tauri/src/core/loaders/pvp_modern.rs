@@ -1,6 +1,6 @@
-//! Cliente **Paraguacraft PvP Modern** (Fabric 1.21.11) — loader dedicado + mod HUD propio.
+//! Cliente **Paraguacraft PvP Modern** (Fabric 1.21.11) â€” loader dedicado + mod HUD propio.
 //!
-//! Separado de `fabric-iris` (solo optimización). Espeja `loaders/pvp.rs` en 1.8.9.
+//! Separado de `fabric-iris` (solo optimizaciÃ³n). Espeja `loaders/pvp.rs` en 1.8.9.
 
 use std::path::{Path, PathBuf};
 
@@ -25,12 +25,12 @@ const MANIFEST_MIRROR_URLS: &[&str] = &[
     "https://cdn.jsdelivr.net/gh/SantiJ10/Paraguacraft@main/clientes/paraguacraft-pvp-modern/manifest.json",
 ];
 
-const FALLBACK_CLIENT_VERSION: &str = "0.9.14";
-const FALLBACK_RELEASE_TAG: &str = "pvp-modern-0.9.14";
+const FALLBACK_CLIENT_VERSION: &str = "0.9.15";
+const FALLBACK_RELEASE_TAG: &str = "pvp-modern-0.9.15";
 
 const FALLBACK_MODS: &[(&str, &str)] = &[(
-    "ParaguacraftPvP-Modern-0.9.14.jar",
-    "f62e52b6d5e8cca618fe9095f445d3f8010525e1",
+    "ParaguacraftPvP-Modern-0.9.15.jar",
+    "29aa56c059a760fa0063fa55b41a94efa53fdffc",
 )];
 
 #[derive(Debug, Clone, Deserialize)]
@@ -410,7 +410,7 @@ async fn ensure_mod(
             return Ok(());
         }
         return Err(AppError::msg(format!(
-            "No se pudo obtener {filename} (Paraguacraft PvP 1.21.11). Actualizá el launcher o usá Reparar instancia. ({e})"
+            "No se pudo obtener {filename} (Paraguacraft PvP 1.21.11). ActualizÃ¡ el launcher o usÃ¡ Reparar instancia. ({e})"
         )));
     }
     let _ = std::fs::copy(&dest, &cache_path);
@@ -475,7 +475,7 @@ pub async fn sync_instance(
     instance_dir: &Path,
 ) -> AppResult<()> {
     if mc != MC {
-        return Err(AppError::msg("Versión MC incompatible con Paraguacraft PvP 1.21.11"));
+        return Err(AppError::msg("VersiÃ³n MC incompatible con Paraguacraft PvP 1.21.11"));
     }
     fabric_iris::install_bundle(app, client, mc, instance_dir).await?;
     install_bundle(app, client, instance_dir).await

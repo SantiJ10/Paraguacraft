@@ -6,10 +6,10 @@
     {
       "id": "paraguacraft-pvp",
       "title": "Paraguacraft PvP",
-      "subtitle": "Dewiers + menu negro/celeste + HUD 1.21.11",
+      "subtitle": "GUI negro/celeste legible · Dewiers · 1.21.11",
       "badge": "16x",
       "fileName": "paraguacraft-pvp-modern.zip",
-      "sha1": "c9ccb90c3fc2f83c90cf8d4f603c8503152e00e4",
+      "sha1": "2ba8098b6a0eadfd09fb1ff18a09187839444a14",
       "fallbackDownloadUrl": "https://cdn.jsdelivr.net/gh/SantiJ10/Paraguacraft@main/clientes/paraguacraft-pvp-modern/packs/paraguacraft-pvp-modern.zip"
     }
   ]
