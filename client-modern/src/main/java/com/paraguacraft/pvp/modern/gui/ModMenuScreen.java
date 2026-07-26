@@ -236,7 +236,7 @@ public class ModMenuScreen extends ParaguacraftScreen {
         cards.add(open(4, "Particulas: " + PerformanceConfig.particleModeLabel(), "particles"));
         cards.add(open(4, "Limpiar memoria", "clean_memory"));
         cards.add(open(4, "Aplicar preset de hardware", "apply_hw_preset"));
-        cards.add(open(4, "Crosshair: " + ModernConfig.crosshairModeLabel(), "crosshair"));
+        cards.add(open(4, "Mira: " + ModernConfig.crosshairModeLabel(), "crosshair"));
         cards.add(open(5, "Quick Play (`)", "quickplay"));
         cards.add(open(5, "Cubecraft Quick Play", "cubecraft_qp"));
         cards.add(open(5, "Texture packs", "packs"));
