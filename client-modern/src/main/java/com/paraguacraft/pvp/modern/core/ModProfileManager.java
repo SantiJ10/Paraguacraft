@@ -141,6 +141,9 @@ public final class ModProfileManager {
             ModernConfig.scoreboardHideStats = bool(m, "scoreboardHideStats", ModernConfig.scoreboardHideStats);
             ModernConfig.dynamicFov = bool(m, "dynamicFov", ModernConfig.dynamicFov);
             ModernConfig.crosshairMode = num(m, "crosshairMode", ModernConfig.crosshairMode);
+            if (ModernConfig.crosshairMode < 0 || ModernConfig.crosshairMode > 2) {
+                ModernConfig.crosshairMode = 0;
+            }
             ModernConfig.showCoords = bool(m, "showCoords", ModernConfig.showCoords);
             ModernConfig.toggleSneak = bool(m, "toggleSneak", ModernConfig.toggleSneak);
             ModernConfig.toggleSprint = bool(m, "toggleSprint", ModernConfig.toggleSprint);

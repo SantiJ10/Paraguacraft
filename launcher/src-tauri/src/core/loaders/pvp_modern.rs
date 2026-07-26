@@ -39,8 +39,12 @@ struct ModernManifest {
     client_version: String,
     #[serde(default)]
     release_tag: Option<String>,
+    /// Preferido: `mods` (igual que el cliente 1.8.9).
     #[serde(default)]
     mods: Vec<ModernModEntry>,
+    /// Compat: manifests viejos usaban `files` en vez de `mods`.
+    #[serde(default)]
+    files: Vec<ModernModEntry>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -65,6 +69,7 @@ impl Default for ModernManifest {
                     sha1: (*s).into(),
                 })
                 .collect(),
+            files: Vec::new(),
         }
     }
 }
@@ -75,6 +80,18 @@ impl ModernManifest {
             format!("pvp-modern-{}", self.client_version.trim())
         })
     }
+
+    fn entries(&self) -> &[ModernModEntry] {
+        if !self.mods.is_empty() {
+            &self.mods
+        } else {
+            &self.files
+        }
+    }
+
+    fn has_entries(&self) -> bool {
+        !self.entries().is_empty()
+    }
 }
 
 async fn fetch_manifest_with_source(
@@ -83,14 +100,14 @@ async fn fetch_manifest_with_source(
 ) -> (ModernManifest, &'static str) {
     for url in MANIFEST_MIRROR_URLS {
         if let Ok(m) = net::fetch_json::<ModernManifest>(client, url).await {
-            if !m.mods.is_empty() {
+            if m.has_entries() {
                 return (m, "remote");
             }
         }
     }
     if let Some(app) = app {
         if let Some(m) = read_bundled_manifest(app) {
-            if !m.mods.is_empty() {
+            if m.has_entries() {
                 return (m, "bundled");
             }
         }
@@ -125,7 +142,7 @@ fn detect_installed_client(
         return (None, None, false);
     };
     let mods_dir = dir.join("mods");
-    let main_mod = manifest.mods.iter().find(|m| {
+    let main_mod = manifest.entries().iter().find(|m| {
         m.filename
             .to_lowercase()
             .starts_with("paraguacraftpvp-modern")
@@ -166,7 +183,7 @@ pub async fn client_status(
     instance_dir: Option<&Path>,
 ) -> crate::models::PvpClientStatus {
     let (manifest, source) = fetch_manifest_with_source(client, Some(app)).await;
-    let main_mod = manifest.mods.iter().find(|m| {
+    let main_mod = manifest.entries().iter().find(|m| {
         m.filename
             .to_lowercase()
             .starts_with("paraguacraftpvp-modern")
@@ -196,7 +213,7 @@ fn read_bundled_manifest(app: &AppHandle) -> Option<ModernManifest> {
         let text = std::fs::read_to_string(&path).ok()?;
         let text = text.trim_start_matches('\u{FEFF}');
         let m: ModernManifest = serde_json::from_str(text).ok()?;
-        if !m.mods.is_empty() {
+        if m.has_entries() {
             return Some(m);
         }
     }
@@ -428,10 +445,10 @@ pub async fn install_bundle(
     let mods_dir = instance_dir.join("mods");
     std::fs::create_dir_all(&mods_dir)?;
 
-    let filenames: Vec<String> = manifest.mods.iter().map(|m| m.filename.clone()).collect();
+    let filenames: Vec<String> = manifest.entries().iter().map(|m| m.filename.clone()).collect();
     prune_stale_mods(&mods_dir, &filenames);
 
-    for entry in &manifest.mods {
+    for entry in manifest.entries() {
         ensure_mod(
             app,
             client,
