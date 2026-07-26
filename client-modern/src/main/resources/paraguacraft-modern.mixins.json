@@ -27,6 +27,7 @@
     "performance.MixinBlockEntityRendererCull",
     "performance.MixinLivingEntityRendererAnimCull",
     "MixinScreenBackground",
+    "MixinHandledScreenDim",
     "MixinScreenClose",
     "MixinWindowFullscreen",
     "MixinLightmapTextureManager",

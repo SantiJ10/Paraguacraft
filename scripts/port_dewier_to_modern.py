@@ -323,7 +323,7 @@ def update_catalogs(sha: str, file_name: str) -> None:
             {
                 "id": "paraguacraft-pvp",
                 "title": "Paraguacraft PvP",
-                "subtitle": "Dewiers wool/armor + 9blue swords · 1.21.11",
+                "subtitle": "Dewiers + menu negro/celeste + HUD 1.21.11",
                 "badge": "16x",
                 "fileName": file_name,
                 "sha1": sha,

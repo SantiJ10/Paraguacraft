@@ -1,15 +1,14 @@
 {
-  "id": "paraguacraft-pvp-modern",
-  "nombre": "Paraguacraft PvP Modern",
-  "mc_version": "1.21.11",
+  "version": 1,
   "loader": "fabric",
-  "client_version": "0.9.13",
-  "release_tag": "pvp-modern-0.9.13",
-  "descripcion": "Resource pack CDN (raw), practica sticky fix, iconos/TNT.",
-  "mods": [
+  "mc": "1.21.11",
+  "client_version": "0.9.14",
+  "release_tag": "pvp-modern-0.9.14",
+  "files": [
     {
-      "filename": "ParaguacraftPvP-Modern-0.9.13.jar",
-      "sha1": "4f39fcad346989872bd5b961a5246bbce5e19926"
+      "id": "client",
+      "filename": "ParaguacraftPvP-Modern-0.9.14.jar",
+      "sha1": "f62e52b6d5e8cca618fe9095f445d3f8010525e1"
     }
   ]
 }
