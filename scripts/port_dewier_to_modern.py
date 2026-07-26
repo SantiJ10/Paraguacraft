@@ -27,8 +27,10 @@ DEWIER_DEFAULT = Path(
     r"D:\Amin\instalador programas\1.21.11 texture pvp\Dewiers-20k-Resource-Pack-16x-1.8.9.zip"
 )
 
+# Cuidado: no usar "old" suelto (matchea dentro de "gold_*").
 SKIP_NAME = re.compile(
-    r"(kopie|old\.png|OLD|\.mcmeta\.txt|__MACOSX|\.DS_Store|Thumbs\.db)",
+    r"(kopie|(?:^|/)[^/]*old\.png|\.mcmeta\.txt|__MACOSX|\.DS_Store|Thumbs\.db|"
+    r"fire_layer_[01]old\.png|cobblestone_mossyOLD\.png)",
     re.I,
 )
 
@@ -145,6 +147,36 @@ RENAME_FILE = {
     "potion_bottle_splash": "splash_potion",
     "potion_bottle_linger": "lingering_potion",
     "fireball": "fire_charge",
+    # armadura ítems (1.8 gold_* → 1.21 golden_*)
+    "gold_helmet": "golden_helmet",
+    "gold_chestplate": "golden_chestplate",
+    "gold_leggings": "golden_leggings",
+    "gold_boots": "golden_boots",
+    "gold_sword": "golden_sword",
+    "gold_pickaxe": "golden_pickaxe",
+    "gold_axe": "golden_axe",
+    "gold_shovel": "golden_shovel",
+    "gold_hoe": "golden_hoe",
+    "gold_horse_armor": "golden_horse_armor",
+    "apple_golden": "golden_apple",
+    "carrot_golden": "golden_carrot",
+}
+
+# Armadura vestida 1.8 models/armor → 1.21 entity/equipment
+# layer_1 = casco/pecho/botas (humanoid), layer_2 = pantalones (humanoid_leggings)
+ARMOR_LAYER_MAP = {
+    "leather_layer_1.png": "assets/minecraft/textures/entity/equipment/humanoid/leather.png",
+    "leather_layer_1_overlay.png": "assets/minecraft/textures/entity/equipment/humanoid/leather_overlay.png",
+    "leather_layer_2.png": "assets/minecraft/textures/entity/equipment/humanoid_leggings/leather.png",
+    "leather_layer_2_overlay.png": "assets/minecraft/textures/entity/equipment/humanoid_leggings/leather_overlay.png",
+    "chainmail_layer_1.png": "assets/minecraft/textures/entity/equipment/humanoid/chainmail.png",
+    "chainmail_layer_2.png": "assets/minecraft/textures/entity/equipment/humanoid_leggings/chainmail.png",
+    "iron_layer_1.png": "assets/minecraft/textures/entity/equipment/humanoid/iron.png",
+    "iron_layer_2.png": "assets/minecraft/textures/entity/equipment/humanoid_leggings/iron.png",
+    "gold_layer_1.png": "assets/minecraft/textures/entity/equipment/humanoid/gold.png",
+    "gold_layer_2.png": "assets/minecraft/textures/entity/equipment/humanoid_leggings/gold.png",
+    "diamond_layer_1.png": "assets/minecraft/textures/entity/equipment/humanoid/diamond.png",
+    "diamond_layer_2.png": "assets/minecraft/textures/entity/equipment/humanoid_leggings/diamond.png",
 }
 
 # No portar HUD 1.8 (atlas viejo); 1.21 usa sprites y queremos crosshair del overlay/mods
@@ -202,6 +234,10 @@ def map_dewier_path(src: str) -> str | None:
         if renamed is None:
             return None
         return f"assets/minecraft/textures/item/{renamed}"
+
+    if p.startswith("assets/minecraft/textures/models/armor/"):
+        name = p.rsplit("/", 1)[-1]
+        return ARMOR_LAYER_MAP.get(name)
 
     if p.startswith("assets/minecraft/textures/entity/"):
         return p  # muchas siguen válidas; beds viejos se pisan con overlay
@@ -279,7 +315,7 @@ def update_catalogs(sha: str, file_name: str) -> None:
             {
                 "id": "paraguacraft-pvp",
                 "title": "Paraguacraft PvP",
-                "subtitle": "Dewiers 1.21.11 + destroy + HUD mods",
+                "subtitle": "Dewiers 1.21.11 + armor/destroy + HUD mods",
                 "badge": "16x",
                 "fileName": file_name,
                 "sha1": sha,
@@ -304,16 +340,22 @@ def main() -> int:
     entries = dict(dewier_entries)
     apply_overlay(entries)
 
-    # Overlay no debe pisar look Dewiers de BedWars (lana + destroy).
+    # Overlay no debe pisar look Dewiers (lana, destroy, armaduras).
     keep_re = re.compile(
-        r"^assets/minecraft/textures/block/((.+_wool)|destroy_stage_\d+)\.png(\.mcmeta)?$"
+        r"^assets/minecraft/textures/("
+        r"block/((.+_wool)|destroy_stage_\d+)\.png(\.mcmeta)?|"
+        r"entity/equipment/(humanoid|humanoid_leggings)/"
+        r"(leather|leather_overlay|chainmail|iron|gold|diamond)\.png|"
+        r"item/(leather_|chainmail_|iron_|golden_|diamond_)"
+        r"(helmet|chestplate|leggings|boots)(_overlay)?\.png"
+        r")$"
     )
     restored = 0
     for k, v in dewier_entries.items():
         if keep_re.match(k):
             entries[k] = v
             restored += 1
-    print(f"  restored dewier wool/destroy={restored}")
+    print(f"  restored dewier wool/destroy/armor={restored}")
 
     # pack.mcmeta del overlay ya entra; reforzar descripción
     entries["pack.mcmeta"] = json.dumps(
@@ -344,6 +386,10 @@ def main() -> int:
         "assets/minecraft/textures/block/blue_wool.png",
         "assets/minecraft/textures/gui/sprites/hud/crosshair.png",
         "assets/minecraft/models/item/totem_of_undying.json",
+        "assets/minecraft/textures/entity/equipment/humanoid/diamond.png",
+        "assets/minecraft/textures/entity/equipment/humanoid_leggings/iron.png",
+        "assets/minecraft/textures/item/diamond_chestplate.png",
+        "assets/minecraft/textures/item/golden_helmet.png",
     ]
     with zipfile.ZipFile(OUT, "r") as z:
         names = set(z.namelist())
