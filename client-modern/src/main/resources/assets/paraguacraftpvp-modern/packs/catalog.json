@@ -6,10 +6,10 @@
     {
       "id": "paraguacraft-pvp",
       "title": "Paraguacraft PvP",
-      "subtitle": "Dewiers 1.21.11 + destroy + HUD mods",
+      "subtitle": "Dewiers 1.21.11 + armor/destroy + HUD mods",
       "badge": "16x",
       "fileName": "paraguacraft-pvp-modern.zip",
-      "sha1": "3b887da9027037247dc0d721224bd1140dd1400a",
+      "sha1": "c140d3433277ad9ecb8c1cce6fea63166790e172",
       "fallbackDownloadUrl": "https://cdn.jsdelivr.net/gh/SantiJ10/Paraguacraft@main/clientes/paraguacraft-pvp-modern/packs/paraguacraft-pvp-modern.zip"
     }
   ]
