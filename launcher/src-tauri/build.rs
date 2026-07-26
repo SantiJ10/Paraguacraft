@@ -142,7 +142,7 @@ fn main() {
         &wide1024,
         &startup,
         &edition,
-        r#"{"pack":{"description":"Marca Oficial Paraguacraft","min_format":70,"max_format":99999}}"#,
+        r#"{"pack":{"pack_format":75,"description":"Marca Oficial Paraguacraft","min_format":[75,0],"max_format":[99,0]}}"#,
     );
 
     println!("cargo:rerun-if-changed=resources/branding");

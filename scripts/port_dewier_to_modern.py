@@ -230,6 +230,10 @@ def map_dewier_path(src: str) -> str | None:
 
     if p.startswith("assets/minecraft/textures/items/"):
         rest = p.split("textures/items/", 1)[1]
+        # Espadas/fireball: se usan las de 9blue/overlay (las de Dewiers no gustaron).
+        base = rest.split(".png", 1)[0]
+        if "sword" in base or base in {"fireball", "fire_charge"}:
+            return None
         renamed = rename_basename(rest)
         if renamed is None:
             return None
@@ -279,7 +283,11 @@ def apply_overlay(entries: dict[str, bytes]) -> None:
     for path in OVERLAY.rglob("*"):
         if path.is_file():
             rel = path.relative_to(OVERLAY).as_posix()
+            # Crosshair lo controlan los mods del cliente; no forzar textura del pack.
+            if rel.endswith("gui/sprites/hud/crosshair.png"):
+                continue
             entries[rel] = path.read_bytes()
+    entries.pop("assets/minecraft/textures/gui/sprites/hud/crosshair.png", None)
 
 
 def write_zip(entries: dict[str, bytes], out: Path) -> None:
@@ -315,7 +323,7 @@ def update_catalogs(sha: str, file_name: str) -> None:
             {
                 "id": "paraguacraft-pvp",
                 "title": "Paraguacraft PvP",
-                "subtitle": "Dewiers 1.21.11 + armor/destroy + HUD mods",
+                "subtitle": "Dewiers wool/armor + 9blue swords · 1.21.11",
                 "badge": "16x",
                 "fileName": file_name,
                 "sha1": sha,
@@ -357,14 +365,14 @@ def main() -> int:
             restored += 1
     print(f"  restored dewier wool/destroy/armor={restored}")
 
-    # pack.mcmeta del overlay ya entra; reforzar descripción
+    # Schema 1.21.11 (resource pack_format 75): min/max como arrays.
     entries["pack.mcmeta"] = json.dumps(
         {
             "pack": {
-                "pack_format": 69,
-                "min_format": 34,
-                "max_format": 99,
-                "description": "Paraguacraft PvP · Dewiers→1.21.11 · destroy · crosshair mods",
+                "pack_format": 75,
+                "description": "Paraguacraft PvP Modern 1.21.11",
+                "min_format": [75, 0],
+                "max_format": [99, 0],
             }
         },
         indent=2,
@@ -384,17 +392,18 @@ def main() -> int:
     must = [
         "assets/minecraft/textures/block/destroy_stage_0.png",
         "assets/minecraft/textures/block/blue_wool.png",
-        "assets/minecraft/textures/gui/sprites/hud/crosshair.png",
         "assets/minecraft/models/item/totem_of_undying.json",
         "assets/minecraft/textures/entity/equipment/humanoid/diamond.png",
-        "assets/minecraft/textures/entity/equipment/humanoid_leggings/iron.png",
-        "assets/minecraft/textures/item/diamond_chestplate.png",
+        "assets/minecraft/textures/item/diamond_sword.png",
+        "assets/minecraft/textures/item/fire_charge.png",
         "assets/minecraft/textures/item/golden_helmet.png",
     ]
     with zipfile.ZipFile(OUT, "r") as z:
         names = set(z.namelist())
     for m in must:
         print(("OK  " if m in names else "MISS") + m)
+    ch = "assets/minecraft/textures/gui/sprites/hud/crosshair.png"
+    print(("OK no crosshair (mods)" if ch not in names else "WARN crosshair still present") )
     print(f"OK {OUT.name} sha1={sha} size={OUT.stat().st_size // 1024}KB entries={len(entries)}")
     return 0
 
