@@ -63,26 +63,26 @@ BOW_MODEL = {
         "thirdperson_righthand": {
             "rotation": [-80, 260, -40],
             "translation": [-1, -2, 2.5],
-            "scale": [0.72, 0.72, 0.72],
+            "scale": [0.9, 0.9, 0.9],
         },
         "thirdperson_lefthand": {
             "rotation": [-80, -280, 40],
             "translation": [-1, -2, 2.5],
-            "scale": [0.72, 0.72, 0.72],
+            "scale": [0.9, 0.9, 0.9],
         },
         "firstperson_righthand": {
             "rotation": [0, -90, 25],
             "translation": [1.13, 3.2, 1.13],
-            "scale": [0.52, 0.52, 0.52],
+            "scale": [0.68, 0.68, 0.68],
         },
         "firstperson_lefthand": {
-            "rotation": [0, 90, -25],
+            "rotation": [0, -90, 25],
             "translation": [1.13, 3.2, 1.13],
-            "scale": [0.52, 0.52, 0.52],
+            "scale": [0.68, 0.68, 0.68],
         },
-        "gui": {"scale": [0.9, 0.9, 0.9]},
-        "ground": {"translation": [0, 2, 0], "scale": [0.45, 0.45, 0.45]},
-        "fixed": {"scale": [0.55, 0.55, 0.55]},
+        "gui": {"scale": [1, 1, 1]},
+        "ground": {"translation": [0, 2, 0], "scale": [0.5, 0.5, 0.5]},
+        "fixed": {"scale": [0.5, 0.5, 0.5]},
     },
 }
 
