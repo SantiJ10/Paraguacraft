@@ -6,10 +6,10 @@
     {
       "id": "paraguacraft-pvp",
       "title": "Paraguacraft PvP",
-      "subtitle": "SkyWars/BedWars/PvP HUD, soft glint, 1.21.11",
+      "subtitle": "BedWars beds/TNT, SkyWars bridging, PvP HUD",
       "badge": "16x",
       "fileName": "paraguacraft-pvp-modern.zip",
-      "sha1": "eb72cd445ee8ffbb4f98754448b468228656d0b6",
+      "sha1": "aa7af0502c9a9dc084602ba4163c8eea72d2ed72",
       "fallbackDownloadUrl": "https://cdn.jsdelivr.net/gh/SantiJ10/Paraguacraft@main/clientes/paraguacraft-pvp-modern/packs/paraguacraft-pvp-modern.zip"
     }
   ]

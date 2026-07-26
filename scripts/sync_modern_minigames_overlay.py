@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Copia assets PvP/SkyWars/BedWars/Pillars al overlay-modern desde tom1xi + 9blue + vanilla."""
+"""Copia assets PvP/SkyWars/BedWars/Pillars al overlay-modern desde tom1xi + 9blue + mr blue + vanilla."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ OVERLAY = ROOT / "resourcepacks-src" / "overlay-modern"
 
 TOM = Path(r"D:\Amin\instalador programas\1.21.11 texture pvp\tom1xi remade.zip")
 NINE = Path(r"D:\Amin\instalador programas\1.21.11 texture pvp\9Blue1fault 8f16x80.zip")
+MR_BLUE = Path(r"D:\Amin\instalador programas\1.21.11 texture pvp\mr blue sky.zip")
 VANILLA = Path.home() / "AppData/Roaming/.minecraft/versions/1.21.11/1.21.11.jar"
 
 # 9blue usa nombres 1.8; renombrar a 1.21
@@ -133,11 +134,47 @@ def copy_from_zip(zpath: Path, mapping: dict[str, str]) -> int:
     return n
 
 
+def build_mr_blue_map() -> dict[str, str]:
+    """Camas, TNT, concrete, glass, ice, scaffolding — foco BedWars/SkyWars."""
+    m: dict[str, str] = {}
+    for color in WOOLS:
+        for rel in (
+            f"assets/minecraft/textures/entity/bed/{color}.png",
+            f"assets/minecraft/textures/block/{color}_concrete.png",
+            f"assets/minecraft/textures/block/{color}_concrete_powder.png",
+            f"assets/minecraft/textures/block/{color}_stained_glass.png",
+            f"assets/minecraft/textures/block/{color}_stained_glass_pane_top.png",
+        ):
+            m[rel] = rel
+    for name in (
+        "tnt_side.png",
+        "tnt_top.png",
+        "tnt_bottom.png",
+        "scaffolding_top.png",
+        "scaffolding_side.png",
+        "scaffolding_bottom.png",
+        "ice.png",
+        "packed_ice.png",
+        "blue_ice.png",
+        "obsidian.png",
+        "crying_obsidian.png",
+        "end_stone_bricks.png",
+        "glass_pane_top.png",
+        "water_flow.png",
+        "water_still.png",
+    ):
+        p = f"assets/minecraft/textures/block/{name}"
+        m[p] = p
+    return m
+
+
 def main() -> int:
     if not TOM.is_file():
         raise SystemExit(f"Missing tom1xi: {TOM}")
     if not NINE.is_file():
         raise SystemExit(f"Missing 9blue: {NINE}")
+    if not MR_BLUE.is_file():
+        raise SystemExit(f"Missing mr blue: {MR_BLUE}")
     if not VANILLA.is_file():
         raise SystemExit(f"Missing vanilla jar: {VANILLA}")
 
@@ -145,6 +182,10 @@ def main() -> int:
     for color in WOOLS:
         p = f"assets/minecraft/textures/block/{color}_wool.png"
         tom_map[p] = p
+        # fallback concrete si mr blue fallara
+        for suffix in ("_concrete.png", "_concrete_powder.png"):
+            p2 = f"assets/minecraft/textures/block/{color}{suffix}"
+            tom_map[p2] = p2
     for name in ("cobweb.png", "cobweb_sides.png", "water_still.png", "slime_block.png"):
         p = f"assets/minecraft/textures/block/{name}"
         tom_map[p] = p
@@ -187,6 +228,8 @@ def main() -> int:
     print(f"  copied {copy_from_zip(TOM, tom_map)}")
     print("9blue…")
     print(f"  copied {copy_from_zip(NINE, nine_map)}")
+    print("mr blue sky (BedWars)…")
+    print(f"  copied {copy_from_zip(MR_BLUE, build_mr_blue_map())}")
 
     with zipfile.ZipFile(VANILLA, "r") as zin:
         for rel in (
