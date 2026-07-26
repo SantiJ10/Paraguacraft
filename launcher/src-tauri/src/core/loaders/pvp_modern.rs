@@ -16,12 +16,16 @@ use super::fabric_iris;
 
 pub const MC: &str = "1.21.11";
 const GITHUB_REPO: &str = "SantiJ10/Paraguacraft";
+// Preferir `bundled/` (formato `mods`, igual que 1.8.9). `clientes/` a veces queda
+// cacheado en raw.githubusercontent con el schema viejo `files`.
 const MANIFEST_URL: &str =
-    "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/clientes/paraguacraft-pvp-modern/manifest.json";
+    "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/bundled/pvp-modern/manifest.json";
 
 const MANIFEST_MIRROR_URLS: &[&str] = &[
-    "https://github.com/SantiJ10/Paraguacraft/raw/main/clientes/paraguacraft-pvp-modern/manifest.json",
     MANIFEST_URL,
+    "https://github.com/SantiJ10/Paraguacraft/raw/main/bundled/pvp-modern/manifest.json",
+    "https://cdn.jsdelivr.net/gh/SantiJ10/Paraguacraft@main/bundled/pvp-modern/manifest.json",
+    "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/clientes/paraguacraft-pvp-modern/manifest.json",
     "https://cdn.jsdelivr.net/gh/SantiJ10/Paraguacraft@main/clientes/paraguacraft-pvp-modern/manifest.json",
 ];
 
