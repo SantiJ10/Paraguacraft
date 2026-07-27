@@ -185,46 +185,55 @@ async function submit() {
 
         <div v-if="selectedLoader && selectedLoader.versions.length > 0" class="space-y-2">
           <span class="block text-sm text-gray-300">Versión del loader</span>
-          <div class="flex flex-wrap gap-2">
-            <button
-              v-for="ch in [
-                { id: 'stable' as const, label: 'Estable' },
-                { id: 'latest' as const, label: 'Más reciente' },
-                { id: 'other' as const, label: 'Otro' },
-              ]"
-              :key="ch.id"
-              type="button"
-              class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition"
-              :class="
-                loaderChannel === ch.id
-                  ? 'bg-pc-green text-black'
-                  : 'bg-surface-3 text-gray-300 hover:bg-surface-4'
-              "
-              @click="loaderChannel = ch.id"
-            >
-              <svg
-                v-if="loaderChannel === ch.id"
-                class="h-3.5 w-3.5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="3"
+          <template v-if="selectedLoader.versions.length === 1">
+            <p class="text-xs text-gray-500">
+              Pack
+              <span class="font-mono text-gray-300">{{ selectedLoader.versions[0] }}</span>
+              (única versión curada)
+            </p>
+          </template>
+          <template v-else>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="ch in [
+                  { id: 'stable' as const, label: 'Estable' },
+                  { id: 'latest' as const, label: 'Más reciente' },
+                  { id: 'other' as const, label: 'Otro' },
+                ]"
+                :key="ch.id"
+                type="button"
+                class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition"
+                :class="
+                  loaderChannel === ch.id
+                    ? 'bg-pc-green text-black'
+                    : 'bg-surface-3 text-gray-300 hover:bg-surface-4'
+                "
+                @click="loaderChannel = ch.id"
               >
-                <path d="M5 13l4 4L19 7" />
-              </svg>
-              {{ ch.label }}
-            </button>
-          </div>
-          <AppSelect
-            v-if="loaderChannel === 'other'"
-            v-model="loaderVersion"
-            :options="loaderVersionOptions"
-            searchable
-            :max-panel-height="240"
-          />
-          <p v-else class="text-xs text-gray-500">
-            Se usará <span class="font-mono text-gray-300">{{ loaderVersion || "—" }}</span>
-          </p>
+                <svg
+                  v-if="loaderChannel === ch.id"
+                  class="h-3.5 w-3.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="3"
+                >
+                  <path d="M5 13l4 4L19 7" />
+                </svg>
+                {{ ch.label }}
+              </button>
+            </div>
+            <AppSelect
+              v-if="loaderChannel === 'other'"
+              v-model="loaderVersion"
+              :options="loaderVersionOptions"
+              searchable
+              :max-panel-height="240"
+            />
+            <p v-else class="text-xs text-gray-500">
+              Se usará <span class="font-mono text-gray-300">{{ loaderVersion || "—" }}</span>
+            </p>
+          </template>
         </div>
 
         <div>

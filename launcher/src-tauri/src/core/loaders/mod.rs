@@ -218,7 +218,8 @@ pub async fn available_loaders(client: &reqwest::Client, mc: &str) -> AppResult<
                 id: optimized::ID.into(),
                 name: "Paraguacraft Optimized".into(),
                 description: format!(
-                    "Pack de FPS preconfigurado ({backend}). Reemplaza Fabric+Iris en esta version."
+                    "Pack FPS curado v{} ({backend}). Shaders incluidos (off) + mods compatibles. Reemplaza Fabric+Iris.",
+                    optimized::PACK_VERSION
                 ),
                 versions: opt_vers,
                 recommended,
@@ -231,7 +232,10 @@ pub async fn available_loaders(client: &reqwest::Client, mc: &str) -> AppResult<
             out.push(LoaderInfo {
                 id: optimized::ID_NEOFORGE.into(),
                 name: "Paraguacraft Optimized (NeoForge)".into(),
-                description: "NeoForge + Embeddium/Oculus, mods Keo-like y shaders por gama (1.20.1).".into(),
+                description: format!(
+                    "NeoForge Optimized v{}: Embeddium/Oculus + mods Keo-like. Shaders incluidos (off).",
+                    optimized::PACK_VERSION
+                ),
                 versions: neo_vers,
                 recommended,
             });
@@ -387,6 +391,13 @@ pub async fn resolve_loader_version(
     provided: &str,
 ) -> AppResult<String> {
     let trimmed = provided.trim();
+    let kind = normalize(loader);
+    // Pack curado Optimized: la versión real del backend se resuelve en install().
+    if (kind == "paraguacraft-optimized" || kind == "paraguacraft-optimized-neoforge")
+        && (trimmed.is_empty() || trimmed == optimized::PACK_VERSION)
+    {
+        return Ok(optimized::PACK_VERSION.to_string());
+    }
     if !trimmed.is_empty() {
         return Ok(trimmed.to_string());
     }
