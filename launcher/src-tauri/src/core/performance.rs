@@ -223,6 +223,75 @@ pub fn apply_min_graphics(game_dir: &Path) -> AppResult<()> {
     Ok(())
 }
 
+/// Options.txt para Paraguacraft Optimized (sin capar FPS como el preset genérico).
+fn tier_options_optimized(tier: &str) -> HashMap<String, String> {
+    match tier {
+        "alta" => HashMap::from([
+            ("renderDistance".into(), "12".into()),
+            ("simulationDistance".into(), "8".into()),
+            ("particles".into(), "1".into()),
+            ("graphicsMode".into(), "1".into()),
+            ("ao".into(), "true".into()),
+            ("biomeBlendRadius".into(), "2".into()),
+            ("maxFps".into(), "260".into()),
+            ("enableVsync".into(), "false".into()),
+            ("entityShadows".into(), "true".into()),
+            ("entityDistanceScaling".into(), "1.0".into()),
+            ("renderClouds".into(), "fast".into()),
+            ("mipmapLevels".into(), "4".into()),
+            ("fboEnable".into(), "true".into()),
+            ("fullscreen".into(), "false".into()),
+            ("prioritizeChunkUpdates".into(), "1".into()),
+        ]),
+        "media" => HashMap::from([
+            ("renderDistance".into(), "8".into()),
+            ("simulationDistance".into(), "6".into()),
+            ("particles".into(), "1".into()),
+            ("graphicsMode".into(), "1".into()),
+            ("ao".into(), "true".into()),
+            ("biomeBlendRadius".into(), "1".into()),
+            ("maxFps".into(), "260".into()),
+            ("enableVsync".into(), "false".into()),
+            ("entityShadows".into(), "false".into()),
+            ("entityDistanceScaling".into(), "0.75".into()),
+            ("renderClouds".into(), "fast".into()),
+            ("mipmapLevels".into(), "3".into()),
+            ("fboEnable".into(), "true".into()),
+            ("fullscreen".into(), "false".into()),
+            ("prioritizeChunkUpdates".into(), "1".into()),
+        ]),
+        _ => HashMap::from([
+            ("renderDistance".into(), "6".into()),
+            ("simulationDistance".into(), "5".into()),
+            ("particles".into(), "2".into()),
+            ("graphicsMode".into(), "0".into()),
+            ("ao".into(), "false".into()),
+            ("biomeBlendRadius".into(), "0".into()),
+            ("maxFps".into(), "260".into()),
+            ("enableVsync".into(), "false".into()),
+            ("entityShadows".into(), "false".into()),
+            ("entityDistanceScaling".into(), "0.5".into()),
+            ("renderClouds".into(), "false".into()),
+            ("mipmapLevels".into(), "2".into()),
+            ("fboEnable".into(), "true".into()),
+            ("fullscreen".into(), "false".into()),
+            ("prioritizeChunkUpdates".into(), "0".into()),
+        ]),
+    }
+}
+
+/// Optimiza options.txt de una instancia Paraguacraft Optimized según gama.
+pub fn optimize_optimized_options(game_dir: &Path, tier: &str) -> AppResult<OptionsOptimizeResult> {
+    let opciones = tier_options_optimized(tier);
+    let path = game_dir.join("options.txt");
+    let applied = patch_options_file(&path, opciones)?;
+    Ok(OptionsOptimizeResult {
+        tier: tier.into(),
+        applied,
+        path: path.to_string_lossy().into(),
+    })
+}
+
 /// Optimiza `options.txt` de una instancia **Paraguacraft PvP 1.21.11**.
 pub fn optimize_modern_pvp_options(
     game_dir: &Path,
@@ -409,7 +478,7 @@ fn seed_gammautils_config(config: &Path) -> AppResult<()> {
     Ok(())
 }
 
-/// Configs livianas para Paraguacraft Optimized (Lithium + Dynamic FPS).
+/// Configs de mods para Paraguacraft Optimized (More Culling, Sodium Extra, BRD, BBE, etc.).
 pub fn apply_optimized_mod_configs(game_dir: &Path, tier: &str) -> AppResult<()> {
     let config = game_dir.join("config");
     std::fs::create_dir_all(&config)?;
@@ -430,17 +499,385 @@ pub fn apply_optimized_mod_configs(game_dir: &Path, tier: &str) -> AppResult<()>
     patch_properties_file(&config.join("lithium.properties"), lithium_entries)?;
     let _ = repair_dynamic_fps_config(&config.join("dynamic_fps.json"));
 
-    let sodium = config.join("sodium-options.json");
-    if sodium.is_file() {
-        let invalid = std::fs::read_to_string(&sodium)
-            .ok()
-            .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
-            .is_none();
-        if invalid {
-            let _ = std::fs::remove_file(&sodium);
-        }
-    }
+    write_moreculling_toml(&config, tier)?;
+    write_sodium_options_json(&config)?;
+    write_sodium_extra_options_json(&config, tier)?;
+    write_entityculling_json(&config, tier)?;
+    write_immediatelyfast_json(&config)?;
+    write_bbe_configs(&config, tier)?;
+    write_better_render_distance_json(&config, tier)?;
+    write_renderscale_json5(&config, tier)?;
+    write_particle_core_toml(&config, tier)?;
+    write_badoptimizations_txt(&config)?;
+
     Ok(())
+}
+
+fn write_text(path: &Path, contents: &str) -> AppResult<()> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(path, contents)?;
+    Ok(())
+}
+
+fn write_moreculling_toml(config: &Path, tier: &str) -> AppResult<()> {
+    let (leaves_mode, lod_range, item_frame_3face) = match tier {
+        "alta" => ("DEFAULT", 16, 2.0),
+        "media" => ("GAP", 12, 2.0),
+        _ => ("GAP", 8, 3.0),
+    };
+    let body = format!(
+        r#"version = 1
+enableSodiumMenu = true
+dontCull = []
+cloudCulling = true
+signTextCulling = true
+rainCulling = true
+useBlockStateCulling = true
+useCustomItemFrameRenderer = true
+itemFrameMapCulling = true
+useItemFrameLOD = true
+itemFrameLODRange = {lod_range}
+useItemFrame3FaceCulling = true
+itemFrame3FaceCullingRange = {item_frame_3face}
+paintingCulling = true
+leavesCullingMode = "{leaves_mode}"
+leavesCullingAmount = 2
+includeMangroveRoots = false
+endGatewayCulling = false
+beaconBeamCulling = true
+useOnModdedBlocksByDefault = true
+
+[modCompatibility]
+minecraft = true
+"#
+    );
+    write_text(&config.join("moreculling.toml"), &body)
+}
+
+fn write_sodium_options_json(config: &Path) -> AppResult<()> {
+    // Esquema compatible con Sodium 0.6+/0.9 (Keo). No tocar si ya existe válido.
+    let path = config.join("sodium-options.json");
+    if path.is_file() {
+        if std::fs::read_to_string(&path)
+            .ok()
+            .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
+            .is_some()
+        {
+            return Ok(());
+        }
+        let _ = std::fs::remove_file(&path);
+    }
+    let body = r#"{
+  "quality": {
+    "hidden_fluid_culling": true,
+    "improved_fluid_shaping": false,
+    "use_closest_point_entity_sort": false,
+    "pixel_filtering_mode": "NEAREST"
+  },
+  "performance": {
+    "chunk_builder_threads": 0,
+    "chunk_build_defer_mode": "ALWAYS",
+    "animate_only_visible_textures": true,
+    "use_entity_culling": true,
+    "use_fog_occlusion": true,
+    "use_block_face_culling": true,
+    "use_no_error_g_l_context": true,
+    "quad_splitting_mode": "SAFE"
+  },
+  "advanced": {
+    "enable_memory_tracing": false,
+    "use_advanced_staging_buffers": true,
+    "cpu_render_ahead_limit": 3
+  },
+  "notifications": {
+    "has_cleared_donation_button": false,
+    "has_seen_donation_prompt": true
+  },
+  "debug": {
+    "terrain_sorting_enabled": true
+  }
+}
+"#;
+    write_text(&path, body)
+}
+
+fn write_sodium_extra_options_json(config: &Path, tier: &str) -> AppResult<()> {
+    let (stars, rain, toast, particles) = match tier {
+        "alta" => (true, true, true, true),
+        "media" => (true, true, true, true),
+        _ => (false, false, false, true),
+    };
+    let body = format!(
+        r#"{{
+  "animation_settings": {{
+    "animation": true,
+    "water": true,
+    "lava": true,
+    "fire": true,
+    "portal": true,
+    "block_animations": true,
+    "sculk_sensor": true
+  }},
+  "particle_settings": {{
+    "particles": {particles},
+    "rain_splash": {rain},
+    "block_break": true,
+    "block_breaking": true
+  }},
+  "detail_settings": {{
+    "sky": true,
+    "sun": true,
+    "moon": true,
+    "stars": {stars},
+    "rain_snow": {rain},
+    "biome_colors": true,
+    "sky_colors": true
+  }},
+  "render_settings": {{
+    "light_updates": true,
+    "item_frame": true,
+    "armor_stand": true,
+    "painting": true,
+    "piston": true,
+    "beacon_beam": true,
+    "limit_beacon_beam_height": false,
+    "enchanting_table_book": true,
+    "item_frame_name_tag": true,
+    "player_name_tag": true
+  }},
+  "extra_settings": {{
+    "overlay_corner": "TOP_LEFT",
+    "text_contrast": "NONE",
+    "show_fps": true,
+    "show_f_p_s_extended": false,
+    "show_coords": false,
+    "reduce_resolution_on_mac": false,
+    "use_adaptive_sync": false,
+    "cloud_height": 192,
+    "toasts": {toast},
+    "advancement_toast": {toast},
+    "recipe_toast": {toast},
+    "system_toast": {toast},
+    "tutorial_toast": false,
+    "instant_sneak": false,
+    "prevent_shaders": false,
+    "steady_debug_hud": true,
+    "steady_debug_hud_refresh_interval": 1
+  }}
+}}
+"#
+    );
+    write_text(&config.join("sodium-extra-options.json"), &body)
+}
+
+fn write_entityculling_json(config: &Path, tier: &str) -> AppResult<()> {
+    let (tracing, hitbox, capture, sleep) = match tier {
+        "alta" => (128, 50, 5, 10),
+        "media" => (96, 40, 5, 10),
+        _ => (64, 30, 4, 15),
+    };
+    let body = format!(
+        r#"{{
+  "configVersion": 8,
+  "renderNametagsThroughWalls": true,
+  "blockEntityWhitelist": ["minecraft:beacon"],
+  "entityWhitelist": [],
+  "tracingDistance": {tracing},
+  "debugMode": false,
+  "sleepDelay": {sleep},
+  "hitboxLimit": {hitbox},
+  "captureRate": {capture},
+  "tickCulling": true,
+  "tickCullingWhitelist": [
+    "minecraft:boat",
+    "minecraft:chest_boat",
+    "minecraft:firework_rocket",
+    "minecraft:item_display",
+    "minecraft:text_display",
+    "minecraft:block_display"
+  ],
+  "disableF3": false,
+  "skipEntityCulling": false,
+  "skipBlockEntityCulling": false,
+  "blockEntityFrustumCulling": true,
+  "forceDisplayCulling": false,
+  "solidLeaves": false
+}}
+"#
+    );
+    write_text(&config.join("entityculling.json"), &body)
+}
+
+fn write_immediatelyfast_json(config: &Path) -> AppResult<()> {
+    let body = r#"{
+  "enhanced_batching": true,
+  "font_atlas_resizing": true,
+  "font_atlas_size": 1024,
+  "map_atlas_generation": true,
+  "map_atlas_size": 2048,
+  "skip_text_translucency_sorting": true,
+  "fast_text_lookup": true,
+  "avoid_redundant_framebuffer_switching": true,
+  "fix_slow_buffer_upload_on_apple_gpu": true,
+  "experimental_disable_resource_pack_conflict_handling": false,
+  "experimental_sign_text_buffering": false,
+  "experimental_sign_atlas_size": 4096,
+  "debug_only_and_not_recommended_disable_mod_conflict_handling": false,
+  "debug_only_and_not_recommended_disable_hardware_conflict_handling": false,
+  "debug_only_print_additional_error_information": false
+}
+"#;
+    write_text(&config.join("immediatelyfast.json"), body)
+}
+
+fn write_bbe_configs(config: &Path, tier: &str) -> AppResult<()> {
+    let sign_dist = match tier {
+        "alta" => 24,
+        "media" => 16,
+        _ => 10,
+    };
+    let anim = tier != "baja";
+    let bbe = format!(
+        r#"{{
+  "bbe.config.storage.main": [
+    {{ "option": "optimize.master", "value": true }},
+    {{ "option": "optimize.chest", "value": true }},
+    {{ "option": "optimize.shulker", "value": true }},
+    {{ "option": "optimize.sign", "value": true }},
+    {{ "option": "optimize.decoratedpot", "value": true }},
+    {{ "option": "optimize.banner", "value": true }},
+    {{ "option": "optimize.bell", "value": true }},
+    {{ "option": "optimize.bed", "value": true }},
+    {{ "option": "optimize.shelf", "value": true }},
+    {{ "option": "optimize.campfire", "value": true }},
+    {{ "option": "animation.chest", "value": {anim} }},
+    {{ "option": "animation.shulker", "value": {anim} }},
+    {{ "option": "animation.bell", "value": {anim} }},
+    {{ "option": "animation.decoratedpot", "value": {anim} }},
+    {{ "option": "misc.banner_graphics", "value": 1 }},
+    {{ "option": "misc.christmas_chest", "value": false }},
+    {{ "option": "misc.sign_text_distance", "value": {sign_dist} }},
+    {{ "option": "misc.sign_text", "value": true }},
+    {{ "option": "misc.sign_text_culling", "value": true }},
+    {{ "option": "misc.update_scheduler", "value": 0 }}
+  ],
+  "bbe.config.storage.experimental": []
+}}
+"#
+    );
+    write_text(&config.join("BBEConfig.json"), &bbe)?;
+
+    let legacy = format!(
+        r#"{{
+  "master_optimize": true,
+  "optimize_chests": true,
+  "optimize_signs": true,
+  "optimize_shulkers": true,
+  "optimize_beds": true,
+  "optimize_bells": true,
+  "optimize_decoratedpots": true,
+  "chest_animations": {anim},
+  "render_sign_text": true,
+  "shulker_animations": {anim},
+  "bell_animations": {anim},
+  "pot_animations": {anim},
+  "sign_text_render_distance": {sign_dist},
+  "updateType": 0,
+  "smoothness_slider": 25
+}}
+"#
+    );
+    write_text(&config.join("betterblockentities.json"), &legacy)
+}
+
+fn write_better_render_distance_json(config: &Path, tier: &str) -> AppResult<()> {
+    // Keo lo deja off; en gama baja/media lo activamos para FPS.
+    let (enabled, scale, preset) = match tier {
+        "alta" => (false, 0.75, "QUALITY"),
+        "media" => (true, 0.5, "BALANCED"),
+        _ => (true, 0.35, "PERFORMANCE"),
+    };
+    let body = format!(
+        r#"{{
+  "enabled": {enabled},
+  "verticalScale": {scale},
+  "verticalScaleManual": {scale},
+  "verticalScaleAuto": true,
+  "verticalScalePreset": "{preset}",
+  "cornerShrinkHorizontal": 0.25
+}}
+"#
+    );
+    write_text(&config.join("betterrenderdistance.json"), &body)
+}
+
+fn write_renderscale_json5(config: &Path, tier: &str) -> AppResult<()> {
+    let scale = match tier {
+        "alta" => "1.0",
+        "media" => "1.0",
+        _ => "0.85",
+    };
+    let body = format!(
+        r#"{{
+	"scale": {scale},
+	"forceLinear": false,
+	"irisScale": -1.0
+}}
+"#
+    );
+    write_text(&config.join("renderscale.json5"), &body)
+}
+
+fn write_particle_core_toml(config: &Path, tier: &str) -> AppResult<()> {
+    let (culling, reduce_all, reduce_dec) = match tier {
+        "alta" => ("VANILLA", "0.0", "0.0"),
+        "media" => ("AGGRESSIVE", "0.0", "0.15"),
+        _ => ("AGGRESSIVE", "0.25", "0.4"),
+    };
+    let body = format!(
+        r#"# Don't change this! Version used to track needed updates.
+version = 1
+disableParticles = false
+byTypeReductions = {{  }}
+maxParticlesPerSheet = 16384
+particleRenderDistanceMultiplier = 1.0
+asynchronousTicking = true
+cullingBlacklist = [  ]
+cullingBehavior = "{culling}"
+reduceAllChance = {reduce_all}
+reduceDecreasedChance = {reduce_dec}
+turnOffPotionParticlesV2 = [
+    "NONE"
+]
+"#
+    );
+    write_text(&config.join("particle_core_config.toml"), &body)
+}
+
+fn write_badoptimizations_txt(config: &Path) -> AppResult<()> {
+    let body = r#"# BadOptimizations configuration (Paraguacraft Optimized)
+enable_lightmap_caching: true
+lightmap_time_change_needed_for_update: 80
+enable_sky_color_caching: true
+skycolor_time_change_needed_for_update: 3
+enable_debug_renderer_disable_if_not_needed: true
+enable_particle_manager_optimization: true
+enable_toast_optimizations: true
+enable_sky_angle_caching_in_worldrenderer: true
+enable_entity_renderer_caching: true
+enable_block_entity_renderer_caching: true
+enable_entity_flag_caching: true
+enable_remove_redundant_fov_calculations: true
+enable_remove_tutorial_if_not_demo: true
+show_f3_text: true
+ignore_mod_incompatibilities: false
+ignore_mod_cache_hooks: false
+log_config: false
+config_version: 6
+"#;
+    write_text(&config.join("badoptimizations.txt"), body)
 }
 
 /// Ajusta configs de Sodium, Lithium, Dynamic FPS y Gamma Utils según tier PvP modern.
