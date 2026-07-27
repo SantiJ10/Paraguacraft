@@ -29,16 +29,17 @@ const NEOFORGE_MCS: &[&str] = &["1.20.1"];
 
 const MODRINTH: &str = "https://api.modrinth.com/v2";
 const TUNED_MARKER: &str = ".paraguacraft_optimized_tuned";
-const TUNED_VERSION: &str = "v3";
+const TUNED_VERSION: &str = "v4";
 /// Única versión del pack Optimized que ve el usuario (el loader real se resuelve solo).
 pub const PACK_VERSION: &str = "1.0.0";
 
-/// Pins estables 1.21.11: Sodium 0.8.12 + Iris 1.10.7 (0.8.13 rompe Iris ≤1.10.7).
+/// Pin Modrinth (`version_id`) — sets cerrados y compatibles entre sí.
 struct Pin {
     slug: &'static str,
     version_id: &'static str,
 }
 
+/// 1.21.11: Sodium 0.8.12 + Iris 1.10.7 (0.8.13 rompe Iris ≤1.10.7).
 const PINS_1_21_11: &[Pin] = &[
     Pin { slug: "sodium", version_id: "NFkjnzWE" },
     Pin { slug: "iris", version_id: "fDpuVzVr" },
@@ -52,68 +53,158 @@ const PINS_1_21_11: &[Pin] = &[
     Pin { slug: "reeses-sodium-options", version_id: "P0MH4cn0" },
     Pin { slug: "fabric-language-kotlin", version_id: "bdhiINYC" },
     Pin { slug: "cloth-config", version_id: "xuX40TN5" },
+    Pin { slug: "moreculling", version_id: "wOzykoLV" },
+    Pin { slug: "clumps", version_id: "OgBE8Rz4" },
+    Pin { slug: "lmd", version_id: "7gmpSYHk" },
+    Pin { slug: "particle-core", version_id: "kIlv5noY" },
+    Pin { slug: "fastquit", version_id: "ip2tVKLp" },
+    Pin { slug: "scalablelux", version_id: "ju27pK32" },
+    Pin { slug: "fzzy-config", version_id: "nSB6xGOS" },
+    Pin { slug: "krypton", version_id: "O9LmWYR7" },
+    Pin { slug: "modernfix-mvus", version_id: "yPCwXBn8" },
+    Pin { slug: "noisiumforked", version_id: "VyMvRQKq" },
+    Pin { slug: "smooth-boot", version_id: "gqFyBDHt" },
+    Pin { slug: "better-block-entities", version_id: "VTUyYQyY" },
+    Pin { slug: "fpsdisplay", version_id: "Tiz1VFDa" },
+    Pin { slug: "renderscale", version_id: "e5ZPKfY7" },
+    Pin { slug: "almanac", version_id: "Tcl38ycb" },
+    Pin { slug: "placeholder-api", version_id: "qxjzQ9xY" },
+    Pin { slug: "dynamic-fps", version_id: "Fab7e5Th" },
+    Pin { slug: "badoptimizations", version_id: "Q3Dusz2j" },
 ];
 
-/// Mods Fabric base (todas las MCs Fabric soportadas).
-const FABRIC_MODS_CORE: &[&str] = &[
-    "fabric-api",
-    "fabric-language-kotlin",
-    "sodium",
-    "iris",
-    "lithium",
-    "ferrite-core",
-    "entityculling",
-    "immediatelyfast",
-    "modmenu",
-    "moreculling",
-    "sodium-extra",
-    "reeses-sodium-options",
-    "cloth-config",
-    "clumps",
-    "lmd",
-    "particle-core",
-    "fastquit",
-    "scalablelux",
-    "fzzy-config",
+/// 26.2: Sodium 0.9.1 + Iris 1.11.2 (pin Iris→Sodium).
+const PINS_26_2: &[Pin] = &[
+    Pin { slug: "sodium", version_id: "2Yom1N68" },
+    Pin { slug: "iris", version_id: "oaD6KQls" },
+    Pin { slug: "fabric-api", version_id: "lVXlbH4w" },
+    Pin { slug: "lithium", version_id: "UPNexAfy" },
+    Pin { slug: "ferrite-core", version_id: "d5ddUdiB" },
+    Pin { slug: "entityculling", version_id: "iiF6U3Ne" },
+    Pin { slug: "immediatelyfast", version_id: "uJHxuQxy" },
+    Pin { slug: "modmenu", version_id: "njXb639R" },
+    Pin { slug: "moreculling", version_id: "SYFaYeMK" },
+    Pin { slug: "sodium-extra", version_id: "Fu02wj4x" },
+    Pin { slug: "reeses-sodium-options", version_id: "PH4SPorH" },
+    Pin { slug: "cloth-config", version_id: "Nv3xnWXd" },
+    Pin { slug: "clumps", version_id: "dEMopoOJ" },
+    Pin { slug: "lmd", version_id: "B2nrDb9C" },
+    Pin { slug: "particle-core", version_id: "VFv6uQKM" },
+    Pin { slug: "scalablelux", version_id: "EKLUURiy" },
+    Pin { slug: "fzzy-config", version_id: "EQSFgLYw" },
+    Pin { slug: "fabric-language-kotlin", version_id: "bdhiINYC" },
+    Pin { slug: "modernfix-mvus", version_id: "TUWH6NZu" },
+    Pin { slug: "noisiumforked", version_id: "rWMnuBfv" },
+    Pin { slug: "dynamic-fps", version_id: "pC2JjFw1" },
+    Pin { slug: "better-block-entities", version_id: "Sr2VjbpG" },
+    Pin { slug: "badoptimizations", version_id: "JmPs4Wie" },
+    Pin { slug: "asynclogger", version_id: "MiNRI6LE" },
+    Pin { slug: "ixeris", version_id: "6I2BEXfJ" },
+    Pin { slug: "gnetum", version_id: "FYk1Bn5B" },
+    Pin { slug: "zfastnoise", version_id: "QBcjDrhr" },
+    Pin { slug: "fism", version_id: "4HgtdJ7f" },
+    Pin { slug: "forge-config-api-port", version_id: "rSd3GiG8" },
+    Pin { slug: "get-it-together-drops", version_id: "BOGqc3kp" },
+    Pin { slug: "noxesium", version_id: "Qx0oq0L0" },
+    Pin { slug: "almanac", version_id: "meYgadd9" },
+    Pin { slug: "fpsdisplay", version_id: "inkvL2AV" },
+    Pin { slug: "renderscale", version_id: "EJ7KZw6k" },
+    Pin { slug: "placeholder-api", version_id: "NDqH16LT" },
 ];
 
-/// Extras 1.21.11 (sin Voxy ni C2ME: rompen Sodium/Java).
-const FABRIC_MODS_12111: &[&str] = &[
-    "krypton",
-    "modernfix-mvus",
-    "noisiumforked",
-    "smooth-boot",
-    "better-block-entities",
-    "fpsdisplay",
-    "renderscale",
-    "almanac",
-    "placeholder-api",
+/// 1.20.1 Fabric: Sodium 0.5.12-beta.2 (exigido por Iris 1.7.6). Sin Indium (pin distinto).
+const PINS_1_20_1_FABRIC: &[Pin] = &[
+    Pin { slug: "sodium", version_id: "ryOMVRuG" },
+    Pin { slug: "iris", version_id: "s5eFLITc" },
+    Pin { slug: "fabric-api", version_id: "xhLT3C5f" },
+    Pin { slug: "lithium", version_id: "iEcXOkz4" },
+    Pin { slug: "ferrite-core", version_id: "unerR5MN" },
+    Pin { slug: "entityculling", version_id: "infkTCSN" },
+    Pin { slug: "immediatelyfast", version_id: "iwYUrQJO" },
+    Pin { slug: "modmenu", version_id: "lEkperf6" },
+    Pin { slug: "moreculling", version_id: "3wkuUDPy" },
+    Pin { slug: "sodium-extra", version_id: "mDbF0LZT" },
+    Pin { slug: "reeses-sodium-options", version_id: "Rc9pkPug" },
+    Pin { slug: "cloth-config", version_id: "2xQdCMyG" },
+    Pin { slug: "clumps", version_id: "hefSwtn6" },
+    Pin { slug: "lmd", version_id: "rOkgwJ12" },
+    Pin { slug: "particle-core", version_id: "6es9W10B" },
+    Pin { slug: "fastquit", version_id: "tNgyOUMr" },
+    Pin { slug: "fzzy-config", version_id: "qkBkQTfU" },
+    Pin { slug: "fabric-language-kotlin", version_id: "bdhiINYC" },
+    Pin { slug: "krypton", version_id: "jiDwS0W1" },
+    Pin { slug: "modernfix", version_id: "rPmgLeZC" },
+    Pin { slug: "noisium", version_id: "erSJnRcq" },
+    Pin { slug: "smooth-boot", version_id: "t9nlpa0M" },
+    Pin { slug: "dynamic-fps", version_id: "QwPQBhiQ" },
+    Pin { slug: "badoptimizations", version_id: "DIugITgU" },
+    Pin { slug: "asynclogger", version_id: "2HCbK9wC" },
+    Pin { slug: "ixeris", version_id: "R0Ia5zWt" },
+    Pin { slug: "zfastnoise", version_id: "K3nDfeZE" },
+    Pin { slug: "fism", version_id: "JZF3sYNu" },
+    Pin { slug: "forge-config-api-port", version_id: "HvR3IdRE" },
+    Pin { slug: "get-it-together-drops", version_id: "ATcsrMNy" },
+    Pin { slug: "almanac", version_id: "QM6nx1Sa" },
+    Pin { slug: "fpsdisplay", version_id: "WaO5IB1q" },
+    Pin { slug: "renderscale", version_id: "u7FyypwR" },
 ];
 
-/// Keo 26.2 extras.
-const FABRIC_MODS_26_2: &[&str] = &[
-    "modernfix",
-    "bbe",
-    "badoptimizations",
-    "asynclogger",
-    "ixeris",
-    "gnetum",
-    "zfastnoise",
-    "fism",
-    "forge-config-api-port",
-    "get-it-together-drops",
-    "noxesium",
-    "almanac",
+/// 1.18.2 Fabric: Sodium 0.4.1 + Iris 1.6.11 + Indium (mismo Sodium).
+const PINS_1_18_2: &[Pin] = &[
+    Pin { slug: "sodium", version_id: "74Y5Z8fo" },
+    Pin { slug: "iris", version_id: "ogIRhnAJ" },
+    Pin { slug: "indium", version_id: "H45YVREb" },
+    Pin { slug: "fabric-api", version_id: "qk28POfr" },
+    Pin { slug: "lithium", version_id: "ALnv7Npy" },
+    Pin { slug: "ferrite-core", version_id: "776Z5oW9" },
+    Pin { slug: "entityculling", version_id: "d3CbGntl" },
+    Pin { slug: "immediatelyfast", version_id: "D73h6MNI" },
+    Pin { slug: "modmenu", version_id: "nVxObSbX" },
+    Pin { slug: "moreculling", version_id: "d2OS47y6" },
+    Pin { slug: "sodium-extra", version_id: "DwCPxThW" },
+    Pin { slug: "reeses-sodium-options", version_id: "BZU4WdR5" },
+    Pin { slug: "cloth-config", version_id: "BLMp2TRt" },
+    Pin { slug: "clumps", version_id: "hwWceR4m" },
+    Pin { slug: "lmd", version_id: "YjlZw4Eo" },
+    Pin { slug: "fastquit", version_id: "GKzeP8Zr" },
+    Pin { slug: "fabric-language-kotlin", version_id: "bdhiINYC" },
+    Pin { slug: "krypton", version_id: "vJQ7plH2" },
+    Pin { slug: "modernfix", version_id: "LJ5N4YSl" },
+    Pin { slug: "dynamic-fps", version_id: "maKzAqnY" },
+    Pin { slug: "ixeris", version_id: "70H5sXBn" },
+    Pin { slug: "forge-config-api-port", version_id: "XGKEYlsw" },
+    Pin { slug: "get-it-together-drops", version_id: "v3JhWu9o" },
+    Pin { slug: "fpsdisplay", version_id: "pxyG0qAH" },
 ];
 
-/// Extras 1.18.2 / 1.20.1.
-const FABRIC_MODS_LEGACY: &[&str] = &[
-    "krypton",
-    "modernfix",
-    "noisium",
-    "smooth-boot",
-    "dynamic-fps",
-    "indium",
+/// 1.20.1 NeoForge/Forge: Embeddium + Oculus + stack Keo-like.
+const PINS_1_20_1_NEOFORGE: &[Pin] = &[
+    Pin { slug: "embeddium", version_id: "UTbfe5d1" },
+    Pin { slug: "oculus", version_id: "iQ1SwGc3" },
+    Pin { slug: "modernfix", version_id: "QroNBg6X" },
+    Pin { slug: "ferrite-core", version_id: "DG5Fn9Sz" },
+    Pin { slug: "entityculling", version_id: "MloBcsQQ" },
+    Pin { slug: "immediatelyfast", version_id: "hGriwiGl" },
+    Pin { slug: "clumps", version_id: "nAHGB5ls" },
+    Pin { slug: "noisium", version_id: "gbYUKrDP" },
+    Pin { slug: "cull-less-leaves-reforged", version_id: "wPOb8yEG" },
+    Pin { slug: "memoryleakfix", version_id: "3w0IxNtk" },
+    Pin { slug: "smooth-boot-reloaded", version_id: "HkfL3iGO" },
+    Pin { slug: "cloth-config", version_id: "t8TXrZvZ" },
+    Pin { slug: "chloride", version_id: "8cnn9uOM" },
+    Pin { slug: "starlight-forge", version_id: "cNa0vkNj" },
+    Pin { slug: "fastload", version_id: "5caSj7kt" },
+    Pin { slug: "kotlin-for-forge", version_id: "Zsh14XeQ" },
+    Pin { slug: "lmd", version_id: "a1JZWhla" },
+    Pin { slug: "sodium-options-api", version_id: "d0EFLitO" },
+    Pin { slug: "ai-improvements", version_id: "eJihmpNQ" },
+    Pin { slug: "alternate-current", version_id: "kC6SY4Zp" },
+    Pin { slug: "log-begone", version_id: "kNRTeHhj" },
+    Pin { slug: "carbon-config", version_id: "LWHzkwbX" },
+    Pin { slug: "lmft", version_id: "XJdD8eB6" },
+    Pin { slug: "get-it-together-drops", version_id: "csPzTtJp" },
+    Pin { slug: "immersive-optimization", version_id: "fWotFHdM" },
+    Pin { slug: "badoptimizations", version_id: "DIugITgU" },
 ];
 
 /// JARs a purgar siempre (incompatibles / Java 25+).
@@ -123,54 +214,13 @@ const PURGE_NAME_NEEDLES: &[&str] = &[
     "concurrentchunkmanagement",
 ];
 
-/// Mods NeoForge/Forge 1.20.1 alineados a Keo Optimized (Forge) + Oculus.
-const NEOFORGE_MODS: &[&str] = &[
-    "embeddium",
-    "oculus",
-    "modernfix",
-    "ferrite-core",
-    "entityculling",
-    "immediatelyfast",
-    "clumps",
-    "noisium",
-    "cull-less-leaves-reforged",
-    "memoryleakfix",
-    "smooth-boot-reloaded",
-    "cloth-config",
-    "chloride",
-    "starlight-forge",
-    "fastload",
-    "kotlin-for-forge",
-    "lmd",
-    "sodium-options-api",
-    "ai-improvements",
-    "alternate-current",
-    "log-begone",
-    "carbon-config",
-    "lmft",
-    "get-it-together-drops",
-    "immersive-optimization",
-];
-
-fn fabric_mods_for_mc(mc: &str) -> Vec<&'static str> {
-    let mut mods: Vec<&'static str> = FABRIC_MODS_CORE.to_vec();
-    let extra: &[&str] = match mc {
-        "26.2" => FABRIC_MODS_26_2,
-        "1.21.11" => FABRIC_MODS_12111,
-        _ => FABRIC_MODS_LEGACY,
-    };
-    mods.extend_from_slice(extra);
-    mods
-}
-
-/// Si el slug primario no tiene build para esa MC, probar alternativas.
-fn mod_slug_alternates(slug: &str) -> &'static [&'static str] {
-    match slug {
-        "modernfix-mvus" => &["modernfix"],
-        "noisiumforked" => &["noisium"],
-        "bbe" => &["better-block-entities"],
-        "better-block-entities" => &["bbe"],
-        _ => &[],
+fn fabric_pins_for_mc(mc: &str) -> Option<&'static [Pin]> {
+    match mc {
+        "1.21.11" => Some(PINS_1_21_11),
+        "26.2" => Some(PINS_26_2),
+        "1.20.1" => Some(PINS_1_20_1_FABRIC),
+        "1.18.2" => Some(PINS_1_18_2),
+        _ => None,
     }
 }
 
@@ -276,16 +326,7 @@ pub async fn install_bundle_for_launch(
 
     if kind.contains("neoforge") {
         purge_incompatible_jars(instance_dir);
-        install_mod_slugs_with_fallback(
-            app,
-            client,
-            mc,
-            &["neoforge", "forge"],
-            NEOFORGE_MODS,
-            instance_dir,
-            None,
-        )
-        .await?;
+        install_pinned_mods(app, client, PINS_1_20_1_NEOFORGE, instance_dir).await?;
         install_shaders_for_tier(app, client, mc, &["iris", "optifine"], &tier, instance_dir)
             .await?;
         apply_preconfig_once(instance_dir, &tier, "neoforge")?;
@@ -335,39 +376,12 @@ async fn install_fabric_compatible_bundle(
     mc: &str,
     instance_dir: &Path,
 ) -> AppResult<()> {
-    let mods = fabric_mods_for_mc(mc);
-    let mut forced: HashMap<String, String> = HashMap::new();
-
-    if mc == "1.21.11" {
-        // Pins conocidos compatibles entre sí.
-        install_pinned_mods(app, client, PINS_1_21_11, instance_dir).await?;
-        for pin in PINS_1_21_11 {
-            forced.insert(pin.slug.to_string(), pin.version_id.to_string());
-        }
-    } else if let Ok(Some(sodium_vid)) = resolve_sodium_pin_from_iris(client, mc).await {
-        forced.insert("sodium".into(), sodium_vid);
-    }
-
-    let remaining: Vec<&str> = mods
-        .into_iter()
-        .filter(|s| !forced.contains_key(*s))
-        .collect();
-    install_mod_slugs_with_fallback(
-        app,
-        client,
-        mc,
-        &["fabric"],
-        &remaining,
-        instance_dir,
-        Some(&forced),
-    )
-    .await?;
-
-    // Asegurar Sodium pineado si Iris lo exige y aún no está el pin en forced path.
-    if let Some(sodium_vid) = forced.get("sodium") {
-        let _ = install_modrinth_version(app, client, "sodium", sodium_vid, instance_dir).await;
-    }
-    Ok(())
+    let Some(pins) = fabric_pins_for_mc(mc) else {
+        return Err(AppError::msg(format!(
+            "Paraguacraft Optimized no tiene set pineado para Minecraft {mc}"
+        )));
+    };
+    install_pinned_mods(app, client, pins, instance_dir).await
 }
 
 async fn install_pinned_mods(
@@ -407,32 +421,6 @@ async fn install_pinned_mods(
     Ok(())
 }
 
-async fn install_modrinth_version(
-    app: &AppHandle,
-    client: &reqwest::Client,
-    slug: &str,
-    version_id: &str,
-    instance_dir: &Path,
-) -> AppResult<()> {
-    let mods_dir = instance_dir.join("mods");
-    std::fs::create_dir_all(&mods_dir)?;
-    let (url, fname, sha1) = resolve_modrinth_version_file(client, version_id).await?;
-    purge_slug_jars(&mods_dir, slug, &fname);
-    let dest = mods_dir.join(&fname);
-    if dest.is_file() {
-        return Ok(());
-    }
-    net::download_all(
-        client,
-        vec![DownloadItem::new(url, dest).with_sha1(sha1)],
-        1,
-        app,
-        "optimized-pin",
-        &format!("Optimized {slug}"),
-    )
-    .await
-}
-
 fn purge_slug_jars(mods_dir: &Path, slug: &str, keep_filename: &str) {
     let keep = keep_filename.to_lowercase();
     let slug_l = slug.to_lowercase();
@@ -455,10 +443,14 @@ fn purge_slug_jars(mods_dir: &Path, slug: &str, keep_filename: &str) {
                     && !name.contains("sodium-extra")
                     && !name.contains("reeses-sodium")
             }
+            "embeddium" => name.contains("embeddium"),
             "ferrite-core" => name.contains("ferritecore"),
-            "reeses-sodium-options" => name.contains("reeses-sodium-options"),
+            "reeses-sodium-options" => {
+                name.contains("reeses-sodium-options") || name.contains("reeses_sodium_options")
+            }
             "sodium-extra" => name.contains("sodium-extra"),
             "fabric-api" => name.contains("fabric-api"),
+            "modernfix-mvus" | "modernfix" => name.contains("modernfix"),
             other => name.contains(other) || name.contains(&other.replace('-', "")),
         };
         if matches && name.trim_end_matches(".disabled") != keep {
@@ -467,36 +459,8 @@ fn purge_slug_jars(mods_dir: &Path, slug: &str, keep_filename: &str) {
     }
 }
 
-async fn resolve_sodium_pin_from_iris(
-    client: &reqwest::Client,
-    mc: &str,
-) -> AppResult<Option<String>> {
-    let url = format!(
-        "{MODRINTH}/project/iris/version?loaders={}&game_versions={}",
-        net::url_encode(r#"["fabric"]"#),
-        net::url_encode(&format!(r#"["{mc}"]"#))
-    );
-    let versions: Value = net::fetch_json(client, &url).await?;
-    let arr = versions.as_array().cloned().unwrap_or_default();
-    let sodium_pid = "AANobbMI";
-    for ver in &arr {
-        if let Some(deps) = ver["dependencies"].as_array() {
-            for dep in deps {
-                if dep["project_id"].as_str() == Some(sodium_pid) {
-                    if let Some(vid) = dep["version_id"].as_str() {
-                        if !vid.is_empty() {
-                            return Ok(Some(vid.to_string()));
-                        }
-                    }
-                }
-            }
-        }
-    }
-    Ok(None)
-}
-
 fn shader_slugs_for_tier(tier: &str) -> &'static [&'static str] {
-    // Varias alternativas por gama. Defaults de rendimiento (Solas/MakeUp), no Unbound.
+    // Alternativas por gama (desactivadas por defecto). Livianas primero.
     match tier {
         "alta" => &[
             "solas-shader",
@@ -532,7 +496,6 @@ fn shader_slugs_for_tier(tier: &str) -> &'static [&'static str] {
 }
 
 fn default_shader_for_tier(tier: &str) -> &'static str {
-    // Defaults tipo Keo: packs livianos/medios. Unbound solo como alternativa.
     match tier {
         "alta" => "solas-shader",
         "media" => "solas-shader",
@@ -541,84 +504,12 @@ fn default_shader_for_tier(tier: &str) -> &'static str {
 }
 
 fn iris_shadow_distance(tier: &str) -> &'static str {
+    // Bajo a propósito: cuando el usuario active shaders, no satura tanto.
     match tier {
-        "alta" => "16",
-        "media" => "12",
-        _ => "8",
+        "alta" => "12",
+        "media" => "8",
+        _ => "6",
     }
-}
-
-async fn install_mod_slugs_with_fallback(
-    app: &AppHandle,
-    client: &reqwest::Client,
-    mc: &str,
-    loaders: &[&str],
-    slugs: &[&str],
-    instance_dir: &Path,
-    forced: Option<&HashMap<String, String>>,
-) -> AppResult<()> {
-    let mods_dir = instance_dir.join("mods");
-    std::fs::create_dir_all(&mods_dir)?;
-    let mut items = Vec::new();
-    let mut seen_names = std::collections::HashSet::new();
-    for slug in slugs {
-        if let Some(map) = forced {
-            if let Some(vid) = map.get(*slug) {
-                match resolve_modrinth_version_file(client, vid).await {
-                    Ok((url, fname, sha1)) => {
-                        purge_slug_jars(&mods_dir, slug, &fname);
-                        if seen_names.insert(fname.clone()) {
-                            let dest = mods_dir.join(&fname);
-                            if !dest.is_file() {
-                                items.push(DownloadItem::new(url, dest).with_sha1(sha1));
-                            }
-                        }
-                    }
-                    Err(e) => eprintln!("[optimized] forced {slug}: {e}"),
-                }
-                continue;
-            }
-        }
-        let mut candidates = vec![*slug];
-        candidates.extend(mod_slug_alternates(slug).iter().copied());
-        let mut got = None;
-        'outer: for candidate in candidates {
-            for loader in loaders {
-                match resolve_modrinth_file(client, candidate, mc, loader).await {
-                    Ok(v) => {
-                        got = Some(v);
-                        break 'outer;
-                    }
-                    Err(_) => continue,
-                }
-            }
-        }
-        let Some((url, fname, sha1)) = got else {
-            eprintln!("[optimized] skip mod {slug}@{mc}");
-            continue;
-        };
-        if !seen_names.insert(fname.clone()) {
-            continue;
-        }
-        purge_slug_jars(&mods_dir, slug, &fname);
-        let dest = mods_dir.join(&fname);
-        if dest.is_file() {
-            continue;
-        }
-        items.push(DownloadItem::new(url, dest).with_sha1(sha1));
-    }
-    if !items.is_empty() {
-        net::download_all(
-            client,
-            items,
-            8,
-            app,
-            "optimized-mods",
-            &format!("Paraguacraft Optimized mods ({mc})"),
-        )
-        .await?;
-    }
-    Ok(())
 }
 
 async fn install_shaders_for_tier(
