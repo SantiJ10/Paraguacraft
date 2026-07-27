@@ -1,12 +1,12 @@
 {
-  "version": "1.1.1",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.1/Instalar_Paraguacraft_v1.1.1.exe",
-  "size_bytes": 169046006,
-  "sha256": "1eacc64745b2b1c13c25874fd03469957dbeab8c53c3fa98f01ecd26c22ea8a7",
-  "notes": "- Launcher 1.1.1: portada Spotify/YouTube original en HUD (Modern 0.9.9 + PvP 2.1.32)\n- IPC manda file:// cuando la carátula ya está cacheada\n- Fix escala de textura (ya no se ve cuadrado negro/disco)",
+  "version": "1.1.6",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.6/Instalar_Paraguacraft_v1.1.6.exe",
+  "size_bytes": 5558513,
+  "sha256": "708ea6489a11fa2ef3a5155ba615a89530cc2b540f84b186f9382628fd6920b1",
+  "notes": "- Paraguacraft Optimized: packs cerrados (mods pineados) para 1.8.9, 1.12.2, 1.18.2, 1.20.1, 1.21.11 y 26.2\n- Reemplaza Fabric+Iris en esas versiones; shaders incluidos (off) + preconfig por gama de PC\n- UX: menu contextual, AppSelect, skins estilo Modrinth, icono Optimized nuevo",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.1/Instalar_Paraguacraft_v1.1.1.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.6/Instalar_Paraguacraft_v1.1.6.exe",
       "signature": ""
     }
   }
