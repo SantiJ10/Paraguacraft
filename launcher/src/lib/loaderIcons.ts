@@ -20,11 +20,28 @@ export interface LoaderIconOption {
 export const LOADER_ICONS: LoaderIconOption[] = [
   { id: "vanilla", name: "Vanilla", src: vanilla, description: "Minecraft sin mods" },
   { id: "fabric", name: "Fabric", src: fabric, description: "Loader liviano" },
-  { id: "fabric-iris", name: "Fabric + Iris", src: iris, description: "Sodium + Iris" },
+  {
+    id: "fabric-iris",
+    name: "Fabric + Iris",
+    src: iris,
+    description: "Sodium + Iris (otras MCs)",
+  },
   { id: "forge", name: "Forge", src: forge, description: "Mods clásicos" },
   { id: "neoforge", name: "NeoForge", src: neoforge, description: "Forge moderno" },
   { id: "quilt", name: "Quilt", src: quilt, description: "Fork de Fabric" },
   { id: "optifine", name: "OptiFine", src: optifine, description: "Optimización + shaders" },
+  {
+    id: "paraguacraft-optimized",
+    name: "Paraguacraft Optimized",
+    src: iris,
+    description: "Mods tipo Keo + shaders por gama",
+  },
+  {
+    id: "paraguacraft-optimized-neoforge",
+    name: "Paraguacraft Optimized (NeoForge)",
+    src: neoforge,
+    description: "Keo-like NeoForge + shaders",
+  },
   { id: "paraguacraft-pvp", name: "Paraguacraft PvP 1.8.9", src: tnt, description: "Cliente PvP Forge" },
   { id: "paraguacraft-pvp-modern", name: "Paraguacraft PvP 1.21.11", src: tnt, description: "Cliente PvP Fabric" },
 ];

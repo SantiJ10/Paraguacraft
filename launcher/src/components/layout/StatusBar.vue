@@ -31,7 +31,7 @@ const isError = computed(() => footerTask.value?.status === "error");
       <span class="truncate">{{ app.launchMessage }}</span>
     </div>
 
-    <div v-if="footerTask" class="flex min-w-0 max-w-[50%] items-center gap-3">
+    <div v-if="footerTask" class="flex min-w-0 max-w-[70%] items-center gap-3">
       <span class="truncate" :class="isError ? 'text-red-400' : ''">{{ footerTask.label }}</span>
       <div v-if="!isError" class="w-32"><ProgressBar :value="footerTask.progress ?? 0" variant="ai" /></div>
       <span v-if="!isError" class="shrink-0 tabular-nums">{{ footerTask.speed }}</span>
@@ -44,18 +44,6 @@ const isError = computed(() => footerTask.value?.status === "error");
         :title="footerTask.failedFile"
       >
         {{ footerTask.failedFile }}
-      </span>
-    </div>
-
-    <div class="flex shrink-0 items-center gap-3">
-      <span v-if="app.hardware">{{ app.hardware.cpuName }}</span>
-      <span v-if="app.hardware" class="text-gray-600">|</span>
-      <span v-if="app.hardware">{{ app.hardware.ramGb }} GB RAM</span>
-      <span
-        class="rounded px-1.5 py-0.5 text-[10px] font-bold"
-        :class="app.runningInTauri ? 'bg-pc-green/20 text-pc-green' : 'bg-yellow-500/20 text-yellow-500'"
-      >
-        {{ app.runningInTauri ? "TAURI" : "WEB DEMO" }}
       </span>
     </div>
   </footer>

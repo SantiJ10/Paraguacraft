@@ -91,3 +91,46 @@ pub fn import_from_path(source: &Path) -> AppResult<ImportIconResult> {
         height: ICON_SIZE,
     })
 }
+
+/// Importa un icono desde bytes (PNG/JPG/WebP/GIF) ya descargados.
+pub fn import_from_bytes(bytes: &[u8]) -> AppResult<ImportIconResult> {
+    if bytes.len() as u64 > MAX_BYTES {
+        return Err(AppError::msg(format!(
+            "La imagen es muy grande (máx {} MB)",
+            MAX_BYTES / 1024 / 1024
+        )));
+    }
+    let img = image::load_from_memory(bytes)
+        .map_err(|e| AppError::msg(format!("No se pudo leer la imagen: {e}")))?;
+    let (w, h) = img.dimensions();
+    if w < 16 || h < 16 {
+        return Err(AppError::msg("La imagen del icono es demasiado pequeña"));
+    }
+    let processed = crop_center_square(img).resize_exact(ICON_SIZE, ICON_SIZE, FilterType::Lanczos3);
+    let id = uuid::Uuid::new_v4().to_string();
+    let icon_id = format!("custom:{id}");
+    let dest = icons_dir().join(format!("{id}.png"));
+    processed
+        .save_with_format(&dest, image::ImageFormat::Png)
+        .map_err(|e| AppError::msg(format!("No se pudo guardar el icono: {e}")))?;
+    Ok(ImportIconResult {
+        icon_id,
+        path: dest.to_string_lossy().to_string(),
+        width: ICON_SIZE,
+        height: ICON_SIZE,
+    })
+}
+
+/// Descarga un icono remoto y lo guarda como `custom:<uuid>`. Si falla, None.
+pub async fn import_from_url(client: &reqwest::Client, url: &str) -> Option<String> {
+    let url = url.trim();
+    if url.is_empty() {
+        return None;
+    }
+    let resp = client.get(url).send().await.ok()?;
+    if !resp.status().is_success() {
+        return None;
+    }
+    let bytes = resp.bytes().await.ok()?;
+    import_from_bytes(&bytes).ok().map(|r| r.icon_id)
+}

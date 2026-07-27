@@ -424,6 +424,11 @@ pub async fn launch_instance(
             let inst_dir = instances::instance_dir(&instance_id);
             loaders::fabric_iris::install_bundle(&app, &http, &mc, &inst_dir).await?;
         }
+        if loader == "paraguacraft-optimized" || loader == "paraguacraft-optimized-neoforge" {
+            let inst_dir = instances::instance_dir(&instance_id);
+            loaders::optimized::install_bundle_for_launch(&app, &http, &mc, &loader, &inst_dir)
+                .await?;
+        }
         if loader == "paraguacraft-pvp-modern" {
             modern_pvp::sync_instance_bundles(&app, &http, &instance_id).await?;
             let tier = crate::core::hardware::detect().perfil_sugerido;

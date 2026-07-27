@@ -10,7 +10,9 @@ export type LoaderId =
   | "quilt"
   | "fabric-iris"
   | "paraguacraft-pvp"
-  | "paraguacraft-pvp-modern";
+  | "paraguacraft-pvp-modern"
+  | "paraguacraft-optimized"
+  | "paraguacraft-optimized-neoforge";
 
 export type GcType = "Auto" | "G1GC" | "ZGC" | "Shenandoah";
 

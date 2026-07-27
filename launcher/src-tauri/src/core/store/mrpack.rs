@@ -41,6 +41,18 @@ fn detect_loader(deps: &Value) -> (String, String) {
     ("vanilla".to_string(), String::new())
 }
 
+async fn resolve_modpack_icon(client: &reqwest::Client, project_id_or_slug: &str) -> String {
+    let url = format!("{API}/project/{project_id_or_slug}");
+    let Ok(project): Result<Value, _> = net::fetch_json(client, &url).await else {
+        return "\u{1F4E6}".into();
+    };
+    let icon_url = project["icon_url"].as_str().unwrap_or_default();
+    if let Some(id) = instances::icons::import_from_url(client, icon_url).await {
+        return id;
+    }
+    "\u{1F4E6}".into()
+}
+
 /// Lee `modrinth.index.json` desde los bytes del `.mrpack`.
 fn read_index(bytes: &[u8]) -> AppResult<Value> {
     let reader = std::io::Cursor::new(bytes);
@@ -132,14 +144,20 @@ pub async fn import_modrinth(
     }
     let (loader, loader_version) = detect_loader(deps);
 
+    let icon = resolve_modpack_icon(client, &slug).await;
+
     // 3) Crear instancia local e instalar loader antes de bajar mods (falla rapido si Forge/Fabric no aplica).
-    let inst = profiles::create(&name, &mc, &loader, &loader_version, "\u{1F4E6}", 4096)?;
+    let inst = profiles::create(&name, &mc, &loader, &loader_version, &icon, 4096)?;
     let dest = instances::instance_dir(&inst.id);
 
     let version_id =
         crate::core::loaders::install_loader(app, client, &mc, &loader, &loader_version).await?;
     if let Some(mut meta) = instances::read_meta(&inst.id) {
         meta.version_id = Some(version_id.clone());
+        meta.source = "modrinth".into();
+        if meta.icon != icon && icon.starts_with("custom:") {
+            meta.icon = icon.clone();
+        }
         let _ = instances::write_meta(&inst.id, &meta);
     }
 
@@ -200,13 +218,18 @@ pub async fn import_by_version_id(
     }
     let (loader, loader_version) = detect_loader(deps);
 
-    let inst = profiles::create(&name, &mc, &loader, &loader_version, "\u{1F4E6}", 4096)?;
+    let icon = resolve_modpack_icon(client, &slug).await;
+    let inst = profiles::create(&name, &mc, &loader, &loader_version, &icon, 4096)?;
     let dest = instances::instance_dir(&inst.id);
 
     let version_id_installed =
         crate::core::loaders::install_loader(app, client, &mc, &loader, &loader_version).await?;
     if let Some(mut meta) = instances::read_meta(&inst.id) {
         meta.version_id = Some(version_id_installed.clone());
+        meta.source = "modrinth".into();
+        if icon.starts_with("custom:") {
+            meta.icon = icon.clone();
+        }
         let _ = instances::write_meta(&inst.id, &meta);
     }
 

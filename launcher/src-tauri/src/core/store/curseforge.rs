@@ -501,6 +501,14 @@ pub async fn mod_name(client: &reqwest::Client, key: &str, mod_id: &str) -> AppR
         .to_string())
 }
 
+pub async fn mod_icon_url(client: &reqwest::Client, key: &str, mod_id: &str) -> AppResult<String> {
+    let resp = get_json(client, &format!("{API}/mods/{mod_id}"), key).await?;
+    Ok(resp["data"]["logo"]["url"]
+        .as_str()
+        .unwrap_or_default()
+        .to_string())
+}
+
 fn edge_url(file_id: u64, filename: &str) -> String {
     let s = file_id.to_string();
     let (a, b) = if s.len() >= 4 {
