@@ -29,7 +29,30 @@ const NEOFORGE_MCS: &[&str] = &["1.20.1"];
 
 const MODRINTH: &str = "https://api.modrinth.com/v2";
 const TUNED_MARKER: &str = ".paraguacraft_optimized_tuned";
-const TUNED_VERSION: &str = "v2";
+const TUNED_VERSION: &str = "v3";
+/// Única versión del pack Optimized que ve el usuario (el loader real se resuelve solo).
+pub const PACK_VERSION: &str = "1.0.0";
+
+/// Pins estables 1.21.11: Sodium 0.8.12 + Iris 1.10.7 (0.8.13 rompe Iris ≤1.10.7).
+struct Pin {
+    slug: &'static str,
+    version_id: &'static str,
+}
+
+const PINS_1_21_11: &[Pin] = &[
+    Pin { slug: "sodium", version_id: "NFkjnzWE" },
+    Pin { slug: "iris", version_id: "fDpuVzVr" },
+    Pin { slug: "fabric-api", version_id: "zGF3drOQ" },
+    Pin { slug: "lithium", version_id: "Ow7wA0kG" },
+    Pin { slug: "ferrite-core", version_id: "Ii0gP3D8" },
+    Pin { slug: "entityculling", version_id: "sP0vNbeN" },
+    Pin { slug: "immediatelyfast", version_id: "4EwhsTu7" },
+    Pin { slug: "modmenu", version_id: "j2vTurvl" },
+    Pin { slug: "sodium-extra", version_id: "yqY1efrC" },
+    Pin { slug: "reeses-sodium-options", version_id: "P0MH4cn0" },
+    Pin { slug: "fabric-language-kotlin", version_id: "bdhiINYC" },
+    Pin { slug: "cloth-config", version_id: "xuX40TN5" },
+];
 
 /// Mods Fabric base (todas las MCs Fabric soportadas).
 const FABRIC_MODS_CORE: &[&str] = &[
@@ -54,23 +77,20 @@ const FABRIC_MODS_CORE: &[&str] = &[
     "fzzy-config",
 ];
 
-/// Keo 1.21.11 extras.
+/// Extras 1.21.11 (sin Voxy ni C2ME: rompen Sodium/Java).
 const FABRIC_MODS_12111: &[&str] = &[
     "krypton",
     "modernfix-mvus",
     "noisiumforked",
     "smooth-boot",
     "better-block-entities",
-    "c2me-fabric",
     "fpsdisplay",
     "renderscale",
-    "better-render-distance",
-    "voxy",
     "almanac",
     "placeholder-api",
 ];
 
-/// Keo 26.2 extras (mods distintos al pack 1.21.11).
+/// Keo 26.2 extras.
 const FABRIC_MODS_26_2: &[&str] = &[
     "modernfix",
     "bbe",
@@ -86,7 +106,7 @@ const FABRIC_MODS_26_2: &[&str] = &[
     "almanac",
 ];
 
-/// Extras útiles en 1.18.2 / 1.20.1.
+/// Extras 1.18.2 / 1.20.1.
 const FABRIC_MODS_LEGACY: &[&str] = &[
     "krypton",
     "modernfix",
@@ -94,6 +114,13 @@ const FABRIC_MODS_LEGACY: &[&str] = &[
     "smooth-boot",
     "dynamic-fps",
     "indium",
+];
+
+/// JARs a purgar siempre (incompatibles / Java 25+).
+const PURGE_NAME_NEEDLES: &[&str] = &[
+    "voxy",
+    "c2me",
+    "concurrentchunkmanagement",
 ];
 
 /// Mods NeoForge/Forge 1.20.1 alineados a Keo Optimized (Forge) + Oculus.
@@ -165,20 +192,40 @@ pub fn replaces_fabric_iris(mc: &str) -> bool {
 }
 
 pub async fn versions(client: &reqwest::Client, mc: &str) -> AppResult<Vec<String>> {
-    if is_optifine_mc(mc) {
-        return optifine::versions(client, mc).await;
-    }
-    if is_fabric_mc(mc) {
-        return fabric::versions(client, mc).await;
+    // Una sola versión de pack; el backend (Fabric/OptiFine) se elige solo al instalar.
+    if is_optifine_mc(mc) || is_fabric_mc(mc) {
+        let _ = client; // keep signature
+        return Ok(vec![PACK_VERSION.to_string()]);
     }
     Ok(vec![])
 }
 
 pub async fn versions_neoforge(client: &reqwest::Client, mc: &str) -> AppResult<Vec<String>> {
     if is_neoforge_mc(mc) {
-        return neoforge::versions(client, mc).await;
+        let _ = client;
+        return Ok(vec![PACK_VERSION.to_string()]);
     }
     Ok(vec![])
+}
+
+async fn resolve_backend_loader_version(
+    client: &reqwest::Client,
+    mc: &str,
+    pack_or_loader_version: &str,
+    backend: &str,
+) -> AppResult<String> {
+    let v = pack_or_loader_version.trim();
+    if !v.is_empty() && v != PACK_VERSION {
+        return Ok(v.to_string());
+    }
+    let vers = match backend {
+        "optifine" => optifine::versions(client, mc).await?,
+        "neoforge" => neoforge::versions(client, mc).await?,
+        _ => fabric::versions(client, mc).await?,
+    };
+    vers.first()
+        .cloned()
+        .ok_or_else(|| AppError::msg(format!("Sin versión de {backend} para Minecraft {mc}")))
 }
 
 pub async fn install(
@@ -188,10 +235,12 @@ pub async fn install(
     loader_version: &str,
 ) -> AppResult<String> {
     if is_optifine_mc(mc) {
-        return optifine::install(app, client, mc, loader_version).await;
+        let ver = resolve_backend_loader_version(client, mc, loader_version, "optifine").await?;
+        return optifine::install(app, client, mc, &ver).await;
     }
     if is_fabric_mc(mc) {
-        return fabric::install(app, client, mc, loader_version).await;
+        let ver = resolve_backend_loader_version(client, mc, loader_version, "fabric").await?;
+        return fabric::install(app, client, mc, &ver).await;
     }
     Err(AppError::msg(format!(
         "Paraguacraft Optimized no soporta Minecraft {mc}"
@@ -209,7 +258,8 @@ pub async fn install_neoforge(
             "Paraguacraft Optimized (NeoForge) no soporta Minecraft {mc}"
         )));
     }
-    neoforge::install(app, client, mc, loader_version).await
+    let ver = resolve_backend_loader_version(client, mc, loader_version, "neoforge").await?;
+    neoforge::install(app, client, mc, &ver).await
 }
 
 /// Sync mods + shaders + preconfig al lanzar.
@@ -225,6 +275,7 @@ pub async fn install_bundle_for_launch(
     let tier = hw.perfil_sugerido.clone();
 
     if kind.contains("neoforge") {
+        purge_incompatible_jars(instance_dir);
         install_mod_slugs_with_fallback(
             app,
             client,
@@ -232,24 +283,216 @@ pub async fn install_bundle_for_launch(
             &["neoforge", "forge"],
             NEOFORGE_MODS,
             instance_dir,
+            None,
         )
         .await?;
         install_shaders_for_tier(app, client, mc, &["iris", "optifine"], &tier, instance_dir)
             .await?;
         apply_preconfig_once(instance_dir, &tier, "neoforge")?;
     } else if is_fabric_mc(mc) {
-        let mods = fabric_mods_for_mc(mc);
-        install_mod_slugs(app, client, mc, "fabric", &mods, instance_dir).await?;
+        purge_incompatible_jars(instance_dir);
+        install_fabric_compatible_bundle(app, client, mc, instance_dir).await?;
         install_shaders_for_tier(app, client, mc, &["iris", "optifine"], &tier, instance_dir)
             .await?;
         apply_preconfig_once(instance_dir, &tier, "fabric")?;
     } else if is_optifine_mc(mc) {
-        // 1.8.9 / 1.12.2: solo shaders con loader OptiFine (varios por gama).
         install_shaders_for_tier(app, client, mc, &["optifine"], &tier, instance_dir).await?;
         apply_preconfig_once(instance_dir, &tier, "optifine")?;
     }
 
     Ok(())
+}
+
+fn purge_incompatible_jars(instance_dir: &Path) {
+    let mods_dir = instance_dir.join("mods");
+    let Ok(entries) = std::fs::read_dir(&mods_dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .to_lowercase();
+        if !(name.ends_with(".jar") || name.ends_with(".jar.disabled")) {
+            continue;
+        }
+        let compact = name.replace(['-', '_', ' '], "");
+        if PURGE_NAME_NEEDLES
+            .iter()
+            .any(|n| name.contains(n) || compact.contains(n))
+        {
+            let _ = std::fs::remove_file(&path);
+            eprintln!("[optimized] purged incompatible {}", path.display());
+        }
+    }
+}
+
+async fn install_fabric_compatible_bundle(
+    app: &AppHandle,
+    client: &reqwest::Client,
+    mc: &str,
+    instance_dir: &Path,
+) -> AppResult<()> {
+    let mods = fabric_mods_for_mc(mc);
+    let mut forced: HashMap<String, String> = HashMap::new();
+
+    if mc == "1.21.11" {
+        // Pins conocidos compatibles entre sí.
+        install_pinned_mods(app, client, PINS_1_21_11, instance_dir).await?;
+        for pin in PINS_1_21_11 {
+            forced.insert(pin.slug.to_string(), pin.version_id.to_string());
+        }
+    } else if let Ok(Some(sodium_vid)) = resolve_sodium_pin_from_iris(client, mc).await {
+        forced.insert("sodium".into(), sodium_vid);
+    }
+
+    let remaining: Vec<&str> = mods
+        .into_iter()
+        .filter(|s| !forced.contains_key(*s))
+        .collect();
+    install_mod_slugs_with_fallback(
+        app,
+        client,
+        mc,
+        &["fabric"],
+        &remaining,
+        instance_dir,
+        Some(&forced),
+    )
+    .await?;
+
+    // Asegurar Sodium pineado si Iris lo exige y aún no está el pin en forced path.
+    if let Some(sodium_vid) = forced.get("sodium") {
+        let _ = install_modrinth_version(app, client, "sodium", sodium_vid, instance_dir).await;
+    }
+    Ok(())
+}
+
+async fn install_pinned_mods(
+    app: &AppHandle,
+    client: &reqwest::Client,
+    pins: &[Pin],
+    instance_dir: &Path,
+) -> AppResult<()> {
+    let mods_dir = instance_dir.join("mods");
+    std::fs::create_dir_all(&mods_dir)?;
+    let mut items = Vec::new();
+    for pin in pins {
+        match resolve_modrinth_version_file(client, pin.version_id).await {
+            Ok((url, fname, sha1)) => {
+                // Quitar otras builds del mismo slug.
+                purge_slug_jars(&mods_dir, pin.slug, &fname);
+                let dest = mods_dir.join(&fname);
+                if dest.is_file() {
+                    continue;
+                }
+                items.push(DownloadItem::new(url, dest).with_sha1(sha1));
+            }
+            Err(e) => eprintln!("[optimized] pin {} failed: {e}", pin.slug),
+        }
+    }
+    if !items.is_empty() {
+        net::download_all(
+            client,
+            items,
+            8,
+            app,
+            "optimized-pins",
+            "Paraguacraft Optimized (pins)",
+        )
+        .await?;
+    }
+    Ok(())
+}
+
+async fn install_modrinth_version(
+    app: &AppHandle,
+    client: &reqwest::Client,
+    slug: &str,
+    version_id: &str,
+    instance_dir: &Path,
+) -> AppResult<()> {
+    let mods_dir = instance_dir.join("mods");
+    std::fs::create_dir_all(&mods_dir)?;
+    let (url, fname, sha1) = resolve_modrinth_version_file(client, version_id).await?;
+    purge_slug_jars(&mods_dir, slug, &fname);
+    let dest = mods_dir.join(&fname);
+    if dest.is_file() {
+        return Ok(());
+    }
+    net::download_all(
+        client,
+        vec![DownloadItem::new(url, dest).with_sha1(sha1)],
+        1,
+        app,
+        "optimized-pin",
+        &format!("Optimized {slug}"),
+    )
+    .await
+}
+
+fn purge_slug_jars(mods_dir: &Path, slug: &str, keep_filename: &str) {
+    let keep = keep_filename.to_lowercase();
+    let slug_l = slug.to_lowercase();
+    let Ok(entries) = std::fs::read_dir(mods_dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .to_lowercase();
+        if !(name.ends_with(".jar") || name.ends_with(".jar.disabled")) {
+            continue;
+        }
+        let matches = match slug_l.as_str() {
+            "sodium" => {
+                name.contains("sodium-fabric")
+                    && !name.contains("sodium-extra")
+                    && !name.contains("reeses-sodium")
+            }
+            "ferrite-core" => name.contains("ferritecore"),
+            "reeses-sodium-options" => name.contains("reeses-sodium-options"),
+            "sodium-extra" => name.contains("sodium-extra"),
+            "fabric-api" => name.contains("fabric-api"),
+            other => name.contains(other) || name.contains(&other.replace('-', "")),
+        };
+        if matches && name.trim_end_matches(".disabled") != keep {
+            let _ = std::fs::remove_file(path);
+        }
+    }
+}
+
+async fn resolve_sodium_pin_from_iris(
+    client: &reqwest::Client,
+    mc: &str,
+) -> AppResult<Option<String>> {
+    let url = format!(
+        "{MODRINTH}/project/iris/version?loaders={}&game_versions={}",
+        net::url_encode(r#"["fabric"]"#),
+        net::url_encode(&format!(r#"["{mc}"]"#))
+    );
+    let versions: Value = net::fetch_json(client, &url).await?;
+    let arr = versions.as_array().cloned().unwrap_or_default();
+    let sodium_pid = "AANobbMI";
+    for ver in &arr {
+        if let Some(deps) = ver["dependencies"].as_array() {
+            for dep in deps {
+                if dep["project_id"].as_str() == Some(sodium_pid) {
+                    if let Some(vid) = dep["version_id"].as_str() {
+                        if !vid.is_empty() {
+                            return Ok(Some(vid.to_string()));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(None)
 }
 
 fn shader_slugs_for_tier(tier: &str) -> &'static [&'static str] {
@@ -305,17 +548,6 @@ fn iris_shadow_distance(tier: &str) -> &'static str {
     }
 }
 
-async fn install_mod_slugs(
-    app: &AppHandle,
-    client: &reqwest::Client,
-    mc: &str,
-    loader: &str,
-    slugs: &[&str],
-    instance_dir: &Path,
-) -> AppResult<()> {
-    install_mod_slugs_with_fallback(app, client, mc, &[loader], slugs, instance_dir).await
-}
-
 async fn install_mod_slugs_with_fallback(
     app: &AppHandle,
     client: &reqwest::Client,
@@ -323,12 +555,30 @@ async fn install_mod_slugs_with_fallback(
     loaders: &[&str],
     slugs: &[&str],
     instance_dir: &Path,
+    forced: Option<&HashMap<String, String>>,
 ) -> AppResult<()> {
     let mods_dir = instance_dir.join("mods");
     std::fs::create_dir_all(&mods_dir)?;
     let mut items = Vec::new();
     let mut seen_names = std::collections::HashSet::new();
     for slug in slugs {
+        if let Some(map) = forced {
+            if let Some(vid) = map.get(*slug) {
+                match resolve_modrinth_version_file(client, vid).await {
+                    Ok((url, fname, sha1)) => {
+                        purge_slug_jars(&mods_dir, slug, &fname);
+                        if seen_names.insert(fname.clone()) {
+                            let dest = mods_dir.join(&fname);
+                            if !dest.is_file() {
+                                items.push(DownloadItem::new(url, dest).with_sha1(sha1));
+                            }
+                        }
+                    }
+                    Err(e) => eprintln!("[optimized] forced {slug}: {e}"),
+                }
+                continue;
+            }
+        }
         let mut candidates = vec![*slug];
         candidates.extend(mod_slug_alternates(slug).iter().copied());
         let mut got = None;
@@ -350,6 +600,7 @@ async fn install_mod_slugs_with_fallback(
         if !seen_names.insert(fname.clone()) {
             continue;
         }
+        purge_slug_jars(&mods_dir, slug, &fname);
         let dest = mods_dir.join(&fname);
         if dest.is_file() {
             continue;
@@ -504,31 +755,35 @@ fn write_optifine_optionsof(instance_dir: &Path, tier: &str) -> AppResult<()> {
 }
 
 fn write_shader_default(instance_dir: &Path, tier: &str, backend: &str) -> AppResult<()> {
+    // Shaders DESCARGADOS pero DESACTIVADOS por defecto (mejor FPS out-of-box).
     let want_slug = default_shader_for_tier(tier);
     let pack_name = find_downloaded_shader_name(instance_dir, want_slug)
-        .or_else(|| first_shaderpack_name(instance_dir));
-
-    let Some(pack) = pack_name else {
-        return Ok(());
-    };
+        .or_else(|| first_shaderpack_name(instance_dir))
+        .unwrap_or_default();
 
     if backend == "optifine" {
         let path = instance_dir.join("optionsof.txt");
-        patch_kv_file(&path, &[("ofShaderPack", &pack)])?;
+        // OptiFine: sin shader activo.
+        patch_kv_file(&path, &[("ofShaderPack", "")])?;
         let options = instance_dir.join("options.txt");
         let mut map = HashMap::new();
-        map.insert("shaderPack".into(), pack);
+        map.insert("shaderPack".into(), String::new());
         let _ = performance::merge_options_keys(&options, map);
     } else {
         let config = instance_dir.join("config");
         std::fs::create_dir_all(&config)?;
         let iris = config.join("iris.properties");
         let shadow = iris_shadow_distance(tier);
+        let pack = if pack_name.is_empty() {
+            "OFF"
+        } else {
+            pack_name.as_str()
+        };
         patch_kv_file(
             &iris,
             &[
-                ("shaderPack", &pack),
-                ("enableShaders", "true"),
+                ("shaderPack", pack),
+                ("enableShaders", "false"),
                 ("maxShadowRenderDistance", shadow),
                 ("colorSpace", "SRGB"),
                 ("allowUnknownShaders", "false"),
@@ -538,8 +793,8 @@ fn write_shader_default(instance_dir: &Path, tier: &str, backend: &str) -> AppRe
         let _ = patch_kv_file(
             &oculus,
             &[
-                ("shaderPack", &pack),
-                ("enableShaders", "true"),
+                ("shaderPack", pack),
+                ("enableShaders", "false"),
                 ("maxShadowRenderDistance", shadow),
             ],
         );
@@ -621,6 +876,30 @@ fn patch_kv_file(path: &Path, pairs: &[(&str, &str)]) -> AppResult<()> {
     }
     std::fs::write(path, lines.join("\n") + "\n")?;
     Ok(())
+}
+
+async fn resolve_modrinth_version_file(
+    client: &reqwest::Client,
+    version_id: &str,
+) -> AppResult<(String, String, Option<String>)> {
+    let url = format!("{MODRINTH}/version/{version_id}");
+    let ver: Value = net::fetch_json(client, &url).await?;
+    let files = ver["files"].as_array().cloned().unwrap_or_default();
+    let file = files
+        .iter()
+        .find(|f| f["primary"].as_bool() == Some(true))
+        .or_else(|| files.first())
+        .ok_or_else(|| AppError::msg(format!("Sin archivo para version {version_id}")))?;
+    let dl = file["url"]
+        .as_str()
+        .ok_or_else(|| AppError::msg("Sin URL de descarga"))?
+        .to_string();
+    let fname = file["filename"]
+        .as_str()
+        .unwrap_or("mod.jar")
+        .to_string();
+    let sha1 = file["hashes"]["sha1"].as_str().map(String::from);
+    Ok((dl, fname, sha1))
 }
 
 async fn resolve_modrinth_file(

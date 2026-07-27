@@ -240,7 +240,8 @@ fn tier_options_optimized(tier: &str) -> HashMap<String, String> {
             ("renderClouds".into(), "fast".into()),
             ("mipmapLevels".into(), "4".into()),
             ("fboEnable".into(), "true".into()),
-            ("fullscreen".into(), "false".into()),
+            ("fullscreen".into(), "true".into()),
+            ("exclusiveFullscreen".into(), "true".into()),
             ("prioritizeChunkUpdates".into(), "1".into()),
         ]),
         "media" => HashMap::from([
@@ -257,7 +258,8 @@ fn tier_options_optimized(tier: &str) -> HashMap<String, String> {
             ("renderClouds".into(), "fast".into()),
             ("mipmapLevels".into(), "3".into()),
             ("fboEnable".into(), "true".into()),
-            ("fullscreen".into(), "false".into()),
+            ("fullscreen".into(), "true".into()),
+            ("exclusiveFullscreen".into(), "true".into()),
             ("prioritizeChunkUpdates".into(), "1".into()),
         ]),
         _ => HashMap::from([
@@ -274,7 +276,8 @@ fn tier_options_optimized(tier: &str) -> HashMap<String, String> {
             ("renderClouds".into(), "false".into()),
             ("mipmapLevels".into(), "2".into()),
             ("fboEnable".into(), "true".into()),
-            ("fullscreen".into(), "false".into()),
+            ("fullscreen".into(), "true".into()),
+            ("exclusiveFullscreen".into(), "true".into()),
             ("prioritizeChunkUpdates".into(), "0".into()),
         ]),
     }

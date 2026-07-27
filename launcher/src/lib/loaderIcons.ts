@@ -6,6 +6,7 @@ import forge from "@/assets/loader-icons/forge.png";
 import neoforge from "@/assets/loader-icons/neoforge.png";
 import quilt from "@/assets/loader-icons/quilt.png";
 import optifine from "@/assets/loader-icons/optifine.png";
+import optimized from "@/assets/loader-icons/optimized.png";
 import tnt from "@/assets/instance-icons/tnt.svg";
 
 import { normalizeLoaderId } from "@/lib/loaders";
@@ -33,13 +34,13 @@ export const LOADER_ICONS: LoaderIconOption[] = [
   {
     id: "paraguacraft-optimized",
     name: "Paraguacraft Optimized",
-    src: iris,
-    description: "Mods tipo Keo + shaders por gama",
+    src: optimized,
+    description: "Mods tipo Keo + shaders (off por defecto)",
   },
   {
     id: "paraguacraft-optimized-neoforge",
     name: "Paraguacraft Optimized (NeoForge)",
-    src: neoforge,
+    src: optimized,
     description: "Keo-like NeoForge + shaders",
   },
   { id: "paraguacraft-pvp", name: "Paraguacraft PvP 1.8.9", src: tnt, description: "Cliente PvP Forge" },
