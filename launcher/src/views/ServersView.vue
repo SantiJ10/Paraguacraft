@@ -5,8 +5,10 @@ import { useRouter } from "vue-router";
 import { useServersStore } from "@/stores/servers";
 import { useAppStore } from "@/stores/app";
 import { api, isTauri } from "@/lib/ipc";
-import type { MinecraftVersion, ServerType } from "@/lib/types";
+import type { MinecraftVersion, ServerProfile, ServerType } from "@/lib/types";
 import BaseButton from "@/components/common/BaseButton.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
+import ContextMenu, { type ContextMenuItem } from "@/components/common/ContextMenu.vue";
 
 const SERVER_TYPES: Array<{ id: ServerType; label: string; icon: string; desc: string }> = [
   { id: "paper", label: "Paper", icon: "📄", desc: "Plugins · más estable" },
@@ -118,6 +120,60 @@ async function importFolder() {
 function openServer(id: string) {
   router.push({ name: "server-detail", params: { id } });
 }
+
+const menu = ref<{ x: number; y: number; server: ServerProfile } | null>(null);
+
+const menuItems: ContextMenuItem[] = [
+  { id: "open", label: "Abrir" },
+  { id: "rename", label: "Renombrar" },
+  { id: "sep", label: "", separator: true },
+  { id: "delete", label: "Eliminar", danger: true },
+];
+
+function onServerContext(e: MouseEvent, s: ServerProfile) {
+  e.preventDefault();
+  e.stopPropagation();
+  menu.value = { x: e.clientX, y: e.clientY, server: s };
+}
+
+async function onMenuSelect(id: string) {
+  const ctx = menu.value;
+  menu.value = null;
+  if (!ctx) return;
+  const s = ctx.server;
+  if (id === "open") {
+    openServer(s.id);
+    return;
+  }
+  if (id === "rename") {
+    const name = window.prompt("Nuevo nombre del servidor", s.name)?.trim();
+    if (!name || name === s.name) return;
+    busy.value = "rename";
+    error.value = null;
+    try {
+      await serversStore.update({ id: s.id, name });
+    } catch (e) {
+      error.value = String(e);
+    } finally {
+      busy.value = null;
+    }
+    return;
+  }
+  if (id === "delete") {
+    const ok = window.confirm(`¿Eliminar el servidor "${s.name}"?`);
+    if (!ok) return;
+    busy.value = "delete";
+    error.value = null;
+    try {
+      await serversStore.remove(s.id);
+    } catch (e) {
+      error.value = String(e);
+    } finally {
+      busy.value = null;
+    }
+  }
+}
+
 </script>
 
 <template>
@@ -165,18 +221,24 @@ function openServer(id: string) {
         </label>
         <label class="text-sm">
           MC
-          <select
-            v-model="newMc"
-            class="mt-1 block min-w-[8rem] rounded-lg border border-surface-5 bg-surface-3 px-3 py-2"
-          >
-            <option v-for="v in releaseMcVersions" :key="v.id" :value="v.id">{{ v.id }}</option>
-          </select>
+          <div class="mt-1 min-w-[10rem]">
+            <AppSelect
+              v-model="newMc"
+              :options="releaseMcVersions.map((v) => ({ value: v.id, label: v.id }))"
+              searchable
+              :max-panel-height="240"
+            />
+          </div>
         </label>
         <label class="text-sm">
           RAM
-          <select v-model.number="newRam" class="mt-1 block min-w-[7rem] rounded-lg border border-surface-5 bg-surface-3 px-3 py-2">
-            <option v-for="mb in ramOptions" :key="mb" :value="mb">{{ formatRamGb(mb) }}</option>
-          </select>
+          <div class="mt-1 min-w-[8rem]">
+            <AppSelect
+              :model-value="String(newRam)"
+              :options="ramOptions.map((mb) => ({ value: String(mb), label: formatRamGb(mb) }))"
+              @update:model-value="newRam = Number($event)"
+            />
+          </div>
         </label>
         <BaseButton :disabled="busy === 'create'" @click="create">Crear</BaseButton>
       </div>
@@ -194,6 +256,7 @@ function openServer(id: string) {
         :key="s.id"
         class="lunar-card cursor-pointer p-4 transition hover:border-pc-green/40"
         @click="openServer(s.id)"
+        @contextmenu="onServerContext($event, s)"
       >
         <h3 class="font-bold">{{ s.name }}</h3>
         <p class="text-xs text-gray-500">
@@ -203,5 +266,14 @@ function openServer(id: string) {
         <p v-if="s.playitAddress" class="mt-1 truncate text-xs text-pc-green">Playit: {{ s.playitAddress }}</p>
       </article>
     </div>
+
+    <ContextMenu
+      v-if="menu"
+      :x="menu.x"
+      :y="menu.y"
+      :items="menuItems"
+      @close="menu = null"
+      @select="onMenuSelect"
+    />
   </div>
 </template>

@@ -183,6 +183,11 @@ fn patch_options_file(path: &Path, opciones: HashMap<String, String>) -> AppResu
     Ok(updated)
 }
 
+/// Fusiona claves en `options.txt` (formato `clave:valor`).
+pub fn merge_options_keys(path: &Path, opciones: HashMap<String, String>) -> AppResult<HashMap<String, String>> {
+    patch_options_file(path, opciones)
+}
+
 /// Optimiza `options.txt` global (`.minecraft/options.txt`) según hardware.
 pub fn optimize_global_options() -> AppResult<OptionsOptimizeResult> {
     let hw = hardware::detect();
@@ -401,6 +406,40 @@ fn seed_gammautils_config(config: &Path) -> AppResult<()> {
         return Ok(());
     }
     std::fs::write(&path, default_gammautils_json())?;
+    Ok(())
+}
+
+/// Configs livianas para Paraguacraft Optimized (Lithium + Dynamic FPS).
+pub fn apply_optimized_mod_configs(game_dir: &Path, tier: &str) -> AppResult<()> {
+    let config = game_dir.join("config");
+    std::fs::create_dir_all(&config)?;
+
+    let lithium_entries: &[(&str, &str)] = match tier {
+        "alta" => &[
+            ("mixin.ai.use_fast_exp_random", "true"),
+            ("mixin.ai.poi.use_fast_search", "true"),
+            ("mixin.entity.collisions.fluid", "true"),
+            ("mixin.util.block_entity_sleep", "true"),
+        ],
+        "media" => &[
+            ("mixin.ai.use_fast_exp_random", "true"),
+            ("mixin.ai.poi.use_fast_search", "true"),
+        ],
+        _ => &[("mixin.ai.use_fast_exp_random", "true")],
+    };
+    patch_properties_file(&config.join("lithium.properties"), lithium_entries)?;
+    let _ = repair_dynamic_fps_config(&config.join("dynamic_fps.json"));
+
+    let sodium = config.join("sodium-options.json");
+    if sodium.is_file() {
+        let invalid = std::fs::read_to_string(&sodium)
+            .ok()
+            .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+            .is_none();
+        if invalid {
+            let _ = std::fs::remove_file(&sodium);
+        }
+    }
     Ok(())
 }
 

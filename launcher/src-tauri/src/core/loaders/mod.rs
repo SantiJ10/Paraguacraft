@@ -11,6 +11,7 @@ pub mod fabric_iris;
 pub mod forge;
 pub mod neoforge;
 pub mod optifine;
+pub mod optimized;
 pub mod pvp;
 pub mod pvp_modern;
 pub mod quilt;
@@ -26,7 +27,17 @@ use crate::models::LoaderInfo;
 /// `fabric-iris` es un preset **aparte** de `fabric` (no se fusionan).
 pub fn normalize(loader: &str) -> String {
     let l = loader.trim().to_lowercase().replace(' ', "-").replace('+', "-");
-    if l.contains("paraguacraft-pvp-modern")
+    if l.contains("paraguacraft-optimized-neoforge")
+        || l.contains("optimized-neoforge")
+        || (l.contains("optimized") && l.contains("neoforge"))
+    {
+        "paraguacraft-optimized-neoforge".into()
+    } else if l.contains("paraguacraft-optimized")
+        || l == "optimized"
+        || (l.contains("paraguacraft") && l.contains("optimized"))
+    {
+        "paraguacraft-optimized".into()
+    } else if l.contains("paraguacraft-pvp-modern")
         || l.contains("paraguacraft_pvp_modern")
         || l.contains("pvp-modern")
     {
@@ -58,6 +69,8 @@ pub fn normalize(loader: &str) -> String {
 pub fn display_label(loader: &str) -> String {
     match normalize(loader).as_str() {
         "fabric-iris" => "Fabric + Iris".into(),
+        "paraguacraft-optimized" => "Paraguacraft Optimized".into(),
+        "paraguacraft-optimized-neoforge" => "Paraguacraft Optimized (NeoForge)".into(),
         "paraguacraft-pvp-modern" => "Paraguacraft PvP 1.21.11".into(),
         "paraguacraft-pvp" => "Paraguacraft PvP".into(),
         "fabric" => "Fabric".into(),
@@ -73,8 +86,8 @@ pub fn display_label(loader: &str) -> String {
 /// Loader efectivo para filtrar la tienda (fabric-iris usa mods de Fabric).
 pub fn store_loader(loader: &str) -> String {
     match normalize(loader).as_str() {
-        "fabric-iris" => "fabric".into(),
-        "paraguacraft-pvp-modern" => "fabric".into(),
+        "fabric-iris" | "paraguacraft-optimized" | "paraguacraft-pvp-modern" => "fabric".into(),
+        "paraguacraft-optimized-neoforge" => "neoforge".into(),
         "paraguacraft-pvp" => "forge".into(),
         other => other.into(),
     }
@@ -95,6 +108,8 @@ pub async fn loader_versions(
         "vanilla" => Ok(vec![]),
         "fabric" => fabric::versions(client, mc).await,
         "fabric-iris" => fabric_iris::versions(client, mc).await,
+        "paraguacraft-optimized" => optimized::versions(client, mc).await,
+        "paraguacraft-optimized-neoforge" => optimized::versions_neoforge(client, mc).await,
         "paraguacraft-pvp-modern" => pvp_modern::versions(client, mc).await,
         "paraguacraft-pvp" => pvp::versions(client, mc).await,
         "quilt" => quilt::versions(client, mc).await,
@@ -146,16 +161,18 @@ pub async fn available_loaders(client: &reqwest::Client, mc: &str) -> AppResult<
     push("forge", "Forge", "El loader clasico, maxima compatibilidad de mods.", forge_v);
     push("neoforge", "NeoForge", "Sucesor moderno de Forge.", neo);
     push("optifine", "OptiFine", "Shaders y opciones graficas (standalone).", opti);
-    // Preset aparte: solo si Fabric existe para esta MC.
+    // Preset aparte: Fabric+Iris SOLO si Optimized no cubre esta MC.
     if let Some(fi_vers) = fabric_ok {
-        let recommended = fi_vers.first().cloned();
-        out.push(LoaderInfo {
-            id: "fabric-iris".into(),
-            name: "Fabric + Iris".into(),
-            description: "Fabric con Sodium, Iris, Lithium y mods de optimizacion.".into(),
-            versions: fi_vers,
-            recommended,
-        });
+        if !optimized::replaces_fabric_iris(mc) {
+            let recommended = fi_vers.first().cloned();
+            out.push(LoaderInfo {
+                id: "fabric-iris".into(),
+                name: "Fabric + Iris".into(),
+                description: "Fabric con Sodium, Iris, Lithium y mods de optimizacion.".into(),
+                versions: fi_vers,
+                recommended,
+            });
+        }
     }
 
     if mc == pvp::MC {
@@ -188,6 +205,39 @@ pub async fn available_loaders(client: &reqwest::Client, mc: &str) -> AppResult<
         }
     }
 
+    // Paraguacraft Optimized (curado): solo en MCs soportadas.
+    if let Ok(opt_vers) = optimized::versions(client, mc).await {
+        if !opt_vers.is_empty() {
+            let recommended = opt_vers.first().cloned();
+            let backend = if optimized::is_optifine_mc(mc) {
+                "OptiFine + shaders por gama de PC"
+            } else {
+                "Fabric + mods tipo Keo + Iris + shaders por gama"
+            };
+            out.push(LoaderInfo {
+                id: optimized::ID.into(),
+                name: "Paraguacraft Optimized".into(),
+                description: format!(
+                    "Pack de FPS preconfigurado ({backend}). Reemplaza Fabric+Iris en esta version."
+                ),
+                versions: opt_vers,
+                recommended,
+            });
+        }
+    }
+    if let Ok(neo_vers) = optimized::versions_neoforge(client, mc).await {
+        if !neo_vers.is_empty() {
+            let recommended = neo_vers.first().cloned();
+            out.push(LoaderInfo {
+                id: optimized::ID_NEOFORGE.into(),
+                name: "Paraguacraft Optimized (NeoForge)".into(),
+                description: "NeoForge + Embeddium/Oculus, mods Keo-like y shaders por gama (1.20.1).".into(),
+                versions: neo_vers,
+                recommended,
+            });
+        }
+    }
+
     Ok(out)
 }
 
@@ -196,6 +246,16 @@ pub fn loader_version_from_version_id(loader: &str, version_id: &str, mc: &str) 
     let kind = normalize(loader);
     let mc_suffix = format!("-{mc}");
     match kind.as_str() {
+        "paraguacraft-optimized" => {
+            if version_id.to_lowercase().contains("optifine") {
+                Some(String::new())
+            } else {
+                version_id
+                    .strip_prefix("fabric-loader-")?
+                    .strip_suffix(&mc_suffix)
+                    .map(String::from)
+            }
+        }
         "fabric" | "fabric-iris" | "paraguacraft-pvp-modern" => version_id
             .strip_prefix("fabric-loader-")?
             .strip_suffix(&mc_suffix)
@@ -207,9 +267,16 @@ pub fn loader_version_from_version_id(loader: &str, version_id: &str, mc: &str) 
         "forge" | "paraguacraft-pvp" => version_id
             .strip_prefix(&format!("{mc}-forge-"))
             .map(String::from),
-        "neoforge" => version_id
+        "neoforge" | "paraguacraft-optimized-neoforge" => version_id
             .strip_prefix(&format!("{mc}-neoforge-"))
             .map(String::from),
+        "optifine" => {
+            if version_id.to_lowercase().contains("optifine") {
+                Some(String::new())
+            } else {
+                None
+            }
+        }
         _ => None,
     }
 }
@@ -220,12 +287,21 @@ pub fn version_id_matches_loader(loader: &str, version_id: &str, mc: &str) -> bo
     let mc_suffix = format!("-{mc}");
     match kind.as_str() {
         "vanilla" => version_id == mc,
+        "paraguacraft-optimized" => {
+            if optimized::is_optifine_mc(mc) {
+                version_id.contains(mc) && version_id.to_lowercase().contains("optifine")
+            } else {
+                version_id.starts_with("fabric-loader-") && version_id.ends_with(&mc_suffix)
+            }
+        }
         "fabric" | "fabric-iris" | "paraguacraft-pvp-modern" => {
             version_id.starts_with("fabric-loader-") && version_id.ends_with(&mc_suffix)
         }
         "quilt" => version_id.starts_with("quilt-loader-") && version_id.ends_with(&mc_suffix),
         "forge" | "paraguacraft-pvp" => version_id.starts_with(&format!("{mc}-forge-")),
-        "neoforge" => version_id.starts_with(&format!("{mc}-neoforge-")),
+        "neoforge" | "paraguacraft-optimized-neoforge" => {
+            version_id.starts_with(&format!("{mc}-neoforge-"))
+        }
         "optifine" => version_id.contains(mc) && version_id.to_lowercase().contains("optifine"),
         _ => false,
     }
@@ -274,13 +350,21 @@ pub fn find_version_id_for_loader(mc: &str, loader: &str) -> Option<String> {
             {
                 loader_version_from_version_id(&kind, &name, mc)
             }
+            "paraguacraft-optimized"
+                if (name.starts_with("fabric-loader-") && name.ends_with(&mc_suffix))
+                    || (name.contains(mc) && name.to_lowercase().contains("optifine")) =>
+            {
+                loader_version_from_version_id(&kind, &name, mc)
+            }
             "quilt" if name.starts_with("quilt-loader-") && name.ends_with(&mc_suffix) => {
                 loader_version_from_version_id(&kind, &name, mc)
             }
             "forge" | "paraguacraft-pvp" if name.starts_with(&format!("{mc}-forge-")) => {
                 loader_version_from_version_id(&kind, &name, mc)
             }
-            "neoforge" if name.starts_with(&format!("{mc}-neoforge-")) => {
+            "neoforge" | "paraguacraft-optimized-neoforge"
+                if name.starts_with(&format!("{mc}-neoforge-")) =>
+            {
                 loader_version_from_version_id(&kind, &name, mc)
             }
             "optifine" if name.contains(mc) && name.to_lowercase().contains("optifine") => Some(String::new()),
@@ -345,6 +429,10 @@ pub async fn install_loader(
         "fabric-iris" => {
             let id = fabric_iris::install_fabric_profile(app, client, mc, &loader_version).await?;
             Ok(id)
+        }
+        "paraguacraft-optimized" => optimized::install(app, client, mc, &loader_version).await,
+        "paraguacraft-optimized-neoforge" => {
+            optimized::install_neoforge(app, client, mc, &loader_version).await
         }
         "paraguacraft-pvp-modern" => pvp_modern::install(app, client, mc, &loader_version).await,
         "paraguacraft-pvp" => pvp::install(app, client, mc, &loader_version).await,

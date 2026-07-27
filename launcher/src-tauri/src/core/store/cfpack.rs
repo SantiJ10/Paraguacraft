@@ -133,6 +133,7 @@ async fn import_from_manifest_bytes(
     key: &str,
     zip_bytes: &[u8],
     name_override: Option<&str>,
+    icon_url: Option<&str>,
 ) -> AppResult<Instance> {
     let manifest = {
         let b = zip_bytes.to_vec();
@@ -150,7 +151,15 @@ async fn import_from_manifest_bytes(
         return Err(AppError::msg("El modpack no declara version de Minecraft"));
     }
 
-    let inst = profiles::create(&pack_name, &mc, &loader, &loader_version, "\u{1F4E6}", 4096)?;
+    let icon = if let Some(url) = icon_url {
+        instances::icons::import_from_url(client, url)
+            .await
+            .unwrap_or_else(|| "\u{1F4E6}".into())
+    } else {
+        "\u{1F4E6}".into()
+    };
+
+    let inst = profiles::create(&pack_name, &mc, &loader, &loader_version, &icon, 4096)?;
     let dest = instances::instance_dir(&inst.id);
 
     let version_id =
@@ -158,6 +167,9 @@ async fn import_from_manifest_bytes(
     if let Some(mut meta) = instances::read_meta(&inst.id) {
         meta.version_id = Some(version_id);
         meta.source = "curseforge".into();
+        if icon.starts_with("custom:") {
+            meta.icon = icon.clone();
+        }
         let _ = instances::write_meta(&inst.id, &meta);
     }
 
@@ -201,9 +213,10 @@ pub async fn import_by_file_id(
         ));
     }
     let name = curseforge::mod_name(client, key, mod_id).await.ok();
+    let icon_url = curseforge::mod_icon_url(client, key, mod_id).await.ok();
     let url = curseforge::file_download_url(&file_resp);
     let bytes = net::fetch_bytes(client, &url).await?;
-    import_from_manifest_bytes(app, client, key, &bytes, name.as_deref()).await
+    import_from_manifest_bytes(app, client, key, &bytes, name.as_deref(), icon_url.as_deref()).await
 }
 
 /// Importa desde un .zip local (manifest CurseForge).
@@ -218,7 +231,7 @@ pub async fn import_from_zip_path(
         move || Ok(std::fs::read(&p)?)
     })
     .await?;
-    import_from_manifest_bytes(app, client, key, &bytes, None).await
+    import_from_manifest_bytes(app, client, key, &bytes, None, None).await
 }
 
 /// Busca e importa el modpack CurseForge por slug/URL/id de proyecto.
