@@ -223,22 +223,22 @@ pub fn apply_min_graphics(game_dir: &Path) -> AppResult<()> {
     Ok(())
 }
 
-/// Options.txt para Paraguacraft Optimized (sin capar FPS como el preset genérico).
+/// Options.txt para Paraguacraft Optimized: rendimiento primero, sin saturar la PC.
 fn tier_options_optimized(tier: &str) -> HashMap<String, String> {
     match tier {
         "alta" => HashMap::from([
-            ("renderDistance".into(), "12".into()),
+            ("renderDistance".into(), "10".into()),
             ("simulationDistance".into(), "8".into()),
             ("particles".into(), "1".into()),
             ("graphicsMode".into(), "1".into()),
             ("ao".into(), "true".into()),
-            ("biomeBlendRadius".into(), "2".into()),
+            ("biomeBlendRadius".into(), "1".into()),
             ("maxFps".into(), "260".into()),
             ("enableVsync".into(), "false".into()),
-            ("entityShadows".into(), "true".into()),
-            ("entityDistanceScaling".into(), "1.0".into()),
+            ("entityShadows".into(), "false".into()),
+            ("entityDistanceScaling".into(), "0.85".into()),
             ("renderClouds".into(), "fast".into()),
-            ("mipmapLevels".into(), "4".into()),
+            ("mipmapLevels".into(), "3".into()),
             ("fboEnable".into(), "true".into()),
             ("fullscreen".into(), "true".into()),
             ("exclusiveFullscreen".into(), "true".into()),
@@ -256,15 +256,15 @@ fn tier_options_optimized(tier: &str) -> HashMap<String, String> {
             ("entityShadows".into(), "false".into()),
             ("entityDistanceScaling".into(), "0.75".into()),
             ("renderClouds".into(), "fast".into()),
-            ("mipmapLevels".into(), "3".into()),
+            ("mipmapLevels".into(), "2".into()),
             ("fboEnable".into(), "true".into()),
             ("fullscreen".into(), "true".into()),
             ("exclusiveFullscreen".into(), "true".into()),
             ("prioritizeChunkUpdates".into(), "1".into()),
         ]),
         _ => HashMap::from([
-            ("renderDistance".into(), "6".into()),
-            ("simulationDistance".into(), "5".into()),
+            ("renderDistance".into(), "5".into()),
+            ("simulationDistance".into(), "4".into()),
             ("particles".into(), "2".into()),
             ("graphicsMode".into(), "0".into()),
             ("ao".into(), "false".into()),
@@ -274,7 +274,7 @@ fn tier_options_optimized(tier: &str) -> HashMap<String, String> {
             ("entityShadows".into(), "false".into()),
             ("entityDistanceScaling".into(), "0.5".into()),
             ("renderClouds".into(), "false".into()),
-            ("mipmapLevels".into(), "2".into()),
+            ("mipmapLevels".into(), "1".into()),
             ("fboEnable".into(), "true".into()),
             ("fullscreen".into(), "true".into()),
             ("exclusiveFullscreen".into(), "true".into()),
@@ -796,9 +796,9 @@ fn write_bbe_configs(config: &Path, tier: &str) -> AppResult<()> {
 }
 
 fn write_better_render_distance_json(config: &Path, tier: &str) -> AppResult<()> {
-    // Keo lo deja off; en gama baja/media lo activamos para FPS.
+    // Ayuda a no saturar CPU/GPU en distancias altas; útil con o sin shaders.
     let (enabled, scale, preset) = match tier {
-        "alta" => (false, 0.75, "QUALITY"),
+        "alta" => (true, 0.65, "BALANCED"),
         "media" => (true, 0.5, "BALANCED"),
         _ => (true, 0.35, "PERFORMANCE"),
     };
@@ -819,8 +819,8 @@ fn write_better_render_distance_json(config: &Path, tier: &str) -> AppResult<()>
 fn write_renderscale_json5(config: &Path, tier: &str) -> AppResult<()> {
     let scale = match tier {
         "alta" => "1.0",
-        "media" => "1.0",
-        _ => "0.85",
+        "media" => "0.9",
+        _ => "0.75",
     };
     let body = format!(
         r#"{{
