@@ -68,11 +68,27 @@ fn distribution_blocked(name: &str, url: &str) -> AppError {
 async fn get_json(client: &reqwest::Client, url: &str, key: &str) -> AppResult<Value> {
     let resp = client
         .get(url)
-        .header("x-api-key", key)
+        .header("x-api-key", key.trim())
         .header("Accept", "application/json")
         .send()
-        .await?
-        .error_for_status()?;
+        .await?;
+    let status = resp.status();
+    if status == reqwest::StatusCode::FORBIDDEN || status == reqwest::StatusCode::UNAUTHORIZED {
+        let hint = if key.trim().is_empty() {
+            "No hay API key configurada."
+        } else if key.contains('$') && !crate::config::keys::curseforge_api_key_looks_valid(key) {
+            "La API key parece corrupta (el `$` del inicio se expandió mal en .env)."
+        } else if !key.trim().starts_with('$') && key.len() < 40 {
+            "La API key parece incompleta o inválida."
+        } else {
+            "Verificá la API key en console.curseforge.com y en Ajustes."
+        };
+        return Err(AppError::msg(format!(
+            "CurseForge rechazó la petición ({status}). {hint} \
+             Tip: en launcher/.env usá comillas simples, p.ej. CURSEFORGE_API_KEY='$2a$10$…'"
+        )));
+    }
+    let resp = resp.error_for_status()?;
     Ok(resp.json().await?)
 }
 
@@ -239,7 +255,7 @@ pub async fn check_fingerprints(
     let body = json!({ "fingerprints": fingerprints });
     let resp = client
         .post(format!("{API}/fingerprints/{GAME_ID}"))
-        .header("x-api-key", key)
+        .header("x-api-key", key.trim())
         .header("Accept", "application/json")
         .json(&body)
         .send()

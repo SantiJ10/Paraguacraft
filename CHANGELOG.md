@@ -3,6 +3,16 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [1.1.9] - 2026-07-27
+
+### Fixed
+- CurseForge tienda **403 Forbidden**: la API key con `$2a$…` ya no se corrompe al cargar `.env`.
+- Optimized **1.8.9 / 1.12.2**: OptiFine + mods Forge (FoamFix, VanillaFix, etc.) se instalan de verdad (Modrinth + BMCL fallback).
+- Shaders Iris/modernos ya no se meten en packs OptiFine legacy; se purgan los incompatibles.
+
+### Changed
+- Shaders por backend: OptiFine → Sildur’s/BSL/hosted; Fabric/NeoForge → Iris (Oculus en NeoForge 1.20.1).
+
 ## [1.1.3] - 2026-07-24
 
 ### Fixed

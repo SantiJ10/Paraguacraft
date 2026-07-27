@@ -91,6 +91,37 @@ pub async fn download_mod_jar_official(
     Ok(())
 }
 
+/// Descarga el JAR mod de OptiFine desde BMCL (fallback si optifine.net falla).
+pub async fn download_mod_jar_bmcl(
+    client: &reqwest::Client,
+    mc: &str,
+    of_type: &str,
+    of_patch: &str,
+    dest: &Path,
+) -> AppResult<()> {
+    let dl_url = format!("{BMCL}/{mc}/{of_type}/{of_patch}");
+    let resp = client
+        .get(&dl_url)
+        .header(reqwest::header::USER_AGENT, OPTIFINE_UA)
+        .send()
+        .await?
+        .error_for_status()?;
+    let bytes = resp.bytes().await?;
+    if bytes.len() < 4 || bytes[0] != 0x50 || bytes[1] != 0x4B {
+        return Err(AppError::msg(
+            "OptiFine BMCL: la respuesta no es un JAR válido",
+        ));
+    }
+    if let Some(parent) = dest.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    if dest.exists() {
+        let _ = std::fs::remove_file(dest);
+    }
+    std::fs::write(dest, &bytes)?;
+    Ok(())
+}
+
 /// Versiones OptiFine para `mc`, como "<type>_<patch>" (ej: "HD_U_M5").
 pub async fn versions(client: &reqwest::Client, mc: &str) -> AppResult<Vec<String>> {
     let url = format!("{BMCL}/{mc}");
