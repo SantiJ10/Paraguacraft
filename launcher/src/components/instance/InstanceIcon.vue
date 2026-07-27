@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { convertFileSrc } from "@tauri-apps/api/core";
 import { getInstanceIconSrc, isCustomInstanceIcon, resolveInstanceIcon } from "@/lib/instanceIcons";
 import { api, isTauri } from "@/lib/ipc";
 
@@ -22,10 +21,14 @@ watch(
     customSrc.value = null;
     if (!isTauri() || !isCustomInstanceIcon(icon)) return;
     try {
-      const path = await api.getInstanceIconPath(icon);
-      if (path) customSrc.value = convertFileSrc(path);
+      // Data URL: funciona aunque el asset protocol no alcance ParaguacraftLauncher/.
+      const data = await api.getInstanceIconData(icon);
+      if (data) {
+        customSrc.value = data;
+        return;
+      }
     } catch {
-      customSrc.value = null;
+      /* fallback abajo */
     }
   },
   { immediate: true },

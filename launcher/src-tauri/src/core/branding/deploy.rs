@@ -8,7 +8,7 @@ use zip::read::ZipArchive;
 use zip::write::SimpleFileOptions;
 use zip::ZipWriter;
 
-use super::version::PackProfile;
+use super::version::{self, PackProfile};
 use crate::error::AppResult;
 
 const PACK_NAME: &str = "ParaguacraftBrandPack";
@@ -19,6 +19,7 @@ const EMBED_STANDARD: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/packs/st
 const EMBED_STANDARD_RANGE: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/packs/standard_range.zip"));
 const EMBED_WIDE: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/packs/wide.zip"));
 const EMBED_MODERN: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/packs/modern.zip"));
+const EMBED_PACK_PNG: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/packs/pack.png"));
 
 fn embedded_zip(profile: PackProfile) -> &'static [u8] {
     match profile {
@@ -67,8 +68,15 @@ fn write_zip_file(bytes: &[u8], dest: &Path) -> AppResult<()> {
     Ok(())
 }
 
-/// Copia el pack pre-generado correcto a la carpeta de juego.
-pub fn deploy(game_dir: &Path, profile: PackProfile) -> AppResult<()> {
+fn write_pack_meta_and_icon(pack_dir: &Path, mc_version: &str) -> AppResult<()> {
+    fs::write(pack_dir.join("pack.mcmeta"), version::pack_mcmeta_json(mc_version))?;
+    fs::write(pack_dir.join("pack.png"), EMBED_PACK_PNG)?;
+    Ok(())
+}
+
+/// Copia el pack pre-generado correcto a la carpeta de juego y reescribe
+/// `pack.mcmeta` con el `pack_format` exacto de la versión (evita "incompatible").
+pub fn deploy(game_dir: &Path, profile: PackProfile, mc_version: &str) -> AppResult<()> {
     let bytes = embedded_zip(profile);
 
     match profile {
@@ -80,9 +88,17 @@ pub fn deploy(game_dir: &Path, profile: PackProfile) -> AppResult<()> {
         PackProfile::Modern => {
             let rp = game_dir.join("resourcepacks");
             fs::create_dir_all(&rp)?;
+            let pack_dir = rp.join(PACK_NAME);
             // Carpeta (parcheo de skins offline) + zip (schema 1.21.5+ / 26.x).
-            extract_zip(bytes, &rp.join(PACK_NAME))?;
-            write_zip_file(bytes, &rp.join(format!("{PACK_NAME}.zip")))?;
+            extract_zip(bytes, &pack_dir)?;
+            write_pack_meta_and_icon(&pack_dir, mc_version)?;
+            // Regenerar zip con meta/icon correctos para esta MC.
+            let zip_path = rp.join(format!("{PACK_NAME}.zip"));
+            let file = File::create(&zip_path)?;
+            let mut zip = ZipWriter::new(file);
+            let opts = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+            walk_into_zip(&pack_dir, &pack_dir, &mut zip, opts)?;
+            zip.finish()?;
         }
         PackProfile::Legacy | PackProfile::Standard | PackProfile::StandardRange | PackProfile::Wide => {
             let rp = game_dir.join("resourcepacks");
@@ -91,7 +107,9 @@ pub fn deploy(game_dir: &Path, profile: PackProfile) -> AppResult<()> {
             if zip_path.is_file() {
                 fs::remove_file(&zip_path)?;
             }
-            extract_zip(bytes, &rp.join(PACK_NAME))?;
+            let pack_dir = rp.join(PACK_NAME);
+            extract_zip(bytes, &pack_dir)?;
+            write_pack_meta_and_icon(&pack_dir, mc_version)?;
         }
     }
 

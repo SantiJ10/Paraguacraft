@@ -283,9 +283,76 @@ fn tier_options_optimized(tier: &str) -> HashMap<String, String> {
     }
 }
 
-/// Optimiza options.txt de una instancia Paraguacraft Optimized según gama.
-pub fn optimize_optimized_options(game_dir: &Path, tier: &str) -> AppResult<OptionsOptimizeResult> {
-    let opciones = tier_options_optimized(tier);
+/// Claves de `options.txt` para OptiFine 1.8.9 / 1.12.2 (no usan graphicsMode).
+fn tier_options_optimized_legacy(tier: &str) -> HashMap<String, String> {
+    match tier {
+        "alta" => HashMap::from([
+            ("renderDistance".into(), "10".into()),
+            ("fancyGraphics".into(), "true".into()),
+            ("ao".into(), "2".into()),
+            ("particles".into(), "1".into()),
+            ("maxFps".into(), "260".into()),
+            ("enableVsync".into(), "false".into()),
+            ("entityShadows".into(), "true".into()),
+            ("clouds".into(), "true".into()),
+            ("mipmapLevels".into(), "4".into()),
+            ("fboEnable".into(), "true".into()),
+            ("fullscreen".into(), "true".into()),
+            ("gamma".into(), "1.0".into()),
+            ("useVbo".into(), "true".into()),
+            ("viewBobbing".into(), "true".into()),
+        ]),
+        "media" => HashMap::from([
+            ("renderDistance".into(), "8".into()),
+            ("fancyGraphics".into(), "false".into()),
+            ("ao".into(), "1".into()),
+            ("particles".into(), "1".into()),
+            ("maxFps".into(), "260".into()),
+            ("enableVsync".into(), "false".into()),
+            ("entityShadows".into(), "false".into()),
+            ("clouds".into(), "true".into()),
+            ("mipmapLevels".into(), "2".into()),
+            ("fboEnable".into(), "true".into()),
+            ("fullscreen".into(), "true".into()),
+            ("gamma".into(), "1.0".into()),
+            ("useVbo".into(), "true".into()),
+            ("viewBobbing".into(), "true".into()),
+        ]),
+        _ => HashMap::from([
+            // Gama baja: Fast + poca distancia (evita Fancy por defecto de OptiFine).
+            ("renderDistance".into(), "5".into()),
+            ("fancyGraphics".into(), "false".into()),
+            ("ao".into(), "0".into()),
+            ("particles".into(), "2".into()),
+            ("maxFps".into(), "120".into()),
+            ("enableVsync".into(), "false".into()),
+            ("entityShadows".into(), "false".into()),
+            ("clouds".into(), "false".into()),
+            ("mipmapLevels".into(), "0".into()),
+            ("fboEnable".into(), "true".into()),
+            ("fullscreen".into(), "true".into()),
+            ("gamma".into(), "1.0".into()),
+            ("useVbo".into(), "true".into()),
+            ("viewBobbing".into(), "false".into()),
+        ]),
+    }
+}
+
+fn is_legacy_optifine_mc(mc: &str) -> bool {
+    matches!(mc, "1.8.9" | "1.12.2")
+}
+
+/// Optimiza options.txt de una instancia Paraguacraft Optimized según gama (+ MC).
+pub fn optimize_optimized_options(
+    game_dir: &Path,
+    tier: &str,
+    mc: &str,
+) -> AppResult<OptionsOptimizeResult> {
+    let opciones = if is_legacy_optifine_mc(mc) {
+        tier_options_optimized_legacy(tier)
+    } else {
+        tier_options_optimized(tier)
+    };
     let path = game_dir.join("options.txt");
     let applied = patch_options_file(&path, opciones)?;
     Ok(OptionsOptimizeResult {

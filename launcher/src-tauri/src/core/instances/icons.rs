@@ -134,3 +134,45 @@ pub async fn import_from_url(client: &reqwest::Client, url: &str) -> Option<Stri
     let bytes = resp.bytes().await.ok()?;
     import_from_bytes(&bytes).ok().map(|r| r.icon_id)
 }
+
+/// Devuelve `data:image/png;base64,...` para mostrar en WebView sin asset protocol.
+pub fn as_data_url(icon: &str) -> Option<String> {
+    let path = resolve_path(icon)?;
+    let bytes = std::fs::read(path).ok()?;
+    use base64::Engine;
+    Some(format!(
+        "data:image/png;base64,{}",
+        base64::engine::general_purpose::STANDARD.encode(bytes)
+    ))
+}
+
+/// Lee un PNG local (p.ej. pack.png) como data URL.
+pub fn file_as_data_url(path: &Path) -> Option<String> {
+    if !path.is_file() {
+        return None;
+    }
+    let bytes = std::fs::read(path).ok()?;
+    if bytes.is_empty() {
+        return None;
+    }
+    use base64::Engine;
+    let mime = if path
+        .extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("jpg") || e.eq_ignore_ascii_case("jpeg"))
+    {
+        "image/jpeg"
+    } else if path
+        .extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("webp"))
+    {
+        "image/webp"
+    } else {
+        "image/png"
+    };
+    Some(format!(
+        "data:{mime};base64,{}",
+        base64::engine::general_purpose::STANDARD.encode(bytes)
+    ))
+}

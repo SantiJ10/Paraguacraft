@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { convertFileSrc } from "@tauri-apps/api/core";
 import InstanceIcon from "@/components/instance/InstanceIcon.vue";
 import {
   DEFAULT_INSTANCE_ICON,
@@ -23,8 +22,8 @@ async function refreshCustomPreview(icon: string) {
   customPreview.value = null;
   if (!isTauri() || !isCustomInstanceIcon(icon)) return;
   try {
-    const path = await api.getInstanceIconPath(icon);
-    if (path) customPreview.value = convertFileSrc(path);
+    const data = await api.getInstanceIconData(icon);
+    if (data) customPreview.value = data;
   } catch {
     customPreview.value = null;
   }
@@ -43,7 +42,8 @@ async function importCustom() {
   try {
     const result = await api.pickAndImportInstanceIcon();
     model.value = result.iconId;
-    customPreview.value = convertFileSrc(result.path);
+    const data = await api.getInstanceIconData(result.iconId);
+    customPreview.value = data;
   } catch (e) {
     importError.value = String(e);
   } finally {

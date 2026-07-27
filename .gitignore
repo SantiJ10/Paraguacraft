@@ -59,6 +59,9 @@ bundled/pvp-modern/resourcepacks/*
 bundled/pvp-modern/packs/*
 !bundled/pvp-modern/packs/catalog.json
 !bundled/pvp-modern/packs/paraguacraft-pvp-modern.zip
+# Shaders extras Optimized (no están en Modrinth): Chocapic / Skygleam / SOLAR
+!bundled/optimized-shaders/
+!bundled/optimized-shaders/*.zip
 # No embeber assets de juego en el build del launcher (instalador flaco).
 launcher/src-tauri/resources/bundled/**
 !launcher/src-tauri/resources/bundled/pvp/

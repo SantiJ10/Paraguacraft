@@ -93,6 +93,12 @@ fn main() {
     let edition = RgbaImage::from_pixel(128, 16, Rgba([0, 0, 0, 0]));
     edition.save(out.join("edition.png")).expect("save edition");
 
+    // Icono del resource pack (lista de packs en el juego).
+    let pack_icon = bake_pack_icon(&main_menu);
+    pack_icon
+        .save(packs_out.join("pack.png"))
+        .expect("save pack.png");
+
     // < 1.6 — texture pack clásico
     write_texturepack_zip(
         &packs_out.join("classic.zip"),
@@ -106,6 +112,7 @@ fn main() {
         &legacy256,
         &startup,
         &edition,
+        &pack_icon,
         r#"{"pack":{"pack_format":4,"description":"Marca Oficial Paraguacraft"}}"#,
     );
 
@@ -115,6 +122,7 @@ fn main() {
         &split256,
         &startup,
         &edition,
+        &pack_icon,
         r#"{"pack":{"pack_format":6,"description":"Marca Oficial Paraguacraft"}}"#,
     );
 
@@ -124,6 +132,7 @@ fn main() {
         &split256,
         &startup,
         &edition,
+        &pack_icon,
         r#"{"pack":{"pack_format":15,"description":"Marca Oficial Paraguacraft","supported_formats":[15,9999]}}"#,
     );
 
@@ -133,6 +142,7 @@ fn main() {
         &wide1024,
         &startup,
         &edition,
+        &pack_icon,
         r#"{"pack":{"pack_format":46,"description":"Marca Oficial Paraguacraft","supported_formats":[46,9999]}}"#,
     );
 
@@ -142,6 +152,7 @@ fn main() {
         &wide1024,
         &startup,
         &edition,
+        &pack_icon,
         r#"{"pack":{"pack_format":75,"description":"Marca Oficial Paraguacraft","min_format":[75,0],"max_format":[99,0]}}"#,
     );
 
@@ -368,6 +379,7 @@ fn write_java_pack_zip(
     minecraft: &RgbaImage,
     startup: &[u8],
     edition: &RgbaImage,
+    pack_icon: &RgbaImage,
     mcmeta: &str,
 ) {
     let file = File::create(path).expect("create pack zip");
@@ -377,6 +389,10 @@ fn write_java_pack_zip(
 
     zip.start_file("pack.mcmeta", opts).expect("mcmeta");
     zip.write_all(mcmeta.as_bytes()).expect("mcmeta bytes");
+
+    let icon_buf = png_bytes(pack_icon);
+    zip.start_file("pack.png", opts).expect("pack.png");
+    zip.write_all(&icon_buf).expect("pack.png bytes");
 
     let mc_buf = png_bytes(minecraft);
     zip.start_file(format!("{base}/minecraft.png"), opts)
@@ -393,6 +409,19 @@ fn write_java_pack_zip(
     zip.write_all(&ed_buf).expect("edition bytes");
 
     zip.finish().expect("zip finish");
+}
+
+/// Icono 128×128 para la lista de resource packs (logo Paraguacraft centrado).
+fn bake_pack_icon(main_menu_png: &[u8]) -> RgbaImage {
+    let src = image::load_from_memory(main_menu_png)
+        .expect("load main_menu")
+        .to_rgba8();
+    let (sw, sh) = src.dimensions();
+    let side = sw.min(sh).max(1);
+    let x0 = (sw.saturating_sub(side)) / 2;
+    let y0 = (sh.saturating_sub(side)) / 2;
+    let cropped = src.view(x0, y0, side, side).to_image();
+    image::imageops::resize(&cropped, 128, 128, FilterType::Lanczos3)
 }
 
 fn copy_dir_all(src: &Path, dst: &Path) -> std::io::Result<()> {

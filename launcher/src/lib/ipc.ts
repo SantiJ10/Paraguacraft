@@ -343,6 +343,12 @@ export const api = {
     return invokeReal<string | null>("get_instance_icon_path", { icon });
   },
 
+  /** Data URL del icono custom (preferido: no depende del asset protocol). */
+  async getInstanceIconData(icon: string): Promise<string | null> {
+    if (!isTauri()) return null;
+    return invokeReal<string | null>("get_instance_icon_data", { icon });
+  },
+
   async pickAndImportInstanceIcon(): Promise<ImportInstanceIconResult> {
     return invokeReal<ImportInstanceIconResult>("pick_and_import_instance_icon");
   },

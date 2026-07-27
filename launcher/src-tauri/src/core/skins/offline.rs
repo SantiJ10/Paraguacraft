@@ -35,29 +35,6 @@ pub fn store_global_skin(src: &Path) -> AppResult<PathBuf> {
     Ok(dest)
 }
 
-fn pack_format_for_mc(mc: &str) -> u32 {
-    let parts: Vec<&str> = mc.split('.').collect();
-    let minor = parts.get(1).and_then(|p| p.parse::<u32>().ok()).unwrap_or(21);
-    let patch = parts.get(2).and_then(|p| p.parse::<u32>().ok()).unwrap_or(0);
-    match (minor, patch) {
-        (7, _) | (8, _) => 1,
-        (9, 0..=2) => 2,
-        (9, _) => 3,
-        (10, _) => 4,
-        (11, _) => 5,
-        (12, _) => 6,
-        (13, _) => 7,
-        (14, _) => 8,
-        (15, _) => 9,
-        (16, _) => 10,
-        (17, _) => 12,
-        (18, _) => 15,
-        (19, _) => 18,
-        (20, _) => 22,
-        _ => 34,
-    }
-}
-
 fn copy_skin_textures(pack_path: &Path, skin_path: &Path) -> AppResult<()> {
     let wide = pack_path.join("assets/minecraft/textures/entity/player/wide");
     let slim = pack_path.join("assets/minecraft/textures/entity/player/slim");
@@ -83,13 +60,10 @@ pub fn apply_to_game_dir(game_dir: &Path, skin_path: &Path, mc_version: &str) ->
     let pack_path = game_dir.join("resourcepacks").join(branding::PACK_NAME);
     std::fs::create_dir_all(&pack_path)?;
     let mcmeta = pack_path.join("pack.mcmeta");
-    if !mcmeta.is_file() {
-        let fmt = pack_format_for_mc(mc_version);
-        std::fs::write(
-            &mcmeta,
-            format!(r#"{{"pack":{{"pack_format":{fmt},"description":"Paraguacraft Skin"}}}}"#),
-        )?;
-    }
+    // Siempre alinear pack_format con la MC (brand pack + skin offline).
+    let meta = crate::core::branding::pack_mcmeta_json(mc_version)
+        .replace("Marca Oficial Paraguacraft", "Paraguacraft Skin");
+    std::fs::write(&mcmeta, meta)?;
     copy_skin_textures(&pack_path, skin_path)?;
     rebuild_brand_pack_zip(game_dir)?;
     branding::sync_brand_options(game_dir, mc_version, false)?;

@@ -124,6 +124,9 @@ fn enrich_local(base: &Path, item: &mut InstanceContentItem) {
         let pack_png = path.join("pack.png");
         if pack_png.is_file() {
             item.local_icon_path = Some(pack_png.to_string_lossy().into());
+            if item.icon_url.is_none() {
+                item.icon_url = crate::core::instances::icons::file_as_data_url(&pack_png);
+            }
         }
         let mcmeta = path.join("pack.mcmeta");
         if mcmeta.is_file() {
@@ -156,9 +159,28 @@ fn enrich_local(base: &Path, item: &mut InstanceContentItem) {
                         }
                     }
                 }
+                if item.icon_url.is_none() {
+                    if let Some(data) = extract_zip_pack_png_data(&mut zip) {
+                        item.icon_url = Some(data);
+                    }
+                }
             }
         }
     }
+}
+
+fn extract_zip_pack_png_data(zip: &mut zip::ZipArchive<std::fs::File>) -> Option<String> {
+    let mut entry = zip.by_name("pack.png").ok()?;
+    let mut buf = Vec::new();
+    std::io::Read::read_to_end(&mut entry, &mut buf).ok()?;
+    if buf.len() < 32 {
+        return None;
+    }
+    use base64::Engine;
+    Some(format!(
+        "data:image/png;base64,{}",
+        base64::engine::general_purpose::STANDARD.encode(buf)
+    ))
 }
 
 fn check_compat(ver: &Value, mc: &str, loader: &str, folder: &str) -> (bool, Option<String>) {

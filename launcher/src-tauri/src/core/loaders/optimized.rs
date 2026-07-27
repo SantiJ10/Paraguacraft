@@ -1,7 +1,7 @@
 //! **Paraguacraft Optimized** — preset de FPS (mods tipo Keo + shaders por gama + options).
 //!
 //! Versiones:
-//! - 1.8.9 / 1.12.2 → OptiFine + shaders compatibles
+//! - 1.8.9 / 1.12.2 → Forge + OptiFine (mod) + FoamFix/VanillaFix/etc. + shaders OptiFine
 //! - 1.18.2 / 1.20.1 / 1.21.11 / 26.2 → Fabric + mods Keo-like + Iris shaders
 //! - 1.20.1 → también NeoForge + Embeddium/Oculus + shaders
 //!
@@ -13,12 +13,14 @@ use std::path::Path;
 use serde_json::Value;
 use tauri::AppHandle;
 
+use crate::config::keys;
 use crate::core::hardware;
 use crate::core::net::{self, DownloadItem};
 use crate::core::performance;
+use crate::core::store::curseforge;
 use crate::error::{AppError, AppResult};
 
-use super::{fabric, neoforge, optifine};
+use super::{fabric, forge, neoforge, optifine};
 
 pub const ID: &str = "paraguacraft-optimized";
 pub const ID_NEOFORGE: &str = "paraguacraft-optimized-neoforge";
@@ -27,9 +29,13 @@ const FABRIC_MCS: &[&str] = &["1.18.2", "1.20.1", "1.21.11", "26.2"];
 const OPTIFINE_MCS: &[&str] = &["1.8.9", "1.12.2"];
 const NEOFORGE_MCS: &[&str] = &["1.20.1"];
 
+/// Forge recomendado para Optimized legacy (mismo criterio que packs estables).
+const FORGE_1_8_9: &str = "11.15.1.2318";
+const FORGE_1_12_2: &str = "14.23.5.2860";
+
 const MODRINTH: &str = "https://api.modrinth.com/v2";
 const TUNED_MARKER: &str = ".paraguacraft_optimized_tuned";
-const TUNED_VERSION: &str = "v4";
+const TUNED_VERSION: &str = "v6";
 /// Única versión del pack Optimized que ve el usuario (el loader real se resuelve solo).
 pub const PACK_VERSION: &str = "1.0.0";
 
@@ -37,6 +43,13 @@ pub const PACK_VERSION: &str = "1.0.0";
 struct Pin {
     slug: &'static str,
     version_id: &'static str,
+}
+
+/// Pin CurseForge (project + file) para mods legacy Forge.
+struct CfPin {
+    slug: &'static str,
+    project_id: u64,
+    file_id: u64,
 }
 
 /// 1.21.11: Sodium 0.8.12 + Iris 1.10.7 (0.8.13 rompe Iris ≤1.10.7).
@@ -224,6 +237,52 @@ fn fabric_pins_for_mc(mc: &str) -> Option<&'static [Pin]> {
     }
 }
 
+/// Mods Forge de rendimiento para Optimized 1.12.2 (además de OptiFine).
+const CF_PINS_1_12_2: &[CfPin] = &[
+    // FoamFix 0.10.15
+    CfPin { slug: "foamfix", project_id: 278494, file_id: 3973967 },
+    // VanillaFix 1.0.10-150
+    CfPin { slug: "vanillafix", project_id: 292785, file_id: 2915154 },
+    // Phosphor 0.2.6
+    CfPin { slug: "phosphor", project_id: 306770, file_id: 2912855 },
+    // BetterFps 1.4.8
+    CfPin { slug: "betterfps", project_id: 229891, file_id: 2483393 },
+    // Clumps 3.1.2
+    CfPin { slug: "clumps", project_id: 256777, file_id: 2668920 },
+    // FastWorkbench 1.7.3
+    CfPin { slug: "fastworkbench", project_id: 288885, file_id: 2803428 },
+    // FastFurnace 1.3.1
+    CfPin { slug: "fastfurnace", project_id: 299540, file_id: 2746053 },
+    // AI Improvements 0.0.1.3
+    CfPin { slug: "ai-improvements", project_id: 233019, file_id: 2469399 },
+];
+
+/// Mods Forge de rendimiento para Optimized 1.8.9.
+const CF_PINS_1_8_9: &[CfPin] = &[
+    // FoamFix 0.6.3a
+    CfPin { slug: "foamfix", project_id: 278494, file_id: 4856293 },
+    // BetterFps 1.2.1 (1.8.x)
+    CfPin { slug: "betterfps", project_id: 229891, file_id: 2283238 },
+    // The 5zig Mod 3.11.3 (HUD + utilidades; pedido por usuarios)
+    CfPin { slug: "the-5zig-mod", project_id: 231387, file_id: 2389910 },
+];
+
+fn cf_pins_for_mc(mc: &str) -> Option<&'static [CfPin]> {
+    match mc {
+        "1.12.2" => Some(CF_PINS_1_12_2),
+        "1.8.9" => Some(CF_PINS_1_8_9),
+        _ => None,
+    }
+}
+
+fn recommended_forge(mc: &str) -> Option<&'static str> {
+    match mc {
+        "1.8.9" => Some(FORGE_1_8_9),
+        "1.12.2" => Some(FORGE_1_12_2),
+        _ => None,
+    }
+}
+
 pub fn is_fabric_mc(mc: &str) -> bool {
     FABRIC_MCS.iter().any(|v| *v == mc)
 }
@@ -268,11 +327,21 @@ async fn resolve_backend_loader_version(
     if !v.is_empty() && v != PACK_VERSION {
         return Ok(v.to_string());
     }
+    if backend == "forge" {
+        if let Some(rec) = recommended_forge(mc) {
+            return Ok(rec.to_string());
+        }
+    }
     let vers = match backend {
         "optifine" => optifine::versions(client, mc).await?,
         "neoforge" => neoforge::versions(client, mc).await?,
+        "forge" => forge::versions(client, mc).await?,
         _ => fabric::versions(client, mc).await?,
     };
+    if backend == "optifine" {
+        return optifine::pick_best_version(mc, &vers)
+            .ok_or_else(|| AppError::msg(format!("Sin versión de OptiFine para Minecraft {mc}")));
+    }
     vers.first()
         .cloned()
         .ok_or_else(|| AppError::msg(format!("Sin versión de {backend} para Minecraft {mc}")))
@@ -284,9 +353,10 @@ pub async fn install(
     mc: &str,
     loader_version: &str,
 ) -> AppResult<String> {
+    // 1.8.9 / 1.12.2: Forge + OptiFine como mod (permite FoamFix/VanillaFix/etc.).
     if is_optifine_mc(mc) {
-        let ver = resolve_backend_loader_version(client, mc, loader_version, "optifine").await?;
-        return optifine::install(app, client, mc, &ver).await;
+        let ver = resolve_backend_loader_version(client, mc, loader_version, "forge").await?;
+        return forge::install(app, client, mc, &ver).await;
     }
     if is_fabric_mc(mc) {
         let ver = resolve_backend_loader_version(client, mc, loader_version, "fabric").await?;
@@ -329,18 +399,80 @@ pub async fn install_bundle_for_launch(
         install_pinned_mods(app, client, PINS_1_20_1_NEOFORGE, instance_dir).await?;
         install_shaders_for_tier(app, client, mc, &["iris", "optifine"], &tier, instance_dir)
             .await?;
-        apply_preconfig_once(instance_dir, &tier, "neoforge")?;
+        apply_preconfig_once(instance_dir, &tier, "neoforge", mc)?;
     } else if is_fabric_mc(mc) {
         purge_incompatible_jars(instance_dir);
         install_fabric_compatible_bundle(app, client, mc, instance_dir).await?;
         install_shaders_for_tier(app, client, mc, &["iris", "optifine"], &tier, instance_dir)
             .await?;
-        apply_preconfig_once(instance_dir, &tier, "fabric")?;
+        apply_preconfig_once(instance_dir, &tier, "fabric", mc)?;
     } else if is_optifine_mc(mc) {
+        install_legacy_optifine_bundle(app, client, mc, instance_dir).await?;
         install_shaders_for_tier(app, client, mc, &["optifine"], &tier, instance_dir).await?;
-        apply_preconfig_once(instance_dir, &tier, "optifine")?;
+        apply_preconfig_once(instance_dir, &tier, "optifine", mc)?;
     }
 
+    Ok(())
+}
+
+async fn install_legacy_optifine_bundle(
+    app: &AppHandle,
+    client: &reqwest::Client,
+    mc: &str,
+    instance_dir: &Path,
+) -> AppResult<()> {
+    let mods_dir = instance_dir.join("mods");
+    std::fs::create_dir_all(&mods_dir)?;
+
+    // OptiFine estable (G5 / M5) como JAR en mods/.
+    if let Some((of_type, of_patch)) = optifine::preferred_type_patch(mc) {
+        let fname = optifine::mod_jar_filename(mc, of_type, of_patch);
+        purge_slug_jars(&mods_dir, "optifine", &fname);
+        let dest = mods_dir.join(&fname);
+        if !dest.is_file() {
+            // Quitar OptiFine viejas (C5, etc.).
+            purge_slug_jars(&mods_dir, "optifine", &fname);
+            match optifine::download_mod_jar_official(client, mc, of_type, of_patch, &dest).await {
+                Ok(()) => {}
+                Err(e) => eprintln!("[optimized] OptiFine {fname}: {e}"),
+            }
+        }
+    }
+
+    if let Some(pins) = cf_pins_for_mc(mc) {
+        install_cf_pins(app, client, pins, &mods_dir).await?;
+    }
+    Ok(())
+}
+
+async fn install_cf_pins(
+    app: &AppHandle,
+    client: &reqwest::Client,
+    pins: &[CfPin],
+    mods_dir: &Path,
+) -> AppResult<()> {
+    let key = keys::curseforge_api_key();
+    if key.trim().is_empty() {
+        eprintln!("[optimized] sin CurseForge API key: se omite FoamFix/VanillaFix/etc.");
+        return Ok(());
+    }
+    for pin in pins {
+        match curseforge::install_file_id(
+            app,
+            client,
+            &key,
+            &pin.project_id.to_string(),
+            &pin.file_id.to_string(),
+            mods_dir.to_path_buf(),
+        )
+        .await
+        {
+            Ok(fname) => {
+                purge_slug_jars(mods_dir, pin.slug, &fname);
+            }
+            Err(e) => eprintln!("[optimized] CF pin {} failed: {e}", pin.slug),
+        }
+    }
     Ok(())
 }
 
@@ -459,46 +591,121 @@ fn purge_slug_jars(mods_dir: &Path, slug: &str, keep_filename: &str) {
     }
 }
 
-fn shader_slugs_for_tier(tier: &str) -> &'static [&'static str] {
-    // Alternativas por gama (desactivadas por defecto). Livianas primero.
+const SHADER_LOW: &[&str] = &[
+    // Livianos / laptops (Keo + best-of Modrinth)
+    "truelight-fx-lite",
+    "makeup-ultra-fast-shaders",
+    "potato-shaders",
+    "essentials-shader",
+    "lite-shaders",
+    "super-duper-vanilla",
+    "miniature-shader",
+    "blocky-shader",
+    "vanilla-plus-shader",
+    "sildurs-basic-shaders",
+];
+const SHADER_MID: &[&str] = &[
+    "solas-shader",
+    "bsl-shaders",
+    "complementary-reimagined",
+    "mellow",
+    "sildurs-vibrant-shaders",
+    "daybreak-shader",
+    "truelightfx",
+];
+const SHADER_HIGH: &[&str] = &[
+    "complementary-unbound",
+    "rethinking-voxels",
+    "photon-shader",
+    "insanity-shader",
+    "hysteria-shaders",
+];
+
+/// Shaders hospedados en el repo (no están en Modrinth). CDN = raw GitHub.
+struct HostedShader {
+    /// Id interno (catálogo / matching de nombre).
+    id: &'static str,
+    /// Archivo en `bundled/optimized-shaders/`.
+    filename: &'static str,
+    sha256: &'static str,
+    /// "baja" | "media" | "alta"
+    min_tier: &'static str,
+    label: &'static str,
+}
+
+const HOSTED_SHADERS: &[HostedShader] = &[
+    // HighPerformance Low: pensado para iGPU / laptops.
+    HostedShader {
+        id: "chocapic13-hp-low",
+        filename: "Chocapic13_HighPerformance_Low.zip",
+        sha256: "52fd15ad39b9b3011a30f308b998df4e8f019330cbdf1965595e90b15a93d570",
+        min_tier: "baja",
+        label: "baja (~alta FPS, sombras básicas)",
+    },
+    // Skygleam: visuales buenas con foco en rendimiento (Keo lo trae).
+    HostedShader {
+        id: "skygleam",
+        filename: "Skygleam_Shaders_V3.1.zip",
+        sha256: "8cde9f45071193eab7e346f20ec695754a40d3398fcf153f47dd8a397e5166ef",
+        min_tier: "baja",
+        label: "baja–media (equilibrio FPS/calidad)",
+    },
+    // SOLAR: más pesado visualmente → media+.
+    HostedShader {
+        id: "solar-shader",
+        filename: "SOLAR_Shader_v1.4.zip",
+        sha256: "3a2906ce13f3b4e3af57f900247a46a9c1c5e2bfeba52920d27ef341609d5d07",
+        min_tier: "media",
+        label: "media (~estilo fantasy, más costo GPU)",
+    },
+];
+
+const GITHUB_REPO: &str = "SantiJ10/Paraguacraft";
+
+fn hosted_shader_urls(filename: &str) -> Vec<String> {
+    vec![
+        format!(
+            "https://raw.githubusercontent.com/{GITHUB_REPO}/main/bundled/optimized-shaders/{filename}"
+        ),
+        format!("https://github.com/{GITHUB_REPO}/raw/main/bundled/optimized-shaders/{filename}"),
+        format!(
+            "https://cdn.jsdelivr.net/gh/{GITHUB_REPO}@main/bundled/optimized-shaders/{filename}"
+        ),
+    ]
+}
+
+fn tier_allows_hosted(tier: &str, min_tier: &str) -> bool {
+    match (tier, min_tier) {
+        (_, "baja") => true,
+        ("media" | "alta", "media") => true,
+        ("alta", "alta") => true,
+        _ => false,
+    }
+}
+
+fn shader_slugs_for_tier(tier: &str) -> Vec<&'static str> {
+    // baja: solo livianos | media: baja+media | alta: todos
     match tier {
-        "alta" => &[
-            "solas-shader",
-            "complementary-reimagined",
-            "bsl-shaders",
-            "rethinking-voxels",
-            "photon-shader",
-            "mellow",
-            "blocky-shader",
-            "makeup-ultra-fast-shaders",
-            "complementary-unbound",
-        ],
-        "media" => &[
-            "solas-shader",
-            "bsl-shaders",
-            "complementary-reimagined",
-            "makeup-ultra-fast-shaders",
-            "super-duper-vanilla",
-            "mellow",
-            "blocky-shader",
-            "miniature-shader",
-        ],
-        _ => &[
-            "makeup-ultra-fast-shaders",
-            "lite-shaders",
-            "super-duper-vanilla",
-            "blocky-shader",
-            "miniature-shader",
-            "solas-shader",
-            "bsl-shaders",
-        ],
+        "alta" => {
+            let mut v = Vec::new();
+            v.extend_from_slice(SHADER_LOW);
+            v.extend_from_slice(SHADER_MID);
+            v.extend_from_slice(SHADER_HIGH);
+            v
+        }
+        "media" => {
+            let mut v = Vec::new();
+            v.extend_from_slice(SHADER_LOW);
+            v.extend_from_slice(SHADER_MID);
+            v
+        }
+        _ => SHADER_LOW.to_vec(),
     }
 }
 
 fn default_shader_for_tier(tier: &str) -> &'static str {
     match tier {
-        "alta" => "solas-shader",
-        "media" => "solas-shader",
+        "alta" | "media" => "solas-shader",
         _ => "makeup-ultra-fast-shaders",
     }
 }
@@ -509,6 +716,16 @@ fn iris_shadow_distance(tier: &str) -> &'static str {
         "alta" => "12",
         "media" => "8",
         _ => "6",
+    }
+}
+
+fn shader_tier_label(slug: &str) -> &'static str {
+    if SHADER_HIGH.contains(&slug) {
+        "alta (~40–70% FPS vs vanilla)"
+    } else if SHADER_MID.contains(&slug) {
+        "media (~60–90% FPS vs vanilla)"
+    } else {
+        "baja (~85–100% FPS vs vanilla)"
     }
 }
 
@@ -523,6 +740,7 @@ async fn install_shaders_for_tier(
     let dir = instance_dir.join("shaderpacks");
     std::fs::create_dir_all(&dir)?;
     let mut items = Vec::new();
+    let mut catalog = Vec::new();
 
     for slug in shader_slugs_for_tier(tier) {
         let mut got = None;
@@ -535,23 +753,77 @@ async fn install_shaders_for_tier(
                 Err(_) => continue,
             }
         }
-        if got.is_none() {
-            for loader in loaders {
-                if let Ok(v) = resolve_modrinth_file_any_mc(client, slug, loader).await {
-                    got = Some(v);
-                    break;
-                }
-            }
-        }
+        // Sin fallback any-MC: evita bajar shaders de 1.21 en 1.18.2 / OptiFine viejo.
         let Some((url, fname, sha1)) = got else {
-            eprintln!("[optimized] skip shader {slug}@{mc}");
+            eprintln!("[optimized] skip shader {slug}@{mc} (sin build compatible)");
             continue;
         };
+        catalog.push(format!(
+            "- {fname}  [{slug}]  → gama {}\n",
+            shader_tier_label(slug)
+        ));
         let dest = dir.join(&fname);
         if dest.is_file() {
             continue;
         }
         items.push(DownloadItem::new(url, dest).with_sha1(sha1));
+    }
+
+    // Extras Keo (Chocapic / Skygleam / SOLAR) desde el repo — no están en Modrinth.
+    for hs in HOSTED_SHADERS {
+        if !tier_allows_hosted(tier, hs.min_tier) {
+            continue;
+        }
+        catalog.push(format!(
+            "- {}  [{}]  → {}\n",
+            hs.filename, hs.id, hs.label
+        ));
+        let dest = dir.join(hs.filename);
+        if dest.is_file() {
+            if let Ok(bytes) = std::fs::read(&dest) {
+                if sha256_hex_str(&bytes).eq_ignore_ascii_case(hs.sha256) {
+                    continue;
+                }
+            }
+            let _ = std::fs::remove_file(&dest);
+        }
+        // Probar mirrors en orden hasta que uno funcione.
+        let mut ok = false;
+        let mut last_err = None;
+        for url in hosted_shader_urls(hs.filename) {
+            match net::download_all(
+                client,
+                vec![DownloadItem::new(url, dest.clone())],
+                1,
+                app,
+                "optimized-hosted-shader",
+                hs.filename,
+            )
+            .await
+            {
+                Ok(()) => {
+                    if let Ok(bytes) = std::fs::read(&dest) {
+                        if sha256_hex_str(&bytes).eq_ignore_ascii_case(hs.sha256) {
+                            ok = true;
+                            break;
+                        }
+                        let _ = std::fs::remove_file(&dest);
+                        last_err = Some(format!("SHA-256 mismatch para {}", hs.filename));
+                    } else {
+                        ok = true;
+                        break;
+                    }
+                }
+                Err(e) => last_err = Some(e.to_string()),
+            }
+        }
+        if !ok {
+            eprintln!(
+                "[optimized] hosted shader {}: {}",
+                hs.filename,
+                last_err.unwrap_or_else(|| "falló".into())
+            );
+        }
     }
 
     if !items.is_empty() {
@@ -565,10 +837,29 @@ async fn install_shaders_for_tier(
         )
         .await?;
     }
+
+    if (tier == "alta" || tier == "media") && !catalog.is_empty() {
+        let note = format!(
+            "Paraguacraft Optimized — shaders descargados (DESACTIVADOS por defecto)\n\
+             Gama PC: {tier}\n\
+             Activá el que prefieras en Opciones → Video → Shaders.\n\n\
+             Estimación relativa de rendimiento (orientativa):\n{}",
+            catalog.join("")
+        );
+        let _ = std::fs::write(dir.join("PARAGUACRAFT_SHADERS.txt"), note);
+    }
+    let _ = mc;
     Ok(())
 }
 
-fn apply_preconfig_once(instance_dir: &Path, tier: &str, backend: &str) -> AppResult<()> {
+fn sha256_hex_str(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    let mut h = Sha256::new();
+    h.update(bytes);
+    hex::encode(h.finalize())
+}
+
+fn apply_preconfig_once(instance_dir: &Path, tier: &str, backend: &str, mc: &str) -> AppResult<()> {
     let marker = instance_dir.join(TUNED_MARKER);
     if marker.is_file() {
         if let Ok(text) = std::fs::read_to_string(&marker) {
@@ -579,7 +870,7 @@ fn apply_preconfig_once(instance_dir: &Path, tier: &str, backend: &str) -> AppRe
     }
 
     // options + configs de mods (More Culling, Sodium Extra, BRD, etc.) por gama.
-    let _ = performance::optimize_optimized_options(instance_dir, tier);
+    let _ = performance::optimize_optimized_options(instance_dir, tier, mc);
     let _ = performance::apply_optimized_mod_configs(instance_dir, tier);
     if backend == "optifine" {
         write_optifine_optionsof(instance_dir, tier)?;
@@ -588,7 +879,7 @@ fn apply_preconfig_once(instance_dir: &Path, tier: &str, backend: &str) -> AppRe
 
     let _ = std::fs::write(
         &marker,
-        format!("version={TUNED_VERSION}\ntier={tier}\nbackend={backend}\n"),
+        format!("version={TUNED_VERSION}\ntier={tier}\nbackend={backend}\nmc={mc}\n"),
     );
     Ok(())
 }
@@ -598,6 +889,7 @@ fn write_optifine_optionsof(instance_dir: &Path, tier: &str) -> AppResult<()> {
     let pairs: &[(&str, &str)] = match tier {
         "alta" => &[
             ("ofFastRender", "false"),
+            ("ofFastMath", "true"),
             ("ofSmoothFps", "false"),
             ("ofSmoothWorld", "true"),
             ("ofAaLevel", "0"),
@@ -609,10 +901,13 @@ fn write_optifine_optionsof(instance_dir: &Path, tier: &str) -> AppResult<()> {
             ("ofDynamicLights", "1"),
             ("ofAnimatedTerrain", "true"),
             ("ofAnimatedTextures", "true"),
+            ("ofAnimatedWater", "0"),
             ("ofShowFps", "true"),
+            ("ofLazyChunkLoading", "true"),
         ],
         "media" => &[
-            ("ofFastRender", "false"),
+            ("ofFastRender", "true"),
+            ("ofFastMath", "true"),
             ("ofSmoothFps", "true"),
             ("ofSmoothWorld", "true"),
             ("ofAaLevel", "0"),
@@ -624,10 +919,13 @@ fn write_optifine_optionsof(instance_dir: &Path, tier: &str) -> AppResult<()> {
             ("ofDynamicLights", "2"),
             ("ofAnimatedTerrain", "true"),
             ("ofAnimatedTextures", "true"),
+            ("ofAnimatedWater", "1"),
             ("ofShowFps", "true"),
+            ("ofLazyChunkLoading", "true"),
         ],
         _ => &[
             ("ofFastRender", "true"),
+            ("ofFastMath", "true"),
             ("ofSmoothFps", "true"),
             ("ofSmoothWorld", "false"),
             ("ofAaLevel", "0"),
@@ -639,7 +937,12 @@ fn write_optifine_optionsof(instance_dir: &Path, tier: &str) -> AppResult<()> {
             ("ofDynamicLights", "3"),
             ("ofAnimatedTerrain", "false"),
             ("ofAnimatedTextures", "false"),
+            ("ofAnimatedWater", "2"),
+            ("ofAnimatedFire", "false"),
+            ("ofAnimatedExplosion", "false"),
             ("ofShowFps", "true"),
+            ("ofLazyChunkLoading", "true"),
+            ("ofChunkLoading", "1"),
         ],
     };
     patch_kv_file(&path, pairs)
@@ -803,19 +1106,6 @@ async fn resolve_modrinth_file(
         "{MODRINTH}/project/{slug}/version?loaders={}&game_versions={}",
         net::url_encode(&format!(r#"["{loader}"]"#)),
         net::url_encode(&format!(r#"["{mc}"]"#))
-    );
-    let versions: Value = net::fetch_json(client, &url).await?;
-    pick_primary_file(&versions, slug)
-}
-
-async fn resolve_modrinth_file_any_mc(
-    client: &reqwest::Client,
-    slug: &str,
-    loader: &str,
-) -> AppResult<(String, String, Option<String>)> {
-    let url = format!(
-        "{MODRINTH}/project/{slug}/version?loaders={}",
-        net::url_encode(&format!(r#"["{loader}"]"#)),
     );
     let versions: Value = net::fetch_json(client, &url).await?;
     pick_primary_file(&versions, slug)

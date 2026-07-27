@@ -1,4 +1,4 @@
-//! Sincronización mínima de `options.txt` — solo añade el pack si falta.
+//! Sincronización de `options.txt` — fuerza Brand Pack activo en cada lanzamiento.
 
 use std::fs;
 use std::path::Path;
@@ -17,15 +17,6 @@ pub fn is_system_pack(inner: &str) -> bool {
         || inner.starts_with("Pack_Graficos_Minimos")
         || inner.contains("paraguacraft-pvp-189")
         || inner.contains("paraguacraft-pvp-modern")
-}
-
-fn brand_tokens(profile: PackProfile) -> Vec<String> {
-    match profile {
-        PackProfile::Classic => vec![format!("{PACK_NAME}.zip")],
-        PackProfile::Modern => vec![format!("file/{PACK_NAME}.zip")],
-        PackProfile::Legacy | PackProfile::Standard | PackProfile::StandardRange
-        | PackProfile::Wide => vec![format!("file/{PACK_NAME}")],
-    }
 }
 
 pub fn parse_quoted_packs(line: &str) -> Vec<String> {
@@ -50,18 +41,6 @@ pub fn parse_quoted_packs(line: &str) -> Vec<String> {
     packs
 }
 
-fn line_has_brand(line: &str, profile: PackProfile) -> bool {
-    if profile == PackProfile::Classic {
-        return line.starts_with("texturepack:") && line.contains(PACK_NAME);
-    }
-    if !line.starts_with("resourcePacks:") {
-        return false;
-    }
-    brand_tokens(profile)
-        .iter()
-        .any(|t| line.contains(&t.trim_start_matches("file/")))
-}
-
 pub fn ensure_enabled(game_dir: &Path, ver: McVersion, profile: PackProfile, min_graphics: bool) -> AppResult<()> {
     let options_path = game_dir.join("options.txt");
     let lines: Vec<String> = if options_path.is_file() {
@@ -73,17 +52,14 @@ pub fn ensure_enabled(game_dir: &Path, ver: McVersion, profile: PackProfile, min
         Vec::new()
     };
 
-    if lines.iter().any(|l| line_has_brand(l, profile)) {
-        return Ok(());
-    }
-
+    // Siempre reescribe el stack: MC puede sacar packs incompatibles de Selected.
     let mut new_lines = lines;
 
     if profile == PackProfile::Classic {
         new_lines.retain(|l| !l.starts_with("texturepack:"));
         new_lines.push(format!("texturepack:{PACK_NAME}.zip"));
     } else if ver.major < 13 {
-        let mut packs: Vec<String> = new_lines
+        let user_packs: Vec<String> = new_lines
             .iter()
             .find(|l| l.starts_with("resourcePacks:"))
             .map(|l| {
@@ -94,20 +70,14 @@ pub fn ensure_enabled(game_dir: &Path, ver: McVersion, profile: PackProfile, min
                     .collect()
             })
             .unwrap_or_default();
+        let mut packs = Vec::new();
         if min_graphics {
-            let g = "\"Pack_Graficos_Minimos.zip\"".to_string();
-            if !packs.contains(&g) {
-                packs.push(g);
-            }
+            packs.push("\"Pack_Graficos_Minimos.zip\"".to_string());
         }
-        let brand = format!("\"{PACK_NAME}\"");
-        if !packs.contains(&brand) {
-            packs.push(brand);
-        }
+        packs.push(format!("\"{PACK_NAME}\""));
+        packs.extend(user_packs);
         new_lines.retain(|l| !l.starts_with("resourcePacks:"));
-        if !packs.is_empty() {
-            new_lines.push(format!("resourcePacks:[{}]", packs.join(",")));
-        }
+        new_lines.push(format!("resourcePacks:[{}]", packs.join(",")));
     } else {
         let user_packs: Vec<String> = new_lines
             .iter()
@@ -121,22 +91,16 @@ pub fn ensure_enabled(game_dir: &Path, ver: McVersion, profile: PackProfile, min
             })
             .unwrap_or_default();
 
-        let mut packs = vec!["\"vanilla\"".to_string()];
-        packs.extend(user_packs);
-        if min_graphics {
-            let g = "\"file/Pack_Graficos_Minimos.zip\"".to_string();
-            if !packs.contains(&g) {
-                packs.push(g);
-            }
-        }
         let brand = if profile.uses_zip_file() {
             format!("\"file/{PACK_NAME}.zip\"")
         } else {
             format!("\"file/{PACK_NAME}\"")
         };
-        if !packs.contains(&brand) {
-            packs.push(brand);
+        let mut packs = vec!["\"vanilla\"".to_string(), brand];
+        if min_graphics {
+            packs.push("\"file/Pack_Graficos_Minimos.zip\"".to_string());
         }
+        packs.extend(user_packs);
         new_lines.retain(|l| !l.starts_with("resourcePacks:"));
         new_lines.push(format!("resourcePacks:[{}]", packs.join(",")));
     }

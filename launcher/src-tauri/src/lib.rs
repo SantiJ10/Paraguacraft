@@ -120,6 +120,7 @@ pub fn run() {
             commands::instances::create_instance,
             commands::instances::rename_instance,
             commands::instances::get_instance_icon_path,
+            commands::instances::get_instance_icon_data,
             commands::instances::import_instance_icon,
             commands::instances::pick_and_import_instance_icon,
             commands::instances::set_instance_ram,
