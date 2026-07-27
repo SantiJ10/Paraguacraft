@@ -380,6 +380,10 @@ export interface AppSettings {
   javaPriority?: string;
   competeTurbo?: boolean;
   trayLite?: boolean;
+  /** auto | baja | media | alta | custom */
+  performanceTier?: string;
+  /** balanced | gameplay | shaders | pvp | lightweight (solo con auto) */
+  usagePreset?: string;
 }
 
 export interface ResourceBudget {
@@ -402,6 +406,8 @@ export interface PreLaunchCheckItem {
 export interface PreLaunchCheckReport {
   ready: boolean;
   items: PreLaunchCheckItem[];
+  /** Acciones sugeridas: repair | reinstall_loader | open_java | add_account | open_store */
+  suggestedActions?: string[];
 }
 
 export interface InstanceWeight {
@@ -514,6 +520,8 @@ export interface InstanceMeta {
   jvmArgs: string | null;
   gc: string | null;
   javaPath: string | null;
+  /** Override: auto | baja | media | alta | custom */
+  performanceTier?: string | null;
 }
 
 export interface InstanceContentItem {

@@ -32,12 +32,45 @@ async function finish() {
   if (settings.settings) {
     settings.update("ramMb", wizard.data.ramMb);
     settings.update("accent", wizard.data.accent);
+    settings.update("performanceTier", "auto");
+    settings.update(
+      "usagePreset",
+      wizard.data.perfil === "baja"
+        ? "lightweight"
+        : wizard.data.perfil === "alta"
+          ? "shaders"
+          : "balanced",
+    );
   }
   if (wizard.data.accountType === "offline" && wizard.data.offlineName.trim()) {
     await accounts.load();
     await accounts.addOffline(wizard.data.offlineName.trim());
   }
   await settings.save();
+
+  // Crear Optimized recomendado (flujo cliente), no importar Lunar/Prism.
+  try {
+    const { useInstancesStore } = await import("@/stores/instances");
+    const instances = useInstancesStore();
+    const mc =
+      wizard.data.perfil === "baja"
+        ? "1.12.2"
+        : wizard.data.perfil === "alta"
+          ? "1.21.11"
+          : "1.20.1";
+    const inst = await instances.create({
+      name: `Optimized ${mc}`,
+      mcVersion: mc,
+      loader: "paraguacraft-optimized",
+      loaderVersion: "1.0.0",
+      icon: "loader:paraguacraft-optimized",
+      ramMb: wizard.data.ramMb,
+    });
+    instances.select(inst.id);
+  } catch (e) {
+    console.warn("[wizard] no se pudo crear Optimized:", e);
+  }
+
   wizard.complete();
   router.push({ name: "home" });
 }
@@ -76,7 +109,7 @@ function onNext() {
       </BaseButton>
       <span class="text-xs text-gray-500">Paso {{ wizard.step + 1 }} de {{ wizard.totalSteps }}</span>
       <BaseButton :disabled="!canAdvance" @click="onNext">
-        {{ wizard.isLast ? "Entrar al launcher" : "Continuar" }}
+        {{ wizard.isLast ? "Crear Optimized y entrar" : "Continuar" }}
       </BaseButton>
     </div>
   </div>

@@ -36,7 +36,7 @@ const sha256 = crypto.createHash("sha256").update(bytes).digest("hex");
 const size_bytes = bytes.length;
 
 const latest = fs.existsSync(latestPath)
-  ? JSON.parse(fs.readFileSync(latestPath, "utf8"))
+  ? JSON.parse(fs.readFileSync(latestPath, "utf8").replace(/^\uFEFF/, ""))
   : {};
 
 latest.version = version;

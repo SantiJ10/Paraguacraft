@@ -12,15 +12,15 @@ export default {
           ai: "#9B59B6",
           "ai-dark": "#7D3C98",
         },
-        // Superficies (modo oscuro por defecto, estilo Modrinth/Lunar)
+        // Superficies vía CSS vars (rgb channels) para soportar /opacity
         surface: {
-          0: "#0A0A0A",
-          1: "#121212",
-          2: "#1A1A1A",
-          3: "#1E1E1E",
-          4: "#252525",
-          5: "#2A2A2A",
-          6: "#3A3A3A",
+          0: "rgb(var(--surface-0) / <alpha-value>)",
+          1: "rgb(var(--surface-1) / <alpha-value>)",
+          2: "rgb(var(--surface-2) / <alpha-value>)",
+          3: "rgb(var(--surface-3) / <alpha-value>)",
+          4: "rgb(var(--surface-4) / <alpha-value>)",
+          5: "rgb(var(--surface-5) / <alpha-value>)",
+          6: "rgb(var(--surface-6) / <alpha-value>)",
         },
       },
       fontFamily: {

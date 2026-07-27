@@ -1,0 +1,9 @@
+# Launcher 1.1.8
+
+- Compat real Optimized (Forge 1.8/1.12 vs Fabric) + filtro de tienda por instancia
+- Fix Forge 1.12.2 Maven 404 (sin sufijo -1.12.2)
+- Salud de instancia + reparar/reinstalar loader (incluye bundle Optimized)
+- Perfil rendimiento Auto/Baja/Media/Alta/Custom + presets por uso
+- Settings: descargas simultáneas + compat GPU; post-crash con acciones útiles
+- Home/cliente: última jugada, estados de lanzamiento honestos
+- Tema Oscuro/Más oscuro, i18n base es/en/pt, wizard crea Optimized

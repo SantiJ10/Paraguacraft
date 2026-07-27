@@ -162,6 +162,35 @@ pub async fn repair(
         }
     }
 
+    if loader == "paraguacraft-optimized" || loader == "paraguacraft-optimized-neoforge" {
+        match loaders::optimized::install_bundle_for_launch(
+            app,
+            client,
+            &meta.mc_version,
+            &loader,
+            &dir,
+        )
+        .await
+        {
+            Ok(()) => push_fixed(
+                &mut report,
+                "Pack Optimized sincronizado",
+                format!(
+                    "Mods/shaders del pack ({}) verificados para Minecraft {}.",
+                    loaders::store_loader_for(&loader, &meta.mc_version),
+                    meta.mc_version
+                ),
+                Some(dir.join("mods")),
+            ),
+            Err(e) => push_warning(
+                &mut report,
+                "Pack Optimized incompleto",
+                e.to_string(),
+                Some(dir.join("mods")),
+            ),
+        }
+    }
+
     let log_path = dir.join("logs").join("latest.log");
     if log_path.is_file() {
         if let Ok(content) = fs::read_to_string(&log_path) {

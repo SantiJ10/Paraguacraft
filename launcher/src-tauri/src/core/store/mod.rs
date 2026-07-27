@@ -92,7 +92,7 @@ pub async fn search(
     offset: u32,
     limit: u32,
 ) -> AppResult<StoreSearchResult> {
-    let loader = loaders::store_loader(loader);
+    let loader = loaders::store_loader_for(loader, mc);
     match provider {
         "modrinth" => modrinth::search(client, query, project_type, mc, &loader, offset, limit).await,
         "curseforge" => {
@@ -116,7 +116,7 @@ pub async fn list_required_dependencies(
     loader: &str,
     dest_dir: Option<&std::path::Path>,
 ) -> AppResult<Vec<StoreDependency>> {
-    let loader = loaders::store_loader(loader);
+    let loader = loaders::store_loader_for(loader, mc);
     match provider {
         "modrinth" => {
             modrinth::list_required_dependencies(client, file_id_or_version_id, mc, &loader, dest_dir)
@@ -149,7 +149,7 @@ pub async fn list_versions(
     mc: &str,
     loader: &str,
 ) -> AppResult<Vec<StoreVersion>> {
-    let loader = loaders::store_loader(loader);
+    let loader = loaders::store_loader_for(loader, mc);
     match provider {
         "modrinth" => {
             modrinth::list_versions(client, project_id, project_type, mc, &loader).await
@@ -196,7 +196,7 @@ fn validate_instance(
                 inst.name, inst.mc_version
             )));
         }
-        if loader_required && !loaders::loaders_compatible(&inst.loader, loader) {
+        if loader_required && !loaders::loaders_compatible_for(&inst.loader, loader, mc) {
             return Err(AppError::msg(format!(
                 "La instancia \"{}\" usa {}, incompatible con {loader}.",
                 inst.name, inst.loader
@@ -214,7 +214,7 @@ fn validate_instance(
             meta.name, meta.mc_version
         )));
     }
-    if loader_required && !loaders::loaders_compatible(&meta.loader, loader) {
+    if loader_required && !loaders::loaders_compatible_for(&meta.loader, loader, mc) {
         return Err(AppError::msg(format!(
             "La instancia \"{}\" usa {}, incompatible con {loader}.",
             meta.name, meta.loader
@@ -395,12 +395,16 @@ pub async fn install(
             .ok_or_else(|| AppError::msg("Instancia externa no encontrada"))?;
         let base = instances::importers::external_game_dir(instance_id)
             .ok_or_else(|| AppError::msg("Sin carpeta de juego para instancia externa"))?;
-        (inst.mc_version.clone(), loaders::store_loader(&inst.loader), base)
+        (
+            inst.mc_version.clone(),
+            loaders::store_loader_for(&inst.loader, &inst.mc_version),
+            base,
+        )
     } else {
         let meta = instances::ensure_meta(instance_id)?;
         (
             meta.mc_version.clone(),
-            loaders::store_loader(&meta.loader),
+            loaders::store_loader_for(&meta.loader, &meta.mc_version),
             instances::instance_dir(instance_id),
         )
     };

@@ -654,6 +654,14 @@ pub fn emit_started(app: &AppHandle, instance_id: &str, pid: u32) {
     );
 }
 
+/// Estado honesto durante el lanzamiento (UI status bar / Home).
+pub fn emit_status(app: &AppHandle, phase: &str, message: &str) {
+    let _ = app.emit(
+        "game://status",
+        serde_json::json!({ "phase": phase, "message": message }),
+    );
+}
+
 /// Tras lanzar el juego: minimiza, oculta o cierra el launcher según Ajustes.
 pub fn apply_launch_window(app: &AppHandle, close_on_launch: bool, soft_close: bool) {
     if close_on_launch {

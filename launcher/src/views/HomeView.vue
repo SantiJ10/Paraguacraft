@@ -25,7 +25,20 @@ const skins = useSkinsStore();
 const launchingId = ref<string | null>(null);
 const launchError = ref<string | null>(null);
 
-const featured = computed(() => instances.selected);
+const featured = computed(() => {
+  // Preferí la última jugada (sensación “cliente”), si no hay, la seleccionada.
+  return instances.recent[0] ?? instances.selected;
+});
+
+const featuredLoaderLabel = computed(() => {
+  const l = featured.value?.loader ?? "";
+  if (l.includes("optimized-neoforge")) return "Optimized NeoForge";
+  if (l.includes("optimized")) return "Paraguacraft Optimized";
+  if (l.includes("pvp-modern")) return "PvP 1.21";
+  if (l.includes("pvp")) return "PvP 1.8.9";
+  if (l.includes("fabric-iris")) return "Fabric + Iris";
+  return l.replace(/-/g, " ");
+});
 
 const avatarKey = computed(
   () => `${skins.revision}:${skins.activeSkin?.skinUrl ?? skins.activeSkin?.avatarUrl ?? ""}`,
@@ -92,26 +105,38 @@ async function play(inst: { id: string; name: string }) {
 
           <p class="mt-2 text-sm text-gray-300">
             Minecraft {{ featured.mcVersion }} &middot;
-            <span class="capitalize">{{ featured.loader.replace("-", " ") }}</span> &middot;
+            <span class="capitalize">{{ featuredLoaderLabel }}</span> &middot;
             {{ formatPlaytime(featured.totalPlayMinutes) }}
           </p>
 
           <div class="mt-6 flex flex-wrap items-center gap-3">
             <BaseButton
               size="lg"
-              :disabled="launchingId === featured.id || app.launchPhase === 'running'"
+              :disabled="launchingId === featured.id || app.launchPhase === 'running' || app.launchPhase === 'preparing' || app.launchPhase === 'downloading' || app.launchPhase === 'launching'"
               @click="play(featured)"
             >
               <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
-              {{ launchingId === featured.id ? "Lanzando…" : "Jugar ahora" }}
+              {{
+                launchingId === featured.id || app.launchPhase === "preparing" || app.launchPhase === "downloading"
+                  ? "Preparando…"
+                  : app.launchPhase === "launching"
+                    ? "Lanzando…"
+                    : app.launchPhase === "running"
+                      ? "En juego"
+                      : "Jugar ahora"
+              }}
             </BaseButton>
             <BaseButton size="lg" variant="secondary" @click="openInstance(featured)">
-              Gestionar instancia
+              Gestionar
             </BaseButton>
           </div>
 
           <p v-if="launchError" class="mt-3 text-sm text-red-400">{{ launchError }}</p>
-          <p v-else-if="app.launchPhase !== 'idle'" class="mt-3 text-sm text-pc-green">
+          <p
+            v-else-if="app.launchPhase !== 'idle'"
+            class="mt-3 text-sm"
+            :class="app.launchPhase === 'running' ? 'text-pc-green' : 'text-amber-200'"
+          >
             {{ app.launchMessage }}
           </p>
         </div>

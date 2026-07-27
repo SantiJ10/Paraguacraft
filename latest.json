@@ -1,12 +1,12 @@
-﻿{
-  "version": "1.1.7",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.7/Instalar_Paraguacraft_v1.1.7.exe",
-  "size_bytes": 5593280,
-  "sha256": "b763d65c6e8d6ee2563c9a5eb9884388855a6a5653adbd69223a8ecf7ca88568",
-  "notes": "- Brand Pack compatible en todas las MCs/loaders + logo Paraguacraft\n- Optimized 1.8.9/1.12.2: Forge + OptiFine G5/M5 + FoamFix/VanillaFix + preconfig por gama\n- Shaders por gama (Modrinth) + Chocapic/Skygleam/SOLAR desde CDN del repo\n- Fix iconos de instancias/modpacks (data URL)",
+{
+  "version": "1.1.8",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.8/Instalar_Paraguacraft_v1.1.8.exe",
+  "size_bytes": 5603986,
+  "sha256": "0beeab6fe7714643de4dc2d96a119d7ea068385f6c544b55bf13a780d1dd7df4",
+  "notes": "- Compat Optimized real (Forge 1.8/1.12 vs Fabric) + filtro tienda por instancia\n- Fix Forge 1.12.2 Maven 404\n- Salud de instancia + reparar/reinstalar loader (Optimized incluido)\n- Perfil rendimiento Auto/Baja/Media/Alta/Custom + presets por uso\n- Post-crash útil, Home cliente, estados honestos, tema + i18n base, wizard Optimized",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.7/Instalar_Paraguacraft_v1.1.7.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.8/Instalar_Paraguacraft_v1.1.8.exe",
       "signature": ""
     }
   }

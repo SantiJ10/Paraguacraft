@@ -96,10 +96,14 @@ async function onSelect(id: string) {
     <div class="flex items-center gap-3 p-4">
       <InstanceIcon :icon="instance.icon" size="md" />
       <div class="min-w-0 flex-1">
-        <p class="truncate font-semibold">{{ instance.name }}</p>
-        <p class="text-xs text-gray-500">
-          {{ instance.mcVersion }} &middot; <span class="capitalize">{{ instance.loader.replace("-", " ") }}</span>
-          <span v-if="instance.modCount"> &middot; {{ instance.modCount }} mods</span>
+        <p class="truncate text-base font-bold text-white">{{ instance.name }}</p>
+        <p class="text-xs text-gray-400">
+          MC {{ instance.mcVersion }}
+          <span class="text-gray-600">·</span>
+          <span class="capitalize">{{ instance.loader.replace(/-/g, " ") }}</span>
+        </p>
+        <p v-if="instance.modCount" class="mt-0.5 text-[11px] text-gray-500">
+          {{ instance.modCount }} mods
         </p>
       </div>
     </div>
@@ -108,12 +112,12 @@ async function onSelect(id: string) {
       <span>{{ formatPlaytime(instance.totalPlayMinutes) }}</span>
     </div>
     <button
-      class="flex w-full items-center justify-center gap-2 bg-pc-green/0 py-2 text-sm font-bold text-pc-green opacity-0 transition-all group-hover:bg-pc-green/10 group-hover:opacity-100"
-      :disabled="busy"
+      class="flex w-full items-center justify-center gap-2 bg-pc-green/10 py-2.5 text-sm font-bold text-pc-green transition-colors hover:bg-pc-green/20"
+      :disabled="busy || app.launchPhase === 'running'"
       @click.stop="$emit('play')"
     >
       <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
-      Jugar
+      {{ busy ? "…" : "Jugar" }}
     </button>
     <p v-if="localError" class="px-3 pb-2 text-[10px] text-red-400">{{ localError }}</p>
 

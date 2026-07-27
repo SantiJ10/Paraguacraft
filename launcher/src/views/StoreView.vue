@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { openUrl } from "@/lib/ipc";
+import { storeLoader } from "@/lib/loaders";
 import type { ContentProvider, ContentType, StoreItem } from "@/lib/types";
 import SearchInput from "@/components/common/SearchInput.vue";
 import BaseButton from "@/components/common/BaseButton.vue";
@@ -8,16 +9,20 @@ import Pagination from "@/components/common/Pagination.vue";
 import InstallStoreModal from "@/components/store/InstallStoreModal.vue";
 import { useDownloadsStore } from "@/stores/downloads";
 import { useStoreStore } from "@/stores/store";
+import { useInstancesStore } from "@/stores/instances";
 import { formatNumber } from "@/composables/useFormat";
 
 defineOptions({ name: "store" });
 
 const downloads = useDownloadsStore();
 const storeStore = useStoreStore();
+const instances = useInstancesStore();
 
 const query = ref("");
 const provider = ref<ContentProvider>("modrinth");
 const typeFilter = ref<ContentType>("mod");
+/** Filtrar catálogo por la instancia seleccionada (MC + loader real del pack). */
+const filterByInstance = ref(true);
 /** Mods CF bloqueados por distribución: id → URL del proyecto */
 const distributionBlocked = ref<Record<string, { url: string; name: string }>>({});
 
@@ -33,7 +38,28 @@ const tabs: Array<{ id: ContentType; label: string }> = [
   { id: "plugin", label: "Plugins" },
 ];
 
-const state = computed(() => storeStore.stateFor(provider.value, typeFilter.value));
+const filterInstance = computed(() => {
+  if (!filterByInstance.value) return null;
+  return instances.selected;
+});
+
+const filterMc = computed(() => filterInstance.value?.mcVersion ?? "");
+const filterLoader = computed(() => {
+  const inst = filterInstance.value;
+  if (!inst) return "";
+  // Backend de tienda (fabric/forge/neoforge), no el id de pack.
+  return storeLoader(inst.loader, inst.mcVersion);
+});
+
+const filterLabel = computed(() => {
+  const inst = filterInstance.value;
+  if (!inst || !filterLoader.value) return null;
+  return `${inst.name} · ${inst.mcVersion} · ${filterLoader.value}`;
+});
+
+const state = computed(() =>
+  storeStore.stateFor(provider.value, typeFilter.value, filterMc.value, filterLoader.value),
+);
 const items = computed(() => state.value.items);
 const loading = computed(() => storeStore.loading);
 const error = computed(() => storeStore.error);
@@ -45,13 +71,18 @@ function refresh(offset = 0, force = false) {
     projectType: typeFilter.value,
     query: query.value,
     offset,
+    mc: filterMc.value,
+    loader: filterLoader.value,
     force,
   });
 }
 
-refresh();
+onMounted(async () => {
+  await instances.load();
+  refresh();
+});
 
-watch([provider, typeFilter], () => refresh(0));
+watch([provider, typeFilter, filterMc, filterLoader], () => refresh(0));
 
 function search() {
   refresh(0, true);
@@ -84,7 +115,6 @@ function providerBadge(p: string) {
 
 function onInstalled() {
   downloads.initEvents();
-  // El contenido instalado no cambia los resultados de búsqueda: no invalidamos la cache.
 }
 </script>
 
@@ -112,6 +142,30 @@ function onInstalled() {
         <SearchInput v-model="query" placeholder="Buscar en todo el catálogo..." @keyup.enter="search" />
       </div>
       <BaseButton variant="secondary" @click="search">Buscar</BaseButton>
+    </div>
+
+    <div class="mb-4 flex flex-wrap items-center gap-3">
+      <label class="flex cursor-pointer items-center gap-2 text-sm text-gray-300">
+        <input v-model="filterByInstance" type="checkbox" class="rounded border-surface-3" />
+        Filtrar por instancia
+      </label>
+      <select
+        v-if="filterByInstance && instances.instances.length"
+        class="rounded-lg border border-surface-3 bg-surface-2 px-3 py-1.5 text-sm text-white"
+        :value="instances.selectedId ?? ''"
+        @change="instances.select(($event.target as HTMLSelectElement).value)"
+      >
+        <option v-for="inst in instances.local" :key="inst.id" :value="inst.id">
+          {{ inst.name }} ({{ inst.mcVersion }})
+        </option>
+      </select>
+      <span
+        v-if="filterLabel"
+        class="rounded-lg bg-pc-green/10 px-2.5 py-1 text-xs font-semibold text-pc-green"
+      >
+        {{ filterLabel }}
+      </span>
+      <span v-else-if="!filterByInstance" class="text-xs text-gray-500">Catálogo global (sin filtro)</span>
     </div>
 
     <div class="mb-5 flex flex-wrap gap-2 border-b border-surface-3 pb-3">

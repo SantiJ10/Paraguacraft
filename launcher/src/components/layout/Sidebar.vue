@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, watch } from "vue";
+import { computed } from "vue";
 import { useRoute } from "vue-router";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { onMounted, onUnmounted, watch } from "vue";
 import { useAccountsStore } from "@/stores/accounts";
 import { useSkinsStore } from "@/stores/skins";
 import { useAiStore } from "@/stores/ai";
+import { useI18n } from "@/composables/useI18n";
 import { isTauri } from "@/lib/ipc";
 import launcherIcon from "@/assets/launcher-icon.png";
 
@@ -12,15 +14,16 @@ const route = useRoute();
 const accounts = useAccountsStore();
 const skins = useSkinsStore();
 const ai = useAiStore();
+const { t } = useI18n();
 
-const nav = [
-  { name: "home", label: "Inicio", to: "/", icon: "home" },
-  { name: "instances", label: "Instancias", to: "/instances", icon: "grid" },
-  { name: "store", label: "Tienda", to: "/store", icon: "store" },
-  { name: "skins", label: "Skins", to: "/skins", icon: "skins" },
-  { name: "versions", label: "Versiones", to: "/versions", icon: "layers" },
-  { name: "servers", label: "Servidores", to: "/servers", icon: "server" },
-];
+const nav = computed(() => [
+  { name: "home", label: t("nav_home"), to: "/", icon: "home" },
+  { name: "instances", label: t("nav_instances"), to: "/instances", icon: "grid" },
+  { name: "store", label: t("nav_store"), to: "/store", icon: "store" },
+  { name: "skins", label: t("nav_skins"), to: "/skins", icon: "skins" },
+  { name: "versions", label: t("nav_versions"), to: "/versions", icon: "layers" },
+  { name: "servers", label: t("nav_servers"), to: "/servers", icon: "server" },
+]);
 
 const FOCUS_REFRESH_MS = 60_000;
 let unlistenFocus: (() => void) | null = null;
@@ -97,7 +100,7 @@ const icons: Record<string, string> = {
         <svg class="h-5 w-5 text-pc-ai" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path :d="icons.bot" />
         </svg>
-        Paraguabot
+        {{ t("nav_bot") }}
       </button>
 
       <RouterLink
@@ -108,7 +111,7 @@ const icons: Record<string, string> = {
         <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path :d="icons.settings" />
         </svg>
-        Ajustes
+        {{ t("nav_settings") }}
       </RouterLink>
     </div>
   </aside>

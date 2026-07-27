@@ -83,19 +83,38 @@ pub fn display_label(loader: &str) -> String {
     }
 }
 
-/// Loader efectivo para filtrar la tienda (fabric-iris usa mods de Fabric).
+/// Loader efectivo para filtrar la tienda **sin** contexto MC.
+/// Optimized sin MC asume Fabric (la mayoría de versiones modernas).
 pub fn store_loader(loader: &str) -> String {
+    store_loader_for(loader, "")
+}
+
+/// Loader efectivo para Modrinth/CF según el pack **y** la versión de Minecraft.
+/// Optimized 1.8.9/1.12.2 → Forge (+ OptiFine); resto de Optimized → Fabric.
+pub fn store_loader_for(loader: &str, mc: &str) -> String {
     match normalize(loader).as_str() {
-        "fabric-iris" | "paraguacraft-optimized" | "paraguacraft-pvp-modern" => "fabric".into(),
+        "fabric-iris" | "paraguacraft-pvp-modern" => "fabric".into(),
         "paraguacraft-optimized-neoforge" => "neoforge".into(),
         "paraguacraft-pvp" => "forge".into(),
+        "paraguacraft-optimized" => {
+            if optimized::is_optifine_mc(mc) {
+                "forge".into()
+            } else {
+                "fabric".into()
+            }
+        }
         other => other.into(),
     }
 }
 
-/// Compara loaders para tienda/instalación (fabric-iris ≡ fabric en Modrinth/CF).
+/// Compara loaders para tienda/instalación sin MC (Optimized → Fabric por defecto).
 pub fn loaders_compatible(a: &str, b: &str) -> bool {
     store_loader(a) == store_loader(b)
+}
+
+/// Compara loaders con el backend real del pack en esa MC.
+pub fn loaders_compatible_for(a: &str, b: &str, mc: &str) -> bool {
+    store_loader_for(a, mc) == store_loader_for(b, mc)
 }
 
 /// Versiones exactas del loader disponibles para `mc` (vacio = no compatible).

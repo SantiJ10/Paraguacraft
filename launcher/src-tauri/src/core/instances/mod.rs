@@ -58,6 +58,9 @@ pub struct InstanceMeta {
     pub gc: Option<String>,
     #[serde(default)]
     pub java_path: Option<String>,
+    /// Override de perfil: `auto` | `baja` | `media` | `alta` | `custom` (vacío = auto).
+    #[serde(default)]
+    pub performance_tier: Option<String>,
 }
 
 fn default_true() -> bool {
@@ -363,6 +366,7 @@ pub fn resolve_external_meta(ext_id: &str) -> Option<InstanceMeta> {
         jvm_args: None,
         gc: None,
         java_path: None,
+        performance_tier: None,
     })
 }
 
@@ -444,5 +448,6 @@ pub fn meta_from_folder_name(folder: &str) -> InstanceMeta {
         jvm_args: None,
         gc: None,
         java_path: None,
+        performance_tier: None,
     }
 }

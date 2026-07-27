@@ -123,7 +123,10 @@ async fn spawn_for_instance(
     // Motor de optimizacion dinamica: limpieza + perfil de graficos diferenciado por
     // gama de PC (Baja/Media/Alta) y por loader (1.8.9 Forge+OptiFine, 1.21.11
     // Fabric+Sodium+Iris, o generico), en vez del preset fijo que se aplicaba antes.
-    let hw_tier = crate::core::hardware::detect().perfil_sugerido;
+    let hw_tier = crate::core::performance::resolve_tier(
+        settings,
+        meta.performance_tier.as_deref(),
+    );
     crate::core::launch::optimizer::apply_pre_launch(&game_dir, &loader, &hw_tier, settings);
 
     if crate::core::branding::should_apply(&loader) {
@@ -238,6 +241,20 @@ async fn spawn_for_instance(
     }
     if has_pvp_mod && overlay_ipc {
         launch_env_owned.push(("PARAGUACRAFT_OVERLAY_IPC".into(), ipc_path_owned));
+    }
+    // Compat GPU (Mesa): requiere drivers Mesa en PATH; útil en PCs con GPU problemática.
+    match settings.gpu_compat_mode.as_str() {
+        "mesa-d3d12" => {
+            launch_env_owned.push(("GALLIUM_DRIVER".into(), "d3d12".into()));
+        }
+        "mesa-llvmpipe" => {
+            launch_env_owned.push(("GALLIUM_DRIVER".into(), "llvmpipe".into()));
+            launch_env_owned.push(("LIBGL_ALWAYS_SOFTWARE".into(), "1".into()));
+        }
+        "mesa-zink" => {
+            launch_env_owned.push(("GALLIUM_DRIVER".into(), "zink".into()));
+        }
+        _ => {}
     }
     let launch_env: Vec<(&str, &str)> = launch_env_owned
         .iter()
@@ -384,7 +401,14 @@ pub async fn launch_instance(
     let use_compete = compete_mode.unwrap_or(false);
     let inst_dir = instances::instance_dir(&instance_id);
 
+    launch::emit_status(
+        &app,
+        "preparing",
+        &format!("Preparando {}…", meta.name),
+    );
+
     let compete_plan = if use_compete {
+        launch::emit_status(&app, "preparing", "Modo Competir — aplicando perfil…");
         Some(crate::core::compete_mode::apply_pre_launch(
             &inst_dir,
             &loader,
@@ -399,6 +423,7 @@ pub async fn launch_instance(
     let (auth, launch_id) = {
         let (http, _net) = state.net_scope();
 
+        launch::emit_status(&app, "preparing", "Resolviendo loader / perfil…");
         let launch_id = resolve_launch_id(
             &app,
             &http,
@@ -411,6 +436,7 @@ pub async fn launch_instance(
         )
         .await?;
 
+        launch::emit_status(&app, "downloading", &format!("Verificando librerías de {mc}…"));
         let merged = launch::load_merged(&launch_id)?;
         versions::ensure_merged_libraries(
             &app,
@@ -421,21 +447,25 @@ pub async fn launch_instance(
         .await?;
 
         if loader == "fabric-iris" {
+            launch::emit_status(&app, "downloading", "Sincronizando Fabric + Iris…");
             let inst_dir = instances::instance_dir(&instance_id);
             loaders::fabric_iris::install_bundle(&app, &http, &mc, &inst_dir).await?;
         }
         if loader == "paraguacraft-optimized" || loader == "paraguacraft-optimized-neoforge" {
+            launch::emit_status(&app, "downloading", "Sincronizando pack Optimized…");
             let inst_dir = instances::instance_dir(&instance_id);
             loaders::optimized::install_bundle_for_launch(&app, &http, &mc, &loader, &inst_dir)
                 .await?;
         }
         if loader == "paraguacraft-pvp-modern" {
+            launch::emit_status(&app, "downloading", "Sincronizando cliente PvP…");
             modern_pvp::sync_instance_bundles(&app, &http, &instance_id).await?;
             let tier = crate::core::hardware::detect().perfil_sugerido;
             let _ = modern_pvp::ensure_launch_defaults(&instance_id, &tier);
             let _ = modern_pvp::sync_instance_content(&app, &http, &instance_id).await;
         }
         if loader == "paraguacraft-pvp" {
+            launch::emit_status(&app, "downloading", "Sincronizando cliente PvP 1.8.9…");
             loaders::pvp::install_bundle_for_launch(
                 &app,
                 &http,
@@ -446,10 +476,12 @@ pub async fn launch_instance(
             .await?;
         }
 
+        launch::emit_status(&app, "preparing", "Validando cuenta…");
         let auth = resolve_auth(&http).await?;
         (auth, launch_id)
     };
 
+    launch::emit_status(&app, "launching", "Iniciando Java…");
     let game_dir = instances::instance_dir(&instance_id);
     spawn_for_instance(
         &app,

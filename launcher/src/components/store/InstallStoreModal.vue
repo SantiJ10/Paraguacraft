@@ -81,8 +81,8 @@ const MODPACK_LOADER_LABELS: Record<string, string> = {
 
 const MODPACK_LOADERS = new Set(["fabric", "forge", "neoforge", "quilt", "iris"]);
 
-function normalizeModrinthLoader(raw: string): string {
-  return storeLoader(raw);
+function normalizeModrinthLoader(raw: string, mc?: string): string {
+  return storeLoader(raw, mc || mcVersion.value || undefined);
 }
 
 function versionHasLoader(v: StoreVersion, loader: string): boolean {
@@ -210,7 +210,7 @@ const compatibleInstances = computed(() => {
   return instances.instances.filter((i) => {
     if (i.mcVersion !== mcVersion.value) return false;
     if (!loaderRequired.value) return true;
-    return loadersCompatible(i.loader, loaderId.value);
+    return loadersCompatible(i.loader, loaderId.value, mcVersion.value);
   });
 });
 
@@ -228,8 +228,8 @@ const modCompatibleServers = computed(() => {
   if (!mcVersion.value || projectType.value !== "mod") return [];
   return servers.servers.filter((s) => {
     if (s.mcVersion !== mcVersion.value && s.mcVersion !== "?" && s.mcVersion) return false;
-    if (s.serverType.startsWith("fabric")) return loadersCompatible("fabric", loaderId.value);
-    if (s.serverType.startsWith("forge")) return loadersCompatible("forge", loaderId.value);
+    if (s.serverType.startsWith("fabric")) return loadersCompatible("fabric", loaderId.value, mcVersion.value);
+    if (s.serverType.startsWith("forge")) return loadersCompatible("forge", loaderId.value, mcVersion.value);
     return false;
   });
 });

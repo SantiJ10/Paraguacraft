@@ -14,12 +14,14 @@ use crate::error::{AppError, AppResult};
 
 const MAVEN: &str = "https://maven.minecraftforge.net/net/minecraftforge/forge";
 
-/// Forge <= 1.12.x usa coordenadas Maven `{mc}-{forge}-{mc}` (ej. `1.8.9-11.15.1.2318-1.8.9`).
+/// Forge <= ~1.10 usa coordenadas Maven `{mc}-{forge}-{mc}` (ej. `1.8.9-11.15.1.2318-1.8.9`).
+/// Desde 1.11+/1.12.2 el id es `{mc}-{forge}` (sin sufijo MC). Usar el sufijo en 1.12.2
+/// provoca 404 en maven.minecraftforge.net.
 fn uses_legacy_maven_suffix(mc: &str) -> bool {
     let parts: Vec<&str> = mc.split('.').collect();
     let major: u32 = parts.first().and_then(|p| p.parse().ok()).unwrap_or(99);
     let minor: u32 = parts.get(1).and_then(|p| p.parse().ok()).unwrap_or(99);
-    major < 1 || (major == 1 && minor <= 12)
+    major < 1 || (major == 1 && minor <= 10)
 }
 
 /// Convierte la version mostrada en la UI al id Maven completo.

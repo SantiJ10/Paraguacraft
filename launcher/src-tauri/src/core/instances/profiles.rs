@@ -76,6 +76,7 @@ pub fn create(
         jvm_args: None,
         gc: None,
         java_path: None,
+        performance_tier: None,
     };
     write_meta(&folder, &meta)?;
     Ok(meta.into_instance(&folder, &dir))
@@ -116,6 +117,7 @@ pub fn set_config(
     jvm_args: Option<String>,
     gc: Option<String>,
     java_path: Option<String>,
+    performance_tier: Option<String>,
 ) -> AppResult<InstanceMeta> {
     ensure_local(id)?;
     let mut meta = read_meta(id)
@@ -127,6 +129,14 @@ pub fn set_config(
     meta.jvm_args = jvm_args.filter(|s| !s.trim().is_empty());
     meta.gc = gc.filter(|s| !s.trim().is_empty());
     meta.java_path = java_path.filter(|s| !s.trim().is_empty());
+    if let Some(tier) = performance_tier {
+        let t = tier.trim().to_lowercase();
+        meta.performance_tier = if t.is_empty() || t == "auto" {
+            None
+        } else {
+            Some(t)
+        };
+    }
     meta.auto_managed = false;
     write_meta(id, &meta)?;
     Ok(meta)

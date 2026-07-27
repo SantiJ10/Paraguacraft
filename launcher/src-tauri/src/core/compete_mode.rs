@@ -37,7 +37,7 @@ pub fn apply_pre_launch(
         hw.recommended_ram_mb
     };
 
-    let _ = performance::optimize_instance_options(game_dir);
+    let _ = performance::optimize_instance_options(game_dir, Some(&hw.perfil_sugerido));
     let _ = performance::apply_min_graphics(game_dir);
 
     let mut overlay_ipc = false;

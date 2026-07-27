@@ -30,6 +30,8 @@ pub struct PreLaunchCheckItem {
 pub struct PreLaunchCheckReport {
     pub ready: bool,
     pub items: Vec<PreLaunchCheckItem>,
+    /// Acciones sugeridas para la UI: `repair` | `reinstall_loader` | `open_java` | `add_account` | `open_store`
+    pub suggested_actions: Vec<String>,
 }
 
 pub async fn run(
@@ -42,6 +44,23 @@ pub async fn run(
     let settings: AppSettings = crate::config::read_json(&paths::config_file()).unwrap_or_default();
     let mut items = Vec::new();
     let mut blocking = false;
+    let mut suggested_actions: Vec<String> = Vec::new();
+    let loader_norm = loaders::normalize(&meta.loader);
+    let store = loaders::store_loader_for(&loader_norm, &meta.mc_version);
+
+    // Backend real del pack (Optimized Forge vs Fabric, etc.)
+    if loader_norm.starts_with("paraguacraft-") || loader_norm == "fabric-iris" {
+        items.push(ok(
+            "backend",
+            "Pack / loader",
+            format!(
+                "{} en Minecraft {} → tienda y mods como «{store}».",
+                loaders::display_label(&loader_norm),
+                meta.mc_version
+            ),
+            None,
+        ));
+    }
 
     // Cuenta activa
     if accounts::active_account().is_some() {
@@ -53,6 +72,7 @@ pub async fn run(
         ));
     } else {
         blocking = true;
+        push_action(&mut suggested_actions, "add_account");
         items.push(err(
             "account",
             "Cuenta",
@@ -72,19 +92,22 @@ pub async fn run(
             ));
         } else {
             blocking = true;
+            push_action(&mut suggested_actions, "repair");
+            push_action(&mut suggested_actions, "reinstall_loader");
             items.push(err(
                 "profile",
                 "Perfil de juego",
                 "El perfil de la instancia no está instalado.",
-                Some("Usá Reparar instancia o reinstalá el loader."),
+                Some("Usá Reparar o Reinstalar loader."),
             ));
         }
-    } else if loaders::normalize(&meta.loader) != "vanilla" {
+    } else if loader_norm != "vanilla" {
+        push_action(&mut suggested_actions, "reinstall_loader");
         items.push(warn(
             "profile",
             "Perfil de juego",
             "Sin version_id guardado; se resolverá al lanzar.",
-            None,
+            Some("Si falla al jugar, reinstalá el loader."),
         ));
     } else {
         items.push(ok(
@@ -116,6 +139,7 @@ pub async fn run(
                     ));
                 } else {
                     blocking = true;
+                    push_action(&mut suggested_actions, "open_java");
                     items.push(err(
                         "java",
                         "Java",
@@ -128,6 +152,7 @@ pub async fn run(
                 }
             } else {
                 blocking = true;
+                push_action(&mut suggested_actions, "open_java");
                 items.push(err(
                     "java",
                     "Java",
@@ -148,7 +173,7 @@ pub async fn run(
     }
 
     // Cliente PvP
-    if loaders::normalize(&meta.loader) == "paraguacraft-pvp" {
+    if loader_norm == "paraguacraft-pvp" {
         let status = loaders::pvp::client_status(app, client, Some(&game_dir)).await;
         if status.up_to_date {
             items.push(ok(
@@ -175,6 +200,7 @@ pub async fn run(
             ));
         } else {
             blocking = true;
+            push_action(&mut suggested_actions, "repair");
             items.push(err(
                 "pvp",
                 "Cliente PvP",
@@ -182,6 +208,26 @@ pub async fn run(
                 Some("Repará la instancia o sincronizá el cliente PvP."),
             ));
         }
+    }
+
+    // JARs corruptos (chequeo rápido)
+    let broken = count_broken_jars(&game_dir.join("mods"));
+    if broken > 0 {
+        blocking = true;
+        push_action(&mut suggested_actions, "repair");
+        items.push(err(
+            "broken-jars",
+            "Mods dañados",
+            format!("{broken} JAR(s) corruptos o incompletos en mods/."),
+            Some("Reparar moverá los archivos rotos a .paraguacraft-broken."),
+        ));
+    } else {
+        items.push(ok(
+            "broken-jars",
+            "Integridad de mods",
+            "No se detectaron JARs corruptos.",
+            None,
+        ));
     }
 
     // Espacio en disco
@@ -262,25 +308,100 @@ pub async fn run(
         )),
     }
 
-    // Compatibilidad Modrinth (loader / versión MC)
+    // Compatibilidad Modrinth (resumen, no un ítem por mod)
     let mut content_items = instances::content::list(instance_id)?;
-    if let Ok(()) = instances::content_metadata::enrich(client, instance_id, &game_dir, &mut content_items).await {
-        for item in &content_items {
-            if item.folder == "mods" && item.enabled && item.compatible == Some(false) {
-                items.push(warn(
+    if let Ok(()) =
+        instances::content_metadata::enrich(client, instance_id, &game_dir, &mut content_items).await
+    {
+        let bad: Vec<_> = content_items
+            .iter()
+            .filter(|i| i.enabled && i.compatible == Some(false))
+            .collect();
+        if bad.is_empty() {
+            let checked = content_items
+                .iter()
+                .filter(|i| i.compatible.is_some())
+                .count();
+            if checked > 0 {
+                items.push(ok(
                     "modcompat",
                     "Compatibilidad",
-                    item.compat_message.clone().unwrap_or_else(|| {
-                        format!("{} puede no ser compatible con esta instancia.", item.display_name.as_deref().unwrap_or(&item.name))
-                    }),
-                    Some("Revisá la tienda Modrinth o actualizá el mod."),
+                    format!("{checked} archivo(s) verificados con Modrinth — OK para {store}."),
+                    None,
                 ));
             }
+        } else {
+            push_action(&mut suggested_actions, "open_store");
+            let names: Vec<String> = bad
+                .iter()
+                .take(4)
+                .map(|i| {
+                    i.display_name
+                        .clone()
+                        .unwrap_or_else(|| i.name.clone())
+                })
+                .collect();
+            let extra = bad.len().saturating_sub(names.len());
+            let list = if extra > 0 {
+                format!("{} y {extra} más", names.join(", "))
+            } else {
+                names.join(", ")
+            };
+            items.push(warn(
+                "modcompat",
+                "Compatibilidad",
+                format!(
+                    "{} contenido(s) no coinciden con Minecraft {} / {store}: {list}",
+                    bad.len(),
+                    meta.mc_version
+                ),
+                Some("Desactivá esos archivos o buscá builds correctos en la tienda."),
+            ));
         }
     }
 
     let ready = !blocking;
-    Ok(PreLaunchCheckReport { ready, items })
+    if !ready {
+        push_action(&mut suggested_actions, "repair");
+    }
+    Ok(PreLaunchCheckReport {
+        ready,
+        items,
+        suggested_actions,
+    })
+}
+
+fn push_action(actions: &mut Vec<String>, action: &str) {
+    if !actions.iter().any(|a| a == action) {
+        actions.push(action.into());
+    }
+}
+
+fn count_broken_jars(folder: &Path) -> usize {
+    let Ok(entries) = std::fs::read_dir(folder) else {
+        return 0;
+    };
+    entries
+        .flatten()
+        .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("jar"))
+        .filter(|e| !is_valid_jar(&e.path()))
+        .count()
+}
+
+fn is_valid_jar(path: &Path) -> bool {
+    let Ok(meta) = std::fs::metadata(path) else {
+        return false;
+    };
+    if meta.len() < 256 {
+        return false;
+    }
+    let Ok(file) = std::fs::File::open(path) else {
+        return false;
+    };
+    let Ok(mut archive) = zip::ZipArchive::new(file) else {
+        return false;
+    };
+    archive.len() > 0 && archive.by_index(0).is_ok()
 }
 
 fn disk_free_mb(path: &Path) -> Option<u64> {

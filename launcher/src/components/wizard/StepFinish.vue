@@ -4,6 +4,9 @@ import { formatRam } from "@/composables/useFormat";
 import { tierLabel } from "@/composables/useHardware";
 
 const wizard = useWizardStore();
+
+const recommendedMc =
+  wizard.data.perfil === "baja" ? "1.12.2" : wizard.data.perfil === "alta" ? "1.21.11" : "1.20.1";
 </script>
 
 <template>
@@ -13,22 +16,35 @@ const wizard = useWizardStore();
         <path d="M20 6L9 17l-5-5" />
       </svg>
     </div>
-    <h2 class="text-2xl font-bold">Todo listo</h2>
-    <p class="mt-1 text-gray-400">Revisa tu configuracion y entra al ecosistema Paraguacraft.</p>
+    <h2 class="text-2xl font-bold">Listo para jugar</h2>
+    <p class="mt-1 text-gray-400">
+      Crearemos <span class="font-semibold text-white">Paraguacraft Optimized</span> ({{ recommendedMc }})
+      afinado a tu PC. Importar Lunar/Prism queda para más tarde en Instancias.
+    </p>
 
     <div class="mt-6 space-y-2 rounded-xl border border-surface-4 bg-surface-2 p-4 text-left text-sm">
       <div class="flex justify-between">
-        <span class="text-gray-500">Perfil</span>
+        <span class="text-gray-500">Perfil PC</span>
         <span class="font-semibold">{{ tierLabel(wizard.data.perfil) }}</span>
       </div>
       <div class="flex justify-between">
-        <span class="text-gray-500">RAM asignada</span>
+        <span class="text-gray-500">RAM</span>
         <span class="font-semibold">{{ formatRam(wizard.data.ramMb) }}</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-gray-500">Pack recomendado</span>
+        <span class="font-semibold">Optimized {{ recommendedMc }}</span>
       </div>
       <div class="flex justify-between">
         <span class="text-gray-500">Cuenta</span>
         <span class="font-semibold capitalize">
-          {{ wizard.data.accountType === "microsoft" ? "Microsoft Premium" : wizard.data.accountType === "offline" ? `Offline (${wizard.data.offlineName || "sin nombre"})` : "Sin elegir" }}
+          {{
+            wizard.data.accountType === "microsoft"
+              ? "Microsoft Premium"
+              : wizard.data.accountType === "offline"
+                ? `Offline (${wizard.data.offlineName || "sin nombre"})`
+                : "Sin elegir"
+          }}
         </span>
       </div>
     </div>

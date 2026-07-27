@@ -193,6 +193,54 @@ fn check_compat(ver: &Value, mc: &str, loader: &str, folder: &str) -> (bool, Opt
         .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
         .unwrap_or_default();
 
+    let norm = loaders::normalize(loader);
+    let store = loaders::store_loader_for(loader, mc);
+
+    // Shaders: Iris (Fabric) vs OptiFine (Forge legacy) según el backend real del pack.
+    if folder == "shaderpacks" {
+        let shader_ok = loaders.is_empty()
+            || loaders.iter().any(|l| {
+                l == "vanilla"
+                    || l == "canvas"
+                    || l == &store
+                    || (store == "fabric" && (l == "iris" || l == "fabric"))
+                    || (store == "forge" && (l == "optifine" || l == "forge"))
+                    || (store == "neoforge" && (l == "iris" || l == "neoforge" || l == "optifine"))
+                    || (store == "optifine" && (l == "optifine" || l == "forge"))
+            });
+        if !shader_ok {
+            return (
+                false,
+                Some(format!(
+                    "Shader para {} (esta instancia usa {store})",
+                    loaders.join(", ")
+                )),
+            );
+        }
+        // Iris/OptiFine suelen publicar builds multi-MC; no exigir match exacto de versión.
+        let soft_mc = loaders
+            .iter()
+            .any(|l| l == "iris" || l == "optifine" || l == "canvas");
+        if !versions.is_empty() && !versions.iter().any(|v| v == mc) && !soft_mc {
+            return (
+                false,
+                Some(format!("Versión del shader: {} (instancia {mc})", versions.join(", "))),
+            );
+        }
+        return (true, None);
+    }
+
+    // Resource packs: solo versión MC si Modrinth la declara.
+    if folder == "resourcepacks" {
+        if !versions.is_empty() && !versions.iter().any(|v| v == mc) {
+            return (
+                false,
+                Some(format!("Versión del pack: {} (instancia {mc})", versions.join(", "))),
+            );
+        }
+        return (true, None);
+    }
+
     if !versions.is_empty() && !versions.iter().any(|v| v == mc) {
         return (
             false,
@@ -201,17 +249,24 @@ fn check_compat(ver: &Value, mc: &str, loader: &str, folder: &str) -> (bool, Opt
     }
 
     if folder == "mods" && loader != "vanilla" && !loaders.is_empty() {
-        let norm = loaders::normalize(loader);
         let ok = loaders.iter().any(|l| {
             l == &norm
+                || l == &store
                 || (norm == "fabric-iris" && l == "fabric")
                 || (norm == "paraguacraft-pvp-modern" && l == "fabric")
                 || (norm == "paraguacraft-pvp" && (l == "forge" || l == "neoforge"))
+                || (norm == "paraguacraft-optimized"
+                    && (l == &store || (store == "forge" && l == "optifine")))
+                || (norm == "paraguacraft-optimized-neoforge"
+                    && (l == "neoforge" || l == "forge"))
         });
         if !ok {
             return (
                 false,
-                Some(format!("Loader del mod: {} (instancia {norm})", loaders.join(", "))),
+                Some(format!(
+                    "Loader del mod: {} (esta instancia usa {store})",
+                    loaders.join(", ")
+                )),
             );
         }
     }
