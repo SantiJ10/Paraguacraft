@@ -71,7 +71,7 @@ pub fn apply_graphics_profile(game_dir: &Path, loader: &str, tier: &str) -> AppR
     } else {
         // 1.8.9 Forge+OptiFine y el resto de loaders comparten la tabla generica por
         // gama (`optimize_instance_options`), mas agresiva que el viejo preset fijo.
-        performance::optimize_instance_options(game_dir)?;
+        performance::optimize_instance_options(game_dir, Some(tier))?;
     }
     Ok(())
 }
@@ -84,7 +84,8 @@ pub fn apply_pre_launch(game_dir: &Path, loader: &str, tier: &str, settings: &Ap
     if settings.deep_clean_on_launch {
         let _ = crate::core::extras::maintenance::run("both");
     }
-    if settings.optimize_graphics {
+    // `custom` = el usuario controla options.txt; no reescribir gráficos.
+    if settings.optimize_graphics && tier != "custom" {
         let _ = apply_graphics_profile(game_dir, loader, tier);
     }
 }

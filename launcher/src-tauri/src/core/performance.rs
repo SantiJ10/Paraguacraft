@@ -188,11 +188,12 @@ pub fn merge_options_keys(path: &Path, opciones: HashMap<String, String>) -> App
     patch_options_file(path, opciones)
 }
 
-/// Optimiza `options.txt` global (`.minecraft/options.txt`) según hardware.
+/// Optimiza `options.txt` global (`.minecraft/options.txt`) según perfil efectivo.
 pub fn optimize_global_options() -> AppResult<OptionsOptimizeResult> {
-    let hw = hardware::detect();
-    let tier = hw.perfil_sugerido.clone();
-    let opciones = tier_options(&tier);
+    let settings: AppSettings =
+        crate::config::read_json(&paths::config_file()).unwrap_or_default();
+    let tier = resolve_tier(&settings, None);
+    let opciones = tier_options(if tier == "custom" { "media" } else { &tier });
     let path = paths::default_minecraft_dir().join("options.txt");
     let applied = patch_options_file(&path, opciones)?;
     Ok(OptionsOptimizeResult {
@@ -203,10 +204,14 @@ pub fn optimize_global_options() -> AppResult<OptionsOptimizeResult> {
 }
 
 /// Optimiza `options.txt` de una instancia concreta.
-pub fn optimize_instance_options(game_dir: &Path) -> AppResult<OptionsOptimizeResult> {
-    let hw = hardware::detect();
-    let tier = hw.perfil_sugerido.clone();
-    let opciones = tier_options(&tier);
+pub fn optimize_instance_options(
+    game_dir: &Path,
+    instance_tier: Option<&str>,
+) -> AppResult<OptionsOptimizeResult> {
+    let settings: AppSettings =
+        crate::config::read_json(&paths::config_file()).unwrap_or_default();
+    let tier = resolve_tier(&settings, instance_tier);
+    let opciones = tier_options(if tier == "custom" { "media" } else { &tier });
     let path = game_dir.join("options.txt");
     let applied = patch_options_file(&path, opciones)?;
     Ok(OptionsOptimizeResult {
@@ -989,11 +994,47 @@ pub fn apply_modern_pvp_mod_configs(game_dir: &Path, tier: &str) -> AppResult<()
     Ok(())
 }
 
+/// Resuelve el perfil de rendimiento efectivo (baja/media/alta/custom).
+/// Prioridad: override de instancia → ajuste global → auto (hardware + preset de uso).
+pub fn resolve_tier(settings: &AppSettings, instance_tier: Option<&str>) -> String {
+    let inst = instance_tier
+        .map(str::trim)
+        .filter(|t| !t.is_empty() && *t != "auto");
+    if let Some(t) = inst {
+        return t.to_string();
+    }
+    match settings.performance_tier.as_str() {
+        "baja" | "media" | "alta" | "custom" => settings.performance_tier.clone(),
+        _ => {
+            let hw = hardware::detect().perfil_sugerido;
+            match settings.usage_preset.as_str() {
+                "pvp" | "lightweight" => "baja".into(),
+                "shaders" => {
+                    if hw == "baja" {
+                        "media".into()
+                    } else {
+                        "alta".into()
+                    }
+                }
+                "gameplay" => {
+                    if hw == "baja" {
+                        "media".into()
+                    } else {
+                        hw
+                    }
+                }
+                _ => hw,
+            }
+        }
+    }
+}
+
 /// Aplica RAM + GC recomendados según hardware detectado.
 pub fn apply_hardware_defaults(settings: &mut AppSettings) -> HardwareInfo {
     let hw = hardware::detect();
     settings.ram_mb = hw.recommended_ram_mb;
     settings.gc_type = hw.recommended_gc.clone();
     settings.hardware_defaults_applied = true;
+    settings.performance_tier = "auto".into();
     hw
 }

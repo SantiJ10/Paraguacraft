@@ -100,8 +100,9 @@ pub fn set_instance_config(
     jvm_args: Option<String>,
     gc: Option<String>,
     java_path: Option<String>,
+    performance_tier: Option<String>,
 ) -> AppResult<InstanceMeta> {
-    profiles::set_config(&id, ram_mb, jvm_args, gc, java_path)
+    profiles::set_config(&id, ram_mb, jvm_args, gc, java_path, performance_tier)
 }
 
 /// Activa/desactiva la autogestion por hardware.
@@ -205,6 +206,30 @@ pub async fn reinstall_instance_loader(
     profiles::set_version_id(&id, &version_id)?;
     let meta = instances::ensure_meta(&id)?;
     let dir = instances::instance_dir(&id);
+    let loader = crate::core::loaders::normalize(&meta.loader);
+    if loader == "paraguacraft-optimized" || loader == "paraguacraft-optimized-neoforge" {
+        let _ = crate::core::loaders::optimized::install_bundle_for_launch(
+            &app,
+            &http,
+            &meta.mc_version,
+            &loader,
+            &dir,
+        )
+        .await;
+    } else if loader == "fabric-iris" {
+        let _ = crate::core::loaders::fabric_iris::install_bundle(
+            &app,
+            &http,
+            &meta.mc_version,
+            &dir,
+        )
+        .await;
+    } else if loader == "paraguacraft-pvp" {
+        let _ = crate::core::loaders::pvp::install_bundle(&app, &http, &dir).await;
+    } else if loader == "paraguacraft-pvp-modern" {
+        let _ = crate::core::modern_pvp::sync_instance_bundles(&app, &http, &id).await;
+    }
+    let meta = instances::ensure_meta(&id)?;
     Ok(meta.into_instance(&id, &dir))
 }
 

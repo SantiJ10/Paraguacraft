@@ -63,6 +63,12 @@ pub struct AppSettings {
     /// Bandeja del sistema mientras el juego corre (restaurar con un clic).
     #[serde(default = "default_true")]
     pub tray_lite: bool,
+    /// Perfil de rendimiento: `auto` | `baja` | `media` | `alta` | `custom`.
+    #[serde(default = "default_perf_auto")]
+    pub performance_tier: String,
+    /// Preset de uso (solo con perfil `auto`): `balanced` | `gameplay` | `shaders` | `pvp` | `lightweight`.
+    #[serde(default = "default_usage_balanced")]
+    pub usage_preset: String,
 }
 
 fn default_auto_update_check() -> bool {
@@ -71,6 +77,14 @@ fn default_auto_update_check() -> bool {
 
 fn default_true() -> bool {
     true
+}
+
+fn default_perf_auto() -> String {
+    "auto".into()
+}
+
+fn default_usage_balanced() -> String {
+    "balanced".into()
 }
 
 impl Default for AppSettings {
@@ -98,6 +112,8 @@ impl Default for AppSettings {
             java_priority: "high".into(),
             compete_turbo: false,
             tray_lite: true,
+            performance_tier: "auto".into(),
+            usage_preset: "balanced".into(),
         }
     }
 }

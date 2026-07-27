@@ -63,6 +63,15 @@ export const useAppStore = defineStore("app", () => {
     await listen("game://started", () => {
       setLaunch("running", "Jugando — launcher suspendido");
     });
+    await listen<{ phase?: string; message?: string }>("game://status", (ev) => {
+      const phase = (ev.payload?.phase as LaunchPhase | undefined) ?? "preparing";
+      const message = ev.payload?.message ?? launchMessage.value;
+      if (phase === "idle" || phase === "running") {
+        setLaunch(phase, message);
+      } else if (launchPhase.value !== "running") {
+        setLaunch(phase, message);
+      }
+    });
     await listen("game://exited", () => {
       setLaunch("idle", "Listo para jugar");
       void skins.refresh();

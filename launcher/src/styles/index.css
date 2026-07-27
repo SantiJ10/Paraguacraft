@@ -9,6 +9,23 @@
     --pc-accent-hover: #27ae60;
     --pc-accent-dark: #1a7a40;
     --pc-accent-glow: 0 10px 25px -5px rgba(46, 204, 113, 0.25);
+    --surface-0: 10 10 10;
+    --surface-1: 18 18 18;
+    --surface-2: 26 26 26;
+    --surface-3: 30 30 30;
+    --surface-4: 37 37 37;
+    --surface-5: 42 42 42;
+    --surface-6: 58 58 58;
+  }
+
+  html[data-theme="darker"] {
+    --surface-0: 5 5 5;
+    --surface-1: 10 10 10;
+    --surface-2: 16 16 16;
+    --surface-3: 20 20 20;
+    --surface-4: 26 26 26;
+    --surface-5: 31 31 31;
+    --surface-6: 42 42 42;
   }
 
   html,

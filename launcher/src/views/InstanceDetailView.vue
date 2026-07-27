@@ -95,6 +95,7 @@ const javaPath = ref("");
 const loader = ref("");
 const loaderVersion = ref("");
 const autoManaged = ref(true);
+const performanceTier = ref("auto");
 const configBusy = ref(false);
 const appearanceBusy = ref(false);
 const editName = ref("");
@@ -173,6 +174,7 @@ async function loadAll() {
       loader.value = meta.value.loader;
       loaderVersion.value = meta.value.loaderVersion;
       autoManaged.value = meta.value.autoManaged;
+      performanceTier.value = meta.value.performanceTier || "auto";
       editName.value = meta.value.name;
       editIcon.value = resolveInstanceIcon(meta.value.icon);
     } else {
@@ -201,7 +203,11 @@ async function loadAll() {
 
 onMounted(() => {
   app.loadHardware();
-  void loadAll();
+  void loadAll().then(() => {
+    if (route.query.health === "1" && !isExternal.value) {
+      void runPreLaunchCheck();
+    }
+  });
 });
 
 watch(instanceId, () => {
@@ -209,6 +215,15 @@ watch(instanceId, () => {
   repairReport.value = null;
   void loadAll();
 });
+
+watch(
+  () => route.query.health,
+  (v) => {
+    if (v === "1" && !isExternal.value && !loading.value) {
+      void runPreLaunchCheck();
+    }
+  },
+);
 
 watch(tab, (t) => {
   if (t === "logs") void loadLogs();
@@ -332,6 +347,7 @@ async function saveConfig() {
       jvmArgs: jvmArgs.value || null,
       gc: gc.value,
       javaPath: javaPath.value || null,
+      performanceTier: performanceTier.value || "auto",
     });
     message.value = "Configuración guardada.";
     await loadAll();
@@ -358,6 +374,12 @@ async function reinstallLoader() {
   } finally {
     configBusy.value = false;
   }
+}
+
+/** Reinstalar loader desde el header / panel Salud (sin pasar por Ajustes). */
+async function reinstallLoaderQuick() {
+  if (!confirm("¿Reinstalar el loader/pack de esta instancia?")) return;
+  await reinstallLoader();
 }
 
 async function backToAuto() {
@@ -580,10 +602,10 @@ async function exportInstance() {
             v-if="!isExternal"
             variant="secondary"
             :disabled="preLaunchBusy || launching"
-            title="Java, cliente PvP, disco y tips antes de jugar"
+            title="Java, loader, disco, mods y compatibilidad"
             @click="runPreLaunchCheck"
           >
-            {{ preLaunchBusy ? "Chequeando…" : "Chequear" }}
+            {{ preLaunchBusy ? "Chequeando…" : "Salud" }}
           </BaseButton>
           <BaseButton v-if="isExternal" variant="secondary" @click="importExternal">
             Importar a Paraguacraft
@@ -592,11 +614,20 @@ async function exportInstance() {
           <BaseButton
             v-if="!isExternal"
             variant="secondary"
-            :disabled="repairing || launching"
+            :disabled="repairing || launching || configBusy"
             title="Reinstala Minecraft, loader y mueve JARs corruptos"
             @click="repairInstance"
           >
             {{ repairing ? "Reparando…" : "Reparar" }}
+          </BaseButton>
+          <BaseButton
+            v-if="!isExternal"
+            variant="secondary"
+            :disabled="configBusy || launching || repairing"
+            title="Reinstala solo el loader / pack (Forge, Fabric, Optimized…)"
+            @click="reinstallLoaderQuick"
+          >
+            {{ configBusy ? "Reinstalando…" : "Reinstalar loader" }}
           </BaseButton>
         </div>
       </header>
@@ -657,19 +688,65 @@ async function exportInstance() {
         v-if="showPreLaunch && preLaunchReport"
         class="mb-4 space-y-2 rounded-xl border border-surface-4 bg-surface-2 p-4"
       >
-        <div class="flex items-center justify-between gap-2">
+        <div class="flex flex-wrap items-center justify-between gap-2">
           <h2 class="text-sm font-bold">
-            Chequeo pre-lanzamiento
+            Salud de la instancia
             <span
               class="ml-2 font-normal"
               :class="preLaunchReport.ready ? 'text-pc-green' : 'text-amber-300'"
             >
-              {{ preLaunchReport.ready ? "Listo para jugar" : "Revisá los avisos" }}
+              {{ preLaunchReport.ready ? "Listo para jugar" : "Hay problemas" }}
             </span>
           </h2>
           <button type="button" class="text-xs text-gray-500 hover:text-white" @click="showPreLaunch = false">
             Cerrar
           </button>
+        </div>
+        <div
+          v-if="preLaunchReport.suggestedActions?.length"
+          class="flex flex-wrap gap-2"
+        >
+          <BaseButton
+            v-if="preLaunchReport.suggestedActions.includes('repair')"
+            size="sm"
+            :disabled="repairing"
+            @click="repairInstance"
+          >
+            Reparar
+          </BaseButton>
+          <BaseButton
+            v-if="preLaunchReport.suggestedActions.includes('reinstall_loader')"
+            size="sm"
+            variant="secondary"
+            :disabled="configBusy"
+            @click="reinstallLoaderQuick"
+          >
+            Reinstalar loader
+          </BaseButton>
+          <BaseButton
+            v-if="preLaunchReport.suggestedActions.includes('open_store')"
+            size="sm"
+            variant="secondary"
+            @click="goStore"
+          >
+            Ir a la tienda
+          </BaseButton>
+          <BaseButton
+            v-if="preLaunchReport.suggestedActions.includes('open_java')"
+            size="sm"
+            variant="secondary"
+            @click="tab = 'settings'"
+          >
+            Ajustes Java
+          </BaseButton>
+          <BaseButton
+            v-if="preLaunchReport.suggestedActions.includes('add_account')"
+            size="sm"
+            variant="secondary"
+            @click="router.push({ name: 'settings' })"
+          >
+            Agregar cuenta
+          </BaseButton>
         </div>
         <ul class="space-y-2 text-sm">
           <li
@@ -917,6 +994,24 @@ async function exportInstance() {
                 <span class="font-semibold text-pc-green">{{ (ramMb / 1024).toFixed(1) }} GB</span>
               </span>
               <input v-model.number="ramMb" type="range" min="1024" :max="maxRam" step="512" class="w-full accent-pc-green" @input="autoManaged = false" />
+            </label>
+
+            <label class="block">
+              <span class="mb-1 block text-sm text-gray-300">Perfil de rendimiento</span>
+              <select
+                v-model="performanceTier"
+                class="w-full rounded-lg border border-surface-5 bg-surface-3 px-3 py-2.5 text-sm outline-none focus:border-pc-green"
+                @change="autoManaged = false"
+              >
+                <option value="auto">Auto (ajustes globales)</option>
+                <option value="baja">Baja — máximo FPS</option>
+                <option value="media">Media — equilibrado</option>
+                <option value="alta">Alta — calidad / shaders</option>
+                <option value="custom">Personalizado — no tocar options.txt</option>
+              </select>
+              <p class="mt-1 text-xs text-gray-500">
+                Sobrescribe el perfil global solo en esta instancia.
+              </p>
             </label>
 
             <label class="block">

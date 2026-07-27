@@ -13,7 +13,10 @@ pub fn optimize_minecraft_options() -> AppResult<performance::OptionsOptimizeRes
 pub fn optimize_instance_options(instance_id: String) -> AppResult<performance::OptionsOptimizeResult> {
     let dir = instances::game_dir_for(&instance_id)
         .ok_or_else(|| crate::error::AppError::msg("Instancia no encontrada"))?;
-    performance::optimize_instance_options(&dir)
+    let tier = instances::read_meta(&instance_id)
+        .or_else(|| instances::resolve_meta(&instance_id))
+        .and_then(|m| m.performance_tier);
+    performance::optimize_instance_options(&dir, tier.as_deref())
 }
 
 #[tauri::command]

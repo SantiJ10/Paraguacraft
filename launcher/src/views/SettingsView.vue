@@ -15,13 +15,15 @@ import { formatRam } from "@/composables/useFormat";
 import { applyAccentTheme } from "@/composables/useAccent";
 import { api, isTauri } from "@/lib/ipc";
 import { normalizeLoaderId } from "@/lib/loaders";
-import type { CleanupInfo, ExtrasStatus, GcType, PvpClientStatus } from "@/lib/types";
+import { useI18n } from "@/composables/useI18n";
+import type { CleanupInfo, ExtrasStatus, GcType, PvpClientStatus, AppSettings } from "@/lib/types";
 
 const settings = useSettingsStore();
 const accounts = useAccountsStore();
 const skins = useSkinsStore();
 const app = useAppStore();
 const instancesStore = useInstancesStore();
+const i18n = useI18n();
 
 const pageReady = ref(false);
 const extrasLoading = ref(false);
@@ -357,6 +359,43 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
         </div>
 
         <label class="mb-5 block">
+          <span class="mb-1 block text-sm text-gray-300">Perfil de rendimiento</span>
+          <select
+            :value="settings.settings.performanceTier ?? 'auto'"
+            class="w-full max-w-xs rounded-lg border border-surface-5 bg-surface-3 px-3 py-2.5 text-sm outline-none focus:border-pc-green"
+            @change="settings.update('performanceTier', ($event.target as HTMLSelectElement).value)"
+          >
+            <option value="auto">Auto (detectar PC)</option>
+            <option value="baja">Baja — máximo FPS</option>
+            <option value="media">Media — equilibrado</option>
+            <option value="alta">Alta — calidad / shaders</option>
+            <option value="custom">Personalizado — no tocar options.txt</option>
+          </select>
+          <p class="mt-1 text-xs text-gray-500">
+            Detectado: {{ app.hardware?.perfilSugerido ?? "…" }}. Auto usa el hardware y el preset de uso.
+          </p>
+        </label>
+
+        <label class="mb-5 block">
+          <span class="mb-1 block text-sm text-gray-300">Preset por uso</span>
+          <select
+            :value="settings.settings.usagePreset ?? 'balanced'"
+            class="w-full max-w-xs rounded-lg border border-surface-5 bg-surface-3 px-3 py-2.5 text-sm outline-none focus:border-pc-green"
+            :disabled="(settings.settings.performanceTier ?? 'auto') !== 'auto'"
+            @change="settings.update('usagePreset', ($event.target as HTMLSelectElement).value)"
+          >
+            <option value="balanced">Equilibrado</option>
+            <option value="gameplay">Jugabilidad (supervivencia / builds)</option>
+            <option value="shaders">Shaders</option>
+            <option value="pvp">PvP / competitivo</option>
+            <option value="lightweight">PC papa / liviano</option>
+          </select>
+          <p class="mt-1 text-xs text-gray-500">
+            Solo aplica con perfil Auto. PvP fuerza Baja; Shaders empuja a Media/Alta.
+          </p>
+        </label>
+
+        <label class="mb-5 block">
           <span class="mb-1 block text-sm text-gray-300">Garbage Collector</span>
           <select
             :value="settings.settings.gcType"
@@ -426,6 +465,39 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
         </div>
 
         <div class="mb-5 space-y-4">
+          <label class="block">
+            <span class="mb-1 block text-sm text-gray-300">Descargas simultáneas</span>
+            <select
+              :value="String(settings.settings.downloadConcurrency ?? 0)"
+              class="w-full max-w-xs rounded-lg border border-surface-5 bg-surface-3 px-3 py-2.5 text-sm outline-none focus:border-pc-green"
+              @change="settings.update('downloadConcurrency', Number(($event.target as HTMLSelectElement).value))"
+            >
+              <option value="0">Auto (según PC)</option>
+              <option value="2">2 — red lenta / PC papa</option>
+              <option value="4">4 — equilibrado</option>
+              <option value="8">8 — rápido</option>
+              <option value="12">12 — máximo</option>
+            </select>
+            <p class="mt-1 text-xs text-gray-500">Cuántos archivos se bajan a la vez (mods, libs, Java).</p>
+          </label>
+
+          <label class="block">
+            <span class="mb-1 block text-sm text-gray-300">Compatibilidad GPU</span>
+            <select
+              :value="settings.settings.gpuCompatMode"
+              class="w-full max-w-xs rounded-lg border border-surface-5 bg-surface-3 px-3 py-2.5 text-sm outline-none focus:border-pc-green"
+              @change="settings.update('gpuCompatMode', ($event.target as HTMLSelectElement).value as AppSettings['gpuCompatMode'])"
+            >
+              <option value="off">Normal (GPU del sistema)</option>
+              <option value="mesa-d3d12">Mesa D3D12 (si tenés Mesa)</option>
+              <option value="mesa-llvmpipe">Mesa software (muy lento, último recurso)</option>
+              <option value="mesa-zink">Mesa Zink</option>
+            </select>
+            <p class="mt-1 text-xs text-gray-500">
+              Solo si Minecraft no abre por la GPU. Requiere Mesa en el PATH.
+            </p>
+          </label>
+
           <BaseToggle
             :model-value="settings.settings.papaMode ?? false"
             label="Modo PC Papa (800×600)"
@@ -838,8 +910,37 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
 
       <!-- Apariencia -->
       <section class="rounded-xl border border-surface-4 bg-surface-2 p-6">
-        <h2 class="mb-4 flex items-center gap-2 text-lg font-bold"><span class="font-emoji">&#127912;</span> Apariencia</h2>
-        <p class="mb-2 text-sm text-gray-300">Color de acento</p>
+        <h2 class="mb-4 flex items-center gap-2 text-lg font-bold">
+          <span class="font-emoji">&#127912;</span> {{ i18n.t("settings_appearance") }}
+        </h2>
+
+        <label class="mb-5 block">
+          <span class="mb-1 block text-sm text-gray-300">{{ i18n.t("settings_theme") }}</span>
+          <select
+            :value="settings.settings.theme"
+            class="w-full max-w-xs rounded-lg border border-surface-5 bg-surface-3 px-3 py-2.5 text-sm outline-none focus:border-pc-green"
+            @change="settings.update('theme', ($event.target as HTMLSelectElement).value as 'dark' | 'darker')"
+          >
+            <option value="dark">{{ i18n.t("settings_theme_dark") }}</option>
+            <option value="darker">{{ i18n.t("settings_theme_darker") }}</option>
+          </select>
+        </label>
+
+        <label class="mb-5 block">
+          <span class="mb-1 block text-sm text-gray-300">{{ i18n.t("settings_language") }}</span>
+          <select
+            :value="settings.settings.language"
+            class="w-full max-w-xs rounded-lg border border-surface-5 bg-surface-3 px-3 py-2.5 text-sm outline-none focus:border-pc-green"
+            @change="i18n.setLanguage(($event.target as HTMLSelectElement).value as 'es' | 'en' | 'pt')"
+          >
+            <option value="es">Español</option>
+            <option value="en">English</option>
+            <option value="pt">Português</option>
+          </select>
+          <p class="mt-1 text-xs text-gray-500">Menú y textos principales. Se irá traduciendo el resto.</p>
+        </label>
+
+        <p class="mb-2 text-sm text-gray-300">{{ i18n.t("settings_accent") }}</p>
         <div class="flex gap-3">
           <button
             class="h-9 w-9 rounded-full ring-2 ring-offset-2 ring-offset-surface-2"

@@ -10,11 +10,13 @@ interface SearchState {
   offset: number;
   totalHits: number;
   query: string;
+  mc: string;
+  loader: string;
   loaded: boolean;
 }
 
 function emptyState(): SearchState {
-  return { items: [], offset: 0, totalHits: 0, query: "", loaded: false };
+  return { items: [], offset: 0, totalHits: 0, query: "", mc: "", loader: "", loaded: false };
 }
 
 /**
@@ -25,17 +27,27 @@ function emptyState(): SearchState {
  * componente llegara a desmontarse (límite de `KeepAlive`, recarga de la app, etc).
  */
 export const useStoreStore = defineStore("store", () => {
-  /** Clave = provider|projectType, cada tab de tipo de contenido tiene su propia página. */
+  /** Clave = provider|projectType|mc|loader */
   const searches = reactive<Record<string, SearchState>>({});
   const loading = ref(false);
   const error = ref<string | null>(null);
 
-  function keyFor(provider: ContentProvider, projectType: ContentType) {
-    return `${provider}|${projectType}`;
+  function keyFor(
+    provider: ContentProvider,
+    projectType: ContentType,
+    mc = "",
+    loader = "",
+  ) {
+    return `${provider}|${projectType}|${mc}|${loader}`;
   }
 
-  function stateFor(provider: ContentProvider, projectType: ContentType): SearchState {
-    const key = keyFor(provider, projectType);
+  function stateFor(
+    provider: ContentProvider,
+    projectType: ContentType,
+    mc = "",
+    loader = "",
+  ): SearchState {
+    const key = keyFor(provider, projectType, mc, loader);
     if (!searches[key]) searches[key] = emptyState();
     return searches[key];
   }
@@ -45,13 +57,21 @@ export const useStoreStore = defineStore("store", () => {
     projectType: ContentType;
     query: string;
     offset?: number;
+    mc?: string;
+    loader?: string;
     /** Fuerza refetch aunque ya haya datos cacheados para esta clave. */
     force?: boolean;
   }): Promise<void> {
-    const key = keyFor(opts.provider, opts.projectType);
-    const state = stateFor(opts.provider, opts.projectType);
+    const mc = opts.mc ?? "";
+    const loader = opts.loader ?? "";
+    const key = keyFor(opts.provider, opts.projectType, mc, loader);
+    const state = stateFor(opts.provider, opts.projectType, mc, loader);
     const offset = opts.offset ?? 0;
-    const sameQuery = state.query === opts.query && state.offset === offset;
+    const sameQuery =
+      state.query === opts.query &&
+      state.offset === offset &&
+      state.mc === mc &&
+      state.loader === loader;
     if (!opts.force && state.loaded && sameQuery) return;
 
     loading.value = true;
@@ -61,6 +81,8 @@ export const useStoreStore = defineStore("store", () => {
         provider: opts.provider,
         query: opts.query,
         projectType: opts.projectType,
+        mc,
+        loader,
         offset,
         limit: PAGE_LIMIT,
       });
@@ -69,6 +91,8 @@ export const useStoreStore = defineStore("store", () => {
         offset: res.offset,
         totalHits: res.totalHits,
         query: opts.query,
+        mc,
+        loader,
         loaded: true,
       };
     } catch (e) {
@@ -81,7 +105,10 @@ export const useStoreStore = defineStore("store", () => {
 
   function invalidate(provider?: ContentProvider, projectType?: ContentType) {
     if (provider && projectType) {
-      delete searches[keyFor(provider, projectType)];
+      const prefix = `${provider}|${projectType}|`;
+      for (const k of Object.keys(searches)) {
+        if (k.startsWith(prefix)) delete searches[k];
+      }
       return;
     }
     for (const k of Object.keys(searches)) delete searches[k];

@@ -679,6 +679,7 @@ export const api = {
     jvmArgs?: string | null;
     gc?: string | null;
     javaPath?: string | null;
+    performanceTier?: string | null;
   }): Promise<InstanceMeta> {
     return invokeReal<InstanceMeta>("set_instance_config", { ...payload });
   },

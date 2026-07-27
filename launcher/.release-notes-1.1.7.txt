@@ -1,0 +1,6 @@
+# Optimized — changelog notes for 1.1.7
+
+- Brand pack: pack_format exacto por MC + auto-enable + pack.png
+- Optimized 1.8.9/1.12.2: Forge + OptiFine G5/M5 + FoamFix/etc + preconfig legacy
+- Shaders por gama (Modrinth) + extras hospedados (Chocapic/Skygleam/SOLAR)
+- Iconos de instancias/modpacks: data URL (fix broken Icono)
