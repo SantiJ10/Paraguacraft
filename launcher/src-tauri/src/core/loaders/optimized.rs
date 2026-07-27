@@ -29,9 +29,10 @@ const NEOFORGE_MCS: &[&str] = &["1.20.1"];
 
 const MODRINTH: &str = "https://api.modrinth.com/v2";
 const TUNED_MARKER: &str = ".paraguacraft_optimized_tuned";
+const TUNED_VERSION: &str = "v2";
 
-/// Mods Fabric alineados a Keo Optimized 1.21.11 (los que no existan en otra MC se saltan).
-const FABRIC_MODS: &[&str] = &[
+/// Mods Fabric base (todas las MCs Fabric soportadas).
+const FABRIC_MODS_CORE: &[&str] = &[
     "fabric-api",
     "fabric-language-kotlin",
     "sodium",
@@ -44,20 +45,24 @@ const FABRIC_MODS: &[&str] = &[
     "moreculling",
     "sodium-extra",
     "reeses-sodium-options",
-    "krypton",
-    "modernfix-mvus",
+    "cloth-config",
     "clumps",
     "lmd",
-    "noisiumforked",
     "particle-core",
-    "smooth-boot",
-    "cloth-config",
     "fastquit",
     "scalablelux",
+    "fzzy-config",
+];
+
+/// Keo 1.21.11 extras.
+const FABRIC_MODS_12111: &[&str] = &[
+    "krypton",
+    "modernfix-mvus",
+    "noisiumforked",
+    "smooth-boot",
     "better-block-entities",
     "c2me-fabric",
     "fpsdisplay",
-    "fzzy-config",
     "renderscale",
     "better-render-distance",
     "voxy",
@@ -65,14 +70,31 @@ const FABRIC_MODS: &[&str] = &[
     "placeholder-api",
 ];
 
-/// Si el slug primario no tiene build para esa MC, probar alternativas.
-fn mod_slug_alternates(slug: &str) -> &'static [&'static str] {
-    match slug {
-        "modernfix-mvus" => &["modernfix"],
-        "noisiumforked" => &["noisium"],
-        _ => &[],
-    }
-}
+/// Keo 26.2 extras (mods distintos al pack 1.21.11).
+const FABRIC_MODS_26_2: &[&str] = &[
+    "modernfix",
+    "bbe",
+    "badoptimizations",
+    "asynclogger",
+    "ixeris",
+    "gnetum",
+    "zfastnoise",
+    "fism",
+    "forge-config-api-port",
+    "get-it-together-drops",
+    "noxesium",
+    "almanac",
+];
+
+/// Extras útiles en 1.18.2 / 1.20.1.
+const FABRIC_MODS_LEGACY: &[&str] = &[
+    "krypton",
+    "modernfix",
+    "noisium",
+    "smooth-boot",
+    "dynamic-fps",
+    "indium",
+];
 
 /// Mods NeoForge/Forge 1.20.1 alineados a Keo Optimized (Forge) + Oculus.
 const NEOFORGE_MODS: &[&str] = &[
@@ -102,6 +124,28 @@ const NEOFORGE_MODS: &[&str] = &[
     "get-it-together-drops",
     "immersive-optimization",
 ];
+
+fn fabric_mods_for_mc(mc: &str) -> Vec<&'static str> {
+    let mut mods: Vec<&'static str> = FABRIC_MODS_CORE.to_vec();
+    let extra: &[&str] = match mc {
+        "26.2" => FABRIC_MODS_26_2,
+        "1.21.11" => FABRIC_MODS_12111,
+        _ => FABRIC_MODS_LEGACY,
+    };
+    mods.extend_from_slice(extra);
+    mods
+}
+
+/// Si el slug primario no tiene build para esa MC, probar alternativas.
+fn mod_slug_alternates(slug: &str) -> &'static [&'static str] {
+    match slug {
+        "modernfix-mvus" => &["modernfix"],
+        "noisiumforked" => &["noisium"],
+        "bbe" => &["better-block-entities"],
+        "better-block-entities" => &["bbe"],
+        _ => &[],
+    }
+}
 
 pub fn is_fabric_mc(mc: &str) -> bool {
     FABRIC_MCS.iter().any(|v| *v == mc)
@@ -194,7 +238,8 @@ pub async fn install_bundle_for_launch(
             .await?;
         apply_preconfig_once(instance_dir, &tier, "neoforge")?;
     } else if is_fabric_mc(mc) {
-        install_mod_slugs(app, client, mc, "fabric", FABRIC_MODS, instance_dir).await?;
+        let mods = fabric_mods_for_mc(mc);
+        install_mod_slugs(app, client, mc, "fabric", &mods, instance_dir).await?;
         install_shaders_for_tier(app, client, mc, &["iris", "optifine"], &tier, instance_dir)
             .await?;
         apply_preconfig_once(instance_dir, &tier, "fabric")?;
@@ -208,36 +253,55 @@ pub async fn install_bundle_for_launch(
 }
 
 fn shader_slugs_for_tier(tier: &str) -> &'static [&'static str] {
+    // Varias alternativas por gama. Defaults de rendimiento (Solas/MakeUp), no Unbound.
     match tier {
         "alta" => &[
-            "complementary-unbound",
-            "complementary-reimagined",
-            "rethinking-voxels",
-            "bsl-shaders",
             "solas-shader",
+            "complementary-reimagined",
+            "bsl-shaders",
+            "rethinking-voxels",
+            "photon-shader",
+            "mellow",
+            "blocky-shader",
             "makeup-ultra-fast-shaders",
+            "complementary-unbound",
         ],
         "media" => &[
-            "complementary-reimagined",
-            "bsl-shaders",
             "solas-shader",
+            "bsl-shaders",
+            "complementary-reimagined",
             "makeup-ultra-fast-shaders",
             "super-duper-vanilla",
+            "mellow",
+            "blocky-shader",
+            "miniature-shader",
         ],
         _ => &[
             "makeup-ultra-fast-shaders",
-            "super-duper-vanilla",
             "lite-shaders",
+            "super-duper-vanilla",
+            "blocky-shader",
+            "miniature-shader",
+            "solas-shader",
             "bsl-shaders",
         ],
     }
 }
 
 fn default_shader_for_tier(tier: &str) -> &'static str {
+    // Defaults tipo Keo: packs livianos/medios. Unbound solo como alternativa.
     match tier {
-        "alta" => "complementary-unbound",
-        "media" => "complementary-reimagined",
+        "alta" => "solas-shader",
+        "media" => "solas-shader",
         _ => "makeup-ultra-fast-shaders",
+    }
+}
+
+fn iris_shadow_distance(tier: &str) -> &'static str {
+    match tier {
+        "alta" => "16",
+        "media" => "12",
+        _ => "8",
     }
 }
 
@@ -365,18 +429,25 @@ async fn install_shaders_for_tier(
 fn apply_preconfig_once(instance_dir: &Path, tier: &str, backend: &str) -> AppResult<()> {
     let marker = instance_dir.join(TUNED_MARKER);
     if marker.is_file() {
-        return Ok(());
+        if let Ok(text) = std::fs::read_to_string(&marker) {
+            if text.contains(TUNED_VERSION) {
+                return Ok(());
+            }
+        }
     }
 
-    // options.txt genérico por gama (no el preset PvP).
-    let _ = performance::optimize_instance_options(instance_dir);
+    // options + configs de mods (More Culling, Sodium Extra, BRD, etc.) por gama.
+    let _ = performance::optimize_optimized_options(instance_dir, tier);
     let _ = performance::apply_optimized_mod_configs(instance_dir, tier);
     if backend == "optifine" {
         write_optifine_optionsof(instance_dir, tier)?;
     }
     write_shader_default(instance_dir, tier, backend)?;
 
-    let _ = std::fs::write(&marker, format!("tier={tier}\nbackend={backend}\n"));
+    let _ = std::fs::write(
+        &marker,
+        format!("version={TUNED_VERSION}\ntier={tier}\nbackend={backend}\n"),
+    );
     Ok(())
 }
 
@@ -452,14 +523,25 @@ fn write_shader_default(instance_dir: &Path, tier: &str, backend: &str) -> AppRe
         let config = instance_dir.join("config");
         std::fs::create_dir_all(&config)?;
         let iris = config.join("iris.properties");
+        let shadow = iris_shadow_distance(tier);
         patch_kv_file(
             &iris,
-            &[("shaderPack", &pack), ("enableShaders", "true")],
+            &[
+                ("shaderPack", &pack),
+                ("enableShaders", "true"),
+                ("maxShadowRenderDistance", shadow),
+                ("colorSpace", "SRGB"),
+                ("allowUnknownShaders", "false"),
+            ],
         )?;
         let oculus = config.join("oculus.properties");
         let _ = patch_kv_file(
             &oculus,
-            &[("shaderPack", &pack), ("enableShaders", "true")],
+            &[
+                ("shaderPack", &pack),
+                ("enableShaders", "true"),
+                ("maxShadowRenderDistance", shadow),
+            ],
         );
     }
     Ok(())
