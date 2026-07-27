@@ -150,6 +150,12 @@ pub fn get_instance_icon_path(icon: String) -> Option<String> {
     instances::icons::resolve_path(&icon).map(|p| p.to_string_lossy().to_string())
 }
 
+/// Preferido para UI: data URL (no depende del asset protocol de Tauri).
+#[tauri::command]
+pub fn get_instance_icon_data(icon: String) -> Option<String> {
+    instances::icons::as_data_url(&icon)
+}
+
 #[tauri::command]
 pub fn import_instance_icon(source_path: String) -> AppResult<instances::icons::ImportIconResult> {
     instances::icons::import_from_path(std::path::Path::new(&source_path))

@@ -112,6 +112,42 @@ pub async fn versions(client: &reqwest::Client, mc: &str) -> AppResult<Vec<Strin
     Ok(out)
 }
 
+/// Preferidas: estables y con buen rendimiento (no pre-releases).
+pub fn preferred_stable(mc: &str) -> Option<&'static str> {
+    match mc {
+        "1.12.2" => Some("HD_U_G5"),
+        "1.8.9" => Some("HD_U_M5"),
+        _ => None,
+    }
+}
+
+/// Elige la mejor OptiFine disponible: pin estable → última no-pre → última listada.
+pub fn pick_best_version(mc: &str, available: &[String]) -> Option<String> {
+    if available.is_empty() {
+        return None;
+    }
+    if let Some(pref) = preferred_stable(mc) {
+        if available.iter().any(|v| v == pref) {
+            return Some(pref.to_string());
+        }
+    }
+    available
+        .iter()
+        .rev()
+        .find(|v| !v.to_lowercase().contains("pre"))
+        .cloned()
+        .or_else(|| available.last().cloned())
+}
+
+/// Type/patch preferidos para descargar el JAR mod (Forge).
+pub fn preferred_type_patch(mc: &str) -> Option<(&'static str, &'static str)> {
+    match mc {
+        "1.12.2" => Some(("HD_U", "G5")),
+        "1.8.9" => Some(("HD_U", "M5")),
+        _ => None,
+    }
+}
+
 pub async fn install(
     app: &AppHandle,
     client: &reqwest::Client,

@@ -12,7 +12,7 @@ pub use options::{is_system_pack, parse_quoted_packs};
 
 use std::path::Path;
 
-pub use version::parse_mc_version;
+pub use version::{pack_format_for_mc, pack_mcmeta_json, parse_mc_version};
 
 pub const PACK_NAME: &str = "ParaguacraftBrandPack";
 
@@ -35,7 +35,7 @@ pub fn sync_brand_options(game_dir: &Path, mc_version: &str, min_graphics: bool)
 pub fn inject_logos(game_dir: &Path, mc_version: &str, min_graphics: bool) -> crate::error::AppResult<()> {
     let ver = parse_mc_version(mc_version);
     let profile = version::pack_profile(ver);
-    deploy::deploy(game_dir, profile)?;
+    deploy::deploy(game_dir, profile, mc_version)?;
     options::ensure_enabled(game_dir, ver, profile, min_graphics)?;
     Ok(())
 }

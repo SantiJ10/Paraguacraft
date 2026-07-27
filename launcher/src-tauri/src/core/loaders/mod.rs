@@ -210,7 +210,7 @@ pub async fn available_loaders(client: &reqwest::Client, mc: &str) -> AppResult<
         if !opt_vers.is_empty() {
             let recommended = opt_vers.first().cloned();
             let backend = if optimized::is_optifine_mc(mc) {
-                "OptiFine + shaders por gama de PC"
+                "Forge + OptiFine HD U G5/M5 + FoamFix/VanillaFix + shaders"
             } else {
                 "Fabric + mods tipo Keo + Iris + shaders por gama"
             };
@@ -251,8 +251,10 @@ pub fn loader_version_from_version_id(loader: &str, version_id: &str, mc: &str) 
     let mc_suffix = format!("-{mc}");
     match kind.as_str() {
         "paraguacraft-optimized" => {
-            if version_id.to_lowercase().contains("optifine") {
-                Some(String::new())
+            if optimized::is_optifine_mc(mc) {
+                version_id
+                    .strip_prefix(&format!("{mc}-forge-"))
+                    .map(String::from)
             } else {
                 version_id
                     .strip_prefix("fabric-loader-")?
@@ -293,7 +295,7 @@ pub fn version_id_matches_loader(loader: &str, version_id: &str, mc: &str) -> bo
         "vanilla" => version_id == mc,
         "paraguacraft-optimized" => {
             if optimized::is_optifine_mc(mc) {
-                version_id.contains(mc) && version_id.to_lowercase().contains("optifine")
+                version_id.starts_with(&format!("{mc}-forge-"))
             } else {
                 version_id.starts_with("fabric-loader-") && version_id.ends_with(&mc_suffix)
             }
@@ -356,7 +358,7 @@ pub fn find_version_id_for_loader(mc: &str, loader: &str) -> Option<String> {
             }
             "paraguacraft-optimized"
                 if (name.starts_with("fabric-loader-") && name.ends_with(&mc_suffix))
-                    || (name.contains(mc) && name.to_lowercase().contains("optifine")) =>
+                    || name.starts_with(&format!("{mc}-forge-")) =>
             {
                 loader_version_from_version_id(&kind, &name, mc)
             }

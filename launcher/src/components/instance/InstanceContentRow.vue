@@ -20,6 +20,8 @@ const title = computed(
 );
 
 const iconSrc = computed(() => {
+  // Preferir URL remota o data URL (Modrinth / pack.png embebido).
+  if (props.item.iconUrl) return props.item.iconUrl;
   if (props.item.localIconPath) {
     try {
       return convertFileSrc(props.item.localIconPath);
@@ -27,7 +29,6 @@ const iconSrc = computed(() => {
       /* ignore */
     }
   }
-  if (props.item.iconUrl) return props.item.iconUrl;
   return contentFolderIcon(props.item.folder);
 });
 
