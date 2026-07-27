@@ -41,6 +41,9 @@ fn app_secrets_file() -> PathBuf {
 }
 
 /// Carga `.env` desde rutas candidatas (dev + produccion). Idempotente.
+///
+/// CurseForge keys empiezan con `$2a$10$…`; dotenvy sustituye `$VAR` y las rompe
+/// (→ 403). Tras cargar dotenvy, re-leemos esas keys en literal.
 pub fn load_env_files() {
     let mut candidates: Vec<PathBuf> = Vec::new();
 
@@ -73,8 +76,62 @@ pub fn load_env_files() {
     for p in candidates {
         if seen.insert(p.clone()) && p.is_file() {
             let _ = dotenvy::from_path(&p);
+            overlay_literal_env_keys(&p);
         }
     }
+}
+
+/// Keys que suelen contener `$` y no deben pasar por sustitución de dotenvy.
+const LITERAL_ENV_KEYS: &[&str] = &[ENV_CF_KEY];
+
+fn overlay_literal_env_keys(path: &PathBuf) {
+    let Ok(contents) = std::fs::read_to_string(path) else {
+        return;
+    };
+    for line in contents.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let Some((k, raw)) = line.split_once('=') else {
+            continue;
+        };
+        let k = k.trim();
+        if !LITERAL_ENV_KEYS.contains(&k) {
+            continue;
+        }
+        if let Some(v) = parse_env_value_literal(raw) {
+            if !v.is_empty() {
+                std::env::set_var(k, v);
+            }
+        }
+    }
+}
+
+/// Parsea valor de `.env` sin expansión `$VAR` (soporta comillas simples/dobles).
+fn parse_env_value_literal(raw: &str) -> Option<String> {
+    let mut v = raw.trim().to_string();
+    if v.is_empty() {
+        return Some(String::new());
+    }
+    // Comentario inline sin comillas: KEY=value # comment
+    if !(v.starts_with('"') || v.starts_with('\'')) {
+        if let Some(idx) = v.find(" #") {
+            v = v[..idx].trim_end().to_string();
+        }
+    }
+    if v.len() >= 2
+        && ((v.starts_with('"') && v.ends_with('"')) || (v.starts_with('\'') && v.ends_with('\'')))
+    {
+        v = v[1..v.len() - 1].to_string();
+    }
+    Some(v)
+}
+
+/// Heurística: key de CurseForge típica (bcrypt-like `$2a$10$…`).
+pub fn curseforge_api_key_looks_valid(key: &str) -> bool {
+    let t = key.trim();
+    t.len() >= 20 && (t.starts_with("$2") || t.starts_with("cfcore") || !t.contains(' '))
 }
 
 /// Indica si Paraguabot tiene proveedor LLM configurado.

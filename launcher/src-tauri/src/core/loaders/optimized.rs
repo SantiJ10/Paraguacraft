@@ -35,7 +35,7 @@ const FORGE_1_12_2: &str = "14.23.5.2860";
 
 const MODRINTH: &str = "https://api.modrinth.com/v2";
 const TUNED_MARKER: &str = ".paraguacraft_optimized_tuned";
-const TUNED_VERSION: &str = "v6";
+const TUNED_VERSION: &str = "v7";
 /// Única versión del pack Optimized que ve el usuario (el loader real se resuelve solo).
 pub const PACK_VERSION: &str = "1.0.0";
 
@@ -237,35 +237,46 @@ fn fabric_pins_for_mc(mc: &str) -> Option<&'static [Pin]> {
     }
 }
 
-/// Mods Forge de rendimiento para Optimized 1.12.2 (además de OptiFine).
+/// Mods Forge de rendimiento para Optimized 1.12.2 (Modrinth — sin depender de CurseForge).
+const MR_PINS_1_12_2: &[Pin] = &[
+    Pin { slug: "foamfix", version_id: "oEGIQQnQ" },       // 0.10.15
+    Pin { slug: "vanillafix", version_id: "1MMmIOiX" },    // 1.0.10-150
+    Pin { slug: "clumps", version_id: "nZvGITpT" },        // 3.1.2
+    Pin { slug: "ai-improvements", version_id: "kOyZhvg3" }, // 0.0.1b3
+];
+
+/// Mods Forge de rendimiento para Optimized 1.8.9 (Modrinth).
+const MR_PINS_1_8_9: &[Pin] = &[
+    Pin { slug: "foamfix", version_id: "MqLKfrk2" }, // 0.6.3a anarchy
+];
+
+/// Extras solo en CurseForge (si hay API key válida).
 const CF_PINS_1_12_2: &[CfPin] = &[
-    // FoamFix 0.10.15
-    CfPin { slug: "foamfix", project_id: 278494, file_id: 3973967 },
-    // VanillaFix 1.0.10-150
-    CfPin { slug: "vanillafix", project_id: 292785, file_id: 2915154 },
-    // Phosphor 0.2.6
+    // Phosphor 0.2.6 — no está en Modrinth
     CfPin { slug: "phosphor", project_id: 306770, file_id: 2912855 },
     // BetterFps 1.4.8
     CfPin { slug: "betterfps", project_id: 229891, file_id: 2483393 },
-    // Clumps 3.1.2
-    CfPin { slug: "clumps", project_id: 256777, file_id: 2668920 },
     // FastWorkbench 1.7.3
     CfPin { slug: "fastworkbench", project_id: 288885, file_id: 2803428 },
     // FastFurnace 1.3.1
     CfPin { slug: "fastfurnace", project_id: 299540, file_id: 2746053 },
-    // AI Improvements 0.0.1.3
-    CfPin { slug: "ai-improvements", project_id: 233019, file_id: 2469399 },
 ];
 
-/// Mods Forge de rendimiento para Optimized 1.8.9.
+/// Extras CurseForge para 1.8.9.
 const CF_PINS_1_8_9: &[CfPin] = &[
-    // FoamFix 0.6.3a
-    CfPin { slug: "foamfix", project_id: 278494, file_id: 4856293 },
     // BetterFps 1.2.1 (1.8.x)
     CfPin { slug: "betterfps", project_id: 229891, file_id: 2283238 },
-    // The 5zig Mod 3.11.3 (HUD + utilidades; pedido por usuarios)
+    // The 5zig Mod 3.11.3
     CfPin { slug: "the-5zig-mod", project_id: 231387, file_id: 2389910 },
 ];
+
+fn mr_pins_for_legacy_mc(mc: &str) -> Option<&'static [Pin]> {
+    match mc {
+        "1.12.2" => Some(MR_PINS_1_12_2),
+        "1.8.9" => Some(MR_PINS_1_8_9),
+        _ => None,
+    }
+}
 
 fn cf_pins_for_mc(mc: &str) -> Option<&'static [CfPin]> {
     match mc {
@@ -397,17 +408,17 @@ pub async fn install_bundle_for_launch(
     if kind.contains("neoforge") {
         purge_incompatible_jars(instance_dir);
         install_pinned_mods(app, client, PINS_1_20_1_NEOFORGE, instance_dir).await?;
-        install_shaders_for_tier(app, client, mc, &["iris", "optifine"], &tier, instance_dir)
-            .await?;
+        // Oculus = Iris para NeoForge; no bajar packs pensados solo para OptiFine legacy.
+        install_shaders_for_tier(app, client, mc, &["iris"], &tier, instance_dir).await?;
         apply_preconfig_once(instance_dir, &tier, "neoforge", mc)?;
     } else if is_fabric_mc(mc) {
         purge_incompatible_jars(instance_dir);
         install_fabric_compatible_bundle(app, client, mc, instance_dir).await?;
-        install_shaders_for_tier(app, client, mc, &["iris", "optifine"], &tier, instance_dir)
-            .await?;
+        install_shaders_for_tier(app, client, mc, &["iris"], &tier, instance_dir).await?;
         apply_preconfig_once(instance_dir, &tier, "fabric", mc)?;
     } else if is_optifine_mc(mc) {
         install_legacy_optifine_bundle(app, client, mc, instance_dir).await?;
+        purge_non_optifine_shaderpacks(instance_dir);
         install_shaders_for_tier(app, client, mc, &["optifine"], &tier, instance_dir).await?;
         apply_preconfig_once(instance_dir, &tier, "optifine", mc)?;
     }
@@ -424,21 +435,38 @@ async fn install_legacy_optifine_bundle(
     let mods_dir = instance_dir.join("mods");
     std::fs::create_dir_all(&mods_dir)?;
 
-    // OptiFine estable (G5 / M5) como JAR en mods/.
+    // OptiFine estable (G5 / M5) como JAR en mods/ — oficial, luego BMCL.
     if let Some((of_type, of_patch)) = optifine::preferred_type_patch(mc) {
         let fname = optifine::mod_jar_filename(mc, of_type, of_patch);
         purge_slug_jars(&mods_dir, "optifine", &fname);
         let dest = mods_dir.join(&fname);
         if !dest.is_file() {
-            // Quitar OptiFine viejas (C5, etc.).
             purge_slug_jars(&mods_dir, "optifine", &fname);
             match optifine::download_mod_jar_official(client, mc, of_type, of_patch, &dest).await {
                 Ok(()) => {}
-                Err(e) => eprintln!("[optimized] OptiFine {fname}: {e}"),
+                Err(e1) => {
+                    eprintln!("[optimized] OptiFine oficial {fname}: {e1}");
+                    match optifine::download_mod_jar_bmcl(client, mc, of_type, of_patch, &dest)
+                        .await
+                    {
+                        Ok(()) => {}
+                        Err(e2) => {
+                            eprintln!("[optimized] OptiFine BMCL {fname}: {e2}");
+                            return Err(AppError::msg(format!(
+                                "No se pudo descargar OptiFine {fname}. Probá de nuevo o Reinstalar loader. ({e2})"
+                            )));
+                        }
+                    }
+                }
             }
         }
     }
 
+    // Core de rendimiento vía Modrinth (no requiere CurseForge).
+    if let Some(pins) = mr_pins_for_legacy_mc(mc) {
+        install_pinned_mods(app, client, pins, instance_dir).await?;
+    }
+    // Extras CF opcionales (Phosphor, BetterFps…) si hay key válida.
     if let Some(pins) = cf_pins_for_mc(mc) {
         install_cf_pins(app, client, pins, &mods_dir).await?;
     }
@@ -592,7 +620,7 @@ fn purge_slug_jars(mods_dir: &Path, slug: &str, keep_filename: &str) {
 }
 
 const SHADER_LOW: &[&str] = &[
-    // Livianos / laptops (Keo + best-of Modrinth)
+    // Livianos / laptops (Iris / Fabric / NeoForge+Oculus)
     "truelight-fx-lite",
     "makeup-ultra-fast-shaders",
     "potato-shaders",
@@ -620,6 +648,37 @@ const SHADER_HIGH: &[&str] = &[
     "insanity-shader",
     "hysteria-shaders",
 ];
+
+/// Solo OptiFine (1.8.9 / 1.12.2): packs clásicos, no catálogo Iris moderno.
+const SHADER_OPTIFINE_LOW: &[&str] = &[
+    "sildurs-basic-shaders",
+    "sildurs-vibrant-shaders",
+];
+const SHADER_OPTIFINE_MID: &[&str] = &["bsl-shaders", "sildurs-vibrant-shaders"];
+const SHADER_OPTIFINE_HIGH: &[&str] = &["bsl-shaders"];
+
+fn shader_slugs_for_tier_and_backend(tier: &str, backend_loaders: &[&str]) -> Vec<&'static str> {
+    let optifine_only = backend_loaders.len() == 1 && backend_loaders[0] == "optifine";
+    if optifine_only {
+        return match tier {
+            "alta" => {
+                let mut v = Vec::new();
+                v.extend_from_slice(SHADER_OPTIFINE_LOW);
+                v.extend_from_slice(SHADER_OPTIFINE_MID);
+                v.extend_from_slice(SHADER_OPTIFINE_HIGH);
+                v
+            }
+            "media" => {
+                let mut v = Vec::new();
+                v.extend_from_slice(SHADER_OPTIFINE_LOW);
+                v.extend_from_slice(SHADER_OPTIFINE_MID);
+                v
+            }
+            _ => SHADER_OPTIFINE_LOW.to_vec(),
+        };
+    }
+    shader_slugs_for_tier(tier)
+}
 
 /// Shaders hospedados en el repo (no están en Modrinth). CDN = raw GitHub.
 struct HostedShader {
@@ -703,10 +762,76 @@ fn shader_slugs_for_tier(tier: &str) -> Vec<&'static str> {
     }
 }
 
-fn default_shader_for_tier(tier: &str) -> &'static str {
+fn default_shader_for_tier(tier: &str, backend: &str) -> &'static str {
+    if backend == "optifine" {
+        return match tier {
+            "alta" | "media" => "bsl-shaders",
+            _ => "sildurs-basic-shaders",
+        };
+    }
     match tier {
         "alta" | "media" => "solas-shader",
         _ => "makeup-ultra-fast-shaders",
+    }
+}
+
+/// Nombres de packs Iris/modernos que no sirven con OptiFine 1.8.9 / 1.12.2.
+const IRIS_ONLY_SHADER_NEEDLES: &[&str] = &[
+    "complementary",
+    "reimagined",
+    "unbound",
+    "solas",
+    "rethinking",
+    "photon",
+    "insanity",
+    "hysteria",
+    "truelight",
+    "makeup",
+    "potato",
+    "essentials-shader",
+    "lite-shader",
+    "super-duper",
+    "miniature",
+    "blocky-shader",
+    "vanilla-plus",
+    "daybreak",
+    "mellow",
+];
+
+fn purge_non_optifine_shaderpacks(instance_dir: &Path) {
+    let dir = instance_dir.join("shaderpacks");
+    let Ok(entries) = std::fs::read_dir(&dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .to_lowercase();
+        if !(name.ends_with(".zip") || name.ends_with(".zip.disabled")) {
+            continue;
+        }
+        // Conservar clásicos OptiFine + hosted Keo.
+        let keep = name.contains("sildur")
+            || name.contains("bsl")
+            || name.contains("chocapic")
+            || name.contains("skygleam")
+            || name.contains("solar");
+        if keep {
+            continue;
+        }
+        if IRIS_ONLY_SHADER_NEEDLES
+            .iter()
+            .any(|n| name.contains(n))
+        {
+            let _ = std::fs::remove_file(&path);
+            eprintln!(
+                "[optimized] purged Iris/modern shader incompatible with OptiFine: {}",
+                path.display()
+            );
+        }
     }
 }
 
@@ -742,7 +867,7 @@ async fn install_shaders_for_tier(
     let mut items = Vec::new();
     let mut catalog = Vec::new();
 
-    for slug in shader_slugs_for_tier(tier) {
+    for slug in shader_slugs_for_tier_and_backend(tier, loaders) {
         let mut got = None;
         for loader in loaders {
             match resolve_modrinth_file(client, slug, mc, loader).await {
@@ -769,60 +894,63 @@ async fn install_shaders_for_tier(
         items.push(DownloadItem::new(url, dest).with_sha1(sha1));
     }
 
-    // Extras Keo (Chocapic / Skygleam / SOLAR) desde el repo — no están en Modrinth.
-    for hs in HOSTED_SHADERS {
-        if !tier_allows_hosted(tier, hs.min_tier) {
-            continue;
-        }
-        catalog.push(format!(
-            "- {}  [{}]  → {}\n",
-            hs.filename, hs.id, hs.label
-        ));
-        let dest = dir.join(hs.filename);
-        if dest.is_file() {
-            if let Ok(bytes) = std::fs::read(&dest) {
-                if sha256_hex_str(&bytes).eq_ignore_ascii_case(hs.sha256) {
-                    continue;
-                }
+    // Extras Keo (Chocapic / Skygleam / SOLAR) solo con OptiFine legacy.
+    // Fabric / NeoForge+Oculus usan el catálogo Iris de Modrinth.
+    let use_hosted = loaders.iter().any(|l| *l == "optifine");
+    if use_hosted {
+        for hs in HOSTED_SHADERS {
+            if !tier_allows_hosted(tier, hs.min_tier) {
+                continue;
             }
-            let _ = std::fs::remove_file(&dest);
-        }
-        // Probar mirrors en orden hasta que uno funcione.
-        let mut ok = false;
-        let mut last_err = None;
-        for url in hosted_shader_urls(hs.filename) {
-            match net::download_all(
-                client,
-                vec![DownloadItem::new(url, dest.clone())],
-                1,
-                app,
-                "optimized-hosted-shader",
-                hs.filename,
-            )
-            .await
-            {
-                Ok(()) => {
-                    if let Ok(bytes) = std::fs::read(&dest) {
-                        if sha256_hex_str(&bytes).eq_ignore_ascii_case(hs.sha256) {
+            catalog.push(format!(
+                "- {}  [{}]  → {}\n",
+                hs.filename, hs.id, hs.label
+            ));
+            let dest = dir.join(hs.filename);
+            if dest.is_file() {
+                if let Ok(bytes) = std::fs::read(&dest) {
+                    if sha256_hex_str(&bytes).eq_ignore_ascii_case(hs.sha256) {
+                        continue;
+                    }
+                }
+                let _ = std::fs::remove_file(&dest);
+            }
+            let mut ok = false;
+            let mut last_err = None;
+            for url in hosted_shader_urls(hs.filename) {
+                match net::download_all(
+                    client,
+                    vec![DownloadItem::new(url, dest.clone())],
+                    1,
+                    app,
+                    "optimized-hosted-shader",
+                    hs.filename,
+                )
+                .await
+                {
+                    Ok(()) => {
+                        if let Ok(bytes) = std::fs::read(&dest) {
+                            if sha256_hex_str(&bytes).eq_ignore_ascii_case(hs.sha256) {
+                                ok = true;
+                                break;
+                            }
+                            let _ = std::fs::remove_file(&dest);
+                            last_err = Some(format!("SHA-256 mismatch para {}", hs.filename));
+                        } else {
                             ok = true;
                             break;
                         }
-                        let _ = std::fs::remove_file(&dest);
-                        last_err = Some(format!("SHA-256 mismatch para {}", hs.filename));
-                    } else {
-                        ok = true;
-                        break;
                     }
+                    Err(e) => last_err = Some(e.to_string()),
                 }
-                Err(e) => last_err = Some(e.to_string()),
             }
-        }
-        if !ok {
-            eprintln!(
-                "[optimized] hosted shader {}: {}",
-                hs.filename,
-                last_err.unwrap_or_else(|| "falló".into())
-            );
+            if !ok {
+                eprintln!(
+                    "[optimized] hosted shader {}: {}",
+                    hs.filename,
+                    last_err.unwrap_or_else(|| "falló".into())
+                );
+            }
         }
     }
 
@@ -950,7 +1078,7 @@ fn write_optifine_optionsof(instance_dir: &Path, tier: &str) -> AppResult<()> {
 
 fn write_shader_default(instance_dir: &Path, tier: &str, backend: &str) -> AppResult<()> {
     // Shaders DESCARGADOS pero DESACTIVADOS por defecto (mejor FPS out-of-box).
-    let want_slug = default_shader_for_tier(tier);
+    let want_slug = default_shader_for_tier(tier, backend);
     let pack_name = find_downloaded_shader_name(instance_dir, want_slug)
         .or_else(|| first_shaderpack_name(instance_dir))
         .unwrap_or_default();

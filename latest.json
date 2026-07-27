@@ -1,12 +1,12 @@
 {
-  "version": "1.1.8",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.8/Instalar_Paraguacraft_v1.1.8.exe",
-  "size_bytes": 5603986,
-  "sha256": "0beeab6fe7714643de4dc2d96a119d7ea068385f6c544b55bf13a780d1dd7df4",
-  "notes": "- Compat Optimized real (Forge 1.8/1.12 vs Fabric) + filtro tienda por instancia\n- Fix Forge 1.12.2 Maven 404\n- Salud de instancia + reparar/reinstalar loader (Optimized incluido)\n- Perfil rendimiento Auto/Baja/Media/Alta/Custom + presets por uso\n- Post-crash útil, Home cliente, estados honestos, tema + i18n base, wizard Optimized",
+  "version": "1.1.9",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.9/Instalar_Paraguacraft_v1.1.9.exe",
+  "size_bytes": 0,
+  "sha256": "pending",
+  "notes": "- Fix CurseForge 403 (API key con $ en .env)\n- Optimized 1.8.9/1.12.2: OptiFine + FoamFix/VanillaFix vía Modrinth\n- Shaders OptiFine vs Iris separados; NeoForge 1.20.1 con Oculus",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.8/Instalar_Paraguacraft_v1.1.8.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.9/Instalar_Paraguacraft_v1.1.9.exe",
       "signature": ""
     }
   }

@@ -903,7 +903,9 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
             @input="settings.update('curseforgeApiKey', ($event.target as HTMLInputElement).value)"
           />
           <span class="mt-1 block text-xs text-gray-500">
-            Modrinth funciona sin key. CurseForge requiere una key gratuita de su consola de desarrolladores.
+            Modrinth funciona sin key. CurseForge requiere una key gratuita de
+            <a class="text-pc-green underline" href="https://console.curseforge.com/" target="_blank" rel="noopener">console.curseforge.com</a>.
+            Si la key empieza con <code class="text-gray-400">$2a$</code>, en <code class="text-gray-400">launcher/.env</code> ponela entre comillas simples para evitar error 403.
           </span>
         </label>
       </section>

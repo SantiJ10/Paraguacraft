@@ -1,0 +1,7 @@
+# Launcher 1.1.9
+
+- Fix CurseForge 403: API key con `$` ya no se rompe al cargar `.env`
+- Optimized 1.8.9 / 1.12.2: OptiFine + FoamFix/VanillaFix/etc. vía Modrinth (sin depender de CF)
+- OptiFine: fallback BMCL si optifine.net falla
+- Shaders: OptiFine legacy solo Sildur’s/BSL/Chocapic; Iris solo Fabric/NeoForge+Oculus
+- NeoForge 1.20.1: Embeddium/Oculus + shaders Iris (compatibles)
