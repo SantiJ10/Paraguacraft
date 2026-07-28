@@ -83,12 +83,18 @@ public class ModConfig {
     public static boolean showTntCountdown = true;
     public static boolean showBedwarsResources = true;
     public static boolean bwResTransparentBg = false;
+    /** Contador de bloques colocables en inventario (BedWars / builds). */
+    public static boolean showBlockCount = false;
+    /** Auto-activa recursos/bloques/armadura/mano/pociones al detectar BedWars en el scoreboard. */
+    public static boolean autoBedwarsHud = true;
     public static boolean forceItem3d = true;
     public static int overlayHudX = 5;
     public static int overlayHudY = 260;
     public static int overlayHudW = 118;
     public static int bwResX = 5;
     public static int bwResY = 320;
+    public static int blocksX = 5;
+    public static int blocksY = 300;
     public static int fpsX = 5, fpsY = 5;
     public static int pingX = 5, pingY = 15;
     public static int cpsX = 5, cpsY = 25;
@@ -187,12 +193,16 @@ public class ModConfig {
             props.setProperty("showTntCountdown", String.valueOf(showTntCountdown));
             props.setProperty("showBedwarsResources", String.valueOf(showBedwarsResources));
             props.setProperty("bwResTransparentBg", String.valueOf(bwResTransparentBg));
+            props.setProperty("showBlockCount", String.valueOf(showBlockCount));
+            props.setProperty("autoBedwarsHud", String.valueOf(autoBedwarsHud));
             props.setProperty("forceItem3d", String.valueOf(forceItem3d));
             props.setProperty("overlayHudX", String.valueOf(overlayHudX));
             props.setProperty("overlayHudY", String.valueOf(overlayHudY));
             props.setProperty("overlayHudW", String.valueOf(overlayHudW));
             props.setProperty("bwResX", String.valueOf(bwResX));
             props.setProperty("bwResY", String.valueOf(bwResY));
+            props.setProperty("blocksX", String.valueOf(blocksX));
+            props.setProperty("blocksY", String.valueOf(blocksY));
             props.setProperty("boostFps", String.valueOf(PerformanceConfig.boostFps));
             props.setProperty("oldAnimations", String.valueOf(PerformanceConfig.oldAnimations));
             PerformanceConfig.saveToProperties(props);
@@ -294,12 +304,16 @@ public class ModConfig {
             showTntCountdown = Boolean.parseBoolean(props.getProperty("showTntCountdown", String.valueOf(showTntCountdown)));
             showBedwarsResources = Boolean.parseBoolean(props.getProperty("showBedwarsResources", String.valueOf(showBedwarsResources)));
             bwResTransparentBg = Boolean.parseBoolean(props.getProperty("bwResTransparentBg", String.valueOf(bwResTransparentBg)));
+            showBlockCount = Boolean.parseBoolean(props.getProperty("showBlockCount", String.valueOf(showBlockCount)));
+            autoBedwarsHud = Boolean.parseBoolean(props.getProperty("autoBedwarsHud", String.valueOf(autoBedwarsHud)));
             forceItem3d = Boolean.parseBoolean(props.getProperty("forceItem3d", String.valueOf(forceItem3d)));
             overlayHudX = Integer.parseInt(props.getProperty("overlayHudX", String.valueOf(overlayHudX)));
             overlayHudY = Integer.parseInt(props.getProperty("overlayHudY", String.valueOf(overlayHudY)));
             overlayHudW = Integer.parseInt(props.getProperty("overlayHudW", String.valueOf(overlayHudW)));
             bwResX = Integer.parseInt(props.getProperty("bwResX", String.valueOf(bwResX)));
             bwResY = Integer.parseInt(props.getProperty("bwResY", String.valueOf(bwResY)));
+            blocksX = Integer.parseInt(props.getProperty("blocksX", String.valueOf(blocksX)));
+            blocksY = Integer.parseInt(props.getProperty("blocksY", String.valueOf(blocksY)));
             PerformanceConfig.loadFromProperties(props);
             if (PerformanceConfig.boostFps && PerformanceConfig.applyVanillaPreset) {
                 OptifinePreset.applyIfEnabled();

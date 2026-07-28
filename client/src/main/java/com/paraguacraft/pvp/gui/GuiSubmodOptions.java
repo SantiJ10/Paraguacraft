@@ -107,6 +107,8 @@ public class GuiSubmodOptions extends GuiScreen {
     public static GuiSubmodOptions bedwars() {
         return new GuiSubmodOptions("BedWars", new Row[] {
             row("HUD recursos BedWars", new BoolGet() { public boolean get() { return ModConfig.showBedwarsResources; } }, new BoolSet() { public void set(boolean v) { ModConfig.showBedwarsResources = v; } }),
+            row("Contador de bloques", new BoolGet() { public boolean get() { return ModConfig.showBlockCount; } }, new BoolSet() { public void set(boolean v) { ModConfig.showBlockCount = v; } }),
+            row("Auto HUD al detectar BedWars", new BoolGet() { public boolean get() { return ModConfig.autoBedwarsHud; } }, new BoolSet() { public void set(boolean v) { ModConfig.autoBedwarsHud = v; } }),
             row("Fondo transparente", new BoolGet() { public boolean get() { return ModConfig.bwResTransparentBg; } }, new BoolSet() { public void set(boolean v) { ModConfig.bwResTransparentBg = v; } }),
         });
     }

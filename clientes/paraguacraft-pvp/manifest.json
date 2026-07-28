@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.36",
-  "release_tag": "pvp-client-2.1.36",
-  "descripcion": "Resource pack CDN (raw), practica sticky fix, iconos/TNT.",
+  "client_version": "2.1.37",
+  "release_tag": "pvp-client-2.1.37",
+  "descripcion": "BedWars HUD en cualquier servidor (scoreboard + bloques).",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.36.jar",
-      "sha1": "518ae42770fb6e129cbbcc06c8b2e9b79319f30e"
+      "filename": "ParaguacraftPvP-2.1.37.jar",
+      "sha1": "b8cbdcdb2a4672359540f4155cbe39269d7785ef"
     },
     {
       "filename": "Hytils-Reborn-1.8.9-forge-1.7.5.jar",

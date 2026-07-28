@@ -102,15 +102,13 @@ public final class GameModeDetector {
             refreshLabel();
             return;
         }
-        if (!ServerContext.isCompetitive(client)) {
-            if (ServerContext.isPractice(client)) {
-                detected = Mode.PVP;
-            } else {
-                detected = Mode.LOBBY;
-            }
+        // Practica / singleplayer: PvP (sin scoreboard de minijuegos).
+        if (ServerContext.isPractice(client)) {
+            detected = Mode.PVP;
             refreshLabel();
             return;
         }
+        // Cualquier multiplayer (Hypixel, Cubecraft u otros): leer sidebar.
         Scoreboard board = client.world.getScoreboard();
         ScoreboardObjective obj = board.getObjectiveForSlot(ScoreboardDisplaySlot.SIDEBAR);
         String haystack = collectSidebarText(board, obj);
@@ -173,7 +171,7 @@ public final class GameModeDetector {
     }
 
     private static Mode detectHypixel(String t) {
-        if (t.contains("BED WAR") || t.contains("BEDWAR") || t.contains("CAMA")) {
+        if (isBedwarsText(t)) {
             return Mode.BEDWARS;
         }
         if (t.contains("SKY WAR") || t.contains("SKYWAR")) {
@@ -201,7 +199,7 @@ public final class GameModeDetector {
     }
 
     private static Mode detectCubecraft(String t) {
-        if (t.contains("EGG WAR") || t.contains("EGGWAR") || t.contains("EGG WARS")) {
+        if (isBedwarsText(t)) {
             return Mode.BEDWARS;
         }
         if (t.contains("SKY WAR") || t.contains("SKYWAR")) {
@@ -232,7 +230,7 @@ public final class GameModeDetector {
     }
 
     private static Mode detectGeneric(String t) {
-        if (t.contains("BED WAR") || t.contains("BEDWAR") || t.contains("EGG WAR")) {
+        if (isBedwarsText(t)) {
             return Mode.BEDWARS;
         }
         if (t.contains("SKY WAR") || t.contains("SKYWAR")) {
@@ -242,6 +240,22 @@ public final class GameModeDetector {
             return Mode.LOBBY;
         }
         return Mode.OTHER;
+    }
+
+    /** Keywords BedWars / EggWars (EN + ES) en scoreboard de cualquier red. */
+    private static boolean isBedwarsText(String t) {
+        return t.contains("BED WARS")
+            || t.contains("BED WAR")
+            || t.contains("BEDWARS")
+            || t.contains("BEDWAR")
+            || t.contains("EGG WARS")
+            || t.contains("EGG WAR")
+            || t.contains("EGGWARS")
+            || t.contains("EGGWAR")
+            || t.contains("DESTROY THE BED")
+            || t.contains("DESTRUIR LA CAMA")
+            || t.contains("CAMAS")
+            || t.contains("CAMA");
     }
 
     public static String labelFor(Mode mode) {
