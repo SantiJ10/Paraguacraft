@@ -53,6 +53,9 @@ public class GuiEditHUD extends GuiScreen {
             drawRect(ModConfig.bwResX - 2, ModConfig.bwResY - 2,
                 ModConfig.bwResX + AdvancedHud.bwPanelW(), ModConfig.bwResY + AdvancedHud.bwPanelH(), box);
         }
+        if (ModConfig.showBlockCount) {
+            drawRect(ModConfig.blocksX - 2, ModConfig.blocksY - 2, ModConfig.blocksX + 40, ModConfig.blocksY + 18, box);
+        }
         if (ModConfig.reachDisplay) drawRect(ModConfig.reachDisplayX - 2, ModConfig.reachDisplayY - 2, ModConfig.reachDisplayX + 70, ModConfig.reachDisplayY + 10, box);
         if (ModConfig.comboCounter) drawRect(ModConfig.comboDisplayX - 2, ModConfig.comboDisplayY - 2, ModConfig.comboDisplayX + 70, ModConfig.comboDisplayY + 10, box);
 
@@ -94,6 +97,8 @@ public class GuiEditHUD extends GuiScreen {
                 } else if (ModConfig.showBedwarsResources
                     && isHover(mouseX, mouseY, ModConfig.bwResX, ModConfig.bwResY, AdvancedHud.bwPanelW(), AdvancedHud.bwPanelH())) {
                     dragging = 11; dragX = mouseX - ModConfig.bwResX; dragY = mouseY - ModConfig.bwResY;
+                } else if (ModConfig.showBlockCount && isHover(mouseX, mouseY, ModConfig.blocksX, ModConfig.blocksY, 40, 18)) {
+                    dragging = 14; dragX = mouseX - ModConfig.blocksX; dragY = mouseY - ModConfig.blocksY;
                 }
             } else if ((ModConfig.showHardwareHud || ModConfig.showMusicHud)
                 && isHover(mouseX, mouseY, ModConfig.overlayHudX, ModConfig.overlayHudY,
@@ -103,6 +108,8 @@ public class GuiEditHUD extends GuiScreen {
             } else if (ModConfig.showBedwarsResources
                 && isHover(mouseX, mouseY, ModConfig.bwResX, ModConfig.bwResY, AdvancedHud.bwPanelW(), AdvancedHud.bwPanelH())) {
                 dragging = 11; dragX = mouseX - ModConfig.bwResX; dragY = mouseY - ModConfig.bwResY;
+            } else if (ModConfig.showBlockCount && isHover(mouseX, mouseY, ModConfig.blocksX, ModConfig.blocksY, 40, 18)) {
+                dragging = 14; dragX = mouseX - ModConfig.blocksX; dragY = mouseY - ModConfig.blocksY;
             } else if (ModConfig.reachDisplay && isHover(mouseX, mouseY, ModConfig.reachDisplayX, ModConfig.reachDisplayY, 70, 10)) {
                 dragging = 12; dragX = mouseX - ModConfig.reachDisplayX; dragY = mouseY - ModConfig.reachDisplayY;
             } else if (ModConfig.comboCounter && isHover(mouseX, mouseY, ModConfig.comboDisplayX, ModConfig.comboDisplayY, 70, 10)) {
@@ -127,6 +134,7 @@ public class GuiEditHUD extends GuiScreen {
         else if (dragging == 11) { ModConfig.bwResX = mouseX - dragX; ModConfig.bwResY = mouseY - dragY; }
         else if (dragging == 12) { ModConfig.reachDisplayX = mouseX - dragX; ModConfig.reachDisplayY = mouseY - dragY; }
         else if (dragging == 13) { ModConfig.comboDisplayX = mouseX - dragX; ModConfig.comboDisplayY = mouseY - dragY; }
+        else if (dragging == 14) { ModConfig.blocksX = mouseX - dragX; ModConfig.blocksY = mouseY - dragY; }
     }
 
     @Override

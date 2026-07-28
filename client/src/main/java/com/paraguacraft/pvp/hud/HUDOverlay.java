@@ -90,6 +90,9 @@ public class HUDOverlay extends Gui {
 
             AdvancedHud.drawOverlay();
             AdvancedHud.drawBedwarsResources(mc.thePlayer);
+            if (ModConfig.showBlockCount) {
+                drawBlockCount();
+            }
             drawCombatStats();
         } finally {
             // Restauración estricta del estado GL al estado canónico que espera el
@@ -117,6 +120,37 @@ public class HUDOverlay extends Gui {
         if (ModConfig.comboCounter && CombatStats.comboCount > 0) {
             HudDraw.labeled("Combo: ", String.valueOf(CombatStats.comboCount), ModConfig.comboDisplayX, ModConfig.comboDisplayY);
         }
+    }
+
+    private void drawBlockCount() {
+        int blocks = countPlaceableBlocks();
+        if (blocks <= 0) {
+            return;
+        }
+        int x = ModConfig.blocksX;
+        int y = ModConfig.blocksY;
+        ItemStack icon = new ItemStack(net.minecraft.init.Blocks.wool);
+        mc.getRenderItem().renderItemAndEffectIntoGUI(icon, x, y);
+        GlStateManager.disableLighting();
+        GlStateManager.disableDepth();
+        HudDraw.text(String.valueOf(blocks), x + 18, y + 4, 0xFFFFFFFF);
+        GlStateManager.enableDepth();
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+    }
+
+    private int countPlaceableBlocks() {
+        int total = 0;
+        ItemStack[] inv = mc.thePlayer.inventory.mainInventory;
+        for (int i = 0; i < inv.length; i++) {
+            ItemStack stack = inv[i];
+            if (stack == null || stack.getItem() == null) {
+                continue;
+            }
+            if (stack.getItem() instanceof net.minecraft.item.ItemBlock) {
+                total += stack.stackSize;
+            }
+        }
+        return total;
     }
 
     // ============================================================

@@ -10,6 +10,9 @@ public final class GameModeProfileManager {
     private static boolean bedwarsResSaved;
     private static boolean blockCountSaved;
     private static boolean bridgeTimerSaved;
+    private static boolean armorSaved;
+    private static boolean heldItemSaved;
+    private static boolean potionsSaved;
 
     private GameModeProfileManager() {}
 
@@ -31,21 +34,33 @@ public final class GameModeProfileManager {
                 ModernConfig.showBedwarsResources = true;
                 ModernConfig.showBlockCount = true;
                 ModernConfig.showBridgeTimer = true;
+                ModernConfig.showArmor = true;
+                ModernConfig.showHeldItem = true;
+                ModernConfig.showPotions = true;
             }
             case SKYWARS, LUCKY_ISLANDS -> {
                 ModernConfig.showBedwarsResources = false;
                 ModernConfig.showBlockCount = true;
                 ModernConfig.showBridgeTimer = true;
+                ModernConfig.showArmor = armorSaved;
+                ModernConfig.showHeldItem = heldItemSaved;
+                ModernConfig.showPotions = potionsSaved;
             }
             case DUELS, PVP -> {
                 ModernConfig.showBedwarsResources = false;
                 ModernConfig.showBlockCount = false;
                 ModernConfig.showBridgeTimer = false;
+                ModernConfig.showArmor = armorSaved;
+                ModernConfig.showHeldItem = heldItemSaved;
+                ModernConfig.showPotions = potionsSaved;
             }
             case BUILD_BATTLE, TNT_RUN -> {
                 ModernConfig.showBedwarsResources = false;
                 ModernConfig.showBlockCount = true;
                 ModernConfig.showBridgeTimer = false;
+                ModernConfig.showArmor = armorSaved;
+                ModernConfig.showHeldItem = heldItemSaved;
+                ModernConfig.showPotions = potionsSaved;
             }
             case LOBBY, OTHER -> restoreLobbyDefaults();
             default -> {}
@@ -56,6 +71,9 @@ public final class GameModeProfileManager {
         ModernConfig.showBedwarsResources = bedwarsResSaved;
         ModernConfig.showBlockCount = blockCountSaved;
         ModernConfig.showBridgeTimer = bridgeTimerSaved;
+        ModernConfig.showArmor = armorSaved;
+        ModernConfig.showHeldItem = heldItemSaved;
+        ModernConfig.showPotions = potionsSaved;
     }
 
     /** Guarda defaults del usuario al entrar al primer mundo. */
@@ -63,6 +81,9 @@ public final class GameModeProfileManager {
         bedwarsResSaved = ModernConfig.showBedwarsResources;
         blockCountSaved = ModernConfig.showBlockCount;
         bridgeTimerSaved = ModernConfig.showBridgeTimer;
+        armorSaved = ModernConfig.showArmor;
+        heldItemSaved = ModernConfig.showHeldItem;
+        potionsSaved = ModernConfig.showPotions;
     }
 
     public static void reset() {

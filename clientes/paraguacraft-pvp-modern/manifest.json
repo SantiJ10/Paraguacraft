@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP Modern",
   "mc_version": "1.21.11",
   "loader": "fabric",
-  "client_version": "0.9.15",
-  "release_tag": "pvp-modern-0.9.15",
-  "descripcion": "Cliente 0.9.15: GUI creativo, miras Vanilla/Paraguacraft/Dewiers.",
+  "client_version": "0.9.16",
+  "release_tag": "pvp-modern-0.9.16",
+  "descripcion": "BedWars HUD en cualquier servidor (deteccion scoreboard generica).",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-Modern-0.9.15.jar",
-      "sha1": "29aa56c059a760fa0063fa55b41a94efa53fdffc"
+      "filename": "ParaguacraftPvP-Modern-0.9.16.jar",
+      "sha1": "85abfef5aa8b80cbfe8e0421940c606f69f6b0cc"
     }
   ]
 }
