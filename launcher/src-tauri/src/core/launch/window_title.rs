@@ -18,28 +18,28 @@ pub fn title_for_launch(mc_version: &str, loader: &str) -> String {
     }
 }
 
-/// Renombra la ventana del proceso Java.
-/// Intervalo largo y early-exit: spamear SetWindowTextW cada 300ms rompe Discord Overlay
-/// y la detección de ventana para compartir pantalla.
+/// Renombra la ventana del proceso Java **una vez** y sale.
+/// Spamear `SetWindowTextW` rompe Discord Overlay y congela la captura al compartir pantalla.
 pub fn watch_window_title(pid: u32, mc_version: &str, loader: &str, stop: Arc<AtomicBool>) {
     let title = title_for_launch(mc_version, loader);
     std::thread::spawn(move || {
-        let mut applied = false;
-        let mut stable_ticks = 0u32;
-        while !stop.load(Ordering::Relaxed) {
+        // Esperar a que aparezca la ventana de Minecraft (máx ~20s).
+        for _ in 0..25 {
+            if stop.load(Ordering::Relaxed) {
+                return;
+            }
             #[cfg(target_os = "windows")]
             {
-                let changed = rename_windows_for_pid(pid, &title);
-                if changed {
-                    applied = true;
-                    stable_ticks = 0;
-                } else if applied {
-                    stable_ticks = stable_ticks.saturating_add(1);
+                if rename_windows_for_pid(pid, &title) {
+                    // Segunda pasada breve por si GLFW recrea el título al entrar al menú.
+                    std::thread::sleep(Duration::from_millis(1200));
+                    if !stop.load(Ordering::Relaxed) {
+                        let _ = rename_windows_for_pid(pid, &title);
+                    }
+                    return;
                 }
             }
-            // Tras aplicar el título unas veces, mirar mucho menos seguido.
-            let sleep_ms = if stable_ticks >= 3 { 5000 } else if applied { 1500 } else { 800 };
-            std::thread::sleep(Duration::from_millis(sleep_ms));
+            std::thread::sleep(Duration::from_millis(800));
         }
     });
 }

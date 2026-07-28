@@ -229,6 +229,7 @@ pub fn apply_min_graphics(game_dir: &Path) -> AppResult<()> {
 }
 
 /// Options.txt para Paraguacraft Optimized: rendimiento primero, sin saturar la PC.
+/// Importante: NO forzar fullscreen exclusivo — rompe captura/Discord y crashea GLFW en algunas GPUs.
 fn tier_options_optimized(tier: &str) -> HashMap<String, String> {
     match tier {
         "alta" => HashMap::from([
@@ -245,8 +246,8 @@ fn tier_options_optimized(tier: &str) -> HashMap<String, String> {
             ("renderClouds".into(), "fast".into()),
             ("mipmapLevels".into(), "3".into()),
             ("fboEnable".into(), "true".into()),
-            ("fullscreen".into(), "true".into()),
-            ("exclusiveFullscreen".into(), "true".into()),
+            ("fullscreen".into(), "false".into()),
+            ("exclusiveFullscreen".into(), "false".into()),
             ("prioritizeChunkUpdates".into(), "1".into()),
         ]),
         "media" => HashMap::from([
@@ -263,8 +264,8 @@ fn tier_options_optimized(tier: &str) -> HashMap<String, String> {
             ("renderClouds".into(), "fast".into()),
             ("mipmapLevels".into(), "2".into()),
             ("fboEnable".into(), "true".into()),
-            ("fullscreen".into(), "true".into()),
-            ("exclusiveFullscreen".into(), "true".into()),
+            ("fullscreen".into(), "false".into()),
+            ("exclusiveFullscreen".into(), "false".into()),
             ("prioritizeChunkUpdates".into(), "1".into()),
         ]),
         _ => HashMap::from([
@@ -281,8 +282,8 @@ fn tier_options_optimized(tier: &str) -> HashMap<String, String> {
             ("renderClouds".into(), "false".into()),
             ("mipmapLevels".into(), "1".into()),
             ("fboEnable".into(), "true".into()),
-            ("fullscreen".into(), "true".into()),
-            ("exclusiveFullscreen".into(), "true".into()),
+            ("fullscreen".into(), "false".into()),
+            ("exclusiveFullscreen".into(), "false".into()),
             ("prioritizeChunkUpdates".into(), "0".into()),
         ]),
     }
@@ -302,7 +303,7 @@ fn tier_options_optimized_legacy(tier: &str) -> HashMap<String, String> {
             ("clouds".into(), "true".into()),
             ("mipmapLevels".into(), "4".into()),
             ("fboEnable".into(), "true".into()),
-            ("fullscreen".into(), "true".into()),
+            ("fullscreen".into(), "false".into()),
             ("gamma".into(), "1.0".into()),
             ("useVbo".into(), "true".into()),
             ("viewBobbing".into(), "true".into()),
@@ -318,7 +319,7 @@ fn tier_options_optimized_legacy(tier: &str) -> HashMap<String, String> {
             ("clouds".into(), "true".into()),
             ("mipmapLevels".into(), "2".into()),
             ("fboEnable".into(), "true".into()),
-            ("fullscreen".into(), "true".into()),
+            ("fullscreen".into(), "false".into()),
             ("gamma".into(), "1.0".into()),
             ("useVbo".into(), "true".into()),
             ("viewBobbing".into(), "true".into()),
@@ -335,7 +336,7 @@ fn tier_options_optimized_legacy(tier: &str) -> HashMap<String, String> {
             ("clouds".into(), "false".into()),
             ("mipmapLevels".into(), "0".into()),
             ("fboEnable".into(), "true".into()),
-            ("fullscreen".into(), "true".into()),
+            ("fullscreen".into(), "false".into()),
             ("gamma".into(), "1.0".into()),
             ("useVbo".into(), "true".into()),
             ("viewBobbing".into(), "false".into()),
@@ -632,18 +633,9 @@ minecraft = true
 }
 
 fn write_sodium_options_json(config: &Path) -> AppResult<()> {
-    // Esquema compatible con Sodium 0.6+/0.9 (Keo). No tocar si ya existe válido.
+    // Esquema compatible con Sodium 0.6+/0.9 (Keo).
+    // `use_no_error_g_l_context: true` crashea el arranque en varias GPUs/drivers Windows.
     let path = config.join("sodium-options.json");
-    if path.is_file() {
-        if std::fs::read_to_string(&path)
-            .ok()
-            .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
-            .is_some()
-        {
-            return Ok(());
-        }
-        let _ = std::fs::remove_file(&path);
-    }
     let body = r#"{
   "quality": {
     "hidden_fluid_culling": true,
@@ -658,7 +650,7 @@ fn write_sodium_options_json(config: &Path) -> AppResult<()> {
     "use_entity_culling": true,
     "use_fog_occlusion": true,
     "use_block_face_culling": true,
-    "use_no_error_g_l_context": true,
+    "use_no_error_g_l_context": false,
     "quad_splitting_mode": "SAFE"
   },
   "advanced": {
@@ -675,6 +667,28 @@ fn write_sodium_options_json(config: &Path) -> AppResult<()> {
   }
 }
 "#;
+    if path.is_file() {
+        if let Ok(text) = std::fs::read_to_string(&path) {
+            if let Ok(mut root) = serde_json::from_str::<serde_json::Value>(&text) {
+                if let Some(perf) = root.get_mut("performance").and_then(|p| p.as_object_mut()) {
+                    if perf.get("use_no_error_g_l_context").and_then(|v| v.as_bool())
+                        == Some(true)
+                    {
+                        perf.insert(
+                            "use_no_error_g_l_context".into(),
+                            serde_json::Value::Bool(false),
+                        );
+                        std::fs::write(
+                            &path,
+                            format!("{}\n", serde_json::to_string_pretty(&root)?),
+                        )?;
+                    }
+                }
+                return Ok(());
+            }
+        }
+        let _ = std::fs::remove_file(&path);
+    }
     write_text(&path, body)
 }
 

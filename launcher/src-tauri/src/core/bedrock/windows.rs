@@ -196,11 +196,12 @@ pub fn watch_session(app: AppHandle, username: String, close_on_launch: bool) {
                     );
                 }
             }
-            if last_rename.elapsed() >= Duration::from_millis(150) {
+            // Renombrar poco: spamear SetWindowText congela Discord al compartir.
+            if last_rename.elapsed() >= Duration::from_secs(5) {
                 rename_bedrock_windows(BEDROCK_TITLE);
                 last_rename = std::time::Instant::now();
             }
-            std::thread::sleep(Duration::from_millis(200));
+            std::thread::sleep(Duration::from_millis(500));
         }
 
         game_session::set_running(false);
