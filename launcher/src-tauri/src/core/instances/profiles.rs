@@ -42,8 +42,8 @@ pub fn create(
         } else if loader == "paraguacraft-pvp-modern" && mc_version == "1.21.11" {
             crate::core::hardware::detect().recommended_ram_mb.max(4096)
         } else if loader.starts_with("paraguacraft-optimized") {
-            // Pack con muchos mods (Sodium/Iris/etc.): evitar OOM en el arranque.
-            crate::core::hardware::detect().recommended_ram_mb.max(6144)
+            // Misma lógica que el resto: según RAM/gama detectada (sin piso fijo de 6 GB).
+            crate::core::hardware::detect().recommended_ram_mb
         } else {
             4096
         }

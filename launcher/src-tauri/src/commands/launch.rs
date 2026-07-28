@@ -182,6 +182,14 @@ async fn spawn_for_instance(
     } else {
         settings.ram_mb
     };
+    // Respeta la RAM elegida por el usuario; solo baja el tope si supera lo seguro del sistema
+    // (deja ~1.5 GB para Windows/launcher) para evitar que el SO mate Java.
+    let hw = crate::core::hardware::detect();
+    let ram = {
+        let total_mb = ((hw.ram_gb * 1024.0).round() as u32).max(2048);
+        let max_safe = total_mb.saturating_sub(1536).max(1024);
+        ram.max(1024).min(max_safe)
+    };
     let gc = meta
         .gc
         .clone()
@@ -205,7 +213,6 @@ async fn spawn_for_instance(
     let java_major = crate::core::java::verify::verify(&java_path, "launch")
         .map(|j| j.version_major)
         .unwrap_or_else(|| crate::core::java::required_for_mc(&mc));
-    let hw = crate::core::hardware::detect();
     let jvm = JvmCtx {
         ram_mb: ram,
         gc,

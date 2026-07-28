@@ -2,5 +2,5 @@
 
 - Fix crash Optimized/Fabric: sin fullscreen exclusivo, Sodium GL seguro, mods críticos obligatorios
 - Validación de classpath (mensaje claro si faltan librerías)
-- Más RAM por defecto en Optimized
+- RAM: respeta la del usuario / gama de la PC (sin forzar 6 GB)
 - Discord: renombre de ventana una sola vez (evita stream congelado al compartir)

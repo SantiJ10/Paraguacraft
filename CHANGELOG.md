@@ -12,7 +12,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - Discord: stream congelado al compartir pantalla (renombre de ventana menos agresivo + sin exclusive fullscreen).
 
 ### Changed
-- Optimized arranca en ventana; más RAM por defecto (mín. 6 GB).
+- Optimized: RAM por defecto según la gama de la PC (sin forzar 6 GB).
 
 ## [1.1.9] - 2026-07-27
 
