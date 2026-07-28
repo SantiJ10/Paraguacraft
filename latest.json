@@ -1,8 +1,8 @@
 {
   "version": "1.1.10",
   "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.10/Instalar_Paraguacraft_v1.1.10.exe",
-  "size_bytes": 0,
-  "sha256": "pending",
+  "size_bytes": 5610349,
+  "sha256": "be01fd52909575befe0aec48ca8bf12c2d06e7ba05bfe157dcd859f8bee257e5",
   "notes": "- Fix crash Optimized/Fabric (fullscreen + Sodium GL + mods criticos)\n- RAM segun PC/usuario (sin forzar 6 GB)\n- Discord share: sin exclusive fullscreen + renombre de ventana una sola vez",
   "platforms": {
     "windows-x86_64": {
