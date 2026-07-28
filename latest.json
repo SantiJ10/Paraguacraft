@@ -1,12 +1,12 @@
 {
-  "version": "1.1.9",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.9/Instalar_Paraguacraft_v1.1.9.exe",
-  "size_bytes": 5605788,
-  "sha256": "375814f6e9dd15f7d5592fe7d6632f662d5bd8a56fc2a12abfbaa6b4cf7e21d7",
-  "notes": "- Fix CurseForge 403 (API key con $ en .env)\n- Optimized 1.8.9/1.12.2: OptiFine + FoamFix/VanillaFix via Modrinth\n- Shaders OptiFine vs Iris separados; NeoForge 1.20.1 con Oculus",
+  "version": "1.1.10",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.10/Instalar_Paraguacraft_v1.1.10.exe",
+  "size_bytes": 0,
+  "sha256": "pending",
+  "notes": "- Fix crash Optimized/Fabric (fullscreen + Sodium GL)\n- Mods criticos obligatorios + classpath validado\n- Discord: stream sin congelarse al compartir",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.9/Instalar_Paraguacraft_v1.1.9.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.10/Instalar_Paraguacraft_v1.1.10.exe",
       "signature": ""
     }
   }

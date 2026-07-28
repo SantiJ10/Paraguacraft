@@ -3,6 +3,17 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [1.1.10] - 2026-07-28
+
+### Fixed
+- Crash al iniciar **Optimized / Fabric** en varias PCs (fullscreen exclusivo + flag GL de Sodium).
+- Mods críticos de Optimized: si faltan Fabric API / Sodium / Iris / Lithium, error claro en vez de crash silencioso.
+- Librerías incompletas: el lanzamiento avisa y sugiere Reparar instancia.
+- Discord: stream congelado al compartir pantalla (renombre de ventana menos agresivo + sin exclusive fullscreen).
+
+### Changed
+- Optimized arranca en ventana; más RAM por defecto (mín. 6 GB).
+
 ## [1.1.9] - 2026-07-27
 
 ### Fixed

@@ -176,10 +176,11 @@ fn ga_key(name: &str) -> String {
 
 /// Construye el classpath (libs + client jar), deduplicando por group:artifact
 /// (las libs del loader, que van primero, ganan).
-fn build_classpath(merged: &Value, base_id: &str) -> Vec<PathBuf> {
+fn build_classpath(merged: &Value, base_id: &str) -> AppResult<Vec<PathBuf>> {
     let libs_root = paths::default_minecraft_dir().join("libraries");
     let mut seen: HashSet<String> = HashSet::new();
     let mut cp: Vec<PathBuf> = Vec::new();
+    let mut missing: Vec<String> = Vec::new();
 
     if let Some(libs) = merged["libraries"].as_array() {
         for lib in libs {
@@ -202,18 +203,48 @@ fn build_classpath(merged: &Value, base_id: &str) -> Vec<PathBuf> {
             if !key.is_empty() && !seen.insert(key) {
                 continue;
             }
-            if let Some(path) = lib["downloads"]["artifact"]["path"].as_str() {
-                cp.push(libs_root.join(path));
+            let path = if let Some(p) = lib["downloads"]["artifact"]["path"].as_str() {
+                libs_root.join(p)
             } else if !name.is_empty() {
                 if let Some(rel) = versions::maven_to_path(name) {
-                    cp.push(libs_root.join(rel));
+                    libs_root.join(rel)
+                } else {
+                    continue;
                 }
+            } else {
+                continue;
+            };
+            if !path.is_file() {
+                let label = if name.is_empty() {
+                    path.file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("jar")
+                        .to_string()
+                } else {
+                    name.to_string()
+                };
+                missing.push(label);
             }
+            cp.push(path);
         }
     }
     // Client jar de la base.
-    cp.push(versions::jar_path(base_id));
-    cp
+    let client = versions::jar_path(base_id);
+    if !client.is_file() {
+        missing.push(format!("client.jar ({base_id})"));
+    }
+    cp.push(client);
+
+    if !missing.is_empty() {
+        let preview: Vec<_> = missing.into_iter().take(8).collect();
+        let more = if preview.len() >= 8 { "…" } else { "" };
+        return Err(AppError::msg(format!(
+            "Faltan librerías del juego ({}{}). Usá Reparar instancia o reinstalá el loader.",
+            preview.join(", "),
+            more
+        )));
+    }
+    Ok(cp)
 }
 
 /// Extrae los natives (DLL/SO/DYLIB) de las libs al directorio dado.
@@ -436,7 +467,7 @@ pub fn build_command(
     let merged = load_merged(launch_id)?;
     let base_id = resolve_version_chain_base_id(launch_id);
 
-    let cp = build_classpath(&merged, &base_id);
+    let cp = build_classpath(&merged, &base_id)?;
     let cp_str = cp
         .iter()
         .map(|p| p.to_string_lossy().to_string())

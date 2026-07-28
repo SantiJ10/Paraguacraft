@@ -35,7 +35,7 @@ const FORGE_1_12_2: &str = "14.23.5.2860";
 
 const MODRINTH: &str = "https://api.modrinth.com/v2";
 const TUNED_MARKER: &str = ".paraguacraft_optimized_tuned";
-const TUNED_VERSION: &str = "v7";
+const TUNED_VERSION: &str = "v8";
 /// Única versión del pack Optimized que ve el usuario (el loader real se resuelve solo).
 pub const PACK_VERSION: &str = "1.0.0";
 
@@ -407,7 +407,14 @@ pub async fn install_bundle_for_launch(
 
     if kind.contains("neoforge") {
         purge_incompatible_jars(instance_dir);
-        install_pinned_mods(app, client, PINS_1_20_1_NEOFORGE, instance_dir).await?;
+        install_pinned_mods_required(
+            app,
+            client,
+            PINS_1_20_1_NEOFORGE,
+            instance_dir,
+            REQUIRED_NEOFORGE_PINS,
+        )
+        .await?;
         // Oculus = Iris para NeoForge; no bajar packs pensados solo para OptiFine legacy.
         install_shaders_for_tier(app, client, mc, &["iris"], &tier, instance_dir).await?;
         apply_preconfig_once(instance_dir, &tier, "neoforge", mc)?;
@@ -541,8 +548,12 @@ async fn install_fabric_compatible_bundle(
             "Paraguacraft Optimized no tiene set pineado para Minecraft {mc}"
         )));
     };
-    install_pinned_mods(app, client, pins, instance_dir).await
+    install_pinned_mods_required(app, client, pins, instance_dir, REQUIRED_FABRIC_PINS).await
 }
+
+/// Mods críticos: si fallan, el cliente Fabric/NeoForge no arranca.
+const REQUIRED_FABRIC_PINS: &[&str] = &["fabric-api", "sodium", "iris", "lithium"];
+const REQUIRED_NEOFORGE_PINS: &[&str] = &["embeddium", "oculus", "modernfix"];
 
 async fn install_pinned_mods(
     app: &AppHandle,
@@ -550,13 +561,35 @@ async fn install_pinned_mods(
     pins: &[Pin],
     instance_dir: &Path,
 ) -> AppResult<()> {
+    install_pinned_mods_inner(app, client, pins, instance_dir, &[]).await
+}
+
+async fn install_pinned_mods_required(
+    app: &AppHandle,
+    client: &reqwest::Client,
+    pins: &[Pin],
+    instance_dir: &Path,
+    required: &[&str],
+) -> AppResult<()> {
+    install_pinned_mods_inner(app, client, pins, instance_dir, required).await
+}
+
+async fn install_pinned_mods_inner(
+    app: &AppHandle,
+    client: &reqwest::Client,
+    pins: &[Pin],
+    instance_dir: &Path,
+    required: &[&str],
+) -> AppResult<()> {
     let mods_dir = instance_dir.join("mods");
     std::fs::create_dir_all(&mods_dir)?;
     let mut items = Vec::new();
+    let mut failed_required = Vec::new();
+
     for pin in pins {
+        let is_required = required.iter().any(|s| *s == pin.slug);
         match resolve_modrinth_version_file(client, pin.version_id).await {
             Ok((url, fname, sha1)) => {
-                // Quitar otras builds del mismo slug.
                 purge_slug_jars(&mods_dir, pin.slug, &fname);
                 let dest = mods_dir.join(&fname);
                 if dest.is_file() {
@@ -564,9 +597,22 @@ async fn install_pinned_mods(
                 }
                 items.push(DownloadItem::new(url, dest).with_sha1(sha1));
             }
-            Err(e) => eprintln!("[optimized] pin {} failed: {e}", pin.slug),
+            Err(e) => {
+                eprintln!("[optimized] pin {} failed: {e}", pin.slug);
+                if is_required {
+                    failed_required.push(format!("{} ({e})", pin.slug));
+                }
+            }
         }
     }
+
+    if !failed_required.is_empty() {
+        return Err(AppError::msg(format!(
+            "No se pudieron resolver mods críticos de Optimized: {}. Probá de nuevo o Reparar instancia.",
+            failed_required.join(", ")
+        )));
+    }
+
     if !items.is_empty() {
         net::download_all(
             client,
@@ -578,7 +624,44 @@ async fn install_pinned_mods(
         )
         .await?;
     }
+
+    // Tras descargar: verificar que los JARs críticos existen en mods/.
+    for slug in required {
+        if !mod_jar_present_for_slug(&mods_dir, slug) {
+            return Err(AppError::msg(format!(
+                "Falta el mod crítico «{slug}» en Optimized. Revisá la conexión y usá Reparar instancia."
+            )));
+        }
+    }
     Ok(())
+}
+
+fn mod_jar_present_for_slug(mods_dir: &Path, slug: &str) -> bool {
+    let slug_l = slug.to_lowercase();
+    let Ok(entries) = std::fs::read_dir(mods_dir) else {
+        return false;
+    };
+    entries.flatten().any(|e| {
+        let n = e.file_name().to_string_lossy().to_lowercase();
+        if !(n.ends_with(".jar") || n.ends_with(".jar.disabled")) {
+            return false;
+        }
+        match slug_l.as_str() {
+            "sodium" => {
+                n.contains("sodium")
+                    && !n.contains("sodium-extra")
+                    && !n.contains("reeses")
+                    && !n.contains("options")
+            }
+            "iris" => n.contains("iris") && !n.contains("oculus"),
+            "oculus" => n.contains("oculus"),
+            "embeddium" => n.contains("embeddium"),
+            "fabric-api" => n.contains("fabric-api") || n.contains("fabric_api"),
+            "lithium" => n.contains("lithium"),
+            "modernfix" => n.contains("modernfix"),
+            other => n.contains(other) || n.replace(['-', '_'], "").contains(&other.replace('-', "")),
+        }
+    })
 }
 
 fn purge_slug_jars(mods_dir: &Path, slug: &str, keep_filename: &str) {
