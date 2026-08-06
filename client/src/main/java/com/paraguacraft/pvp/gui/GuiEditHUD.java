@@ -19,11 +19,20 @@ public class GuiEditHUD extends GuiScreen {
         FontRenderer fr = this.fontRendererObj;
         String title = "Modo Edicion Paraguacraft";
         fr.drawStringWithShadow(title, this.width / 2 - fr.getStringWidth(title) / 2, 18, UiTheme.ACCENT);
-        String hint = "Arrastra las cajas celestes para reposicionar los HUDs";
+        String hint = "Arrastra las cajas · click derecho: escala UI (" + ModConfig.uiScaleLabel() + ")";
         fr.drawStringWithShadow(hint, this.width / 2 - fr.getStringWidth(hint) / 2, 40, UiTheme.TEXT_DIM);
+
+        float s = ModConfig.uiScaleFactor();
+        int sx = (int) (mouseX / s);
+        int sy = (int) (mouseY / s);
 
         ScaledResolution sr = new ScaledResolution(mc);
         int box = UiTheme.ACCENT_DIM;
+
+        net.minecraft.client.renderer.GlStateManager.pushMatrix();
+        if (s != 1.0f) {
+            net.minecraft.client.renderer.GlStateManager.scale(s, s, 1.0f);
+        }
 
         if (ModConfig.showFPS) drawRect(ModConfig.fpsX - 2, ModConfig.fpsY - 2, ModConfig.fpsX + 55, ModConfig.fpsY + 10, box);
         if (ModConfig.showPing) drawRect(ModConfig.pingX - 2, ModConfig.pingY - 2, ModConfig.pingX + 60, ModConfig.pingY + 10, box);
@@ -39,7 +48,7 @@ public class GuiEditHUD extends GuiScreen {
         }
 
         if (ModConfig.showCompass) {
-            int compassX = (sr.getScaledWidth() / 2) - 100;
+            int compassX = (int) ((sr.getScaledWidth() / s) / 2) - 100;
             drawRect(compassX - 2, ModConfig.compassY - 2, compassX + 202, ModConfig.compassY + 22, box);
         }
         if (ModConfig.showHardwareHud || ModConfig.showMusicHud) {
@@ -59,82 +68,83 @@ public class GuiEditHUD extends GuiScreen {
         if (ModConfig.reachDisplay) drawRect(ModConfig.reachDisplayX - 2, ModConfig.reachDisplayY - 2, ModConfig.reachDisplayX + 70, ModConfig.reachDisplayY + 10, box);
         if (ModConfig.comboCounter) drawRect(ModConfig.comboDisplayX - 2, ModConfig.comboDisplayY - 2, ModConfig.comboDisplayX + 70, ModConfig.comboDisplayY + 10, box);
 
+        net.minecraft.client.renderer.GlStateManager.popMatrix();
+
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) {
+        if (mouseButton == 1) {
+            ModConfig.cycleUiScale();
+            ModConfig.save();
+            return;
+        }
         if (mouseButton == 0) {
+            float s = ModConfig.uiScaleFactor();
+            int mx = (int) (mouseX / s);
+            int my = (int) (mouseY / s);
             ScaledResolution sr = new ScaledResolution(mc);
+            int compassCenter = (int) ((sr.getScaledWidth() / s) / 2) - 100;
 
-            if (ModConfig.showFPS && isHover(mouseX, mouseY, ModConfig.fpsX, ModConfig.fpsY, 55, 10)) {
-                dragging = 0; dragX = mouseX - ModConfig.fpsX; dragY = mouseY - ModConfig.fpsY;
-            } else if (ModConfig.showPing && isHover(mouseX, mouseY, ModConfig.pingX, ModConfig.pingY, 60, 10)) {
-                dragging = 1; dragX = mouseX - ModConfig.pingX; dragY = mouseY - ModConfig.pingY;
-            } else if (ModConfig.showCPS && isHover(mouseX, mouseY, ModConfig.cpsX, ModConfig.cpsY, 50, 10)) {
-                dragging = 2; dragX = mouseX - ModConfig.cpsX; dragY = mouseY - ModConfig.cpsY;
-            } else if (ModConfig.showKeystrokes && isHover(mouseX, mouseY, ModConfig.keysX, ModConfig.keysY, 68, 68)) {
-                dragging = 3; dragX = mouseX - ModConfig.keysX; dragY = mouseY - ModConfig.keysY;
-            } else if (ModConfig.showArmor && isHover(mouseX, mouseY, ModConfig.armorX, ModConfig.armorY, 45, 65)) {
-                dragging = 4; dragX = mouseX - ModConfig.armorX; dragY = mouseY - ModConfig.armorY;
-            } else if (ModConfig.showPotions && isHover(mouseX, mouseY, ModConfig.potionX, ModConfig.potionY, 120, 40)) {
-                dragging = 5; dragX = mouseX - ModConfig.potionX; dragY = mouseY - ModConfig.potionY;
-            } else if (ModConfig.showCoords && isHover(mouseX, mouseY, ModConfig.coordsX, ModConfig.coordsY, 100, 10)) {
-                dragging = 6; dragX = mouseX - ModConfig.coordsX; dragY = mouseY - ModConfig.coordsY;
-            } else if (ModConfig.showHeldItem && isHover(mouseX, mouseY, ModConfig.heldX, ModConfig.heldY, 130, 40)) {
-                dragging = 7; dragX = mouseX - ModConfig.heldX; dragY = mouseY - ModConfig.heldY;
-            } else if (ModConfig.showServerHUD && !mc.isIntegratedServerRunning() && isHover(mouseX, mouseY, ModConfig.serverX, ModConfig.serverY, 150, 24)) {
-                dragging = 8; dragX = mouseX - ModConfig.serverX; dragY = mouseY - ModConfig.serverY;
-            } else if (ModConfig.showCompass) {
-                int compassX = (sr.getScaledWidth() / 2) - 100;
-                if (isHover(mouseX, mouseY, compassX, ModConfig.compassY, 200, 20)) {
-                    dragging = 9; dragX = 0; dragY = mouseY - ModConfig.compassY;
-                } else if ((ModConfig.showHardwareHud || ModConfig.showMusicHud)
-                    && isHover(mouseX, mouseY, ModConfig.overlayHudX, ModConfig.overlayHudY,
-                    Math.max(ModConfig.overlayHudW, AdvancedHud.overlayPanelWidth(LauncherIpc.get())),
-                    Math.max(58, AdvancedHud.overlayPanelHeight(LauncherIpc.get())))) {
-                    dragging = 10; dragX = mouseX - ModConfig.overlayHudX; dragY = mouseY - ModConfig.overlayHudY;
-                } else if (ModConfig.showBedwarsResources
-                    && isHover(mouseX, mouseY, ModConfig.bwResX, ModConfig.bwResY, AdvancedHud.bwPanelW(), AdvancedHud.bwPanelH())) {
-                    dragging = 11; dragX = mouseX - ModConfig.bwResX; dragY = mouseY - ModConfig.bwResY;
-                } else if (ModConfig.showBlockCount && isHover(mouseX, mouseY, ModConfig.blocksX, ModConfig.blocksY, 40, 18)) {
-                    dragging = 14; dragX = mouseX - ModConfig.blocksX; dragY = mouseY - ModConfig.blocksY;
-                }
+            if (ModConfig.showFPS && isHover(mx, my, ModConfig.fpsX, ModConfig.fpsY, 55, 10)) {
+                dragging = 0; dragX = mx - ModConfig.fpsX; dragY = my - ModConfig.fpsY;
+            } else if (ModConfig.showPing && isHover(mx, my, ModConfig.pingX, ModConfig.pingY, 60, 10)) {
+                dragging = 1; dragX = mx - ModConfig.pingX; dragY = my - ModConfig.pingY;
+            } else if (ModConfig.showCPS && isHover(mx, my, ModConfig.cpsX, ModConfig.cpsY, 50, 10)) {
+                dragging = 2; dragX = mx - ModConfig.cpsX; dragY = my - ModConfig.cpsY;
+            } else if (ModConfig.showKeystrokes && isHover(mx, my, ModConfig.keysX, ModConfig.keysY, 68, 68)) {
+                dragging = 3; dragX = mx - ModConfig.keysX; dragY = my - ModConfig.keysY;
+            } else if (ModConfig.showArmor && isHover(mx, my, ModConfig.armorX, ModConfig.armorY, 45, 65)) {
+                dragging = 4; dragX = mx - ModConfig.armorX; dragY = my - ModConfig.armorY;
+            } else if (ModConfig.showPotions && isHover(mx, my, ModConfig.potionX, ModConfig.potionY, 120, 40)) {
+                dragging = 5; dragX = mx - ModConfig.potionX; dragY = my - ModConfig.potionY;
+            } else if (ModConfig.showCoords && isHover(mx, my, ModConfig.coordsX, ModConfig.coordsY, 100, 10)) {
+                dragging = 6; dragX = mx - ModConfig.coordsX; dragY = my - ModConfig.coordsY;
+            } else if (ModConfig.showHeldItem && isHover(mx, my, ModConfig.heldX, ModConfig.heldY, 130, 40)) {
+                dragging = 7; dragX = mx - ModConfig.heldX; dragY = my - ModConfig.heldY;
+            } else if (ModConfig.showServerHUD && !mc.isIntegratedServerRunning() && isHover(mx, my, ModConfig.serverX, ModConfig.serverY, 150, 24)) {
+                dragging = 8; dragX = mx - ModConfig.serverX; dragY = my - ModConfig.serverY;
+            } else if (ModConfig.showCompass && isHover(mx, my, compassCenter, ModConfig.compassY, 200, 20)) {
+                dragging = 9; dragX = 0; dragY = my - ModConfig.compassY;
             } else if ((ModConfig.showHardwareHud || ModConfig.showMusicHud)
-                && isHover(mouseX, mouseY, ModConfig.overlayHudX, ModConfig.overlayHudY,
+                && isHover(mx, my, ModConfig.overlayHudX, ModConfig.overlayHudY,
                 Math.max(ModConfig.overlayHudW, AdvancedHud.overlayPanelWidth(LauncherIpc.get())),
                 Math.max(58, AdvancedHud.overlayPanelHeight(LauncherIpc.get())))) {
-                dragging = 10; dragX = mouseX - ModConfig.overlayHudX; dragY = mouseY - ModConfig.overlayHudY;
+                dragging = 10; dragX = mx - ModConfig.overlayHudX; dragY = my - ModConfig.overlayHudY;
             } else if (ModConfig.showBedwarsResources
-                && isHover(mouseX, mouseY, ModConfig.bwResX, ModConfig.bwResY, AdvancedHud.bwPanelW(), AdvancedHud.bwPanelH())) {
-                dragging = 11; dragX = mouseX - ModConfig.bwResX; dragY = mouseY - ModConfig.bwResY;
-            } else if (ModConfig.showBlockCount && isHover(mouseX, mouseY, ModConfig.blocksX, ModConfig.blocksY, 40, 18)) {
-                dragging = 14; dragX = mouseX - ModConfig.blocksX; dragY = mouseY - ModConfig.blocksY;
-            } else if (ModConfig.reachDisplay && isHover(mouseX, mouseY, ModConfig.reachDisplayX, ModConfig.reachDisplayY, 70, 10)) {
-                dragging = 12; dragX = mouseX - ModConfig.reachDisplayX; dragY = mouseY - ModConfig.reachDisplayY;
-            } else if (ModConfig.comboCounter && isHover(mouseX, mouseY, ModConfig.comboDisplayX, ModConfig.comboDisplayY, 70, 10)) {
-                dragging = 13; dragX = mouseX - ModConfig.comboDisplayX; dragY = mouseY - ModConfig.comboDisplayY;
+                && isHover(mx, my, ModConfig.bwResX, ModConfig.bwResY, AdvancedHud.bwPanelW(), AdvancedHud.bwPanelH())) {
+                dragging = 11; dragX = mx - ModConfig.bwResX; dragY = my - ModConfig.bwResY;
+            } else if (ModConfig.showBlockCount && isHover(mx, my, ModConfig.blocksX, ModConfig.blocksY, 40, 18)) {
+                dragging = 14; dragX = mx - ModConfig.blocksX; dragY = my - ModConfig.blocksY;
+            } else if (ModConfig.reachDisplay && isHover(mx, my, ModConfig.reachDisplayX, ModConfig.reachDisplayY, 70, 10)) {
+                dragging = 12; dragX = mx - ModConfig.reachDisplayX; dragY = my - ModConfig.reachDisplayY;
+            } else if (ModConfig.comboCounter && isHover(mx, my, ModConfig.comboDisplayX, ModConfig.comboDisplayY, 70, 10)) {
+                dragging = 13; dragX = mx - ModConfig.comboDisplayX; dragY = my - ModConfig.comboDisplayY;
             }
         }
     }
 
     @Override
     protected void mouseClickMove(int mouseX, int mouseY, int clickedMouseButton, long timeSinceLastClick) {
-        if (dragging == 0) { ModConfig.fpsX = mouseX - dragX; ModConfig.fpsY = mouseY - dragY; }
-        else if (dragging == 1) { ModConfig.pingX = mouseX - dragX; ModConfig.pingY = mouseY - dragY; }
-        else if (dragging == 2) { ModConfig.cpsX = mouseX - dragX; ModConfig.cpsY = mouseY - dragY; }
-        else if (dragging == 3) { ModConfig.keysX = mouseX - dragX; ModConfig.keysY = mouseY - dragY; }
-        else if (dragging == 4) { ModConfig.armorX = mouseX - dragX; ModConfig.armorY = mouseY - dragY; }
-        else if (dragging == 5) { ModConfig.potionX = mouseX - dragX; ModConfig.potionY = mouseY - dragY; }
-        else if (dragging == 6) { ModConfig.coordsX = mouseX - dragX; ModConfig.coordsY = mouseY - dragY; }
-        else if (dragging == 7) { ModConfig.heldX = mouseX - dragX; ModConfig.heldY = mouseY - dragY; }
-        else if (dragging == 8) { ModConfig.serverX = mouseX - dragX; ModConfig.serverY = mouseY - dragY; }
-        else if (dragging == 9) { ModConfig.compassY = mouseY - dragY; }
-        else if (dragging == 10) { ModConfig.overlayHudX = mouseX - dragX; ModConfig.overlayHudY = mouseY - dragY; }
-        else if (dragging == 11) { ModConfig.bwResX = mouseX - dragX; ModConfig.bwResY = mouseY - dragY; }
-        else if (dragging == 12) { ModConfig.reachDisplayX = mouseX - dragX; ModConfig.reachDisplayY = mouseY - dragY; }
-        else if (dragging == 13) { ModConfig.comboDisplayX = mouseX - dragX; ModConfig.comboDisplayY = mouseY - dragY; }
-        else if (dragging == 14) { ModConfig.blocksX = mouseX - dragX; ModConfig.blocksY = mouseY - dragY; }
+        float s = ModConfig.uiScaleFactor();
+        int mx = (int) (mouseX / s);
+        int my = (int) (mouseY / s);
+        if (dragging == 0) { ModConfig.fpsX = mx - dragX; ModConfig.fpsY = my - dragY; }
+        else if (dragging == 1) { ModConfig.pingX = mx - dragX; ModConfig.pingY = my - dragY; }
+        else if (dragging == 2) { ModConfig.cpsX = mx - dragX; ModConfig.cpsY = my - dragY; }
+        else if (dragging == 3) { ModConfig.keysX = mx - dragX; ModConfig.keysY = my - dragY; }
+        else if (dragging == 4) { ModConfig.armorX = mx - dragX; ModConfig.armorY = my - dragY; }
+        else if (dragging == 5) { ModConfig.potionX = mx - dragX; ModConfig.potionY = my - dragY; }
+        else if (dragging == 6) { ModConfig.coordsX = mx - dragX; ModConfig.coordsY = my - dragY; }
+        else if (dragging == 7) { ModConfig.heldX = mx - dragX; ModConfig.heldY = my - dragY; }
+        else if (dragging == 8) { ModConfig.serverX = mx - dragX; ModConfig.serverY = my - dragY; }
+        else if (dragging == 9) { ModConfig.compassY = my - dragY; }
+        else if (dragging == 10) { ModConfig.overlayHudX = mx - dragX; ModConfig.overlayHudY = my - dragY; }
+        else if (dragging == 11) { ModConfig.bwResX = mx - dragX; ModConfig.bwResY = my - dragY; }
+        else if (dragging == 12) { ModConfig.reachDisplayX = mx - dragX; ModConfig.reachDisplayY = my - dragY; }
+        else if (dragging == 13) { ModConfig.comboDisplayX = mx - dragX; ModConfig.comboDisplayY = my - dragY; }
+        else if (dragging == 14) { ModConfig.blocksX = mx - dragX; ModConfig.blocksY = my - dragY; }
     }
 
     @Override

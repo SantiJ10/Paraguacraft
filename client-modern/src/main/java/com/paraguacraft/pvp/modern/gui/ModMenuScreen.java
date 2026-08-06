@@ -71,6 +71,13 @@ public class ModMenuScreen extends ParaguacraftScreen {
                 new net.minecraft.client.gui.screen.option.ControlsOptionsScreen(this, client.options))));
         addDrawableChild(FlatMenuButton.create(panelX + 224, closeY, 100, 20,
             Text.literal("Perfiles"), () -> client.setScreen(new ModProfilesScreen(this))));
+        addDrawableChild(FlatMenuButton.create(panelX + 330, closeY, 100, 20,
+            Text.literal("UI " + ModernConfig.uiScaleLabel()), () -> {
+                ModernConfig.cycleUiScale();
+                ModernConfig.save();
+                clearChildren();
+                init();
+            }));
         addDrawableChild(FlatMenuButton.create(panelX + panelW - 112, closeY, 100, 20,
             Text.literal("Cerrar"), this::goBack));
 

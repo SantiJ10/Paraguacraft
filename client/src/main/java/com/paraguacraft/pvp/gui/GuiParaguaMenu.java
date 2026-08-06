@@ -118,19 +118,29 @@ public class GuiParaguaMenu extends GuiScreen {
         FontRenderer fr = fr();
         drawRect(0, 0, width, height, 0x99000000);
 
-        int panelX = Math.max(8, width / 2 - 420);
+        float s = ModConfig.uiScaleFactor();
+        int mx = (int) (mouseX / s);
+        int my = (int) (mouseY / s);
+
+        GlStateManager.pushMatrix();
+        if (s != 1.0f) {
+            GlStateManager.scale(s, s, 1.0f);
+        }
+
+        int panelX = Math.max(8, (int) (width / s) / 2 - 420);
         int panelY = 24;
-        int panelW = Math.min(width - 16, 840);
-        int panelH = height - 48;
+        int panelW = Math.min((int) (width / s) - 16, 840);
+        int panelH = (int) (height / s) - 48;
         Gui.drawRect(panelX, panelY, panelX + panelW, panelY + panelH, 0xCC0A0C14);
         Gui.drawRect(panelX, panelY, panelX + panelW, panelY + 1, 0x33FFFFFF);
         Gui.drawRect(panelX, panelY + panelH - 1, panelX + panelW, panelY + panelH, 0x22FFFFFF);
 
-        drawSidebar(panelX, panelY, panelH, mouseX, mouseY);
-        drawTopbar(panelX + SIDEBAR, panelY, panelW - SIDEBAR, mouseX, mouseY);
-        drawModGrid(panelX + SIDEBAR, panelY + TOPBAR, panelW - SIDEBAR - 12, panelH - TOPBAR - 12, mouseX, mouseY);
+        drawSidebar(panelX, panelY, panelH, mx, my);
+        drawTopbar(panelX + SIDEBAR, panelY, panelW - SIDEBAR, mx, my);
+        drawModGrid(panelX + SIDEBAR, panelY + TOPBAR, panelW - SIDEBAR - 12, panelH - TOPBAR - 12, mx, my);
 
         fr.drawStringWithShadow(ModLang.format("paraguacraft.menu.hint"), panelX + 12, panelY + panelH - 14, UiTheme.TEXT_DIM);
+        GlStateManager.popMatrix();
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
 
@@ -175,6 +185,14 @@ public class GuiParaguaMenu extends GuiScreen {
         String shown = searchQuery.isEmpty() ? placeholder : searchQuery;
         int color = searchQuery.isEmpty() ? UiTheme.TEXT_DIM : UiTheme.TEXT;
         fr.drawStringWithShadow(shown + (searchFocused && (System.currentTimeMillis() / 500) % 2 == 0 ? "_" : ""), searchX + 8, searchY + 7, color);
+
+        // Escala UI compartida con el HUD
+        int scaleX = searchX + searchW + 10;
+        int scaleW = 92;
+        boolean hoverScale = mouseX >= scaleX && mouseX <= scaleX + scaleW && mouseY >= searchY && mouseY <= searchY + 24;
+        Gui.drawRect(scaleX, searchY, scaleX + scaleW, searchY + 24, hoverScale ? 0xAA123040 : 0x88000000);
+        String scaleLbl = "UI " + ModConfig.uiScaleLabel();
+        fr.drawStringWithShadow(scaleLbl, scaleX + (scaleW - fr.getStringWidth(scaleLbl)) / 2, searchY + 7, UiTheme.ACCENT);
     }
 
     private void drawModGrid(int x, int y, int w, int h, int mouseX, int mouseY) {
@@ -311,15 +329,28 @@ public class GuiParaguaMenu extends GuiScreen {
         if (mouseButton != 0) {
             return;
         }
-        int panelX = Math.max(8, width / 2 - 420);
+        float s = ModConfig.uiScaleFactor();
+        int mx = (int) (mouseX / s);
+        int my = (int) (mouseY / s);
+        int sw = (int) (width / s);
+        int sh = (int) (height / s);
+
+        int panelX = Math.max(8, sw / 2 - 420);
         int panelY = 24;
-        int panelW = Math.min(width - 16, 840);
-        int panelH = height - 48;
+        int panelW = Math.min(sw - 16, 840);
+        int panelH = sh - 48;
 
         int searchX = panelX + SIDEBAR + 16;
         int searchY = panelY + 14;
         int searchW = Math.min(280, panelW - SIDEBAR - 32);
-        if (mouseX >= searchX && mouseX <= searchX + searchW && mouseY >= searchY && mouseY <= searchY + 24) {
+        int scaleX = searchX + searchW + 10;
+        int scaleW = 92;
+        if (mx >= scaleX && mx <= scaleX + scaleW && my >= searchY && my <= searchY + 24) {
+            ModConfig.cycleUiScale();
+            ModConfig.save();
+            return;
+        }
+        if (mx >= searchX && mx <= searchX + searchW && my >= searchY && my <= searchY + 24) {
             searchFocused = true;
             return;
         }
@@ -327,7 +358,7 @@ public class GuiParaguaMenu extends GuiScreen {
 
         int catY = panelY + 64;
         for (int i = 0; i < CATEGORY_IDS.length; i++) {
-            if (mouseX >= panelX && mouseX <= panelX + SIDEBAR && mouseY >= catY && mouseY <= catY + 28) {
+            if (mx >= panelX && mx <= panelX + SIDEBAR && my >= catY && my <= catY + 28) {
                 selectedCategory = i;
                 return;
             }
@@ -345,14 +376,14 @@ public class GuiParaguaMenu extends GuiScreen {
             int cardX = gridX + 8 + cx * (CARD_W + GAP);
             int cardY = gridY + 8 + cy * (CARD_H + GAP) - (int) scrollOffset;
             if (cardY + CARD_H >= gridY && cardY <= gridY + panelH - TOPBAR - 12
-                && mouseX >= cardX && mouseX <= cardX + CARD_W && mouseY >= cardY && mouseY <= cardY + CARD_H) {
+                && mx >= cardX && mx <= cardX + CARD_W && my >= cardY && my <= cardY + CARD_H) {
                 if (mod.id == 6 || mod.id == 9 || mod.id == 36 || mod.id == 38 || mod.id == 45 || mod.id == 60 || mod.id == 61) {
                     int toggleY = cardY + CARD_H - 22;
                     int half = (CARD_W - 20) / 2;
                     int optX = cardX + 8;
                     int togX = cardX + 8 + half + 4;
-                    if (mouseY >= toggleY && mouseY <= toggleY + 16) {
-                        if (mouseX >= optX && mouseX <= optX + half) {
+                    if (my >= toggleY && my <= toggleY + 16) {
+                        if (mx >= optX && mx <= optX + half) {
                             if (mod.id == 6) {
                                 mc.displayGuiScreen(GuiSubmodOptions.armor());
                             } else if (mod.id == 9) {
@@ -370,7 +401,7 @@ public class GuiParaguaMenu extends GuiScreen {
                             }
                             return;
                         }
-                        if (mouseX >= togX && mouseX <= cardX + CARD_W - 8) {
+                        if (mx >= togX && mx <= cardX + CARD_W - 8) {
                             toggleMod(mod.id);
                             ModConfig.save();
                             return;

@@ -126,11 +126,14 @@ public final class ModernConfig {
     public static int musicHudY = 308;
     public static int overlayHudW = 118;
     public static int musicHudAlpha = 255;
-    /** Escala del panel de musica (100 = normal). */
+    /** Escala del panel de musica relativa (100 = normal), encima de uiScale. */
     public static int musicHudScale = 100;
+    /** Escala global HUD + menús (50–200%). */
+    public static int uiScale = 100;
     public static int coordsX = 5;
     public static int coordsY = 44;
     private static final int[] MUSIC_ALPHA_PRESETS = {255, 64, 0};
+    private static final int[] UI_SCALE_PRESETS = {50, 75, 100, 125, 150, 175, 200};
     public static int comboX = 5;
     public static int comboY = 45;
     public static int gameModeHudX = 5;
@@ -176,6 +179,27 @@ public final class ModernConfig {
 
     public static String musicHudScaleLabel() {
         return musicHudScale + "%";
+    }
+
+    public static void cycleUiScale() {
+        int idx = 0;
+        boolean found = false;
+        for (int i = 0; i < UI_SCALE_PRESETS.length; i++) {
+            if (uiScale == UI_SCALE_PRESETS[i]) {
+                idx = (i + 1) % UI_SCALE_PRESETS.length;
+                found = true;
+                break;
+            }
+        }
+        uiScale = found ? UI_SCALE_PRESETS[idx] : 100;
+    }
+
+    public static String uiScaleLabel() {
+        return uiScale + "%";
+    }
+
+    public static float uiScaleFactor() {
+        return Math.max(0.5f, Math.min(2.0f, uiScale / 100f));
     }
 
     public static void cycleCrosshairMode() {
@@ -335,6 +359,9 @@ public final class ModernConfig {
             }
             musicHudAlpha = intProp(props, "musicHudAlpha", musicHudAlpha);
             musicHudScale = intProp(props, "musicHudScale", musicHudScale);
+            uiScale = intProp(props, "uiScale", uiScale);
+            if (uiScale < 50) uiScale = 50;
+            if (uiScale > 200) uiScale = 200;
             coordsX = intProp(props, "coordsX", coordsX);
             coordsY = intProp(props, "coordsY", coordsY);
             comboX = intProp(props, "comboX", comboX);
@@ -468,6 +495,7 @@ public final class ModernConfig {
         props.setProperty("overlayHudW", String.valueOf(overlayHudW));
         props.setProperty("musicHudAlpha", String.valueOf(musicHudAlpha));
         props.setProperty("musicHudScale", String.valueOf(musicHudScale));
+        props.setProperty("uiScale", String.valueOf(uiScale));
         props.setProperty("coordsX", String.valueOf(coordsX));
         props.setProperty("coordsY", String.valueOf(coordsY));
         props.setProperty("comboX", String.valueOf(comboX));

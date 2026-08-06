@@ -57,6 +57,10 @@ public class HUDOverlay extends Gui {
 
         // Encapsulamos TODO el HUD para evitar fugas de estado GL (sky flicker en Bedwars).
         GlStateManager.pushMatrix();
+        float ui = ModConfig.uiScaleFactor();
+        if (ui != 1.0f) {
+            GlStateManager.scale(ui, ui, 1.0f);
+        }
         GlStateManager.enableBlend();
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         try {

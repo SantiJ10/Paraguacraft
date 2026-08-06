@@ -3,6 +3,7 @@ package com.paraguacraft.pvp.gui;
 import com.paraguacraft.pvp.core.TrainingWorldHelper;
 import com.paraguacraft.pvp.gui.theme.UiTheme;
 import com.paraguacraft.pvp.modules.ModConfig;
+import com.paraguacraft.pvp.resourcepack.ResourcePackManager;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiMultiplayer;
 import net.minecraft.client.gui.GuiOptions;
@@ -16,6 +17,7 @@ public class CustomMainMenu extends GuiScreen {
 
     @Override
     public void initGui() {
+        ResourcePackManager.ensureOfficialSelected();
         int btnW = 220;
         int btnH = 26;
         int startY = this.height / 2 + 10;

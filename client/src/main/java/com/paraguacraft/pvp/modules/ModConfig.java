@@ -108,7 +108,11 @@ public class ModConfig {
     public static int serverX = 5, serverY = 210; 
     public static int compassY = 10; // La brújula se alinea al centro automáticamente, solo definimos la altura
 
+    /** Escala compartida HUD + Mod Menu (50–200%, paso 25). */
+    public static int uiScale = 100;
+
     private static final int[] MUSIC_ALPHA_PRESETS = {255, 192, 128, 64};
+    private static final int[] UI_SCALE_PRESETS = {50, 75, 100, 125, 150, 175, 200};
 
     public static boolean loaded = false;
 
@@ -126,6 +130,28 @@ public class ModConfig {
     public static String musicHudAlphaLabel() {
         int pct = Math.round(musicHudAlpha / 255f * 100f);
         return pct + "%";
+    }
+
+    public static void cycleUiScale() {
+        int idx = 0;
+        boolean found = false;
+        for (int i = 0; i < UI_SCALE_PRESETS.length; i++) {
+            if (uiScale == UI_SCALE_PRESETS[i]) {
+                idx = (i + 1) % UI_SCALE_PRESETS.length;
+                found = true;
+                break;
+            }
+        }
+        uiScale = found ? UI_SCALE_PRESETS[idx] : 100;
+    }
+
+    public static String uiScaleLabel() {
+        return uiScale + "%";
+    }
+
+    /** Factor float para GlStateManager.scale. */
+    public static float uiScaleFactor() {
+        return Math.max(0.5f, Math.min(2.0f, uiScale / 100f));
     }
 
     public static void save() {
@@ -190,6 +216,7 @@ public class ModConfig {
             props.setProperty("showMusicHud", String.valueOf(showMusicHud));
             props.setProperty("showMusicAlbumArt", String.valueOf(showMusicAlbumArt));
             props.setProperty("musicHudAlpha", String.valueOf(musicHudAlpha));
+            props.setProperty("uiScale", String.valueOf(uiScale));
             props.setProperty("showTntCountdown", String.valueOf(showTntCountdown));
             props.setProperty("showBedwarsResources", String.valueOf(showBedwarsResources));
             props.setProperty("bwResTransparentBg", String.valueOf(bwResTransparentBg));
@@ -301,6 +328,13 @@ public class ModConfig {
             showMusicHud = Boolean.parseBoolean(props.getProperty("showMusicHud", String.valueOf(showMusicHud)));
             showMusicAlbumArt = Boolean.parseBoolean(props.getProperty("showMusicAlbumArt", String.valueOf(showMusicAlbumArt)));
             musicHudAlpha = Integer.parseInt(props.getProperty("musicHudAlpha", String.valueOf(musicHudAlpha)));
+            try {
+                uiScale = Integer.parseInt(props.getProperty("uiScale", String.valueOf(uiScale)));
+            } catch (Exception ignored) {
+                uiScale = 100;
+            }
+            if (uiScale < 50) uiScale = 50;
+            if (uiScale > 200) uiScale = 200;
             showTntCountdown = Boolean.parseBoolean(props.getProperty("showTntCountdown", String.valueOf(showTntCountdown)));
             showBedwarsResources = Boolean.parseBoolean(props.getProperty("showBedwarsResources", String.valueOf(showBedwarsResources)));
             bwResTransparentBg = Boolean.parseBoolean(props.getProperty("bwResTransparentBg", String.valueOf(bwResTransparentBg)));

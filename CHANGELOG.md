@@ -3,6 +3,14 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [1.1.13] - 2026-08-06
+
+### Fixed
+- Pack oficial PvP 1.8.9 se aplica solo al lanzar (token con `.zip` + no sobrescribir con BrandPack offline).
+
+### Added
+- (clientes) Escala UI compartida HUD + mod menu en 1.8.9 y modern.
+
 ## [1.1.12] - 2026-08-06
 
 ### Added

@@ -16,6 +16,9 @@ import java.util.List;
 public final class ResourcePackManager {
 
     public static final String OFFICIAL_PACK = "paraguacraft-pvp-189.zip";
+    public static final String BRAND_PACK = "ParaguacraftBrandPack";
+
+    private static boolean ensuredThisSession;
 
     public interface ProgressListener {
         void onProgress(String status, float ratio);
@@ -29,6 +32,38 @@ public final class ResourcePackManager {
         return new File(Minecraft.getMinecraft().mcDataDir, "resourcepacks");
     }
 
+    /** Token 1.8.9: nombre exacto del zip o carpeta (sin prefijo file/). */
+    public static String packToken(String fileName) {
+        if (fileName == null) {
+            return "";
+        }
+        if (fileName.startsWith("file/")) {
+            return fileName.substring(5);
+        }
+        return fileName;
+    }
+
+    public static boolean isPackActive(String fileName) {
+        List<String> active = Minecraft.getMinecraft().gameSettings.resourcePacks;
+        if (active == null || fileName == null) {
+            return false;
+        }
+        String token = packToken(fileName);
+        for (String p : active) {
+            if (p == null) {
+                continue;
+            }
+            String t = packToken(p);
+            if (t.equalsIgnoreCase(token)
+                || t.equalsIgnoreCase(token.replace(".zip", ""))
+                || (token.endsWith(".zip") && t.equalsIgnoreCase(token))
+                || (t.contains("paraguacraft-pvp-189") && fileName.contains("paraguacraft-pvp-189"))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static List<InstalledPack> listInstalled() {
         List<InstalledPack> out = new ArrayList<InstalledPack>();
         File dir = packsDir();
@@ -36,7 +71,6 @@ public final class ResourcePackManager {
             dir.mkdirs();
             return out;
         }
-        List<String> active = Minecraft.getMinecraft().gameSettings.resourcePacks;
         File[] files = dir.listFiles();
         if (files == null) {
             return out;
@@ -49,8 +83,7 @@ public final class ResourcePackManager {
             if (!name.toLowerCase().endsWith(".zip")) {
                 continue;
             }
-            String token = "file/" + name;
-            boolean enabled = active != null && active.contains(token);
+            boolean enabled = isPackActive(name);
             out.add(new InstalledPack(name, stripExtension(name), f.length(), enabled));
         }
         out.sort((a, b) -> a.displayName.compareToIgnoreCase(b.displayName));
@@ -74,49 +107,76 @@ public final class ResourcePackManager {
         return dest.getName();
     }
 
-    public static void applyPack(String fileName) {
-        if (OFFICIAL_PACK.equalsIgnoreCase(fileName)) {
-            purgeNonOfficialPacks();
+    /**
+     * Aplica stack PvP: oficial arriba (prioridad), BrandPack debajo si existe.
+     * No borra el BrandPack de skins offline.
+     */
+    public static void applyOfficialStack() {
+        File official = new File(packsDir(), OFFICIAL_PACK);
+        if (!official.isFile()) {
+            return;
+        }
+        List<String> packs = new ArrayList<String>();
+        packs.add(OFFICIAL_PACK);
+        File brand = new File(packsDir(), BRAND_PACK);
+        if (brand.isDirectory() || new File(packsDir(), BRAND_PACK + ".zip").isFile()) {
+            packs.add(BRAND_PACK);
         }
         Minecraft mc = Minecraft.getMinecraft();
-        List<String> packs = new ArrayList<String>();
-        packs.add("file/" + fileName);
         mc.gameSettings.resourcePacks = packs;
         mc.gameSettings.saveOptions();
         mc.getResourcePackRepository().updateRepositoryEntriesAll();
         mc.refreshResources();
     }
 
-    private static void purgeNonOfficialPacks() {
-        File dir = packsDir();
-        File[] files = dir.listFiles();
-        if (files == null) {
+    public static void applyPack(String fileName) {
+        if (OFFICIAL_PACK.equalsIgnoreCase(fileName)) {
+            applyOfficialStack();
             return;
         }
-        for (File f : files) {
-            if (f.isDirectory()) {
-                continue;
-            }
-            if (!f.isFile()) {
-                continue;
-            }
-            String name = f.getName();
-            if (OFFICIAL_PACK.equalsIgnoreCase(name)) {
-                continue;
-            }
-            if (name.toLowerCase().endsWith(".zip")) {
-                f.delete();
-            }
-        }
+        Minecraft mc = Minecraft.getMinecraft();
+        List<String> packs = new ArrayList<String>();
+        packs.add(packToken(fileName));
+        mc.gameSettings.resourcePacks = packs;
+        mc.gameSettings.saveOptions();
+        mc.getResourcePackRepository().updateRepositoryEntriesAll();
+        mc.refreshResources();
     }
 
-    /** Solo pack oficial activo (prioridad sobre vanilla en 1.8.9). */
+    /** Solo pack oficial activo (compat). */
     public static void applyOfficialPack() {
-        purgeNonOfficialPacks();
-        if (!new File(packsDir(), OFFICIAL_PACK).isFile()) {
+        applyOfficialStack();
+    }
+
+    /**
+     * Garantiza el pack oficial al entrar al menú / lanzar (por sesión).
+     * Corrige options.txt mal formados del launcher antiguo (sin .zip o file/).
+     */
+    public static void ensureOfficialSelected() {
+        if (ensuredThisSession) {
             return;
         }
-        applyPack(OFFICIAL_PACK);
+        File official = new File(packsDir(), OFFICIAL_PACK);
+        if (!official.isFile()) {
+            return;
+        }
+        List<String> active = Minecraft.getMinecraft().gameSettings.resourcePacks;
+        boolean ok = false;
+        if (active != null) {
+            for (String p : active) {
+                if (p != null && (p.equals(OFFICIAL_PACK) || p.contains("paraguacraft-pvp-189"))) {
+                    // Token correcto con .zip y sin file/
+                    if (OFFICIAL_PACK.equals(p) || (p.endsWith(".zip") && !p.startsWith("file/"))) {
+                        ok = true;
+                    }
+                    break;
+                }
+            }
+        }
+        if (!ok) {
+            applyOfficialStack();
+        }
+        ensuredThisSession = true;
     }
 
     public static void clearActivePack() {
@@ -133,8 +193,11 @@ public final class ResourcePackManager {
             f.delete();
         }
         List<String> active = Minecraft.getMinecraft().gameSettings.resourcePacks;
-        if (active != null && active.contains("file/" + fileName)) {
-            clearActivePack();
+        if (active != null) {
+            String token = packToken(fileName);
+            if (active.contains(token) || active.contains("file/" + fileName)) {
+                clearActivePack();
+            }
         }
     }
 
