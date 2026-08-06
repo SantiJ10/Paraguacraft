@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.38",
-  "release_tag": "pvp-client-2.1.38",
-  "descripcion": "Servidores PvP universos + BedWars HUD multi-server.",
+  "client_version": "2.1.39",
+  "release_tag": "pvp-client-2.1.39",
+  "descripcion": "Multijugador vanilla restaurado (sin menú servidor intermedio).",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.38.jar",
-      "sha1": "68d6db39ed8d0741be3762bb29f891260bad21d4"
+      "filename": "ParaguacraftPvP-2.1.39.jar",
+      "sha1": "a1b1ab263c9fd97a2031ce26707f9d7efa4242c4"
     },
     {
       "filename": "Hytils-Reborn-1.8.9-forge-1.7.5.jar",
