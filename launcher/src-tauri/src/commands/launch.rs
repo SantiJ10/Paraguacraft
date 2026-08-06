@@ -138,6 +138,12 @@ async fn spawn_for_instance(
     }
 
     let loader_norm = loaders::normalize(&loader);
+    // Skin offline → BrandPack texturas. Luego prepare PvP re-activa el stack oficial
+    // (antes se hacía al revés y branding sobrescribía resourcePacks sin el pack PvP).
+    if crate::core::skins::offline::has_global_skin() {
+        let _ = crate::core::skins::offline::ensure_for_launch(&game_dir, &mc);
+    }
+
     if loader_norm == "paraguacraft-pvp" || loader_norm == "paraguacraft-pvp-modern" {
         // Marker one-shot desde perfiles → Practica. Sin marker: limpia sticky
         // (Home/Play/Hypixel) para no reabrir el mundo flat.
@@ -165,10 +171,6 @@ async fn spawn_for_instance(
         {
             eprintln!("[paraguacraft] resource pack prepare_launch: {e}");
         }
-    }
-
-    if crate::core::skins::offline::has_global_skin() {
-        let _ = crate::core::skins::offline::ensure_for_launch(&game_dir, &mc);
     }
 
     // Offline / no-premium: CustomSkinLoader + Ely.by para skins multiplayer.

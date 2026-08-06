@@ -79,6 +79,13 @@ public final class HudRenderer {
             return;
         }
 
+        var matrices = context.getMatrices();
+        matrices.pushMatrix();
+        float ui = ModernConfig.uiScaleFactor();
+        if (ui != 1.0f) {
+            matrices.scale(ui, ui);
+        }
+        try {
         if (ModernConfig.showFps) {
             drawLabeled(client.textRenderer, context, "FPS: ", String.valueOf(client.getCurrentFps()), ModernConfig.fpsX, ModernConfig.fpsY);
         }
@@ -163,6 +170,9 @@ public final class HudRenderer {
                 ModernConfig.bridgeTimerY,
                 0xFF55FFFF
             );
+        }
+        } finally {
+            matrices.popMatrix();
         }
     }
 

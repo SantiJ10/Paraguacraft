@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP Modern",
   "mc_version": "1.21.11",
   "loader": "fabric",
-  "client_version": "0.9.17",
-  "release_tag": "pvp-modern-0.9.17",
-  "descripcion": "Servidores UniversoCraft/Mush + BedWars HUD multi-server.",
+  "client_version": "0.9.18",
+  "release_tag": "pvp-modern-0.9.18",
+  "descripcion": "Escala UI compartida HUD/mod menu.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-Modern-0.9.17.jar",
-      "sha1": "1d4a63d3d74159586447a368f270aad4ecd569f9"
+      "filename": "ParaguacraftPvP-Modern-0.9.18.jar",
+      "sha1": "4d9123ff4442a5865f19c6ffcc3a115dfef13bd1"
     }
   ]
 }
