@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.42",
-  "release_tag": "pvp-client-2.1.42",
-  "descripcion": "HUD nítido al escalar módulos (nearest + carátula 32px).",
+  "client_version": "2.1.43",
+  "release_tag": "pvp-client-2.1.43",
+  "descripcion": "Pack PvP auto-Selected (setRepositories) + destroy_stage Dewier.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.42.jar",
-      "sha1": "38890a25f6a41f7783e8b2572da1fd0e93fb356d"
+      "filename": "ParaguacraftPvP-2.1.43.jar",
+      "sha1": "6ad2335e594f6f590a0e81bfaa356c4fdac563d7"
     },
     {
       "filename": "Hytils-Reborn-1.8.9-forge-1.7.5.jar",

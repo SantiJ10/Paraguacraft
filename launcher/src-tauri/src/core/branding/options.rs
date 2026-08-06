@@ -102,21 +102,22 @@ pub fn ensure_enabled(game_dir: &Path, ver: McVersion, profile: PackProfile, min
             .cloned()
             .collect();
 
-        // Prioridad: pack oficial PvP → brand → resto.
+        // 1.8.9: última entrada = mayor prioridad al cargar texturas.
+        // Brand primero, oficial PvP al final (mismas rules que el cliente).
         let mut packs: Vec<String> = Vec::new();
+        packs.push(format!("\"{PACK_NAME}\""));
+        if min_graphics {
+            packs.push("\"Pack_Graficos_Minimos.zip\"".to_string());
+        }
+        for p in user_packs {
+            packs.push(format!("\"{p}\""));
+        }
         if let Some(official) = official_token_for_dir(game_dir, ver.major) {
             packs.push(format!("\"{official}\""));
         } else {
             for p in existing.iter().filter(|p| is_official_pvp_pack(p)) {
                 packs.push(format!("\"{p}\""));
             }
-        }
-        if min_graphics {
-            packs.push("\"Pack_Graficos_Minimos.zip\"".to_string());
-        }
-        packs.push(format!("\"{PACK_NAME}\""));
-        for p in user_packs {
-            packs.push(format!("\"{p}\""));
         }
         new_lines.retain(|l| !l.starts_with("resourcePacks:"));
         new_lines.push(format!("resourcePacks:[{}]", packs.join(",")));

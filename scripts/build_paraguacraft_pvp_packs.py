@@ -35,7 +35,7 @@ SKIP_IN_ZIP = re.compile(r"(^|/)(\.DS_Store|Thumbs\.db|__MACOSX|\.git)", re.I)
 
 # Bloques custom que SÍ queremos (visibilidad competitiva + tema azul BedWars)
 BLOCK_ALLOW = re.compile(
-    r"(ore|fire|wool_colored|wool\.png)",
+    r"(ore|fire|wool_colored|wool\.png|destroy_stage_\d+)",
     re.I,
 )
 
