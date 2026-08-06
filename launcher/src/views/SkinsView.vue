@@ -2,7 +2,7 @@
 defineOptions({ name: "skins" });
 import { computed, onMounted, ref, watch } from "vue";
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { api, isTauri } from "@/lib/ipc";
+import { api, isTauri, openUrl } from "@/lib/ipc";
 import { minotarBody, minotarSkin } from "@/lib/skins";
 import BaseButton from "@/components/common/BaseButton.vue";
 import SkinPreview3D from "@/components/skins/SkinPreview3D.vue";
@@ -11,6 +11,9 @@ import { useSkinsStore } from "@/stores/skins";
 import type { ApplySkinResult, SkinCatalogEntry, SkinCatalogPage, SkinHistoryEntry, SkinLookup } from "@/lib/types";
 
 type Tab = "library" | "store" | "import";
+
+const ELY_BY_URL = "https://ely.by";
+const OFFLINE_GUIDE_KEY = "paraguacraft.skins.offlineGuideOpen";
 
 const STEVE_SKIN = "https://minotar.net/skin/Steve";
 const ALEX_SKIN = "https://minotar.net/skin/Alex";
@@ -32,6 +35,36 @@ const premiumMode = ref(false);
 const message = ref<string | null>(null);
 const busy = ref(false);
 const showCape = ref(true);
+
+/** Mini guía solo cuenta offline / no-premium. */
+const isOfflineAccount = computed(() => {
+  const a = accounts.active;
+  if (!a) return false;
+  if (a.type === "offline") return true;
+  return a.premium === false;
+});
+
+const offlineGuideOpen = ref(true);
+try {
+  const saved = localStorage.getItem(OFFLINE_GUIDE_KEY);
+  if (saved === "0") offlineGuideOpen.value = false;
+  if (saved === "1") offlineGuideOpen.value = true;
+} catch {
+  /* ignore */
+}
+
+function toggleOfflineGuide() {
+  offlineGuideOpen.value = !offlineGuideOpen.value;
+  try {
+    localStorage.setItem(OFFLINE_GUIDE_KEY, offlineGuideOpen.value ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
+}
+
+async function openElyBy() {
+  await openUrl(ELY_BY_URL);
+}
 
 const catalogQuery = ref("");
 const catalogPage = ref<SkinCatalogPage | null>(null);
@@ -323,6 +356,7 @@ onMounted(async () => {
         <h1 class="text-2xl font-black">Selector de skins</h1>
         <p class="mt-1 text-sm text-gray-400">
           <span v-if="premiumMode" class="text-pc-green">Premium → Mojang</span>
+          <span v-else-if="isOfflineAccount">Offline → pack local + Ely.by / CustomSkinLoader</span>
           <span v-else>Offline → resource pack local</span>
           · Jugando como {{ accounts.active?.username ?? "—" }}
         </p>
@@ -340,6 +374,63 @@ onMounted(async () => {
         </button>
       </div>
     </header>
+
+    <!-- Guía skins multiplayer (solo no-premium) -->
+    <section
+      v-if="isOfflineAccount"
+      class="mb-4 overflow-hidden rounded-2xl border border-sky-500/30 bg-gradient-to-br from-sky-500/10 via-surface-2 to-surface-2"
+    >
+      <button
+        type="button"
+        class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-white/5"
+        @click="toggleOfflineGuide"
+      >
+        <div class="min-w-0">
+          <p class="text-sm font-bold text-sky-200">Skin en servidores · cuenta offline</p>
+          <p class="mt-0.5 truncate text-xs text-gray-400">
+            Cómo verse bien vos y que otros con la config correcta también te vean
+          </p>
+        </div>
+        <span class="shrink-0 text-xs font-bold text-sky-300">{{ offlineGuideOpen ? "Ocultar" : "Ver guía" }}</span>
+      </button>
+      <div v-if="offlineGuideOpen" class="border-t border-sky-500/20 px-4 py-4 text-sm text-gray-300">
+        <ol class="list-decimal space-y-3 pl-5">
+          <li>
+            <span class="font-semibold text-white">Elegí y aplicá tu skin acá</span>
+            — biblioteca, tienda o Importar PNG. Se guarda para tu cuenta
+            <span class="font-mono text-pc-green">{{ accounts.active?.username }}</span>.
+          </li>
+          <li>
+            <span class="font-semibold text-white">Jugá con esta misma cuenta offline</span>
+            (no cambies de nick). Al lanzar un loader con mods (PvP, Optimized, Fabric, Forge),
+            Paraguacraft instala <span class="text-white">CustomSkinLoader</span> solo.
+          </li>
+          <li>
+            <span class="font-semibold text-white">Multiplayer: registrá el mismo nick en Ely.by</span>
+            y subí la misma skin en
+            <button type="button" class="font-bold text-sky-300 underline decoration-sky-500/50 hover:text-sky-200" @click="openElyBy">
+              ely.by
+            </button>.
+            Así otros clientes con CustomSkinLoader pueden cargarte desde la red de Ely.by.
+          </li>
+          <li>
+            <span class="font-semibold text-white">Quién te ve</span>
+            —
+            <span class="text-white">vos</span> (pack local del launcher);
+            <span class="text-white">otros con CSL / Ely.by</span> o servidores con SkinsRestorer;
+            vanilla puro en redes grandes (ej. solo Mojang) a veces no.
+          </li>
+        </ol>
+        <div class="mt-4 flex flex-wrap gap-2">
+          <BaseButton size="sm" variant="secondary" @click="openElyBy">Abrir Ely.by</BaseButton>
+          <BaseButton size="sm" variant="ghost" @click="tab = 'import'">Importar PNG</BaseButton>
+        </div>
+        <p class="mt-3 text-xs leading-relaxed text-gray-500">
+          Tip: el nick del launcher y el de Ely.by deben ser idénticos. PNG 64×64 (clásico o slim).
+          Primera partida con internet para bajar CustomSkinLoader.
+        </p>
+      </div>
+    </section>
 
     <p
       v-if="message"

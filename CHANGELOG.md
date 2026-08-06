@@ -3,6 +3,11 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [1.1.12] - 2026-08-06
+
+### Added
+- Mini guía de skins para cuentas offline en la vista Skins (pack local, CustomSkinLoader, Ely.by y quién te ve).
+
 ## [1.1.10] - 2026-07-28
 
 ### Fixed
