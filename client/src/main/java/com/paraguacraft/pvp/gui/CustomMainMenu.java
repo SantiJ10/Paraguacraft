@@ -4,6 +4,7 @@ import com.paraguacraft.pvp.core.TrainingWorldHelper;
 import com.paraguacraft.pvp.gui.theme.UiTheme;
 import com.paraguacraft.pvp.modules.ModConfig;
 import net.minecraft.client.gui.GuiButton;
+import net.minecraft.client.gui.GuiMultiplayer;
 import net.minecraft.client.gui.GuiOptions;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiSelectWorld;
@@ -38,7 +39,7 @@ public class CustomMainMenu extends GuiScreen {
         if (button.id == 1) {
             this.mc.displayGuiScreen(new GuiSelectWorld(this));
         } else if (button.id == 2) {
-            this.mc.displayGuiScreen(new GuiPvpServerSelect(this));
+            this.mc.displayGuiScreen(new GuiMultiplayer(this));
         } else if (button.id == 3) {
             TrainingWorldHelper.openTrainingWorld();
         } else if (button.id == 0) {
