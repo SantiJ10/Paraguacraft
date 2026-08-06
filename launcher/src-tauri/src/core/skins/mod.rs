@@ -1,6 +1,7 @@
 //! Skins: avatares Premium/No-Premium, catálogo, historial e inyección offline.
 
 pub mod catalog;
+pub mod csl;
 pub mod history;
 pub mod mojang;
 pub mod offline;

@@ -2,8 +2,11 @@
 //!
 //! Versiones:
 //! - 1.8.9 / 1.12.2 → Forge + OptiFine (mod) + FoamFix/VanillaFix/etc. + shaders OptiFine
+//! Pack de optimización curado multi-MC:
 //! - 1.18.2 / 1.20.1 / 1.21.11 / 26.2 → Fabric + mods Keo-like + Iris shaders
-//! - 1.20.1 → también NeoForge + Embeddium/Oculus + shaders
+//! - 1.8.9 / 1.12.2 → Forge + OptiFine + mods de rendimiento
+//!
+//! Nota: Optimized NeoForge (1.20.1) se retiró por incompatibilidades / no disponible.
 //!
 //! En esas MCs Fabric, **reemplaza** a Fabric+Iris en el selector.
 
@@ -27,7 +30,7 @@ pub const ID_NEOFORGE: &str = "paraguacraft-optimized-neoforge";
 
 const FABRIC_MCS: &[&str] = &["1.18.2", "1.20.1", "1.21.11", "26.2"];
 const OPTIFINE_MCS: &[&str] = &["1.8.9", "1.12.2"];
-const NEOFORGE_MCS: &[&str] = &["1.20.1"];
+const NEOFORGE_MCS: &[&str] = &[]; // Optimized NeoForge retirado (1.20.1 no se ofrece).
 
 /// Forge recomendado para Optimized legacy (mismo criterio que packs estables).
 const FORGE_1_8_9: &str = "11.15.1.2318";
@@ -153,7 +156,7 @@ const PINS_1_20_1_FABRIC: &[Pin] = &[
     Pin { slug: "badoptimizations", version_id: "DIugITgU" },
     Pin { slug: "asynclogger", version_id: "2HCbK9wC" },
     Pin { slug: "ixeris", version_id: "R0Ia5zWt" },
-    Pin { slug: "zfastnoise", version_id: "K3nDfeZE" },
+    // zfastnoise (Fast Noise) removido: conflicto/crash con noisium 2.3.0 en 1.20.1.
     Pin { slug: "fism", version_id: "JZF3sYNu" },
     Pin { slug: "forge-config-api-port", version_id: "HvR3IdRE" },
     Pin { slug: "get-it-together-drops", version_id: "ATcsrMNy" },
@@ -225,6 +228,9 @@ const PURGE_NAME_NEEDLES: &[&str] = &[
     "voxy",
     "c2me",
     "concurrentchunkmanagement",
+    // Conflictivo con noisium en Optimized 1.20.1 (Fast Noise / zfastnoise).
+    "zfastnoise",
+    "fastnoise",
 ];
 
 fn fabric_pins_for_mc(mc: &str) -> Option<&'static [Pin]> {

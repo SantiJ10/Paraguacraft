@@ -966,6 +966,21 @@ pub fn playit_available(id: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// True si el jar del plugin Playit está en `plugins/` (túnel nativo paper).
+pub fn playit_plugin_present(id: &str) -> bool {
+    let Ok(prof) = profile_by_id(id) else {
+        return false;
+    };
+    let plugins = folder_for(&prof).join("plugins");
+    let Ok(rd) = std::fs::read_dir(plugins) else {
+        return false;
+    };
+    rd.flatten().any(|e| {
+        let n = e.file_name().to_string_lossy().to_ascii_lowercase();
+        n.ends_with(".jar") && n.contains("playit")
+    })
+}
+
 /// Prepara el servidor (jar + mods/plugins según tipo).
 pub async fn ensure_server_jar(
     app: &tauri::AppHandle,
@@ -975,6 +990,18 @@ pub async fn ensure_server_jar(
     let prof = profile_by_id(id)?;
     let dir = folder_for(&prof);
     crate::core::server_setup::prepare(app, client, &prof, &dir).await
+}
+
+/// Solo dependencias de launcher ausentes (Playit plugin, ViaVersion…).
+/// No re-descarga el jar si ya existe; preserva configs del usuario.
+pub async fn soft_ensure_deps(
+    app: &tauri::AppHandle,
+    client: &reqwest::Client,
+    id: &str,
+) -> AppResult<()> {
+    let prof = profile_by_id(id)?;
+    let dir = folder_for(&prof);
+    crate::core::server_setup::soft_ensure_launcher_deps(client, app, &prof, &dir).await
 }
 
 /// Auto-update de plugins: escanea carpeta plugins/ y reporta cuantos hay.
@@ -1057,7 +1084,10 @@ fn open_in_file_manager(path: &Path) -> AppResult<()> {
     Ok(())
 }
 
-/// Importa una carpeta de servidor existente.
+/// Importa una carpeta de servidor existente sin sobrescribir configs del usuario.
+///
+/// Detecta paper/fabric/forge/neoforge, respeta `server.properties` y datos de
+/// plugins/mods, y solo rellena dependencias ausentes al preparar después.
 pub fn import_folder(path: &str, name: Option<&str>) -> AppResult<ServerProfile> {
     let path = path.trim();
     let dir = PathBuf::from(path);
@@ -1066,9 +1096,23 @@ pub fn import_folder(path: &str, name: Option<&str>) -> AppResult<ServerProfile>
     }
     let has_paper = dir.join("server.jar").is_file();
     let has_fabric = dir.join("fabric-server-launch.jar").is_file();
-    if !has_paper && !has_fabric {
+    let has_forge = dir.join("run.bat").is_file()
+        || dir.join("libraries").is_dir()
+        || dir
+            .join("unix_args.txt")
+            .is_file()
+        || std::fs::read_dir(&dir)
+            .map(|rd| {
+                rd.flatten().any(|e| {
+                    let n = e.file_name().to_string_lossy().to_ascii_lowercase();
+                    n.ends_with(".jar")
+                        && (n.contains("forge") || n.contains("neoforge") || n.contains("minecraft_server"))
+                })
+            })
+            .unwrap_or(false);
+    if !has_paper && !has_fabric && !has_forge {
         return Err(AppError::msg(
-            "No parece un servidor: faltan server.jar y fabric-server-launch.jar.",
+            "No parece un servidor: se espera server.jar, fabric-server-launch.jar o un setup Forge/NeoForge.",
         ));
     }
     let server_type = detect_server_type(&dir);
@@ -1091,8 +1135,16 @@ pub fn import_folder(path: &str, name: Option<&str>) -> AppResult<ServerProfile>
         custom_folder: Some(dir.to_string_lossy().to_string()),
     };
 
+    // No tocar configs existentes: solo eula y meta del launcher.
     ensure_eula(&dir)?;
     write_server_meta(&dir, &profile)?;
+    let _ = std::fs::create_dir_all(dir.join("plugins"));
+    let _ = std::fs::create_dir_all(dir.join("mods"));
+    // Marker: la carpeta ya venía lista; prepare debe ser non-destructive.
+    let _ = std::fs::write(
+        dir.join(".paraguacraft_imported"),
+        "imported=1\npreserve_configs=1\n",
+    );
 
     let mut all = load_all();
     all.push(profile.clone());

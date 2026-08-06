@@ -7,14 +7,16 @@ use std::time::Duration;
 use crate::core::loaders;
 
 /// Título de ventana según versión y loader.
+/// Se mantiene el prefijo "Minecraft" para que Discord Overlay reconozca
+/// el proceso igual que el launcher oficial.
 pub fn title_for_launch(mc_version: &str, loader: &str) -> String {
     let loader = loaders::normalize(loader);
     if loader == "paraguacraft-pvp" && mc_version == "1.8.9" {
-        "Paraguacraft PvP".into()
+        "Minecraft 1.8.9 - Paraguacraft PvP".into()
     } else if loader == "paraguacraft-pvp-modern" && mc_version == "1.21.11" {
-        "Paraguacraft PvP 1.21.11".into()
+        "Minecraft 1.21.11 - Paraguacraft PvP".into()
     } else {
-        format!("Paraguacraft {mc_version}")
+        format!("Minecraft {mc_version}")
     }
 }
 

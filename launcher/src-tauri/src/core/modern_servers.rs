@@ -40,22 +40,23 @@ fn default_servers() -> Vec<ServerEntry> {
             description: "Survival · PvP latino".into(),
         },
         ServerEntry {
-            name: "Hylex".into(),
-            address: "original.hylex.net".into(),
-            description: "Minijuegos competitivos".into(),
+            name: "UniversoCraft".into(),
+            address: "mc.universocraft.net".into(),
+            description: "SkyWars · BedWars LATAM".into(),
         },
         ServerEntry {
-            name: "MineLatino".into(),
-            address: "play.minelatino.net".into(),
-            description: "Comunidad hispanohablante".into(),
+            name: "Mush".into(),
+            address: "mush.com.br".into(),
+            description: "PvP · BedWars Brasil".into(),
         },
     ]
 }
 
 /// Escribe `paraguacraft_servers.json` para que el mod muestre servidores en multijugador.
+/// Solo se invoca en instancias PvP modern (1.21.11).
 pub fn write_default_servers(instance_dir: &Path) -> AppResult<()> {
     let file = ServerListFile {
-        version: 2,
+        version: 3,
         servers: default_servers(),
     };
     let path = instance_dir.join("paraguacraft_servers.json");

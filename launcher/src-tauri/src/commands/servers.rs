@@ -63,13 +63,24 @@ pub async fn start_server(
 ) -> AppResult<u32> {
     let prof = servers::profile_by_id(&id)?;
     let dir = servers::folder_for(&prof);
-    if servers::needs_prepare(&dir, &prof.server_type) {
+    {
         let (http, _net) = state.net_scope();
-        servers::ensure_server_jar(&app, &http, &id).await?;
+        if servers::needs_prepare(&dir, &prof.server_type) {
+            servers::ensure_server_jar(&app, &http, &id).await?;
+        }
+        // Importados / ya listos: rellenar only deps ausentes (Playit plugin, etc.)
+        // sin tocar server.properties ni configs de plugins.
+        let _ = servers::soft_ensure_deps(&app, &http, &id).await;
     }
     let _ = crate::core::java::resolve::ensure_server_java(&app, &state, &prof.mc_version).await?;
     let pid = servers::start_mc(&id)?;
-    if servers::playit_available(&id) {
+    // Preferir plugin nativo en plugins/ (túnel al arrancar Paper) sobre el agente desktop.
+    if servers::playit_plugin_present(&id) {
+        crate::core::server_console::append(
+            &id,
+            "[playit] Plugin detectado en plugins/: el túnel se vincula al arrancar el servidor. Revisá la consola MC para el enlace de claim (playit.gg).",
+        );
+    } else if servers::playit_available(&id) {
         if let Err(e) = servers::start_playit(&id) {
             crate::core::server_console::append(
                 &id,
@@ -78,7 +89,7 @@ pub async fn start_server(
         } else {
             crate::core::server_console::append(
                 &id,
-                "[playit] Túnel playit.gg iniciado automáticamente.",
+                "[playit] Túnel playit.gg (agente) iniciado automáticamente.",
             );
         }
     }
