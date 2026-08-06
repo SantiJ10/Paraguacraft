@@ -29,7 +29,7 @@ fn tier_options(tier: &str) -> HashMap<String, String> {
             ("ao".into(), "2".into()),
             ("biomeBlendRadius".into(), "4".into()),
             ("maxFps".into(), "260".into()),
-            ("fullscreen".into(), "false".into()),
+            ("enableVsync".into(), "false".into()),
         ]),
         "media" => HashMap::from([
             ("renderDistance".into(), "10".into()),
@@ -39,7 +39,7 @@ fn tier_options(tier: &str) -> HashMap<String, String> {
             ("ao".into(), "1".into()),
             ("biomeBlendRadius".into(), "2".into()),
             ("maxFps".into(), "120".into()),
-            ("fullscreen".into(), "false".into()),
+            ("enableVsync".into(), "false".into()),
         ]),
         _ => HashMap::from([
             ("renderDistance".into(), "6".into()),
@@ -49,7 +49,7 @@ fn tier_options(tier: &str) -> HashMap<String, String> {
             ("ao".into(), "0".into()),
             ("biomeBlendRadius".into(), "0".into()),
             ("maxFps".into(), "60".into()),
-            ("fullscreen".into(), "false".into()),
+            ("enableVsync".into(), "false".into()),
         ]),
     }
 }
@@ -65,6 +65,17 @@ fn min_graphics_options() -> HashMap<String, String> {
         ("maxFps".into(), "60".into()),
         ("enableVsync".into(), "false".into()),
     ])
+}
+
+/// Fuerza `enableVsync:false` en options.txt (global y por instancia) sin tocar
+/// el resto de preferencias del usuario. Se usa en cada lanzamiento.
+pub fn ensure_vsync_off(game_dir: &Path) -> AppResult<()> {
+    let path = game_dir.join("options.txt");
+    let _ = patch_options_file(
+        &path,
+        HashMap::from([("enableVsync".into(), "false".into())]),
+    )?;
+    Ok(())
 }
 
 /// Preset PvP 1.21.11 — más agresivo que `tier_options` genérico (Sodium/Iris ya cubren parte del render).
@@ -83,7 +94,6 @@ fn tier_options_modern_pvp(tier: &str) -> HashMap<String, String> {
             ("maxFps".into(), "260".into()),
             ("enableVsync".into(), "false".into()),
             ("fboEnable".into(), "true".into()),
-            ("fullscreen".into(), "false".into()),
         ]),
         "media" => HashMap::from([
             ("renderDistance".into(), "12".into()),
@@ -98,7 +108,6 @@ fn tier_options_modern_pvp(tier: &str) -> HashMap<String, String> {
             ("maxFps".into(), "240".into()),
             ("enableVsync".into(), "false".into()),
             ("fboEnable".into(), "true".into()),
-            ("fullscreen".into(), "false".into()),
         ]),
         _ => HashMap::from([
             ("renderDistance".into(), "8".into()),
@@ -113,7 +122,6 @@ fn tier_options_modern_pvp(tier: &str) -> HashMap<String, String> {
             ("maxFps".into(), "120".into()),
             ("enableVsync".into(), "false".into()),
             ("fboEnable".into(), "true".into()),
-            ("fullscreen".into(), "false".into()),
         ]),
     }
 }
@@ -229,7 +237,8 @@ pub fn apply_min_graphics(game_dir: &Path) -> AppResult<()> {
 }
 
 /// Options.txt para Paraguacraft Optimized: rendimiento primero, sin saturar la PC.
-/// Importante: NO forzar fullscreen exclusivo — rompe captura/Discord y crashea GLFW en algunas GPUs.
+/// No fuerza windowed/fullscreen: se respeta la preferencia nativa del usuario
+/// (Discord Overlay detecta mejor el proceso).
 fn tier_options_optimized(tier: &str) -> HashMap<String, String> {
     match tier {
         "alta" => HashMap::from([
@@ -246,8 +255,6 @@ fn tier_options_optimized(tier: &str) -> HashMap<String, String> {
             ("renderClouds".into(), "fast".into()),
             ("mipmapLevels".into(), "3".into()),
             ("fboEnable".into(), "true".into()),
-            ("fullscreen".into(), "false".into()),
-            ("exclusiveFullscreen".into(), "false".into()),
             ("prioritizeChunkUpdates".into(), "1".into()),
         ]),
         "media" => HashMap::from([
@@ -264,8 +271,6 @@ fn tier_options_optimized(tier: &str) -> HashMap<String, String> {
             ("renderClouds".into(), "fast".into()),
             ("mipmapLevels".into(), "2".into()),
             ("fboEnable".into(), "true".into()),
-            ("fullscreen".into(), "false".into()),
-            ("exclusiveFullscreen".into(), "false".into()),
             ("prioritizeChunkUpdates".into(), "1".into()),
         ]),
         _ => HashMap::from([
@@ -282,8 +287,6 @@ fn tier_options_optimized(tier: &str) -> HashMap<String, String> {
             ("renderClouds".into(), "false".into()),
             ("mipmapLevels".into(), "1".into()),
             ("fboEnable".into(), "true".into()),
-            ("fullscreen".into(), "false".into()),
-            ("exclusiveFullscreen".into(), "false".into()),
             ("prioritizeChunkUpdates".into(), "0".into()),
         ]),
     }
@@ -303,7 +306,6 @@ fn tier_options_optimized_legacy(tier: &str) -> HashMap<String, String> {
             ("clouds".into(), "true".into()),
             ("mipmapLevels".into(), "4".into()),
             ("fboEnable".into(), "true".into()),
-            ("fullscreen".into(), "false".into()),
             ("gamma".into(), "1.0".into()),
             ("useVbo".into(), "true".into()),
             ("viewBobbing".into(), "true".into()),
@@ -319,7 +321,6 @@ fn tier_options_optimized_legacy(tier: &str) -> HashMap<String, String> {
             ("clouds".into(), "true".into()),
             ("mipmapLevels".into(), "2".into()),
             ("fboEnable".into(), "true".into()),
-            ("fullscreen".into(), "false".into()),
             ("gamma".into(), "1.0".into()),
             ("useVbo".into(), "true".into()),
             ("viewBobbing".into(), "true".into()),
@@ -336,7 +337,6 @@ fn tier_options_optimized_legacy(tier: &str) -> HashMap<String, String> {
             ("clouds".into(), "false".into()),
             ("mipmapLevels".into(), "0".into()),
             ("fboEnable".into(), "true".into()),
-            ("fullscreen".into(), "false".into()),
             ("gamma".into(), "1.0".into()),
             ("useVbo".into(), "true".into()),
             ("viewBobbing".into(), "false".into()),

@@ -617,7 +617,8 @@ pub fn spawn_game(
         cmd.args(args);
     }
 
-    no_console(&mut cmd);
+    // Spawn visible al sistema (sin CREATE_NO_WINDOW/DETACHED): Discord Overlay y
+    // Game Detection enganchan el proceso como con el launcher oficial de Minecraft.
     cmd.spawn()
         .map_err(|e| {
             let preview: String = args.iter().take(8).cloned().collect::<Vec<_>>().join(" ");

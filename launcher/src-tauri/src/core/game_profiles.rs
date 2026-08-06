@@ -110,9 +110,12 @@ pub fn resolve_server(
         "training" => Ok(None),
         "hypixel" => Ok(Some("mc.hypixel.net".into())),
         "cubecraft" => Ok(Some("play.cubecraft.net".into())),
-        "minelatino" => Ok(Some("play.minelatino.net".into())),
+        "universocraft" => Ok(Some("mc.universocraft.net".into())),
+        "mush" => Ok(Some("mush.com.br".into())),
+        // Alias de destinos retirados (perfiles/favoritos viejos).
+        "minelatino" => Ok(Some("mush.com.br".into())),
         "regorland" => Ok(Some("regorland.net".into())),
-        "hylex" => Ok(Some("original.hylex.net".into())),
+        "hylex" => Ok(Some("mc.universocraft.net".into())),
         "favorite" => {
             let favs = favorites::list();
             if favs.is_empty() {
@@ -260,10 +263,10 @@ fn modern_destinations() -> Vec<GameProfileDestination> {
             needs_favorite: false,
         },
         GameProfileDestination {
-            id: "minelatino".into(),
-            label: "MineLatino".into(),
-            description: Some("play.minelatino.net".into()),
-            server_address: Some("play.minelatino.net".into()),
+            id: "universocraft".into(),
+            label: "UniversoCraft".into(),
+            description: Some("mc.universocraft.net".into()),
+            server_address: Some("mc.universocraft.net".into()),
             needs_favorite: false,
         },
         GameProfileDestination {
@@ -274,10 +277,10 @@ fn modern_destinations() -> Vec<GameProfileDestination> {
             needs_favorite: false,
         },
         GameProfileDestination {
-            id: "hylex".into(),
-            label: "Hylex".into(),
-            description: Some("original.hylex.net".into()),
-            server_address: Some("original.hylex.net".into()),
+            id: "mush".into(),
+            label: "Mush".into(),
+            description: Some("mush.com.br".into()),
+            server_address: Some("mush.com.br".into()),
             needs_favorite: false,
         },
         GameProfileDestination {

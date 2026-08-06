@@ -84,9 +84,12 @@ pub fn apply_pre_launch(game_dir: &Path, loader: &str, tier: &str, settings: &Ap
     if settings.deep_clean_on_launch {
         let _ = crate::core::extras::maintenance::run("both");
     }
+    // VSYNC off siempre (vanilla, loaders, PvP, Optimized), sin reescribir fullscreen.
+    let _ = performance::ensure_vsync_off(game_dir);
     // `custom` = el usuario controla options.txt; no reescribir gráficos.
     if settings.optimize_graphics && tier != "custom" {
         let _ = apply_graphics_profile(game_dir, loader, tier);
+        let _ = performance::ensure_vsync_off(game_dir);
     }
 }
 

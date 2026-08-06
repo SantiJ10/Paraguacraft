@@ -171,6 +171,20 @@ async fn spawn_for_instance(
         let _ = crate::core::skins::offline::ensure_for_launch(&game_dir, &mc);
     }
 
+    // Offline / no-premium: CustomSkinLoader + Ely.by para skins multiplayer.
+    {
+        let http = state.client();
+        let _ = crate::core::skins::csl::ensure_for_offline_launch(
+            app,
+            &http,
+            &game_dir,
+            &mc,
+            &loader,
+            &auth.user_type,
+        )
+        .await;
+    }
+
     if settings.backup_auto_hours > 0 && !instance_id.starts_with("ext::") {
         let _ = crate::core::extras::maintenance::auto_backup_worlds(instance_id);
     }

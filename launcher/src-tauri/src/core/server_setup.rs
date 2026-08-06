@@ -92,8 +92,99 @@ pub async fn prepare(
         other => return Err(AppError::msg(format!("Tipo no implementado: {other}"))),
     };
 
-    ensure_playit_exe(client, app, dir).await?;
+    ensure_playit_plugin(client, dir, &kind).await;
+    // Agente desktop solo como respaldo (Forge/NeoForge sin plugins Bukkit).
+    // Paper/Fabric: el plugin nativo gestiona el túnel al arrancar el server.
+    if !kind.starts_with("paper") {
+        if let Err(e) = ensure_playit_exe(client, app, dir).await {
+            crate::core::server_console::append(
+                sid,
+                &format!("[launcher] ⚠ playit agent: {e}"),
+            );
+        }
+    }
     Ok(result)
+}
+
+const PLAYIT_PLUGIN_URLS: &[&str] = &[
+    "https://github.com/playit-cloud/playit-minecraft-plugin/releases/latest/download/playit-minecraft-plugin.jar",
+    "https://github.com/playit-cloud/playit-minecraft-plugin/releases/download/v0.2.0/playit-minecraft-plugin.jar",
+];
+
+const PLAYIT_PLUGIN_NAME: &str = "playit-minecraft-plugin.jar";
+const PLAYIT_PLUGIN_MIN_BYTES: u64 = 200_000;
+
+/// Descarga el plugin oficial Playit.gg en `plugins/` (Paper/Spigot).
+/// El túnel queda nativo al arrancar el servidor MC; no hace falta la app desktop.
+async fn ensure_playit_plugin(client: &reqwest::Client, dir: &Path, kind: &str) {
+    // El plugin es Spigot/Paper. Fabric puro no lo carga en plugins/.
+    if !kind.starts_with("paper") {
+        return;
+    }
+    let plugins = dir.join("plugins");
+    let _ = std::fs::create_dir_all(&plugins);
+    if plugins.is_dir() {
+        if let Ok(rd) = std::fs::read_dir(&plugins) {
+            let already = rd.flatten().any(|e| {
+                let n = e.file_name().to_string_lossy().to_ascii_lowercase();
+                n.ends_with(".jar") && n.contains("playit")
+            });
+            if already {
+                return;
+            }
+        }
+    }
+    let dest = plugins.join(PLAYIT_PLUGIN_NAME);
+    let tmp = plugins.join("playit-minecraft-plugin.part");
+    for url in PLAYIT_PLUGIN_URLS {
+        let item = DownloadItem::new(url.to_string(), tmp.clone());
+        if net::download_one(client, &item).await.is_err() {
+            let _ = std::fs::remove_file(&tmp);
+            continue;
+        }
+        if tmp.metadata().map(|m| m.len()).unwrap_or(0) < PLAYIT_PLUGIN_MIN_BYTES {
+            let _ = std::fs::remove_file(&tmp);
+            continue;
+        }
+        if dest.exists() {
+            let _ = std::fs::remove_file(&dest);
+        }
+        if std::fs::rename(&tmp, &dest).is_ok() {
+            return;
+        }
+    }
+    let _ = std::fs::remove_file(&tmp);
+}
+
+/// Rellena dependencias estándar sin sobrescribir jar/configs existentes.
+pub async fn soft_ensure_launcher_deps(
+    client: &reqwest::Client,
+    app: &AppHandle,
+    prof: &ServerProfile,
+    dir: &Path,
+) -> AppResult<()> {
+    let kind = normalize_server_type(&prof.server_type)?;
+    let sid = prof.id.as_str();
+    let _ = std::fs::create_dir_all(dir.join("plugins"));
+    let _ = std::fs::create_dir_all(dir.join("mods"));
+
+    if kind.starts_with("paper") {
+        let with_geyser = kind.contains("geyser");
+        // setup_paper_* ya saltan/ toleran fallos; no reescribe properties del user.
+        let _ = setup_paper_plugins(client, app, dir, sid, &prof.mc_version, with_geyser).await;
+        ensure_playit_plugin(client, dir, &kind).await;
+    } else if kind.starts_with("fabric") {
+        let with_geyser = kind.contains("geyser");
+        let _ = setup_fabric_mods(client, app, dir, sid, &prof.mc_version, with_geyser).await;
+        if let Err(e) = ensure_playit_exe(client, app, dir).await {
+            crate::core::server_console::append(sid, &format!("[launcher] ⚠ playit agent: {e}"));
+        }
+    } else if kind == "forge" || kind == "neoforge" {
+        if let Err(e) = ensure_playit_exe(client, app, dir).await {
+            crate::core::server_console::append(sid, &format!("[launcher] ⚠ playit agent: {e}"));
+        }
+    }
+    Ok(())
 }
 
 const PLAYIT_MIN_BYTES: u64 = 2_000_000;

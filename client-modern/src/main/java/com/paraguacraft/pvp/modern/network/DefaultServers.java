@@ -10,13 +10,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /** Servidores escritos por el launcher en `paraguacraft_servers.json`. */
 public final class DefaultServers {
 
     public record Entry(String name, String address, String description) {}
 
-    private static final int CURRENT_VERSION = 2;
+    /** v3: UniversoCraft + Mush (reemplazan Hylex / MineLatino). */
+    private static final int CURRENT_VERSION = 3;
 
     private DefaultServers() {}
 
@@ -46,18 +48,28 @@ public final class DefaultServers {
         return fallback();
     }
 
-    /** Corrige entradas viejas (LibreCraft, IP incorrecta de CubeCraft). */
+    /** Corrige entradas viejas y migra Hylex/MineLatino → UniversoCraft/Mush. */
     private static List<Entry> normalize(List<Entry> entries) {
         List<Entry> out = new ArrayList<>(entries.size());
         for (Entry e : entries) {
             String name = e.name();
             String address = e.address();
-            if ("LibreCraft".equalsIgnoreCase(name) || address.toLowerCase().contains("librecraft")) {
+            String lower = address.toLowerCase(Locale.ROOT);
+            String nameLower = name.toLowerCase(Locale.ROOT);
+            if ("LibreCraft".equalsIgnoreCase(name) || lower.contains("librecraft")) {
                 name = "Regorland";
                 address = "regorland.net";
             }
             if ("m.cubecraft.net".equalsIgnoreCase(address)) {
                 address = "play.cubecraft.net";
+            }
+            if (nameLower.contains("hylex") || lower.contains("hylex")) {
+                name = "UniversoCraft";
+                address = "mc.universocraft.net";
+            }
+            if (nameLower.contains("minelatino") || lower.contains("minelatino")) {
+                name = "Mush";
+                address = "mush.com.br";
             }
             out.add(new Entry(name, address, e.description()));
         }
@@ -69,8 +81,8 @@ public final class DefaultServers {
             new Entry("Hypixel", "mc.hypixel.net", "BedWars · SkyWars"),
             new Entry("CubeCraft", "play.cubecraft.net", "EggWars · SkyWars"),
             new Entry("Regorland", "regorland.net", "Survival · PvP"),
-            new Entry("Hylex", "original.hylex.net", "Minijuegos"),
-            new Entry("MineLatino", "play.minelatino.net", "Comunidad latina")
+            new Entry("UniversoCraft", "mc.universocraft.net", "SkyWars · BedWars LATAM"),
+            new Entry("Mush", "mush.com.br", "PvP · BedWars BR")
         );
     }
 }
