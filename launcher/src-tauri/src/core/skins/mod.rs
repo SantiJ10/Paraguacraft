@@ -61,8 +61,18 @@ pub fn steve_profile() -> SkinProfile {
 }
 
 pub fn profile_for(username: &str, uuid: &str, premium: bool) -> SkinProfile {
+    // Nunca exponer el PNG UV completo como avatar (la UI lo mostraría crudo).
+    // Preferir cache de cara si existe.
     let local = if !premium && offline::has_global_skin() {
-        Some(offline::global_skin_path().to_string_lossy().to_string())
+        let face = offline::global_face_path();
+        if !face.is_file() {
+            offline::refresh_face_cache();
+        }
+        if face.is_file() {
+            Some(face.to_string_lossy().to_string())
+        } else {
+            None
+        }
     } else {
         None
     };
@@ -93,9 +103,14 @@ pub fn offline_profile(username: &str) -> SkinProfile {
 pub async fn enrich_profile(http: &reqwest::Client, mut profile: SkinProfile) -> SkinProfile {
     if !profile.premium && offline::has_global_skin() {
         let path = offline::global_skin_path();
-        profile.local_avatar_path = Some(path.to_string_lossy().to_string());
+        offline::refresh_face_cache();
+        let face = offline::global_face_path();
+        if face.is_file() {
+            profile.local_avatar_path = Some(face.to_string_lossy().to_string());
+        } else {
+            profile.local_avatar_path = None;
+        }
         if let Ok(bytes) = std::fs::read(&path) {
-            use base64::Engine;
             let ts = path
                 .metadata()
                 .ok()
@@ -104,16 +119,15 @@ pub async fn enrich_profile(http: &reqwest::Client, mut profile: SkinProfile) ->
                 .map(|d| d.as_secs())
                 .unwrap_or(0);
             profile.avatar_url = format!("{}?v={ts}", avatar_url(&profile.uuid));
-            profile.avatar_data_url = mojang::helm_data_url_from_skin_png(&bytes).or_else(|| {
-                Some(format!(
-                    "data:image/png;base64,{}",
-                    base64::engine::general_purpose::STANDARD.encode(bytes)
-                ))
-            });
+            // Solo cara — NUNCA el UV completo como data URL.
+            profile.avatar_data_url = mojang::helm_data_url_from_skin_png(&bytes);
+            profile.skin_url = Some(format!("file://{}", path.to_string_lossy()));
         }
         if let Ok(info) = mojang::lookup_player(http, Some(&profile.username), Some(&profile.uuid)).await {
             if info.ok {
-                profile.skin_url = info.skin_url;
+                if info.skin_url.is_some() {
+                    profile.skin_url = info.skin_url;
+                }
                 profile.model = Some(info.model);
             }
         }

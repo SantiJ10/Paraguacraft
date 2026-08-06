@@ -257,6 +257,17 @@ export const api = {
     return delay(mockAccounts);
   },
 
+  async renameOfflineAccount(id: string, username: string): Promise<Account[]> {
+    if (isTauri()) {
+      return invokeReal<Account[]>("rename_offline_account", { id, username });
+    }
+    return delay(
+      mockAccounts.map((a) =>
+        a.id === id && !a.premium ? { ...a, username: username.trim() || a.username } : a,
+      ),
+    );
+  },
+
   async removeAccount(id: string): Promise<Account[]> {
     if (isTauri()) {
       return invokeReal<Account[]>("remove_account", { id });

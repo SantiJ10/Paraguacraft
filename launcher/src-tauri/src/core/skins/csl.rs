@@ -40,15 +40,20 @@ fn has_csl_jar(mods_dir: &Path) -> bool {
     })
 }
 
-/// Escribe preferencias mínimas para priorizar Ely.by (además del loadlist default del mod).
+/// Escribe preferencias para Mojang → Ely.by → LocalSkin.
+/// Re-escribe si falta ElyBy en el loadlist (configs viejas).
 fn write_ely_config(game_dir: &Path) {
     let cfg_dir = game_dir.join("CustomSkinLoader");
-    let _ = std::fs::create_dir_all(&cfg_dir);
+    let _ = std::fs::create_dir_all(cfg_dir.join("LocalSkin/skins"));
+    let _ = std::fs::create_dir_all(cfg_dir.join("LocalSkin/capes"));
     let path = cfg_dir.join("CustomSkinLoader.json");
-    if path.is_file() {
+    let need_write = match std::fs::read_to_string(&path) {
+        Ok(s) => !s.contains("ElyBy") || !s.contains("LocalSkin"),
+        Err(_) => true,
+    };
+    if !need_write {
         return;
     }
-    // Formato compatible con CSL moderno: loadlist con Mojang + ElyBy.
     let body = r#"{
   "version": "14.19",
   "buildNumber": 0,

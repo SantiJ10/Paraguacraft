@@ -138,11 +138,9 @@ async fn spawn_for_instance(
     }
 
     let loader_norm = loaders::normalize(&loader);
-    // Skin offline → BrandPack texturas. Luego prepare PvP re-activa el stack oficial
-    // (antes se hacía al revés y branding sobrescribía resourcePacks sin el pack PvP).
-    if crate::core::skins::offline::has_global_skin() {
-        let _ = crate::core::skins::offline::ensure_for_launch(&game_dir, &mc);
-    }
+    // Skin offline → LocalSkin por nick + purga texturas Steve/Alex del brand pack
+    // (antes se inyectaba en defaults y se veía LA MISMA skin en todos los jugadores).
+    let _ = crate::core::skins::offline::ensure_for_launch(&game_dir, &mc);
 
     if loader_norm == "paraguacraft-pvp" || loader_norm == "paraguacraft-pvp-modern" {
         // Marker one-shot desde perfiles → Practica. Sin marker: limpia sticky

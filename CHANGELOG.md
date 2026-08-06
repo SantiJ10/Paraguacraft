@@ -3,6 +3,17 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [1.1.14] - 2026-08-06
+
+### Fixed
+- Skins multiplayer offline: ya no se pisa `steve.png`/`alex.png` del BrandPack (otros jugadores dejaban de verse con tu historial).
+- Avatar offline: muestra la cara recortada, no el PNG UV completo de la skin.
+- LocalSkin de CustomSkinLoader se escribe por nick; al lanzar se limpian texturas default envenenadas.
+
+### Added
+- Renombrar nick de cuentas offline (Ajustes → Cuentas) para alinear con Ely.by.
+- (clientes ya en main) Escala proporcional por módulo en Editar HUD — PvP **2.1.41** / Modern **0.9.19**.
+
 ## [1.1.13] - 2026-08-06
 
 ### Fixed

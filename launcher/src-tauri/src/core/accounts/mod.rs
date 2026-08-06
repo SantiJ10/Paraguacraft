@@ -43,11 +43,8 @@ pub fn set_active(id: &str) -> AppResult<Vec<Account>> {
 }
 
 pub fn add_offline(username: &str) -> AppResult<Vec<Account>> {
-    let username = username.trim();
-    if username.len() < 3 {
-        return Err(AppError::msg("El nombre debe tener al menos 3 caracteres"));
-    }
-    let uuid = offline::offline_uuid(username);
+    let username = validate_offline_username(username)?;
+    let uuid = offline::offline_uuid(&username);
     let mut accounts = store::load_accounts();
     // Evitar duplicados por uuid offline.
     if let Some(existing) = accounts.iter().find(|a| a.uuid == uuid).cloned() {
@@ -59,7 +56,7 @@ pub fn add_offline(username: &str) -> AppResult<Vec<Account>> {
     let acc = Account {
         id: format!("offline-{uuid}"),
         kind: "offline".into(),
-        username: username.to_string(),
+        username: username.clone(),
         uuid: uuid.clone(),
         avatar_url: avatar_url(&uuid),
         active: true,
@@ -68,6 +65,69 @@ pub fn add_offline(username: &str) -> AppResult<Vec<Account>> {
     accounts.push(acc);
     store::save_accounts(&accounts)?;
     Ok(accounts)
+}
+
+/// Cambia el nick de una cuenta offline (útil para alinear con Ely.by).
+/// Recalcula el UUID vanilla (`OfflinePlayer:name`) y el id `offline-{uuid}`.
+pub fn rename_offline(id: &str, new_username: &str) -> AppResult<Vec<Account>> {
+    let new_username = validate_offline_username(new_username)?;
+    let mut accounts = store::load_accounts();
+    let idx = accounts
+        .iter()
+        .position(|a| a.id == id)
+        .ok_or_else(|| AppError::msg("Cuenta no encontrada"))?;
+
+    if accounts[idx].kind != "offline" || accounts[idx].premium {
+        return Err(AppError::msg("Solo se puede renombrar cuentas offline / no-premium"));
+    }
+
+    let old_username = accounts[idx].username.clone();
+    if old_username == new_username {
+        return Ok(accounts);
+    }
+
+    let new_uuid = offline::offline_uuid(&new_username);
+    if accounts
+        .iter()
+        .any(|a| a.id != id && (a.uuid == new_uuid || a.username.eq_ignore_ascii_case(&new_username)))
+    {
+        return Err(AppError::msg("Ya existe una cuenta con ese nombre"));
+    }
+
+    let was_active = accounts[idx].active;
+    accounts[idx].id = format!("offline-{new_uuid}");
+    accounts[idx].username = new_username.clone();
+    accounts[idx].uuid = new_uuid.clone();
+    accounts[idx].avatar_url = avatar_url(&new_uuid);
+    accounts[idx].active = was_active;
+    accounts[idx].kind = "offline".into();
+    accounts[idx].premium = false;
+
+    store::save_accounts(&accounts)?;
+
+    // Best-effort: renombrar cache SkinsRestorer y re-aplicar skin global al nick nuevo.
+    let _ = crate::core::skins::offline::on_offline_username_changed(&old_username, &new_username);
+
+    Ok(accounts)
+}
+
+fn validate_offline_username(username: &str) -> AppResult<String> {
+    let username = username.trim();
+    if username.len() < 3 {
+        return Err(AppError::msg("El nombre debe tener al menos 3 caracteres"));
+    }
+    if username.len() > 16 {
+        return Err(AppError::msg("El nombre no puede superar 16 caracteres"));
+    }
+    if !username
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '_')
+    {
+        return Err(AppError::msg(
+            "Solo letras, números y guion bajo (como en Minecraft)",
+        ));
+    }
+    Ok(username.to_string())
 }
 
 pub fn remove(id: &str) -> AppResult<Vec<Account>> {
