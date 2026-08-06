@@ -126,6 +126,8 @@ public final class ModernConfig {
     public static int musicHudY = 308;
     public static int overlayHudW = 118;
     public static int musicHudAlpha = 255;
+    /** Tamaño base de la carátula: 16 o 32 (se multiplica por musicHudScale). */
+    public static int musicArtSize = 32;
     /** Escala del panel de musica relativa (100 = normal), encima de uiScale. */
     public static int musicHudScale = 100;
     /** Escala global HUD + menús (50–200%). */
@@ -152,7 +154,7 @@ public final class ModernConfig {
     public static int scaleServer = 100;
     public static int coordsX = 5;
     public static int coordsY = 44;
-    private static final int[] MUSIC_ALPHA_PRESETS = {255, 64, 0};
+    private static final int[] MUSIC_ALPHA_PRESETS = {255, 192, 128, 64, 0};
     private static final int[] UI_SCALE_PRESETS = {50, 75, 100, 125, 150, 175, 200};
     public static int comboX = 5;
     public static int comboY = 45;
@@ -199,6 +201,18 @@ public final class ModernConfig {
 
     public static String musicHudScaleLabel() {
         return musicHudScale + "%";
+    }
+
+    public static void cycleMusicArtSize() {
+        musicArtSize = musicArtSize <= 16 ? 32 : 16;
+    }
+
+    public static String musicArtSizeLabel() {
+        return musicArtSizePx() + "x" + musicArtSizePx();
+    }
+
+    public static int musicArtSizePx() {
+        return musicArtSize <= 16 ? 16 : 32;
     }
 
     public static void cycleUiScale() {
@@ -379,6 +393,12 @@ public final class ModernConfig {
             }
             musicHudAlpha = intProp(props, "musicHudAlpha", musicHudAlpha);
             musicHudScale = intProp(props, "musicHudScale", musicHudScale);
+            musicArtSize = intProp(props, "musicArtSize", musicArtSize);
+            if (musicArtSize <= 16) {
+                musicArtSize = 16;
+            } else {
+                musicArtSize = 32;
+            }
             uiScale = intProp(props, "uiScale", uiScale);
             if (uiScale < 50) uiScale = 50;
             if (uiScale > 200) uiScale = 200;
@@ -534,6 +554,7 @@ public final class ModernConfig {
         props.setProperty("overlayHudW", String.valueOf(overlayHudW));
         props.setProperty("musicHudAlpha", String.valueOf(musicHudAlpha));
         props.setProperty("musicHudScale", String.valueOf(musicHudScale));
+        props.setProperty("musicArtSize", String.valueOf(musicArtSizePx()));
         props.setProperty("uiScale", String.valueOf(uiScale));
         props.setProperty("scaleFps", String.valueOf(scaleFps));
         props.setProperty("scalePing", String.valueOf(scalePing));

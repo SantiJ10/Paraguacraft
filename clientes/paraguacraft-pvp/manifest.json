@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.43",
-  "release_tag": "pvp-client-2.1.43",
-  "descripcion": "Pack PvP auto-Selected (setRepositories) + destroy_stage Dewier.",
+  "client_version": "2.1.44",
+  "release_tag": "pvp-client-2.1.44",
+  "descripcion": "Musica: transparencia total + caratula 16/32.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.43.jar",
-      "sha1": "6ad2335e594f6f590a0e81bfaa356c4fdac563d7"
+      "filename": "ParaguacraftPvP-2.1.44.jar",
+      "sha1": "633fbcd8ab6479d15a108b1c61d67753bfd98c14"
     },
     {
       "filename": "Hytils-Reborn-1.8.9-forge-1.7.5.jar",

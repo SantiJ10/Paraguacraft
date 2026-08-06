@@ -18,9 +18,12 @@ public final class AdvancedHud {
 
     private static final int BW_PANEL_W = 120;
     private static final int BW_PANEL_H = 56;
-    private static final int ART_SIZE = 32;
 
     private AdvancedHud() {}
+
+    private static int artSize() {
+        return ModConfig.musicArtSizePx();
+    }
 
     public static int bwPanelW() {
         return BW_PANEL_W;
@@ -48,7 +51,7 @@ public final class AdvancedHud {
         int h = 8 + lines * 11;
         if (ModConfig.showMusicHud && snap.valid && snap.musicPlaying
             && ModConfig.showMusicAlbumArt && !snap.musicImageUrl.isEmpty()) {
-            h = Math.max(h, 8 + ART_SIZE + 2);
+            h = Math.max(h, 8 + artSize() + 2);
         }
         return h;
     }
@@ -59,7 +62,7 @@ public final class AdvancedHud {
             String title = snap.musicTitle.isEmpty() ? "-" : snap.musicTitle;
             int textW = HudDraw.width(trunc(title, 22)) + 12;
             if (ModConfig.showMusicAlbumArt && !snap.musicImageUrl.isEmpty()) {
-                textW += ART_SIZE + 6;
+                textW += artSize() + 6;
             }
             w = Math.max(w, textW);
         }
@@ -93,12 +96,14 @@ public final class AdvancedHud {
         int w = overlayPanelWidth(snap);
         int h = overlayPanelHeight(snap);
         int bgAlpha = (ModConfig.showMusicHud && snap.valid && snap.musicPlaying)
-            ? ModConfig.musicHudAlpha
+            ? Math.max(0, Math.min(255, ModConfig.musicHudAlpha))
             : 0x99;
         int bgColor = (bgAlpha << 24) | 0x0A0C14;
 
         GlStateManager.enableBlend();
-        Gui.drawRect(x, y, x + w, y + h, bgColor);
+        if (bgAlpha > 0) {
+            Gui.drawRect(x, y, x + w, y + h, bgColor);
+        }
         Gui.drawRect(x, y, x + w, y + 1, 0x4400E5FF);
 
         int ty = y + 6;
@@ -120,7 +125,7 @@ public final class AdvancedHud {
             boolean showArt = ModConfig.showMusicAlbumArt && !snap.musicImageUrl.isEmpty();
             if (showArt) {
                 drawMusicArt(x + 6, ty, snap.musicImageUrl);
-                textX = x + 6 + ART_SIZE + 4;
+                textX = x + 6 + artSize() + 4;
             }
             // Limite real en pixeles para que el texto nunca traspase el cuadro.
             int innerMax = (x + w) - textX - 6;
@@ -136,13 +141,15 @@ public final class AdvancedHud {
 
     private static void drawMusicArt(int x, int y, String imageUrl) {
         Minecraft mc = Minecraft.getMinecraft();
+        int size = artSize();
         ResourceLocation art = MusicArtCache.get(imageUrl);
         GlStateManager.pushMatrix();
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         if (art == null) {
             GlStateManager.enableDepth();
-            // Disc icon a 16×16 dentro del hueco 32×32
-            mc.getRenderItem().renderItemIntoGUI(new ItemStack(Items.record_13), x + 8, y + 8);
+            // Icono 16×16 centrado en el hueco de carátula
+            int pad = Math.max(0, (size - 16) / 2);
+            mc.getRenderItem().renderItemIntoGUI(new ItemStack(Items.record_13), x + pad, y + pad);
             GlStateManager.disableDepth();
             GlStateManager.disableLighting();
         } else {
@@ -156,7 +163,7 @@ public final class AdvancedHud {
             Gui.drawScaledCustomSizeModalRect(
                 x, y, 0, 0,
                 MusicArtCache.getTexWidth(), MusicArtCache.getTexHeight(),
-                ART_SIZE, ART_SIZE,
+                size, size,
                 MusicArtCache.getTexWidth(), MusicArtCache.getTexHeight()
             );
             GlStateManager.disableBlend();

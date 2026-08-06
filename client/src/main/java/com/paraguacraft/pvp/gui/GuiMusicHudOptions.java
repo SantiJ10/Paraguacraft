@@ -12,14 +12,14 @@ import java.io.IOException;
 
 public class GuiMusicHudOptions extends GuiScreen {
 
-    private static final int ROWS = 2;
+    private static final int ROWS = 3;
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         drawRect(0, 0, width, height, 0x99000000);
         int px = width / 2 - 160;
-        int py = height / 2 - 70;
-        Gui.drawRect(px, py, px + 320, py + 140, 0xCC0A0C14);
+        int py = height / 2 - 90;
+        Gui.drawRect(px, py, px + 320, py + 170, 0xCC0A0C14);
         FontRenderer fr = fontRendererObj;
         fr.drawStringWithShadow(ModLang.format("paraguacraft.music_hud.title"), px + 16, py + 12, UiTheme.ACCENT);
         for (int i = 0; i < ROWS; i++) {
@@ -37,7 +37,7 @@ public class GuiMusicHudOptions extends GuiScreen {
             return;
         }
         int px = width / 2 - 160;
-        int py = height / 2 - 70;
+        int py = height / 2 - 90;
         for (int i = 0; i < ROWS; i++) {
             int rowY = py + 44 + i * 28;
             if (mouseX >= px + 12 && mouseX <= px + 308 && mouseY >= rowY && mouseY <= rowY + 20) {
@@ -59,6 +59,7 @@ public class GuiMusicHudOptions extends GuiScreen {
         switch (i) {
             case 0: return ModLang.format("paraguacraft.music_hud.album_art");
             case 1: return ModLang.format("paraguacraft.music_hud.alpha");
+            case 2: return ModLang.format("paraguacraft.music_hud.art_size");
             default: return "";
         }
     }
@@ -69,6 +70,8 @@ public class GuiMusicHudOptions extends GuiScreen {
                 return ModLang.format(ModConfig.showMusicAlbumArt ? "paraguacraft.menu.on" : "paraguacraft.menu.off");
             case 1:
                 return ModConfig.musicHudAlphaLabel();
+            case 2:
+                return ModConfig.musicArtSizeLabel();
             default:
                 return "";
         }
@@ -88,6 +91,9 @@ public class GuiMusicHudOptions extends GuiScreen {
                 break;
             case 1:
                 ModConfig.cycleMusicHudAlpha();
+                break;
+            case 2:
+                ModConfig.cycleMusicArtSize();
                 break;
             default:
                 break;

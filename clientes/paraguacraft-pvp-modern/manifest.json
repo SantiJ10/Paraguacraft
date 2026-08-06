@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP Modern",
   "mc_version": "1.21.11",
   "loader": "fabric",
-  "client_version": "0.9.20",
-  "release_tag": "pvp-modern-0.9.20",
-  "descripcion": "HUD nítido al escalar (origen a pixel + carátula 32px).",
+  "client_version": "0.9.21",
+  "release_tag": "pvp-modern-0.9.21",
+  "descripcion": "Musica: caratula 16/32 + mas pasos de transparencia.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-Modern-0.9.20.jar",
-      "sha1": "e0935745ee97935dee2eac6f3bd05f25023298e2"
+      "filename": "ParaguacraftPvP-Modern-0.9.21.jar",
+      "sha1": "d1cea059fd345b79dd2d95860edee0473fa6a3dc"
     }
   ]
 }

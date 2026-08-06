@@ -80,6 +80,8 @@ public class ModConfig {
     public static boolean showMusicHud = true;
     public static boolean showMusicAlbumArt = true;
     public static int musicHudAlpha = 255;
+    /** Tamaño de la carátula del album: 16 o 32. */
+    public static int musicArtSize = 32;
     public static boolean showTntCountdown = true;
     public static boolean showBedwarsResources = true;
     public static boolean bwResTransparentBg = false;
@@ -128,7 +130,7 @@ public class ModConfig {
     public static int scaleCombo = 100;
     public static int scaleBlocks = 100;
 
-    private static final int[] MUSIC_ALPHA_PRESETS = {255, 192, 128, 64};
+    private static final int[] MUSIC_ALPHA_PRESETS = {255, 192, 128, 64, 0};
     private static final int[] UI_SCALE_PRESETS = {50, 75, 100, 125, 150, 175, 200};
 
     public static boolean loaded = false;
@@ -145,8 +147,23 @@ public class ModConfig {
     }
 
     public static String musicHudAlphaLabel() {
+        if (musicHudAlpha <= 0) {
+            return "Transparente";
+        }
         int pct = Math.round(musicHudAlpha / 255f * 100f);
         return pct + "%";
+    }
+
+    public static void cycleMusicArtSize() {
+        musicArtSize = musicArtSize <= 16 ? 32 : 16;
+    }
+
+    public static String musicArtSizeLabel() {
+        return musicArtSize + "x" + musicArtSize;
+    }
+
+    public static int musicArtSizePx() {
+        return musicArtSize <= 16 ? 16 : 32;
     }
 
     public static void cycleUiScale() {
@@ -233,6 +250,7 @@ public class ModConfig {
             props.setProperty("showMusicHud", String.valueOf(showMusicHud));
             props.setProperty("showMusicAlbumArt", String.valueOf(showMusicAlbumArt));
             props.setProperty("musicHudAlpha", String.valueOf(musicHudAlpha));
+            props.setProperty("musicArtSize", String.valueOf(musicArtSizePx()));
             props.setProperty("uiScale", String.valueOf(uiScale));
             props.setProperty("scaleFps", String.valueOf(scaleFps));
             props.setProperty("scalePing", String.valueOf(scalePing));
@@ -360,6 +378,18 @@ public class ModConfig {
             showMusicHud = Boolean.parseBoolean(props.getProperty("showMusicHud", String.valueOf(showMusicHud)));
             showMusicAlbumArt = Boolean.parseBoolean(props.getProperty("showMusicAlbumArt", String.valueOf(showMusicAlbumArt)));
             musicHudAlpha = Integer.parseInt(props.getProperty("musicHudAlpha", String.valueOf(musicHudAlpha)));
+            if (musicHudAlpha < 0) {
+                musicHudAlpha = 0;
+            }
+            if (musicHudAlpha > 255) {
+                musicHudAlpha = 255;
+            }
+            try {
+                musicArtSize = Integer.parseInt(props.getProperty("musicArtSize", String.valueOf(musicArtSize)));
+            } catch (Exception ignored) {
+                musicArtSize = 32;
+            }
+            musicArtSize = musicArtSize <= 16 ? 16 : 32;
             try {
                 uiScale = Integer.parseInt(props.getProperty("uiScale", String.valueOf(uiScale)));
             } catch (Exception ignored) {
