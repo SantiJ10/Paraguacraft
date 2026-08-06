@@ -2,6 +2,7 @@ package com.paraguacraft.pvp.hud;
 
 import com.paraguacraft.pvp.modules.ModConfig;
 import net.minecraft.client.renderer.GlStateManager;
+import org.lwjgl.opengl.GL11;
 
 /** Escala proporcional por módulo (top-left fijo al dibujar). */
 public final class HudModuleScale {
@@ -9,7 +10,14 @@ public final class HudModuleScale {
     public static final int MIN = 50;
     public static final int MAX = 200;
 
+    /** Mientras >0, texturas del HUD usan filtrado NEAREST (sin blur al escalar). */
+    private static int crispDepth = 0;
+
     private HudModuleScale() {}
+
+    public static boolean isCrisp() {
+        return crispDepth > 0;
+    }
 
     public static int clamp(int pct) {
         if (pct < MIN) {
@@ -25,17 +33,32 @@ public final class HudModuleScale {
         return clamp(pct) / 100f;
     }
 
+    /** Aplica NEAREST en la textura actualmente bindeada (y cada bind vía mixin). */
+    public static void applyNearestOnBound() {
+        if (crispDepth <= 0) {
+            return;
+        }
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_NEAREST);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
+    }
+
     /** Empuja GL: origen en (x,y) y escala uniforme. Dibuja en coords locales 0,0+. */
     public static void begin(float x, float y, int scalePct) {
         GlStateManager.pushMatrix();
-        GlStateManager.translate(x, y, 0f);
+        // Alinear al píxel: evita subpíxeles que "desenfoquen" el texto
+        GlStateManager.translate((float) Math.floor(x), (float) Math.floor(y), 0f);
         float s = factor(scalePct);
         if (s != 1f) {
             GlStateManager.scale(s, s, 1f);
         }
+        crispDepth++;
+        applyNearestOnBound();
     }
 
     public static void end() {
+        if (crispDepth > 0) {
+            crispDepth--;
+        }
         GlStateManager.popMatrix();
     }
 

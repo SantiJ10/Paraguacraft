@@ -109,10 +109,19 @@ public final class MusicArtCache {
                     }
                     try {
                         DynamicTexture dt = new DynamicTexture(image);
+                        try {
+                            dt.setBlurMipmap(false, false);
+                        } catch (Throwable ignored) {
+                        }
                         texW = Math.max(1, image.getWidth());
                         texH = Math.max(1, image.getHeight());
                         texture = Minecraft.getMinecraft().getTextureManager()
                             .getDynamicTextureLocation("music_art", dt);
+                        Minecraft.getMinecraft().getTextureManager().bindTexture(texture);
+                        try {
+                            dt.setBlurMipmap(false, false);
+                        } catch (Throwable ignored) {
+                        }
                     } finally {
                         loading.set(false);
                     }
@@ -130,10 +139,19 @@ public final class MusicArtCache {
                 return;
             }
             DynamicTexture dt = new DynamicTexture(image);
+            try {
+                dt.setBlurMipmap(false, false);
+            } catch (Throwable ignored) {
+            }
             texW = Math.max(1, image.getWidth());
             texH = Math.max(1, image.getHeight());
             texture = Minecraft.getMinecraft().getTextureManager()
                 .getDynamicTextureLocation("music_art", dt);
+            try {
+                Minecraft.getMinecraft().getTextureManager().bindTexture(texture);
+                dt.setBlurMipmap(false, false);
+            } catch (Throwable ignored) {
+            }
         } catch (Exception ignored) {
         }
     }

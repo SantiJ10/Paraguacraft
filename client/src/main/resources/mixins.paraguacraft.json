@@ -24,6 +24,7 @@
   "client": [
     "MixinDisplayTitle",
     "client.MixinFontRenderer",
+    "client.MixinTextureManagerHudCrisp",
     "client.MixinEntityRendererFreelook",
     "client.MixinEntityFreelook",
     "client.MixinMinecraftFullscreen",

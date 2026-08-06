@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public final class MusicArtCache {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("ParaguacraftPvP-MusicArt");
-    public static final int DISPLAY_PX = 16;
+    public static final int DISPLAY_PX = 32;
 
     private static String cachedUrl = "";
     private static Identifier textureId;

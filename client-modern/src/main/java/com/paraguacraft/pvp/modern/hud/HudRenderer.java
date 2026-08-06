@@ -40,7 +40,7 @@ public final class HudRenderer {
     private static final Identifier HUD_ID = Identifier.of(ParaguacraftPvPModern.MOD_ID, "hud");
     private static final int ARTIST_COLOR = 0xFF8899AA;
     private static final int METRIC_VALUE = 0xFFF0F4FF;
-    private static final int BASE_MUSIC_ART = 16;
+    private static final int BASE_MUSIC_ART = 32;
 
     private static int overlayBgAlpha(LauncherIpc.Snapshot snap, boolean preview) {
         boolean musicOn = ModernConfig.showMusicHud && (preview || (snap != null && snap.musicPlaying));
@@ -667,7 +667,6 @@ public final class HudRenderer {
                     int tw = Math.max(1, MusicArtCache.getTexWidth());
                     int th = Math.max(1, MusicArtCache.getTexHeight());
                     // region = textura completa; width/height = tamaño en pantalla
-                    // (el overload corto usa region=width y solo muestra 16px de esquina → negro)
                     ctx.drawTexture(
                         RenderPipelines.GUI_TEXTURED,
                         art,
