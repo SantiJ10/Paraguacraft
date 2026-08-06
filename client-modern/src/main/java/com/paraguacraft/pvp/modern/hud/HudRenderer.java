@@ -40,7 +40,6 @@ public final class HudRenderer {
     private static final Identifier HUD_ID = Identifier.of(ParaguacraftPvPModern.MOD_ID, "hud");
     private static final int ARTIST_COLOR = 0xFF8899AA;
     private static final int METRIC_VALUE = 0xFFF0F4FF;
-    private static final int BASE_MUSIC_ART = 32;
 
     private static int overlayBgAlpha(LauncherIpc.Snapshot snap, boolean preview) {
         boolean musicOn = ModernConfig.showMusicHud && (preview || (snap != null && snap.musicPlaying));
@@ -374,7 +373,7 @@ public final class HudRenderer {
     }
 
     private static int musicArtSize() {
-        return Math.max(12, scaledMusic(BASE_MUSIC_ART));
+        return Math.max(12, scaledMusic(ModernConfig.musicArtSizePx()));
     }
 
     private static void drawLabeled(TextRenderer tr, DrawContext ctx, String label, String value, int x, int y) {
@@ -705,7 +704,9 @@ public final class HudRenderer {
 
     /** Icono de disco (opcion OFF o mientras carga la portada). */
     private static void drawMusicDisc(DrawContext ctx, int x, int y) {
-        ctx.drawItem(new ItemStack(Items.MUSIC_DISC_13), x, y);
+        int size = musicArtSize();
+        int pad = Math.max(0, (size - 16) / 2);
+        ctx.drawItem(new ItemStack(Items.MUSIC_DISC_13), x + pad, y + pad);
     }
 
 

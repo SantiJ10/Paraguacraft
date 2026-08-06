@@ -96,6 +96,7 @@ paraguacraft.bw_resources.transparent=Fondo transparente
 paraguacraft.music_hud.title=Opciones HUD Musica
 paraguacraft.music_hud.album_art=Caratula del album
 paraguacraft.music_hud.alpha=Transparencia
+paraguacraft.music_hud.art_size=Tamano de caratula
 
 paraguacraft.hud.bw.iron=Hierro
 paraguacraft.hud.bw.gold=Oro
