@@ -1,12 +1,12 @@
 {
-  "version": "1.1.14",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.14/Instalar_Paraguacraft_v1.1.14.exe",
-  "size_bytes": 5622718,
-  "sha256": "d2c9ca245909050fd776cb0f0b177cdf40985649259c24e35240bdb1a71dc8dc",
-  "notes": "- Fix skins multiplayer offline (no más tu historial en otros jugadores)\n- Avatar cara (no UV crudo); LocalSkin por nick + Ely.by\n- Renombrar cuentas offline (Ely.by)\n- Clientes PvP 2.1.41 / Modern 0.9.19: escala por módulo en Editar HUD",
+  "version": "1.1.15",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.15/Instalar_Paraguacraft_v1.1.15.exe",
+  "size_bytes": 5623758,
+  "sha256": "65786bf1cd8bea140b37eea53c185a3372eb247c623cb6ba1173a74de2885a78",
+  "notes": "- Pack PvP 1.8.9: apply/Selected fijo + destroy_stage Dewier\n- HUD Música: transparencia total (1.8.9) y carátula 16×16 o 32×32\n- Clientes PvP 2.1.44 / Modern 0.9.21 (update automático al lanzar)\n- Botón Cafecito oficial en la web",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.14/Instalar_Paraguacraft_v1.1.14.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.15/Instalar_Paraguacraft_v1.1.15.exe",
       "signature": ""
     }
   }
