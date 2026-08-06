@@ -14,7 +14,7 @@ use crate::core::paths;
 use crate::error::{AppError, AppResult};
 
 pub const PACK_189: &str = "paraguacraft-pvp-189.zip";
-pub const PACK_189_SHA1: &str = "79599f36fe957d6443c9388c452bc93d67291bdd";
+pub const PACK_189_SHA1: &str = "2d4578d9507250c1ac61a22e083b4a9b0f8d7b41";
 pub const PACK_MODERN: &str = "paraguacraft-pvp-modern.zip";
 
 const BASE_URL_189: &str =

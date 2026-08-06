@@ -143,11 +143,13 @@ pub fn set_pvp_stack(game_dir: &Path, mc_version: &str, pack_name: &str) -> AppR
         lines.retain(|l| !l.starts_with("texturepack:"));
         lines.push(format!("texturepack:{official_token}"));
     } else if major < 13 {
-        // 1.8.9: primera entrada = mayor prioridad en la lista Selected.
-        let mut packs: Vec<String> = vec![official_token];
+        // 1.8.9: última entrada del listado en options = mayor prioridad al cargar
+        // (FallbackResourceManager itera de atrás hacia adelante). Brand primero, oficial al final.
+        let mut packs: Vec<String> = Vec::new();
         if brand_exists {
             packs.push(pack_token(BRAND_PACK, brand_dir.is_dir(), major));
         }
+        packs.push(official_token);
         if let Some(existing) = lines.iter().find(|l| l.starts_with("resourcePacks:")) {
             for p in parse_quoted_packs(existing) {
                 if is_system_pack(&p) {
@@ -156,7 +158,8 @@ pub fn set_pvp_stack(game_dir: &Path, mc_version: &str, pack_name: &str) -> AppR
                 if packs.iter().any(|x| pack_token_matches(x, &p)) {
                     continue;
                 }
-                packs.push(p);
+                // Extra packs debajo del oficial (menor prioridad)
+                packs.insert(packs.len().saturating_sub(1).max(0), p);
             }
         }
         lines.retain(|l| !l.starts_with("resourcePacks:"));

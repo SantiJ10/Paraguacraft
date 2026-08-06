@@ -3,6 +3,16 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [1.1.15] - 2026-08-06
+
+### Cliente PvP 1.8.9 (2.1.43)
+- **Pack oficial en Selected**: `setRepositories` al aplicar (como Aceptar en la UI); ya no solo escribe `options.txt`.
+- **destroy_stage Dewier**: texturas de romper bloque en `paraguacraft-pvp-189.zip`.
+- Re-descarga del pack si el SHA local no coincide (client-side).
+
+### Launcher
+- SHA del pack PvP 1.8.9 actualizado; orden brand → oficial en options 1.8.9.
+
 ## [1.1.14] - 2026-08-06
 
 ### Fixed
