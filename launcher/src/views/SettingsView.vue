@@ -33,6 +33,55 @@ const showAddAccount = ref(false);
 const skinBusy = ref(false);
 const skinMessage = ref<string | null>(null);
 
+/** Renombrar cuenta offline (inline). */
+const renamingId = ref<string | null>(null);
+const renameDraft = ref("");
+const renameBusy = ref(false);
+const renameError = ref<string | null>(null);
+
+function startRename(acc: { id: string; username: string; premium: boolean; type?: string }) {
+  if (acc.premium) return;
+  renamingId.value = acc.id;
+  renameDraft.value = acc.username;
+  renameError.value = null;
+}
+
+function cancelRename() {
+  renamingId.value = null;
+  renameDraft.value = "";
+  renameError.value = null;
+  renameBusy.value = false;
+}
+
+async function confirmRename() {
+  const id = renamingId.value;
+  if (!id) return;
+  const name = renameDraft.value.trim();
+  if (name.length < 3) {
+    renameError.value = "Mínimo 3 caracteres";
+    return;
+  }
+  if (name.length > 16) {
+    renameError.value = "Máximo 16 caracteres";
+    return;
+  }
+  if (!/^[A-Za-z0-9_]+$/.test(name)) {
+    renameError.value = "Solo letras, números y _";
+    return;
+  }
+  renameBusy.value = true;
+  renameError.value = null;
+  try {
+    await accounts.renameOffline(id, name);
+    cancelRename();
+    void skins.refresh(true);
+  } catch (e) {
+    renameError.value = String(e).replace(/^Error:\s*/i, "");
+  } finally {
+    renameBusy.value = false;
+  }
+}
+
 const extrasStatus = ref<ExtrasStatus | null>(null);
 const cleanupInfo = ref<CleanupInfo | null>(null);
 const extrasBusy = ref(false);
@@ -619,26 +668,65 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
               :local-avatar-path="acc.active ? skins.activeSkin?.localAvatarPath : null"
               size="sm"
             />
-            <div class="flex-1">
-              <p class="font-semibold">{{ acc.username }}</p>
-              <p class="text-xs" :class="acc.premium ? 'text-pc-green' : 'text-gray-500'">
-                {{ acc.premium ? "Microsoft Premium" : "Offline" }}
-              </p>
+            <div class="min-w-0 flex-1">
+              <template v-if="renamingId === acc.id">
+                <div class="flex flex-wrap items-center gap-2">
+                  <input
+                    v-model="renameDraft"
+                    type="text"
+                    maxlength="16"
+                    class="min-w-0 flex-1 rounded-md border border-surface-4 bg-surface-1 px-2 py-1 text-sm font-semibold text-white outline-none focus:border-pc-green"
+                    placeholder="Nuevo nick (Ely.by)"
+                    @keydown.enter.prevent="confirmRename"
+                    @keydown.escape.prevent="cancelRename"
+                  />
+                  <BaseButton size="sm" :disabled="renameBusy" @click="confirmRename">
+                    {{ renameBusy ? "…" : "Guardar" }}
+                  </BaseButton>
+                  <BaseButton size="sm" variant="ghost" :disabled="renameBusy" @click="cancelRename">
+                    Cancelar
+                  </BaseButton>
+                </div>
+                <p v-if="renameError" class="mt-1 text-xs text-red-400">{{ renameError }}</p>
+                <p class="mt-1 text-[11px] text-gray-500">
+                  Usá el mismo nick que en Ely.by. Solo letras, números y _.
+                </p>
+              </template>
+              <template v-else>
+                <p class="font-semibold">{{ acc.username }}</p>
+                <p class="text-xs" :class="acc.premium ? 'text-pc-green' : 'text-gray-500'">
+                  {{ acc.premium ? "Microsoft Premium" : "Offline / no-premium" }}
+                </p>
+              </template>
             </div>
-            <BaseButton v-if="!acc.active" size="sm" variant="ghost" @click="accounts.setActive(acc.id)">
-              Usar
-            </BaseButton>
-            <span v-else class="text-xs font-bold text-pc-green">Activa</span>
-            <button
-              class="text-gray-600 transition hover:text-red-400"
-              title="Quitar cuenta"
-              @click="accounts.remove(acc.id)"
-            >
-              &times;
-            </button>
+            <template v-if="renamingId !== acc.id">
+              <BaseButton
+                v-if="!acc.premium"
+                size="sm"
+                variant="ghost"
+                title="Cambiar nick (p. ej. para Ely.by)"
+                @click="startRename(acc)"
+              >
+                Renombrar
+              </BaseButton>
+              <BaseButton v-if="!acc.active" size="sm" variant="ghost" @click="accounts.setActive(acc.id)">
+                Usar
+              </BaseButton>
+              <span v-else class="text-xs font-bold text-pc-green">Activa</span>
+              <button
+                class="text-gray-600 transition hover:text-red-400"
+                title="Quitar cuenta"
+                @click="accounts.remove(acc.id)"
+              >
+                &times;
+              </button>
+            </template>
           </div>
           <p v-if="!accounts.accounts.length" class="text-sm text-gray-500">
             No hay cuentas. Agrega una para jugar.
+          </p>
+          <p class="text-xs text-gray-500">
+            ¿Querés sincronizar con Ely.by? Renombrá tu cuenta offline al mismo nick que registraste ahí.
           </p>
         </div>
       </section>

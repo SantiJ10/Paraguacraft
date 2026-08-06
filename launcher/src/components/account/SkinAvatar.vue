@@ -28,13 +28,25 @@ const sizeClass = computed(() => {
 const src = computed(() => {
   if (remoteFailed.value) return STEVE_AVATAR_URL;
 
-  if (props.avatarDataUrl) return props.avatarDataUrl;
+  // Prioridad: cara recortada (data URL) o minotar — NUNCA UV crudo sin crop.
+  if (props.avatarDataUrl) {
+    // Si por error viejo viniera un UV completo, object-cover lo disimula mal;
+    // dataURL de cara siempre es 64x64 head.
+    return props.avatarDataUrl;
+  }
 
+  // localAvatarPath debe ser el cache de CARA (face.png), no la skin completa.
   if (props.localAvatarPath && isTauri()) {
-    try {
-      return convertFileSrc(props.localAvatarPath);
-    } catch {
-      /* fallback */
+    const p = props.localAvatarPath.replace(/\\/g, "/").toLowerCase();
+    const looksLikeFullSkin =
+      p.endsWith("paraguacraft_offline_skin.png") ||
+      (p.includes("/skins/") && !p.includes("face") && !p.includes("helm") && !p.includes("avatar"));
+    if (!looksLikeFullSkin) {
+      try {
+        return convertFileSrc(props.localAvatarPath);
+      } catch {
+        /* fallback */
+      }
     }
   }
 

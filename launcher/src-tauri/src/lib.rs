@@ -108,6 +108,7 @@ pub fn run() {
             commands::accounts::get_accounts,
             commands::accounts::set_active_account,
             commands::accounts::add_offline_account,
+            commands::accounts::rename_offline_account,
             commands::accounts::remove_account,
             commands::accounts::ms_login_url,
             commands::accounts::ms_login_complete_code,

@@ -1,12 +1,12 @@
 {
-  "version": "1.1.13",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.13/Instalar_Paraguacraft_v1.1.13.exe",
-  "size_bytes": 5618980,
-  "sha256": "32c0e1fd7af9504a197491aff6d693cb938e4ba314e0a1ba85c4e8578745ee00",
-  "notes": "- Pack PvP 1.8.9 auto-aplicado al lanzar\n- Clientes 2.1.40 / 0.9.18: escala UI compartida HUD + mod menu\n- Mini guía skins offline; Playit plugin; CSL/Ely.by\n- Import servers; Optimized fixes; VSYNC off",
+  "version": "1.1.14",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.14/Instalar_Paraguacraft_v1.1.14.exe",
+  "size_bytes": 0,
+  "sha256": "",
+  "notes": "- Fix skins multiplayer offline (no más tu historial en otros jugadores)\n- Avatar cara (no UV crudo); LocalSkin por nick + Ely.by\n- Renombrar cuentas offline (Ely.by)\n- Clientes PvP 2.1.41 / Modern 0.9.19: escala por módulo en Editar HUD",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.13/Instalar_Paraguacraft_v1.1.13.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.14/Instalar_Paraguacraft_v1.1.14.exe",
       "signature": ""
     }
   }

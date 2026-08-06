@@ -30,6 +30,12 @@ pub fn add_offline_account(username: String) -> AppResult<Vec<Account>> {
     accounts::add_offline(&username)
 }
 
+/// Renombra una cuenta offline (alineá nick con Ely.by sin borrar la cuenta).
+#[tauri::command]
+pub fn rename_offline_account(id: String, username: String) -> AppResult<Vec<Account>> {
+    accounts::rename_offline(&id, &username)
+}
+
 #[tauri::command]
 pub fn remove_account(id: String) -> AppResult<Vec<Account>> {
     accounts::remove(&id)

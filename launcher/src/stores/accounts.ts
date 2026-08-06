@@ -28,6 +28,10 @@ export const useAccountsStore = defineStore("accounts", () => {
     accounts.value = await api.addOfflineAccount(username);
   }
 
+  async function renameOffline(id: string, username: string) {
+    accounts.value = await api.renameOfflineAccount(id, username);
+  }
+
   async function remove(id: string) {
     accounts.value = await api.removeAccount(id);
   }
@@ -84,6 +88,7 @@ export const useAccountsStore = defineStore("accounts", () => {
     load,
     setActive,
     addOffline,
+    renameOffline,
     remove,
     startMicrosoftLogin,
     stopMicrosoftLogin,

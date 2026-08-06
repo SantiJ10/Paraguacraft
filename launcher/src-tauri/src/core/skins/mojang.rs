@@ -232,26 +232,57 @@ pub async fn fetch_image_data_url(http: &reqwest::Client, url: &str) -> Option<S
     Some(format!("data:image/png;base64,{}", STANDARD.encode(bytes)))
 }
 
-/// Cabeza 2D recortada del PNG de skin (64×64) — siempre al día con Mojang.
-pub fn helm_data_url_from_skin_png(bytes: &[u8]) -> Option<String> {
+/// Cabeza 2D recortada del PNG de skin (64×32, 64×64 o HD).
+/// Devuelve bytes PNG del recorte 64×64 (cara + hat).
+pub fn helm_png_bytes_from_skin_png(bytes: &[u8]) -> Option<Vec<u8>> {
     use image::imageops::{overlay, FilterType};
     use image::GenericImageView;
     use std::io::Cursor;
 
     let img = image::load_from_memory(bytes).ok()?.to_rgba8();
     let (w, h) = img.dimensions();
-    if w < 64 || h < 64 {
+    // 64×32 legacy, 64×64 classic o múltiplos HD
+    if w < 64 || h < 32 {
+        return None;
+    }
+    let scale = (w / 64).max(1);
+    let face_x = 8 * scale;
+    let face_y = 8 * scale;
+    let face_s = 8 * scale;
+    if face_x + face_s > w || face_y + face_s > h {
         return None;
     }
     const OUT: u32 = 64;
-    let mut face = image::imageops::resize(&img.view(8, 8, 8, 8).to_image(), OUT, OUT, FilterType::Nearest);
-    if w >= 64 && h >= 64 {
-        let hat = image::imageops::resize(&img.view(40, 8, 8, 8).to_image(), OUT, OUT, FilterType::Nearest);
+    let mut face = image::imageops::resize(
+        &img.view(face_x, face_y, face_s, face_s).to_image(),
+        OUT,
+        OUT,
+        FilterType::Nearest,
+    );
+    let hat_x = 40 * scale;
+    let hat_y = 8 * scale;
+    if hat_x + face_s <= w && hat_y + face_s <= h {
+        let hat = image::imageops::resize(
+            &img.view(hat_x, hat_y, face_s, face_s).to_image(),
+            OUT,
+            OUT,
+            FilterType::Nearest,
+        );
         overlay(&mut face, &hat, 0, 0);
     }
     let mut buf = Vec::new();
-    face.write_to(&mut Cursor::new(&mut buf), image::ImageFormat::Png).ok()?;
-    Some(format!("data:image/png;base64,{}", STANDARD.encode(buf)))
+    face.write_to(&mut Cursor::new(&mut buf), image::ImageFormat::Png)
+        .ok()?;
+    Some(buf)
+}
+
+/// Cabeza 2D recortada del PNG de skin — data URL para la UI.
+pub fn helm_data_url_from_skin_png(bytes: &[u8]) -> Option<String> {
+    let buf = helm_png_bytes_from_skin_png(bytes)?;
+    Some(format!(
+        "data:image/png;base64,{}",
+        STANDARD.encode(buf)
+    ))
 }
 
 /// Cabeza 2D vía Minotar (fallback si falla la textura Mojang).

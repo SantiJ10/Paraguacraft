@@ -402,7 +402,7 @@ onMounted(async () => {
           </li>
           <li>
             <span class="font-semibold text-white">Jugá con esta misma cuenta offline</span>
-            (no cambies de nick). Al lanzar un loader con mods (PvP, Optimized, Fabric, Forge),
+            (el nick del launcher debe coincidir con el de Ely.by). Al lanzar un loader con mods (PvP, Optimized, Fabric, Forge),
             Paraguacraft instala <span class="text-white">CustomSkinLoader</span> solo.
           </li>
           <li>
@@ -411,14 +411,18 @@ onMounted(async () => {
             <button type="button" class="font-bold text-sky-300 underline decoration-sky-500/50 hover:text-sky-200" @click="openElyBy">
               ely.by
             </button>.
-            Así otros clientes con CustomSkinLoader pueden cargarte desde la red de Ely.by.
+            Si tu nick del launcher es distinto, andá a
+            <RouterLink to="/settings#accounts" class="font-bold text-sky-300 underline decoration-sky-500/50 hover:text-sky-200">
+              Ajustes → Cuentas → Renombrar
+            </RouterLink>
+            y poné el mismo nombre que en Ely.by. Así otros clientes con CustomSkinLoader pueden cargarte.
           </li>
           <li>
             <span class="font-semibold text-white">Quién te ve</span>
             —
-            <span class="text-white">vos</span> (pack local del launcher);
-            <span class="text-white">otros con CSL / Ely.by</span> o servidores con SkinsRestorer;
-            vanilla puro en redes grandes (ej. solo Mojang) a veces no.
+            <span class="text-white">vos</span> (LocalSkin / pack local del launcher, solo tu nick);
+            <span class="text-white">otros con CSL / Ely.by</span> o servidores con SkinsRestorer según su nick;
+            vanilla puro en redes grandes a veces no. Nunca se reutiliza tu historial de skins en otros jugadores.
           </li>
         </ol>
         <div class="mt-4 flex flex-wrap gap-2">
