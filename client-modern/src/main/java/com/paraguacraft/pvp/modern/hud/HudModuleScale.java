@@ -4,13 +4,19 @@ import com.paraguacraft.pvp.modern.config.ModernConfig;
 import net.minecraft.client.gui.DrawContext;
 import org.joml.Matrix3x2fStack;
 
-/** Escala proporcional por módulo (50–200%). */
+/** Escala proporcional por módulo (50–200%), alineada a píxel para no emborronar. */
 public final class HudModuleScale {
 
     public static final int MIN = 50;
     public static final int MAX = 200;
 
+    private static int crispDepth = 0;
+
     private HudModuleScale() {}
+
+    public static boolean isCrisp() {
+        return crispDepth > 0;
+    }
 
     public static int clamp(int pct) {
         if (pct < MIN) return MIN;
@@ -25,14 +31,19 @@ public final class HudModuleScale {
     public static void begin(DrawContext ctx, float x, float y, int scalePct) {
         Matrix3x2fStack m = ctx.getMatrices();
         m.pushMatrix();
-        m.translate(x, y);
+        // Origen en píxel entero evita subpíxeles (texto/items nítidos).
+        m.translate((float) Math.floor(x), (float) Math.floor(y));
         float s = factor(scalePct);
         if (s != 1f) {
             m.scale(s, s);
         }
+        crispDepth++;
     }
 
     public static void end(DrawContext ctx) {
+        if (crispDepth > 0) {
+            crispDepth--;
+        }
         ctx.getMatrices().popMatrix();
     }
 

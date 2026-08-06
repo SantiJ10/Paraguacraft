@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP Modern",
   "mc_version": "1.21.11",
   "loader": "fabric",
-  "client_version": "0.9.19",
-  "release_tag": "pvp-modern-0.9.19",
-  "descripcion": "Escala proporcional por módulo en Editar HUD (esquinas).",
+  "client_version": "0.9.20",
+  "release_tag": "pvp-modern-0.9.20",
+  "descripcion": "HUD nítido al escalar (origen a pixel + carátula 32px).",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-Modern-0.9.19.jar",
-      "sha1": "8be4538de3db024ec07ac392d70983a0b0fc3e0b"
+      "filename": "ParaguacraftPvP-Modern-0.9.20.jar",
+      "sha1": "e0935745ee97935dee2eac6f3bd05f25023298e2"
     }
   ]
 }

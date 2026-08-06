@@ -16,9 +16,9 @@ import org.lwjgl.opengl.GL11;
 /** HUDs M4: launcher overlay, Bedwars resources. */
 public final class AdvancedHud {
 
-    private static final int BW_PANEL_W = 108;
-    private static final int BW_PANEL_H = 52;
-    private static final int ART_SIZE = 16;
+    private static final int BW_PANEL_W = 120;
+    private static final int BW_PANEL_H = 56;
+    private static final int ART_SIZE = 32;
 
     private AdvancedHud() {}
 
@@ -141,7 +141,8 @@ public final class AdvancedHud {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         if (art == null) {
             GlStateManager.enableDepth();
-            mc.getRenderItem().renderItemIntoGUI(new ItemStack(Items.record_13), x, y);
+            // Disc icon a 16×16 dentro del hueco 32×32
+            mc.getRenderItem().renderItemIntoGUI(new ItemStack(Items.record_13), x + 8, y + 8);
             GlStateManager.disableDepth();
             GlStateManager.disableLighting();
         } else {
@@ -149,6 +150,9 @@ public final class AdvancedHud {
             GlStateManager.enableAlpha();
             GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
             mc.getTextureManager().bindTexture(art);
+            HudModuleScale.applyNearestOnBound();
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_NEAREST);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
             Gui.drawScaledCustomSizeModalRect(
                 x, y, 0, 0,
                 MusicArtCache.getTexWidth(), MusicArtCache.getTexHeight(),
@@ -190,15 +194,27 @@ public final class AdvancedHud {
         if (!ModConfig.bwResTransparentBg) {
             Gui.drawRect(x, y, x + BW_PANEL_W, y + BW_PANEL_H, 0x88000000);
         }
-        drawBwLine(ModLang.format("paraguacraft.hud.bw.iron"), iron, x + 6, y + 6);
-        drawBwLine(ModLang.format("paraguacraft.hud.bw.gold"), gold, x + 6, y + 18);
-        drawBwLine(ModLang.format("paraguacraft.hud.bw.emerald"), emerald, x + 6, y + 30);
-        drawBwLine(ModLang.format("paraguacraft.hud.bw.diamond"), diamond, x + 6, y + 42);
+        drawBwLine(new ItemStack(Items.iron_ingot), ModLang.format("paraguacraft.hud.bw.iron"), iron, x + 2, y + 4);
+        drawBwLine(new ItemStack(Items.gold_ingot), ModLang.format("paraguacraft.hud.bw.gold"), gold, x + 2, y + 16);
+        drawBwLine(new ItemStack(Items.emerald), ModLang.format("paraguacraft.hud.bw.emerald"), emerald, x + 2, y + 28);
+        drawBwLine(new ItemStack(Items.diamond), ModLang.format("paraguacraft.hud.bw.diamond"), diamond, x + 2, y + 40);
         GlStateManager.disableBlend();
     }
 
-    private static void drawBwLine(String name, int count, int x, int y) {
-        HudDraw.labeled(name + " ", String.valueOf(count), x, y);
+    private static void drawBwLine(ItemStack icon, String name, int count, int x, int y) {
+        Minecraft mc = Minecraft.getMinecraft();
+        GlStateManager.enableDepth();
+        GlStateManager.disableLighting();
+        // Icono 16×16 (se escalarán con NEAREST vía HudModuleScale)
+        GlStateManager.pushMatrix();
+        float is = 0.75f;
+        GlStateManager.translate(x, y, 0f);
+        GlStateManager.scale(is, is, 1f);
+        mc.getRenderItem().renderItemAndEffectIntoGUI(icon, 0, 0);
+        GlStateManager.popMatrix();
+        GlStateManager.disableDepth();
+        GlStateManager.disableLighting();
+        HudDraw.labeled(name + " ", String.valueOf(count), x + 14, y + 2);
     }
 
     private static String fmtPct(float v) {
