@@ -4,22 +4,35 @@ import com.paraguacraft.pvp.modern.config.ModernConfig;
 import com.paraguacraft.pvp.modern.core.LauncherIpc;
 import com.paraguacraft.pvp.modern.core.ServerContext;
 import com.paraguacraft.pvp.modern.gui.theme.UiTheme;
+import com.paraguacraft.pvp.modern.hud.HudModuleScale;
 import com.paraguacraft.pvp.modern.hud.HudRenderer;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.text.Text;
+import org.joml.Matrix3x2fStack;
 
-/** Arrastra elementos del HUD con preview real (solo mods activos). */
+/**
+ * Editar HUD: mover módulos y escalar proporcionalmente (solo manijas de esquina).
+ */
 public class GuiEditHudScreen extends Screen {
 
-    private static final int ACCENT_BOX = 0x8800E5FF;
+    private static final int HANDLE = 5;
+    private static final int HIT = 8;
 
     private final Screen parent;
-    private int dragging = -1;
-    private int dragOffX;
-    private int dragOffY;
+    private int mode = 0; // 0 = none, 1 = move, 2 = scale
+    private int boxId = -1;
+    private int corner = -1; // 0=TL 1=TR 2=BR 3=BL
+    private int dragX;
+    private int dragY;
+    private int startScale;
+    private float startDist;
+    private int anchorX;
+    private int anchorY;
+    private int baseW;
+    private int baseH;
 
     public GuiEditHudScreen(Screen parent) {
         super(Text.literal("Editar HUD"));
@@ -44,77 +57,118 @@ public class GuiEditHudScreen extends Screen {
         HudRenderer.renderEditing(ctx);
         ctx.fill(0, 0, width, height, 0x44000000);
         ctx.drawCenteredTextWithShadow(textRenderer, Text.literal("Modo Edicion Paraguacraft"), width / 2, 12, UiTheme.accent());
-        ctx.drawCenteredTextWithShadow(textRenderer, Text.literal("Arrastra las cajas celestes (solo mods activos)"), width / 2, 26, UiTheme.textDim());
+        ctx.drawCenteredTextWithShadow(
+            textRenderer,
+            Text.literal("Arrastra el modulo para mover · esquinas blancas = tamaño (proporcional)"),
+            width / 2,
+            26,
+            UiTheme.textDim()
+        );
+        if (boxId >= 0 && mode == 2) {
+            ctx.drawCenteredTextWithShadow(
+                textRenderer,
+                Text.literal("Escala: " + HudModuleScale.get(boxId) + "%"),
+                width / 2,
+                42,
+                UiTheme.accent()
+            );
+        }
+
+        float ui = Math.max(0.5f, ModernConfig.uiScaleFactor());
+        Matrix3x2fStack matrices = ctx.getMatrices();
+        matrices.pushMatrix();
+        if (ui != 1f) {
+            matrices.scale(ui, ui);
+        }
 
         if (ModernConfig.showFps) {
-            drawEditBox(ctx, 0, ModernConfig.fpsX, ModernConfig.fpsY, 55, 10);
+            drawBox(ctx, 0, ModernConfig.fpsX, ModernConfig.fpsY, 55, 10);
         }
         if (ModernConfig.showPing) {
-            drawEditBox(ctx, 1, ModernConfig.pingX, ModernConfig.pingY, 70, 10);
+            drawBox(ctx, 1, ModernConfig.pingX, ModernConfig.pingY, 70, 10);
         }
         if (ModernConfig.showCps) {
-            drawEditBox(ctx, 2, ModernConfig.cpsX, ModernConfig.cpsY, 50, 10);
+            drawBox(ctx, 2, ModernConfig.cpsX, ModernConfig.cpsY, 50, 10);
         }
         if (ModernConfig.showKeystrokes) {
-            drawEditBox(ctx, 3, ModernConfig.keysX, ModernConfig.keysY, 68, 68);
+            drawBox(ctx, 3, ModernConfig.keysX, ModernConfig.keysY, 68, 68);
         }
         if (ModernConfig.showArmor) {
-            drawEditBox(ctx, 4, ModernConfig.armorX, ModernConfig.armorY, 45, HudRenderer.armorPanelHeight(client));
-        }
-        if (ModernConfig.showPotions) {
-            drawEditBox(ctx, 9, ModernConfig.potionX, ModernConfig.potionY, 120, HudRenderer.potionPanelHeight(client));
-        }
-        if (ModernConfig.showCoords) {
-            drawEditBox(ctx, 10, ModernConfig.coordsX, ModernConfig.coordsY, 130, 10);
+            drawBox(ctx, 4, ModernConfig.armorX, ModernConfig.armorY, 45, HudRenderer.armorPanelHeight(client));
         }
         if (ModernConfig.showHeldItem) {
-            drawEditBox(ctx, 5, ModernConfig.heldX, ModernConfig.heldY, 130, 40);
+            drawBox(ctx, 5, ModernConfig.heldX, ModernConfig.heldY, 130, 40);
+        }
+        if (ModernConfig.showBedwarsResources) {
+            drawBox(ctx, 6, ModernConfig.bwResX, ModernConfig.bwResY, 42, 68);
         }
         if (ModernConfig.showHardwareHud) {
             LauncherIpc.Snapshot snap = LauncherIpc.get();
-            drawEditBox(ctx, 7, ModernConfig.hardwareHudX, ModernConfig.hardwareHudY,
+            drawBox(ctx, 7, ModernConfig.hardwareHudX, ModernConfig.hardwareHudY,
                 HudRenderer.hardwarePanelWidth(snap), HudRenderer.hardwarePanelHeight(snap));
+        }
+        if (ModernConfig.showBlockCount) {
+            drawBox(ctx, 8, ModernConfig.blocksX, ModernConfig.blocksY, 36, 16);
+        }
+        if (ModernConfig.showPotions) {
+            drawBox(ctx, 9, ModernConfig.potionX, ModernConfig.potionY, 120, HudRenderer.potionPanelHeight(client));
+        }
+        if (ModernConfig.showCoords) {
+            drawBox(ctx, 10, ModernConfig.coordsX, ModernConfig.coordsY, 130, 10);
+        }
+        if (ModernConfig.showCompass) {
+            int screenW = (int) (width / ui);
+            drawBox(ctx, 11, screenW / 2 - 110, ModernConfig.compassY, 220, 16);
+        }
+        if (ModernConfig.comboCounter) {
+            drawBox(ctx, 12, ModernConfig.comboX, ModernConfig.comboY, 70, 10);
         }
         if (ModernConfig.showMusicHud) {
             LauncherIpc.Snapshot snap = LauncherIpc.get();
-            drawEditBox(ctx, 13, ModernConfig.musicHudX, ModernConfig.musicHudY,
+            drawBox(ctx, 13, ModernConfig.musicHudX, ModernConfig.musicHudY,
                 HudRenderer.musicPanelWidth(snap, true), HudRenderer.musicPanelHeight(snap, true));
         }
-        if (ModernConfig.showBedwarsResources) {
-            drawEditBox(ctx, 6, ModernConfig.bwResX, ModernConfig.bwResY, 42, 68);
-        }
-        if (ModernConfig.showBlockCount) {
-            drawEditBox(ctx, 8, ModernConfig.blocksX, ModernConfig.blocksY, 36, 16);
-        }
-        if (ModernConfig.showCompass) {
-            int cx = width / 2;
-            drawEditBox(ctx, 11, cx - 110, ModernConfig.compassY, 220, 16);
-        }
-        if (ModernConfig.comboCounter) {
-            drawEditBox(ctx, 12, ModernConfig.comboX, ModernConfig.comboY, 70, 10);
-        }
         if (ModernConfig.showCombatStatsHud) {
-            drawEditBox(ctx, 14, ModernConfig.combatStatsX, ModernConfig.combatStatsY, 114, 46);
+            drawBox(ctx, 14, ModernConfig.combatStatsX, ModernConfig.combatStatsY, 114, 46);
         }
         if (ModernConfig.showGameModeHud) {
-            drawEditBox(ctx, 15, ModernConfig.gameModeHudX, ModernConfig.gameModeHudY, 90, 10);
+            drawBox(ctx, 15, ModernConfig.gameModeHudX, ModernConfig.gameModeHudY, 90, 10);
         }
         if (ModernConfig.showBridgeTimer) {
-            drawEditBox(ctx, 16, ModernConfig.bridgeTimerX, ModernConfig.bridgeTimerY, 80, 10);
+            drawBox(ctx, 16, ModernConfig.bridgeTimerX, ModernConfig.bridgeTimerY, 80, 10);
         }
         if (ModernConfig.reachDisplay && ServerContext.reachDisplayAllowed(client)) {
-            drawEditBox(ctx, 17, ModernConfig.reachDisplayX, ModernConfig.reachDisplayY, 70, 10);
+            drawBox(ctx, 17, ModernConfig.reachDisplayX, ModernConfig.reachDisplayY, 70, 10);
         }
         if (ModernConfig.showServerHud) {
-            drawEditBox(ctx, 18, ModernConfig.serverHudX, ModernConfig.serverHudY, 120, 10);
+            drawBox(ctx, 18, ModernConfig.serverHudX, ModernConfig.serverHudY, 120, 10);
         }
 
+        matrices.popMatrix();
         super.render(ctx, mouseX, mouseY, delta);
     }
 
-    private void drawEditBox(DrawContext ctx, int id, int x, int y, int w, int h) {
-        int color = dragging == id ? 0xAA00E5FF : ACCENT_BOX;
-        ctx.fill(x - 2, y - 2, x + w + 2, y + h + 2, color);
+    private void drawBox(DrawContext ctx, int id, int x, int y, int w, int h) {
+        float s = HudModuleScale.factor(HudModuleScale.get(id));
+        int sw = Math.max(1, Math.round(w * s));
+        int sh = Math.max(1, Math.round(h * s));
+        int color = (boxId == id) ? 0xAA00E5FF : 0x8800E5FF;
+        ctx.fill(x - 1, y - 1, x + sw + 1, y + sh + 1, color);
+        ctx.fill(x, y, x + sw, y + 1, 0xFFFFFFFF);
+        ctx.fill(x, y + sh - 1, x + sw, y + sh, 0xFFFFFFFF);
+        ctx.fill(x, y, x + 1, y + sh, 0xFFFFFFFF);
+        ctx.fill(x + sw - 1, y, x + sw, y + sh, 0xFFFFFFFF);
+        // Solo esquinas (no laterales)
+        drawHandle(ctx, x, y);
+        drawHandle(ctx, x + sw, y);
+        drawHandle(ctx, x + sw, y + sh);
+        drawHandle(ctx, x, y + sh);
+    }
+
+    private void drawHandle(DrawContext ctx, int cx, int cy) {
+        int h = HANDLE;
+        ctx.fill(cx - h / 2, cy - h / 2, cx + h / 2 + 1, cy + h / 2 + 1, 0xFFFFFFFF);
+        ctx.fill(cx - h / 2 + 1, cy - h / 2 + 1, cx + h / 2, cy + h / 2, 0xFF222222);
     }
 
     @Override
@@ -124,12 +178,58 @@ public class GuiEditHudScreen extends Screen {
 
     @Override
     public boolean mouseClicked(Click click, boolean doubled) {
-        if (click.buttonInfo().button() == 0) {
-            dragging = hit(click.x(), click.y());
-            if (dragging >= 0) {
-                int[] pos = posFor(dragging);
-                dragOffX = (int) click.x() - pos[0];
-                dragOffY = (int) click.y() - pos[1];
+        if (click.buttonInfo().button() != 0) {
+            return super.mouseClicked(click, doubled);
+        }
+        float ui = Math.max(0.5f, ModernConfig.uiScaleFactor());
+        int mx = (int) (click.x() / ui);
+        int my = (int) (click.y() / ui);
+
+        int hit = hitHandle(mx, my);
+        if (hit >= 0) {
+            boxId = hit / 4;
+            corner = hit % 4;
+            mode = 2;
+            int[] r = rectOf(boxId);
+            startScale = HudModuleScale.get(boxId);
+            baseW = r[2];
+            baseH = r[3];
+            float s = HudModuleScale.factor(startScale);
+            int sw = Math.max(1, Math.round(baseW * s));
+            int sh = Math.max(1, Math.round(baseH * s));
+            if (corner == 0) {
+                anchorX = r[0] + sw;
+                anchorY = r[1] + sh;
+            } else if (corner == 1) {
+                anchorX = r[0];
+                anchorY = r[1] + sh;
+            } else if (corner == 2) {
+                anchorX = r[0];
+                anchorY = r[1];
+            } else {
+                anchorX = r[0] + sw;
+                anchorY = r[1];
+            }
+            startDist = dist(mx, my, anchorX, anchorY);
+            if (startDist < 4f) {
+                startDist = 4f;
+            }
+            return true;
+        }
+
+        for (int id = 18; id >= 0; id--) {
+            if (!isVisible(id)) {
+                continue;
+            }
+            int[] r = rectOf(id);
+            float s = HudModuleScale.factor(HudModuleScale.get(id));
+            int sw = Math.max(1, Math.round(r[2] * s));
+            int sh = Math.max(1, Math.round(r[3] * s));
+            if (mx >= r[0] - 2 && mx <= r[0] + sw + 2 && my >= r[1] - 2 && my <= r[1] + sh + 2) {
+                mode = 1;
+                boxId = id;
+                dragX = mx - r[0];
+                dragY = my - r[1];
                 return true;
             }
         }
@@ -138,9 +238,11 @@ public class GuiEditHudScreen extends Screen {
 
     @Override
     public boolean mouseReleased(Click click) {
-        if (click.buttonInfo().button() == 0 && dragging >= 0) {
-            dragging = -1;
+        if (click.buttonInfo().button() == 0 && mode != 0) {
             ModernConfig.save();
+            mode = 0;
+            boxId = -1;
+            corner = -1;
             return true;
         }
         return super.mouseReleased(click);
@@ -148,79 +250,126 @@ public class GuiEditHudScreen extends Screen {
 
     @Override
     public boolean mouseDragged(Click click, double offsetX, double offsetY) {
-        if (dragging >= 0 && click.buttonInfo().button() == 0) {
-            setPos(dragging, (int) click.x() - dragOffX, (int) click.y() - dragOffY);
+        if (boxId < 0 || click.buttonInfo().button() != 0) {
+            return super.mouseDragged(click, offsetX, offsetY);
+        }
+        float ui = Math.max(0.5f, ModernConfig.uiScaleFactor());
+        int mx = (int) (click.x() / ui);
+        int my = (int) (click.y() / ui);
+
+        if (mode == 1) {
+            setPos(boxId, mx - dragX, my - dragY);
+            return true;
+        }
+        if (mode == 2) {
+            float d = dist(mx, my, anchorX, anchorY);
+            float ratio = d / startDist;
+            int newScale = HudModuleScale.clamp(Math.round(startScale * ratio));
+            HudModuleScale.set(boxId, newScale);
+            float s = HudModuleScale.factor(newScale);
+            int sw = Math.max(1, Math.round(baseW * s));
+            int sh = Math.max(1, Math.round(baseH * s));
+            if (corner == 0) {
+                setPos(boxId, anchorX - sw, anchorY - sh);
+            } else if (corner == 1) {
+                setPos(boxId, anchorX, anchorY - sh);
+            } else if (corner == 2) {
+                setPos(boxId, anchorX, anchorY);
+            } else {
+                setPos(boxId, anchorX - sw, anchorY);
+            }
             return true;
         }
         return super.mouseDragged(click, offsetX, offsetY);
     }
 
-    private int hit(double mx, double my) {
-        if (ModernConfig.showFps && inBox(mx, my, ModernConfig.fpsX, ModernConfig.fpsY, 55, 10)) return 0;
-        if (ModernConfig.showPing && inBox(mx, my, ModernConfig.pingX, ModernConfig.pingY, 70, 10)) return 1;
-        if (ModernConfig.showCps && inBox(mx, my, ModernConfig.cpsX, ModernConfig.cpsY, 50, 10)) return 2;
-        if (ModernConfig.showKeystrokes && inBox(mx, my, ModernConfig.keysX, ModernConfig.keysY, 68, 68)) return 3;
-        if (ModernConfig.showArmor && inBox(mx, my, ModernConfig.armorX, ModernConfig.armorY, 45, HudRenderer.armorPanelHeight(client))) return 4;
-        if (ModernConfig.showHeldItem && inBox(mx, my, ModernConfig.heldX, ModernConfig.heldY, 130, 40)) return 5;
-        if (ModernConfig.showBedwarsResources && inBox(mx, my, ModernConfig.bwResX, ModernConfig.bwResY, 42, 68)) return 6;
-        if (ModernConfig.showHardwareHud) {
-            LauncherIpc.Snapshot snap = LauncherIpc.get();
-            if (inBox(mx, my, ModernConfig.hardwareHudX, ModernConfig.hardwareHudY,
-                HudRenderer.hardwarePanelWidth(snap), HudRenderer.hardwarePanelHeight(snap))) {
-                return 7;
+    private int hitHandle(int mx, int my) {
+        for (int id = 0; id <= 18; id++) {
+            if (!isVisible(id)) {
+                continue;
+            }
+            int[] r = rectOf(id);
+            float s = HudModuleScale.factor(HudModuleScale.get(id));
+            int sw = Math.max(1, Math.round(r[2] * s));
+            int sh = Math.max(1, Math.round(r[3] * s));
+            int[][] corners = {
+                {r[0], r[1]},
+                {r[0] + sw, r[1]},
+                {r[0] + sw, r[1] + sh},
+                {r[0], r[1] + sh}
+            };
+            for (int c = 0; c < 4; c++) {
+                if (Math.abs(mx - corners[c][0]) <= HIT && Math.abs(my - corners[c][1]) <= HIT) {
+                    return id * 4 + c;
+                }
             }
         }
-        if (ModernConfig.showMusicHud) {
-            LauncherIpc.Snapshot snap = LauncherIpc.get();
-            if (inBox(mx, my, ModernConfig.musicHudX, ModernConfig.musicHudY,
-                HudRenderer.musicPanelWidth(snap, true), HudRenderer.musicPanelHeight(snap, true))) {
-                return 13;
-            }
-        }
-        if (ModernConfig.showBlockCount && inBox(mx, my, ModernConfig.blocksX, ModernConfig.blocksY, 36, 16)) return 8;
-        if (ModernConfig.showPotions && inBox(mx, my, ModernConfig.potionX, ModernConfig.potionY, 120, HudRenderer.potionPanelHeight(client))) return 9;
-        if (ModernConfig.showCoords && inBox(mx, my, ModernConfig.coordsX, ModernConfig.coordsY, 130, 10)) return 10;
-        if (ModernConfig.showCompass) {
-            int cx = width / 2;
-            if (inBox(mx, my, cx - 110, ModernConfig.compassY, 220, 16)) return 11;
-        }
-        if (ModernConfig.comboCounter && inBox(mx, my, ModernConfig.comboX, ModernConfig.comboY, 70, 10)) return 12;
-        if (ModernConfig.showCombatStatsHud && inBox(mx, my, ModernConfig.combatStatsX, ModernConfig.combatStatsY, 114, 46)) return 14;
-        if (ModernConfig.showGameModeHud && inBox(mx, my, ModernConfig.gameModeHudX, ModernConfig.gameModeHudY, 90, 10)) return 15;
-        if (ModernConfig.showBridgeTimer && inBox(mx, my, ModernConfig.bridgeTimerX, ModernConfig.bridgeTimerY, 80, 10)) return 16;
-        if (ModernConfig.reachDisplay && ServerContext.reachDisplayAllowed(client)
-            && inBox(mx, my, ModernConfig.reachDisplayX, ModernConfig.reachDisplayY, 70, 10)) {
-            return 17;
-        }
-        if (ModernConfig.showServerHud && inBox(mx, my, ModernConfig.serverHudX, ModernConfig.serverHudY, 120, 10)) return 18;
         return -1;
     }
 
-    private static boolean inBox(double mx, double my, int x, int y, int w, int h) {
-        return mx >= x - 2 && mx <= x + w + 2 && my >= y - 2 && my <= y + h + 2;
+    private boolean isVisible(int id) {
+        return switch (id) {
+            case 0 -> ModernConfig.showFps;
+            case 1 -> ModernConfig.showPing;
+            case 2 -> ModernConfig.showCps;
+            case 3 -> ModernConfig.showKeystrokes;
+            case 4 -> ModernConfig.showArmor;
+            case 5 -> ModernConfig.showHeldItem;
+            case 6 -> ModernConfig.showBedwarsResources;
+            case 7 -> ModernConfig.showHardwareHud;
+            case 8 -> ModernConfig.showBlockCount;
+            case 9 -> ModernConfig.showPotions;
+            case 10 -> ModernConfig.showCoords;
+            case 11 -> ModernConfig.showCompass;
+            case 12 -> ModernConfig.comboCounter;
+            case 13 -> ModernConfig.showMusicHud;
+            case 14 -> ModernConfig.showCombatStatsHud;
+            case 15 -> ModernConfig.showGameModeHud;
+            case 16 -> ModernConfig.showBridgeTimer;
+            case 17 -> ModernConfig.reachDisplay && ServerContext.reachDisplayAllowed(client);
+            case 18 -> ModernConfig.showServerHud;
+            default -> false;
+        };
     }
 
-    private int[] posFor(int id) {
+    /** x, y, baseW, baseH */
+    private int[] rectOf(int id) {
+        float ui = Math.max(0.5f, ModernConfig.uiScaleFactor());
+        int screenW = (int) (width / ui);
+        LauncherIpc.Snapshot snap;
         return switch (id) {
-            case 0 -> new int[] {ModernConfig.fpsX, ModernConfig.fpsY};
-            case 1 -> new int[] {ModernConfig.pingX, ModernConfig.pingY};
-            case 2 -> new int[] {ModernConfig.cpsX, ModernConfig.cpsY};
-            case 3 -> new int[] {ModernConfig.keysX, ModernConfig.keysY};
-            case 4 -> new int[] {ModernConfig.armorX, ModernConfig.armorY};
-            case 5 -> new int[] {ModernConfig.heldX, ModernConfig.heldY};
-            case 6 -> new int[] {ModernConfig.bwResX, ModernConfig.bwResY};
-            case 7 -> new int[] {ModernConfig.hardwareHudX, ModernConfig.hardwareHudY};
-            case 13 -> new int[] {ModernConfig.musicHudX, ModernConfig.musicHudY};
-            case 8 -> new int[] {ModernConfig.blocksX, ModernConfig.blocksY};
-            case 10 -> new int[] {ModernConfig.coordsX, ModernConfig.coordsY};
-            case 11 -> new int[] {width / 2 - 110, ModernConfig.compassY};
-            case 12 -> new int[] {ModernConfig.comboX, ModernConfig.comboY};
-            case 14 -> new int[] {ModernConfig.combatStatsX, ModernConfig.combatStatsY};
-            case 15 -> new int[] {ModernConfig.gameModeHudX, ModernConfig.gameModeHudY};
-            case 16 -> new int[] {ModernConfig.bridgeTimerX, ModernConfig.bridgeTimerY};
-            case 17 -> new int[] {ModernConfig.reachDisplayX, ModernConfig.reachDisplayY};
-            case 18 -> new int[] {ModernConfig.serverHudX, ModernConfig.serverHudY};
-            default -> new int[] {ModernConfig.potionX, ModernConfig.potionY};
+            case 0 -> new int[] {ModernConfig.fpsX, ModernConfig.fpsY, 55, 10};
+            case 1 -> new int[] {ModernConfig.pingX, ModernConfig.pingY, 70, 10};
+            case 2 -> new int[] {ModernConfig.cpsX, ModernConfig.cpsY, 50, 10};
+            case 3 -> new int[] {ModernConfig.keysX, ModernConfig.keysY, 68, 68};
+            case 4 -> new int[] {ModernConfig.armorX, ModernConfig.armorY, 45, HudRenderer.armorPanelHeight(client)};
+            case 5 -> new int[] {ModernConfig.heldX, ModernConfig.heldY, 130, 40};
+            case 6 -> new int[] {ModernConfig.bwResX, ModernConfig.bwResY, 42, 68};
+            case 7 -> {
+                snap = LauncherIpc.get();
+                yield new int[] {
+                    ModernConfig.hardwareHudX, ModernConfig.hardwareHudY,
+                    HudRenderer.hardwarePanelWidth(snap), HudRenderer.hardwarePanelHeight(snap)
+                };
+            }
+            case 8 -> new int[] {ModernConfig.blocksX, ModernConfig.blocksY, 36, 16};
+            case 9 -> new int[] {ModernConfig.potionX, ModernConfig.potionY, 120, HudRenderer.potionPanelHeight(client)};
+            case 10 -> new int[] {ModernConfig.coordsX, ModernConfig.coordsY, 130, 10};
+            case 11 -> new int[] {screenW / 2 - 110, ModernConfig.compassY, 220, 16};
+            case 12 -> new int[] {ModernConfig.comboX, ModernConfig.comboY, 70, 10};
+            case 13 -> {
+                snap = LauncherIpc.get();
+                yield new int[] {
+                    ModernConfig.musicHudX, ModernConfig.musicHudY,
+                    HudRenderer.musicPanelWidth(snap, true), HudRenderer.musicPanelHeight(snap, true)
+                };
+            }
+            case 14 -> new int[] {ModernConfig.combatStatsX, ModernConfig.combatStatsY, 114, 46};
+            case 15 -> new int[] {ModernConfig.gameModeHudX, ModernConfig.gameModeHudY, 90, 10};
+            case 16 -> new int[] {ModernConfig.bridgeTimerX, ModernConfig.bridgeTimerY, 80, 10};
+            case 17 -> new int[] {ModernConfig.reachDisplayX, ModernConfig.reachDisplayY, 70, 10};
+            case 18 -> new int[] {ModernConfig.serverHudX, ModernConfig.serverHudY, 120, 10};
+            default -> new int[] {0, 0, 10, 10};
         };
     }
 
@@ -234,17 +383,24 @@ public class GuiEditHudScreen extends Screen {
             case 5 -> { ModernConfig.heldX = x; ModernConfig.heldY = y; }
             case 6 -> { ModernConfig.bwResX = x; ModernConfig.bwResY = y; }
             case 7 -> { ModernConfig.hardwareHudX = x; ModernConfig.hardwareHudY = y; }
-            case 13 -> { ModernConfig.musicHudX = x; ModernConfig.musicHudY = y; }
             case 8 -> { ModernConfig.blocksX = x; ModernConfig.blocksY = y; }
+            case 9 -> { ModernConfig.potionX = x; ModernConfig.potionY = y; }
             case 10 -> { ModernConfig.coordsX = x; ModernConfig.coordsY = y; }
             case 11 -> { ModernConfig.compassY = y; }
             case 12 -> { ModernConfig.comboX = x; ModernConfig.comboY = y; }
+            case 13 -> { ModernConfig.musicHudX = x; ModernConfig.musicHudY = y; }
             case 14 -> { ModernConfig.combatStatsX = x; ModernConfig.combatStatsY = y; }
             case 15 -> { ModernConfig.gameModeHudX = x; ModernConfig.gameModeHudY = y; }
             case 16 -> { ModernConfig.bridgeTimerX = x; ModernConfig.bridgeTimerY = y; }
             case 17 -> { ModernConfig.reachDisplayX = x; ModernConfig.reachDisplayY = y; }
             case 18 -> { ModernConfig.serverHudX = x; ModernConfig.serverHudY = y; }
-            default -> { ModernConfig.potionX = x; ModernConfig.potionY = y; }
+            default -> {}
         }
+    }
+
+    private static float dist(int x1, int y1, int x2, int y2) {
+        float dx = x1 - x2;
+        float dy = y1 - y2;
+        return (float) Math.sqrt(dx * dx + dy * dy);
     }
 }
