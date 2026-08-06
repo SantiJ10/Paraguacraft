@@ -1,8 +1,8 @@
 {
   "version": "1.1.14",
   "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.14/Instalar_Paraguacraft_v1.1.14.exe",
-  "size_bytes": 0,
-  "sha256": "",
+  "size_bytes": 5622718,
+  "sha256": "d2c9ca245909050fd776cb0f0b177cdf40985649259c24e35240bdb1a71dc8dc",
   "notes": "- Fix skins multiplayer offline (no más tu historial en otros jugadores)\n- Avatar cara (no UV crudo); LocalSkin por nick + Ely.by\n- Renombrar cuentas offline (Ely.by)\n- Clientes PvP 2.1.41 / Modern 0.9.19: escala por módulo en Editar HUD",
   "platforms": {
     "windows-x86_64": {
