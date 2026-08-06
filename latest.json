@@ -1,12 +1,12 @@
 {
-  "version": "1.1.11",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.11/Instalar_Paraguacraft_v1.1.11.exe",
-  "size_bytes": 5616039,
-  "sha256": "9060de3b5d70ae9e3eaf14e72b2b7ec9e84a07e61f5a196e7b5413f453b531c6",
-  "notes": "- Cafecito en title bar\n- Playit: plugin nativo en plugins/ (Paper)\n- CustomSkinLoader + Ely.by para skins offline\n- Import de servidores (preserva configs)\n- Optimized 1.20.1: sin NeoForge; sin zfastnoise (crash noisium)\n- VSYNC off global; Discord/overlay (spawn nativo + título Minecraft)\n- Destinos PvP: UniversoCraft + Mush (clientes 2.1.38 / 0.9.17)",
+  "version": "1.1.12",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.12/Instalar_Paraguacraft_v1.1.12.exe",
+  "size_bytes": 5615167,
+  "sha256": "0ed354a6d31b29c7570c75ff6cb0521085942b64af20b914acbdf7863ef52af7",
+  "notes": "- Mini guía de skins offline (Ely.by + CustomSkinLoader)\n- Cafecito en title bar\n- Playit: plugin nativo en plugins/ (Paper)\n- CustomSkinLoader + Ely.by para skins offline\n- Import de servidores (preserva configs)\n- Optimized 1.20.1: sin NeoForge; sin zfastnoise\n- VSYNC off; Discord/overlay; destinos PvP UniversoCraft + Mush",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.11/Instalar_Paraguacraft_v1.1.11.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.12/Instalar_Paraguacraft_v1.1.12.exe",
       "signature": ""
     }
   }
