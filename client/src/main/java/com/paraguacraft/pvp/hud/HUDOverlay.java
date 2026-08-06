@@ -65,37 +65,123 @@ public class HUDOverlay extends Gui {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         try {
             if (ModConfig.showFPS) {
-                HudDraw.labeled("FPS: ", String.valueOf(Minecraft.getDebugFPS()), ModConfig.fpsX, ModConfig.fpsY);
+                HudModuleScale.begin(ModConfig.fpsX, ModConfig.fpsY, ModConfig.scaleFps);
+                HudDraw.labeled("FPS: ", String.valueOf(Minecraft.getDebugFPS()), 0, 0);
+                HudModuleScale.end();
             }
             if (ModConfig.showPing) {
                 int ping = 0;
                 if (mc.getNetHandler() != null && mc.getNetHandler().getPlayerInfo(mc.thePlayer.getUniqueID()) != null) {
                     ping = mc.getNetHandler().getPlayerInfo(mc.thePlayer.getUniqueID()).getResponseTime();
                 }
-                HudDraw.labeled("Ping: ", (ping < 0 ? 0 : ping) + " ms", ModConfig.pingX, ModConfig.pingY);
+                HudModuleScale.begin(ModConfig.pingX, ModConfig.pingY, ModConfig.scalePing);
+                HudDraw.labeled("Ping: ", (ping < 0 ? 0 : ping) + " ms", 0, 0);
+                HudModuleScale.end();
             }
             if (ModConfig.showCPS) {
                 calculateCPS();
-                HudDraw.labeled("CPS: ", String.valueOf(leftClicks.size()), ModConfig.cpsX, ModConfig.cpsY);
+                HudModuleScale.begin(ModConfig.cpsX, ModConfig.cpsY, ModConfig.scaleCps);
+                HudDraw.labeled("CPS: ", String.valueOf(leftClicks.size()), 0, 0);
+                HudModuleScale.end();
             }
             if (ModConfig.showCoords) {
                 String coords = String.format("X: %.0f  Y: %.0f  Z: %.0f", mc.thePlayer.posX, mc.thePlayer.posY, mc.thePlayer.posZ);
-                HudDraw.text(coords, ModConfig.coordsX, ModConfig.coordsY, UiTheme.ACCENT);
+                HudModuleScale.begin(ModConfig.coordsX, ModConfig.coordsY, ModConfig.scaleCoords);
+                HudDraw.text(coords, 0, 0, UiTheme.ACCENT);
+                HudModuleScale.end();
             }
 
-            if (ModConfig.showKeystrokes) drawKeystrokes();
-            if (ModConfig.showArmor) drawArmorStatus();
+            if (ModConfig.showKeystrokes) {
+                HudModuleScale.begin(ModConfig.keysX, ModConfig.keysY, ModConfig.scaleKeys);
+                int ox = ModConfig.keysX, oy = ModConfig.keysY;
+                ModConfig.keysX = 0;
+                ModConfig.keysY = 0;
+                drawKeystrokes();
+                ModConfig.keysX = ox;
+                ModConfig.keysY = oy;
+                HudModuleScale.end();
+            }
+            if (ModConfig.showArmor) {
+                HudModuleScale.begin(ModConfig.armorX, ModConfig.armorY, ModConfig.scaleArmor);
+                int ox = ModConfig.armorX, oy = ModConfig.armorY;
+                ModConfig.armorX = 0;
+                ModConfig.armorY = 0;
+                drawArmorStatus();
+                ModConfig.armorX = ox;
+                ModConfig.armorY = oy;
+                HudModuleScale.end();
+            }
 
-            // --- Módulos Premium (Lunar Style 100% Transparentes) ---
-            if (ModConfig.showPotions) drawPotionStatus(); 
-            if (ModConfig.showHeldItem) drawHeldItemMod(); 
-            if (ModConfig.showServerHUD) drawServerHUD(); 
-            if (ModConfig.showCompass) drawCompass();
+            if (ModConfig.showPotions) {
+                HudModuleScale.begin(ModConfig.potionX, ModConfig.potionY, ModConfig.scalePotions);
+                int ox = ModConfig.potionX, oy = ModConfig.potionY;
+                ModConfig.potionX = 0;
+                ModConfig.potionY = 0;
+                drawPotionStatus();
+                ModConfig.potionX = ox;
+                ModConfig.potionY = oy;
+                HudModuleScale.end();
+            }
+            if (ModConfig.showHeldItem) {
+                HudModuleScale.begin(ModConfig.heldX, ModConfig.heldY, ModConfig.scaleHeld);
+                int ox = ModConfig.heldX, oy = ModConfig.heldY;
+                ModConfig.heldX = 0;
+                ModConfig.heldY = 0;
+                drawHeldItemMod();
+                ModConfig.heldX = ox;
+                ModConfig.heldY = oy;
+                HudModuleScale.end();
+            }
+            if (ModConfig.showServerHUD) {
+                HudModuleScale.begin(ModConfig.serverX, ModConfig.serverY, ModConfig.scaleServer);
+                int ox = ModConfig.serverX, oy = ModConfig.serverY;
+                ModConfig.serverX = 0;
+                ModConfig.serverY = 0;
+                drawServerHUD();
+                ModConfig.serverX = ox;
+                ModConfig.serverY = oy;
+                HudModuleScale.end();
+            }
+            if (ModConfig.showCompass) {
+                // Origen = esquina sup. de la caja centrada.
+                ScaledResolution sr = new ScaledResolution(mc);
+                int boxW = 220;
+                int cx = (int) (sr.getScaledWidth() / (ModConfig.uiScaleFactor() > 0 ? ModConfig.uiScaleFactor() : 1f)) / 2;
+                int originX = cx - boxW / 2;
+                HudModuleScale.begin(originX, ModConfig.compassY, ModConfig.scaleCompass);
+                drawCompassLocal(boxW / 2, 0);
+                HudModuleScale.end();
+            }
 
-            AdvancedHud.drawOverlay();
-            AdvancedHud.drawBedwarsResources(mc.thePlayer);
+            if (ModConfig.showHardwareHud || ModConfig.showMusicHud) {
+                HudModuleScale.begin(ModConfig.overlayHudX, ModConfig.overlayHudY, ModConfig.scaleOverlay);
+                int ox = ModConfig.overlayHudX, oy = ModConfig.overlayHudY;
+                ModConfig.overlayHudX = 0;
+                ModConfig.overlayHudY = 0;
+                AdvancedHud.drawOverlay();
+                ModConfig.overlayHudX = ox;
+                ModConfig.overlayHudY = oy;
+                HudModuleScale.end();
+            }
+            if (ModConfig.showBedwarsResources) {
+                HudModuleScale.begin(ModConfig.bwResX, ModConfig.bwResY, ModConfig.scaleBwRes);
+                int ox = ModConfig.bwResX, oy = ModConfig.bwResY;
+                ModConfig.bwResX = 0;
+                ModConfig.bwResY = 0;
+                AdvancedHud.drawBedwarsResources(mc.thePlayer);
+                ModConfig.bwResX = ox;
+                ModConfig.bwResY = oy;
+                HudModuleScale.end();
+            }
             if (ModConfig.showBlockCount) {
+                HudModuleScale.begin(ModConfig.blocksX, ModConfig.blocksY, ModConfig.scaleBlocks);
+                int ox = ModConfig.blocksX, oy = ModConfig.blocksY;
+                ModConfig.blocksX = 0;
+                ModConfig.blocksY = 0;
                 drawBlockCount();
+                ModConfig.blocksX = ox;
+                ModConfig.blocksY = oy;
+                HudModuleScale.end();
             }
             drawCombatStats();
         } finally {
@@ -119,10 +205,14 @@ public class HUDOverlay extends Gui {
 
     private void drawCombatStats() {
         if (ModConfig.reachDisplay && CombatStats.lastReach > 0.0) {
-            HudDraw.labeled("Reach: ", String.format("%.2f", CombatStats.lastReach), ModConfig.reachDisplayX, ModConfig.reachDisplayY);
+            HudModuleScale.begin(ModConfig.reachDisplayX, ModConfig.reachDisplayY, ModConfig.scaleReach);
+            HudDraw.labeled("Reach: ", String.format("%.2f", CombatStats.lastReach), 0, 0);
+            HudModuleScale.end();
         }
         if (ModConfig.comboCounter && CombatStats.comboCount > 0) {
-            HudDraw.labeled("Combo: ", String.valueOf(CombatStats.comboCount), ModConfig.comboDisplayX, ModConfig.comboDisplayY);
+            HudModuleScale.begin(ModConfig.comboDisplayX, ModConfig.comboDisplayY, ModConfig.scaleCombo);
+            HudDraw.labeled("Combo: ", String.valueOf(CombatStats.comboCount), 0, 0);
+            HudModuleScale.end();
         }
     }
 
@@ -160,30 +250,29 @@ public class HUDOverlay extends Gui {
     // ============================================================
     // --- COMPASS HUD (Brújula Detallada SIN FONDO) ---
     // ============================================================
-    private void drawCompass() {
-        ScaledResolution sr = new ScaledResolution(mc);
-        int centerX = sr.getScaledWidth() / 2;
-        int y = ModConfig.compassY;
-        int boxW = 220; 
+    /** @param localCenterX centro horizontal en coords del módulo; y local siempre 0 base */
+    private void drawCompassLocal(int localCenterX, int y) {
+        int boxW = 220;
         int boxH = 16;
-        int x = centerX - (boxW / 2);
+        int x = localCenterX - (boxW / 2);
         
-        // SCISSOR TEST (Recorta los números que salen de los bordes)
         GL11.glEnable(GL11.GL_SCISSOR_TEST);
+        // Scissor en coordenadas de pantalla ya transformadas — usar display para factor
+        ScaledResolution sr = new ScaledResolution(mc);
         int factor = sr.getScaleFactor();
-        GL11.glScissor(x * factor, Display.getHeight() - (y + boxH) * factor, boxW * factor, boxH * factor);
+        // Aprox: scissor del viewport del módulo es frágil con scale parent; desactivar scissor si falla visualmente
+        // Mantenemos scissor básico relativo al panel local (sin transforms padre es complejo)
+        GL11.glDisable(GL11.GL_SCISSOR_TEST);
 
         float yaw = mc.thePlayer.rotationYaw % 360.0F;
         if (yaw < 0) yaw += 360.0F;
 
-        // Renderizamos marcas en un rango de visión de 60 grados
         for (int i = (int)yaw - 60; i < (int)yaw + 60; i++) {
             int angle = (i + 360) % 360;
             
-            // Marcas numéricas y cardinales cada 15 grados
             if (angle % 15 == 0) {
                 float offset = i - yaw;
-                float px = centerX + (offset * 2.0F); // Factor de separación horizontal
+                float px = localCenterX + (offset * 2.0F);
 
                 String markerText = "";
                 boolean isCardinal = false;
@@ -197,22 +286,27 @@ public class HUDOverlay extends Gui {
                 else if (angle == 225) { markerText = "NE"; isIntercardinal = true; }
                 else if (angle == 270) { markerText = "E"; isCardinal = true; }
                 else if (angle == 315) { markerText = "SE"; isIntercardinal = true; }
-                else { markerText = String.valueOf(angle); } // Grados como 105, 120, 150...
+                else { markerText = String.valueOf(angle); }
 
                 int color;
-                if (isCardinal) color = 0xFF00E5FF; // Cian
-                else if (isIntercardinal) color = 0xFFFFFFFF; // Blanco
-                else color = 0xFFAAAAAA; // Gris claro para números
+                if (isCardinal) color = 0xFF00E5FF;
+                else if (isIntercardinal) color = 0xFFFFFFFF;
+                else color = 0xFFAAAAAA;
 
                 int textW = HudDraw.width(markerText);
-                HudDraw.text(markerText, px - textW / 2f, y + 6, color);
+                if (px >= x && px <= x + boxW) {
+                    HudDraw.text(markerText, px - textW / 2f, y + 6, color);
+                }
             }
         }
         
-        GL11.glDisable(GL11.GL_SCISSOR_TEST);
-        
-        // Marcador central (Triángulo apuntando abajo)
-        Gui.drawRect(centerX - 1, y, centerX + 1, y + 4, colorParagua);
+        Gui.drawRect(localCenterX - 1, y, localCenterX + 1, y + 4, colorParagua);
+    }
+
+    private void drawCompass() {
+        ScaledResolution sr = new ScaledResolution(mc);
+        int centerX = sr.getScaledWidth() / 2;
+        drawCompassLocal(centerX, ModConfig.compassY);
     }
 
     // ============================================================

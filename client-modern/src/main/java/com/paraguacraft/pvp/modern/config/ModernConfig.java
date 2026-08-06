@@ -130,6 +130,26 @@ public final class ModernConfig {
     public static int musicHudScale = 100;
     /** Escala global HUD + menús (50–200%). */
     public static int uiScale = 100;
+    /** Escala proporcional por módulo (editar HUD). */
+    public static int scaleFps = 100;
+    public static int scalePing = 100;
+    public static int scaleCps = 100;
+    public static int scaleKeys = 100;
+    public static int scaleArmor = 100;
+    public static int scaleHeld = 100;
+    public static int scaleBwRes = 100;
+    public static int scaleHardware = 100;
+    public static int scaleBlocks = 100;
+    public static int scalePotions = 100;
+    public static int scaleCoords = 100;
+    public static int scaleCompass = 100;
+    public static int scaleCombo = 100;
+    public static int scaleMusic = 100;
+    public static int scaleCombat = 100;
+    public static int scaleGameMode = 100;
+    public static int scaleBridge = 100;
+    public static int scaleReach = 100;
+    public static int scaleServer = 100;
     public static int coordsX = 5;
     public static int coordsY = 44;
     private static final int[] MUSIC_ALPHA_PRESETS = {255, 64, 0};
@@ -362,6 +382,25 @@ public final class ModernConfig {
             uiScale = intProp(props, "uiScale", uiScale);
             if (uiScale < 50) uiScale = 50;
             if (uiScale > 200) uiScale = 200;
+            scaleFps = clampScale(props, "scaleFps", scaleFps);
+            scalePing = clampScale(props, "scalePing", scalePing);
+            scaleCps = clampScale(props, "scaleCps", scaleCps);
+            scaleKeys = clampScale(props, "scaleKeys", scaleKeys);
+            scaleArmor = clampScale(props, "scaleArmor", scaleArmor);
+            scaleHeld = clampScale(props, "scaleHeld", scaleHeld);
+            scaleBwRes = clampScale(props, "scaleBwRes", scaleBwRes);
+            scaleHardware = clampScale(props, "scaleHardware", scaleHardware);
+            scaleBlocks = clampScale(props, "scaleBlocks", scaleBlocks);
+            scalePotions = clampScale(props, "scalePotions", scalePotions);
+            scaleCoords = clampScale(props, "scaleCoords", scaleCoords);
+            scaleCompass = clampScale(props, "scaleCompass", scaleCompass);
+            scaleCombo = clampScale(props, "scaleCombo", scaleCombo);
+            scaleMusic = clampScale(props, "scaleMusic", scaleMusic);
+            scaleCombat = clampScale(props, "scaleCombat", scaleCombat);
+            scaleGameMode = clampScale(props, "scaleGameMode", scaleGameMode);
+            scaleBridge = clampScale(props, "scaleBridge", scaleBridge);
+            scaleReach = clampScale(props, "scaleReach", scaleReach);
+            scaleServer = clampScale(props, "scaleServer", scaleServer);
             coordsX = intProp(props, "coordsX", coordsX);
             coordsY = intProp(props, "coordsY", coordsY);
             comboX = intProp(props, "comboX", comboX);
@@ -496,6 +535,25 @@ public final class ModernConfig {
         props.setProperty("musicHudAlpha", String.valueOf(musicHudAlpha));
         props.setProperty("musicHudScale", String.valueOf(musicHudScale));
         props.setProperty("uiScale", String.valueOf(uiScale));
+        props.setProperty("scaleFps", String.valueOf(scaleFps));
+        props.setProperty("scalePing", String.valueOf(scalePing));
+        props.setProperty("scaleCps", String.valueOf(scaleCps));
+        props.setProperty("scaleKeys", String.valueOf(scaleKeys));
+        props.setProperty("scaleArmor", String.valueOf(scaleArmor));
+        props.setProperty("scaleHeld", String.valueOf(scaleHeld));
+        props.setProperty("scaleBwRes", String.valueOf(scaleBwRes));
+        props.setProperty("scaleHardware", String.valueOf(scaleHardware));
+        props.setProperty("scaleBlocks", String.valueOf(scaleBlocks));
+        props.setProperty("scalePotions", String.valueOf(scalePotions));
+        props.setProperty("scaleCoords", String.valueOf(scaleCoords));
+        props.setProperty("scaleCompass", String.valueOf(scaleCompass));
+        props.setProperty("scaleCombo", String.valueOf(scaleCombo));
+        props.setProperty("scaleMusic", String.valueOf(scaleMusic));
+        props.setProperty("scaleCombat", String.valueOf(scaleCombat));
+        props.setProperty("scaleGameMode", String.valueOf(scaleGameMode));
+        props.setProperty("scaleBridge", String.valueOf(scaleBridge));
+        props.setProperty("scaleReach", String.valueOf(scaleReach));
+        props.setProperty("scaleServer", String.valueOf(scaleServer));
         props.setProperty("coordsX", String.valueOf(coordsX));
         props.setProperty("coordsY", String.valueOf(coordsY));
         props.setProperty("comboX", String.valueOf(comboX));
@@ -529,5 +587,12 @@ public final class ModernConfig {
         } catch (NumberFormatException e) {
             return fallback;
         }
+    }
+
+    private static int clampScale(Properties props, String key, int fallback) {
+        int v = intProp(props, key, fallback);
+        if (v < 50) return 50;
+        if (v > 200) return 200;
+        return v;
     }
 }

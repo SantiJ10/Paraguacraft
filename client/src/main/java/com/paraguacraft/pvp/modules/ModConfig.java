@@ -111,6 +111,23 @@ public class ModConfig {
     /** Escala compartida HUD + Mod Menu (50–200%, paso 25). */
     public static int uiScale = 100;
 
+    /** Escala proporcional por módulo (50–200). Usada en game + editar HUD. */
+    public static int scaleFps = 100;
+    public static int scalePing = 100;
+    public static int scaleCps = 100;
+    public static int scaleKeys = 100;
+    public static int scaleArmor = 100;
+    public static int scalePotions = 100;
+    public static int scaleCoords = 100;
+    public static int scaleHeld = 100;
+    public static int scaleServer = 100;
+    public static int scaleCompass = 100;
+    public static int scaleOverlay = 100;
+    public static int scaleBwRes = 100;
+    public static int scaleReach = 100;
+    public static int scaleCombo = 100;
+    public static int scaleBlocks = 100;
+
     private static final int[] MUSIC_ALPHA_PRESETS = {255, 192, 128, 64};
     private static final int[] UI_SCALE_PRESETS = {50, 75, 100, 125, 150, 175, 200};
 
@@ -217,6 +234,21 @@ public class ModConfig {
             props.setProperty("showMusicAlbumArt", String.valueOf(showMusicAlbumArt));
             props.setProperty("musicHudAlpha", String.valueOf(musicHudAlpha));
             props.setProperty("uiScale", String.valueOf(uiScale));
+            props.setProperty("scaleFps", String.valueOf(scaleFps));
+            props.setProperty("scalePing", String.valueOf(scalePing));
+            props.setProperty("scaleCps", String.valueOf(scaleCps));
+            props.setProperty("scaleKeys", String.valueOf(scaleKeys));
+            props.setProperty("scaleArmor", String.valueOf(scaleArmor));
+            props.setProperty("scalePotions", String.valueOf(scalePotions));
+            props.setProperty("scaleCoords", String.valueOf(scaleCoords));
+            props.setProperty("scaleHeld", String.valueOf(scaleHeld));
+            props.setProperty("scaleServer", String.valueOf(scaleServer));
+            props.setProperty("scaleCompass", String.valueOf(scaleCompass));
+            props.setProperty("scaleOverlay", String.valueOf(scaleOverlay));
+            props.setProperty("scaleBwRes", String.valueOf(scaleBwRes));
+            props.setProperty("scaleReach", String.valueOf(scaleReach));
+            props.setProperty("scaleCombo", String.valueOf(scaleCombo));
+            props.setProperty("scaleBlocks", String.valueOf(scaleBlocks));
             props.setProperty("showTntCountdown", String.valueOf(showTntCountdown));
             props.setProperty("showBedwarsResources", String.valueOf(showBedwarsResources));
             props.setProperty("bwResTransparentBg", String.valueOf(bwResTransparentBg));
@@ -335,6 +367,21 @@ public class ModConfig {
             }
             if (uiScale < 50) uiScale = 50;
             if (uiScale > 200) uiScale = 200;
+            scaleFps = clampScale(props, "scaleFps", scaleFps);
+            scalePing = clampScale(props, "scalePing", scalePing);
+            scaleCps = clampScale(props, "scaleCps", scaleCps);
+            scaleKeys = clampScale(props, "scaleKeys", scaleKeys);
+            scaleArmor = clampScale(props, "scaleArmor", scaleArmor);
+            scalePotions = clampScale(props, "scalePotions", scalePotions);
+            scaleCoords = clampScale(props, "scaleCoords", scaleCoords);
+            scaleHeld = clampScale(props, "scaleHeld", scaleHeld);
+            scaleServer = clampScale(props, "scaleServer", scaleServer);
+            scaleCompass = clampScale(props, "scaleCompass", scaleCompass);
+            scaleOverlay = clampScale(props, "scaleOverlay", scaleOverlay);
+            scaleBwRes = clampScale(props, "scaleBwRes", scaleBwRes);
+            scaleReach = clampScale(props, "scaleReach", scaleReach);
+            scaleCombo = clampScale(props, "scaleCombo", scaleCombo);
+            scaleBlocks = clampScale(props, "scaleBlocks", scaleBlocks);
             showTntCountdown = Boolean.parseBoolean(props.getProperty("showTntCountdown", String.valueOf(showTntCountdown)));
             showBedwarsResources = Boolean.parseBoolean(props.getProperty("showBedwarsResources", String.valueOf(showBedwarsResources)));
             bwResTransparentBg = Boolean.parseBoolean(props.getProperty("bwResTransparentBg", String.valueOf(bwResTransparentBg)));
@@ -376,5 +423,16 @@ public class ModConfig {
             compassY = Integer.parseInt(props.getProperty("compassY", String.valueOf(compassY)));
 
         } catch (Exception e) {}
+    }
+
+    private static int clampScale(java.util.Properties props, String key, int fallback) {
+        try {
+            int v = Integer.parseInt(props.getProperty(key, String.valueOf(fallback)));
+            if (v < 50) return 50;
+            if (v > 200) return 200;
+            return v;
+        } catch (Exception e) {
+            return fallback;
+        }
     }
 }

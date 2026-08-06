@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.40",
-  "release_tag": "pvp-client-2.1.40",
-  "descripcion": "Auto pack PvP + escala UI compartida HUD/mod menu.",
+  "client_version": "2.1.41",
+  "release_tag": "pvp-client-2.1.41",
+  "descripcion": "Escala proporcional por módulo en Editar HUD (esquinas).",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.40.jar",
-      "sha1": "79d3cc33ac9e75eaf4a465de794f17b7024eda49"
+      "filename": "ParaguacraftPvP-2.1.41.jar",
+      "sha1": "8ca133aa4cb3bbbd742ad53c4dca6d40cf244d63"
     },
     {
       "filename": "Hytils-Reborn-1.8.9-forge-1.7.5.jar",

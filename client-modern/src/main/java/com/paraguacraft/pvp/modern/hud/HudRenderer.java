@@ -87,89 +87,139 @@ public final class HudRenderer {
         }
         try {
         if (ModernConfig.showFps) {
-            drawLabeled(client.textRenderer, context, "FPS: ", String.valueOf(client.getCurrentFps()), ModernConfig.fpsX, ModernConfig.fpsY);
+            HudModuleScale.begin(context, ModernConfig.fpsX, ModernConfig.fpsY, ModernConfig.scaleFps);
+            drawLabeled(client.textRenderer, context, "FPS: ", String.valueOf(client.getCurrentFps()), 0, 0);
+            HudModuleScale.end(context);
         }
         if (ModernConfig.showPing) {
             int ping = resolvePing(client);
             int color = ping < 80 ? 0xFF55FF55 : (ping < 150 ? 0xFFFFFF55 : 0xFFFF5555);
-            drawLabeled(client.textRenderer, context, "Ping: ", ping + " ms", ModernConfig.pingX, ModernConfig.pingY, color);
+            HudModuleScale.begin(context, ModernConfig.pingX, ModernConfig.pingY, ModernConfig.scalePing);
+            drawLabeled(client.textRenderer, context, "Ping: ", ping + " ms", 0, 0, color);
+            HudModuleScale.end(context);
         }
         if (ModernConfig.showCps) {
-            drawLabeled(client.textRenderer, context, "CPS: ", String.valueOf(HudCpsTracker.leftCps()), ModernConfig.cpsX, ModernConfig.cpsY);
+            HudModuleScale.begin(context, ModernConfig.cpsX, ModernConfig.cpsY, ModernConfig.scaleCps);
+            drawLabeled(client.textRenderer, context, "CPS: ", String.valueOf(HudCpsTracker.leftCps()), 0, 0);
+            HudModuleScale.end(context);
         }
         if (ModernConfig.showCoords) {
             var p = client.player;
             String coords = String.format("X: %.0f  Y: %.0f  Z: %.0f", p.getX(), p.getY(), p.getZ());
-            context.drawText(client.textRenderer, Text.literal(coords), ModernConfig.coordsX, ModernConfig.coordsY, 0xFF00E5FF, true);
+            HudModuleScale.begin(context, ModernConfig.coordsX, ModernConfig.coordsY, ModernConfig.scaleCoords);
+            context.drawText(client.textRenderer, Text.literal(coords), 0, 0, 0xFF00E5FF, true);
+            HudModuleScale.end(context);
         }
         if (ModernConfig.showKeystrokes) {
+            HudModuleScale.begin(context, ModernConfig.keysX, ModernConfig.keysY, ModernConfig.scaleKeys);
+            int ox = ModernConfig.keysX, oy = ModernConfig.keysY;
+            ModernConfig.keysX = 0; ModernConfig.keysY = 0;
             drawKeystrokes(context, client.textRenderer, client);
+            ModernConfig.keysX = ox; ModernConfig.keysY = oy;
+            HudModuleScale.end(context);
         }
         if (ModernConfig.showBlockCount) {
+            HudModuleScale.begin(context, ModernConfig.blocksX, ModernConfig.blocksY, ModernConfig.scaleBlocks);
+            int ox = ModernConfig.blocksX, oy = ModernConfig.blocksY;
+            ModernConfig.blocksX = 0; ModernConfig.blocksY = 0;
             drawBlockCount(context, client.textRenderer, client);
+            ModernConfig.blocksX = ox; ModernConfig.blocksY = oy;
+            HudModuleScale.end(context);
         }
         if (ModernConfig.showArmor) {
+            HudModuleScale.begin(context, ModernConfig.armorX, ModernConfig.armorY, ModernConfig.scaleArmor);
+            int ox = ModernConfig.armorX, oy = ModernConfig.armorY;
+            ModernConfig.armorX = 0; ModernConfig.armorY = 0;
             drawArmor(context, client);
+            ModernConfig.armorX = ox; ModernConfig.armorY = oy;
+            HudModuleScale.end(context);
         }
         if (ModernConfig.showHeldItem) {
+            HudModuleScale.begin(context, ModernConfig.heldX, ModernConfig.heldY, ModernConfig.scaleHeld);
+            int ox = ModernConfig.heldX, oy = ModernConfig.heldY;
+            ModernConfig.heldX = 0; ModernConfig.heldY = 0;
             drawHeldItem(context, client);
+            ModernConfig.heldX = ox; ModernConfig.heldY = oy;
+            HudModuleScale.end(context);
         }
         if (ModernConfig.showBedwarsResources) {
+            HudModuleScale.begin(context, ModernConfig.bwResX, ModernConfig.bwResY, ModernConfig.scaleBwRes);
+            int ox = ModernConfig.bwResX, oy = ModernConfig.bwResY;
+            ModernConfig.bwResX = 0; ModernConfig.bwResY = 0;
             drawBedwarsResources(context, client.textRenderer, client);
+            ModernConfig.bwResX = ox; ModernConfig.bwResY = oy;
+            HudModuleScale.end(context);
         }
         if (ModernConfig.showHardwareHud) {
+            HudModuleScale.begin(context, ModernConfig.hardwareHudX, ModernConfig.hardwareHudY, ModernConfig.scaleHardware);
+            int ox = ModernConfig.hardwareHudX, oy = ModernConfig.hardwareHudY;
+            ModernConfig.hardwareHudX = 0; ModernConfig.hardwareHudY = 0;
             drawHardwareOverlay(context, client.textRenderer, client);
+            ModernConfig.hardwareHudX = ox; ModernConfig.hardwareHudY = oy;
+            HudModuleScale.end(context);
         }
         if (ModernConfig.showMusicHud) {
+            HudModuleScale.begin(context, ModernConfig.musicHudX, ModernConfig.musicHudY, ModernConfig.scaleMusic);
+            int ox = ModernConfig.musicHudX, oy = ModernConfig.musicHudY;
+            ModernConfig.musicHudX = 0; ModernConfig.musicHudY = 0;
             drawMusicOverlay(context, client.textRenderer, client, previewMusic);
+            ModernConfig.musicHudX = ox; ModernConfig.musicHudY = oy;
+            HudModuleScale.end(context);
         }
         if (ServerContext.reachDisplayAllowed(client) && CombatStats.lastReach > 0.0) {
-            drawLabeled(
-                client.textRenderer,
-                context,
-                "Reach: ",
-                String.format("%.2f", CombatStats.lastReach),
-                ModernConfig.reachDisplayX,
-                ModernConfig.reachDisplayY,
-                0xFF00E5FF
-            );
+            HudModuleScale.begin(context, ModernConfig.reachDisplayX, ModernConfig.reachDisplayY, ModernConfig.scaleReach);
+            drawLabeled(client.textRenderer, context, "Reach: ", String.format("%.2f", CombatStats.lastReach), 0, 0, 0xFF00E5FF);
+            HudModuleScale.end(context);
         }
         if (ModernConfig.comboCounter) {
-            drawLabeled(client.textRenderer, context, "Combo: ", String.valueOf(CombatStats.comboCount), ModernConfig.comboX, ModernConfig.comboY, 0xFF00E5FF);
+            HudModuleScale.begin(context, ModernConfig.comboX, ModernConfig.comboY, ModernConfig.scaleCombo);
+            drawLabeled(client.textRenderer, context, "Combo: ", String.valueOf(CombatStats.comboCount), 0, 0, 0xFF00E5FF);
+            HudModuleScale.end(context);
         }
         if (ModernConfig.showPotions) {
+            HudModuleScale.begin(context, ModernConfig.potionX, ModernConfig.potionY, ModernConfig.scalePotions);
+            int ox = ModernConfig.potionX, oy = ModernConfig.potionY;
+            ModernConfig.potionX = 0; ModernConfig.potionY = 0;
             drawPotions(context, client);
+            ModernConfig.potionX = ox; ModernConfig.potionY = oy;
+            HudModuleScale.end(context);
         }
         if (ModernConfig.showCompass) {
-            drawCompass(context, client.textRenderer, client);
+            int sw = client.getWindow().getScaledWidth();
+            int originX = sw / 2 - 110;
+            HudModuleScale.begin(context, originX, ModernConfig.compassY, ModernConfig.scaleCompass);
+            int oy = ModernConfig.compassY;
+            // drawCompass uses width/2 — shift by drawing with override: pass local
+            ModernConfig.compassY = 0;
+            drawCompassLocal(context, client.textRenderer, client, 110);
+            ModernConfig.compassY = oy;
+            HudModuleScale.end(context);
         }
         if (ModernConfig.showServerHud) {
+            HudModuleScale.begin(context, ModernConfig.serverHudX, ModernConfig.serverHudY, ModernConfig.scaleServer);
+            int ox = ModernConfig.serverHudX, oy = ModernConfig.serverHudY;
+            ModernConfig.serverHudX = 0; ModernConfig.serverHudY = 0;
             drawServerHud(context, client.textRenderer, client);
+            ModernConfig.serverHudX = ox; ModernConfig.serverHudY = oy;
+            HudModuleScale.end(context);
         }
         if (ModernConfig.showCombatStatsHud) {
+            HudModuleScale.begin(context, ModernConfig.combatStatsX, ModernConfig.combatStatsY, ModernConfig.scaleCombat);
+            int ox = ModernConfig.combatStatsX, oy = ModernConfig.combatStatsY;
+            ModernConfig.combatStatsX = 0; ModernConfig.combatStatsY = 0;
             drawCombatStats(context, client.textRenderer);
+            ModernConfig.combatStatsX = ox; ModernConfig.combatStatsY = oy;
+            HudModuleScale.end(context);
         }
         if (ModernConfig.showGameModeHud && ServerContext.isCompetitive(client)) {
-            drawLabeled(
-                client.textRenderer,
-                context,
-                "Modo: ",
-                GameModeDetector.currentLabel(),
-                ModernConfig.gameModeHudX,
-                ModernConfig.gameModeHudY,
-                0xFFAAFFAA
-            );
+            HudModuleScale.begin(context, ModernConfig.gameModeHudX, ModernConfig.gameModeHudY, ModernConfig.scaleGameMode);
+            drawLabeled(client.textRenderer, context, "Modo: ", GameModeDetector.currentLabel(), 0, 0, 0xFFAAFFAA);
+            HudModuleScale.end(context);
         }
         if (ModernConfig.showBridgeTimer && BridgeTimer.active()) {
-            drawLabeled(
-                client.textRenderer,
-                context,
-                "Bridge: ",
-                String.format("%.1fs", BridgeTimer.seconds()),
-                ModernConfig.bridgeTimerX,
-                ModernConfig.bridgeTimerY,
-                0xFF55FFFF
-            );
+            HudModuleScale.begin(context, ModernConfig.bridgeTimerX, ModernConfig.bridgeTimerY, ModernConfig.scaleBridge);
+            drawLabeled(client.textRenderer, context, "Bridge: ", String.format("%.1fs", BridgeTimer.seconds()), 0, 0, 0xFF55FFFF);
+            HudModuleScale.end(context);
         }
         } finally {
             matrices.popMatrix();
@@ -492,6 +542,11 @@ public final class HudRenderer {
     /** Brújula detallada con recorte, estilo 1.8.9. */
     private static void drawCompass(DrawContext ctx, TextRenderer tr, MinecraftClient client) {
         int centerX = client.getWindow().getScaledWidth() / 2;
+        drawCompassLocal(ctx, tr, client, centerX);
+    }
+
+    /** Compass drawn with local center X (for per-module scale matrix). */
+    private static void drawCompassLocal(DrawContext ctx, TextRenderer tr, MinecraftClient client, int centerX) {
         int y = ModernConfig.compassY;
         int boxW = 220;
         int boxH = 16;
