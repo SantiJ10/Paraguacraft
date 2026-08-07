@@ -59,6 +59,8 @@ pub fn create(
     }
     let dir = instance_dir(&folder);
     std::fs::create_dir_all(dir.join("mods"))?;
+    // BrandPack forzoso al crear el perfil (logo/pack de identidad).
+    let _ = crate::core::branding::inject_logos(&dir, mc_version, false);
 
     let meta = InstanceMeta {
         name: name.to_string(),

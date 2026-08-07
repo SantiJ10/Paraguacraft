@@ -90,6 +90,7 @@ public class GuiSubmodOptionsScreen extends ParaguacraftScreen {
     public static GuiSubmodOptionsScreen bedwars(Screen parent) {
         return new GuiSubmodOptionsScreen(parent, "BedWars", new Row[] {
             new Row("HUD recursos", () -> ModernConfig.showBedwarsResources, v -> ModernConfig.showBedwarsResources = v),
+            new Row("Mostrar nombres", () -> ModernConfig.showItemNames, v -> ModernConfig.showItemNames = v),
             new Row("Fondo transparente", () -> ModernConfig.bwResTransparentBg, v -> ModernConfig.bwResTransparentBg = v),
             new Row("Camas coloridas", () -> ModernConfig.coloredBeds, v -> ModernConfig.coloredBeds = v),
             new Row("Timer bridge", () -> ModernConfig.showBridgeTimer, v -> ModernConfig.showBridgeTimer = v),

@@ -22,6 +22,8 @@ public final class ModernConfig {
     public static boolean showHeldItem = true;
     public static boolean showBedwarsResources = true;
     public static boolean bwResTransparentBg = true;
+    /** Si true: [icono] [nombre] [cantidad]. Si false: [icono] [cantidad] compacto. */
+    public static boolean showItemNames = true;
     public static boolean showMusicHud = true;
     public static boolean showMusicAlbumArt = true;
     public static boolean showPotions = true;
@@ -273,6 +275,7 @@ public final class ModernConfig {
             showHeldItem = bool(props, "showHeldItem", showHeldItem);
             showBedwarsResources = bool(props, "showBedwarsResources", showBedwarsResources);
             bwResTransparentBg = bool(props, "bwResTransparentBg", bwResTransparentBg);
+            showItemNames = bool(props, "showItemNames", showItemNames);
             showMusicHud = bool(props, "showMusicHud", showMusicHud);
             showMusicAlbumArt = bool(props, "showMusicAlbumArt", showMusicAlbumArt);
             showPotions = bool(props, "showPotions", showPotions);
@@ -462,6 +465,7 @@ public final class ModernConfig {
         props.setProperty("showHeldItem", String.valueOf(showHeldItem));
         props.setProperty("showBedwarsResources", String.valueOf(showBedwarsResources));
         props.setProperty("bwResTransparentBg", String.valueOf(bwResTransparentBg));
+        props.setProperty("showItemNames", String.valueOf(showItemNames));
         props.setProperty("showMusicHud", String.valueOf(showMusicHud));
         props.setProperty("showMusicAlbumArt", String.valueOf(showMusicAlbumArt));
         props.setProperty("showPotions", String.valueOf(showPotions));

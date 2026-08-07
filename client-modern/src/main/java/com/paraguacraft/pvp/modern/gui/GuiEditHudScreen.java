@@ -100,7 +100,7 @@ public class GuiEditHudScreen extends Screen {
             drawBox(ctx, 5, ModernConfig.heldX, ModernConfig.heldY, 130, 40);
         }
         if (ModernConfig.showBedwarsResources) {
-            drawBox(ctx, 6, ModernConfig.bwResX, ModernConfig.bwResY, 42, 68);
+            drawBox(ctx, 6, ModernConfig.bwResX, ModernConfig.bwResY, HudRenderer.bwPanelW(client.textRenderer), HudRenderer.bwPanelH());
         }
         if (ModernConfig.showHardwareHud) {
             LauncherIpc.Snapshot snap = LauncherIpc.get();
@@ -344,7 +344,7 @@ public class GuiEditHudScreen extends Screen {
             case 3 -> new int[] {ModernConfig.keysX, ModernConfig.keysY, 68, 68};
             case 4 -> new int[] {ModernConfig.armorX, ModernConfig.armorY, 45, HudRenderer.armorPanelHeight(client)};
             case 5 -> new int[] {ModernConfig.heldX, ModernConfig.heldY, 130, 40};
-            case 6 -> new int[] {ModernConfig.bwResX, ModernConfig.bwResY, 42, 68};
+            case 6 -> new int[] {ModernConfig.bwResX, ModernConfig.bwResY, HudRenderer.bwPanelW(client.textRenderer), HudRenderer.bwPanelH()};
             case 7 -> {
                 snap = LauncherIpc.get();
                 yield new int[] {

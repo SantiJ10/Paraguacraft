@@ -85,6 +85,8 @@ public class ModConfig {
     public static boolean showTntCountdown = true;
     public static boolean showBedwarsResources = true;
     public static boolean bwResTransparentBg = false;
+    /** Si true: [icono] [nombre] [cantidad]. Si false: [icono] [cantidad] compacto. */
+    public static boolean showItemNames = true;
     /** Contador de bloques colocables en inventario (BedWars / builds). */
     public static boolean showBlockCount = false;
     /** Auto-activa recursos/bloques/armadura/mano/pociones al detectar BedWars en el scoreboard. */
@@ -270,6 +272,7 @@ public class ModConfig {
             props.setProperty("showTntCountdown", String.valueOf(showTntCountdown));
             props.setProperty("showBedwarsResources", String.valueOf(showBedwarsResources));
             props.setProperty("bwResTransparentBg", String.valueOf(bwResTransparentBg));
+            props.setProperty("showItemNames", String.valueOf(showItemNames));
             props.setProperty("showBlockCount", String.valueOf(showBlockCount));
             props.setProperty("autoBedwarsHud", String.valueOf(autoBedwarsHud));
             props.setProperty("forceItem3d", String.valueOf(forceItem3d));
@@ -415,6 +418,7 @@ public class ModConfig {
             showTntCountdown = Boolean.parseBoolean(props.getProperty("showTntCountdown", String.valueOf(showTntCountdown)));
             showBedwarsResources = Boolean.parseBoolean(props.getProperty("showBedwarsResources", String.valueOf(showBedwarsResources)));
             bwResTransparentBg = Boolean.parseBoolean(props.getProperty("bwResTransparentBg", String.valueOf(bwResTransparentBg)));
+            showItemNames = Boolean.parseBoolean(props.getProperty("showItemNames", String.valueOf(showItemNames)));
             showBlockCount = Boolean.parseBoolean(props.getProperty("showBlockCount", String.valueOf(showBlockCount)));
             autoBedwarsHud = Boolean.parseBoolean(props.getProperty("autoBedwarsHud", String.valueOf(autoBedwarsHud)));
             forceItem3d = Boolean.parseBoolean(props.getProperty("forceItem3d", String.valueOf(forceItem3d)));

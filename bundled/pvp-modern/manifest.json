@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP Modern",
   "mc_version": "1.21.11",
   "loader": "fabric",
-  "client_version": "0.9.21",
-  "release_tag": "pvp-modern-0.9.21",
-  "descripcion": "Musica: caratula 16/32 + mas pasos de transparencia.",
+  "client_version": "0.9.22",
+  "release_tag": "pvp-modern-0.9.22",
+  "descripcion": "BW recursos: nombres Hierro/Oro/Esmeralda/Diamante + showItemNames.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-Modern-0.9.21.jar",
-      "sha1": "d1cea059fd345b79dd2d95860edee0473fa6a3dc"
+      "filename": "ParaguacraftPvP-Modern-0.9.22.jar",
+      "sha1": "760c66be0266385126e4dd63e9c344ae0ed99f70"
     }
   ]
 }

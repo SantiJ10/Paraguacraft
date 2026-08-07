@@ -116,7 +116,7 @@ fn main() {
         r#"{"pack":{"pack_format":4,"description":"Marca Oficial Paraguacraft"}}"#,
     );
 
-    // 1.16 – 1.20.1
+    // 1.16 – 1.19.x — atlas clásico split 256×256 (dos franjas 155×44)
     write_java_pack_zip(
         &packs_out.join("standard.zip"),
         &split256,
@@ -126,17 +126,17 @@ fn main() {
         r#"{"pack":{"pack_format":6,"description":"Marca Oficial Paraguacraft"}}"#,
     );
 
-    // 1.20.2 – 1.21.3
+    // 1.20.0 – 1.21.3 — logo wide 1024×256 (desde 1.20 vanilla ya no usa el atlas split)
     write_java_pack_zip(
         &packs_out.join("standard_range.zip"),
-        &split256,
+        &wide1024,
         &startup,
         &edition,
         &pack_icon,
         r#"{"pack":{"pack_format":15,"description":"Marca Oficial Paraguacraft","supported_formats":[15,9999]}}"#,
     );
 
-    // 1.21.4 – 1.21.4 / snapshots amplios con textura wide
+    // 1.21.4 — textura wide 1024×256 (mismo bitmap; pack_format distinto)
     write_java_pack_zip(
         &packs_out.join("wide.zip"),
         &wide1024,
@@ -318,9 +318,12 @@ fn bake_legacy256(legacy: &[u8]) -> RgbaImage {
     out
 }
 
+/// Logo wide post-1.20: vanilla usa `minecraft.png` **1024×256** (una sola franja).
+/// Antes de 1.20 el TitleScreen dibujaba el atlas split 256×256; con 1024 de ancho
+/// y UV de 256×64 se estira/rompe el logo (síntoma en 1.20.x).
 fn bake_wide1024(main_menu: &[u8]) -> RgbaImage {
     const TW: u32 = 1024;
-    const TH: u32 = 176;
+    const TH: u32 = 256;
     let im = load_rgba(main_menu);
     let (w, h) = im.dimensions();
     let scale = (TW as f64 / w as f64).min(TH as f64 / h as f64);
