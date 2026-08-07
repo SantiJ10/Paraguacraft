@@ -112,15 +112,19 @@ const panelTitle = computed(() => {
 
         <!-- Java version cards -->
         <template v-else>
-          <div v-if="versionOptions.length > 1" class="mt-4">
+          <div v-if="versionOptions.length > 1 || card.kind === 'other'" class="mt-4">
             <label class="mb-1 block text-xs font-semibold uppercase tracking-wider text-gray-500">Versión</label>
             <select
               :value="mcVersion"
               class="w-full rounded-lg border border-surface-5 bg-surface-3 px-3 py-2 text-sm outline-none focus:border-pc-green"
               @change="emit('update:mcVersion', ($event.target as HTMLSelectElement).value)"
             >
+              <option v-if="!versionOptions.length" value="" disabled>Sin versiones en este grupo</option>
               <option v-for="v in versionOptions" :key="v" :value="v">{{ v }}</option>
             </select>
+            <p v-if="card.kind === 'other'" class="mt-1.5 text-[11px] leading-snug text-gray-500">
+              Solo loaders compatibles con esta release (p. ej. 1.5 → Vanilla / Forge legacy si hay). BrandPack se aplica al jugar.
+            </p>
           </div>
 
           <div v-if="isInstalledCard && linkedInstance" class="mt-4 rounded-lg border border-surface-4 bg-surface-2 p-3">
@@ -134,6 +138,9 @@ const panelTitle = computed(() => {
           <div v-if="!isInstalledCard" class="mt-4">
             <label class="mb-2 block text-xs font-semibold uppercase tracking-wider text-gray-500">Loader</label>
             <p v-if="loadingLoaders" class="text-sm text-gray-500">Consultando loaders…</p>
+            <div v-else-if="!loaders.length" class="rounded-lg border border-surface-4 bg-surface-2 p-3 text-sm text-gray-400">
+              No hay loaders para esta versión. Solo Vanilla si se reconecta, o probá otra release.
+            </div>
             <div v-else class="space-y-2">
               <button
                 v-for="l in loaders"

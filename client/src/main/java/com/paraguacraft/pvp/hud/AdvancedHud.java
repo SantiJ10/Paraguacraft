@@ -16,7 +16,8 @@ import org.lwjgl.opengl.GL11;
 /** HUDs M4: launcher overlay, Bedwars resources. */
 public final class AdvancedHud {
 
-    private static final int BW_PANEL_W = 120;
+    private static final int BW_PANEL_W_NAMES = 120;
+    private static final int BW_PANEL_W_COMPACT = 42;
     private static final int BW_PANEL_H = 56;
 
     private AdvancedHud() {}
@@ -26,7 +27,7 @@ public final class AdvancedHud {
     }
 
     public static int bwPanelW() {
-        return BW_PANEL_W;
+        return ModConfig.showItemNames ? BW_PANEL_W_NAMES : BW_PANEL_W_COMPACT;
     }
 
     public static int bwPanelH() {
@@ -199,7 +200,7 @@ public final class AdvancedHud {
         int y = ModConfig.bwResY;
         GlStateManager.enableBlend();
         if (!ModConfig.bwResTransparentBg) {
-            Gui.drawRect(x, y, x + BW_PANEL_W, y + BW_PANEL_H, 0x88000000);
+            Gui.drawRect(x, y, x + bwPanelW(), y + BW_PANEL_H, 0x88000000);
         }
         drawBwLine(new ItemStack(Items.iron_ingot), ModLang.format("paraguacraft.hud.bw.iron"), iron, x + 2, y + 4);
         drawBwLine(new ItemStack(Items.gold_ingot), ModLang.format("paraguacraft.hud.bw.gold"), gold, x + 2, y + 16);
@@ -221,7 +222,11 @@ public final class AdvancedHud {
         GlStateManager.popMatrix();
         GlStateManager.disableDepth();
         GlStateManager.disableLighting();
-        HudDraw.labeled(name + " ", String.valueOf(count), x + 14, y + 2);
+        if (ModConfig.showItemNames) {
+            HudDraw.labeled(name + " ", String.valueOf(count), x + 14, y + 2);
+        } else {
+            HudDraw.text(String.valueOf(count), x + 14, y + 2, UiTheme.TEXT);
+        }
     }
 
     private static String fmtPct(float v) {

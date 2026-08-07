@@ -1,7 +1,7 @@
 import type { Instance, MinecraftVersion, VersionChannel } from "@/lib/types";
 import { normalizeLoaderId } from "@/lib/loaders";
 
-/** Tarjetas destacadas estilo Lunar (PARAGUA X.X). */
+/** Tarjetas destacadas estilo Lunar (PARAGUA X.X). Excluidas del grupo "Otras versiones". */
 export const FEATURED_VERSION_KEYS = [
   "26",
   "1.21",
@@ -48,7 +48,7 @@ const DESCRIPTIONS: Record<string, string> = {
   "1.12": "World of Color.",
   "1.8": "PvP clásico.",
   "1.7": "The Update that Changed the World.",
-  otras: "Todas las demás versiones release que no están en los packs PARAGUA.",
+  otras: "El resto de releases oficiales. Elegí versión + loader compatible; BrandPack Paraguacraft incluido.",
   snapshots: "Versiones de desarrollo Mojang. Inestables — para probar features futuras.",
   alpha_beta: "Alpha y Beta clásicas. El Minecraft de los inicios.",
   instaladas: "Versiones que ya tenés instaladas con su loader detectado.",
@@ -70,11 +70,11 @@ export function versionCardImageUrl(key: string): string {
 }
 
 export function paraguaTitle(key: string): string {
-  if (key === "bedrock") return "PARAGUA Bedrock";
+  if (key === "otras") return "OTRAS VERSIONES";
   if (key === "instaladas") return "INSTALADAS";
   if (key === "snapshots") return "SNAPSHOTS";
   if (key === "alpha_beta") return "ALPHA / BETA";
-  if (key === "otras") return "OTRAS VERSIONES";
+  if (key === "bedrock") return "PARAGUA Bedrock";
   return `PARAGUA ${key}`;
 }
 
@@ -117,9 +117,11 @@ export function buildVersionCards(
   const otherReleases: string[] = [];
   for (const v of releases) {
     const g = groupKey(v.id);
-    if (!g || !featuredSet.has(g as FeaturedVersionKey)) {
-      otherReleases.push(v.id);
+    // Excluye packs PARAGUA propios y la familia 26.x (tarjeta dedicada).
+    if (!g || featuredSet.has(g)) {
+      continue;
     }
+    otherReleases.push(v.id);
   }
 
   const cards: VersionCardModel[] = [];
@@ -139,16 +141,16 @@ export function buildVersionCards(
     });
   }
 
-  if (otherReleases.length) {
-    cards.push({
-      id: "otras",
-      kind: "other",
-      title: paraguaTitle("otras"),
-      description: DESCRIPTIONS.otras!,
-      subs: otherReleases.sort((a, b) => b.localeCompare(a, undefined, { numeric: true })),
-      imageKey: "otras",
-    });
-  }
+  // Siempre después de PARAGUA 1.7 (último featured), para el grid de Popular.
+  cards.push({
+    id: "otras",
+    kind: "other",
+    title: paraguaTitle("otras"),
+    description: DESCRIPTIONS.otras!,
+    accent: "#2ECC71",
+    subs: otherReleases.sort((a, b) => b.localeCompare(a, undefined, { numeric: true })),
+    imageKey: "otras",
+  });
 
   if (snapshots.length) {
     cards.push({

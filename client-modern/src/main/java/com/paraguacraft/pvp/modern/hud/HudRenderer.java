@@ -505,18 +505,44 @@ public final class HudRenderer {
         int x = ModernConfig.bwResX;
         int y = ModernConfig.bwResY;
         int rowH = 16;
+        int panelW = bwPanelW(tr);
         if (!ModernConfig.bwResTransparentBg) {
-            ctx.fill(x - 2, y - 2, x + 42, y + rowH * 4 + 2, 0x88000000);
+            ctx.fill(x - 2, y - 2, x + panelW, y + rowH * 4 + 2, 0x88000000);
         }
-        drawBwRow(ctx, tr, new ItemStack(Items.IRON_INGOT), iron, x, y);
-        drawBwRow(ctx, tr, new ItemStack(Items.GOLD_INGOT), gold, x, y + rowH);
-        drawBwRow(ctx, tr, new ItemStack(Items.DIAMOND), diamond, x, y + rowH * 2);
-        drawBwRow(ctx, tr, new ItemStack(Items.EMERALD), emerald, x, y + rowH * 3);
+        // Misma orden y labels que 1.8.9: Hierro → Oro → Esmeralda → Diamante
+        drawBwRow(ctx, tr, new ItemStack(Items.IRON_INGOT), "Hierro", iron, x, y);
+        drawBwRow(ctx, tr, new ItemStack(Items.GOLD_INGOT), "Oro", gold, x, y + rowH);
+        drawBwRow(ctx, tr, new ItemStack(Items.EMERALD), "Esmeralda", emerald, x, y + rowH * 2);
+        drawBwRow(ctx, tr, new ItemStack(Items.DIAMOND), "Diamante", diamond, x, y + rowH * 3);
     }
 
-    private static void drawBwRow(DrawContext ctx, TextRenderer tr, ItemStack icon, int count, int x, int y) {
+    /** Ancho del panel BW según nombres ON/OFF (edit-HUD y fondo). */
+    public static int bwPanelW(TextRenderer tr) {
+        if (!ModernConfig.showItemNames) {
+            return 42;
+        }
+        // icon(16) + gap + max nombre + gap + contador ancho
+        int maxName = Math.max(
+                Math.max(tr.getWidth("Hierro"), tr.getWidth("Esmeralda")),
+                Math.max(tr.getWidth("Oro"), tr.getWidth("Diamante")));
+        return 18 + maxName + 6 + tr.getWidth("999") + 4;
+    }
+
+    public static int bwPanelH() {
+        return 68;
+    }
+
+    private static void drawBwRow(DrawContext ctx, TextRenderer tr, ItemStack icon, String name, int count, int x, int y) {
         ctx.drawItem(icon, x, y);
-        ctx.drawText(tr, Text.literal(String.valueOf(count)), x + 18, y + 4, 0xFFFFFFFF, true);
+        int textX = x + 18;
+        int textY = y + 4;
+        if (ModernConfig.showItemNames) {
+            String label = name + " ";
+            ctx.drawText(tr, Text.literal(label), textX, textY, UiTheme.accent(), true);
+            ctx.drawText(tr, Text.literal(String.valueOf(count)), textX + tr.getWidth(label), textY, 0xFFFFFFFF, true);
+        } else {
+            ctx.drawText(tr, Text.literal(String.valueOf(count)), textX, textY, 0xFFFFFFFF, true);
+        }
     }
 
     private static void drawPotions(DrawContext ctx, MinecraftClient client) {

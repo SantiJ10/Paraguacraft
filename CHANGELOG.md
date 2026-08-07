@@ -3,6 +3,20 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [1.1.16] - 2026-08-06
+
+### Launcher
+- Botón **Cafecito** en title bar / top bar (abre el navegador del sistema).
+- Tarjeta **Otras versiones** (tras PARAGUA 1.7) con releases sin tarjeta propia y loaders filtrados.
+- BrandPack: logo wide **1024×256** desde Minecraft **1.20.0** (corrige estirado en 1.20.x).
+- Fallbacks de clientes: **2.1.45** / Modern **0.9.22**.
+
+### Cliente PvP 1.8.9 (2.1.45)
+- Recursos BW: opción `showItemNames` (nombres o layout compacto).
+
+### Cliente PvP Modern (0.9.22)
+- Recursos BW: muestra Hierro/Oro/Esmeralda/Diamante + `showItemNames`.
+
 ## [1.1.15] - 2026-08-06
 
 ### Launcher

@@ -13,9 +13,9 @@ pub enum PackProfile {
     Classic,
     /// 1.6 – 1.15
     Legacy,
-    /// 1.16 – 1.20.1
+    /// 1.16 – 1.19.x — atlas split 256×256
     Standard,
-    /// 1.20.2 – 1.21.3
+    /// 1.20.0 – 1.21.3 — minecraft.png wide 1024×256
     StandardRange,
     /// 1.21.4 (textura wide, carpeta)
     Wide,
@@ -61,9 +61,11 @@ pub fn pack_profile(ver: McVersion) -> PackProfile {
         PackProfile::Modern
     } else if ver.major > 21 || (ver.major == 21 && ver.minor >= 4) {
         PackProfile::Wide
-    } else if ver.major > 20 || (ver.major == 20 && ver.minor >= 2) {
+    } else if ver.major >= 20 {
+        // Desde 1.20.0 vanilla usa logo 1024×256 (no el atlas split pre-1.20).
         PackProfile::StandardRange
     } else {
+        // 1.16 – 1.19.x
         PackProfile::Standard
     }
 }
@@ -140,5 +142,16 @@ mod tests {
         assert_eq!(pack_format_for_mc("1.20.1"), 15);
         assert_eq!(pack_format_for_mc("1.21.11"), 75);
         assert_eq!(pack_format_for_mc("26.2"), 88);
+    }
+
+    #[test]
+    fn logo_profile_uses_wide_from_1_20() {
+        assert_eq!(pack_profile(parse_mc_version("1.19.4")), PackProfile::Standard);
+        assert_eq!(pack_profile(parse_mc_version("1.20")), PackProfile::StandardRange);
+        assert_eq!(pack_profile(parse_mc_version("1.20.1")), PackProfile::StandardRange);
+        assert_eq!(pack_profile(parse_mc_version("1.20.4")), PackProfile::StandardRange);
+        assert_eq!(pack_profile(parse_mc_version("1.21.1")), PackProfile::StandardRange);
+        assert_eq!(pack_profile(parse_mc_version("1.21.4")), PackProfile::Wide);
+        assert_eq!(pack_profile(parse_mc_version("1.21.11")), PackProfile::Modern);
     }
 }

@@ -54,12 +54,12 @@ let unlistenBedrockExited: (() => void) | null = null;
 const filteredCards = computed(() => {
   const q = query.value.trim().toLowerCase();
   return cards.value.filter((c) => {
-    if (filter.value === "popular" && c.kind === "other") return false;
     if (!q) return true;
     return (
       c.title.toLowerCase().includes(q) ||
       c.id.toLowerCase().includes(q) ||
-      c.subs.some((s) => s.toLowerCase().includes(q))
+      c.subs.some((s) => s.toLowerCase().includes(q)) ||
+      (c.description ?? "").toLowerCase().includes(q)
     );
   });
 });
@@ -148,6 +148,23 @@ async function selectCard(card: VersionCardModel) {
     selectedLoaderId.value = inst.loader;
     selectedLoaderVersion.value = inst.loaderVersion;
     await loadContentForInstance(inst.id);
+    return;
+  }
+
+  if (card.kind === "other" && !card.subs.length) {
+    mcVersion.value = "";
+    loaders.value = [
+      {
+        id: "vanilla",
+        name: "Vanilla",
+        description: "Minecraft oficial sin mods.",
+        versions: [],
+        recommended: null,
+      },
+    ];
+    selectedLoaderId.value = "vanilla";
+    selectedLoaderVersion.value = "";
+    content.value = [];
     return;
   }
 
