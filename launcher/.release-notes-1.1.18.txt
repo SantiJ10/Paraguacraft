@@ -1,0 +1,5 @@
+- Consola de servers live: latest.log sin freeze tras Done/segunda sesión
+- Playit: parse de IP confiable; banner “servidor listo”
+- Geyser/Bedrock: API crea túnel Java + Bedrock (UDP) con el secret claim
+- playit.exe en Geyser (sin plugin Paper, que no soporta UDP)
+- IP Bedrock real en el asistente (host:puerto Playit)

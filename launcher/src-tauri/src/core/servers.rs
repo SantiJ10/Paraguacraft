@@ -26,6 +26,9 @@ pub struct ServerProfile {
     pub port: u16,
     pub created_at: u64,
     pub playit_address: Option<String>,
+    /// Dirección pública del túnel Bedrock (puede incluir puerto, p. ej. `x.ply.gg:6695`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub playit_bedrock_address: Option<String>,
     /// Carpeta externa importada (ruta absoluta). Si es None, usa `{data}/servers/{id}`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub custom_folder: Option<String>,
@@ -38,6 +41,9 @@ pub struct ServerStatus {
     pub running: bool,
     pub playit_running: bool,
     pub playit_address: Option<String>,
+    /// Host:puerto o host del túnel Bedrock (Playit UDP).
+    #[serde(default)]
+    pub playit_bedrock_address: Option<String>,
     pub pid: Option<u32>,
     /// El usuario confirmó haber vinculado el agente Playit a su cuenta
     /// (asistente primera vez). Persistido en `_paragua_srv.json`.
@@ -47,6 +53,9 @@ pub struct ServerStatus {
     /// `true` si hay jar del plugin playit en `plugins/` (túnel nativo Paper).
     #[serde(default)]
     pub playit_plugin_mode: bool,
+    /// Server con Geyser: Bedrock necesita túnel UDP + agente desktop.
+    #[serde(default)]
+    pub wants_bedrock: bool,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -100,6 +109,8 @@ fn now() -> u64 {
 }
 
 static PROCESSES: Mutex<Option<HashMap<String, ServerProcs>>> = Mutex::new(None);
+/// Evita dobles `ensure_tunnels` concurrentes hacia la API de playit.
+static PLAYIT_ENSURE_LOCK: Mutex<bool> = Mutex::new(false);
 
 struct McProcess {
     child: Child,
@@ -168,6 +179,7 @@ pub fn create(name: &str, mc_version: &str, server_type: &str, ram_mb: u32) -> A
         port: 25565,
         created_at: now(),
         playit_address: crate::core::playit_shared::shared_address(),
+        playit_bedrock_address: crate::core::playit_shared::shared_bedrock_address(),
         custom_folder: None,
     };
     // Prefill plugin secret si ya hay uno en la cuenta local del launcher.
@@ -177,6 +189,10 @@ pub fn create(name: &str, mc_version: &str, server_type: &str, ram_mb: u32) -> A
     all.push(profile.clone());
     save_all(&all)?;
     write_server_meta(&dir, &profile)?;
+    // Geyser: crear/completar túneles Java+Bedrock ya, si hay secret de la cuenta.
+    if profile.server_type.contains("geyser") {
+        spawn_ensure_playit_tunnels(profile.id.clone(), true);
+    }
     Ok(profile)
 }
 
@@ -477,6 +493,23 @@ pub fn start_mc(id: &str) -> AppResult<u32> {
     let stderr = child.stderr.take();
     let stdin = child.stdin.take();
 
+    // Registrar el proceso ANTES de los lectores: el tail de latest.log usa
+    // `is_mc_running` y salía al instante si el mapa aún no tenía el PID.
+    let mc = McProcess {
+        child,
+        stdin: Mutex::new(stdin),
+    };
+    {
+        let mut g = procs();
+        let map = g.as_mut().unwrap();
+        map.entry(id.to_string())
+            .or_insert(ServerProcs {
+                mc: None,
+                playit: None,
+            })
+            .mc = Some(mc);
+    }
+
     if let Some(out) = stdout {
         crate::core::server_console::spawn_stdout_reader(id.to_string(), out);
     }
@@ -486,24 +519,48 @@ pub fn start_mc(id: &str) -> AppResult<u32> {
 
     let id_tail = id.to_string();
     let dir_tail = dir.clone();
-    crate::core::server_console::spawn_log_tail(id_tail.clone(), dir_tail, move || is_mc_running(&id_tail));
-
-    let mc = McProcess {
-        child,
-        stdin: Mutex::new(stdin),
-    };
-
-    let mut g = procs();
-    let map = g.as_mut().unwrap();
-    map.entry(id.to_string())
-        .or_insert(ServerProcs {
-            mc: None,
-            playit: None,
-        })
-        .mc = Some(mc);
+    // Empezar al final del log actual: no reinyectar arranques viejos (que mezclaban playit/claim).
+    // Si Paper rota/trunca `latest.log`, el tailer resetea solo.
+    let log_start = std::fs::metadata(dir.join("logs").join("latest.log"))
+        .map(|m| m.len())
+        .unwrap_or(0);
+    crate::core::server_console::spawn_log_tail(
+        id_tail.clone(),
+        dir_tail,
+        log_start,
+        move || is_mc_running(&id_tail),
+    );
 
     spawn_mc_lifecycle_watcher(id.to_string());
-    crate::core::server_console::append(id, &format!("[launcher] PID {pid} — consola integrada (copiá desde la pestaña Consola)"));
+    crate::core::server_console::append(
+        id,
+        &format!("[launcher] PID {pid} — consola integrada (copiá desde la pestaña Consola)"),
+    );
+
+    // Geyser: túneles duales + agente desktop (UDP). Sin Geyser el plugin Paper basta.
+    let is_geyser = prof.server_type.contains("geyser");
+    if is_geyser {
+        if playit_plugin_present(id) {
+            crate::core::server_console::append(
+                id,
+                "[playit] ⚠ Detecté el plugin playit en plugins/. Solo hace Java TCP; Bedrock necesita el agente. Quitá el jar playit de plugins/ y reiniciá, o usá un server solo Paper sin Geyser.",
+            );
+        }
+        spawn_ensure_playit_tunnels(id.to_string(), true);
+        // Lanzar playit.exe si no hay plugin (o aunque haya, solo si no present — evitamos doble agente).
+        if !playit_plugin_present(id) {
+            match start_playit(id) {
+                Ok(msg) => crate::core::server_console::append(id, &format!("[playit] {msg}")),
+                Err(e) => crate::core::server_console::append(
+                    id,
+                    &format!("[playit] ⚠ No pude iniciar el agente: {e}"),
+                ),
+            }
+        }
+    } else if crate::core::playit_shared::has_agent_secret() {
+        // Paper sin Geyser: el plugin crea Java; opcional refresco si hay secret.
+    }
+
     Ok(pid)
 }
 
@@ -595,6 +652,8 @@ pub fn status(id: &str) -> AppResult<ServerStatus> {
     }
     let dir = folder_for(&prof);
     let shared_addr = crate::core::playit_shared::shared_address();
+    let shared_bedrock = crate::core::playit_shared::shared_bedrock_address();
+    let wants_bedrock = prof.server_type.contains("geyser");
     Ok(ServerStatus {
         id: id.to_string(),
         running,
@@ -604,12 +663,18 @@ pub fn status(id: &str) -> AppResult<ServerStatus> {
             .clone()
             .or_else(|| playit_address_from_meta(&dir))
             .or(shared_addr),
+        playit_bedrock_address: prof
+            .playit_bedrock_address
+            .clone()
+            .or_else(|| playit_bedrock_from_meta(&dir))
+            .or(shared_bedrock),
         pid,
         playit_claimed: playit_claimed_from_meta(&dir)
             || crate::core::playit_shared::load().claimed
             || crate::core::playit_shared::has_agent_secret(),
         playit_claim_hint: playit_claim_hint_from_meta(&dir),
         playit_plugin_mode: playit_plugin_present(id),
+        wants_bedrock,
     })
 }
 
@@ -617,6 +682,15 @@ fn playit_address_from_meta(dir: &Path) -> Option<String> {
     let path = dir.join("_paragua_srv.json");
     let v: serde_json::Value = config::read_json(&path)?;
     v.get("java_address")
+        .and_then(|x| x.as_str())
+        .filter(|s| !s.is_empty())
+        .map(String::from)
+}
+
+fn playit_bedrock_from_meta(dir: &Path) -> Option<String> {
+    let path = dir.join("_paragua_srv.json");
+    let v: serde_json::Value = config::read_json(&path)?;
+    v.get("bedrock_address")
         .and_then(|x| x.as_str())
         .filter(|s| !s.is_empty())
         .map(String::from)
@@ -692,21 +766,147 @@ fn set_playit_address(id: &str, address: &str) -> AppResult<()> {
         p.playit_address = Some(address.to_string());
     }
     save_all(&all)?;
-    if !same_local {
-        // ya
-    }
+    let _ = same_local;
     Ok(())
 }
 
+fn set_playit_bedrock_address(id: &str, address: &str) -> AppResult<()> {
+    let address = address.trim();
+    if address.is_empty() {
+        return Ok(());
+    }
+    let dir = folder_for_id(id)?;
+    let meta_path = dir.join("_paragua_srv.json");
+    let mut meta: serde_json::Value = config::read_json(&meta_path).unwrap_or(serde_json::json!({}));
+    if let Some(obj) = meta.as_object_mut() {
+        obj.insert(
+            "bedrock_address".into(),
+            serde_json::Value::String(address.to_string()),
+        );
+    }
+    config::write_json_atomic(&meta_path, &meta)?;
+    let _ = crate::core::playit_shared::set_bedrock_address(address);
+    let mut all = load_all();
+    for p in all.iter_mut() {
+        p.playit_bedrock_address = Some(address.to_string());
+    }
+    save_all(&all)?;
+    Ok(())
+}
+
+fn any_geyser_server() -> bool {
+    load_all()
+        .iter()
+        .any(|p| p.server_type.to_ascii_lowercase().contains("geyser"))
+}
+
+/// Hilo: con secret compartido, lista/crea túneles Java (+ Bedrock si Geyser).
+pub fn spawn_ensure_playit_tunnels(id: String, want_bedrock: bool) {
+    std::thread::spawn(move || {
+        {
+            let mut g = PLAYIT_ENSURE_LOCK.lock().unwrap();
+            if *g {
+                return;
+            }
+            *g = true;
+        }
+        let release = || {
+            if let Ok(mut g) = PLAYIT_ENSURE_LOCK.lock() {
+                *g = false;
+            }
+        };
+
+        let secret = crate::core::playit_shared::load()
+            .agent_secret
+            .filter(|s| s.trim().len() >= 32)
+            .or_else(|| {
+                folder_for_id(&id)
+                    .ok()
+                    .and_then(|d| crate::core::playit_shared::read_plugin_secret_from_server(&d))
+            });
+        let Some(secret) = secret else {
+            release();
+            crate::core::server_console::append(
+                &id,
+                "[playit] Aún no hay secret: al claimar playit creamos Java y, si es Geyser, también Bedrock.",
+            );
+            return;
+        };
+        let java_port = profile_by_id(&id).map(|p| p.port).unwrap_or(25565);
+        let bedrock_port = 19132u16;
+        crate::core::server_console::append(
+            &id,
+            "[playit] Comprobando túneles en playit.gg (Java + Bedrock si aplica)…",
+        );
+        let result =
+            crate::core::playit_api::ensure_tunnels(&secret, want_bedrock, java_port, bedrock_port);
+        release();
+        match result {
+            Ok(ens) => {
+                for m in &ens.messages {
+                    crate::core::server_console::append(&id, &format!("[playit] {m}"));
+                }
+                if let Some(ref j) = ens.java_address {
+                    let host = j.split(':').next().unwrap_or(j);
+                    let _ = set_playit_address(&id, host);
+                }
+                if let Some(ref b) = ens.bedrock_address {
+                    let _ = set_playit_bedrock_address(&id, b);
+                    crate::core::server_console::append(
+                        &id,
+                        &format!("[playit] ✅ IP Bedrock lista: {b} (usala en el cliente Bedrock)"),
+                    );
+                } else if want_bedrock {
+                    crate::core::server_console::append(
+                        &id,
+                        "[playit] ⚠ No se obtuvo dirección Bedrock aún. Reiniciá el servidor / agente o revisá cupos en playit.gg.",
+                    );
+                }
+                if want_bedrock {
+                    crate::core::server_console::append(
+                        &id,
+                        "[playit] Bedrock es UDP: en servers Geyser el launcher usa playit.exe (no el plugin Paper, que solo hace Java TCP).",
+                    );
+                }
+            }
+            Err(e) => {
+                crate::core::server_console::append(&id, &format!("[playit] ⚠ ensure tunnels: {e}"));
+            }
+        }
+    });
+}
+
 fn parse_playit_address(line: &str) -> Option<String> {
-    const SUFFIXES: &[&str] = &[
-        "ply.gg",
-        "joinmc.link",
-        "auto.playit.gg",
-        "playit.gg",
-    ];
+    let lower = line.to_ascii_lowercase();
+    // Evitar basura de logs del plugin (WARNING, claim, email, etc.).
+    if lower.contains("warning")
+        || lower.contains("email")
+        || lower.contains("please visit")
+        || lower.contains("claim/")
+        || lower.contains("network is unreachable")
+        || lower.contains("secret")
+        || lower.contains("queued")
+    {
+        return None;
+    }
+
+    // "found minecraft java tunnel: atoms-finds.tun.ply.gg"
+    if let Some(idx) = lower.find("tunnel:") {
+        let rest = line[idx + "tunnel:".len()..].trim();
+        let host = rest
+            .split_whitespace()
+            .next()
+            .unwrap_or("")
+            .trim_matches(|c: char| c == ',' || c == '"' || c == '\'' || c == ')');
+        if is_valid_playit_host(host) {
+            return Some(host.to_string());
+        }
+    }
+
+    // Solo sufijos de túnel reales (NO bare "playit.gg" → capturaba "playit.gg:" basura).
+    const SUFFIXES: &[&str] = &["tun.ply.gg", "joinmc.link"];
     for suffix in SUFFIXES {
-        if let Some(suf_idx) = line.find(suffix) {
+        if let Some(suf_idx) = lower.find(suffix) {
             let host_end = suf_idx + suffix.len();
             let port_end = line[host_end..]
                 .find(|c: char| !c.is_ascii_digit() && c != ':')
@@ -716,13 +916,29 @@ fn parse_playit_address(line: &str) -> Option<String> {
                 .rfind(|c: char| !c.is_ascii_alphanumeric() && c != '-' && c != '.')
                 .map(|i| i + 1)
                 .unwrap_or(0);
-            let addr = line[start..port_end].trim();
-            if addr.contains('.') && !addr.starts_with(|c: char| c.is_ascii_digit()) {
-                return Some(addr.to_string());
+            let addr = line[start..port_end].trim().trim_end_matches(':');
+            if is_valid_playit_host(addr.split(':').next().unwrap_or(addr)) {
+                // Devolver host limpio sin puerto (Bedrock/Java arman puerto aparte).
+                let host = addr.split(':').next().unwrap_or(addr).to_string();
+                return Some(host);
             }
         }
     }
     None
+}
+
+fn is_valid_playit_host(host: &str) -> bool {
+    let h = host.trim().trim_end_matches(':').to_ascii_lowercase();
+    if h.len() < 12 || !h.contains('.') {
+        return false;
+    }
+    // Rechaza "playit.gg" / "playit.gg:" y cualquier host sin subdominio de túnel.
+    if h == "playit.gg" || h == "www.playit.gg" {
+        return false;
+    }
+    h.ends_with("tun.ply.gg")
+        || h.ends_with("joinmc.link")
+        || (h.ends_with(".ply.gg") && h.contains('-'))
 }
 
 fn strip_ansi(input: &str) -> String {
@@ -822,6 +1038,14 @@ pub fn on_mc_console_line(id: &str, line: &str) {
     if t.starts_with("[playit]") || t.starts_with("[launcher]") {
         return;
     }
+    // Paper listo: banner del launcher (stdout a veces se corta y el usuario no ve "Done").
+    let lower = t.to_ascii_lowercase();
+    if lower.contains("done (") && (lower.contains("for help") || lower.contains("type \"help\"")) {
+        crate::core::server_console::append(
+            id,
+            "[launcher] ✅ Servidor listo — ya podés entrar desde Minecraft. Join/leave y comandos siguen en esta consola.",
+        );
+    }
     // claim del plugin, ej: please visit: https://playit.gg/claim/xxxx
     if t.contains("playit.gg/claim") {
         if let Ok(dir) = folder_for_id(id) {
@@ -829,12 +1053,11 @@ pub fn on_mc_console_line(id: &str, line: &str) {
         }
         // no append extra: la línea del MC ya está en consola
     }
-    // IP: "playit.gg: katherine-momentum.tun.ply.gg" o "found minecraft java tunnel: …"
+    // IP: "found minecraft java tunnel: …" o host *.tun.ply.gg
     if let Some(addr) = parse_playit_address(t) {
         if let Ok(dir) = folder_for_id(id) {
             let prev = playit_address_from_meta(&dir);
             if prev.as_deref() != Some(addr.as_str()) {
-                // set_playit_address + aviso una sola vez
                 if set_playit_address(id, &addr).is_ok() {
                     crate::core::server_console::append(
                         id,
@@ -853,14 +1076,24 @@ pub fn on_mc_console_line(id: &str, line: &str) {
         );
     }
     if t.contains("secret key not set") || t.contains("generate claim code") {
-        // Si ya tenemos secret compartido, reintentar escribirlo (plugin puede haber reiniciado vacío)
         if let Ok(dir) = folder_for_id(id) {
+            // Solo reaplicar si hay secret real y la escritura a la carpeta funcionó.
             if crate::core::playit_shared::has_agent_secret() {
-                let _ = crate::core::playit_shared::apply_to_server(&dir);
-                crate::core::server_console::append(
-                    id,
-                    "[playit] ⚠ El plugin no vio el secret. Reaplicé el compartido — reiniciá el servidor una vez.",
-                );
+                match crate::core::playit_shared::apply_to_server(&dir) {
+                    Ok(true) => {
+                        crate::core::server_console::append(
+                            id,
+                            "[playit] ⚠ El plugin no vio el secret. Reaplicé el compartido — reiniciá el servidor una vez.",
+                        );
+                    }
+                    Ok(false) => {
+                        crate::core::server_console::append(
+                            id,
+                            "[playit] Generando claim del plugin — abrí el link playit.gg/claim en la consola.",
+                        );
+                    }
+                    Err(_) => {}
+                }
             } else {
                 crate::core::server_console::append(
                     id,
@@ -876,14 +1109,18 @@ pub fn on_mc_console_line(id: &str, line: &str) {
     {
         if let Ok(dir) = folder_for_id(id) {
             let had = crate::core::playit_shared::has_agent_secret();
-            if let Some(_) = crate::core::playit_shared::harvest_from_server(&dir) {
-                if !had {
-                    crate::core::server_console::append(
-                        id,
-                        "[playit] ✅ Secret guardado de forma compartida: el próximo server usará la misma IP.",
-                    );
-                }
+            if crate::core::playit_shared::harvest_from_server(&dir).is_some() && !had {
+                crate::core::server_console::append(
+                    id,
+                    "[playit] ✅ Secret guardado de forma compartida: el próximo server usará la misma IP.",
+                );
             }
+            // Tras secret listo: completar Java y (si Geyser) Bedrock vía API.
+            let want_br = profile_by_id(id)
+                .map(|p| p.server_type.contains("geyser"))
+                .unwrap_or(false)
+                || any_geyser_server();
+            spawn_ensure_playit_tunnels(id.to_string(), want_br);
         }
     }
 }
@@ -1430,6 +1667,8 @@ pub fn import_folder(path: &str, name: Option<&str>) -> AppResult<ServerProfile>
         port: read_port_from_props(&dir).unwrap_or(25565),
         created_at: now(),
         playit_address: playit_address_from_meta(&dir),
+        playit_bedrock_address: playit_bedrock_from_meta(&dir)
+            .or_else(|| crate::core::playit_shared::shared_bedrock_address()),
         custom_folder: Some(dir.to_string_lossy().to_string()),
     };
 

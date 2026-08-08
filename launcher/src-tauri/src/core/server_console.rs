@@ -66,36 +66,104 @@ pub fn spawn_stderr_reader(id: String, stderr: impl Read + Send + 'static) {
     spawn_stream_reader(id, stderr);
 }
 
-fn spawn_stream_reader(id: String, stream: impl Read + Send + 'static) {
-    std::thread::spawn(move || {
-        let reader = BufReader::new(stream);
-        for line in reader.lines().map_while(Result::ok) {
-            append(&id, &line);
-        }
-    });
-}
-
 /// Sigue `logs/latest.log` mientras el servidor corre (Paper escribe ahí).
-pub fn spawn_log_tail(id: String, folder: std::path::PathBuf, running: impl Fn() -> bool + Send + 'static) {
+///
+/// Importante: tras el primer arranque Paper **deja de flushear stdout** al pipe
+/// (no hay TTY) y solo escribe al archivo. Si el log se rota/trunca, hay que
+/// resetear el offset; si no, la UI se queda congelada en las últimas líneas.
+/// Leemos con buffer de línea incompleta para no perder trozos sin `\n`.
+///
+/// `start_pos`: offset inicial (normalmente el tamaño del log al iniciar el
+/// proceso, para no re-emitir arranques anteriores).
+pub fn spawn_log_tail(
+    id: String,
+    folder: std::path::PathBuf,
+    start_pos: u64,
+    running: impl Fn() -> bool + Send + 'static,
+) {
     std::thread::spawn(move || {
         let log_path = folder.join("logs").join("latest.log");
-        let mut last_pos = 0u64;
+        let mut last_pos = start_pos;
+        let mut last_len = start_pos;
+        let mut carry: Vec<u8> = Vec::new();
         while running() {
-            std::thread::sleep(Duration::from_millis(800));
+            std::thread::sleep(Duration::from_millis(400));
+            let Ok(meta) = std::fs::metadata(&log_path) else {
+                continue;
+            };
+            let len = meta.len();
+            // Rotación / reescritura: el archivo se achicó o se reemplazó.
+            if len < last_len || (last_pos > 0 && last_pos > len) {
+                last_pos = 0;
+                carry.clear();
+            }
+            last_len = len;
+
             let Ok(mut f) = std::fs::File::open(&log_path) else {
                 continue;
             };
             if f.seek(SeekFrom::Start(last_pos)).is_err() {
+                last_pos = 0;
+                carry.clear();
                 continue;
             }
-            let mut buf = String::new();
-            if f.read_to_string(&mut buf).is_err() {
+            let mut bytes = Vec::new();
+            if f.read_to_end(&mut bytes).is_err() {
                 continue;
             }
-            last_pos += buf.len() as u64;
-            for line in buf.lines() {
-                append(&id, line);
+            if bytes.is_empty() {
+                continue;
             }
+            last_pos += bytes.len() as u64;
+            carry.extend_from_slice(&bytes);
+            // Emitir solo líneas completas (terminadas en \n).
+            while let Some(nl) = carry.iter().position(|&b| b == b'\n') {
+                let mut line_bytes: Vec<u8> = carry.drain(..=nl).collect();
+                if line_bytes.last() == Some(&b'\n') {
+                    line_bytes.pop();
+                }
+                if line_bytes.last() == Some(&b'\r') {
+                    line_bytes.pop();
+                }
+                let line = String::from_utf8_lossy(&line_bytes);
+                append_dedup(&id, &line);
+            }
+            // Evitar grow infinito si nunca llega un \n (basura binaria).
+            if carry.len() > 64 * 1024 {
+                let line = String::from_utf8_lossy(&carry);
+                append_dedup(&id, &line);
+                carry.clear();
+            }
+        }
+    });
+}
+
+/// Igual que `append` pero ignora duplicados exactos recientes (stdout + latest.log).
+pub fn append_dedup(id: &str, line: &str) {
+    let line = line.trim_end();
+    if line.is_empty() {
+        return;
+    }
+    {
+        let g = logs();
+        if let Some(map) = g.as_ref() {
+            if let Some(buf) = map.get(id) {
+                for prev in buf.iter().rev().take(40) {
+                    if prev == line {
+                        return;
+                    }
+                }
+            }
+        }
+    }
+    append(id, line);
+}
+
+fn spawn_stream_reader(id: String, stream: impl Read + Send + 'static) {
+    std::thread::spawn(move || {
+        let reader = BufReader::new(stream);
+        for line in reader.lines().map_while(Result::ok) {
+            append_dedup(&id, &line);
         }
     });
 }
