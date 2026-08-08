@@ -297,6 +297,8 @@ export interface ServerStatus {
   pid: number | null;
   playitClaimed: boolean;
   playitClaimHint: string | null;
+  /** Plugin playit-gg en plugins/ (túnel Paper nativo). */
+  playitPluginMode?: boolean;
 }
 
 export interface ServerContentItem {

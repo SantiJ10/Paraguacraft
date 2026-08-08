@@ -3,6 +3,16 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [1.1.17] - 2026-08-08
+
+### Launcher — Servers / Playit
+- Secret e IP **compartidos** entre todos los servers (un claim = misma `*.tun.ply.gg`).
+- Captura claim/IP del plugin Paper en consola y la muestra en la UI.
+- No lanza `playit.exe` si hay plugin playit-gg (evita cuelgue IPC).
+- Un solo server MC a la vez con el túnel compartido.
+- «Restaurar secret compartido» y «Reseteo total Playit»; avisos de cupo de agentes.
+- Puerto local unificado al arrancar (`server-port`).
+
 ## [1.1.16] - 2026-08-06
 
 ### Launcher

@@ -117,6 +117,16 @@ pub fn stop_playit(id: String) -> AppResult<()> {
 }
 
 #[tauri::command]
+pub fn reset_playit(id: String) -> AppResult<String> {
+    servers::reset_playit(&id)
+}
+
+#[tauri::command]
+pub fn reset_playit_full(id: String) -> AppResult<String> {
+    servers::reset_playit_ex(&id, true)
+}
+
+#[tauri::command]
 pub fn mark_playit_claimed(id: String) -> AppResult<()> {
     servers::mark_playit_claimed(&id)
 }

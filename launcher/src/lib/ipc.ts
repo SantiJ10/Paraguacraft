@@ -906,6 +906,14 @@ export const api = {
     await invokeReal<void>("stop_playit", { id });
   },
 
+  async resetPlayit(id: string): Promise<string> {
+    return invokeReal<string>("reset_playit", { id });
+  },
+
+  async resetPlayitFull(id: string): Promise<string> {
+    return invokeReal<string>("reset_playit_full", { id });
+  },
+
   async markPlayitClaimed(id: string): Promise<void> {
     await invokeReal<void>("mark_playit_claimed", { id });
   },
