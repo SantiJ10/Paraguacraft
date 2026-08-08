@@ -1,12 +1,12 @@
 {
-  "version": "1.1.17",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.17/Instalar_Paraguacraft_v1.1.17.exe",
-  "size_bytes": 5636535,
-  "sha256": "74de179d384b251d5e0f410a8feccd307efb489974ef9782a1809e4edb9ce357",
-  "notes": "- Servers/Playit: secret e IP compartidos (un claim, misma IP en todos los mundos)\n- Claim e IP del plugin en la UI; sin agente desktop si hay plugin Paper\n- Un server a la vez; restaurar secret o reseteo total\n- Menos cuelgues por agents/tunnels y cupo free",
+  "version": "1.1.18",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.18/Instalar_Paraguacraft_v1.1.18.exe",
+  "size_bytes": 5640334,
+  "sha256": "124e5c8576032221970a5ea3a04610418b009f6e84feb3c33e9e5c94ee87032e",
+  "notes": "- Consola de servers live (sin freeze tras Done / 2ª sesión)\n- Playit: parse de IP confiable + banner servidor listo\n- Geyser: crea túneles Java + Bedrock (UDP) con el secret claim\n- IP Bedrock real en el asistente (host:puerto Playit)",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.17/Instalar_Paraguacraft_v1.1.17.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.18/Instalar_Paraguacraft_v1.1.18.exe",
       "signature": ""
     }
   }
