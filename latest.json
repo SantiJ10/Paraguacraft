@@ -1,12 +1,12 @@
 {
-  "version": "1.1.18",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.18/Instalar_Paraguacraft_v1.1.18.exe",
-  "size_bytes": 5640334,
-  "sha256": "124e5c8576032221970a5ea3a04610418b009f6e84feb3c33e9e5c94ee87032e",
-  "notes": "- Consola de servers live (sin freeze tras Done / 2ª sesión)\n- Playit: parse de IP confiable + banner servidor listo\n- Geyser: crea túneles Java + Bedrock (UDP) con el secret claim\n- IP Bedrock real en el asistente (host:puerto Playit)",
+  "version": "1.1.19",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.19/Instalar_Paraguacraft_v1.1.19.exe",
+  "size_bytes": 5647989,
+  "sha256": "621066107cdf83ec6a2d81ec33c633c910d8e921b9c2e79d9bfec16339aa5b37",
+  "notes": "- Consola servers live (sin freeze tras Done / 2a sesion)\n- Playit: IP confiable + banner servidor listo\n- Geyser: fix agent IPC + tuneles Java/Bedrock con secret\n- IP Bedrock real en el asistente",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.18/Instalar_Paraguacraft_v1.1.18.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.19/Instalar_Paraguacraft_v1.1.19.exe",
       "signature": ""
     }
   }
