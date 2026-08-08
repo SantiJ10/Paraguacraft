@@ -1,0 +1,3 @@
+- playit.exe headless: secret inline (--secret), sin modo IPC fantasma
+- Secret invalido/revocado: claim nuevo por API (link en consola)
+- Geyser: write playit-agent.toml con secret_key real

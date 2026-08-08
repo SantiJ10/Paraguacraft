@@ -22,23 +22,22 @@ pub struct EnsuredTunnels {
     pub messages: Vec<String>,
 }
 
-fn post_json(secret: &str, path: &str, body: Value) -> AppResult<Value> {
-    let secret = secret.trim();
-    if secret.len() < 32 {
-        return Err(AppError::msg("Secret playit inválido o incompleto"));
-    }
+fn post_json_auth(secret: Option<&str>, path: &str, body: Value) -> AppResult<Value> {
     let url = format!("{API_URL}{path}");
     let resp = tauri::async_runtime::block_on(async {
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(25))
             .build()
             .map_err(|e| AppError::msg(e.to_string()))?;
-        let res = client
+        let mut req = client
             .post(&url)
-            .header("Authorization", format!("agent-key {secret}"))
             .header("Content-Type", "application/json")
             .header("Accept", "application/json")
-            .json(&body)
+            .json(&body);
+        if let Some(s) = secret.map(str::trim).filter(|s| s.len() >= 32) {
+            req = req.header("Authorization", format!("agent-key {s}"));
+        }
+        let res = req
             .send()
             .await
             .map_err(|e| AppError::msg(format!("playit API red: {e}")))?;
@@ -58,6 +57,109 @@ fn post_json(secret: &str, path: &str, body: Value) -> AppResult<Value> {
     })?;
     Ok(resp)
 }
+
+fn post_json(secret: &str, path: &str, body: Value) -> AppResult<Value> {
+    post_json_auth(Some(secret), path, body)
+}
+
+/// Prueba si el secret todavía es válido (agents/rundata).
+/// `false` solo si playit responde auth inválida; errores de red → true (no forzar re-claim).
+pub fn secret_is_valid(secret: &str) -> bool {
+    match post_json(secret, "/v1/agents/rundata", json!({})) {
+        Ok(v) => {
+            if api_ok_data(&v).is_some() {
+                return true;
+            }
+            let t = v.to_string().to_ascii_lowercase();
+            !t.contains("invalid") && !t.contains("auth")
+        }
+        Err(e) => {
+            let t = e.to_string().to_ascii_lowercase();
+            // HTTP 401 / invalid key → inválido. Timeout / red → asumir ok y que el agente diga.
+            if t.contains("401")
+                || t.contains("invalidagentkey")
+                || t.contains("invalid agent")
+                || t.contains("authrequired")
+            {
+                return false;
+            }
+            true
+        }
+    }
+}
+
+/// Genera claim code (hex 16 chars) y publica el code ante playit (claim/setup).
+pub fn claim_generate_code() -> String {
+    let u = uuid::Uuid::new_v4();
+    u.simple().to_string()[..16].to_string()
+}
+
+/// Un paso de claim: `None` = aún esperando, `Some(secret)` = listo, Err = rechazo/API.
+pub fn claim_poll(code: &str) -> AppResult<Option<String>> {
+    let body = json!({
+        "code": code,
+        "agent_type": "self-managed",
+        "version": "paraguacraft-1.1.19"
+    });
+    let resp = post_json_auth(None, "/claim/setup", body)?;
+    let status = resp.get("status").and_then(|s| s.as_str()).unwrap_or("");
+    if status == "fail" {
+        return Err(AppError::msg(format!(
+            "claim/setup fail: {}",
+            resp.get("data").map(|d| d.to_string()).unwrap_or_default()
+        )));
+    }
+    let data = api_ok_data(&resp)
+        .and_then(|d| d.as_str())
+        .or_else(|| resp.get("data").and_then(|d| d.as_str()))
+        .unwrap_or("");
+    // data puede ser string enum o object
+    let state = if !data.is_empty() {
+        data.to_string()
+    } else {
+        resp.get("data")
+            .and_then(|d| d.get("status").or_else(|| d.get("state")))
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_string()
+    };
+
+    match state.as_str() {
+        "WaitingForUserVisit" | "WaitingForUser" => Ok(None),
+        "UserRejected" => Err(AppError::msg("Claim rechazado en playit.gg")),
+        "UserAccepted" => {
+            let ex = post_json_auth(None, "/claim/exchange", json!({ "code": code }))?;
+            if let Some(data) = api_ok_data(&ex) {
+                let secret = data
+                    .get("secret_key")
+                    .or_else(|| data.get("secretKey"))
+                    .and_then(|x| x.as_str())
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| s.len() >= 32);
+                if let Some(s) = secret {
+                    return Ok(Some(s));
+                }
+            }
+            Err(AppError::msg(format!(
+                "claim/exchange sin secret: {}",
+                ex.to_string().chars().take(200).collect::<String>()
+            )))
+        }
+        other => {
+            // Algunos responses devuelven el enum como valor directo "UserAccepted"
+            if other.is_empty() {
+                // intentar data como enum plain
+                Ok(None)
+            } else if other.contains("Accept") {
+                // recursive would be wrong - if we got weird state keep waiting
+                Ok(None)
+            } else {
+                Ok(None)
+            }
+        }
+    }
+}
+
 
 fn api_ok_data(v: &Value) -> Option<&Value> {
     if v.get("status").and_then(|s| s.as_str()) == Some("success") {
