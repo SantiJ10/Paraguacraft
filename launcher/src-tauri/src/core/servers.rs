@@ -982,26 +982,50 @@ fn process_playit_log_chunk(id: &str, chunk: &str, seen: &mut HashSet<String>) {
             if line.contains("InvalidAgentKey")
                 || line.contains("no longer valid")
                 || line.contains("agent key is not valid")
+                || line.contains("configured playit secret is no longer valid")
             {
                 crate::core::server_console::append(
                     id,
-                    "[playit] ⚠ Clave de agente inválida o expirada. Usá «Resetear Playit» o borra playit-agent.toml y vuelve a claim.",
+                    "[playit] ⚠ Clave de agente inválida o expirada. Limpiando secrets y preparando claim nuevo…",
                 );
+                let _ = stop_playit_only(id);
                 let _ = wipe_playit_local_secrets(id);
+                let _ = crate::core::playit_shared::wipe_shared();
+                crate::core::server_console::append(
+                    id,
+                    "[playit] Apretá de nuevo «Playit.gg» para generar un link claim fresco.",
+                );
             }
             if line.contains("frontend secret provisioning")
                 || line.contains("Waiting for frontend secret")
             {
                 crate::core::server_console::append(
                     id,
-                    "[playit] ⚠ El agente desktop se quedó esperando un secret por IPC (modo incorrecto). Deteniendo y limpiando secret local…",
+                    "[playit] ⚠ El agente quedó en modo IPC (sin secret_key válido). Deteniendo…",
                 );
                 let _ = stop_playit_only(id);
-                let _ = wipe_playit_local_secrets(id);
-                crate::core::server_console::append(
-                    id,
-                    "[playit] Con Paper usá el **plugin** (arranque del servidor → claim en consola). No mezcles playit.exe si ya está el jar en plugins/.",
-                );
+                // No borrar secrets válidos: solo el tomlof agent roto y reintentar con --secret.
+                if let Ok(dir) = folder_for_id(id) {
+                    let sp = playit_secret_path(&dir);
+                    if let Ok(c) = std::fs::read_to_string(&sp) {
+                        if crate::core::playit_shared::parse_agent_toml_secret(&c).is_none() {
+                            let _ = std::fs::remove_file(&sp);
+                        }
+                    }
+                    if let Some(secret) = crate::core::playit_shared::resolve_secret_for_server(&dir)
+                    {
+                        let _ = crate::core::playit_shared::write_agent_toml(&dir, &secret);
+                        crate::core::server_console::append(
+                            id,
+                            "[playit] Reescribí el secret en playit-agent.toml. Apretá de nuevo «Playit.gg».",
+                        );
+                    } else {
+                        crate::core::server_console::append(
+                            id,
+                            "[playit] No hay secret guardado. Usá «Restaurar secret compartido» o claimá en un Paper sin Geyser una vez.",
+                        );
+                    }
+                }
             }
             if line.contains("max agents")
                 || line.contains("too many agents")
@@ -1406,14 +1430,48 @@ pub fn start_playit(id: &str) -> AppResult<String> {
         AppError::msg("playit.exe no encontrado. Usa «Preparar servidor» para descargarlo.")
     })?;
     stop_playit_only(id)?;
-    // Secret/agent.toml compartidos (evita claim nuevo por server).
-    let _ = crate::core::playit_shared::apply_to_server(&dir);
+
+    // Secret para headless. Invalid/revocado → claim nuevo por API del launcher.
+    let mut secret = crate::core::playit_shared::resolve_secret_for_server(&dir);
+    if let Some(ref s) = secret {
+        if !crate::core::playit_api::secret_is_valid(s) {
+            crate::core::server_console::append(
+                id,
+                "[playit] ⚠ El secret guardado ya no es válido en playit.gg (agent key inválida). Hay que claimar de nuevo.",
+            );
+            let _ = wipe_playit_local_secrets(id);
+            let _ = crate::core::playit_shared::wipe_shared();
+            // no borrar la dirección cacheada del perfil; se actualizará
+            secret = None;
+        }
+    }
+
+    if secret.is_none() {
+        // Claim por API (sin GUI de playit.exe / sin IPC)
+        spawn_claim_then_start(id.to_string(), dir.clone(), playit.clone(), prof.server_type.contains("geyser"));
+        return Ok(
+            "Inicié claim de playit: abrí el link playit.gg/claim en la consola y vinculá tu cuenta.".into(),
+        );
+    }
+    let secret = secret.unwrap();
+    start_playit_with_secret(id, &dir, &playit, &secret, prof.server_type.contains("geyser"))
+}
+
+fn start_playit_with_secret(
+    id: &str,
+    dir: &Path,
+    playit: &Path,
+    secret: &str,
+    want_bedrock: bool,
+) -> AppResult<String> {
+    let _ = crate::core::playit_shared::write_agent_toml(dir, secret);
+    let _ = crate::core::playit_shared::write_plugin_secret_to_server(dir, secret);
+    let _ = crate::core::playit_shared::set_agent_secret(secret, None);
+
     crate::core::server_console::append(id, "[playit] Iniciando túnel playit.gg…");
 
-    let saved_addr = prof
-        .playit_address
-        .clone()
-        .or_else(|| playit_address_from_meta(&dir));
+    let saved_addr = playit_address_from_meta(dir)
+        .or_else(|| crate::core::playit_shared::shared_address());
     if let Some(ref saved) = saved_addr {
         crate::core::server_console::append(
             id,
@@ -1425,7 +1483,6 @@ pub fn start_playit(id: &str) -> AppResult<String> {
         "[playit] Esperando conexión con el servidor de playit…",
     );
 
-    // Redirigir stdout+stderr a archivo (pipes bufferizan; playit usa spinner ANSI con \r).
     let log_path = dir.join(".playit-launcher.log");
     let log_file = OpenOptions::new()
         .create(true)
@@ -1437,11 +1494,12 @@ pub fn start_playit(id: &str) -> AppResult<String> {
         .try_clone()
         .map_err(|e| AppError::msg(format!("No se pudo duplicar log de playit: {e}")))?;
 
-    let secret_path = playit_secret_path(&dir);
-    let mut cmd = Command::new(&playit);
-    cmd.current_dir(&dir)
-        .arg("--secret-path")
-        .arg(&secret_path)
+    // `--secret` y `--secret-path` son mutuamente excluyentes en playit 1.0.10.
+    // Con secret inline no cae en modo IPC.
+    let mut cmd = Command::new(playit);
+    cmd.current_dir(dir)
+        .arg("--secret")
+        .arg(secret)
         .stdin(Stdio::null())
         .stdout(Stdio::from(log_file))
         .stderr(Stdio::from(stderr_file));
@@ -1452,7 +1510,10 @@ pub fn start_playit(id: &str) -> AppResult<String> {
 
     let id_tail = id.to_string();
     spawn_playit_log_tail(id_tail.clone(), log_path.clone());
-    spawn_playit_early_exit_watch(id_tail, log_path);
+    spawn_playit_early_exit_watch(id_tail.clone(), log_path);
+    if want_bedrock {
+        spawn_ensure_playit_tunnels(id_tail, true);
+    }
 
     let mut g = procs();
     let map = g.as_mut().unwrap();
@@ -1463,7 +1524,68 @@ pub fn start_playit(id: &str) -> AppResult<String> {
         })
         .playit = Some(child);
 
-    Ok("Playit iniciado. Mirá la consola — la dirección aparece en unos segundos.".into())
+    Ok("Playit iniciado con secret. Mirá la consola — la dirección aparece en unos segundos.".into())
+}
+
+/// Claim en segundo plano (API, como el plugin) y luego arranca playit.exe.
+fn spawn_claim_then_start(id: String, dir: PathBuf, playit: PathBuf, want_bedrock: bool) {
+    std::thread::spawn(move || {
+        let code = crate::core::playit_api::claim_generate_code();
+        let url = format!("https://playit.gg/claim/{code}");
+        crate::core::server_console::append(
+            &id,
+            &format!("[playit] secret key not set — claim: {url}"),
+        );
+        crate::core::server_console::append(
+            &id,
+            &format!("[playit] 🔗 Abrí y vinculá: {url}"),
+        );
+        if let Ok(dir2) = folder_for_id(&id) {
+            save_playit_claim_hint(&dir2, &format!("please visit: {url}"));
+        }
+
+        for attempt in 1..=120 {
+            // ~6 min máximo
+            match crate::core::playit_api::claim_poll(&code) {
+                Ok(Some(secret)) => {
+                    crate::core::server_console::append(
+                        &id,
+                        "[playit] ✅ Claim aceptado — secret nuevo guardado. Arrancando agente…",
+                    );
+                    let _ = crate::core::playit_shared::set_agent_secret(&secret, None);
+                    let _ = crate::core::playit_shared::write_agent_toml(&dir, &secret);
+                    match start_playit_with_secret(&id, &dir, &playit, &secret, want_bedrock) {
+                        Ok(msg) => crate::core::server_console::append(&id, &format!("[playit] {msg}")),
+                        Err(e) => crate::core::server_console::append(
+                            &id,
+                            &format!("[playit] ⚠ Claim ok pero fallo al iniciar: {e}"),
+                        ),
+                    }
+                    return;
+                }
+                Ok(None) => {
+                    if attempt == 1 || attempt % 10 == 0 {
+                        crate::core::server_console::append(
+                            &id,
+                            &format!("[playit] Esperando que vincules la cuenta… ({url})"),
+                        );
+                    }
+                }
+                Err(e) => {
+                    crate::core::server_console::append(
+                        &id,
+                        &format!("[playit] ⚠ Error de claim: {e}"),
+                    );
+                    return;
+                }
+            }
+            std::thread::sleep(std::time::Duration::from_secs(3));
+        }
+        crate::core::server_console::append(
+            &id,
+            "[playit] ⏱ Se agotó el tiempo del claim. Volvé a apretar «Playit.gg».",
+        );
+    });
 }
 
 fn stop_playit_only(id: &str) -> AppResult<()> {

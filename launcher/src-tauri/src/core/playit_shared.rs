@@ -82,7 +82,13 @@ pub fn set_agent_secret(secret: &str, address: Option<&str>) -> AppResult<()> {
     if let Some(a) = address.filter(|s| !s.is_empty()) {
         m.address = Some(a.to_string());
     }
-    save(&m)
+    save(&m)?;
+    // Mantener el TOML del daemon sincronizado (evita IPC mode).
+    let body = format!(
+        "# Generado por Paraguacraft Launcher — secret compartido\nsecret_key = \"{secret}\"\n"
+    );
+    let _ = fs::write(shared_agent_toml_path(), body);
+    Ok(())
 }
 
 pub fn set_address(address: &str) -> AppResult<()> {
@@ -222,20 +228,94 @@ pub fn write_plugin_secret_to_server(server_dir: &Path, secret: &str) -> AppResu
 }
 
 /// Copia el toml de agente desktop compartido ↔ carpeta del server.
+/// Si el TOML local no tiene `secret_key`, lo reescribe desde el store.
 pub fn sync_agent_toml_to_server(server_dir: &Path) -> bool {
+    // Preferimos regenerar desde el secret del store: un .toml vacío/viejo
+    // mete a playitd en "Waiting for frontend secret provisioning" (IPC).
+    if let Some(ref s) = load().agent_secret {
+        if s.trim().len() >= MIN_SECRET_LEN {
+            return write_agent_toml(server_dir, s).is_ok();
+        }
+    }
     let shared = shared_agent_toml_path();
     if !shared.is_file() {
         return false;
     }
-    let dest = server_dir.join("playit-agent.toml");
-    if dest.is_file() {
-        // Preferir el shared si el local está vacío/roto
-        let ok = fs::metadata(&dest).map(|m| m.len()).unwrap_or(0) > 20;
-        if ok {
-            return true;
+    if let Ok(c) = fs::read_to_string(&shared) {
+        if parse_agent_toml_secret(&c).is_none() {
+            return false;
         }
     }
+    let dest = server_dir.join("playit-agent.toml");
     fs::copy(&shared, &dest).is_ok()
+}
+
+/// Extrae `secret_key` de un playit-agent.toml (formato daemon 1.x).
+pub fn parse_agent_toml_secret(content: &str) -> Option<String> {
+    for line in content.lines() {
+        let t = line.trim();
+        if t.starts_with('#') {
+            continue;
+        }
+        let Some(rest) = t
+            .strip_prefix("secret_key")
+            .or_else(|| t.strip_prefix("secret-key"))
+            .or_else(|| t.strip_prefix("SECRET_KEY"))
+        else {
+            continue;
+        };
+        let rest = rest.trim().trim_start_matches('=').trim();
+        let mut v = rest.to_string();
+        if (v.starts_with('"') && v.ends_with('"')) || (v.starts_with('\'') && v.ends_with('\'')) {
+            v = v[1..v.len() - 1].to_string();
+        }
+        v = v.trim().to_string();
+        if v.len() >= MIN_SECRET_LEN {
+            return Some(v);
+        }
+    }
+    None
+}
+
+/// Escribe el secret del agente desktop (evita modo IPC sin secret).
+pub fn write_agent_toml(server_dir: &Path, secret: &str) -> AppResult<()> {
+    let secret = secret.trim();
+    if secret.len() < MIN_SECRET_LEN {
+        return Ok(());
+    }
+    let body = format!(
+        "# Generado por Paraguacraft Launcher — NO editar a mano salvo reseteo\nsecret_key = \"{secret}\"\n"
+    );
+    fs::write(server_dir.join("playit-agent.toml"), &body)?;
+    let _ = fs::write(shared_agent_toml_path(), &body);
+    Ok(())
+}
+
+/// Secret efectivo para el daemon: store → toml del server → plugin config.
+pub fn resolve_secret_for_server(server_dir: &Path) -> Option<String> {
+    if let Some(s) = load()
+        .agent_secret
+        .filter(|s| s.trim().len() >= MIN_SECRET_LEN)
+    {
+        return Some(s.trim().to_string());
+    }
+    if let Ok(c) = fs::read_to_string(server_dir.join("playit-agent.toml")) {
+        if let Some(s) = parse_agent_toml_secret(&c) {
+            let _ = set_agent_secret(&s, None);
+            return Some(s);
+        }
+    }
+    if let Ok(c) = fs::read_to_string(shared_agent_toml_path()) {
+        if let Some(s) = parse_agent_toml_secret(&c) {
+            let _ = set_agent_secret(&s, None);
+            return Some(s);
+        }
+    }
+    if let Some(s) = read_plugin_secret_from_server(server_dir) {
+        let _ = set_agent_secret(&s, None);
+        return Some(s);
+    }
+    None
 }
 
 pub fn harvest_agent_toml_from_server(server_dir: &Path) -> bool {
@@ -243,9 +323,13 @@ pub fn harvest_agent_toml_from_server(server_dir: &Path) -> bool {
     if !src.is_file() {
         return false;
     }
-    if fs::metadata(&src).map(|m| m.len()).unwrap_or(0) < 20 {
+    let Ok(c) = fs::read_to_string(&src) else {
         return false;
-    }
+    };
+    let Some(secret) = parse_agent_toml_secret(&c) else {
+        return false;
+    };
+    let _ = set_agent_secret(&secret, None);
     fs::copy(&src, shared_agent_toml_path()).is_ok()
 }
 
@@ -253,21 +337,20 @@ pub fn harvest_agent_toml_from_server(server_dir: &Path) -> bool {
 pub fn harvest_from_server(server_dir: &Path) -> Option<String> {
     let secret = read_plugin_secret_from_server(server_dir)?;
     let _ = set_agent_secret(&secret, None);
+    let _ = write_agent_toml(server_dir, &secret);
     let _ = harvest_agent_toml_from_server(server_dir);
     Some(secret)
 }
 
 /// Aplica el secret compartido a la carpeta del server (plugin + agent.toml).
-/// Devuelve `true` si escribió un secret de plugin.
+/// Devuelve `true` si escribió un secret usable.
 pub fn apply_to_server(server_dir: &Path) -> AppResult<bool> {
-    let shared = load();
-    let mut applied = false;
-    if let Some(ref secret) = shared.agent_secret {
-        if secret.trim().len() >= MIN_SECRET_LEN {
-            write_plugin_secret_to_server(server_dir, secret)?;
-            applied = true;
-        }
-    }
-    let _ = sync_agent_toml_to_server(server_dir);
-    Ok(applied)
+    let secret = resolve_secret_for_server(server_dir);
+    let Some(secret) = secret else {
+        let _ = sync_agent_toml_to_server(server_dir);
+        return Ok(false);
+    };
+    write_plugin_secret_to_server(server_dir, &secret)?;
+    write_agent_toml(server_dir, &secret)?;
+    Ok(true)
 }
