@@ -374,6 +374,42 @@ fn is_mc_running(id: &str) -> bool {
     false
 }
 
+/// Java de este server fuera del mapa del launcher (crash del UI, kill forzado, etc.).
+/// Sin esto, `session.lock` del mundo bloquea el siguiente arranque con "otro proceso…".
+fn kill_orphan_java_for_dir(dir: &Path) -> usize {
+    let Ok(dir_canon) = dir.canonicalize().or_else(|_| Ok::<_, std::io::Error>(dir.to_path_buf()))
+    else {
+        return 0;
+    };
+    let needle = dir_canon.to_string_lossy().to_string();
+    let needle_slash = needle.replace('\\', "/");
+    let mut sys = sysinfo::System::new();
+    sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+    let mut killed = 0usize;
+    for (_pid, proc) in sys.processes() {
+        let name = proc.name().to_string_lossy().to_ascii_lowercase();
+        if !name.contains("java") {
+            continue;
+        }
+        let cmd = proc
+            .cmd()
+            .iter()
+            .map(|s| s.to_string_lossy())
+            .collect::<Vec<_>>()
+            .join(" ");
+        let cmd_norm = cmd.replace('\\', "/");
+        if cmd_norm.contains(&needle_slash)
+            || cmd.contains(&needle)
+            || cmd_norm.contains("/server.jar") && cmd_norm.contains(&needle_slash)
+        {
+            if proc.kill() {
+                killed += 1;
+            }
+        }
+    }
+    killed
+}
+
 /// Inicia el proceso del servidor MC (Java headless, sin ventana).
 pub fn start_mc(id: &str) -> AppResult<u32> {
     let st = status(id)?;
@@ -390,6 +426,19 @@ pub fn start_mc(id: &str) -> AppResult<u32> {
 
     let prof = profile_by_id(id)?;
     let dir = folder_for(&prof);
+
+    // Tras crash del launcher el PID se pierde pero Java sigue y bloquea world/session.lock.
+    let orphans = kill_orphan_java_for_dir(&dir);
+    if orphans > 0 {
+        crate::core::server_console::append(
+            id,
+            &format!(
+                "[launcher] Detuve {orphans} proceso(s) Java huérfano(s) de este server (liberá el mundo)."
+            ),
+        );
+        std::thread::sleep(std::time::Duration::from_millis(600));
+    }
+
     ensure_eula(&dir)?;
     let port = if prof.port > 0 { prof.port } else { 25565 };
     ensure_server_properties(&dir, port)?;
@@ -1337,6 +1386,7 @@ pub fn stop_all_running() {
 }
 
 pub fn stop_mc(id: &str) -> AppResult<()> {
+    let dir = profile_by_id(id).ok().map(|p| folder_for(&p));
     let mut g = procs();
     if let Some(map) = g.as_mut() {
         if let Some(sp) = map.get_mut(id) {
@@ -1344,6 +1394,10 @@ pub fn stop_mc(id: &str) -> AppResult<()> {
                 let _ = mc.child.kill();
             }
         }
+    }
+    drop(g);
+    if let Some(dir) = dir {
+        let _ = kill_orphan_java_for_dir(&dir);
     }
     Ok(())
 }
