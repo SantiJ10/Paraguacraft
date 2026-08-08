@@ -16,11 +16,13 @@ function applyLanguage(lang: string) {
   setLocale((lang as Locale) || "es");
 }
 
-onMounted(async () => {
-  await settings.load();
-  applyAccentTheme(settings.settings?.accent ?? "green");
-  applyTheme(settings.settings?.theme ?? "dark");
-  applyLanguage(settings.settings?.language ?? "es");
+onMounted(() => {
+  // Tema lo antes posible sin bloquear el mount del shell.
+  void settings.load().then(() => {
+    applyAccentTheme(settings.settings?.accent ?? "green");
+    applyTheme(settings.settings?.theme ?? "dark");
+    applyLanguage(settings.settings?.language ?? "es");
+  });
 });
 
 watch(

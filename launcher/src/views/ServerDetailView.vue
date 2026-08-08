@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+defineOptions({ name: "server-detail" });
+import { computed, onActivated, onDeactivated, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useServersStore } from "@/stores/servers";
 import { useFavoritesStore } from "@/stores/favorites";
@@ -159,19 +160,24 @@ async function loadTabData() {
   }
 }
 
-async function loadAll() {
-  loading.value = true;
+/** Carga completa (primera vez / cambio de id). */
+async function loadAll(opts?: { soft?: boolean }) {
+  const soft = opts?.soft === true;
+  if (!soft) loading.value = true;
   error.value = null;
   try {
-    await serversStore.load(true);
+    await serversStore.load(!soft && !serversStore.loaded);
     if (!server.value) {
       error.value = "Servidor no encontrado.";
       return;
     }
+    serversStore.setLastActive(serverId.value);
     playitAddr.value = server.value.playitAddress ?? "";
     await refreshStatus();
-    await refreshLog();
-    await loadTabData();
+    if (tab.value === "console" || !soft) {
+      await refreshLog();
+    }
+    if (!soft) await loadTabData();
   } catch (e) {
     error.value = String(e);
   } finally {
@@ -258,11 +264,28 @@ onMounted(() => {
   startPolling();
 });
 
+// KeepAlive: al volver de Inicio/Ajustes el poller y la consola siguen vivos.
+onActivated(() => {
+  if (serverId.value) {
+    serversStore.setLastActive(serverId.value);
+    startPolling();
+    void loadAll({ soft: true });
+  }
+});
+
+onDeactivated(() => {
+  stopPolling();
+});
+
 onUnmounted(stopPolling);
 
-watch(serverId, () => {
+watch(serverId, (id, prev) => {
+  if (!id || id === prev) return;
   tab.value = "console";
+  logLines.value = [];
+  status.value = null;
   void loadAll();
+  startPolling();
 });
 
 watch(tab, () => {
@@ -615,8 +638,12 @@ function serverTypeLabel(t: string) {
 
 <template>
   <div class="mx-auto max-w-5xl p-8">
-    <button class="mb-4 text-sm text-gray-500 transition hover:text-white" @click="router.push({ name: 'servers' })">
-      ← Servidores
+    <button
+      class="mb-4 text-sm text-gray-500 transition hover:text-white"
+      type="button"
+      @click="router.push({ name: 'servers' })"
+    >
+      ← Todos los servidores
     </button>
 
     <div v-if="loading" class="py-20 text-center text-gray-500">Cargando servidor…</div>
