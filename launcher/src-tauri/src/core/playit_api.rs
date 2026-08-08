@@ -24,38 +24,55 @@ pub struct EnsuredTunnels {
 
 fn post_json_auth(secret: Option<&str>, path: &str, body: Value) -> AppResult<Value> {
     let url = format!("{API_URL}{path}");
-    let resp = tauri::async_runtime::block_on(async {
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(25))
-            .build()
-            .map_err(|e| AppError::msg(e.to_string()))?;
-        let mut req = client
-            .post(&url)
-            .header("Content-Type", "application/json")
-            .header("Accept", "application/json")
-            .json(&body);
-        if let Some(s) = secret.map(str::trim).filter(|s| s.len() >= 32) {
-            req = req.header("Authorization", format!("agent-key {s}"));
-        }
-        let res = req
-            .send()
-            .await
-            .map_err(|e| AppError::msg(format!("playit API red: {e}")))?;
-        let status = res.status();
-        let text = res
-            .text()
-            .await
-            .map_err(|e| AppError::msg(format!("playit API body: {e}")))?;
-        if !status.is_success() {
-            return Err(AppError::msg(format!(
-                "playit API {path} → HTTP {status}: {}",
-                text.chars().take(240).collect::<String>()
-            )));
-        }
-        serde_json::from_str::<Value>(&text)
-            .map_err(|e| AppError::msg(format!("playit API JSON inválido: {e}")))
-    })?;
-    Ok(resp)
+    let path_label = path.to_string();
+    let secret = secret.map(|s| s.to_string());
+    // `start_server` es async y corre en el runtime de Tauri/Tokio.
+    // `block_on` *dentro* de ese runtime panic + `panic=abort` → crash nativo 0xc0000409.
+    // Siempre corremos el HTTP en un hilo OS dedicado.
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::Builder::new()
+        .name("playit-api".into())
+        .spawn(move || {
+            let result = tauri::async_runtime::block_on(async move {
+                let client = reqwest::Client::builder()
+                    .timeout(std::time::Duration::from_secs(25))
+                    .build()
+                    .map_err(|e| AppError::msg(e.to_string()))?;
+                let mut req = client
+                    .post(&url)
+                    .header("Content-Type", "application/json")
+                    .header("Accept", "application/json")
+                    .json(&body);
+                if let Some(s) = secret
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|s| s.len() >= 32)
+                {
+                    req = req.header("Authorization", format!("agent-key {s}"));
+                }
+                let res = req
+                    .send()
+                    .await
+                    .map_err(|e| AppError::msg(format!("playit API red: {e}")))?;
+                let status = res.status();
+                let text = res
+                    .text()
+                    .await
+                    .map_err(|e| AppError::msg(format!("playit API body: {e}")))?;
+                if !status.is_success() {
+                    return Err(AppError::msg(format!(
+                        "playit API {path_label} → HTTP {status}: {}",
+                        text.chars().take(240).collect::<String>()
+                    )));
+                }
+                serde_json::from_str::<Value>(&text)
+                    .map_err(|e| AppError::msg(format!("playit API JSON inválido: {e}")))
+            });
+            let _ = tx.send(result);
+        })
+        .map_err(|e| AppError::msg(format!("playit API: no se pudo crear hilo: {e}")))?;
+    rx.recv()
+        .map_err(|_| AppError::msg("playit API: el hilo terminó sin respuesta"))?
 }
 
 fn post_json(secret: &str, path: &str, body: Value) -> AppResult<Value> {
@@ -99,7 +116,7 @@ pub fn claim_poll(code: &str) -> AppResult<Option<String>> {
     let body = json!({
         "code": code,
         "agent_type": "self-managed",
-        "version": "paraguacraft-1.1.19"
+        "version": "paraguacraft-1.1.20"
     });
     let resp = post_json_auth(None, "/claim/setup", body)?;
     let status = resp.get("status").and_then(|s| s.as_str()).unwrap_or("");

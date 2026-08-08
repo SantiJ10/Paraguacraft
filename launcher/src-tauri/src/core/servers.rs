@@ -537,7 +537,9 @@ pub fn start_mc(id: &str) -> AppResult<u32> {
         &format!("[launcher] PID {pid} — consola integrada (copiá desde la pestaña Consola)"),
     );
 
-    // Geyser: túneles duales + agente desktop (UDP). Sin Geyser el plugin Paper basta.
+    // Geyser: encolar create/list de túneles (hilo). El agente desktop lo arranca
+    // `start_server` (comando async) — acá no llamamos start_playit para no
+    // validar secret/API dos veces al mismo boot.
     let is_geyser = prof.server_type.contains("geyser");
     if is_geyser {
         if playit_plugin_present(id) {
@@ -545,20 +547,9 @@ pub fn start_mc(id: &str) -> AppResult<u32> {
                 id,
                 "[playit] ⚠ Detecté el plugin playit en plugins/. Solo hace Java TCP; Bedrock necesita el agente. Quitá el jar playit de plugins/ y reiniciá, o usá un server solo Paper sin Geyser.",
             );
+        } else {
+            spawn_ensure_playit_tunnels(id.to_string(), true);
         }
-        spawn_ensure_playit_tunnels(id.to_string(), true);
-        // Lanzar playit.exe si no hay plugin (o aunque haya, solo si no present — evitamos doble agente).
-        if !playit_plugin_present(id) {
-            match start_playit(id) {
-                Ok(msg) => crate::core::server_console::append(id, &format!("[playit] {msg}")),
-                Err(e) => crate::core::server_console::append(
-                    id,
-                    &format!("[playit] ⚠ No pude iniciar el agente: {e}"),
-                ),
-            }
-        }
-    } else if crate::core::playit_shared::has_agent_secret() {
-        // Paper sin Geyser: el plugin crea Java; opcional refresco si hay secret.
     }
 
     Ok(pid)

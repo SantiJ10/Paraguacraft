@@ -75,22 +75,27 @@ pub async fn start_server(
     let _ = crate::core::java::resolve::ensure_server_java(&app, &state, &prof.mc_version).await?;
     let pid = servers::start_mc(&id)?;
     // Preferir plugin nativo en plugins/ (túnel al arrancar Paper) sobre el agente desktop.
+    // Geyser / sin plugin: agente en spawn_blocking (valida secret vía API sin tocar el runtime async).
     if servers::playit_plugin_present(&id) {
         crate::core::server_console::append(
             &id,
             "[playit] Plugin detectado en plugins/: el túnel se vincula al arrancar el servidor. Revisá la consola MC para el enlace de claim (playit.gg).",
         );
     } else if servers::playit_available(&id) {
-        if let Err(e) = servers::start_playit(&id) {
-            crate::core::server_console::append(
-                &id,
-                &format!("[playit] No se pudo auto-iniciar el túnel: {e}"),
-            );
-        } else {
-            crate::core::server_console::append(
+        let id_playit = id.clone();
+        let start_result =
+            tokio::task::spawn_blocking(move || servers::start_playit(&id_playit))
+                .await
+                .map_err(|e| AppError::msg(format!("playit task: {e}")))?;
+        match start_result {
+            Ok(_) => crate::core::server_console::append(
                 &id,
                 "[playit] Túnel playit.gg (agente) iniciado automáticamente.",
-            );
+            ),
+            Err(e) => crate::core::server_console::append(
+                &id,
+                &format!("[playit] No se pudo auto-iniciar el túnel: {e}"),
+            ),
         }
     }
     Ok(pid)
