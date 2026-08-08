@@ -116,7 +116,7 @@ pub fn claim_poll(code: &str) -> AppResult<Option<String>> {
     let body = json!({
         "code": code,
         "agent_type": "self-managed",
-        "version": "paraguacraft-1.1.20"
+        "version": "paraguacraft-1.1.21"
     });
     let resp = post_json_auth(None, "/claim/setup", body)?;
     let status = resp.get("status").and_then(|s| s.as_str()).unwrap_or("");

@@ -30,21 +30,26 @@ const downloads = useDownloadsStore();
 const music = useMusicStore();
 const skins = useSkinsStore();
 
+function keepAliveKey(route: { name?: string | symbol | null; fullPath: string }) {
+  const name = typeof route.name === "string" ? route.name : "";
+  if (KEEP_ALIVE_VIEWS.includes(name)) return name;
+  // Detalle con :id → otra instancia = otra key
+  return route.fullPath;
+}
+
 onMounted(() => {
   app.initGameEvents();
   downloads.initEvents();
 
-  void Promise.all([
-    settings.load(),
-    accounts.load(),
-    instances.load(),
-    app.loadHardware(),
-    skins.refresh(),
-  ]).then(() => {
+  // Prioridad: settings + cuentas (UI usable). Hardware/skins después (PowerShell puede tardar).
+  void Promise.all([settings.load(), accounts.load(), instances.load()]).then(() => {
     void app.checkUpdate();
     void music.init();
   });
-
+  window.setTimeout(() => {
+    void app.loadHardware();
+    void skins.refresh();
+  }, 80);
   window.setTimeout(() => {
     void instances.scan();
   }, 3000);
@@ -59,11 +64,17 @@ onMounted(() => {
       <TopBar />
       <main class="flex-1 overflow-y-auto">
         <RouterView v-slot="{ Component, route }">
-          <Transition name="fade" mode="out-in">
-            <KeepAlive :include="KEEP_ALIVE_VIEWS" :max="7">
-              <component :is="Component" :key="route.fullPath" />
-            </KeepAlive>
-          </Transition>
+          <!--
+            KeepAlive solo con route.name: :key="fullPath" destruía el cache al cambiar de vista
+            (Ajustes / Inicio se recreaban cada vez → freeze "No responde" con IPC pesado).
+            Detalle instancia/server usan fullPath para no mezclar ids.
+          -->
+          <KeepAlive :include="KEEP_ALIVE_VIEWS" :max="8">
+            <component
+              :is="Component"
+              :key="keepAliveKey(route)"
+            />
+          </KeepAlive>
         </RouterView>
       </main>
       <StatusBar />
@@ -74,13 +85,3 @@ onMounted(() => {
   </div>
 </template>
 
-<style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.15s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-</style>

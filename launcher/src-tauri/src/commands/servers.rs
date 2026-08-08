@@ -67,15 +67,20 @@ pub async fn start_server(
         let (http, _net) = state.net_scope();
         if servers::needs_prepare(&dir, &prof.server_type) {
             servers::ensure_server_jar(&app, &http, &id).await?;
+        } else {
+            // No bloquear el arranque: deps ausentes se rellenan en paralelo.
+            let app2 = app.clone();
+            let http2 = http.clone();
+            let id2 = id.clone();
+            tauri::async_runtime::spawn(async move {
+                let _ = servers::soft_ensure_deps(&app2, &http2, &id2).await;
+            });
         }
-        // Importados / ya listos: rellenar only deps ausentes (Playit plugin, etc.)
-        // sin tocar server.properties ni configs de plugins.
-        let _ = servers::soft_ensure_deps(&app, &http, &id).await;
     }
     let _ = crate::core::java::resolve::ensure_server_java(&app, &state, &prof.mc_version).await?;
     let pid = servers::start_mc(&id)?;
     // Preferir plugin nativo en plugins/ (túnel al arrancar Paper) sobre el agente desktop.
-    // Geyser / sin plugin: agente en spawn_blocking (valida secret vía API sin tocar el runtime async).
+    // Playit no se espera: validar secret / claim puede tardar segundos y congelaba la UI.
     if servers::playit_plugin_present(&id) {
         crate::core::server_console::append(
             &id,
@@ -83,20 +88,19 @@ pub async fn start_server(
         );
     } else if servers::playit_available(&id) {
         let id_playit = id.clone();
-        let start_result =
-            tokio::task::spawn_blocking(move || servers::start_playit(&id_playit))
-                .await
-                .map_err(|e| AppError::msg(format!("playit task: {e}")))?;
-        match start_result {
-            Ok(_) => crate::core::server_console::append(
-                &id,
-                "[playit] Túnel playit.gg (agente) iniciado automáticamente.",
-            ),
-            Err(e) => crate::core::server_console::append(
-                &id,
-                &format!("[playit] No se pudo auto-iniciar el túnel: {e}"),
-            ),
-        }
+        std::thread::Builder::new()
+            .name("playit-autostart".into())
+            .spawn(move || match servers::start_playit(&id_playit) {
+                Ok(_) => crate::core::server_console::append(
+                    &id_playit,
+                    "[playit] Túnel playit.gg (agente) iniciado automáticamente.",
+                ),
+                Err(e) => crate::core::server_console::append(
+                    &id_playit,
+                    &format!("[playit] No se pudo auto-iniciar el túnel: {e}"),
+                ),
+            })
+            .ok();
     }
     Ok(pid)
 }
