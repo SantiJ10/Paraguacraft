@@ -286,6 +286,8 @@ export interface ServerProfile {
   port: number;
   createdAt: number;
   playitAddress: string | null;
+  /** Túnel Bedrock (host o host:puerto público Playit). */
+  playitBedrockAddress?: string | null;
   customFolder?: string | null;
 }
 
@@ -294,11 +296,13 @@ export interface ServerStatus {
   running: boolean;
   playitRunning: boolean;
   playitAddress: string | null;
+  playitBedrockAddress?: string | null;
   pid: number | null;
   playitClaimed: boolean;
   playitClaimHint: string | null;
   /** Plugin playit-gg en plugins/ (túnel Paper nativo). */
   playitPluginMode?: boolean;
+  wantsBedrock?: boolean;
 }
 
 export interface ServerContentItem {

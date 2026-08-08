@@ -478,7 +478,22 @@ async function savePlayitAddr() {
 const isGeyser = computed(() => server.value?.serverType.includes("geyser") ?? false);
 const effectiveAddress = computed(() => status.value?.playitAddress ?? playitAddr.value);
 const addressHost = computed(() => effectiveAddress.value.split(":")[0] ?? "");
-const bedrockAddress = computed(() => (addressHost.value ? `${addressHost.value}:19132` : ""));
+/** Dirección Bedrock real (puede traer puerto público distinto de 19132). */
+const bedrockAddress = computed(() => {
+  const fromApi = status.value?.playitBedrockAddress?.trim();
+  if (fromApi) return fromApi;
+  // Fallback legacy: host Java:19132 (solo si hay túnel UDP propio con mismo host — poco frecuente)
+  return addressHost.value ? `${addressHost.value}:19132` : "";
+});
+const bedrockHostPort = computed(() => {
+  const a = bedrockAddress.value;
+  if (!a) return { host: "", port: "19132" };
+  const idx = a.lastIndexOf(":");
+  if (idx > 0 && a.slice(idx + 1).split("").every((c) => c >= "0" && c <= "9")) {
+    return { host: a.slice(0, idx), port: a.slice(idx + 1) };
+  }
+  return { host: a, port: "19132" };
+});
 
 const claimLink = computed(() => {
   const hint = status.value?.playitClaimHint ?? "";
@@ -488,11 +503,22 @@ const claimLink = computed(() => {
 
 function bedrockInstructions(): string {
   const name = server.value?.name ?? "el servidor";
+  const { host, port } = bedrockHostPort.value;
   return [
     `¡Unite a ${name}!`,
     `- Java (PC): agregá el servidor con la IP ${effectiveAddress.value}`,
-    `- Bedrock (consola/móvil/Win10): agregá un servidor nuevo con IP ${addressHost.value} y puerto 19132`,
+    `- Bedrock: Dirección ${host} · Puerto ${port}`,
   ].join("\n");
+}
+
+async function copyBedrockAddress() {
+  if (!bedrockAddress.value) return;
+  await copyText(
+    bedrockAddress.value,
+    status.value?.playitBedrockAddress
+      ? "IP Bedrock (túnel Playit) copiada."
+      : "IP copiada. Si no entra, esperá a que el launcher cree el túnel Bedrock o reiniciá el server Geyser.",
+  );
 }
 
 async function copyBedrockInstructions() {
@@ -870,7 +896,7 @@ function serverTypeLabel(t: string) {
                     v-if="isGeyser"
                     size="sm"
                     variant="ghost"
-                    @click="copyText(bedrockAddress, 'IP Bedrock copiada.')"
+                    @click="copyBedrockAddress"
                   >
                     Copiar IP Bedrock
                   </BaseButton>
@@ -882,6 +908,16 @@ function serverTypeLabel(t: string) {
                   >
                     Copiar instrucciones para amigo Bedrock
                   </BaseButton>
+                  <p v-if="isGeyser && status?.playitBedrockAddress" class="mt-1 w-full text-[11px] leading-snug text-pc-green/90">
+                    Túnel Bedrock: <code class="text-pc-green">{{ status.playitBedrockAddress }}</code>
+                    (host + puerto exactos en el cliente).
+                  </p>
+                  <p v-else-if="isGeyser" class="mt-1 w-full text-[11px] leading-snug text-amber-200/90">
+                    Al iniciar el server Geyser el launcher crea el túnel Bedrock (y el Java si faltaba) con tu secret playit.
+                    Si ya claimaste Java antes, solo agrega Bedrock. Hace falta
+                    <strong class="font-semibold">playit.exe</strong>
+                    (no el plugin Paper) para el tráfico UDP.
+                  </p>
                   <BaseButton size="sm" variant="secondary" @click="addThisServerToFavorites">
                     + Agregar a favoritos
                   </BaseButton>

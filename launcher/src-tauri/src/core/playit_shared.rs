@@ -27,6 +27,9 @@ pub struct SharedPlayit {
     /// Última IP pública capturada (p. ej. `host.tun.ply.gg`).
     #[serde(default)]
     pub address: Option<String>,
+    /// Dirección del túnel Bedrock (host o host:puerto público Playit).
+    #[serde(default)]
+    pub bedrock_address: Option<String>,
     /// El usuario ya hizo claim al menos una vez.
     #[serde(default)]
     pub claimed: bool,
@@ -90,6 +93,22 @@ pub fn set_address(address: &str) -> AppResult<()> {
     let mut m = load();
     m.address = Some(address.to_string());
     save(&m)
+}
+
+pub fn set_bedrock_address(address: &str) -> AppResult<()> {
+    let address = address.trim();
+    if address.is_empty() {
+        return Ok(());
+    }
+    let mut m = load();
+    m.bedrock_address = Some(address.to_string());
+    save(&m)
+}
+
+pub fn shared_bedrock_address() -> Option<String> {
+    load()
+        .bedrock_address
+        .filter(|s| !s.trim().is_empty())
 }
 
 pub fn mark_claimed() -> AppResult<()> {

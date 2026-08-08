@@ -93,15 +93,22 @@ pub async fn prepare(
     };
 
     ensure_playit_plugin(client, dir, &kind).await;
-    // Agente desktop solo como respaldo (Forge/NeoForge sin plugins Bukkit).
-    // Paper/Fabric: el plugin nativo gestiona el túnel al arrancar el server.
-    if !kind.starts_with("paper") {
+    // Agente desktop: Forge/NeoForge, Fabric, y **siempre Geyser** (UDP Bedrock).
+    // Paper sin Geyser: el plugin nativo gestiona Java al arrancar.
+    let need_agent = !kind.starts_with("paper") || kind.contains("geyser");
+    if need_agent {
         if let Err(e) = ensure_playit_exe(client, app, dir).await {
             crate::core::server_console::append(
                 sid,
                 &format!("[launcher] ⚠ playit agent: {e}"),
             );
         }
+    }
+    if kind.contains("geyser") {
+        crate::core::server_console::append(
+            sid,
+            "[playit] Server Geyser: el launcher puede crear túneles Java + Bedrock con tu secret playit (sin plugin Paper en este modo).",
+        );
     }
     Ok(result)
 }
@@ -116,9 +123,24 @@ const PLAYIT_PLUGIN_MIN_BYTES: u64 = 200_000;
 
 /// Descarga el plugin oficial Playit.gg en `plugins/` (Paper/Spigot).
 /// El túnel queda nativo al arrancar el servidor MC; no hace falta la app desktop.
+///
+/// Excepción Geyser: el plugin **no enruta UDP**. Usamos solo playit.exe + API
+/// (túneles minecraft-java + minecraft-bedrock).
 async fn ensure_playit_plugin(client: &reqwest::Client, dir: &Path, kind: &str) {
     // El plugin es Spigot/Paper. Fabric puro no lo carga en plugins/.
     if !kind.starts_with("paper") {
+        return;
+    }
+    // Geyser → sin plugin Paper (UDP). Quitamos jars playit residuales.
+    if kind.contains("geyser") {
+        if let Ok(rd) = std::fs::read_dir(dir.join("plugins")) {
+            for e in rd.flatten() {
+                let n = e.file_name().to_string_lossy().to_ascii_lowercase();
+                if n.ends_with(".jar") && n.contains("playit") {
+                    let _ = std::fs::remove_file(e.path());
+                }
+            }
+        }
         return;
     }
     let plugins = dir.join("plugins");
@@ -173,13 +195,18 @@ pub async fn soft_ensure_launcher_deps(
         // setup_paper_* ya saltan/ toleran fallos; no reescribe properties del user.
         let _ = setup_paper_plugins(client, app, dir, sid, &prof.mc_version, with_geyser).await;
         ensure_playit_plugin(client, dir, &kind).await;
+        if with_geyser {
+            if let Err(e) = ensure_playit_exe(client, app, dir).await {
+                crate::core::server_console::append(sid, &format!("[launcher] ⚠ playit agent: {e}"));
+            }
+        }
     } else if kind.starts_with("fabric") {
         let with_geyser = kind.contains("geyser");
         let _ = setup_fabric_mods(client, app, dir, sid, &prof.mc_version, with_geyser).await;
         if let Err(e) = ensure_playit_exe(client, app, dir).await {
             crate::core::server_console::append(sid, &format!("[launcher] ⚠ playit agent: {e}"));
         }
-    } else if kind == "forge" || kind == "neoforge" {
+    } else if is_forge_style(&kind) {
         if let Err(e) = ensure_playit_exe(client, app, dir).await {
             crate::core::server_console::append(sid, &format!("[launcher] ⚠ playit agent: {e}"));
         }
