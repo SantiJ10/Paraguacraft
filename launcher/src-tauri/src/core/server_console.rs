@@ -38,6 +38,9 @@ pub fn append(id: &str, line: &str) {
     while buf.len() > MAX_LINES {
         buf.pop_front();
     }
+    drop(g);
+    // Detectar claim / IP de tunnel del plugin playit-gg en la consola de Paper.
+    crate::core::servers::on_mc_console_line(id, line);
 }
 
 pub fn get_lines(id: &str, max: usize) -> Vec<String> {

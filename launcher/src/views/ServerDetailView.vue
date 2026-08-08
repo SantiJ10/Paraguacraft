@@ -428,6 +428,46 @@ async function stopPlayit() {
   await refreshStatus();
 }
 
+async function resetPlayit() {
+  busy.value = true;
+  error.value = null;
+  try {
+    const msg = await api.resetPlayit(serverId.value);
+    message.value = msg;
+    await refreshStatus();
+    await refreshLog();
+    scrollConsoleToBottom();
+  } catch (e) {
+    error.value = String(e);
+  } finally {
+    busy.value = false;
+  }
+}
+
+async function resetPlayitFull() {
+  if (
+    !confirm(
+      "Esto borra el secret compartido de TODOS los servers y hay que hacer claim de nuevo (1 sola vez). ¿Seguro?",
+    )
+  ) {
+    return;
+  }
+  busy.value = true;
+  error.value = null;
+  try {
+    const msg = await api.resetPlayitFull(serverId.value);
+    message.value = msg;
+    await refreshStatus();
+    await refreshLog();
+    scrollConsoleToBottom();
+    await serversStore.load(true);
+  } catch (e) {
+    error.value = String(e);
+  } finally {
+    busy.value = false;
+  }
+}
+
 async function savePlayitAddr() {
   await api.setPlayitAddress(serverId.value, playitAddr.value);
   message.value = "Dirección Playit guardada.";
@@ -708,22 +748,87 @@ function serverTypeLabel(t: string) {
         </div>
 
         <div class="flex flex-wrap gap-2">
-          <BaseButton size="sm" variant="secondary" :disabled="!isTauri()" @click="startPlayit">Playit.gg</BaseButton>
-          <BaseButton size="sm" variant="ghost" :disabled="!status?.playitRunning" @click="stopPlayit">Detener Playit</BaseButton>
+          <BaseButton
+            size="sm"
+            variant="secondary"
+            :disabled="!isTauri() || !!status?.playitPluginMode"
+            :title="status?.playitPluginMode ? 'Con el plugin de Paper el túnel arranca solo con el servidor' : undefined"
+            @click="startPlayit"
+          >
+            Playit.gg
+          </BaseButton>
+          <BaseButton size="sm" variant="ghost" :disabled="!status?.playitRunning" @click="stopPlayit">
+            Detener Playit
+          </BaseButton>
+          <BaseButton size="sm" variant="ghost" :disabled="!isTauri()" @click="resetPlayit">
+            Restaurar secret compartido
+          </BaseButton>
+          <BaseButton size="sm" variant="ghost" :disabled="!isTauri()" @click="resetPlayitFull">
+            Reseteo total Playit
+          </BaseButton>
         </div>
 
         <!-- Asistente Playit primera vez -->
         <div class="rounded-xl border border-surface-4 bg-surface-2 p-4">
           <h3 class="mb-3 text-sm font-bold">Asistente Playit — jugar con amigos</h3>
+          <p class="mb-3 text-xs text-gray-400">
+            Un claim sirve para <strong class="text-gray-300">todos tus servers</strong> del launcher (misma
+            IP). Solo un server a la vez. Mundos distintos pueden ser carpetas distintas o el mismo Paper.
+          </p>
+          <p v-if="status?.playitPluginMode" class="mb-3 text-xs text-amber-200/90">
+            Modo plugin (Paper): iniciá el servidor. Si es la primera vez, abrí
+            <code class="text-pc-green">playit.gg/claim/…</code> de la consola. La IP
+            <code class="text-pc-green">*.tun.ply.gg</code> se guarda y se reutiliza. Si el cupo free está
+            lleno, borrá agentes en
+            <a
+              href="https://playit.gg/account/agents"
+              target="_blank"
+              rel="noopener"
+              class="text-pc-green underline"
+              >playit.gg/account/agents</a
+            >
+            y usá «Reseteo total Playit».
+          </p>
           <ol class="space-y-3 text-sm">
             <li class="flex items-start gap-2">
-              <span :class="status?.playitRunning ? 'text-pc-green' : 'text-gray-500'">
-                {{ status?.playitRunning ? "✅" : "①" }}
+              <span
+                :class="
+                  status?.playitPluginMode
+                    ? status?.running
+                      ? 'text-pc-green'
+                      : 'text-gray-500'
+                    : status?.playitRunning
+                      ? 'text-pc-green'
+                      : 'text-gray-500'
+                "
+              >
+                {{
+                  status?.playitPluginMode
+                    ? status?.running
+                      ? "✅"
+                      : "①"
+                    : status?.playitRunning
+                      ? "✅"
+                      : "①"
+                }}
               </span>
               <div>
-                <p class="font-semibold">Túnel iniciado</p>
+                <p class="font-semibold">{{ status?.playitPluginMode ? "Servidor (plugin) activo" : "Túnel iniciado" }}</p>
                 <p class="text-xs text-gray-500">
-                  {{ status?.playitRunning ? "El agente playit.exe está corriendo." : "Apretá «Playit.gg» arriba para iniciarlo." }}
+                  <template v-if="status?.playitPluginMode">
+                    {{
+                      status?.running
+                        ? "Paper + playit-gg corriendo; el claim sale en la consola."
+                        : "Apretá Iniciar servidor — no hace falta el botón «Playit.gg»."
+                    }}
+                  </template>
+                  <template v-else>
+                    {{
+                      status?.playitRunning
+                        ? "El agente playit.exe está corriendo."
+                        : "Apretá «Playit.gg» arriba para iniciarlo."
+                    }}
+                  </template>
                 </p>
               </div>
             </li>

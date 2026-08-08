@@ -1,12 +1,12 @@
 {
-  "version": "1.1.16",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.16/Instalar_Paraguacraft_v1.1.16.exe",
-  "size_bytes": 5628320,
-  "sha256": "73dc09c49d11ce59b0dc18249462d087779a5670cdec9608fcba9294bbc78d02",
-  "notes": "- Cafecito en la barra del launcher (navegador del sistema)\n- Otras versiones + logo BrandPack 1.20.x corregido (1024×256)\n- Clientes PvP 2.1.45 / Modern 0.9.22 (recursos BW con nombres)\n- Update automático de clientes al lanzar",
+  "version": "1.1.17",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.17/Instalar_Paraguacraft_v1.1.17.exe",
+  "size_bytes": 5636535,
+  "sha256": "74de179d384b251d5e0f410a8feccd307efb489974ef9782a1809e4edb9ce357",
+  "notes": "- Servers/Playit: secret e IP compartidos (un claim, misma IP en todos los mundos)\n- Claim e IP del plugin en la UI; sin agente desktop si hay plugin Paper\n- Un server a la vez; restaurar secret o reseteo total\n- Menos cuelgues por agents/tunnels y cupo free",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.16/Instalar_Paraguacraft_v1.1.16.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.17/Instalar_Paraguacraft_v1.1.17.exe",
       "signature": ""
     }
   }

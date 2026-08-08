@@ -205,6 +205,8 @@ pub fn run() {
             commands::servers::stop_server_force,
             commands::servers::start_playit,
             commands::servers::stop_playit,
+            commands::servers::reset_playit,
+            commands::servers::reset_playit_full,
             commands::servers::mark_playit_claimed,
             commands::servers::prepare_server_jar,
             commands::servers::server_plugin_count,

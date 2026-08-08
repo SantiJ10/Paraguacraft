@@ -44,6 +44,9 @@ pub struct ServerStatus {
     pub playit_claimed: bool,
     /// Última línea `…/claim` vista en el log de Playit (para mostrar el link).
     pub playit_claim_hint: Option<String>,
+    /// `true` si hay jar del plugin playit en `plugins/` (túnel nativo Paper).
+    #[serde(default)]
+    pub playit_plugin_mode: bool,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -164,9 +167,12 @@ pub fn create(name: &str, mc_version: &str, server_type: &str, ram_mb: u32) -> A
         ram_mb: normalize_ram_mb(ram_mb)?,
         port: 25565,
         created_at: now(),
-        playit_address: None,
+        playit_address: crate::core::playit_shared::shared_address(),
         custom_folder: None,
     };
+    // Prefill plugin secret si ya hay uno en la cuenta local del launcher.
+    let _ = crate::core::playit_shared::apply_to_server(&dir);
+    let _ = ensure_server_properties(&dir, 25565);
     let mut all = load_all();
     all.push(profile.clone());
     save_all(&all)?;
@@ -230,16 +236,42 @@ fn write_server_meta(dir: &Path, prof: &ServerProfile) -> AppResult<()> {
     config::write_json_atomic(&dir.join("_paragua_srv.json"), &meta)
 }
 
-fn ensure_server_properties(dir: &Path) -> AppResult<()> {
+fn ensure_server_properties(dir: &Path, port: u16) -> AppResult<()> {
     let path = dir.join("server.properties");
-    if path.is_file() {
+    if !path.is_file() {
+        std::fs::write(
+            path,
+            format!(
+                "online-mode=false\nserver-port={port}\nmotd=Paraguacraft Server\nmax-players=20\nview-distance=10\nsimulation-distance=8\n"
+            ),
+        )?;
         return Ok(());
     }
-    std::fs::write(
-        path,
-        "online-mode=false\nmotd=Paraguacraft Server\nmax-players=20\n",
-    )?;
+    // Unificar puerto con el perfil (el túnel Playit apunta a un solo puerto local).
+    let mut updates = std::collections::HashMap::new();
+    updates.insert("server-port".to_string(), port.to_string());
+    if crate::core::server_properties::read(dir)
+        .ok()
+        .and_then(|p| p.get("online-mode").cloned())
+        .is_none()
+    {
+        updates.insert("online-mode".to_string(), "false".to_string());
+    }
+    let _ = crate::core::server_properties::write(dir, &updates);
     Ok(())
+}
+
+/// Otro servidor MC del launcher en ejecución (id, nombre).
+fn other_running_mc(except_id: &str) -> Option<(String, String)> {
+    for p in load_all() {
+        if p.id == except_id {
+            continue;
+        }
+        if is_mc_running(&p.id) {
+            return Some((p.id.clone(), p.name.clone()));
+        }
+    }
+    None
 }
 
 fn resolve_server_java(mc: &str) -> AppResult<PathBuf> {
@@ -332,10 +364,52 @@ pub fn start_mc(id: &str) -> AppResult<u32> {
     if st.running {
         return Err(AppError::msg("El servidor ya está en ejecución"));
     }
+    // Un solo Paper/Java a la vez: el túnel Playit compartido solo enruta al puerto local
+    // del proceso activo.
+    if let Some((_oid, name)) = other_running_mc(id) {
+        return Err(AppError::msg(format!(
+            "«{name}» sigue corriendo. Con la IP Playit compartida solo puede haber un servidor a la vez — detenelo y volvé a iniciar."
+        )));
+    }
+
     let prof = profile_by_id(id)?;
     let dir = folder_for(&prof);
     ensure_eula(&dir)?;
-    ensure_server_properties(&dir)?;
+    let port = if prof.port > 0 { prof.port } else { 25565 };
+    ensure_server_properties(&dir, port)?;
+
+    // Secret/IP compartidos → misma dirección en todos los mundos / servers del launcher.
+    match crate::core::playit_shared::apply_to_server(&dir) {
+        Ok(true) => {
+            crate::core::server_console::clear(id);
+            crate::core::server_console::append(
+                id,
+                "[playit] Secret compartido aplicado (misma IP para todos tus servers). No se crea un agente nuevo.",
+            );
+            if let Some(addr) = crate::core::playit_shared::shared_address() {
+                let _ = set_playit_address(id, &addr);
+                crate::core::server_console::append(
+                    id,
+                    &format!("[playit] 💾 IP compartida: {addr}"),
+                );
+            }
+        }
+        Ok(false) => {
+            crate::core::server_console::clear(id);
+            crate::core::server_console::append(
+                id,
+                "[playit] Primera vez: claim en la consola vincula el agente; se reutilizará para todos los servers.",
+            );
+        }
+        Err(e) => {
+            crate::core::server_console::clear(id);
+            crate::core::server_console::append(
+                id,
+                &format!("[playit] ⚠ No se pudo aplicar secret compartido: {e}"),
+            );
+        }
+    }
+
     let java = resolve_server_java(&prof.mc_version)?;
     let java_home = java
         .parent()
@@ -344,7 +418,10 @@ pub fn start_mc(id: &str) -> AppResult<u32> {
     let ram = prof.ram_mb;
     let kind = crate::core::server_setup::normalize_server_type(&prof.server_type)?;
 
-    crate::core::server_console::clear(id);
+    // clear ya se hizo en apply_to_server path; si falló early puede no - safe re-append only
+    if crate::core::server_console::get_lines(id, 1).is_empty() {
+        crate::core::server_console::clear(id);
+    }
     crate::core::server_console::append(id, "[launcher] Iniciando servidor…");
 
     let run_bat = dir.join("run.bat");
@@ -517,6 +594,7 @@ pub fn status(id: &str) -> AppResult<ServerStatus> {
         }
     }
     let dir = folder_for(&prof);
+    let shared_addr = crate::core::playit_shared::shared_address();
     Ok(ServerStatus {
         id: id.to_string(),
         running,
@@ -524,10 +602,14 @@ pub fn status(id: &str) -> AppResult<ServerStatus> {
         playit_address: prof
             .playit_address
             .clone()
-            .or_else(|| playit_address_from_meta(&dir)),
+            .or_else(|| playit_address_from_meta(&dir))
+            .or(shared_addr),
         pid,
-        playit_claimed: playit_claimed_from_meta(&dir),
+        playit_claimed: playit_claimed_from_meta(&dir)
+            || crate::core::playit_shared::load().claimed
+            || crate::core::playit_shared::has_agent_secret(),
         playit_claim_hint: playit_claim_hint_from_meta(&dir),
+        playit_plugin_mode: playit_plugin_present(id),
     })
 }
 
@@ -585,22 +667,35 @@ fn set_playit_address(id: &str, address: &str) -> AppResult<()> {
     let dir = folder_for_id(id)?;
     let meta_path = dir.join("_paragua_srv.json");
     let mut meta: serde_json::Value = config::read_json(&meta_path).unwrap_or(serde_json::json!({}));
-    if meta.get("java_address").and_then(|x| x.as_str()) == Some(address) {
-        return Ok(());
-    }
+    let same_local = meta.get("java_address").and_then(|x| x.as_str()) == Some(address);
+
     if let Some(obj) = meta.as_object_mut() {
         obj.insert(
             "java_address".into(),
             serde_json::Value::String(address.to_string()),
         );
+        // Si el secret del plugin ya existía / se acaba de claimar, cosechar al store global.
+        if let Some(s) = crate::core::playit_shared::read_plugin_secret_from_server(&dir) {
+            let _ = crate::core::playit_shared::set_agent_secret(&s, Some(address));
+            obj.insert("playit_claimed".into(), serde_json::Value::Bool(true));
+        }
     }
     config::write_json_atomic(&meta_path, &meta)?;
 
+    // Store + perfil de TODOS los servers → misma IP en la lista del launcher.
+    let _ = crate::core::playit_shared::set_address(address);
+    let _ = crate::core::playit_shared::harvest_from_server(&dir);
+    let _ = crate::core::playit_shared::harvest_agent_toml_from_server(&dir);
+
     let mut all = load_all();
-    if let Some(p) = all.iter_mut().find(|s| s.id == id) {
+    for p in all.iter_mut() {
         p.playit_address = Some(address.to_string());
     }
-    save_all(&all)
+    save_all(&all)?;
+    if !same_local {
+        // ya
+    }
+    Ok(())
 }
 
 fn parse_playit_address(line: &str) -> Option<String> {
@@ -668,21 +763,40 @@ fn process_playit_log_chunk(id: &str, chunk: &str, seen: &mut HashSet<String>) {
             if let Some(addr) = parse_playit_address(&line) {
                 let _ = set_playit_address(id, &addr);
             }
-            if line.contains("InvalidAgentKey") || line.contains("no longer valid") {
+            if line.contains("InvalidAgentKey")
+                || line.contains("no longer valid")
+                || line.contains("agent key is not valid")
+            {
                 crate::core::server_console::append(
                     id,
-                    "[playit] ⚠ Clave de agente inválida o expirada. Borrá playit-agent.toml en la carpeta del servidor y reiniciá Playit para generar un enlace claim nuevo.",
+                    "[playit] ⚠ Clave de agente inválida o expirada. Usá «Resetear Playit» o borra playit-agent.toml y vuelve a claim.",
                 );
-                if let Ok(dir) = folder_for_id(id) {
-                    let secret = playit_secret_path(&dir);
-                    if secret.is_file() {
-                        let _ = std::fs::remove_file(&secret);
-                        crate::core::server_console::append(
-                            id,
-                            "[playit] Se eliminó playit-agent.toml — al reiniciar Playit aparecerá un enlace claim nuevo.",
-                        );
-                    }
-                }
+                let _ = wipe_playit_local_secrets(id);
+            }
+            if line.contains("frontend secret provisioning")
+                || line.contains("Waiting for frontend secret")
+            {
+                crate::core::server_console::append(
+                    id,
+                    "[playit] ⚠ El agente desktop se quedó esperando un secret por IPC (modo incorrecto). Deteniendo y limpiando secret local…",
+                );
+                let _ = stop_playit_only(id);
+                let _ = wipe_playit_local_secrets(id);
+                crate::core::server_console::append(
+                    id,
+                    "[playit] Con Paper usá el **plugin** (arranque del servidor → claim en consola). No mezcles playit.exe si ya está el jar en plugins/.",
+                );
+            }
+            if line.contains("max agents")
+                || line.contains("too many agents")
+                || line.contains("agent limit")
+                || line.contains("Maximum number of agents")
+                || line.contains("upgrade your account")
+            {
+                crate::core::server_console::append(
+                    id,
+                    "[playit] ⚠ Límite de agentes/túneles en playit.gg. Entrá a https://playit.gg/account/agents y borrá agentes viejos; luego «Resetear Playit» y reiniciá el servidor.",
+                );
             }
             if line.contains("playit.gg/claim") {
                 crate::core::server_console::append(
@@ -695,6 +809,176 @@ fn process_playit_log_chunk(id: &str, chunk: &str, seen: &mut HashSet<String>) {
             }
         }
     }
+}
+
+/// Escanea líneas de la consola Paper (plugin playit-gg) para IP y claim.
+/// No re-procesa nuestras propias líneas `[playit]` / `[launcher]`.
+pub fn on_mc_console_line(id: &str, line: &str) {
+    let line = strip_ansi(line);
+    let t = line.trim();
+    if t.is_empty() {
+        return;
+    }
+    if t.starts_with("[playit]") || t.starts_with("[launcher]") {
+        return;
+    }
+    // claim del plugin, ej: please visit: https://playit.gg/claim/xxxx
+    if t.contains("playit.gg/claim") {
+        if let Ok(dir) = folder_for_id(id) {
+            save_playit_claim_hint(&dir, t);
+        }
+        // no append extra: la línea del MC ya está en consola
+    }
+    // IP: "playit.gg: katherine-momentum.tun.ply.gg" o "found minecraft java tunnel: …"
+    if let Some(addr) = parse_playit_address(t) {
+        if let Ok(dir) = folder_for_id(id) {
+            let prev = playit_address_from_meta(&dir);
+            if prev.as_deref() != Some(addr.as_str()) {
+                // set_playit_address + aviso una sola vez
+                if set_playit_address(id, &addr).is_ok() {
+                    crate::core::server_console::append(
+                        id,
+                        &format!("[playit] ✅ Dirección del túnel: {addr}"),
+                    );
+                }
+            } else {
+                let _ = set_playit_address(id, &addr);
+            }
+        }
+    }
+    if t.contains("failed to send data to tunnel") {
+        crate::core::server_console::append(
+            id,
+            "[playit] ⚠ Se cortó el túnel de un jugador (red/playit inestable). El servidor puede seguir; el amigo puede reconectar.",
+        );
+    }
+    if t.contains("secret key not set") || t.contains("generate claim code") {
+        // Si ya tenemos secret compartido, reintentar escribirlo (plugin puede haber reiniciado vacío)
+        if let Ok(dir) = folder_for_id(id) {
+            if crate::core::playit_shared::has_agent_secret() {
+                let _ = crate::core::playit_shared::apply_to_server(&dir);
+                crate::core::server_console::append(
+                    id,
+                    "[playit] ⚠ El plugin no vio el secret. Reaplicé el compartido — reiniciá el servidor una vez.",
+                );
+            } else {
+                crate::core::server_console::append(
+                    id,
+                    "[playit] Generando enlace claim del plugin — abrí el link playit.gg/claim en la consola y vinculá tu cuenta (se reutiliza en todos los servers).",
+                );
+            }
+        }
+    }
+    if t.contains("secret verified")
+        || t.contains("keys setup complete")
+        || t.contains("tunnel setup")
+        || t.contains("found minecraft java tunnel")
+    {
+        if let Ok(dir) = folder_for_id(id) {
+            let had = crate::core::playit_shared::has_agent_secret();
+            if let Some(_) = crate::core::playit_shared::harvest_from_server(&dir) {
+                if !had {
+                    crate::core::server_console::append(
+                        id,
+                        "[playit] ✅ Secret guardado de forma compartida: el próximo server usará la misma IP.",
+                    );
+                }
+            }
+        }
+    }
+}
+
+/// Borra secrets locales (agente desktop + config del plugin) sin borrar el jar.
+fn wipe_playit_local_secrets(id: &str) -> AppResult<()> {
+    let dir = folder_for_id(id)?;
+    let secret = playit_secret_path(&dir);
+    if secret.is_file() {
+        let _ = std::fs::remove_file(&secret);
+    }
+    // Datos típicos del plugin playit-gg
+    for sub in [
+        "plugins/playit-gg",
+        "plugins/Playit",
+        "plugins/playit",
+    ] {
+        let p = dir.join(sub);
+        if p.is_dir() {
+            for name in ["config.yml", "config.yaml", "secret.key", "secret", "playit.toml"] {
+                let f = p.join(name);
+                if f.is_file() {
+                    let _ = std::fs::remove_file(f);
+                }
+            }
+            let _ = std::fs::remove_file(p.join("secret.key"));
+        }
+    }
+    let meta = dir.join("_paragua_srv.json");
+    if let Some(mut v) = config::read_json::<serde_json::Value>(&meta) {
+        if let Some(obj) = v.as_object_mut() {
+            obj.remove("playit_claim_hint");
+            obj.insert("playit_claimed".into(), serde_json::Value::Bool(false));
+            let _ = config::write_json_atomic(&meta, &v);
+        }
+    }
+    Ok(())
+}
+
+/// Reset Playit.
+/// - `wipe_shared = false` (default): limpia esta carpeta y **reaplica** el secret global (misma IP).
+/// - `wipe_shared = true`: también borra el store global → claim nuevo para todos.
+pub fn reset_playit(id: &str) -> AppResult<String> {
+    reset_playit_ex(id, false)
+}
+
+pub fn reset_playit_ex(id: &str, wipe_shared: bool) -> AppResult<String> {
+    stop_playit_only(id)?;
+    wipe_playit_local_secrets(id)?;
+    if wipe_shared {
+        let _ = crate::core::playit_shared::wipe_shared();
+        // Limpia IP cacheada en perfiles
+        let mut all = load_all();
+        for p in all.iter_mut() {
+            p.playit_address = None;
+        }
+        let _ = save_all(&all);
+        crate::core::server_console::append(
+            id,
+            "[playit] Secrets locales + compartidos borrados. En playit.gg/account/agents borrá agentes huérfanos si el cupo free está lleno.",
+        );
+        crate::core::server_console::append(
+            id,
+            "[playit] Reiniciá el servidor para un claim NUEVO (una sola vez sirve para todos los mundos).",
+        );
+        return Ok(
+            "Playit reseteado por completo. Borrá agentes viejos en playit.gg si hacía falta y reiniciá el servidor."
+                .into(),
+        );
+    }
+    // Restaurar secret compartido en esta carpeta
+    if let Ok(dir) = folder_for_id(id) {
+        let applied = crate::core::playit_shared::apply_to_server(&dir).unwrap_or(false);
+        if applied {
+            if let Some(addr) = crate::core::playit_shared::shared_address() {
+                let _ = set_playit_address(id, &addr);
+            }
+            crate::core::server_console::append(
+                id,
+                "[playit] Carpeta limpia y secret COMPARTIDO restaurado (misma IP). Reiniciá el server.",
+            );
+            return Ok(
+                "Playit de este server restaurado con el secret compartido (misma IP). Reiniciá el servidor."
+                    .into(),
+            );
+        }
+    }
+    crate::core::server_console::append(
+        id,
+        "[playit] No había secret compartido. Reiniciá el servidor y hacé el claim una vez.",
+    );
+    Ok(
+        "Secrets locales borrados. Si no tenés secret compartido, claim una vez al reiniciar; si falla por cupo, usá reseteo total."
+            .into(),
+    )
 }
 
 fn playit_process_running(id: &str) -> bool {
@@ -866,6 +1150,18 @@ pub fn stop_playit(id: &str) -> AppResult<()> {
 
 /// Inicia playit.gg sin ventana CMD (Windows: CREATE_NO_WINDOW).
 pub fn start_playit(id: &str) -> AppResult<String> {
+    // Con el plugin de Paper el túnel ya corre dentro de Java: NO hay que lanzar playit.exe
+    // (si se lanzan los dos, el daemon se cuelga en "Waiting for frontend secret provisioning").
+    if playit_plugin_present(id) {
+        crate::core::server_console::append(
+            id,
+            "[playit] Plugin en plugins/: el túnel arranca con el servidor Paper. Revisá la consola por playit.gg/claim y la IP *.tun.ply.gg. No uses el agente desktop en este modo.",
+        );
+        return Err(AppError::msg(
+            "Este servidor usa el plugin playit-gg. Iniciá el servidor y mirá la consola (claim + IP). Si falló el cupo de agentes, usá «Resetear Playit» y borrá agentes en playit.gg.",
+        ));
+    }
+
     let prof = profile_by_id(id)?;
     let dir = folder_for(&prof);
     let playit = find_playit_exe(&dir);
@@ -873,6 +1169,8 @@ pub fn start_playit(id: &str) -> AppResult<String> {
         AppError::msg("playit.exe no encontrado. Usa «Preparar servidor» para descargarlo.")
     })?;
     stop_playit_only(id)?;
+    // Secret/agent.toml compartidos (evita claim nuevo por server).
+    let _ = crate::core::playit_shared::apply_to_server(&dir);
     crate::core::server_console::append(id, "[playit] Iniciando túnel playit.gg…");
 
     let saved_addr = prof
