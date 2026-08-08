@@ -67,6 +67,14 @@ async function play(inst: { id: string; name: string }) {
 
 <template>
   <div class="flex min-h-full flex-col">
+    <div v-if="!instances.loaded" class="space-y-4 p-8" aria-busy="true">
+      <div class="h-48 animate-pulse rounded-2xl bg-surface-3" />
+      <div class="h-24 animate-pulse rounded-xl bg-surface-3" />
+      <div class="grid gap-3 sm:grid-cols-3">
+        <div v-for="n in 3" :key="n" class="h-28 animate-pulse rounded-xl bg-surface-3" />
+      </div>
+    </div>
+    <template v-else>
     <section v-if="featured" class="relative shrink-0 overflow-hidden">
       <div class="relative flex min-h-[380px] flex-col justify-end px-8 pb-10 pt-16">
         <div class="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
@@ -75,6 +83,8 @@ async function play(inst: { id: string; name: string }) {
             alt=""
             class="h-full w-full object-cover object-[center_20%] opacity-80"
             draggable="false"
+            decoding="async"
+            fetchpriority="high"
           />
           <div
             class="absolute inset-0 bg-gradient-to-t from-surface-1 via-surface-1/35 to-surface-1/10"
@@ -161,5 +171,6 @@ async function play(inst: { id: string; name: string }) {
         </div>
       </div>
     </section>
+    </template>
   </div>
 </template>

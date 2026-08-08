@@ -1,6 +1,6 @@
 <script setup lang="ts">
 defineOptions({ name: "servers" });
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useServersStore } from "@/stores/servers";
 import { useAppStore } from "@/stores/app";
@@ -37,7 +37,7 @@ const router = useRouter();
 const serversStore = useServersStore();
 const app = useAppStore();
 
-const loading = ref(true);
+const loading = ref(!serversStore.loaded);
 const busy = ref<string | null>(null);
 const error = ref<string | null>(null);
 const showCreate = ref(false);
@@ -47,6 +47,7 @@ const newMc = ref("1.21.1");
 const newType = ref<ServerType>("paper");
 const newRam = ref<number>(4096);
 const mcVersions = ref<MinecraftVersion[]>([]);
+const versionsLoading = ref(false);
 
 const releaseMcVersions = computed(() =>
   mcVersions.value.filter((v) => v.channel === "release"),
@@ -57,24 +58,45 @@ const ramOptions = computed(() => {
   return SERVER_RAM_PRESETS_MB.filter((mb) => mb <= maxMb);
 });
 
-onMounted(async () => {
-  await app.loadHardware();
-  mcVersions.value = await api.getVersions();
-  newMc.value =
-    releaseMcVersions.value.find((v) => v.id === "1.21.1")?.id ??
-    releaseMcVersions.value[0]?.id ??
-    "1.21.1";
-  if (ramOptions.value.length && !ramOptions.value.includes(newRam.value as (typeof SERVER_RAM_PRESETS_MB)[number])) {
-    newRam.value = ramOptions.value[ramOptions.value.length - 1] ?? 4096;
-  }
-  await refresh();
+const lastActiveServer = computed(() =>
+  serversStore.servers.find((s) => s.id === serversStore.lastActiveId) ?? null,
+);
+
+/** Lista rápida; versiones MC / hardware solo al crear. */
+onMounted(() => {
+  void refresh(false);
 });
 
-async function refresh() {
-  loading.value = true;
+async function ensureCreateDeps() {
+  if (!app.hardware) void app.loadHardware();
+  if (mcVersions.value.length || versionsLoading.value) return;
+  versionsLoading.value = true;
+  try {
+    mcVersions.value = await api.getVersions();
+    newMc.value =
+      releaseMcVersions.value.find((v) => v.id === "1.21.1")?.id ??
+      releaseMcVersions.value[0]?.id ??
+      "1.21.1";
+    if (
+      ramOptions.value.length &&
+      !ramOptions.value.includes(newRam.value as (typeof SERVER_RAM_PRESETS_MB)[number])
+    ) {
+      newRam.value = ramOptions.value[ramOptions.value.length - 1] ?? 4096;
+    }
+  } finally {
+    versionsLoading.value = false;
+  }
+}
+
+watch(showCreate, (open) => {
+  if (open) void ensureCreateDeps();
+});
+
+async function refresh(force = true) {
+  if (!serversStore.loaded) loading.value = true;
   error.value = null;
   try {
-    await serversStore.load(true);
+    await serversStore.load(force);
   } catch (e) {
     error.value = String(e);
   } finally {
@@ -86,6 +108,7 @@ async function create() {
   busy.value = "create";
   error.value = null;
   try {
+    await ensureCreateDeps();
     const s = await serversStore.create({
       name: newName.value.trim(),
       mcVersion: newMc.value.trim(),
@@ -118,6 +141,7 @@ async function importFolder() {
 }
 
 function openServer(id: string) {
+  serversStore.setLastActive(id);
   router.push({ name: "server-detail", params: { id } });
 }
 
@@ -173,7 +197,6 @@ async function onMenuSelect(id: string) {
     }
   }
 }
-
 </script>
 
 <template>
@@ -182,7 +205,7 @@ async function onMenuSelect(id: string) {
       <div>
         <h1 class="text-2xl font-bold">Servidores</h1>
         <p class="text-sm text-gray-500">
-          Panel local estilo Modrinth: consola, propiedades, Hangar, admin y Playit.gg.
+          Panel local: consola, propiedades, plugins y Playit.gg.
         </p>
       </div>
       <div class="flex gap-2">
@@ -195,8 +218,23 @@ async function onMenuSelect(id: string) {
       </div>
     </div>
 
+    <button
+      v-if="lastActiveServer"
+      type="button"
+      class="mb-4 flex w-full items-center justify-between gap-3 rounded-xl border border-pc-green/35 bg-pc-green/10 px-4 py-3 text-left transition hover:bg-pc-green/15"
+      @click="openServer(lastActiveServer.id)"
+    >
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-wide text-pc-green/80">Continuar</p>
+        <p class="font-bold text-white">{{ lastActiveServer.name }}</p>
+        <p class="text-xs text-gray-400">Consola y estado del server que estabas mirando</p>
+      </div>
+      <span class="text-sm text-pc-green">Abrir →</span>
+    </button>
+
     <div v-if="showCreate" class="mb-6 rounded-xl border border-surface-3 bg-surface-2 p-4">
       <h2 class="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-400">Nuevo servidor</h2>
+      <p v-if="versionsLoading" class="mb-2 text-xs text-gray-500">Cargando versiones de Minecraft…</p>
       <div class="mb-4 flex flex-wrap gap-2">
         <button
           v-for="t in SERVER_TYPES"
@@ -224,7 +262,11 @@ async function onMenuSelect(id: string) {
           <div class="mt-1 min-w-[10rem]">
             <AppSelect
               v-model="newMc"
-              :options="releaseMcVersions.map((v) => ({ value: v.id, label: v.id }))"
+              :options="
+                releaseMcVersions.length
+                  ? releaseMcVersions.map((v) => ({ value: v.id, label: v.id }))
+                  : [{ value: newMc, label: newMc }]
+              "
               searchable
               :max-panel-height="240"
             />

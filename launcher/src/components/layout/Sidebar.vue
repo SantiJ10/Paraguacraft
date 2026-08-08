@@ -6,6 +6,7 @@ import { onMounted, onUnmounted, watch } from "vue";
 import { useAccountsStore } from "@/stores/accounts";
 import { useSkinsStore } from "@/stores/skins";
 import { useAiStore } from "@/stores/ai";
+import { useServersStore } from "@/stores/servers";
 import { useI18n } from "@/composables/useI18n";
 import { isTauri } from "@/lib/ipc";
 import launcherIcon from "@/assets/launcher-icon.png";
@@ -14,7 +15,13 @@ const route = useRoute();
 const accounts = useAccountsStore();
 const skins = useSkinsStore();
 const ai = useAiStore();
+const servers = useServersStore();
 const { t } = useI18n();
+
+const serversNavTo = computed(() => {
+  const id = servers.lastActiveId;
+  return id ? { name: "server-detail" as const, params: { id } } : { name: "servers" as const };
+});
 
 const nav = computed(() => [
   { name: "home", label: t("nav_home"), to: "/", icon: "home" },
@@ -22,8 +29,12 @@ const nav = computed(() => [
   { name: "store", label: t("nav_store"), to: "/store", icon: "store" },
   { name: "skins", label: t("nav_skins"), to: "/skins", icon: "skins" },
   { name: "versions", label: t("nav_versions"), to: "/versions", icon: "layers" },
-  { name: "servers", label: t("nav_servers"), to: "/servers", icon: "server" },
+  { name: "servers", label: t("nav_servers"), to: serversNavTo.value, icon: "server" },
 ]);
+
+const serversNavActive = computed(
+  () => route.name === "servers" || route.name === "server-detail",
+);
 
 const FOCUS_REFRESH_MS = 60_000;
 let unlistenFocus: (() => void) | null = null;
@@ -81,7 +92,7 @@ const icons: Record<string, string> = {
         :key="item.name"
         :to="item.to"
         class="nav-item"
-        :class="{ 'nav-item-active': route.name === item.name }"
+        :class="{ 'nav-item-active': item.name === 'servers' ? serversNavActive : route.name === item.name }"
       >
         <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path :d="icons[item.icon]" />

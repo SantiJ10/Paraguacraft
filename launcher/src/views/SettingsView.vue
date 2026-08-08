@@ -118,6 +118,7 @@ async function saveGroqKey() {
 }
 
 onMounted(async () => {
+  // Si settings ya cargó en App.vue → sin skeleton ni await.
   if (!settings.settings) {
     await settings.load();
   }
@@ -127,15 +128,16 @@ onMounted(async () => {
     void accounts.load();
   }
   if (!app.hardware) {
-    void app.loadHardware();
+    // Nunca en hot path: hardware hace PowerShell.
+    window.setTimeout(() => void app.loadHardware(), 400);
   }
   if (!skins.activeSkin) {
-    void skins.refresh();
+    window.setTimeout(() => void skins.refresh(), 800);
   }
 
   if (isTauri()) {
     void loadAiStatus();
-    const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 600));
+    const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 800));
     idle(() => {
       javaSectionReady.value = true;
     });

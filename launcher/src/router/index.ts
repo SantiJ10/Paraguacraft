@@ -1,6 +1,9 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router";
 import { api, isTauri } from "@/lib/ipc";
 import { useAppStore } from "@/stores/app";
+// Eager: 1er paint de Inicio sin esperar chunk async.
+import MainLayout from "@/layouts/MainLayout.vue";
+import HomeView from "@/views/HomeView.vue";
 
 const routes: RouteRecordRaw[] = [
   {
@@ -11,9 +14,9 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: "/",
-    component: () => import("@/layouts/MainLayout.vue"),
+    component: MainLayout,
     children: [
-      { path: "", name: "home", component: () => import("@/views/HomeView.vue") },
+      { path: "", name: "home", component: HomeView },
       { path: "instances", name: "instances", component: () => import("@/views/InstancesView.vue") },
       {
         path: "instances/:id",
@@ -52,12 +55,17 @@ router.beforeEach((to) => {
   return true;
 });
 
+let discordRpcTimer: ReturnType<typeof setTimeout> | null = null;
 router.afterEach((to) => {
   if (!isTauri()) return;
-  const app = useAppStore();
-  if (app.launchPhase === "running") return;
-  const screen = to.name === "settings" ? "settings" : "idle";
-  void api.setDiscordRpcScreen(screen);
+  // No bloquear nav con Discord; debounce corto.
+  if (discordRpcTimer) clearTimeout(discordRpcTimer);
+  discordRpcTimer = setTimeout(() => {
+    const app = useAppStore();
+    if (app.launchPhase === "running") return;
+    const screen = to.name === "settings" ? "settings" : "idle";
+    void api.setDiscordRpcScreen(screen);
+  }, 250);
 });
 
 export default router;
