@@ -907,6 +907,26 @@ pub fn spawn_ensure_playit_tunnels(id: String, want_bedrock: bool) {
                         &id,
                         &format!("[playit] ✅ IP Bedrock: {b}  (host + puerto exactos; NO uses 19132 salvo que diga :19132)"),
                     );
+                    if let Ok(dir) = folder_for_id(&id) {
+                        match crate::core::geyser_playit::apply_playit_settings(&dir, b) {
+                            Ok(notes) => {
+                                for n in notes {
+                                    crate::core::server_console::append(
+                                        &id,
+                                        &format!("[playit] {n}"),
+                                    );
+                                }
+                                crate::core::server_console::append(
+                                    &id,
+                                    "[playit] Si Bedrock no entra: en playit.gg → túnel «Minecraft Bedrock» activá Proxy Protocol v2 (guía Geyser). Después reiniciá el server.",
+                                );
+                            }
+                            Err(e) => crate::core::server_console::append(
+                                &id,
+                                &format!("[playit] ⚠ No pude ajustar Geyser: {e}"),
+                            ),
+                        }
+                    }
                 } else if want_bedrock {
                     crate::core::server_console::append(
                         &id,
