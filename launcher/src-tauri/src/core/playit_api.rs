@@ -116,7 +116,7 @@ pub fn claim_poll(code: &str) -> AppResult<Option<String>> {
     let body = json!({
         "code": code,
         "agent_type": "self-managed",
-        "version": "paraguacraft-1.1.21"
+        "version": "paraguacraft-1.1.23"
     });
     let resp = post_json_auth(None, "/claim/setup", body)?;
     let status = resp.get("status").and_then(|s| s.as_str()).unwrap_or("");
@@ -269,7 +269,7 @@ fn find_by_type(tunnels: &[Value], want: &str) -> Option<String> {
     None
 }
 
-fn create_tunnel(
+fn create_tunnel_once(
     secret: &str,
     name: &str,
     tunnel_type: &str,
@@ -304,14 +304,68 @@ fn create_tunnel(
                 .get("data")
                 .map(|d| d.to_string())
                 .unwrap_or_else(|| resp.to_string());
-            // Idempotencia laxa: ya existe / límites se interpretan arriba.
-            Err(AppError::msg(format!("No se pudo crear túnel {tunnel_type}: {fail}")))
+            Err(AppError::msg(format!(
+                "No se pudo crear túnel {tunnel_type}: {fail}"
+            )))
         }
         _ => Err(AppError::msg(format!(
             "Respuesta create {tunnel_type}: {}",
             resp.to_string().chars().take(200).collect::<String>()
         ))),
     }
+}
+
+/// Crea túnel; reintenta `AgentVersionTooOld` (el cloud no tiene aún la versión
+/// del daemon hasta que el UDP control-protocol registra, ~5–30 s).
+fn create_tunnel(
+    secret: &str,
+    name: &str,
+    tunnel_type: &str,
+    agent_id: Option<&str>,
+    local_port: u16,
+) -> AppResult<()> {
+    // Backoff documentado por integraciones playit (primera create post-claim).
+    const RETRY_SECS: &[u64] = &[2, 3, 5, 5, 8, 10, 10, 12];
+    let mut last: Option<AppError> = None;
+    for attempt in 0..=RETRY_SECS.len() {
+        match create_tunnel_once(secret, name, tunnel_type, agent_id, local_port) {
+            Ok(()) => return Ok(()),
+            Err(e) => {
+                let msg = e.to_string();
+                let too_old = msg.to_ascii_lowercase().contains("agentversiontooold");
+                if too_old && attempt < RETRY_SECS.len() {
+                    last = Some(e);
+                    std::thread::sleep(std::time::Duration::from_secs(RETRY_SECS[attempt]));
+                    continue;
+                }
+                return Err(e);
+            }
+        }
+    }
+    Err(last.unwrap_or_else(|| {
+        AppError::msg(format!(
+            "AgentVersionTooOld: el agente no registró su versión a tiempo al crear {tunnel_type}"
+        ))
+    }))
+}
+
+/// Espera a que rundata devuelva agent_id (daemon ya claimado / conectando).
+fn wait_for_agent_id(secret: &str, max_secs: u64) -> Option<String> {
+    let steps = max_secs.max(1);
+    for i in 0..steps {
+        if let Ok(rd) = agent_rundata(secret) {
+            if let Some(id) = rd.get("agent_id").and_then(|x| x.as_str()).filter(|s| !s.is_empty())
+            {
+                // Tras primer claim conviene un respiro extra para el registro UDP.
+                if i < 3 {
+                    std::thread::sleep(std::time::Duration::from_secs(2));
+                }
+                return Some(id.to_string());
+            }
+        }
+        std::thread::sleep(std::time::Duration::from_secs(1));
+    }
+    None
 }
 
 fn wait_for_type(
@@ -351,13 +405,29 @@ pub fn ensure_tunnels(
     out.java_address = find_by_type(&tunnels, "minecraft-java");
     out.bedrock_address = find_by_type(&tunnels, "minecraft-bedrock");
 
-    let agent_id = agent_rundata(secret)
-        .ok()
-        .and_then(|rd| {
+    // Si falta alguno, esperar a que el agente exista en la API antes de create
+    // (si no → AgentVersionTooOld / create en vano).
+    let need_create = out.java_address.is_none()
+        || (want_bedrock && out.bedrock_address.is_none());
+    let agent_id = if need_create {
+        out.messages.push(
+            "Esperando que el agente se registre en playit.gg (puede tardar ~15–40 s tras claim)…"
+                .into(),
+        );
+        wait_for_agent_id(secret, 40).or_else(|| {
+            agent_rundata(secret).ok().and_then(|rd| {
+                rd.get("agent_id")
+                    .and_then(|x| x.as_str())
+                    .map(|s| s.to_string())
+            })
+        })
+    } else {
+        agent_rundata(secret).ok().and_then(|rd| {
             rd.get("agent_id")
                 .and_then(|x| x.as_str())
                 .map(|s| s.to_string())
-        });
+        })
+    };
 
     if out.java_address.is_none() {
         out.messages
@@ -371,23 +441,34 @@ pub fn ensure_tunnels(
         ) {
             Ok(()) => {
                 out.created_java = true;
-                out.java_address = wait_for_type(secret, "minecraft-java", 12);
+                out.java_address = wait_for_type(secret, "minecraft-java", 15);
                 if out.java_address.is_some() {
-                    out.messages
-                        .push(format!("✅ Túnel Java: {}", out.java_address.as_deref().unwrap_or("?")));
+                    out.messages.push(format!(
+                        "✅ Túnel Java: {}",
+                        out.java_address.as_deref().unwrap_or("?")
+                    ));
                 } else {
-                    out.messages
-                        .push("Túnel Java creado; la dirección puede tardar unos segundos.".into());
+                    out.messages.push(
+                        "Túnel Java creado; la dirección puede tardar unos segundos.".into(),
+                    );
                 }
             }
-            Err(e) => out.messages.push(format!("⚠ Java: {e}")),
+            Err(e) => {
+                let em = e.to_string();
+                if em.to_ascii_lowercase().contains("agentversiontooold") {
+                    out.messages.push(
+                        "⚠ Java: AgentVersionTooOld tras reintentos. Sincronizá la **hora de Windows** (Ajustes → Hora e idioma → Sincronizar ahora), reiniciá el server y volvé a apretar Playit.gg.".into(),
+                    );
+                } else {
+                    out.messages.push(format!("⚠ Java: {em}"));
+                }
+            }
         }
     }
 
     if want_bedrock && out.bedrock_address.is_none() {
         out.messages
             .push("Creando túnel Minecraft Bedrock (UDP) en playit.gg…".into());
-        // refrescar agent_id / tunnels
         let agent_id = agent_rundata(secret)
             .ok()
             .and_then(|rd| {
@@ -405,7 +486,7 @@ pub fn ensure_tunnels(
         ) {
             Ok(()) => {
                 out.created_bedrock = true;
-                out.bedrock_address = wait_for_type(secret, "minecraft-bedrock", 12);
+                out.bedrock_address = wait_for_type(secret, "minecraft-bedrock", 15);
                 if let Some(ref a) = out.bedrock_address {
                     out.messages
                         .push(format!("✅ Túnel Bedrock: {a}"));

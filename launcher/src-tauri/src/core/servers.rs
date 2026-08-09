@@ -1014,6 +1014,17 @@ fn process_playit_log_chunk(id: &str, chunk: &str, seen: &mut HashSet<String>) {
             if seen.len() > 400 {
                 seen.clear();
             }
+            if line.contains("local timestamp if over 10 seconds off") {
+                // Spam cada ~1s si el reloj del PC está mal; un solo aviso útil.
+                if !seen.contains("__clock_skew_warn") {
+                    seen.insert("__clock_skew_warn".into());
+                    crate::core::server_console::append(
+                        id,
+                        "[playit] ⚠ El reloj de Windows está desfasado (>10s vs playit). Bedrock/Java NO van a conectar bien. Abrí Ajustes → Hora e idioma → Activá «Ajustar la hora automáticamente» y «Sincronizar ahora». Luego reiniciá el server.",
+                    );
+                }
+                continue;
+            }
             seen.insert(line.clone());
             crate::core::server_console::append(id, &format!("[playit] {line}"));
             if let Some(addr) = parse_playit_address(&line) {
