@@ -116,7 +116,7 @@ pub fn claim_poll(code: &str) -> AppResult<Option<String>> {
     let body = json!({
         "code": code,
         "agent_type": "self-managed",
-        "version": "paraguacraft-1.1.23"
+        "version": "paraguacraft-1.1.24"
     });
     let resp = post_json_auth(None, "/claim/setup", body)?;
     let status = resp.get("status").and_then(|s| s.as_str()).unwrap_or("");
@@ -190,6 +190,15 @@ fn tunnel_type_str(t: &Value) -> Option<&str> {
     t.get("tunnel_type")
         .and_then(|x| x.as_str())
         .or_else(|| t.get("tunnelType").and_then(|x| x.as_str()))
+        .or_else(|| {
+            // protocol: { type: "tunnel-type", details: "minecraft-java" }
+            let p = t.get("protocol")?;
+            if p.get("type").and_then(|x| x.as_str()) == Some("tunnel-type") {
+                p.get("details").and_then(|x| x.as_str())
+            } else {
+                None
+            }
+        })
 }
 
 /// Extrae dirección visible de un túnel account (`connect_addresses`) o agent (`display_address`).
@@ -201,35 +210,121 @@ fn extract_display(tunnel: &Value) -> Option<String> {
     {
         return Some(d.to_string());
     }
-    let addrs = tunnel.get("connect_addresses")?.as_array()?;
-    for a in addrs {
-        let typ = a.get("type").and_then(|t| t.as_str()).unwrap_or("");
-        let val = a.get("value")?;
-        match typ {
-            "auto" | "domain" | "addr4" | "addr6" => {
-                if let Some(addr) = val.get("address").and_then(|x| x.as_str()) {
-                    if !addr.is_empty() {
+    // Algunos payloads usan `domain` + `port` al top-level.
+    if let Some(domain) = tunnel
+        .get("domain")
+        .and_then(|x| x.as_str())
+        .filter(|s| !s.is_empty())
+    {
+        if let Some(port) = tunnel
+            .get("port")
+            .and_then(|x| x.as_u64())
+            .filter(|p| *p > 0)
+        {
+            return Some(format!("{domain}:{port}"));
+        }
+        if domain.contains("ply.gg") {
+            return Some(domain.to_string());
+        }
+    }
+    if let Some(addrs) = tunnel.get("connect_addresses").and_then(|a| a.as_array()) {
+        for a in addrs {
+            let typ = a.get("type").and_then(|t| t.as_str()).unwrap_or("");
+            let val = a.get("value");
+            match typ {
+                "auto" | "domain" | "addr4" | "addr6" => {
+                    if let Some(addr) = val
+                        .and_then(|v| v.get("address").and_then(|x| x.as_str()))
+                        .filter(|s| !s.is_empty())
+                    {
+                        return Some(addr.to_string());
+                    }
+                    // a veces el value es el string directo
+                    if let Some(addr) = val.and_then(|v| v.as_str()).filter(|s| !s.is_empty()) {
+                        return Some(addr.to_string());
+                    }
+                }
+                "ip4" | "ip6" => {
+                    if let Some(val) = val {
+                        let address = val.get("address").and_then(|x| x.as_str())?;
+                        let port = val
+                            .get("default_port")
+                            .and_then(|x| x.as_u64())
+                            .unwrap_or(0);
+                        if port > 0 {
+                            return Some(format!("{address}:{port}"));
+                        }
+                        return Some(address.to_string());
+                    }
+                }
+                _ => {
+                    if let Some(addr) = val
+                        .and_then(|v| v.get("address").and_then(|x| x.as_str()))
+                        .filter(|s| !s.is_empty())
+                    {
                         return Some(addr.to_string());
                     }
                 }
             }
-            "ip4" | "ip6" => {
-                let address = val.get("address").and_then(|x| x.as_str())?;
-                let port = val
-                    .get("default_port")
-                    .and_then(|x| x.as_u64())
-                    .unwrap_or(0);
-                if port > 0 {
-                    return Some(format!("{address}:{port}"));
-                }
-                return Some(address.to_string());
+        }
+    }
+    // Último recurso: buscar host *.ply.gg en el JSON del túnel.
+    extract_ply_host_from_json(tunnel)
+}
+
+fn extract_ply_host_from_json(v: &Value) -> Option<String> {
+    let s = v.to_string();
+    // "something.tun.ply.gg" or with port
+    let lower = s.to_ascii_lowercase();
+    let Some(idx) = lower.find(".tun.ply.gg") else {
+        return None;
+    };
+    let start = s[..idx]
+        .rfind(|c: char| !c.is_ascii_alphanumeric() && c != '-' && c != '.')
+        .map(|i| i + 1)
+        .unwrap_or(0);
+    let after = idx + ".tun.ply.gg".len();
+    let mut end = after;
+    if s.as_bytes().get(after) == Some(&b':') {
+        end = after + 1;
+        while end < s.len() && s.as_bytes()[end].is_ascii_digit() {
+            end += 1;
+        }
+    }
+    let host = s[start..end].trim_matches(|c: char| c == '"' || c == '\\');
+    if host.contains(".tun.ply.gg") {
+        Some(host.to_string())
+    } else {
+        None
+    }
+}
+
+fn find_by_type(tunnels: &[Value], want: &str) -> Option<String> {
+    for t in tunnels {
+        if tunnel_type_str(t) == Some(want) {
+            if let Some(addr) = extract_display(t) {
+                return Some(addr);
             }
-            _ => {
-                if let Some(addr) = val.get("address").and_then(|x| x.as_str()) {
-                    if !addr.is_empty() {
-                        return Some(addr.to_string());
-                    }
-                }
+        }
+    }
+    // Si el type no viene, última chance: un solo túnel que case por nombre/port_type
+    let want_udp = want.contains("bedrock");
+    for t in tunnels {
+        let name = t
+            .get("name")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        let port_type = t
+            .get("port_type")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        let is_bedrock = name.contains("bedrock") || port_type == "udp";
+        let is_java = name.contains("java") || (port_type == "tcp" && !is_bedrock);
+        if (want_udp && is_bedrock) || (!want_udp && is_java) {
+            if let Some(addr) = extract_display(t) {
+                return Some(addr);
             }
         }
     }
@@ -256,17 +351,6 @@ fn agent_rundata(secret: &str) -> AppResult<Value> {
     api_ok_data(&resp)
         .cloned()
         .ok_or_else(|| AppError::msg("playit agents/rundata sin data"))
-}
-
-fn find_by_type(tunnels: &[Value], want: &str) -> Option<String> {
-    for t in tunnels {
-        if tunnel_type_str(t) == Some(want) {
-            if let Some(addr) = extract_display(t) {
-                return Some(addr);
-            }
-        }
-    }
-    None
 }
 
 fn create_tunnel_once(
@@ -457,13 +541,16 @@ pub fn ensure_tunnels(
                 let em = e.to_string();
                 if em.to_ascii_lowercase().contains("agentversiontooold") {
                     out.messages.push(
-                        "⚠ Java: AgentVersionTooOld tras reintentos. Sincronizá la **hora de Windows** (Ajustes → Hora e idioma → Sincronizar ahora), reiniciá el server y volvé a apretar Playit.gg.".into(),
+                        "⚠ Java: AgentVersionTooOld tras reintentos. Sincronizá la hora de Windows, reiniciá el server y volvé a apretar Playit.gg.".into(),
                     );
                 } else {
                     out.messages.push(format!("⚠ Java: {em}"));
                 }
             }
         }
+    } else if let Some(ref j) = out.java_address {
+        out.messages
+            .push(format!("Túnel Java listo: {j}"));
     }
 
     if want_bedrock && out.bedrock_address.is_none() {
