@@ -30,6 +30,7 @@ pub mod server_backups;
 pub mod server_console;
 pub mod playit_api;
 pub mod playit_shared;
+pub mod geyser_playit;
 pub mod server_hangar;
 pub mod server_properties;
 pub mod server_setup;
