@@ -889,12 +889,23 @@ pub fn spawn_ensure_playit_tunnels(id: String, want_bedrock: bool) {
                 if let Some(ref j) = ens.java_address {
                     let host = j.split(':').next().unwrap_or(j);
                     let _ = set_playit_address(&id, host);
+                    crate::core::server_console::append(
+                        &id,
+                        &format!(
+                            "[playit] ✅ IP Java: {j}  (en el cliente Java usá el host sin inventar puertos raros; por defecto 25565 si no trae :puerto)"
+                        ),
+                    );
+                } else {
+                    crate::core::server_console::append(
+                        &id,
+                        "[playit] ⚠ No se leyó IP Java del listado (aunque haya 2 túneles). En playit.gg → Tunnels copiá el host del túnel Minecraft Java, o apretá Playit.gg de nuevo.",
+                    );
                 }
                 if let Some(ref b) = ens.bedrock_address {
                     let _ = set_playit_bedrock_address(&id, b);
                     crate::core::server_console::append(
                         &id,
-                        &format!("[playit] ✅ IP Bedrock lista: {b} (usala en el cliente Bedrock)"),
+                        &format!("[playit] ✅ IP Bedrock: {b}  (host + puerto exactos; NO uses 19132 salvo que diga :19132)"),
                     );
                 } else if want_bedrock {
                     crate::core::server_console::append(
@@ -905,7 +916,7 @@ pub fn spawn_ensure_playit_tunnels(id: String, want_bedrock: bool) {
                 if want_bedrock {
                     crate::core::server_console::append(
                         &id,
-                        "[playit] Bedrock es UDP: en servers Geyser el launcher usa playit.exe (no el plugin Paper, que solo hace Java TCP).",
+                        "[playit] Geyser: Java = túnel TCP · Bedrock = túnel UDP (distintos host:puerto).",
                     );
                 }
             }
@@ -1014,8 +1025,31 @@ fn process_playit_log_chunk(id: &str, chunk: &str, seen: &mut HashSet<String>) {
             if seen.len() > 400 {
                 seen.clear();
             }
+            if line.contains("NetworkUnreachable")
+                || line.contains("failed to send initial ping")
+                || line.contains("failed to ping tunnel server")
+            {
+                if !seen.contains("__ipv6_ping_warn") {
+                    seen.insert("__ipv6_ping_warn".into());
+                    crate::core::server_console::append(
+                        id,
+                        "[playit] ℹ Ping IPv6 falló (normal en muchas redes). Si después dice «playit connected» podés ignorarlo.",
+                    );
+                }
+                continue;
+            }
+            if line.contains("SessionNotSetup") {
+                // Ruidoso al arrancar; no spamear la consola.
+                if !seen.contains("__session_setup_note") {
+                    seen.insert("__session_setup_note".into());
+                    crate::core::server_console::append(
+                        id,
+                        "[playit] ℹ Reconectando control playit (SessionNotSetup al inicio es habitual)…",
+                    );
+                }
+                continue;
+            }
             if line.contains("local timestamp if over 10 seconds off") {
-                // Spam cada ~1s si el reloj del PC está mal; un solo aviso útil.
                 if !seen.contains("__clock_skew_warn") {
                     seen.insert("__clock_skew_warn".into());
                     crate::core::server_console::append(
