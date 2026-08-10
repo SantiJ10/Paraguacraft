@@ -167,6 +167,24 @@ public class ModMenuScreen extends ParaguacraftScreen {
                 clearChildren();
                 init();
             }
+            case "vm_weapons" -> {
+                ModernConfig.cycleViewmodelWeaponsScale();
+                ModernConfig.save();
+                clearChildren();
+                init();
+            }
+            case "vm_items" -> {
+                ModernConfig.cycleViewmodelItemsScale();
+                ModernConfig.save();
+                clearChildren();
+                init();
+            }
+            case "vm_hand" -> {
+                ModernConfig.cycleViewmodelHandScale();
+                ModernConfig.save();
+                clearChildren();
+                init();
+            }
             case "clean_memory" -> PerformanceBootstrap.cleanMemoryNow();
             case "apply_hw_preset" -> PerformanceBootstrap.applyPresetNow(client);
             default -> {}
@@ -231,6 +249,9 @@ public class ModMenuScreen extends ParaguacraftScreen {
             ModernConfig.oldAnimations = v;
             PerformanceConfig.oldAnimations = v;
         }));
+        cards.add(open(3, "Viewmodel armas: " + ModernConfig.viewmodelWeaponsScale + "%", "vm_weapons"));
+        cards.add(open(3, "Viewmodel objetos: " + ModernConfig.viewmodelItemsScale + "%", "vm_items"));
+        cards.add(open(3, "Viewmodel mano: " + ModernConfig.viewmodelHandScale + "%", "vm_hand"));
         cards.add(toggle(3, "Ocultar titulos", () -> ModernConfig.hideTitles, v -> ModernConfig.hideTitles = v));
         cards.add(open(3, "Chat", "chat_group"));
         cards.add(open(3, "Config chat triggers", "chat_triggers_cfg"));

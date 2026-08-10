@@ -1,6 +1,7 @@
 package com.paraguacraft.pvp.modern.mixin;
 
 import com.paraguacraft.pvp.modern.animations.OldAnimations;
+import com.paraguacraft.pvp.modern.config.ModernConfig;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.render.item.HeldItemRenderer;
@@ -80,6 +81,11 @@ public abstract class MixinHeldItemRenderer {
         int light,
         CallbackInfo ci
     ) {
+        // Escala viewmodel: armas/tools vs recursos/bloques vs mano vacía (config en Mod Menu).
+        float vm = ModernConfig.viewmodelScaleFor(item);
+        if (vm != 1.0F) {
+            matrices.scale(vm, vm, vm);
+        }
         // Bajar un poco el viewmodel (espadas/herramientas se veían muy altas).
         if (item != null && !item.isEmpty() && OldAnimations.isMeleeWeapon(item)) {
             matrices.translate(0.0F, -0.08F, 0.02F);
