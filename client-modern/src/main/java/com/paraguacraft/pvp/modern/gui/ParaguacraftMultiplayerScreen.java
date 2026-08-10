@@ -24,15 +24,18 @@ public class ParaguacraftMultiplayerScreen extends ParaguacraftScreen {
     @Override
     protected void init() {
         servers = DefaultServers.load(client);
-        int btnW = 260;
+        int btnW = 280;
         int btnH = 24;
-        int startY = 72;
+        int startY = 78;
         int gap = 26;
         for (int i = 0; i < servers.size(); i++) {
             DefaultServers.Entry entry = servers.get(i);
             int y = startY + i * gap;
+            String label = entry.note().isBlank()
+                ? entry.name()
+                : entry.name() + "  ·  " + entry.note();
             addDrawableChild(FlatMenuButton.create(width / 2 - btnW / 2, y, btnW, btnH,
-                Text.literal(entry.name()), () -> connect(entry)));
+                Text.literal(label), () -> connect(entry)));
         }
         int after = startY + servers.size() * gap + 8;
         addDrawableChild(FlatMenuButton.create(width / 2 - btnW / 2, after, btnW, btnH,
@@ -53,8 +56,17 @@ public class ParaguacraftMultiplayerScreen extends ParaguacraftScreen {
             textRenderer,
             Text.literal("Servidores PvP"),
             width / 2,
-            48,
+            40,
             UiTheme.accent()
         );
+        if (DefaultServers.offlineNote != null && !DefaultServers.offlineNote.isBlank()) {
+            context.drawCenteredTextWithShadow(
+                textRenderer,
+                Text.literal(DefaultServers.offlineNote),
+                width / 2,
+                54,
+                0xAAAAAA
+            );
+        }
     }
 }

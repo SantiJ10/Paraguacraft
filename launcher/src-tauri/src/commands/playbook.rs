@@ -61,8 +61,13 @@ pub async fn launch_game_profile(
             let id = modern_pvp::ensure_instance(&app, &http, &state).await?;
             modern_pvp::apply_hardware_profile(&id)?;
             let tier = hardware::detect().perfil_sugerido;
+            let play_style = crate::config::read_json::<crate::models::AppSettings>(
+                &crate::core::paths::config_file(),
+            )
+            .unwrap_or_default()
+            .pvp_play_style;
             let _ = modern_pvp::apply_launch_properties(&id, &tier)?;
-            let _ = modern_pvp::ensure_launch_defaults(&id, &tier)?;
+            let _ = modern_pvp::ensure_launch_defaults(&id, &tier, &play_style)?;
             let inst_dir = instances::instance_dir(&id);
             if dest == "training" {
                 let _ = modern_pvp::apply_training_profile(&id, &tier, true)?;
@@ -79,7 +84,15 @@ pub async fn launch_game_profile(
         // al conectar a un servidor real (no en menu/practica).
         let use_compete = matches!(
             dest,
-            "hypixel" | "favorite" | "cubecraft" | "minelatino" | "regorland" | "hylex"
+            "hypixel"
+                | "minemen"
+                | "favorite"
+                | "cubecraft"
+                | "universocraft"
+                | "mush"
+                | "minelatino"
+                | "regorland"
+                | "hylex"
         );
         return crate::commands::launch::launch_instance(
             app,
@@ -109,7 +122,19 @@ pub async fn launch_game_profile(
             }
         }
     }
-    let use_compete = profile_id == "pvp-compete" && matches!(dest, "hypixel" | "favorite");
+    let use_compete = profile_id == "pvp-compete"
+        && matches!(
+            dest,
+            "hypixel"
+                | "minemen"
+                | "favorite"
+                | "cubecraft"
+                | "universocraft"
+                | "mush"
+                | "regorland"
+                | "hylex"
+                | "minelatino"
+        );
     crate::commands::launch::launch_instance(
         app,
         state,

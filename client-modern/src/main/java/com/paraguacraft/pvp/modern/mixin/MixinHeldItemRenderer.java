@@ -1,6 +1,7 @@
 package com.paraguacraft.pvp.modern.mixin;
 
 import com.paraguacraft.pvp.modern.animations.OldAnimations;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.render.item.HeldItemRenderer;
 import net.minecraft.client.util.math.MatrixStack;
@@ -13,7 +14,10 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Swing, comer/beber y blockhit estilo 1.7 en primera persona. */
+/**
+ * Swing + blockhit espada/eje + comer/beber estilo 1.7 en primera persona.
+ * El blockhit no usa UseAction.BLOCK (inexistente en espadas 1.9+): usa RMB visual.
+ */
 @Mixin(HeldItemRenderer.class)
 public abstract class MixinHeldItemRenderer {
 
@@ -22,7 +26,17 @@ public abstract class MixinHeldItemRenderer {
         if (!OldAnimations.enabled()) {
             return;
         }
-        OldAnimations.applySwingRotation17(matrices, swingProgress);
+        PlayerEntity player = MinecraftClient.getInstance().player;
+        if (player != null) {
+            Hand hand = arm == player.getMainArm() ? Hand.MAIN_HAND : Hand.OFF_HAND;
+            ItemStack stack = player.getStackInHand(hand);
+            // Durante blockhit el swing se mezcla en applySwordBlockPose.
+            if (OldAnimations.wantsSwordBlockhit(player, hand, stack)) {
+                ci.cancel();
+                return;
+            }
+        }
+        OldAnimations.applySwingRotation17(matrices, arm, swingProgress);
         ci.cancel();
     }
 
@@ -53,7 +67,7 @@ public abstract class MixinHeldItemRenderer {
             shift = At.Shift.AFTER
         )
     )
-    private void paraguacraft$oldBlockhit(
+    private void paraguacraft$oldSwordBlockhit(
         AbstractClientPlayerEntity player,
         float tickProgress,
         float pitch,
@@ -66,19 +80,13 @@ public abstract class MixinHeldItemRenderer {
         int light,
         CallbackInfo ci
     ) {
-        if (!OldAnimations.enabled() || player == null || !player.isUsingItem()) {
+        if (!OldAnimations.enabled() || player == null || item == null || item.isEmpty()) {
             return;
         }
-        ItemStack active = player.getActiveItem();
-        if (active == null || active.isEmpty()) {
+        if (!OldAnimations.wantsSwordBlockhit(player, hand, item)) {
             return;
         }
-        if (active.getUseAction() != net.minecraft.item.consume.UseAction.BLOCK) {
-            return;
-        }
-        if (player.getActiveHand() != hand) {
-            return;
-        }
-        OldAnimations.applyBlockhit(matrices, swingProgress);
+        Arm arm = hand == Hand.MAIN_HAND ? player.getMainArm() : player.getMainArm().getOpposite();
+        OldAnimations.applySwordBlockPose(matrices, arm, swingProgress);
     }
 }

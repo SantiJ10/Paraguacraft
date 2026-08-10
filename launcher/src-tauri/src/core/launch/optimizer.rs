@@ -61,13 +61,26 @@ pub fn extra_jvm_args_for(tier: &str, loader: &str, mc_version: &str, java_major
 /// Aplica el perfil de `options.txt` correspondiente (diferenciado por loader + gama)
 /// cuando el usuario tiene activo «Optimizar gráficos». Antes esto era un único preset
 /// fijo para todas las instancias; ahora distingue 1.8.9 Forge+OptiFine, 1.21.11
-/// Fabric+Sodium+Iris y el resto (vanilla/Forge/Fabric genéricos), cada uno con su
-/// tabla de valores ya afinada por gama en `core::performance`.
-pub fn apply_graphics_profile(game_dir: &Path, loader: &str, tier: &str) -> AppResult<()> {
+/// Fabric+Sodium+Iris, Optimized y el resto (vanilla/Forge/Fabric genéricos).
+pub fn apply_graphics_profile(
+    game_dir: &Path,
+    loader: &str,
+    tier: &str,
+    mc_version: &str,
+) -> AppResult<()> {
     let loader_l = loader.trim().to_lowercase();
     if loader_l.contains("paraguacraft-pvp-modern") {
         performance::optimize_modern_pvp_options(game_dir, tier)?;
         performance::apply_modern_pvp_mod_configs(game_dir, tier)?;
+    } else if loader_l.contains("paraguacraft-optimized") {
+        // Reaplicar cada launch: gama + preset de uso (a través de tier resuelto) + MC.
+        let mc = if mc_version.trim().is_empty() {
+            "1.21.11"
+        } else {
+            mc_version
+        };
+        performance::optimize_optimized_options(game_dir, tier, mc)?;
+        performance::apply_optimized_mod_configs(game_dir, tier)?;
     } else {
         // 1.8.9 Forge+OptiFine y el resto de loaders comparten la tabla generica por
         // gama (`optimize_instance_options`), mas agresiva que el viejo preset fijo.
@@ -80,7 +93,13 @@ pub fn apply_graphics_profile(game_dir: &Path, loader: &str, tier: &str) -> AppR
 /// limpieza de logs/crash-reports (si está activada) + perfil de gráficos por
 /// gama/loader (si está activado). Reemplaza la lógica que antes estaba repartida
 /// e inconsistente entre distintos comandos.
-pub fn apply_pre_launch(game_dir: &Path, loader: &str, tier: &str, settings: &AppSettings) {
+pub fn apply_pre_launch(
+    game_dir: &Path,
+    loader: &str,
+    tier: &str,
+    mc_version: &str,
+    settings: &AppSettings,
+) {
     if settings.deep_clean_on_launch {
         let _ = crate::core::extras::maintenance::run("both");
     }
@@ -88,7 +107,7 @@ pub fn apply_pre_launch(game_dir: &Path, loader: &str, tier: &str, settings: &Ap
     let _ = performance::ensure_vsync_off(game_dir);
     // `custom` = el usuario controla options.txt; no reescribir gráficos.
     if settings.optimize_graphics && tier != "custom" {
-        let _ = apply_graphics_profile(game_dir, loader, tier);
+        let _ = apply_graphics_profile(game_dir, loader, tier, mc_version);
         let _ = performance::ensure_vsync_off(game_dir);
     }
 }

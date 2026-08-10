@@ -24,7 +24,7 @@ public final class ShaderAutoManager {
         if (!ModernConfig.shaderAutoOffInMatch || client == null) {
             return;
         }
-        if (!ServerContext.isCompetitive(client)) {
+        if (!ServerContext.shouldAutoOffShaders(client)) {
             return;
         }
         GameModeDetector.tick(client);

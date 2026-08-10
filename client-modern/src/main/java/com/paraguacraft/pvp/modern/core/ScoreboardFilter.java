@@ -4,7 +4,7 @@ import net.minecraft.text.Text;
 
 import java.util.regex.Pattern;
 
-/** Filtros del scoreboard por servidor (Hypixel / Cubecraft). */
+/** Filtros del scoreboard por red (Hypixel / Cube / LATAM / Minemen). */
 public final class ScoreboardFilter {
 
     private static final Pattern SCORE_COLUMN = Pattern.compile("^\\d{1,2}$");
@@ -45,6 +45,34 @@ public final class ScoreboardFilter {
         Pattern.compile("(?i).*\\bannouncement\\b.*"),
     };
 
+    /** Mush / UniversoCraft / Regorland y redes genéricas LATAM. */
+    private static final Pattern[] LATAM_HIDE_LINES = new Pattern[] {
+        Pattern.compile("(?i).*\\btienda\\b.*"),
+        Pattern.compile("(?i).*\\bstore\\b.*"),
+        Pattern.compile("(?i).*\\bweb(site)?\\b.*"),
+        Pattern.compile("(?i).*\\bvotos?\\b.*"),
+        Pattern.compile("(?i).*\\bcoins?\\b.*"),
+        Pattern.compile("(?i).*\\bmonedas?\\b.*"),
+        Pattern.compile("(?i).*\\brango\\b.*"),
+        Pattern.compile("(?i).*\\brank\\b.*"),
+        Pattern.compile("(?i).*\\bnivel\\b.*"),
+        Pattern.compile("(?i).*\\blevel\\b.*"),
+        Pattern.compile("(?i).*\\bdiscord\\b.*"),
+        Pattern.compile("(?i).*\\bonline\\s*:.*"),
+        Pattern.compile("(?i).*\\bjugadores\\s+en\\s+l[ií]nea\\b.*"),
+        Pattern.compile("(?i).*\\bamigos\\s*:.*"),
+        Pattern.compile("(?i).*\\bwww\\.[a-z0-9.-]+.*"),
+        Pattern.compile("(?i).*\\.(net|com|br|gg)\\b.*"),
+    };
+
+    private static final Pattern[] MINEMEN_HIDE_LINES = new Pattern[] {
+        Pattern.compile("(?i).*\\bstore\\b.*"),
+        Pattern.compile("(?i).*\\bdiscord\\b.*"),
+        Pattern.compile("(?i).*\\bminemen\\b.*"),
+        Pattern.compile("(?i).*\\bwebsite\\b.*"),
+        Pattern.compile("(?i).*\\bonline\\s*players?\\b.*"),
+    };
+
     private static final String BLOCK_CHARS =
         "\\u2500-\\u257F\\u2580-\\u259F\\u25A0-\\u25FF\\u2B1B\\u2B1C\\u2758-\\u275A";
 
@@ -77,23 +105,35 @@ public final class ScoreboardFilter {
         if (PROGRESS_BAR.matcher(t).matches()) {
             return true;
         }
-        Pattern[] patterns = server == ServerContext.Kind.CUBECRAFT
-            ? CUBECRAFT_HIDE_LINES
-            : HYPIXEL_HIDE_LINES;
-        for (Pattern p : patterns) {
+        for (Pattern p : patternsFor(server)) {
             if (p.matcher(t).matches()) {
                 return true;
             }
         }
-        if (server != ServerContext.Kind.CUBECRAFT) {
-            return false;
-        }
-        for (Pattern p : HYPIXEL_HIDE_LINES) {
-            if (p.matcher(t).matches()) {
-                return true;
+        // Fallback: filtros Hypixel en redes desconocidas pero no en Cube (ya cubierto).
+        if (server == ServerContext.Kind.UNKNOWN || server == ServerContext.Kind.REGORLAND) {
+            for (Pattern p : HYPIXEL_HIDE_LINES) {
+                if (p.matcher(t).matches()) {
+                    return true;
+                }
+            }
+            for (Pattern p : LATAM_HIDE_LINES) {
+                if (p.matcher(t).matches()) {
+                    return true;
+                }
             }
         }
         return false;
+    }
+
+    private static Pattern[] patternsFor(ServerContext.Kind server) {
+        return switch (server) {
+            case CUBECRAFT -> CUBECRAFT_HIDE_LINES;
+            case MINEMEN -> MINEMEN_HIDE_LINES;
+            case MUSH, UNIVERSOCRAFT, REGORLAND -> LATAM_HIDE_LINES;
+            case HYPIXEL -> HYPIXEL_HIDE_LINES;
+            default -> HYPIXEL_HIDE_LINES;
+        };
     }
 
     public static String strip(Text text) {

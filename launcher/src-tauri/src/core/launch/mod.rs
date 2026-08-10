@@ -574,7 +574,10 @@ pub fn append_server_join(args: &mut Vec<String>, address: &str) {
     }
 }
 
-/// Lanza el proceso sin consola. Devuelve el handle (para esperar su salida).
+/// Nombre del archivo de args de último launch (depuración / soporte).
+pub const LAST_ARGS_FILE: &str = ".paraguacraft-java-args.txt";
+
+/// Lanza el proceso de Minecraft. `show_console` usa java con ventana de consola (Windows).
 ///
 /// En Windows, `@args.txt` solo funciona desde Java 9+. Minecraft 1.8–1.16 usa Java 8:
 /// ahí hay que pasar los argumentos en la línea de comandos.
@@ -584,6 +587,7 @@ pub fn spawn_game(
     instance_dir: &Path,
     extra_env: &[(&str, &str)],
     java_major: u32,
+    show_console: bool,
 ) -> AppResult<std::process::Child> {
     std::fs::create_dir_all(instance_dir)?;
     let mut cmd = Command::new(java);
@@ -598,7 +602,7 @@ pub fn spawn_game(
     }
 
     // Siempre guardamos el argfile para depuración (Paraguabot / soporte).
-    let arg_file = instance_dir.join(".paraguacraft-java-args.txt");
+    let arg_file = instance_dir.join(LAST_ARGS_FILE);
     let _ = write_java_arg_file(&arg_file, args);
 
     #[cfg(target_os = "windows")]
@@ -619,14 +623,42 @@ pub fn spawn_game(
 
     // Spawn visible al sistema (sin CREATE_NO_WINDOW/DETACHED): Discord Overlay y
     // Game Detection enganchan el proceso como con el launcher oficial de Minecraft.
-    cmd.spawn()
-        .map_err(|e| {
-            let preview: String = args.iter().take(8).cloned().collect::<Vec<_>>().join(" ");
-            AppError::msg(format!(
-                "No se pudo iniciar Java ({}): {e}. Args: {preview}…",
-                java.display()
-            ))
-        })
+    // CREATE_NEW_CONSOLE al pedir consola: el padre Tauri es GUI y sin flag a veces no hay ventana.
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NEW_CONSOLE: u32 = 0x0000_0010;
+        if show_console {
+            cmd.creation_flags(CREATE_NEW_CONSOLE);
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = show_console;
+    }
+
+    cmd.spawn().map_err(|e| {
+        let preview: String = args.iter().take(8).cloned().collect::<Vec<_>>().join(" ");
+        AppError::msg(format!(
+            "No se pudo iniciar Java ({}): {e}. Args: {preview}…",
+            java.display()
+        ))
+    })
+}
+
+/// Lee el archivo de args del último (o de una instancia concreta) launch.
+pub fn read_last_args_file(instance_id: &str) -> AppResult<(PathBuf, String)> {
+    let game_dir = instances::game_dir_for(instance_id)
+        .ok_or_else(|| AppError::msg("Instancia no encontrada o sin carpeta de juego"))?;
+    let path = game_dir.join(LAST_ARGS_FILE);
+    if !path.is_file() {
+        return Err(AppError::msg(
+            "Aún no hay args de launch para esta instancia. Jugá una partida primero.",
+        ));
+    }
+    let text = std::fs::read_to_string(&path)
+        .map_err(|e| AppError::msg(format!("No se pudo leer {}: {e}", path.display())))?;
+    Ok((path, text))
 }
 
 #[cfg(target_os = "windows")]

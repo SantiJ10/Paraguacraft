@@ -41,18 +41,63 @@ public final class HardwarePreset {
         }
         applied = true;
         Tier tier = detectTier();
-        switch (tier) {
-            case LOW:
-                applyLow();
-                break;
-            case HIGH:
-                applyHigh();
-                break;
-            default:
-                applyMedium();
-                break;
+        // Estilo competitive (launcher / property): prioridad full FPS even on HIGH.
+        if (isCompetitiveStyle()) {
+            applyCompetitive(tier);
+        } else {
+            switch (tier) {
+                case LOW:
+                    applyLow();
+                    break;
+                case HIGH:
+                    applyHigh();
+                    break;
+                default:
+                    applyMedium();
+                    break;
+            }
         }
-        System.out.println("[Paraguacraft V2] Hardware preset: " + tier.name());
+        System.out.println("[Paraguacraft V2] Hardware preset: " + tier.name()
+            + " style=" + (isCompetitiveStyle() ? "competitive" : "casual"));
+    }
+
+    private static boolean isCompetitiveStyle() {
+        try {
+            java.io.File f = new java.io.File(
+                net.minecraft.client.Minecraft.getMinecraft().mcDataDir,
+                "paraguacraft_v2.properties"
+            );
+            if (!f.isFile()) {
+                return true; // default full rendimiento
+            }
+            java.util.Properties p = new java.util.Properties();
+            java.io.FileInputStream in = new java.io.FileInputStream(f);
+            p.load(in);
+            in.close();
+            String s = p.getProperty("playStyle", "competitive");
+            return !"casual".equalsIgnoreCase(s) && !"relaxed".equalsIgnoreCase(s);
+        } catch (Exception e) {
+            return true;
+        }
+    }
+
+    private static void applyCompetitive(Tier hardware) {
+        PerformanceConfig.boostFps = true;
+        PerformanceConfig.applyBoostPreset();
+        PerformanceConfig.particleMode = PerformanceConfig.ParticleMode.MINIMAL;
+        PerformanceConfig.oldAnimations = true;
+        PerformanceConfig.skipCombatFx = true;
+        if (hardware == Tier.LOW) {
+            PerformanceConfig.entityCullDistanceSq = 40 * 40;
+            PerformanceConfig.nametagCullDistanceSq = 24 * 24;
+            PerformanceConfig.armorStandCullDistanceSq = 32 * 32;
+            PerformanceConfig.itemFrameCullDistanceSq = 24 * 24;
+        } else {
+            PerformanceConfig.entityCullDistanceSq = 48 * 48;
+            PerformanceConfig.nametagCullDistanceSq = 32 * 32;
+        }
+        PerformanceConfig.applyParticleLimitsFromMode();
+        OptifinePreset.applyIfEnabled();
     }
 
     private static void applyLow() {

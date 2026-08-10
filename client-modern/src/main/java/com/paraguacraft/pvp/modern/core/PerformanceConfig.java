@@ -36,7 +36,7 @@ public final class PerformanceConfig {
     public static int renderDistance = 10;
     public static int simulationDistance = 8;
     public static double entityDistanceScaling = 0.65;
-    public static boolean oldAnimations = false;
+    public static boolean oldAnimations = true;
 
     private PerformanceConfig() {}
 
@@ -80,7 +80,7 @@ public final class PerformanceConfig {
             props.getProperty("entityDistanceScaling"),
             entityDistanceScaling
         );
-        oldAnimations = Boolean.parseBoolean(props.getProperty("oldAnimations", "false"));
+        oldAnimations = Boolean.parseBoolean(props.getProperty("oldAnimations", "true"));
     }
 
     private static boolean userConfigHasKey(String key) {

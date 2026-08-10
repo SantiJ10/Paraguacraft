@@ -1,15 +1,15 @@
-{
+﻿{
   "id": "paraguacraft-pvp-modern",
   "nombre": "Paraguacraft PvP Modern",
   "mc_version": "1.21.11",
   "loader": "fabric",
-  "client_version": "0.9.22",
-  "release_tag": "pvp-modern-0.9.22",
-  "descripcion": "BW recursos: nombres Hierro/Oro/Esmeralda/Diamante + showItemNames.",
+  "client_version": "0.9.24",
+  "release_tag": "pvp-modern-0.9.24",
+  "descripcion": "Server catalog, playStyle competitive, pack v3 HUD/armor/crit/bridge.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-Modern-0.9.22.jar",
-      "sha1": "760c66be0266385126e4dd63e9c344ae0ed99f70"
+      "filename": "ParaguacraftPvP-Modern-0.9.24.jar",
+      "sha1": "0b592608f3b1241595312b78ef20f05775a38b48"
     }
   ]
 }

@@ -225,9 +225,17 @@ pub fn apply_hardware_profile(instance_id: &str) -> AppResult<()> {
 
 /// options.txt PvP + configs de mods + RAM JVM (superior a 1.8.9).
 pub fn apply_performance_profile(instance_id: &str, tier: &str) -> AppResult<()> {
+    apply_performance_profile_style(instance_id, tier, "competitive")
+}
+
+pub fn apply_performance_profile_style(
+    instance_id: &str,
+    tier: &str,
+    play_style: &str,
+) -> AppResult<()> {
     let dir = instances::instance_dir(instance_id);
-    let _ = performance::optimize_modern_pvp_options(&dir, tier)?;
-    let _ = performance::apply_modern_pvp_mod_configs(&dir, tier)?;
+    let _ = performance::optimize_modern_pvp_options_style(&dir, tier, play_style)?;
+    let _ = performance::apply_modern_pvp_mod_configs_style(&dir, tier, play_style)?;
 
     let hw = hardware::detect();
     let ram_mb = modern_pvp_jvm::resolve_ram_mb(hw.ram_gb);
@@ -239,25 +247,45 @@ pub fn apply_performance_profile(instance_id: &str, tier: &str) -> AppResult<()>
 
 /// Propiedades que lee el mod Fabric (`paraguacraft_modern.properties`).
 pub fn apply_launch_properties(instance_id: &str, tier: &str) -> AppResult<()> {
-    merge_launch_properties(instance_id, tier)
+    merge_launch_properties(instance_id, tier, "competitive")
 }
 
-/// Solo añade claves faltantes; no pisa opciones del usuario.
-pub fn merge_launch_properties(instance_id: &str, tier: &str) -> AppResult<()> {
+/// Solo añade claves faltantes; no pisa opciones del usuario (excepto playStyle / tier).
+pub fn merge_launch_properties(
+    instance_id: &str,
+    tier: &str,
+    play_style: &str,
+) -> AppResult<()> {
     let path = instances::instance_dir(instance_id).join("paraguacraft_modern.properties");
     let mut props = read_properties(&path);
-    for (k, v) in default_launch_props(tier) {
-        props.entry(k).or_insert(v);
+    for (k, v) in default_launch_props(tier, play_style) {
+        // playStyle y hardwareTier se actualizan siempre (launcher manda).
+        if k == "playStyle" || k == "hardwareTier" || k == "oldAnimations" {
+            props.insert(k, v);
+        } else {
+            props.entry(k).or_insert(v);
+        }
+    }
+    // Competitive force: distancias/partículas (el mod re-lee al arrancar).
+    if is_competitive_style(play_style) {
+        props.insert("particleMode".into(), "MINIMAL".into());
+        props.insert("oldAnimations".into(), "true".into());
+        props.insert("skipCombatFx".into(), "true".into());
+        props.insert("boostFps".into(), "true".into());
     }
     write_properties(&path, &props)
 }
 
 const PVP_TUNED_MARKER: &str = ".paraguacraft_pvp_tuned";
 
-/// Sync del mod sin resetear options.txt / configs del usuario.
-pub fn ensure_launch_defaults(instance_id: &str, tier: &str) -> AppResult<()> {
-    merge_launch_properties(instance_id, tier)?;
+/// Sync del mod + reaplicar feel/style en cada launch (options de fluidez + configs mods).
+pub fn ensure_launch_defaults(instance_id: &str, tier: &str, play_style: &str) -> AppResult<()> {
+    merge_launch_properties(instance_id, tier, play_style)?;
     let dir = instances::instance_dir(instance_id);
+    // Siempre re-aplicar feel (bobView, vsync, sodium-extra, iris off, etc.).
+    let _ = performance::optimize_modern_pvp_options_style(&dir, tier, play_style);
+    let _ = performance::apply_modern_pvp_mod_configs_style(&dir, tier, play_style);
+
     let marker = dir.join(PVP_TUNED_MARKER);
     if marker.is_file() {
         return Ok(());
@@ -266,14 +294,22 @@ pub fn ensure_launch_defaults(instance_id: &str, tier: &str) -> AppResult<()> {
         let _ = std::fs::write(&marker, "existing");
         return Ok(());
     }
-    let _ = apply_performance_profile(instance_id, tier);
-    let _ = std::fs::write(&marker, tier);
+    let _ = apply_performance_profile_style(instance_id, tier, play_style);
+    let _ = std::fs::write(&marker, format!("{tier}/{play_style}"));
     Ok(())
 }
 
-fn default_launch_props(tier: &str) -> HashMap<String, String> {
+fn is_competitive_style(play_style: &str) -> bool {
+    !matches!(
+        play_style.to_lowercase().as_str(),
+        "casual" | "relaxed" | "chill"
+    )
+}
+
+fn default_launch_props(tier: &str, play_style: &str) -> HashMap<String, String> {
     let mut props = HashMap::new();
     props.insert("hardwareTier".into(), tier.into());
+    props.insert("playStyle".into(), play_style.into());
     props.insert("boostFps".into(), "true".into());
     props.insert("applyVanillaPreset".into(), "true".into());
     props.insert("memoryCleanup".into(), "true".into());
@@ -281,14 +317,22 @@ fn default_launch_props(tier: &str) -> HashMap<String, String> {
     props.insert("reduceFpsWhenMinimized".into(), "true".into());
     props.insert("minimizedFps".into(), "5".into());
     props.insert("pvpTrainingAutoWorld".into(), "false".into());
-    match tier {
-        "baja" => {
+    props.insert("oldAnimations".into(), "true".into());
+    let competitive = is_competitive_style(play_style);
+    match (tier, competitive) {
+        (_, true) => {
+            props.insert("particleMode".into(), "MINIMAL".into());
+            props.insert("renderDistance".into(), "10".into());
+            props.insert("simulationDistance".into(), "8".into());
+            props.insert("entityDistanceScaling".into(), "0.65".into());
+        }
+        ("baja", _) => {
             props.insert("particleMode".into(), "MINIMAL".into());
             props.insert("renderDistance".into(), "8".into());
             props.insert("simulationDistance".into(), "6".into());
             props.insert("entityDistanceScaling".into(), "0.5".into());
         }
-        "media" => {
+        ("media", _) => {
             props.insert("particleMode".into(), "REDUCED".into());
             props.insert("renderDistance".into(), "12".into());
             props.insert("simulationDistance".into(), "10".into());

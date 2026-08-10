@@ -1,28 +1,46 @@
-# Changelog Paraguacraft Launcher
+﻿# Changelog Paraguacraft Launcher
 
-Todos los cambios notables del launcher se documentan acá.
+Todos los cambios notables del launcher se documentan acÃ¡.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
+
+## [1.1.26] - 2026-08-10
+
+### Launcher
+- Estilo de juego PvP **Full rendimiento / Casual** (options + mods por estilo).
+- Catalogo multiserver (Hypixel, Minemen, Cube, UC, Mush, Regorland) + notas premium/offline.
+- Destinos de perfiles y Modo Competir ampliados.
+- Optimized: re-aplica options/configs de mods en cada launch (marker v9).
+- Packs oficiales: SHA actualizados (HUD, armor, crit, bridge).
+
+### Cliente PvP Modern (0.9.24)
+- ServerContext (Minemen/Mush/UC/Regorland), freelook estricto Minemen.
+- HUD por modo (BW/SW/Duels/HG), filtros scoreboard LATAM.
+- PlayStyle competitive feel (bob/FOV, RD, animaciones).
+
+### Resource packs (oficial 1.8.9 + modern)
+- Oleadas 1–3: bloques BW/SW, armor en otros jugadores (+netherite modern),
+  crits, bridge/arena, HUD hearts/hotbar modern, icons/widgets 1.8, fuente ASCII mas fina.
 
 ## [1.1.17] - 2026-08-08
 
-### Launcher — Servers / Playit
+### Launcher â€” Servers / Playit
 - Secret e IP **compartidos** entre todos los servers (un claim = misma `*.tun.ply.gg`).
 - Captura claim/IP del plugin Paper en consola y la muestra en la UI.
 - No lanza `playit.exe` si hay plugin playit-gg (evita cuelgue IPC).
-- Un solo server MC a la vez con el túnel compartido.
-- «Restaurar secret compartido» y «Reseteo total Playit»; avisos de cupo de agentes.
+- Un solo server MC a la vez con el tÃºnel compartido.
+- Â«Restaurar secret compartidoÂ» y Â«Reseteo total PlayitÂ»; avisos de cupo de agentes.
 - Puerto local unificado al arrancar (`server-port`).
 
 ## [1.1.16] - 2026-08-06
 
 ### Launcher
-- Botón **Cafecito** en title bar / top bar (abre el navegador del sistema).
+- BotÃ³n **Cafecito** en title bar / top bar (abre el navegador del sistema).
 - Tarjeta **Otras versiones** (tras PARAGUA 1.7) con releases sin tarjeta propia y loaders filtrados.
-- BrandPack: logo wide **1024×256** desde Minecraft **1.20.0** (corrige estirado en 1.20.x).
+- BrandPack: logo wide **1024Ã—256** desde Minecraft **1.20.0** (corrige estirado en 1.20.x).
 - Fallbacks de clientes: **2.1.45** / Modern **0.9.22**.
 
 ### Cliente PvP 1.8.9 (2.1.45)
-- Recursos BW: opción `showItemNames` (nombres o layout compacto).
+- Recursos BW: opciÃ³n `showItemNames` (nombres o layout compacto).
 
 ### Cliente PvP Modern (0.9.22)
 - Recursos BW: muestra Hierro/Oro/Esmeralda/Diamante + `showItemNames`.
@@ -30,16 +48,16 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 ## [1.1.15] - 2026-08-06
 
 ### Launcher
-- Pack PvP 1.8.9: SHA actualizado y orden brand → oficial en `options.txt`.
+- Pack PvP 1.8.9: SHA actualizado y orden brand â†’ oficial en `options.txt`.
 - Fallbacks de clientes: **2.1.44** / Modern **0.9.21**.
 
 ### Cliente PvP 1.8.9 (2.1.44)
 - Pack oficial se mueve a **Selected** con `setRepositories` (se guarda al salir).
 - Efecto romper Dewier (`destroy_stage`) en pack oficial; re-descarga si el SHA no coincide.
-- HUD Música: transparencia total + carátula **16×16 / 32×32**.
+- HUD MÃºsica: transparencia total + carÃ¡tula **16Ã—16 / 32Ã—32**.
 
 ### Cliente PvP Modern (0.9.21)
-- HUD Música: carátula 16/32 y más pasos de transparencia del panel.
+- HUD MÃºsica: carÃ¡tula 16/32 y mÃ¡s pasos de transparencia del panel.
 
 ## [1.1.14] - 2026-08-06
 
@@ -49,8 +67,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - LocalSkin de CustomSkinLoader se escribe por nick; al lanzar se limpian texturas default envenenadas.
 
 ### Added
-- Renombrar nick de cuentas offline (Ajustes → Cuentas) para alinear con Ely.by.
-- (clientes ya en main) Escala proporcional por módulo en Editar HUD — PvP **2.1.41** / Modern **0.9.19**.
+- Renombrar nick de cuentas offline (Ajustes â†’ Cuentas) para alinear con Ely.by.
+- (clientes ya en main) Escala proporcional por mÃ³dulo en Editar HUD â€” PvP **2.1.41** / Modern **0.9.19**.
 
 ## [1.1.13] - 2026-08-06
 
@@ -63,44 +81,44 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 ## [1.1.12] - 2026-08-06
 
 ### Added
-- Mini guía de skins para cuentas offline en la vista Skins (pack local, CustomSkinLoader, Ely.by y quién te ve).
+- Mini guÃ­a de skins para cuentas offline en la vista Skins (pack local, CustomSkinLoader, Ely.by y quiÃ©n te ve).
 
 ## [1.1.10] - 2026-07-28
 
 ### Fixed
 - Crash al iniciar **Optimized / Fabric** en varias PCs (fullscreen exclusivo + flag GL de Sodium).
-- Mods críticos de Optimized: si faltan Fabric API / Sodium / Iris / Lithium, error claro en vez de crash silencioso.
-- Librerías incompletas: el lanzamiento avisa y sugiere Reparar instancia.
+- Mods crÃ­ticos de Optimized: si faltan Fabric API / Sodium / Iris / Lithium, error claro en vez de crash silencioso.
+- LibrerÃ­as incompletas: el lanzamiento avisa y sugiere Reparar instancia.
 - Discord: stream congelado al compartir pantalla (renombre de ventana menos agresivo + sin exclusive fullscreen).
 
 ### Changed
-- Optimized: RAM por defecto según la gama de la PC (sin forzar 6 GB).
+- Optimized: RAM por defecto segÃºn la gama de la PC (sin forzar 6 GB).
 
 ## [1.1.9] - 2026-07-27
 
 ### Fixed
-- CurseForge tienda **403 Forbidden**: la API key con `$2a$…` ya no se corrompe al cargar `.env`.
+- CurseForge tienda **403 Forbidden**: la API key con `$2a$â€¦` ya no se corrompe al cargar `.env`.
 - Optimized **1.8.9 / 1.12.2**: OptiFine + mods Forge (FoamFix, VanillaFix, etc.) se instalan de verdad (Modrinth + BMCL fallback).
 - Shaders Iris/modernos ya no se meten en packs OptiFine legacy; se purgan los incompatibles.
 
 ### Changed
-- Shaders por backend: OptiFine → Sildur’s/BSL/hosted; Fabric/NeoForge → Iris (Oculus en NeoForge 1.20.1).
+- Shaders por backend: OptiFine â†’ Sildurâ€™s/BSL/hosted; Fabric/NeoForge â†’ Iris (Oculus en NeoForge 1.20.1).
 
 ## [1.1.3] - 2026-07-24
 
 ### Fixed
-- Discord: menos renombres de título de ventana (evita romper Overlay / compartir pantalla).
+- Discord: menos renombres de tÃ­tulo de ventana (evita romper Overlay / compartir pantalla).
 - Clientes embebidos Modern 0.9.12 / PvP 2.1.35 (borderless, iconos de servidores, Mod Menu agrupado).
 
 ## Cliente PvP Modern 0.9.12 / 1.8.9 2.1.35 - 2026-07-24
 
 
 ### Fixed
-- Borderless más estable con Discord (menos pelea con Overlay / captura de ventana).
+- Borderless mÃ¡s estable con Discord (menos pelea con Overlay / captura de ventana).
 - Iconos de servidores en lista multiplayer: si el ping no trae favicon, se descarga desde mcsrvstat.us.
 
 ### Changed
-- Mod Menu: Armadura (+%), FPS, Entity/cull, BedWars, Chat y Scoreboard agrupados en tarjetas con submods (estilo Música).
+- Mod Menu: Armadura (+%), FPS, Entity/cull, BedWars, Chat y Scoreboard agrupados en tarjetas con submods (estilo MÃºsica).
 
 ## Cliente PvP Modern 0.9.11 / 1.8.9 2.1.34 - 2026-07-24
 
@@ -119,22 +137,22 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ### Fixed
 - TNT countdown estilo Lunar: segundos con 2 decimales (ej. `1,35`) sobre la TNT encendida.
-- Modern: el label usaba coords del mundo en vez de offset local (el texto no se veía).
+- Modern: el label usaba coords del mundo en vez de offset local (el texto no se veÃ­a).
 - 1.8.9: render tipo nametag (blanco + sombra + fondo).
 
 ## Cliente PvP Modern 0.9.9 / 1.8.9 2.1.32 - 2026-07-24
 
 ### Fixed
 - Portada de Spotify/YouTube en el HUD: se muestra la imagen original (antes cuadrado negro o disco amarillo).
-- Modern: `drawTexture` escalaba mal (solo 16×16 px de esquina de la carátula).
-- 1.8.9: lee la cache del launcher (`music-art/{sha1}.jpg`) además de HTTP.
-- Launcher: cuando la carátula ya está en disco, el IPC manda `file://` para carga instantánea.
+- Modern: `drawTexture` escalaba mal (solo 16Ã—16 px de esquina de la carÃ¡tula).
+- 1.8.9: lee la cache del launcher (`music-art/{sha1}.jpg`) ademÃ¡s de HTTP.
+- Launcher: cuando la carÃ¡tula ya estÃ¡ en disco, el IPC manda `file://` para carga instantÃ¡nea.
 
 ## Cliente PvP Modern 0.9.8 - 2026-07-23
 
 ### Fixed
 - TNT countdown visible en 1.21.11 (usa `displayName` del pipeline de labels vanilla).
-- Resource packs: orden vanilla → brand → PvP oficial (máxima prioridad); purge conserva brand.
+- Resource packs: orden vanilla â†’ brand â†’ PvP oficial (mÃ¡xima prioridad); purge conserva brand.
 
 ## [1.1.1] - 2026-07-24
 
@@ -146,7 +164,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ### Fixed
 - TNT countdown en cliente PvP Modern 0.9.8.
-- Resource packs: orden vanilla → brand → PvP oficial (máxima prioridad).
+- Resource packs: orden vanilla â†’ brand â†’ PvP oficial (mÃ¡xima prioridad).
 
 ### Cliente PvP Modern 0.9.8
 - Incluido embebido en el instalador (sin release separada del cliente).
@@ -173,15 +191,15 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - Keys de Groq y CurseForge gestionadas por el launcher (sin pedirlas al usuario).
 
 ### Changed
-- Reset de versión del launcher a **1.0.0**.
-- Discord RPC unificado vía launcher para vanilla, Fabric, Forge y servidores locales.
+- Reset de versiÃ³n del launcher a **1.0.0**.
+- Discord RPC unificado vÃ­a launcher para vanilla, Fabric, Forge y servidores locales.
 
 ## Cliente PvP Modern 0.9.6 - 2026-07-22
 
 ### Fixed
 - Crash en Hypixel BedWars: bucle infinito al mostrar alertas de chat (`sendMessage` re-disparaba el evento GAME).
-- `ScoreboardFilter.strip` ya no usa regex sobre códigos de formato (más seguro con texto de Hypixel).
-- Resource pack: `paraguacraft-pvp-modern.zip` queda siempre como principal si está instalado; packs cosméticos (p. ej. Mr Blue Sky) pasan a secundario.
+- `ScoreboardFilter.strip` ya no usa regex sobre cÃ³digos de formato (mÃ¡s seguro con texto de Hypixel).
+- Resource pack: `paraguacraft-pvp-modern.zip` queda siempre como principal si estÃ¡ instalado; packs cosmÃ©ticos (p. ej. Mr Blue Sky) pasan a secundario.
 
 ## Cliente PvP Modern 0.9.5 - 2026-07-22
 
@@ -221,20 +239,20 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 ## [7.9.16] - 2026-07-22
 
 ### Fixed
-- **Servidores locales**: MC 26.x+ usa Java 25 (`java-runtime-epsilon`) en lugar de Java 21; descarga automática si falta.
-- **Playit.gg**: agente por servidor con `--secret-path` (`playit-agent.toml`); recuperación ante `InvalidAgentKey`.
+- **Servidores locales**: MC 26.x+ usa Java 25 (`java-runtime-epsilon`) en lugar de Java 21; descarga automÃ¡tica si falta.
+- **Playit.gg**: agente por servidor con `--secret-path` (`playit-agent.toml`); recuperaciÃ³n ante `InvalidAgentKey`.
 - Forge/NeoForge: `JAVA_HOME` al iniciar `run.bat`.
 
 ## [7.9.15] - 2026-07-22
 
 ### Fixed
 - Pin de **Cloth Config** con nombre de archivo correcto (`-fabric`, no `+fabric`): el mod se descargaba pero la sync fallaba.
-- **Fabric + Iris** (todas las versiones MC): cache v5, par Iris+Sodium compatible obligatorio, validación de fabric-api/sodium/iris/lithium y purge de Sodium incorrecto.
+- **Fabric + Iris** (todas las versiones MC): cache v5, par Iris+Sodium compatible obligatorio, validaciÃ³n de fabric-api/sodium/iris/lithium y purge de Sodium incorrecto.
 
 ## [7.9.14] - 2026-07-22
 
 ### Fixed
-- Instalación PvP Modern: al crear/reparar/lanzar la instancia se descargan **todos** los mods pinneados (HUD + stack), no solo Iris + mod Paraguacraft. Errores explícitos si falta alguno.
+- InstalaciÃ³n PvP Modern: al crear/reparar/lanzar la instancia se descargan **todos** los mods pinneados (HUD + stack), no solo Iris + mod Paraguacraft. Errores explÃ­citos si falta alguno.
 
 ## [7.9.13] - 2026-07-22
 
@@ -294,12 +312,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 ## Cliente PvP Modern 0.9.0 - 2026-07-21
 
 ### Added
-- **Perfiles auto por modo**: HUD y toggles según BedWars, SkyWars, Duels, etc. (scoreboard).
-- **Quick Play Cubecraft**: reconexión y modos EggWars, SkyWars, Lucky Islands, etc.
+- **Perfiles auto por modo**: HUD y toggles segÃºn BedWars, SkyWars, Duels, etc. (scoreboard).
+- **Quick Play Cubecraft**: reconexiÃ³n y modos EggWars, SkyWars, Lucky Islands, etc.
 - **Pack dual**: oficial + pack secundario sin pisarlo al reconectar.
 - **Shaders auto-off** en partida competitiva (Hypixel/Cubecraft).
-- **Scoreboard limpio**: fondo transparente, ocultar stats y números rojos.
-- **Chat triggers/alerts** configurables; **timer bridge**; **HUD modo juego**; **reach solo práctica**.
+- **Scoreboard limpio**: fondo transparente, ocultar stats y nÃºmeros rojos.
+- **Chat triggers/alerts** configurables; **timer bridge**; **HUD modo juego**; **reach solo prÃ¡ctica**.
 - **Freelook blacklist** en servidores ranked; **Discord RPC** con modo; **export stats** al desconectar.
 
 ## [7.9.7] - 2026-07-21
@@ -310,24 +328,24 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 ## Cliente PvP Modern 0.8.4 - 2026-07-21
 
 ### Fixed
-- Gamma Utils fullbright, freelook pitch, carátula música, pack forzado, mods auto-install.
+- Gamma Utils fullbright, freelook pitch, carÃ¡tula mÃºsica, pack forzado, mods auto-install.
 
 ## Cliente PvP Modern 0.8.3 - 2026-07-21
 
 ### Fixed
-- **Carátula de música**: rutas `file://?/C:/...` de Windows (prefijo `\\?\`) y fallback por nombre en `music-art/`.
+- **CarÃ¡tula de mÃºsica**: rutas `file://?/C:/...` de Windows (prefijo `\\?\`) y fallback por nombre en `music-art/`.
 - **Fullbright**: ya no fuerza gamma ilegal (16/100); solo mixin de lightmap.
 
 ## [7.9.4] - 2026-07-21
 
 ### Fixed
-- **IPC música**: URLs `file://` sin prefijo `?/` inválido en Windows (canonicalize).
+- **IPC mÃºsica**: URLs `file://` sin prefijo `?/` invÃ¡lido en Windows (canonicalize).
 
 ## [7.9.3] - 2026-07-21
 
 ### Fixed
-- **Cliente PvP 1.21.11 (0.8.2)**: mirrors extra de descarga (GitHub raw + `github.com/raw`); JAR publicado también en `clientes/`; cliente embebido en el instalador para sincronizar sin depender solo de la red.
-- **IPC música**: el campo de imagen mantiene URL https (el mod lee la cache local del launcher).
+- **Cliente PvP 1.21.11 (0.8.2)**: mirrors extra de descarga (GitHub raw + `github.com/raw`); JAR publicado tambiÃ©n en `clientes/`; cliente embebido en el instalador para sincronizar sin depender solo de la red.
+- **IPC mÃºsica**: el campo de imagen mantiene URL https (el mod lee la cache local del launcher).
 
 ## [7.9.2] - 2026-07-21
 
@@ -335,48 +353,48 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - **Pack PvP auto-aplicado**: al lanzar instancias `paraguacraft-pvp` (1.8.9) y `paraguacraft-pvp-modern` (1.21.11), el launcher descarga y activa `paraguacraft-pvp-189.zip` / `paraguacraft-pvp-modern.zip` en `options.txt` (como `ParaguacraftBrandPack`).
 
 ### Fixed
-- **Carátula de música in-game**: URLs `file://` corregidas en Windows; el cliente lee la imagen cacheada del launcher y muestra la portada original de Spotify/YouTube (1.8.9 y 1.21.11).
+- **CarÃ¡tula de mÃºsica in-game**: URLs `file://` corregidas en Windows; el cliente lee la imagen cacheada del launcher y muestra la portada original de Spotify/YouTube (1.8.9 y 1.21.11).
 
 ## Cliente PvP 2.1.31 - 2026-07-21
 
 ### Fixed
-- Soporte `file://` para carátulas cacheadas por el launcher; dibujo con dimensiones reales de la textura.
+- Soporte `file://` para carÃ¡tulas cacheadas por el launcher; dibujo con dimensiones reales de la textura.
 
 ## Cliente PvP Modern 0.8.2 - 2026-07-21
 
 ### Fixed
 - **Fullbright**: mixin en lightmap + gamma alto; ya no queda todo negro en cuevas.
 - **TNT countdown**: segundos flotando sobre la TNT (como 1.8.9).
-- **Carátula de música**: lee cache local del launcher por SHA-1; disco solo si «Descargar portada» está OFF.
+- **CarÃ¡tula de mÃºsica**: lee cache local del launcher por SHA-1; disco solo si Â«Descargar portadaÂ» estÃ¡ OFF.
 
 ### Changed
-- **Mod Menu interno**: icono único por mod (items temáticos); logo Paraguacraft solo en Mod Menu de Fabric (`icon.png`).
+- **Mod Menu interno**: icono Ãºnico por mod (items temÃ¡ticos); logo Paraguacraft solo en Mod Menu de Fabric (`icon.png`).
 
 ## Cliente PvP Modern 0.8.1 - 2026-07-21
 
 ### Fixed
-- Carátula de música: decodificación directa sin reescalar a 64×64; pack PvP aplicado por defecto si no hay otro guardado.
+- CarÃ¡tula de mÃºsica: decodificaciÃ³n directa sin reescalar a 64Ã—64; pack PvP aplicado por defecto si no hay otro guardado.
 
 ## [7.9.1] - 2026-07-21
 
 ### Fixed
-- **Servidores Paper (todas las versiones)**: migración a Paper Fill API v3 (`fill.papermc.io`); la v2 devolvía **410 Gone** y bloqueaba «Preparar»/«Iniciar» (ej. MC 26.2, 1.21.11, 1.20.x).
-- **Paper/Fabric + Geyser**: descarga oficial de Geyser/Floodgate corregida (ya no usa `latest/latest` ni la clave inexistente `paper`; usa `spigot` + último build) con fallback Modrinth.
-- **Fabric + Iris (instancias)**: Iris ya no se salta al instalar el bundle — se resuelve Iris primero y se fija la versión exacta de Sodium que Iris exige (compatible con 1.21.11).
-- **Servidores NeoForge**: loader propio (1.20.2+) en lugar de confundirse con Forge; modpacks NeoForge de Modrinth/CurseForge también.
+- **Servidores Paper (todas las versiones)**: migraciÃ³n a Paper Fill API v3 (`fill.papermc.io`); la v2 devolvÃ­a **410 Gone** y bloqueaba Â«PrepararÂ»/Â«IniciarÂ» (ej. MC 26.2, 1.21.11, 1.20.x).
+- **Paper/Fabric + Geyser**: descarga oficial de Geyser/Floodgate corregida (ya no usa `latest/latest` ni la clave inexistente `paper`; usa `spigot` + Ãºltimo build) con fallback Modrinth.
+- **Fabric + Iris (instancias)**: Iris ya no se salta al instalar el bundle â€” se resuelve Iris primero y se fija la versiÃ³n exacta de Sodium que Iris exige (compatible con 1.21.11).
+- **Servidores NeoForge**: loader propio (1.20.2+) en lugar de confundirse con Forge; modpacks NeoForge de Modrinth/CurseForge tambiÃ©n.
 - **Plugins/mods opcionales**: si ViaVersion, Geyser, SkinsRestorer, etc. fallan al preparar, se registra un aviso en la consola del servidor sin abortar la descarga del `server.jar`.
 
 ## [7.9.0] - 2026-07-21
 
 ### Added
-- **Tienda paginada**: paginación real (no solo destacados) en Mods, Resource Packs, Plugins, Shaders y Modpacks, con componente `<Pagination>` reutilizable.
-- **Filtrado dinámico de compatibilidad**: los selectores de versión/loader en el modal de instalación solo muestran combinaciones que el proyecto realmente publica en Modrinth/CurseForge.
-- **Descarga inteligente de dependencias**: modal de confirmación con checkboxes al instalar un mod con dependencias requeridas/embebidas; se puede omitir sin frenar la instalación.
-- **Motor de optimización dinámica**: antes de lanzar cualquier instancia, el launcher detecta RAM/CPU y aplica argumentos JVM y perfil de `options.txt` diferenciados por gama de PC (Baja/Media/Alta) y por loader (1.8.9 Forge+OptiFine, 1.21.11 Fabric+Sodium+Iris, o genérico), sin pisar los presets PvP ya afinados.
+- **Tienda paginada**: paginaciÃ³n real (no solo destacados) en Mods, Resource Packs, Plugins, Shaders y Modpacks, con componente `<Pagination>` reutilizable.
+- **Filtrado dinÃ¡mico de compatibilidad**: los selectores de versiÃ³n/loader en el modal de instalaciÃ³n solo muestran combinaciones que el proyecto realmente publica en Modrinth/CurseForge.
+- **Descarga inteligente de dependencias**: modal de confirmaciÃ³n con checkboxes al instalar un mod con dependencias requeridas/embebidas; se puede omitir sin frenar la instalaciÃ³n.
+- **Motor de optimizaciÃ³n dinÃ¡mica**: antes de lanzar cualquier instancia, el launcher detecta RAM/CPU y aplica argumentos JVM y perfil de `options.txt` diferenciados por gama de PC (Baja/Media/Alta) y por loader (1.8.9 Forge+OptiFine, 1.21.11 Fabric+Sodium+Iris, o genÃ©rico), sin pisar los presets PvP ya afinados.
 
 ### Changed
-- **Rendimiento de la UI**: Tienda, Ajustes, Skins, Instancias, Versiones y Servidores quedan en caché (`KeepAlive` + Pinia) al cambiar de pestaña, sin repetir pantallas de carga.
-- **Backend sin bloqueos**: descompresión de `.mrpack`/CurseForge y hashing de auto-update de mods ahora corren en `tokio::spawn_blocking`, para que la ventana nunca aparezca como "No responde" durante instalaciones o auto-updates pesados.
+- **Rendimiento de la UI**: Tienda, Ajustes, Skins, Instancias, Versiones y Servidores quedan en cachÃ© (`KeepAlive` + Pinia) al cambiar de pestaÃ±a, sin repetir pantallas de carga.
+- **Backend sin bloqueos**: descompresiÃ³n de `.mrpack`/CurseForge y hashing de auto-update de mods ahora corren en `tokio::spawn_blocking`, para que la ventana nunca aparezca como "No responde" durante instalaciones o auto-updates pesados.
 
 ## Cliente PvP Modern 0.8.0 - 2026-07-21
 
@@ -386,28 +404,28 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - **Estadisticas de combate por sesion** (nuevo, ninguno de Lunar/Badlion lo tiene): golpes, mejor combo y muertes 100% confiables (cliente-only) + "posibles bajas" heuristico marcado siempre como estimado, con panel HUD opcional y reset automatico al unirse a un mundo/servidor.
 
 ### Fixed
-- **HUD armadura + contador de bloques**: se eliminó el clamp que forzaba la posición de vuelta al valor viejo en cada carga, impidiendo reposicionar el HUD de forma permanente. Nuevo default junto al hotbar (esquina inferior derecha), con migración automática para quien nunca lo movió a mano.
-- **Carátula de música**: si el registro de la textura fallaba con una excepción, el flag de carga quedaba pegado y esa canción se quedaba con el disco genérico para siempre. Ahora cualquier error libera el flag y se reintenta en el siguiente poll (con log para diagnóstico).
+- **HUD armadura + contador de bloques**: se eliminÃ³ el clamp que forzaba la posiciÃ³n de vuelta al valor viejo en cada carga, impidiendo reposicionar el HUD de forma permanente. Nuevo default junto al hotbar (esquina inferior derecha), con migraciÃ³n automÃ¡tica para quien nunca lo moviÃ³ a mano.
+- **CarÃ¡tula de mÃºsica**: si el registro de la textura fallaba con una excepciÃ³n, el flag de carga quedaba pegado y esa canciÃ³n se quedaba con el disco genÃ©rico para siempre. Ahora cualquier error libera el flag y se reintenta en el siguiente poll (con log para diagnÃ³stico).
 
 ### Changed
-- "FPS bajo minimizado" ahora se llama "FPS bajo sin foco" (la lógica ya usaba el foco de ventana, no solo minimizado).
+- "FPS bajo minimizado" ahora se llama "FPS bajo sin foco" (la lÃ³gica ya usaba el foco de ventana, no solo minimizado).
 
 ## [7.8.0] - 2026-07-20
 
 ### Added
-- **Join inteligente desde favoritos**: infiere perfil PvP 1.8.9 vs Modern por hint o Server List Ping; botón Unirse sin depender de la instancia seleccionada.
-- **Compete mode PvP Modern**: presets agresivos al lanzar Hypixel/favoritos (culling, HUD mínimo, toggles).
+- **Join inteligente desde favoritos**: infiere perfil PvP 1.8.9 vs Modern por hint o Server List Ping; botÃ³n Unirse sin depender de la instancia seleccionada.
+- **Compete mode PvP Modern**: presets agresivos al lanzar Hypixel/favoritos (culling, HUD mÃ­nimo, toggles).
 - **Asistente Playit primera vez**: checklist con claim link, IP Java/Bedrock copiables y guardar favorito.
-- **Consola de servidor mejorada**: botones rápidos (/whitelist, /op, /gamemode, /time, historial).
+- **Consola de servidor mejorada**: botones rÃ¡pidos (/whitelist, /op, /gamemode, /time, historial).
 - **Tienda servidor**: recomendados Paraguacraft (ViaVersion, Geyser, SkinsRestorer) en Paper.
-- **Plugin badges Paper 1.21+**: auto-instalación según versión del servidor.
+- **Plugin badges Paper 1.21+**: auto-instalaciÃ³n segÃºn versiÃ³n del servidor.
 - **Auto-update CurseForge**: fingerprint murmur2 + badge "Instalada" en tienda.
-- **Bedrock ↔ Java**: favoritos con puerto Geyser, botón Bedrock y copiar instrucciones para amigos.
+- **Bedrock â†” Java**: favoritos con puerto Geyser, botÃ³n Bedrock y copiar instrucciones para amigos.
 - **Paraguabot mejorado**: contexto de instancia/favoritos/servidor + acciones clicables (Reparar, Sincronizar PvP, Abrir consola).
 
 ### Changed
-- Cache de carátula musical en disco (`file://`) para cliente Modern más robusto.
-- Skins offline unificadas launcher → `paraguacraftpvp-modern.properties`.
+- Cache de carÃ¡tula musical en disco (`file://`) para cliente Modern mÃ¡s robusto.
+- Skins offline unificadas launcher â†’ `paraguacraftpvp-modern.properties`.
 
 ## Cliente PvP Modern 0.7.0 - 2026-07-20
 
@@ -485,7 +503,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - Persistencia de **texture pack** seleccionado y **Boost FPS** entre sesiones.
 
 ### Fixed
-- **Freelook**: camara en 3ª persona con mixin en `Camera.update`.
+- **Freelook**: camara en 3Âª persona con mixin en `Camera.update`.
 - **Toggle sprint** desactivado por defecto (sin simular tecla virtual).
 - **Caratula musica**: conversion ARGB correcta y panel compacto con hardware arriba.
 - **Paraguabot Groq**: modelos `openai/gpt-oss-*` como fallback.
@@ -495,11 +513,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 ## [7.7.5] - 2026-07-19
 
 ### Added
-- **Discord RPC Bedrock**: `{usuario} - Bedrock Edition` con estado dinámico (menú, mundo) leyendo el título de ventana antes del rename.
-- **Discord RPC Ajustes**: `Explorando Ajustes · {usuario}` al entrar a la pantalla de configuración.
+- **Discord RPC Bedrock**: `{usuario} - Bedrock Edition` con estado dinÃ¡mico (menÃº, mundo) leyendo el tÃ­tulo de ventana antes del rename.
+- **Discord RPC Ajustes**: `Explorando Ajustes Â· {usuario}` al entrar a la pantalla de configuraciÃ³n.
 
 ### Changed
-- RPC del launcher respeta sesión activa (Java o Bedrock) y no se pisa al navegar mientras jugás.
+- RPC del launcher respeta sesiÃ³n activa (Java o Bedrock) y no se pisa al navegar mientras jugÃ¡s.
 
 ## [7.7.4] - 2026-07-18
 
@@ -519,12 +537,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - **Freelook**: camara libre sin girar el movimiento (como 1.8.9).
 
 ### Changed
-- Brújula detallada, ping con fallback, coordenadas con posicion propia en editor HUD.
+- BrÃºjula detallada, ping con fallback, coordenadas con posicion propia en editor HUD.
 
 ## Cliente PvP Modern 0.6.5 - 2026-07-19
 
 ### Added
-- **Discord RPC in-game** (usuario - versión - loader + servidor/mundo/menú).
+- **Discord RPC in-game** (usuario - versiÃ³n - loader + servidor/mundo/menÃº).
 
 ## Cliente PvP Modern 0.6.4 - 2026-07-19
 
@@ -533,32 +551,32 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - **Mod Menu** con tarjetas estilo 1.8.9 (negro + borde azul, ON/OFF/ABRIR).
 
 ### Changed
-- Submenús (Multijugador, Hypixel Quick Play, Mod Menu, Tema, Packs, Skin) usan botones/tarjetas Paraguacraft.
+- SubmenÃºs (Multijugador, Hypixel Quick Play, Mod Menu, Tema, Packs, Skin) usan botones/tarjetas Paraguacraft.
 - Launcher: ya no pisa `options.txt` ni configs en cada launch (solo merge de claves nuevas).
 
 ### Fixed
-- **ESC / volver al menú**: redirige siempre al menú Paraguacraft, no al TitleScreen vanilla.
-- **Logo duplicado** en submenús (fondo sin branding en pantallas hijas).
-- **Opciones que se reseteaban**: volumen, chunks, pantalla completa, Sodium — el launcher y `PerformanceBootstrap` ya no las sobrescriben al actualizar.
+- **ESC / volver al menÃº**: redirige siempre al menÃº Paraguacraft, no al TitleScreen vanilla.
+- **Logo duplicado** en submenÃºs (fondo sin branding en pantallas hijas).
+- **Opciones que se reseteaban**: volumen, chunks, pantalla completa, Sodium â€” el launcher y `PerformanceBootstrap` ya no las sobrescriben al actualizar.
 
 ## Cliente PvP Modern 0.6.3 - 2026-07-19
 
 ### Added
 - **Contador de bloques** en HUD (BedWars, SkyWars, Lucky Islands, Pillars).
-- **MusicArtCache**: carátula de Spotify/YouTube en el HUD de música.
+- **MusicArtCache**: carÃ¡tula de Spotify/YouTube en el HUD de mÃºsica.
 
 ### Changed
 - **Recursos BedWars**: columna vertical con fondo transparente (estilo 1.8.9).
-- **HUD pociones y objeto en mano**: nombre, duración y encantamientos como 1.8.9.
+- **HUD pociones y objeto en mano**: nombre, duraciÃ³n y encantamientos como 1.8.9.
 - **Armadura**: columna vertical solo iconos.
-- **Menú**: botones negros con borde azul al hover; fondo Paraguacraft en subpantallas vanilla.
+- **MenÃº**: botones negros con borde azul al hover; fondo Paraguacraft en subpantallas vanilla.
 - **Toggle sprint**: restaurado modo virtual + legacy (W) como 1.8.9.
 - **CPS**: calculado en tick, no en render (menos micro-lag).
 
 ### Fixed
 - **Boost FPS** ya no aparece fijo en el HUD (libera espacio para FPS).
-- **Logo duplicado** y pantalla negra en menú/multijugador/conexión.
-- **IPC música**: launcher lee config modern (`paraguacraftpvp-modern.properties`).
+- **Logo duplicado** y pantalla negra en menÃº/multijugador/conexiÃ³n.
+- **IPC mÃºsica**: launcher lee config modern (`paraguacraftpvp-modern.properties`).
 
 ## [7.7.3] - 2026-07-18
 
@@ -571,57 +589,57 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 ## [7.7.2] - 2026-07-18
 
 ### Fixed
-- **Inicio y Ajustes lentos (5–7 s)**: bootstrap único en paralelo, sin cargas duplicadas de cuentas/skins/instancias; Ajustes ya no bloquea la UI esperando Mojang.
-- **503 Mojang al jugar**: si `api.minecraftservices.com` está caído, reutiliza el token guardado en lugar de bloquear el inicio.
-- **Mods Fabric 1.21.11**: el launcher instala dependencias de Controlling/Zoomify (`searchables`, `fabric-language-kotlin`, `yacl`) vía Modrinth.
-- **Tienda Modrinth (503)**: reintentos más largos y descarga directa desde CDN si la API falla al instalar.
+- **Inicio y Ajustes lentos (5â€“7 s)**: bootstrap Ãºnico en paralelo, sin cargas duplicadas de cuentas/skins/instancias; Ajustes ya no bloquea la UI esperando Mojang.
+- **503 Mojang al jugar**: si `api.minecraftservices.com` estÃ¡ caÃ­do, reutiliza el token guardado en lugar de bloquear el inicio.
+- **Mods Fabric 1.21.11**: el launcher instala dependencias de Controlling/Zoomify (`searchables`, `fabric-language-kotlin`, `yacl`) vÃ­a Modrinth.
+- **Tienda Modrinth (503)**: reintentos mÃ¡s largos y descarga directa desde CDN si la API falla al instalar.
 
 ### Changed
-- Cache de hardware (5 min) y avatar activo (2 min); avatar local instantáneo antes del enrich de Mojang.
+- Cache de hardware (5 min) y avatar activo (2 min); avatar local instantÃ¡neo antes del enrich de Mojang.
 - Escaneo de launchers externos (Prism/Lunar) diferido 3 s para no competir con el arranque.
 
 ## [7.7.1] - 2026-06-30
 
 ### Added
-- **Ajustes → Cliente PvP 1.21.11**: verificar y sincronizar el mod modern sin reinstalar el launcher (igual que 1.8.9).
+- **Ajustes â†’ Cliente PvP 1.21.11**: verificar y sincronizar el mod modern sin reinstalar el launcher (igual que 1.8.9).
 
 ### Fixed
-- **Sodium corrupto** en instancias 1.21.11: el launcher ya no parchea `sodium-options.json` con esquema inválido; borra configs rotas al lanzar.
+- **Sodium corrupto** en instancias 1.21.11: el launcher ya no parchea `sodium-options.json` con esquema invÃ¡lido; borra configs rotas al lanzar.
 
 ## [7.7.0] - 2026-06-30
 
 ### Added
-- **Perfil unificado PvP 1.8.9** con selector de destino: Hypixel, favorito, solo menú o **Práctica PvP** (mundo flat).
+- **Perfil unificado PvP 1.8.9** con selector de destino: Hypixel, favorito, solo menÃº o **PrÃ¡ctica PvP** (mundo flat).
 - **Paraguacraft PvP 1.21.11**: instancia Fabric+Iris auto-creada, mods HUD por tier de PC (baja/media/alta).
-- **Fase 2 cliente 1.21.11**: mod `ParaguacraftPvP-Modern` (FPS, ping, keystrokes) vía manifest remoto.
+- **Fase 2 cliente 1.21.11**: mod `ParaguacraftPvP-Modern` (FPS, ping, keystrokes) vÃ­a manifest remoto.
 - Presets de servidores en 1.21.11: Hypixel, CubeCraft, MineLatino y favoritos.
 
 ### Changed
 - Perfil entrenamiento 1.8.9: Boost FPS sin turbo Competir; sprint toggle **M** por defecto en Competir.
-- **Loaders 1.21.11 separados**: `fabric-iris` (solo optimización) vs `paraguacraft-pvp-modern` (cliente PvP dedicado).
+- **Loaders 1.21.11 separados**: `fabric-iris` (solo optimizaciÃ³n) vs `paraguacraft-pvp-modern` (cliente PvP dedicado).
 
-### Fase 3 — Cliente PvP 1.21.11
+### Fase 3 â€” Cliente PvP 1.21.11
 - Loader propio **`paraguacraft-pvp-modern`** en el selector de versiones (como `paraguacraft-pvp` en 1.8.9).
 - Perfil Inicio **Fabric + Iris** aparte del perfil **Paraguacraft PvP 1.21.11**.
 - Mod modern lee `paraguacraft_modern.properties` del launcher (tier + HUD).
 
-### Fase 4 — Optimizaciones 1.21.11 (superiores a 1.8.9)
+### Fase 4 â€” Optimizaciones 1.21.11 (superiores a 1.8.9)
 - **JVM Java 21** dedicada: hasta **8 GB** heap (vs tope 4 GB en 1.8.9), **ZGC generacional** en PCs 16+ GB.
-- **options.txt PvP** por tier: distancias, partículas mínimas, nubes off, entity distance scaling.
-- Patch automático de **Lithium**, **Sodium** y **Dynamic FPS** al lanzar.
+- **options.txt PvP** por tier: distancias, partÃ­culas mÃ­nimas, nubes off, entity distance scaling.
+- Patch automÃ¡tico de **Lithium**, **Sodium** y **Dynamic FPS** al lanzar.
 - Mod **0.2.0**: Boost FPS (preset vanilla + limpieza de memoria al cambiar mundo) e indicador en HUD.
 
-### Pre-fase 5 — Menú PvP 1.21.11
-- **Menú personalizado** estilo Paraguacraft/Lunar: constelación, logo, botones centrales.
+### Pre-fase 5 â€” MenÃº PvP 1.21.11
+- **MenÃº personalizado** estilo Paraguacraft/Lunar: constelaciÃ³n, logo, botones centrales.
 - Barra inferior: **Skin**, **Tema** (5 presets), **Packs**, **Fabric** (Mod Menu).
 - **Multijugador PvP** con Hypixel, CubeCraft, LibreCraft, Hylex y MineLatino.
-- **Texture packs 1.21.11** descargados al instalar (launcher + catálogo GitHub `pvp-packs-modern-1.0`).
+- **Texture packs 1.21.11** descargados al instalar (launcher + catÃ¡logo GitHub `pvp-packs-modern-1.0`).
 - Mod **0.3.0** incluye selector de packs in-game.
 
-### Fase 5 — Paridad PvP 1.21.11
+### Fase 5 â€” Paridad PvP 1.21.11
 - **Mod Menu** (Right Shift): toggles HUD, Boost FPS, toggle sprint, acceso a Quick Play y packs.
-- **Hypixel Quick Play** con reconexión al último modo.
-- **Práctica PvP**: botón en menú + destino launcher con mundo local y HUD de entrenamiento.
+- **Hypixel Quick Play** con reconexiÃ³n al Ãºltimo modo.
+- **PrÃ¡ctica PvP**: botÃ³n en menÃº + destino launcher con mundo local y HUD de entrenamiento.
 - HUD ampliado: **coordenadas**, **armadura** y **CPS**.
 - Mod **0.4.0** compilado y empaquetado en `bundled/pvp-modern/`.
 
@@ -633,45 +651,45 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 ## Cliente PvP Modern 0.6.1 - 2026-07-18
 
 ### Fixed
-- **Crash al iniciar (MixinWorldRendererOutline)**: el mixin de grosor del hitbox apuntaba al ordinal incorrecto del parámetro `lineWidth` en `drawBlockOutline` de 1.21.11.
+- **Crash al iniciar (MixinWorldRendererOutline)**: el mixin de grosor del hitbox apuntaba al ordinal incorrecto del parÃ¡metro `lineWidth` en `drawBlockOutline` de 1.21.11.
 
 ## Cliente PvP Modern 0.6.0 - 2026-07-18
 
 ### Added
-- Mods de prioridad alta portados: No Hurt Cam, Fullbright, FOV dinámico, Hide titles, Scoreboard toggle, Low fire, Item physics, Old swing, Combo, TNT HUD, Chat triggers, Freelook (Alt), Pociones HUD, Brújula.
-- Mod Menu ampliado con toggles para todos los módulos nuevos.
+- Mods de prioridad alta portados: No Hurt Cam, Fullbright, FOV dinÃ¡mico, Hide titles, Scoreboard toggle, Low fire, Item physics, Old swing, Combo, TNT HUD, Chat triggers, Freelook (Alt), Pociones HUD, BrÃºjula.
+- Mod Menu ampliado con toggles para todos los mÃ³dulos nuevos.
 - Atajos: G fullbright, Alt freelook, RControl editar HUD, ` quick play.
 - Launcher instala mods Fabric extra: Controlling, Smooth Scrolling, Zoomify (+ Mod Menu, AppleSkin, Better Ping, Shulker Tooltip, Dynamic FPS).
 
 ### Notes
-- Fondos de tema PNG embebidos si están en `assets/paraguacraftpvp-modern/textures/gui/`.
-- Filtro avanzado del scoreboard (ocultar stats/números rojos) pendiente de paridad total 1.8.9.
+- Fondos de tema PNG embebidos si estÃ¡n en `assets/paraguacraftpvp-modern/textures/gui/`.
+- Filtro avanzado del scoreboard (ocultar stats/nÃºmeros rojos) pendiente de paridad total 1.8.9.
 
 ## Cliente PvP Modern 0.5.0 - 2026-07-18
 
 ### Added
-- **Mod Menu** estilo Lunar con categorías, cards ON/OFF y botón **Editar HUD** (arrastrar módulos).
-- **Skin Changer** por URL o nick (minotar) en lugar del menú vanilla de capas.
-- HUD ampliado: iconos de armadura, objeto en mano, recursos BedWars, overlay música (IPC launcher).
+- **Mod Menu** estilo Lunar con categorÃ­as, cards ON/OFF y botÃ³n **Editar HUD** (arrastrar mÃ³dulos).
+- **Skin Changer** por URL o nick (minotar) en lugar del menÃº vanilla de capas.
+- HUD ampliado: iconos de armadura, objeto en mano, recursos BedWars, overlay mÃºsica (IPC launcher).
 - **Hitbox azul** cyan al apuntar bloques; **FPS/Ping/CPS** con etiquetas estilo 1.8.9.
-- Keystrokes 20×20 (WASD + LMB/RMB) como 1.8.9.
+- Keystrokes 20Ã—20 (WASD + LMB/RMB) como 1.8.9.
 
 ### Fixed
-- **Toggle sprint legacy**: W activa sprint automáticamente.
-- **Resource packs**: aplicación real vía perfiles habilitados + refresh.
+- **Toggle sprint legacy**: W activa sprint automÃ¡ticamente.
+- **Resource packs**: aplicaciÃ³n real vÃ­a perfiles habilitados + refresh.
 - **Hypixel Quick Play**: conecta a Hypixel y ejecuta el comando al entrar.
-- **Práctica PvP flat**: borra mundo corrupto sin `level.dat` y crea flat automático.
-- **Menú alternante** vanilla/custom: `CustomTitleScreen` extiende `TitleScreen`.
-- **Layout responsive** del menú principal según escala GUI.
-- **Tier hardware**: PCs con 16–32 GB RAM ya no reciben preset “baja” (R7 5700G + 32 GB → alta).
+- **PrÃ¡ctica PvP flat**: borra mundo corrupto sin `level.dat` y crea flat automÃ¡tico.
+- **MenÃº alternante** vanilla/custom: `CustomTitleScreen` extiende `TitleScreen`.
+- **Layout responsive** del menÃº principal segÃºn escala GUI.
+- **Tier hardware**: PCs con 16â€“32 GB RAM ya no reciben preset â€œbajaâ€ (R7 5700G + 32 GB â†’ alta).
 
 ### Changed
-- Preset gráfico **media** menos agresivo (render 12, sim 10, ImmediatelyFast activo).
+- Preset grÃ¡fico **media** menos agresivo (render 12, sim 10, ImmediatelyFast activo).
 
 ## Cliente PvP Modern 0.4.2 - 2026-06-30
 
 ### Fixed
-- **Texto invisible en el menú**: colores del tema sin canal alpha (1.21.11 ignora drawText si alpha = 0).
+- **Texto invisible en el menÃº**: colores del tema sin canal alpha (1.21.11 ignora drawText si alpha = 0).
 - **Logo rosa/negro**: textura del mod dibujada con `drawTexture` en lugar de `drawGuiTexture` (solo sprites del atlas).
 - HUD: colores de FPS, ping, CPS, coords y armadura con alpha completo.
 
@@ -679,7 +697,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ### Fixed
 - **Logo Paraguacraft** cargaba mal (namespace de assets incorrecto).
-- **Menú compacto**: botones planos estilo Lunar, sin bloques de piedra gigantes ni solapamiento.
+- **MenÃº compacto**: botones planos estilo Lunar, sin bloques de piedra gigantes ni solapamiento.
 - Layout en 3 filas: juego principal, utilidades (Mod Menu/Opciones/Salir) y barra Skin/Tema/Packs/Fabric.
 
 ## Cliente PvP Modern 0.4.0 - 2026-06-30
@@ -687,20 +705,20 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 ### Added
 - Mod Menu estilo Lunar (Right Shift).
 - Hypixel Quick Play con estado persistente.
-- Mundo de práctica PvP (flat) desde menú o launcher.
+- Mundo de prÃ¡ctica PvP (flat) desde menÃº o launcher.
 - HUD: coordenadas, armadura, CPS y toggle sprint configurable.
 
 ## Cliente PvP Modern 0.3.0 - 2026-06-30
 
 ### Added
-- Menú principal y pausa personalizados (mixin TitleScreen / GameMenuScreen).
+- MenÃº principal y pausa personalizados (mixin TitleScreen / GameMenuScreen).
 - Pantallas: tema, multijugador PvP, texture packs.
-- Catálogo embebido + remoto de 5 packs PvP 1.21.11.
+- CatÃ¡logo embebido + remoto de 5 packs PvP 1.21.11.
 
 ## Cliente PvP Modern 0.2.0 - 2026-06-30
 
 ### Added
-- **Boost FPS**: aplica gráficos rápidos, partículas mínimas y distancias PvP al iniciar.
+- **Boost FPS**: aplica grÃ¡ficos rÃ¡pidos, partÃ­culas mÃ­nimas y distancias PvP al iniciar.
 - Limpieza de memoria al entrar a mundo/servidor.
 - Badge **Boost** en el HUD (media/alta).
 
@@ -710,14 +728,14 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 ## Cliente PvP Modern 0.1.0 - 2026-06-30
 
 ### Added
-- Mod Fabric **Paraguacraft PvP Modern** para 1.21.11: HUD FPS, ping y keystrokes básicos.
+- Mod Fabric **Paraguacraft PvP Modern** para 1.21.11: HUD FPS, ping y keystrokes bÃ¡sicos.
 
 ## Cliente PvP 2.1.29 - 2026-06-30
 
 ### Added
-- **Hypixel Quick Play**: botón reconectar al último modo jugado.
-- **Práctica PvP**: mundo flat con reglas PvP (keepInventory, sin mobs/regeneración).
-- Destino launcher «Práctica PvP» abre el mundo automáticamente.
+- **Hypixel Quick Play**: botÃ³n reconectar al Ãºltimo modo jugado.
+- **PrÃ¡ctica PvP**: mundo flat con reglas PvP (keepInventory, sin mobs/regeneraciÃ³n).
+- Destino launcher Â«PrÃ¡ctica PvPÂ» abre el mundo automÃ¡ticamente.
 
 ### Changed
 - Filtro de scoreboard Hypixel ampliado (quests, rank, daily reward, etc.).
@@ -726,28 +744,28 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 ## [7.6.0] - 2026-06-30
 
 ### Added
-- **Contenido estilo Modrinth**: mods, shaders y resource packs muestran nombre, autor, descripción e icono original (API Modrinth + `pack.png` local).
-- **Compatibilidad de mods** en chequeo pre-lanzamiento según loader y versión MC.
+- **Contenido estilo Modrinth**: mods, shaders y resource packs muestran nombre, autor, descripciÃ³n e icono original (API Modrinth + `pack.png` local).
+- **Compatibilidad de mods** en chequeo pre-lanzamiento segÃºn loader y versiÃ³n MC.
 
 ### Fixed
 - **Resource packs** ya no se borran al aplicar skin offline ni al togglear desde el launcher (`options.txt` merge correcto).
-- **Resource packs en PvP 1.8.9 y 1.21.x**: activación/desactivación sincronizada con `options.txt`.
-- **Servidores Fabric**: preparación detecta `fabric-server-launch.jar`; playit.gg se auto-inicia al arrancar el servidor.
-- **Playit.gg**: no devuelve dirección obsoleta como si fuera la actual.
+- **Resource packs en PvP 1.8.9 y 1.21.x**: activaciÃ³n/desactivaciÃ³n sincronizada con `options.txt`.
+- **Servidores Fabric**: preparaciÃ³n detecta `fabric-server-launch.jar`; playit.gg se auto-inicia al arrancar el servidor.
+- **Playit.gg**: no devuelve direcciÃ³n obsoleta como si fuera la actual.
 
 ## [7.5.0] - 2026-06-30
 
 ### Added
-- **Diagnóstico post-crash liviano**: banner con causa, hints y enlace a instancia/Paraguabot (sin abrir el bot automáticamente).
+- **DiagnÃ³stico post-crash liviano**: banner con causa, hints y enlace a instancia/Paraguabot (sin abrir el bot automÃ¡ticamente).
 - **Conflictos de mods**: avisos on-demand (duplicados, OptiFine+Iris, Essential/Patcher).
-- **Bandeja ultra-lite**: icono en systray mientras jugás; restaurar launcher con un clic.
+- **Bandeja ultra-lite**: icono en systray mientras jugÃ¡s; restaurar launcher con un clic.
 
 ## [7.4.0] - 2026-06-30
 
 ### Added
 - **Chequeo pre-lanzamiento** on-demand: Java, cliente PvP, espacio en disco y tips de antivirus.
-- **Peso de instancia** (liviano / medio / pesado) según mods, shaders y RAM.
-- **Perfiles de juego** 1 clic en Inicio: Hypixel PvP, PvP práctica, Vanilla e Iris/Modpack.
+- **Peso de instancia** (liviano / medio / pesado) segÃºn mods, shaders y RAM.
+- **Perfiles de juego** 1 clic en Inicio: Hypixel PvP, PvP prÃ¡ctica, Vanilla e Iris/Modpack.
 
 ## [7.3.0] - 2026-06-30
 
@@ -756,7 +774,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
   prioridad Java alta, RAM/GC por hardware, perfil cliente Boost FPS y actualizaciones
   PvP diferidas hasta cerrar Minecraft.
 - **Presupuesto de recursos** en detalle de instancia: launcher, Java y RAM libre.
-- **Música smart**: defaults por gama baja/media; IPC overlay solo si HUD música/hardware ON.
+- **MÃºsica smart**: defaults por gama baja/media; IPC overlay solo si HUD mÃºsica/hardware ON.
 - **Actualizaciones diferidas**: no sync PvP ni chequeo de launcher mientras hay partida.
 
 ## [7.2.19] - 2026-07-01
@@ -767,7 +785,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - **Paraguabot**: consultas generales ya no quedan bloqueadas por un diagnostico de crash previo.
 
 ### Changed
-- **Web**: modo claro en [paraguacraft.pages.dev](https://paraguacraft.pages.dev) — deploy desde repo [paraguacraft-web](https://github.com/SantiJ10/paraguacraft-web) (separado del launcher).
+- **Web**: modo claro en [paraguacraft.pages.dev](https://paraguacraft.pages.dev) â€” deploy desde repo [paraguacraft-web](https://github.com/SantiJ10/paraguacraft-web) (separado del launcher).
 
 ## Cliente PvP 2.1.28 - 2026-06-30
 
@@ -779,34 +797,34 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ### Fixed
 - **Toggle Sprint / Toggle Sneak**: sin lag de 1 tick; las teclas virtuales se aplican al
-  inicio de `onLivingUpdate` (patrón Lunar) para velocidad de sprint vanilla y sneak instantáneo.
+  inicio de `onLivingUpdate` (patrÃ³n Lunar) para velocidad de sprint vanilla y sneak instantÃ¡neo.
 
 ## Cliente PvP 2.1.26 - 2026-06-30
 
 ### Fixed
-- **Toggle Sprint / Toggle Sneak rotos** en 2.1.24–2.1.25: el mixin no se aplicaba (punto de
-  inyección inválido). Ahora sneak/sprint se aplican al final de `onLivingUpdate`.
-- **Detección de actualización**: el launcher consulta todos los mirrors del manifest y elige
-  la versión más nueva (evita CDN de raw.githubusercontent con manifest viejo).
+- **Toggle Sprint / Toggle Sneak rotos** en 2.1.24â€“2.1.25: el mixin no se aplicaba (punto de
+  inyecciÃ³n invÃ¡lido). Ahora sneak/sprint se aplican al final de `onLivingUpdate`.
+- **DetecciÃ³n de actualizaciÃ³n**: el launcher consulta todos los mirrors del manifest y elige
+  la versiÃ³n mÃ¡s nueva (evita CDN de raw.githubusercontent con manifest viejo).
 
 ## Cliente PvP 2.1.25 - 2026-06-30
 
 ### Added
-- **Toggle Sprint en Mod Menu** (categoría PvP): activar/desactivar sin depender de la tecla V.
+- **Toggle Sprint en Mod Menu** (categorÃ­a PvP): activar/desactivar sin depender de la tecla V.
 
 ## Cliente PvP 2.1.24 - 2026-06-30
 
 ### Fixed
-- **Toggle Sneak**: respuesta instantánea (como Lunar); sneak/sprint se aplican después de
-  `updatePlayerMoveState` vía mixin, no antes donde vanilla los pisaba cada tick.
-- **Auditoría de input**: eliminados usos rotos de `setKeyBindState` para sprint; sneak solo
-  bloquea Shift físico de forma intencional.
+- **Toggle Sneak**: respuesta instantÃ¡nea (como Lunar); sneak/sprint se aplican despuÃ©s de
+  `updatePlayerMoveState` vÃ­a mixin, no antes donde vanilla los pisaba cada tick.
+- **AuditorÃ­a de input**: eliminados usos rotos de `setKeyBindState` para sprint; sneak solo
+  bloquea Shift fÃ­sico de forma intencional.
 
 ## Cliente PvP 2.1.23 - 2026-06-30
 
 ### Fixed
 - **Toggle Sprint**: ya no simula la tecla Ctrl (se pisaba cada frame); ahora activa
-  el sprint al moverse hacia adelante con W cuando el toggle está ON (tecla V).
+  el sprint al moverse hacia adelante con W cuando el toggle estÃ¡ ON (tecla V).
 
 ## Cliente PvP 2.1.22 - 2026-06-30
 
@@ -832,11 +850,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
   eliminado el sistema custom de sprites de camas que causaba crashes.
 
 ### Added
-- **Ajustes → Cliente PvP**: versión publicada vs instalada, sincronización manual y nota
+- **Ajustes â†’ Cliente PvP**: versiÃ³n publicada vs instalada, sincronizaciÃ³n manual y nota
   de que el cliente se actualiza sin recompilar el launcher.
 - **Modo offline mejorado**: jugar con instancias y mods ya instalados sin internet;
   skins Premium se aplican localmente y se encolan para Mojang al reconectar; tokens
-  Microsoft en caché si no hay red.
+  Microsoft en cachÃ© si no hay red.
 
 ### Changed
 - Launcher **7.2.17**.
@@ -846,14 +864,14 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 ### Fixed
 - **Crash al entrar a Hypixel (cliente 2.1.19)**: los sprites de cama coloreados ya no
   apuntan a PNG inexistentes en `paraguacraft:textures/beds/`; cargan desde la textura
-  vanilla y se recolorean después del stitch del atlas.
-- **HUD de hardware — GPU como CPU/RAM**: el overlay muestra **% de uso** de la GPU (y
-  temperatura cuando está disponible), no el nombre de la placa. En Windows se lee con
+  vanilla y se recolorean despuÃ©s del stitch del atlas.
+- **HUD de hardware â€” GPU como CPU/RAM**: el overlay muestra **% de uso** de la GPU (y
+  temperatura cuando estÃ¡ disponible), no el nombre de la placa. En Windows se lee con
   contadores de rendimiento / `nvidia-smi`.
 - **Skins Steve corruptas en lobby de Hypixel**: se restaura el estado OpenGL tras dibujar
-  logos/ping en nametags (la textura quedaba mal enlazada y rompía el siguiente jugador
-  renderizado; Alex no se veía afectado).
-- **Camas siempre rojas en BedWars**: detección de equipo en Hypixel (sidebar con ✓, lana en
+  logos/ping en nametags (la textura quedaba mal enlazada y rompÃ­a el siguiente jugador
+  renderizado; Alex no se veÃ­a afectado).
+- **Camas siempre rojas en BedWars**: detecciÃ³n de equipo en Hypixel (sidebar con âœ“, lana en
   inventario, bloques cercanos) y sprites de cama recoloreados por equipo, estilo
   Lunar/Badlion.
 
@@ -864,14 +882,14 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ### Fixed
 - **Pantalla renderizada "en la esquina"** (cuadrante con el resto en negro): self-heal de
-  viewport: si el tamaño real de la ventana no coincide con el framebuffer, se fuerza el
-  resize. Corrige el problema al usar Windowed Fullscreen y también con escalado DPI de
-  Windows (típico en laptops con pantalla a 125/150%).
+  viewport: si el tamaÃ±o real de la ventana no coincide con el framebuffer, se fuerza el
+  resize. Corrige el problema al usar Windowed Fullscreen y tambiÃ©n con escalado DPI de
+  Windows (tÃ­pico en laptops con pantalla a 125/150%).
 - **HUD de hardware con datos correctos**:
-  - **CPU/RAM ya no marcan "demasiada carga"**: el % de CPU se medía con un `System` nuevo
+  - **CPU/RAM ya no marcan "demasiada carga"**: el % de CPU se medÃ­a con un `System` nuevo
     en cada lectura (sysinfo necesita dos muestras para el delta). Ahora se reutiliza una
-    instancia persistente, así el % es real.
-  - **GPU identificada de verdad**: se muestra el nombre real de la placa leído por OpenGL
+    instancia persistente, asÃ­ el % es real.
+  - **GPU identificada de verdad**: se muestra el nombre real de la placa leÃ­do por OpenGL
     (`GL_RENDERER`), que funciona en cualquier PC (antes la GPU iba fija en "-").
 
 ### Changed
@@ -880,14 +898,14 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 ## [7.2.14] - 2026-06-30
 
 ### Added
-- **Limitador de FPS en segundo plano** (estilo Lunar/Badlion): cuando la ventana está
+- **Limitador de FPS en segundo plano** (estilo Lunar/Badlion): cuando la ventana estÃ¡
   **minimizada** se baja el tope de FPS (default 5). Reduce uso de CPU/GPU y, sobre todo
-  en laptops, evita el *thermal throttling* que después tira los FPS en partida. Opción
-  extra para limitar también **sin foco** (default off, para no molestar al borderless con
+  en laptops, evita el *thermal throttling* que despuÃ©s tira los FPS en partida. OpciÃ³n
+  extra para limitar tambiÃ©n **sin foco** (default off, para no molestar al borderless con
   el juego visible en otro monitor). Configurable desde el Mod Menu (Rendimiento).
 
 ### Fixed
-- **Windowed Fullscreen**: al activarlo desde el menú ya no se ve la ventana "achicada"
+- **Windowed Fullscreen**: al activarlo desde el menÃº ya no se ve la ventana "achicada"
   hasta tocar F11; ahora aplica el resize del framebuffer al instante.
 
 ### Changed
@@ -898,46 +916,46 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 ### Added
 - **Windowed Fullscreen (pantalla completa en ventana)** estilo Patcher/Lunar en el
   cliente PvP. Reemplaza el fullscreen exclusivo (F11) por una ventana sin bordes del
-  tamaño del escritorio: permite **alt-tab instantáneo**, enfocar otras ventanas y que
+  tamaÃ±o del escritorio: permite **alt-tab instantÃ¡neo**, enfocar otras ventanas y que
   **OBS/Discord** sigan capturando como ventana de juego, sin el parpadeo del modo
   exclusivo. Implementado con LWJGL2 (propiedad `undecorated` + `setFullscreen(false)`),
-  no usa hacks nativos frágiles. Se activa desde el Mod Menu (categoría Mecánicas) y se
-  aplica al instante; también cambia el comportamiento de F11.
+  no usa hacks nativos frÃ¡giles. Se activa desde el Mod Menu (categorÃ­a MecÃ¡nicas) y se
+  aplica al instante; tambiÃ©n cambia el comportamiento de F11.
 
 ### Changed
-- **Limpieza automática de restos de Essential/Patcher**: el launcher borra el JAR de
+- **Limpieza automÃ¡tica de restos de Essential/Patcher**: el launcher borra el JAR de
   Essential y sus carpetas de datos (`essential/`, `ModCoreOSS/`, config de Patcher) de
   las instancias existentes, evitando el login y los reinicios que dejaba.
 - **Cliente PvP 2.1.15**.
 
 ### Performance
 - Optimizaciones propias revisadas y mantenidas: culling de entidades **sin parpadeo de
-  jugadores** (nunca se cullan), nametags/armorstands/itemframes/tile-entities, límite de
-  partículas, skip de FX de combate y limpieza de memoria. Preset automático por gama de
+  jugadores** (nunca se cullan), nametags/armorstands/itemframes/tile-entities, lÃ­mite de
+  partÃ­culas, skip de FX de combate y limpieza de memoria. Preset automÃ¡tico por gama de
   hardware (LOW/MEDIUM/HIGH) para buen rendimiento desde laptops 8 GB hasta PCs de gama alta.
 
 ## [7.2.12] - 2026-06-30
 
 ### Removed
 - **Patcher (Sk1er) / Essential** eliminado del cliente PvP. El Patcher actual depende de
-  Essential (login, cosméticos y un reinicio del juego al arrancar) y no existe una versión
+  Essential (login, cosmÃ©ticos y un reinicio del juego al arrancar) y no existe una versiÃ³n
   standalone viable. Para un cliente PvP limpio se quita por completo; el launcher purga el
-  JAR de Patcher de las instancias existentes automáticamente.
+  JAR de Patcher de las instancias existentes automÃ¡ticamente.
 
 ### Changed
 - El cliente queda con **OptiFine + optimizaciones propias pulidas**: culling de
   entidades (jugadores nunca se cullan), nametags/armorstands/itemframes/tile-entities,
-  límite de partículas, skip de FX de combate y limpieza de memoria al cambiar de mundo
+  lÃ­mite de partÃ­culas, skip de FX de combate y limpieza de memoria al cambiar de mundo
   (GC solo al descargar mundo, sin freeze al entrar a la partida).
 - **Cliente PvP 2.1.14**.
 
 ## [7.2.11] - 2026-06-30
 
 ### Fixed
-- **Crash al iniciar** (no llegaba al menú principal): el preset Boost FPS ponía
+- **Crash al iniciar** (no llegaba al menÃº principal): el preset Boost FPS ponÃ­a
   `mipmapLevels = 0`, lo que provoca `ArrayIndexOutOfBoundsException` al generar
-  mipmaps del atlas de texturas en 1.8.9. Ahora se usa mínimo 1 y se corrige
-  automáticamente si el perfil quedó en 0.
+  mipmaps del atlas de texturas en 1.8.9. Ahora se usa mÃ­nimo 1 y se corrige
+  automÃ¡ticamente si el perfil quedÃ³ en 0.
 
 ### Changed
 - **Cliente PvP 2.1.13**.
@@ -947,8 +965,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 ### Performance
 - **Boost FPS reforzado** (preset estilo Lunar/Badlion):
   - OptiFine **Fast Render** + Render Regions + Smart Animations + Fast Math.
-  - Apagado de nubes, lluvia, clima, estrellas, sky custom, partículas de agua/void/portal.
-  - Gráficos en **Fast**, Smooth Lighting (AO) **off**, mipmaps **off**, AA/AF al mínimo.
+  - Apagado de nubes, lluvia, clima, estrellas, sky custom, partÃ­culas de agua/void/portal.
+  - GrÃ¡ficos en **Fast**, Smooth Lighting (AO) **off**, mipmaps **off**, AA/AF al mÃ­nimo.
 - Se quita el **System.gc() forzado** al cambiar de mundo: provocaba un freeze al
   entrar a la partida. La memoria ya la maneja Patcher (leaks + world swapping).
   Se conserva solo la limpieza barata de display lists.
@@ -973,7 +991,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - **Patcher (Sk1er) integrado** al cliente PvP: coremod 1.8.9 que arregla varios bugs de render y mejora rendimiento. Se distribuye junto con OptiFine en `bundled/pvp` (no en Releases).
 
 ### Fixed
-- **Compañeros que desaparecian y volvian en partida**: el culling de entidades hacia un chequeo de frustum sobre jugadores lejanos y parpadeaban. Ahora los jugadores NUNCA se cullan (el culling solo aplica a mobs/objetos).
+- **CompaÃ±eros que desaparecian y volvian en partida**: el culling de entidades hacia un chequeo de frustum sobre jugadores lejanos y parpadeaban. Ahora los jugadores NUNCA se cullan (el culling solo aplica a mobs/objetos).
 - **Skins rotas en salas de espera**: se endurecio el estado GL al dibujar logos/ping en los nametags (push/pop + reset de color y textura) para que el modelo/nametag siguiente no herede estado sucio.
 
 ### Changed
@@ -1076,7 +1094,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - Fallback embebido del launcher apunta a `ParaguacraftPvP-2.1.0.jar`.
 
 ### Security / Hypixel
-- Todos los mods del cliente son **solo cosmeticos/HUD** — sin reach hack, xray, autoclicker ni macros.
+- Todos los mods del cliente son **solo cosmeticos/HUD** â€” sin reach hack, xray, autoclicker ni macros.
 - Reach Display y Combo Counter solo **muestran** datos de tus golpes; no alteran hitboxes ni paquetes.
 
 ## [7.1.8] - 2026-06-29
@@ -1087,9 +1105,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 ## [7.1.2] - 2026-06-25
 
 ### Fixed
-- **JVM PvP 1.8.9**: flags G1 solo compatibles con Java 8 (evita «Could not create the Java Virtual Machine» en PCs con mucha RAM).
+- **JVM PvP 1.8.9**: flags G1 solo compatibles con Java 8 (evita Â«Could not create the Java Virtual MachineÂ» en PCs con mucha RAM).
 - Sin `-Xmx`/`-Xms` duplicados del perfil Forge cuando aplica preset PvP.
-- Verificación SHA del mod PvP: solo acepta el hash del manifest (fuerza actualización del JAR viejo).
+- VerificaciÃ³n SHA del mod PvP: solo acepta el hash del manifest (fuerza actualizaciÃ³n del JAR viejo).
 
 ## [7.1.1] - 2026-06-19
 
@@ -1098,16 +1116,16 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ### Fixed
 - **Auto-update PvP**: el SHA del manifest remoto manda sobre el JAR embebido; Play descarga el cliente nuevo aunque el instalador sea viejo.
-- JAR embebido actualizado (`04aee52f…`) para instalaciones offline.
+- JAR embebido actualizado (`04aee52fâ€¦`) para instalaciones offline.
 
 ## [7.1.0] - 2026-06-25
 
 ### Added
-- **Cliente PvP dinámico**: versión, release y mods desde `manifest.json` remoto; elimina JARs viejos al actualizar.
+- **Cliente PvP dinÃ¡mico**: versiÃ³n, release y mods desde `manifest.json` remoto; elimina JARs viejos al actualizar.
 - **Perfil JVM PvP 1.8.9**: RAM/G1GC por gama de hardware (Java 8).
 
 ### Changed
-- README orientado al jugador (intro, features, instalación) como la web.
+- README orientado al jugador (intro, features, instalaciÃ³n) como la web.
 - Manifest PvP con `client_version` y `release_tag`.
 
 ### Fixed
@@ -1116,9 +1134,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 ## [7.0.5] - 2026-06-24
 
 ### Fixed
-- **Lanzamiento 1.8.9 en Windows**: Java 8 ya no usa `@args.txt` (solo Java 9+); corrige cierre instantáneo sin logs.
-- **Java por versión**: el override global en Ajustes no bloquea Java 8 en instancias 1.8.9 si tenés Java 21 para 1.21.
-- **Título de ventana**: solo «Paraguacraft PvP» en 1.8.9 PvP; otras versiones muestran «Paraguacraft X.X.X».
+- **Lanzamiento 1.8.9 en Windows**: Java 8 ya no usa `@args.txt` (solo Java 9+); corrige cierre instantÃ¡neo sin logs.
+- **Java por versiÃ³n**: el override global en Ajustes no bloquea Java 8 en instancias 1.8.9 si tenÃ©s Java 21 para 1.21.
+- **TÃ­tulo de ventana**: solo Â«Paraguacraft PvPÂ» en 1.8.9 PvP; otras versiones muestran Â«Paraguacraft X.X.XÂ».
 
 ### Changed
 - **PvP Client 2.0.0**: texture packs desde GitHub Release y Google Drive (sin Modrinth en el gestor del mod).
@@ -1129,19 +1147,19 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 ### Fixed
 - **Paraguabot / crash falso**: ignora el "Crash Report" de la pantalla de carga de Forge 1.8.9 (no es un error real).
 - No usa crash-reports viejos de sesiones anteriores al diagnosticar.
-- Forge 1.8.9 que cierra con código 1 pero log `Stopping!` ya no marca "El juego terminó con error".
+- Forge 1.8.9 que cierra con cÃ³digo 1 pero log `Stopping!` ya no marca "El juego terminÃ³ con error".
 
 ## [7.0.3] - 2026-06-24
 
 ### Added
-- **Paraguacraft PvP Client 2.0.0**: descarga automática desde release `pvp-client-2.0.0` (Forge 1.8.9 + OptiFine + mod 2.0.0).
-- **Texture packs PvP**: catálogo remoto + release `pvp-packs-1.0` en GitHub (9 packs); Faithful y Tightfault vía Modrinth.
+- **Paraguacraft PvP Client 2.0.0**: descarga automÃ¡tica desde release `pvp-client-2.0.0` (Forge 1.8.9 + OptiFine + mod 2.0.0).
+- **Texture packs PvP**: catÃ¡logo remoto + release `pvp-packs-1.0` en GitHub (9 packs); Faithful y Tightfault vÃ­a Modrinth.
 - **Fallback local** de mods PvP: `%APPDATA%/ParaguacraftLauncher/bundled/pvp` si GitHub no responde.
 - Scripts `publish-pvp-client.ps1` y `publish-pvp-packs.ps1` (GitHub CLI, detecta `gh` sin PATH).
 
 ### Changed
-- Manifest y catálogo PvP actualizados a 2.0.0 (`clientes/paraguacraft-pvp/`).
-- Reparación de instancias: corrige meta PvP inferida incorrectamente desde nombre de carpeta.
+- Manifest y catÃ¡logo PvP actualizados a 2.0.0 (`clientes/paraguacraft-pvp/`).
+- ReparaciÃ³n de instancias: corrige meta PvP inferida incorrectamente desde nombre de carpeta.
 
 ### Fixed
 - Descarga del mod PvP fallaba con HTTP 404 en PCs nuevas (release inexistente en GitHub).
@@ -1159,36 +1177,36 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 ### Fixed
 - Auto-update: abre el instalador NSIS visible (ya no usa `relaunch` del plugin ni `/S` silencioso).
 - Auto-update: cierra el launcher tras lanzar el setup para permitir reinstalar.
-- CI release: genera `latest.json` con hash real y lo sube al release automáticamente.
+- CI release: genera `latest.json` con hash real y lo sube al release automÃ¡ticamente.
 
 ## [7.0.0] - 2026-06-19
 
 ### Fixed
 - PvP 1.8.9: OptiFine y cliente desde `bundled/pvp` en GitHub (sin depender de optifine.net).
-- Lanzamiento Java 8: flags JVM compatibles; resolución de Java para instaladores Forge/OptiFine.
+- Lanzamiento Java 8: flags JVM compatibles; resoluciÃ³n de Java para instaladores Forge/OptiFine.
 - Modpacks Modrinth: reintentos en red, User-Agent correcto, loader instalado antes de bajar mods.
 - CurseForge: API key embebida en builds de release (CI + compile-time).
 
 ## [6.9.0] - 2026-06-22
 
-### 🚀 Lanzamiento mayor — Paraguacraft Launcher (Tauri v2)
+### ðŸš€ Lanzamiento mayor â€” Paraguacraft Launcher (Tauri v2)
 
 Reescritura completa del launcher: **Rust + Tauri v2 + Vue 3**. Cliente multiplataforma de grado comercial.
 
 #### Rendimiento
-- **0% CPU en segundo plano** mientras jugás: el runtime apaga red, caches y hilos al lanzar Minecraft.
-- **Descargas async ultrarrápidas** con Rust (`reqwest`), concurrencia acotada, SHA-1 y escritura atómica.
-- **Optimización automática** de RAM/JVM según hardware (gama baja, media y alta).
+- **0% CPU en segundo plano** mientras jugÃ¡s: el runtime apaga red, caches y hilos al lanzar Minecraft.
+- **Descargas async ultrarrÃ¡pidas** con Rust (`reqwest`), concurrencia acotada, SHA-1 y escritura atÃ³mica.
+- **OptimizaciÃ³n automÃ¡tica** de RAM/JVM segÃºn hardware (gama baja, media y alta).
 
 #### Tienda y contenido
 - Tienda nativa **Modrinth + CurseForge** (mods, modpacks, shaders, resource packs, datapacks, plugins).
 - **Modpacks `.mrpack`**: crea instancia completa (index, overrides, loader).
-- **Plugins** → servidores locales (`plugins/` o `mods/`); **datapacks** → instancia o servidor + mundo.
-- Modpacks filtran **versión MC y loader reales** del proyecto (ej. Fabulously Optimized = Fabric, Zombie Invade = Forge).
+- **Plugins** â†’ servidores locales (`plugins/` o `mods/`); **datapacks** â†’ instancia o servidor + mundo.
+- Modpacks filtran **versiÃ³n MC y loader reales** del proyecto (ej. Fabulously Optimized = Fabric, Zombie Invade = Forge).
 
 #### Servidores y extras
 - Servidores locales Paper/Fabric/Forge + **Playit.gg invisible**.
-- **Diagnóstico de crashes con IA** al salir del juego.
+- **DiagnÃ³stico de crashes con IA** al salir del juego.
 - Instancias aisladas (PvP 1.8.9, modpacks pesados).
 - Auto-update integrado (`tauri-plugin-updater` + fallback GitHub Releases).
 
@@ -1196,241 +1214,242 @@ Reescritura completa del launcher: **Rust + Tauri v2 + Vue 3**. Cliente multipla
 
 ## [6.8.0] - 2026-06-17
 
-### 🔧 Mejoras
+### ðŸ”§ Mejoras
 
-- **UI del panel Versiones**: eliminada la tarjeta fija "Cliente Paraguacraft PvP" (botón "Descargar y Jugar") que se mostraba en todas las versiones aunque ya existía el loader **PvP** en 1.8.9. Ahora el flujo es: versión `1.8.9` → loader `PvP` → **JUGAR**.
+- **UI del panel Versiones**: eliminada la tarjeta fija "Cliente Paraguacraft PvP" (botÃ³n "Descargar y Jugar") que se mostraba en todas las versiones aunque ya existÃ­a el loader **PvP** en 1.8.9. Ahora el flujo es: versiÃ³n `1.8.9` â†’ loader `PvP` â†’ **JUGAR**.
 
 ---
 
 ## [6.7.0] - 2026-06-17
 
-### ✨ Novedades
+### âœ¨ Novedades
 
 - **Loader PvP (solo 1.8.9)**: nuevo motor en el selector de versiones. Instala Minecraft 1.8.9 + Forge `11.15.1.2318` + OptiFine HD U M5 + mod cliente `ParaguacraftPvP-1.0.0.jar` en la instancia `Paraguacraft_1.8.9_PvP`.
-- **Descarga remota del cliente PvP**: `ParaguacraftPvP-1.0.0.jar` se obtiene desde GitHub (`bundled/pvp/` en `main`, con fallback a release `pvp-client-1.0.0`). Verificación SHA-1 y caché global en `.minecraft/Paraguacraft_cache/pvp/`.
-- **Panel Cliente Paraguacraft PvP**: en Versiones → 1.8.9, tarjeta dedicada para preparar el perfil, jugar directo y reparar loader + mods.
-- **Preset hardware PvP Solo**: asistente de rendimiento actualizado a `1.8.9 · PvP` con instalación automática del bundle completo.
+- **Descarga remota del cliente PvP**: `ParaguacraftPvP-1.0.0.jar` se obtiene desde GitHub (`bundled/pvp/` en `main`, con fallback a release `pvp-client-1.0.0`). VerificaciÃ³n SHA-1 y cachÃ© global en `.minecraft/Paraguacraft_cache/pvp/`.
+- **Panel Cliente Paraguacraft PvP**: en Versiones â†’ 1.8.9, tarjeta dedicada para preparar el perfil, jugar directo y reparar loader + mods.
+- **Preset hardware PvP Solo**: asistente de rendimiento actualizado a `1.8.9 Â· PvP` con instalaciÃ³n automÃ¡tica del bundle completo.
 
-### 🔧 Mejoras
+### ðŸ”§ Mejoras
 
 - **OptiFine HD U M5**: descarga desde BMCL API al preparar el perfil PvP (no hace falta copiar el JAR manualmente).
 - **Reparar loader PvP**: reinstala Forge `11.15.1.2318` y vuelve a sincronizar los mods del cliente.
 - **Motores unificados**: el launcher reconoce tanto `PvP` como `Paraguacraft PvP` para la misma instancia.
-- **Auto-actualización Windows**: siempre descarga y ejecuta `Instalar_Paraguacraft_vX.exe` desde `paraguacraft.pages.dev/latest.json` (manifest apunta al instalador Inno Setup, no al portable).
+- **Auto-actualizaciÃ³n Windows**: siempre descarga y ejecuta `Instalar_Paraguacraft_vX.exe` desde `paraguacraft.pages.dev/latest.json` (manifest apunta al instalador Inno Setup, no al portable).
 
 ---
 
 ## [6.6.0] - 2026-05-28
 
-### 🤖 Bot Discord
+### ðŸ¤– Bot Discord
 
-- **RCON no bloquea más el event loop**: todas las llamadas a `MCRcon` (vigilar jugadores, `!partido`, `!estado`, `!cmd`, `!dia`, `!noche`, `!sol`, `!kick`, `!ban`, `!op`, `!dificultad`, `!gamemode`, `!tp`, `!tpall`, `!anuncio`, `!guardar`) ahora corren en `asyncio.to_thread()`. El heartbeat de Discord ya no se bloquea cuando el servidor MC está caído o tarda en responder.
-- **`!partido` y `buscar_proximo_partido` con fallback web**: si la API de fútbol no tiene registrado el partido (o devuelve vacío), el bot busca automáticamente en DuckDuckGo y muestra los resultados con embed.
-- **Caché de API de fútbol corregida**: respuestas vacías ya no se guardan por 60 minutos — expiran en 2 min para reintentarse pronto. Los errores de API (rate limit, acceso denegado) directamente no se cachean.
-- **Aliases de equipos ampliados**: `boca juniors`, `paris saint germain`, `paris sg`, `paris saint-germain` agregados al diccionario de alias para búsquedas más robustas.
+- **RCON no bloquea mÃ¡s el event loop**: todas las llamadas a `MCRcon` (vigilar jugadores, `!partido`, `!estado`, `!cmd`, `!dia`, `!noche`, `!sol`, `!kick`, `!ban`, `!op`, `!dificultad`, `!gamemode`, `!tp`, `!tpall`, `!anuncio`, `!guardar`) ahora corren en `asyncio.to_thread()`. El heartbeat de Discord ya no se bloquea cuando el servidor MC estÃ¡ caÃ­do o tarda en responder.
+- **`!partido` y `buscar_proximo_partido` con fallback web**: si la API de fÃºtbol no tiene registrado el partido (o devuelve vacÃ­o), el bot busca automÃ¡ticamente en DuckDuckGo y muestra los resultados con embed.
+- **CachÃ© de API de fÃºtbol corregida**: respuestas vacÃ­as ya no se guardan por 60 minutos â€” expiran en 2 min para reintentarse pronto. Los errores de API (rate limit, acceso denegado) directamente no se cachean.
+- **Aliases de equipos ampliados**: `boca juniors`, `paris saint germain`, `paris sg`, `paris saint-germain` agregados al diccionario de alias para bÃºsquedas mÃ¡s robustas.
 
 ---
 
 ## [6.5.0] - 2026-05-26
 
-### 🐛 Arreglos
-- **Lanzamiento desde Biblioteca**: instancias y modpacks ahora inician correctamente al presionar ▶ en la tarjeta o ▶ Jugar en el detalle. El botón muestra spinner y se restaura automáticamente al cerrar el juego.
-- **Spinner persistente**: el spinner del botón de lanzamiento ahora dura hasta que Minecraft se cierra (no desaparece después de 10 min para modpacks pesados — nuevo timeout de 60 min).
+### ðŸ› Arreglos
+- **Lanzamiento desde Biblioteca**: instancias y modpacks ahora inician correctamente al presionar â–¶ en la tarjeta o â–¶ Jugar en el detalle. El botÃ³n muestra spinner y se restaura automÃ¡ticamente al cerrar el juego.
+- **Spinner persistente**: el spinner del botÃ³n de lanzamiento ahora dura hasta que Minecraft se cierra (no desaparece despuÃ©s de 10 min para modpacks pesados â€” nuevo timeout de 60 min).
 - **Servidor Fabric**: `iniciar_servidor` detecta y usa `fabric-server-launch.jar` correctamente. Antes intentaba usar `server.jar` que no existe en servidores Fabric.
-- **Plugins en servidor Fabric**: instalación de mods/plugins en servidores Fabric ahora apunta a `/mods` en vez de `/plugins`. Afectaba también a Geyser, listado, eliminación, toggle y subida de plugins.
-- **Detección de tipo servidor**: nuevo helper `_es_fabric_servidor` unifica la detección (por archivo JAR o por `_paragua_srv.json`) en lugar de 7 chequeos dispersos.
-- **Badge "corriendo" en Biblioteca**: corregida comparación de motor que nunca matcheaba para motores con espacios (ej: `Fabric + Iris`). La tarjeta ahora se resalta correctamente mientras el juego está activo.
-- **Protección contra sobreescritura de instancias**: `crear_instancia_personalizada` ahora avisa si ya existe una instancia con distinto nombre para la misma versión/motor, en vez de sobreescribir silenciosamente.
+- **Plugins en servidor Fabric**: instalaciÃ³n de mods/plugins en servidores Fabric ahora apunta a `/mods` en vez de `/plugins`. Afectaba tambiÃ©n a Geyser, listado, eliminaciÃ³n, toggle y subida de plugins.
+- **DetecciÃ³n de tipo servidor**: nuevo helper `_es_fabric_servidor` unifica la detecciÃ³n (por archivo JAR o por `_paragua_srv.json`) en lugar de 7 chequeos dispersos.
+- **Badge "corriendo" en Biblioteca**: corregida comparaciÃ³n de motor que nunca matcheaba para motores con espacios (ej: `Fabric + Iris`). La tarjeta ahora se resalta correctamente mientras el juego estÃ¡ activo.
+- **ProtecciÃ³n contra sobreescritura de instancias**: `crear_instancia_personalizada` ahora avisa si ya existe una instancia con distinto nombre para la misma versiÃ³n/motor, en vez de sobreescribir silenciosamente.
 
-### ✨ Novedades
-- **Selector de versión del loader Fabric por instancia**: en Biblioteca → ⚙ Configuración → Instalación, las instancias Fabric/Quilt muestran un selector con todas las versiones del loader. Útil para bajar de versión cuando un modpack requiere una versión específica (ej: error "Incompatible mods").
+### âœ¨ Novedades
+- **Selector de versiÃ³n del loader Fabric por instancia**: en Biblioteca â†’ âš™ ConfiguraciÃ³n â†’ InstalaciÃ³n, las instancias Fabric/Quilt muestran un selector con todas las versiones del loader. Ãštil para bajar de versiÃ³n cuando un modpack requiere una versiÃ³n especÃ­fica (ej: error "Incompatible mods").
 
 ---
 
 ## [6.4.0] - 2026-05-26
 
-### 🐛 Arreglos
-- **Nombre de modpacks**: modpacks instalados desde Modrinth (ej: Fabulously Optimized) ahora muestran su título de proyecto real en vez del string de versión (ej: "6.3.0-beta.4" o "12.1.2 for 1.21.1"). El título se obtiene de la API de Modrinth al instalar y se guarda en `_paragua_instance.json`.
-- **Guardar nombre en Biblioteca**: editar el nombre de una instancia desde Biblioteca → ⚙ Configuración ahora persiste correctamente. Antes, el nombre del modpack en `_paragua_modpacks.json` sobreescribía siempre el nombre guardado en `_paragua_instance.json` al recargar la biblioteca.
-- **Botón Iniciar en tarjeta de instancia**: al hacer clic en ▶ en la biblioteca, ahora muestra un spinner de carga, valida Java con `preflightJava` antes de lanzar (igual que el botón principal), y restaura el estado del botón al terminar. Antes no daba ninguna señal visual de que el juego estaba descargando o iniciando.
+### ðŸ› Arreglos
+- **Nombre de modpacks**: modpacks instalados desde Modrinth (ej: Fabulously Optimized) ahora muestran su tÃ­tulo de proyecto real en vez del string de versiÃ³n (ej: "6.3.0-beta.4" o "12.1.2 for 1.21.1"). El tÃ­tulo se obtiene de la API de Modrinth al instalar y se guarda en `_paragua_instance.json`.
+- **Guardar nombre en Biblioteca**: editar el nombre de una instancia desde Biblioteca â†’ âš™ ConfiguraciÃ³n ahora persiste correctamente. Antes, el nombre del modpack en `_paragua_modpacks.json` sobreescribÃ­a siempre el nombre guardado en `_paragua_instance.json` al recargar la biblioteca.
+- **BotÃ³n Iniciar en tarjeta de instancia**: al hacer clic en â–¶ en la biblioteca, ahora muestra un spinner de carga, valida Java con `preflightJava` antes de lanzar (igual que el botÃ³n principal), y restaura el estado del botÃ³n al terminar. Antes no daba ninguna seÃ±al visual de que el juego estaba descargando o iniciando.
 
 ---
 
 ## [6.3.0] - 2026-05-26
 
-### ✨ Novedades
-- **Noticias interactivas en Inicio**: cards con imagen oficial, categoría, fecha y enlace directo a las noticias de Minecraft. Datos en tiempo real desde la API de Mojang.
-- **Sección "Descubrí en Modrinth"**: row horizontal con los 8 mods más descargados de Modrinth (ícono, nombre, descripción, descargas). Clic abre la tienda de mods del launcher.
-- **Íconos reales de servidores**: todos los cards de Servidores Públicos y Quick Play ahora usan `api.mcsrvstat.us/icon/{ip}` — el ícono real del servidor Minecraft, no un favicon genérico.
-- **Servidores nuevos**: RedPVP (`play.redpvp.com.ar`), Minebolt (`minebolt.net`) y RhoMC (`play.rhomc.com`) agregados con íconos, descripción, badge No-Premium, ping en tiempo real y Auto-Join.
-- **Auto-refresh de sesión Microsoft**: hilo daemon que refresca el `access_token` cada 50 minutos — evita la expiración frecuente (tokens expiran a los 60 min). Arranca al cargar sesión guardada y tras cada login exitoso. Guard flag para prevenir hilos duplicados.
+### âœ¨ Novedades
+- **Noticias interactivas en Inicio**: cards con imagen oficial, categorÃ­a, fecha y enlace directo a las noticias de Minecraft. Datos en tiempo real desde la API de Mojang.
+- **SecciÃ³n "DescubrÃ­ en Modrinth"**: row horizontal con los 8 mods mÃ¡s descargados de Modrinth (Ã­cono, nombre, descripciÃ³n, descargas). Clic abre la tienda de mods del launcher.
+- **Ãconos reales de servidores**: todos los cards de Servidores PÃºblicos y Quick Play ahora usan `api.mcsrvstat.us/icon/{ip}` â€” el Ã­cono real del servidor Minecraft, no un favicon genÃ©rico.
+- **Servidores nuevos**: RedPVP (`play.redpvp.com.ar`), Minebolt (`minebolt.net`) y RhoMC (`play.rhomc.com`) agregados con Ã­conos, descripciÃ³n, badge No-Premium, ping en tiempo real y Auto-Join.
+- **Auto-refresh de sesiÃ³n Microsoft**: hilo daemon que refresca el `access_token` cada 50 minutos â€” evita la expiraciÃ³n frecuente (tokens expiran a los 60 min). Arranca al cargar sesiÃ³n guardada y tras cada login exitoso. Guard flag para prevenir hilos duplicados.
 
-### 🔧 Mejoras
-- **Quick Play**: eliminada la posición `sticky` que causaba superposición visual con la navbar al scrollear.
-- **Auto-Join**: ahora usa `get_ultima_version_jugada()` en vez de leer el selector de versiones (que podía estar vacío). Funciona desde Servidores Públicos sin necesidad de ir a Versiones primero.
-- **Login Microsoft UI**: fondo del overlay de login reemplazado por `main_banner.png` con gradiente oscuro. Botón de Microsoft con ícono SVG oficial.
+### ðŸ”§ Mejoras
+- **Quick Play**: eliminada la posiciÃ³n `sticky` que causaba superposiciÃ³n visual con la navbar al scrollear.
+- **Auto-Join**: ahora usa `get_ultima_version_jugada()` en vez de leer el selector de versiones (que podÃ­a estar vacÃ­o). Funciona desde Servidores PÃºblicos sin necesidad de ir a Versiones primero.
+- **Login Microsoft UI**: fondo del overlay de login reemplazado por `main_banner.png` con gradiente oscuro. BotÃ³n de Microsoft con Ã­cono SVG oficial.
 - **Ping tracker**: RedPVP, Minebolt y RhoMC agregados a `_SERVIDORES_GLOBAL` para ping en tiempo real.
-- **Refresco de token al arrancar**: si hay sesión guardada, se lanza un refresh inmediato en background al iniciar el launcher.
+- **Refresco de token al arrancar**: si hay sesiÃ³n guardada, se lanza un refresh inmediato en background al iniciar el launcher.
 
-### 🐛 Arreglos
+### ðŸ› Arreglos
 - IPs incorrectas de RedPVP/Minebolt/RhoMC en `pingTodosServidores` y `_newSrvCards` corregidas.
-- `_iniciar_auto_refresh_ms` idempotente: múltiples llamadas no generan hilos duplicados.
+- `_iniciar_auto_refresh_ms` idempotente: mÃºltiples llamadas no generan hilos duplicados.
 
 ---
 
 ## [6.2.0] - 2026-05-24
 
-### ✨ Novedades
-- **Versiones Mojang en "Crear instancia"**: el picker de versiones ahora carga la lista completa desde `piston-meta.mojang.com` con fallback a `minecraft-launcher-lib`. Ya no aparece vacío.
+### âœ¨ Novedades
+- **Versiones Mojang en "Crear instancia"**: el picker de versiones ahora carga la lista completa desde `piston-meta.mojang.com` con fallback a `minecraft-launcher-lib`. Ya no aparece vacÃ­o.
 
-### 🔧 Mejoras
-- Fallback a múltiples URLs de manifest de versiones para mayor robustez.
+### ðŸ”§ Mejoras
+- Fallback a mÃºltiples URLs de manifest de versiones para mayor robustez.
 
 ---
 
 ## [6.1.0] - 2026-05-23
 
-### ✨ Novedades
-- **Panel "Versiones" completamente rediseñado**: grid de instancias con imagen de versión, último motor, última vez jugada, botones Jugar/Gestionar/Eliminar por card.
-- **Wizard de primera vez**: guía paso a paso al abrir el launcher por primera vez (bienvenida → cuenta → versión recomendada → listo).
+### âœ¨ Novedades
+- **Panel "Versiones" completamente rediseÃ±ado**: grid de instancias con imagen de versiÃ³n, Ãºltimo motor, Ãºltima vez jugada, botones Jugar/Gestionar/Eliminar por card.
+- **Wizard de primera vez**: guÃ­a paso a paso al abrir el launcher por primera vez (bienvenida â†’ cuenta â†’ versiÃ³n recomendada â†’ listo).
 
-### 🔧 Mejoras
-- Indicadores de sesión mejorados en el header.
+### ðŸ”§ Mejoras
+- Indicadores de sesiÃ³n mejorados en el header.
 - Transiciones y animaciones refinadas en la UI.
 
 ---
 
 ## [6.0.0] - 2026-05-22
 
-### ✨ Novedades
-- **Login Microsoft unificado (estilo ATLauncher)**: un solo botón con logo de Microsoft abre un modal con **navegador** y **código QR** en el mismo lugar.
-- **Inicio de sesión por QR / microsoft.com/link**: flujo device code con código copiable al portapapeles (y al generarse). El QR abre solo `microsoft.com/link` (sin URLs que redirigen a `login.live.com` y fallan en el celular).
-- **Tienda — Data packs en servidor local**: selector de servidor guardado y mundo; los datapacks se instalan en `world/datapacks` del servidor (ya no en la instancia del cliente ni con selector de loaders).
-- **Tienda — Plugins en servidor local**: selector de servidor destino en la pestaña Plugins; instalación en `plugins/` del servidor activo (Hangar + Modrinth).
-- **Importar desde otros launchers**: nueva pestaña Extras → **Importar launcher** con detección de TLauncher, SKLauncher y `.minecraft`, tutorial integrado y copia de saves/mods/resource packs/shaders/options/servers a la instancia activa (premium y no premium).
+### âœ¨ Novedades
+- **Login Microsoft unificado (estilo ATLauncher)**: un solo botÃ³n con logo de Microsoft abre un modal con **navegador** y **cÃ³digo QR** en el mismo lugar.
+- **Inicio de sesiÃ³n por QR / microsoft.com/link**: flujo device code con cÃ³digo copiable al portapapeles (y al generarse). El QR abre solo `microsoft.com/link` (sin URLs que redirigen a `login.live.com` y fallan en el celular).
+- **Tienda â€” Data packs en servidor local**: selector de servidor guardado y mundo; los datapacks se instalan en `world/datapacks` del servidor (ya no en la instancia del cliente ni con selector de loaders).
+- **Tienda â€” Plugins en servidor local**: selector de servidor destino en la pestaÃ±a Plugins; instalaciÃ³n en `plugins/` del servidor activo (Hangar + Modrinth).
+- **Importar desde otros launchers**: nueva pestaÃ±a Extras â†’ **Importar launcher** con detecciÃ³n de TLauncher, SKLauncher y `.minecraft`, tutorial integrado y copia de saves/mods/resource packs/shaders/options/servers a la instancia activa (premium y no premium).
 
-### 🔧 Mejoras
-- Login QR usa client ID compatible con device code (el client oficial del Launcher de Minecraft devolvía 401).
-- Código de verificación en recuadro clicable + botones **Copiar código** y **Abrir microsoft.com/link**.
-- Datapacks en Modrinth: sin paso de “plataforma” incompatible (`minecraft` / sin loaders).
-- Sesión MS guarda `ms_client_id` para refrescar tokens según el método de login (navegador vs QR).
-- Multi-cuenta: una sola opción “Agregar cuenta Microsoft” que abre el modal unificado.
+### ðŸ”§ Mejoras
+- Login QR usa client ID compatible con device code (el client oficial del Launcher de Minecraft devolvÃ­a 401).
+- CÃ³digo de verificaciÃ³n en recuadro clicable + botones **Copiar cÃ³digo** y **Abrir microsoft.com/link**.
+- Datapacks en Modrinth: sin paso de â€œplataformaâ€ incompatible (`minecraft` / sin loaders).
+- SesiÃ³n MS guarda `ms_client_id` para refrescar tokens segÃºn el mÃ©todo de login (navegador vs QR).
+- Multi-cuenta: una sola opciÃ³n â€œAgregar cuenta Microsoftâ€ que abre el modal unificado.
 
-### 🐛 Arreglos
+### ðŸ› Arreglos
 - **Overlays**: errores reales en la UI en lugar de `ok: true` silencioso; overlay de teclas sin `bind_all` global (evita conflictos/crashes con el launcher); cierre limpio del listener `pynput`.
-- **Overlays**: comprobación de que la ventana tk se abrió antes de reportar éxito.
+- **Overlays**: comprobaciÃ³n de que la ventana tk se abriÃ³ antes de reportar Ã©xito.
 
 ---
 
 ## [5.9.0] - 2026-05-21
 
-### ✨ Novedades
-- **Tienda de plugins**: pestaña Plugins con búsqueda federada **Hangar + Modrinth**, trending y instalación en el servidor local.
-- **Actualizaciones de plugins del servidor**: detección y aplicación de updates en `plugins/`.
-- **Importar servidor existente**: botón para importar una carpeta con `server.jar` / Fabric, detectar tipo y versión, regenerar `iniciar_server.bat` y agregarlo a la lista guardada.
-- **Playit.gg**: persistencia de la dirección Java del túnel por servidor en `_paragua_srv.json`.
+### âœ¨ Novedades
+- **Tienda de plugins**: pestaÃ±a Plugins con bÃºsqueda federada **Hangar + Modrinth**, trending y instalaciÃ³n en el servidor local.
+- **Actualizaciones de plugins del servidor**: detecciÃ³n y aplicaciÃ³n de updates en `plugins/`.
+- **Importar servidor existente**: botÃ³n para importar una carpeta con `server.jar` / Fabric, detectar tipo y versiÃ³n, regenerar `iniciar_server.bat` y agregarlo a la lista guardada.
+- **Playit.gg**: persistencia de la direcciÃ³n Java del tÃºnel por servidor en `_paragua_srv.json`.
 
-### 🔧 Mejoras
-- Detección automática de versión MC del servidor (`version_history.json`, nombre del JAR, `_paragua_srv.json`).
-- Regeneración de `iniciar_server.bat` usando Java local del launcher cuando está disponible.
-- Plugins Modrinth filtrados por loaders Paper-compatibles y versión del servidor.
+### ðŸ”§ Mejoras
+- DetecciÃ³n automÃ¡tica de versiÃ³n MC del servidor (`version_history.json`, nombre del JAR, `_paragua_srv.json`).
+- RegeneraciÃ³n de `iniciar_server.bat` usando Java local del launcher cuando estÃ¡ disponible.
+- Plugins Modrinth filtrados por loaders Paper-compatibles y versiÃ³n del servidor.
 - Ampliaciones en la UI de la tienda de mods y panel de servidores.
 
-### 🐛 Arreglos
-- Correcciones en flujos de instalación de plugins y estado del servidor activo.
+### ðŸ› Arreglos
+- Correcciones en flujos de instalaciÃ³n de plugins y estado del servidor activo.
 
 ---
 
 ## [5.8.0] - 2026-05-20
 
-### 🔧 Mejoras
-- **RAM del servidor local**: `-Xms` y `-Xmx` ahora usan el mismo valor en modo automático (mitad de la RAM del sistema, tope 8 GB), evitando mínimos incoherentes que podían causar comportamiento raro al arrancar Paper/Fabric server.
+### ðŸ”§ Mejoras
+- **RAM del servidor local**: `-Xms` y `-Xmx` ahora usan el mismo valor en modo automÃ¡tico (mitad de la RAM del sistema, tope 8 GB), evitando mÃ­nimos incoherentes que podÃ­an causar comportamiento raro al arrancar Paper/Fabric server.
 
-### 🐛 Arreglos
+### ðŸ› Arreglos
 - Ajuste menor en el arranque del proceso del servidor.
 
 ---
 
 ## [5.7.0] - 2026-05-18
 
-### 🐛 Fixes críticos
-- **Hypixel / CubeCraft con sesión premium**: arreglado el bug por el que servidores anti-cheat te kickeaban con `Invalid session`. Ahora el launcher refresca el token de Microsoft de forma sincrónica antes de lanzar y manda el `name` real de Mojang (no el username cacheado del config).
-- **Botón "🛑 Cerrar Minecraft" colgado**: ya no queda visible tras un cierre normal del juego. `estado_minecraft()` ahora limpia automáticamente el handle del proceso muerto.
-- **Crash analyzer: falsos positivos**: el filtro `ERROR_MARKERS` ahora exige que `at` aparezca como prefijo de línea de stacktrace (`    at com.foo.Bar`), no en frases naturales como "OpenGL initialized at version 3.3". Reduce ~80% los falsos positivos en logs de Forge.
-- **`ops.json` / `whitelist.json` / `banned-players.json` corruptos**: la escritura ahora es **atómica** (`tempfile + os.replace + fsync`) y serializada con lock. El bot de Discord y la UI ya no pueden corromperlos si escriben concurrentes.
+### ðŸ› Fixes crÃ­ticos
+- **Hypixel / CubeCraft con sesiÃ³n premium**: arreglado el bug por el que servidores anti-cheat te kickeaban con `Invalid session`. Ahora el launcher refresca el token de Microsoft de forma sincrÃ³nica antes de lanzar y manda el `name` real de Mojang (no el username cacheado del config).
+- **BotÃ³n "ðŸ›‘ Cerrar Minecraft" colgado**: ya no queda visible tras un cierre normal del juego. `estado_minecraft()` ahora limpia automÃ¡ticamente el handle del proceso muerto.
+- **Crash analyzer: falsos positivos**: el filtro `ERROR_MARKERS` ahora exige que `at` aparezca como prefijo de lÃ­nea de stacktrace (`    at com.foo.Bar`), no en frases naturales como "OpenGL initialized at version 3.3". Reduce ~80% los falsos positivos en logs de Forge.
+- **`ops.json` / `whitelist.json` / `banned-players.json` corruptos**: la escritura ahora es **atÃ³mica** (`tempfile + os.replace + fsync`) y serializada con lock. El bot de Discord y la UI ya no pueden corromperlos si escriben concurrentes.
 
-### ⚡ Rendimiento
-- **Servidor Minecraft con Aikar G1GC**: PaperMC / Vanilla / Fabric server ahora arrancan con los 21 flags de Aikar tuneados. **TPS estable garantizado en sesiones de 4 hs+** sin lagazos progresivos. Perfil "lite" automático para heap <4 GB. Forge sigue usando `run.bat` (no se puede inyectar sin reescribir el .bat).
-- **Descarga de mods con verificación SHA-1**: cada `.jar` de Modrinth se baja a `.part`, se valida con el hash anunciado por la API y recién entonces se renombra al destino final. Si el hash no coincide (MITM, corrupción de red), se borra el `.part` y avisa. Soporta también `expected_size` para detectar truncados.
+### âš¡ Rendimiento
+- **Servidor Minecraft con Aikar G1GC**: PaperMC / Vanilla / Fabric server ahora arrancan con los 21 flags de Aikar tuneados. **TPS estable garantizado en sesiones de 4 hs+** sin lagazos progresivos. Perfil "lite" automÃ¡tico para heap <4 GB. Forge sigue usando `run.bat` (no se puede inyectar sin reescribir el .bat).
+- **Descarga de mods con verificaciÃ³n SHA-1**: cada `.jar` de Modrinth se baja a `.part`, se valida con el hash anunciado por la API y reciÃ©n entonces se renombra al destino final. Si el hash no coincide (MITM, corrupciÃ³n de red), se borra el `.part` y avisa. Soporta tambiÃ©n `expected_size` para detectar truncados.
 
-### 🛡️ Robustez
-- **`atexit` cleanup global**: si cerrás el launcher con un servidor MC o playit corriendo, ahora se cierran graceful (servidor recibe `stop` con timeout 15s; playit `terminate`). No quedan procesos huérfanos comiendo RAM.
-- **`detener_servidor` con timeout 45s**: antes era 8s, insuficiente para servers con 10+ jugadores guardando mundos. Ahora hace escalada graceful → SIGTERM → SIGKILL con logging por etapa.
-- **Validación de sesión MS antes de lanzar**: si el token expiró y no se pudo refrescar, se aborta el launch con un mensaje claro en vez de lanzar y crashear contra el authservice de Mojang.
+### ðŸ›¡ï¸ Robustez
+- **`atexit` cleanup global**: si cerrÃ¡s el launcher con un servidor MC o playit corriendo, ahora se cierran graceful (servidor recibe `stop` con timeout 15s; playit `terminate`). No quedan procesos huÃ©rfanos comiendo RAM.
+- **`detener_servidor` con timeout 45s**: antes era 8s, insuficiente para servers con 10+ jugadores guardando mundos. Ahora hace escalada graceful â†’ SIGTERM â†’ SIGKILL con logging por etapa.
+- **ValidaciÃ³n de sesiÃ³n MS antes de lanzar**: si el token expirÃ³ y no se pudo refrescar, se aborta el launch con un mensaje claro en vez de lanzar y crashear contra el authservice de Mojang.
 
-### 🤖 Bot Discord
-- 9 comandos nuevos para administrar el servidor desde Discord: `/server-start`, `/server-stop`, `/server-restart`, `/whitelist add|remove|list`, `/op add|remove`, `/ban add|remove`. Toda escritura de JSON pasa por el `_srv_json_write` atómico.
+### ðŸ¤– Bot Discord
+- 9 comandos nuevos para administrar el servidor desde Discord: `/server-start`, `/server-stop`, `/server-restart`, `/whitelist add|remove|list`, `/op add|remove`, `/ban add|remove`. Toda escritura de JSON pasa por el `_srv_json_write` atÃ³mico.
 
-### 🧪 Tests
-- `test_smoke.py` ampliado a **34 secciones** que cubren: sesión MS, descarga atómica, crash analyzer (falsos positivos + detección OOM), `estado_minecraft` cleanup, regresión Hypixel premium. Ejecutable con `.venv/Scripts/python.exe test_smoke.py`.
+### ðŸ§ª Tests
+- `test_smoke.py` ampliado a **34 secciones** que cubren: sesiÃ³n MS, descarga atÃ³mica, crash analyzer (falsos positivos + detecciÃ³n OOM), `estado_minecraft` cleanup, regresiÃ³n Hypixel premium. Ejecutable con `.venv/Scripts/python.exe test_smoke.py`.
 
 ---
 
 ## [5.5.0] - 2026-05-04
 
-### ✨ Novedades
+### âœ¨ Novedades
 - **Atajos de teclado globales**: `Ctrl+1..6` para navegar, `Ctrl+J` para jugar, `Ctrl+L` tienda de mods, `Ctrl+,` ajustes, `Ctrl+/` para ver todos los atajos.
-- **Reporte de bugs con un clic**: nuevo botón en Extras → Crash Log que arma un ZIP con logs, crash reports e info del sistema listo para adjuntar en GitHub Issues.
-- **Modo sin conexión explicativo**: el badge "Sin conexión" ahora es clickeable y abre un modal que te dice qué funciona y qué no sin internet.
+- **Reporte de bugs con un clic**: nuevo botÃ³n en Extras â†’ Crash Log que arma un ZIP con logs, crash reports e info del sistema listo para adjuntar en GitHub Issues.
+- **Modo sin conexiÃ³n explicativo**: el badge "Sin conexiÃ³n" ahora es clickeable y abre un modal que te dice quÃ© funciona y quÃ© no sin internet.
 - **Filtros en la consola del servidor**: chips `Todo / INFO / WARN / ERROR / Chat` + buscador libre en la consola de servidores locales.
 - **Changelog visible**: al actualizar el launcher, ahora vas a ver un modal con las novedades (este mismo).
-- **Log interno del launcher**: nuevo botón `📋 Log launcher` en Extras → Crash Log para abrir `paraguacraft_debug.log` (rotado, máx. 15 MB). El log ahora se incluye automáticamente en el ZIP de reporte de bug.
-- **Importar modpacks `.mrpack`**: desde el menú del logo → `📦 Importar modpack .mrpack` podés elegir un archivo local de Modrinth. El launcher detecta automáticamente la versión de Minecraft y el loader (Fabric / Forge / NeoForge / Quilt), descarga todos los mods con verificación SHA-1, aplica los `overrides/` y arma la instancia lista para jugar.
+- **Log interno del launcher**: nuevo botÃ³n `ðŸ“‹ Log launcher` en Extras â†’ Crash Log para abrir `paraguacraft_debug.log` (rotado, mÃ¡x. 15 MB). El log ahora se incluye automÃ¡ticamente en el ZIP de reporte de bug.
+- **Importar modpacks `.mrpack`**: desde el menÃº del logo â†’ `ðŸ“¦ Importar modpack .mrpack` podÃ©s elegir un archivo local de Modrinth. El launcher detecta automÃ¡ticamente la versiÃ³n de Minecraft y el loader (Fabric / Forge / NeoForge / Quilt), descarga todos los mods con verificaciÃ³n SHA-1, aplica los `overrides/` y arma la instancia lista para jugar.
 
-### 🔧 Mejoras
+### ðŸ”§ Mejoras
 - Timeouts reforzados en descargas de red para evitar cuelgues silenciosos.
-- Logging estructurado: migrados los `print()` dispersos a `logging` con archivo rotatorio, facilitando diagnóstico remoto.
+- Logging estructurado: migrados los `print()` dispersos a `logging` con archivo rotatorio, facilitando diagnÃ³stico remoto.
 
-### 🐛 Arreglos
+### ðŸ› Arreglos
 - Correcciones menores de UI.
 
 ---
 
 ## [5.3.0] - 2026-04
 
-### ✨ Novedades
+### âœ¨ Novedades
 - Soporte para Minecraft 1.21.x.
 - Playit.gg integrado para abrir el servidor al mundo.
 - Panel de servidor local con consola en vivo y RCON.
-- Skins 3D con editor básico.
+- Skins 3D con editor bÃ¡sico.
 - Tienda de mods con Modrinth y CurseForge.
 
-### 🔧 Mejoras
-- Auto-reparación de JARs corruptos.
-- Detección y resolución automática de conflictos de mods.
+### ðŸ”§ Mejoras
+- Auto-reparaciÃ³n de JARs corruptos.
+- DetecciÃ³n y resoluciÃ³n automÃ¡tica de conflictos de mods.
 
 ---
 
 ## [5.2.0]
 
-### ✨ Novedades
+### âœ¨ Novedades
 - Microsoft Authentication (cuentas premium).
 - Multi-cuenta.
-- Detección automática de Java.
+- DetecciÃ³n automÃ¡tica de Java.
 
 ---
 
 ## [5.1.0]
 
-### ✨ Novedades
+### âœ¨ Novedades
 - Soporte Fabric, Forge, NeoForge, Quilt.
-- Descarga automática de Java runtime.
+- Descarga automÃ¡tica de Java runtime.
 
 ---
 
 ## [5.0.0]
 
-### 🎉 Primera release pública
+### ðŸŽ‰ Primera release pÃºblica
 - Launcher base con versiones vanilla.
 - Interfaz web con pywebview.
-- Gestión de skins locales.
+- GestiÃ³n de skins locales.
+

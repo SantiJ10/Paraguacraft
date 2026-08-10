@@ -390,6 +390,21 @@ export interface AppSettings {
   performanceTier?: string;
   /** balanced | gameplay | shaders | pvp | lightweight (solo con auto) */
   usagePreset?: string;
+  /** competitive (Full rendimiento) | casual — estilo PvP */
+  pvpPlayStyle?: string;
+  /** Consola nativa de Java al jugar (windows). Soft-close si también cerrás el launcher. */
+  showGameConsole?: boolean;
+  /** Args JVM aplicados a todos los launches (antes de los de la instancia). */
+  globalJvmArgs?: string;
+  /** Resolución forzada (0 = no forzar). Papa Mode gana. */
+  gameWidth?: number;
+  gameHeight?: number;
+}
+
+export interface LastLaunchArgs {
+  instanceId: string;
+  path: string;
+  args: string;
 }
 
 export interface ResourceBudget {
@@ -528,6 +543,8 @@ export interface InstanceMeta {
   javaPath: string | null;
   /** Override: auto | baja | media | alta | custom */
   performanceTier?: string | null;
+  /** null = ajuste global */
+  showGameConsole?: boolean | null;
 }
 
 export interface InstanceContentItem {

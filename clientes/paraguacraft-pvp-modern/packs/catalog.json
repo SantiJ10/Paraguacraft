@@ -6,10 +6,10 @@
     {
       "id": "paraguacraft-pvp",
       "title": "Paraguacraft PvP",
-      "subtitle": "GUI negro/celeste legible · Dewiers · 1.21.11",
+      "subtitle": "BedWars beds/TNT, SkyWars bridging, PvP HUD",
       "badge": "16x",
       "fileName": "paraguacraft-pvp-modern.zip",
-      "sha1": "2ba8098b6a0eadfd09fb1ff18a09187839444a14",
+      "sha1": "71448909ae23c847b22e7e657c9e06e0f281e4db",
       "fallbackDownloadUrl": "https://cdn.jsdelivr.net/gh/SantiJ10/Paraguacraft@main/clientes/paraguacraft-pvp-modern/packs/paraguacraft-pvp-modern.zip"
     }
   ]

@@ -82,6 +82,7 @@ pub fn create(
         gc: None,
         java_path: None,
         performance_tier: None,
+        show_game_console: None,
     };
     write_meta(&folder, &meta)?;
     Ok(meta.into_instance(&folder, &dir))
@@ -123,6 +124,7 @@ pub fn set_config(
     gc: Option<String>,
     java_path: Option<String>,
     performance_tier: Option<String>,
+    show_game_console: Option<String>,
 ) -> AppResult<InstanceMeta> {
     ensure_local(id)?;
     let mut meta = read_meta(id)
@@ -140,6 +142,13 @@ pub fn set_config(
             None
         } else {
             Some(t)
+        };
+    }
+    if let Some(v) = show_game_console {
+        meta.show_game_console = match v.trim().to_lowercase().as_str() {
+            "on" | "true" | "1" => Some(true),
+            "off" | "false" | "0" => Some(false),
+            _ => None,
         };
     }
     meta.auto_managed = false;

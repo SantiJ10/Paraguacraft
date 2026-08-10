@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useInstancesStore } from "@/stores/instances";
 import { useAppStore } from "@/stores/app";
@@ -38,6 +38,10 @@ const repairReport = ref<ServerRepairReport | null>(null);
 const showBackups = ref(false);
 const logLines = ref<string[]>([]);
 const logLoading = ref(false);
+let logPoll: ReturnType<typeof setInterval> | null = null;
+const isLiveLog = computed(
+  () => app.launchPhase === "running" && app.activeGameInstanceId === instanceId.value,
+);
 const contentSearch = ref("");
 const contentKind = ref<"all" | "mod" | "resourcepack" | "shader">("all");
 const contentBusy = ref(false);
@@ -96,6 +100,7 @@ const loader = ref("");
 const loaderVersion = ref("");
 const autoManaged = ref(true);
 const performanceTier = ref("auto");
+const showGameConsole = ref<"default" | "on" | "off">("default");
 const configBusy = ref(false);
 const appearanceBusy = ref(false);
 const editName = ref("");
@@ -175,6 +180,12 @@ async function loadAll() {
       loaderVersion.value = meta.value.loaderVersion;
       autoManaged.value = meta.value.autoManaged;
       performanceTier.value = meta.value.performanceTier || "auto";
+      showGameConsole.value =
+        meta.value.showGameConsole === true
+          ? "on"
+          : meta.value.showGameConsole === false
+            ? "off"
+            : "default";
       editName.value = meta.value.name;
       editIcon.value = resolveInstanceIcon(meta.value.icon);
     } else {
@@ -207,12 +218,17 @@ onMounted(() => {
     if (route.query.health === "1" && !isExternal.value) {
       void runPreLaunchCheck();
     }
+    if (route.query.tab === "logs") {
+      tab.value = "logs";
+      void loadLogs();
+    }
   });
 });
 
 watch(instanceId, () => {
   tab.value = "content";
   repairReport.value = null;
+  stopLogPoll();
   void loadAll();
 });
 
@@ -225,9 +241,53 @@ watch(
   },
 );
 
+watch(
+  () => route.query.tab,
+  (v) => {
+    if (v === "logs") {
+      tab.value = "logs";
+      void loadLogs();
+    }
+  },
+);
+
 watch(tab, (t) => {
-  if (t === "logs") void loadLogs();
+  if (t === "logs") {
+    void loadLogs();
+    if (isLiveLog.value) startLogPoll();
+  } else {
+    stopLogPoll();
+  }
 });
+
+watch(isLiveLog, (live) => {
+  if (tab.value === "logs" && live) startLogPoll();
+  else if (!live) stopLogPoll();
+});
+
+onUnmounted(() => stopLogPoll());
+
+function startLogPoll() {
+  stopLogPoll();
+  logPoll = setInterval(() => {
+    void loadLogsQuiet();
+  }, 800);
+}
+
+function stopLogPoll() {
+  if (logPoll) {
+    clearInterval(logPoll);
+    logPoll = null;
+  }
+}
+
+async function loadLogsQuiet() {
+  try {
+    logLines.value = await api.getClientConsole(instanceId.value, 500);
+  } catch {
+    /* ignore */
+  }
+}
 
 async function play(compete = false) {
   const inst = displayInstance.value;
@@ -348,6 +408,7 @@ async function saveConfig() {
       gc: gc.value,
       javaPath: javaPath.value || null,
       performanceTier: performanceTier.value || "auto",
+      showGameConsole: showGameConsole.value,
     });
     message.value = "Configuración guardada.";
     await loadAll();
@@ -426,7 +487,7 @@ function repairSeverityClass(severity: string) {
 async function loadLogs() {
   logLoading.value = true;
   try {
-    logLines.value = await api.getInstanceLog(instanceId.value, 500);
+    logLines.value = await api.getClientConsole(instanceId.value, 500);
   } catch (e) {
     logLines.value = [`Error al leer log: ${e}`];
   } finally {
@@ -442,6 +503,31 @@ async function copyLog() {
   try {
     await navigator.clipboard.writeText(logLines.value.join("\n"));
     message.value = "Log copiado al portapapeles.";
+  } catch (e) {
+    error.value = String(e);
+  }
+}
+
+async function exportClientLog() {
+  try {
+    const path = await api.exportClientConsole(instanceId.value);
+    message.value = `Log exportado: ${path}`;
+  } catch (e) {
+    error.value = String(e);
+  }
+}
+
+async function openLatestLogFile() {
+  try {
+    await api.openInstancePath(instanceId.value, "log");
+  } catch (e) {
+    error.value = String(e);
+  }
+}
+
+async function openCrashFolder() {
+  try {
+    await api.openInstancePath(instanceId.value, "crashes");
   } catch (e) {
     error.value = String(e);
   }
@@ -871,19 +957,31 @@ async function exportInstance() {
       <!-- Logs -->
       <section v-else-if="tab === 'logs'" class="rounded-xl border border-surface-4 bg-surface-2 p-6">
         <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h2 class="text-lg font-bold">latest.log</h2>
-          <div class="flex gap-2">
+          <div>
+            <h2 class="text-lg font-bold">
+              Consola del cliente
+              <span
+                v-if="isLiveLog"
+                class="ml-2 rounded bg-pc-green/20 px-2 py-0.5 text-xs font-semibold text-pc-green"
+              >EN VIVO</span>
+            </h2>
+            <p class="mt-1 text-xs text-gray-500">
+              Tail de <code class="text-gray-400">logs/latest.log</code>
+              {{ isLiveLog ? " mientras jugás." : "." }}
+            </p>
+          </div>
+          <div class="flex flex-wrap gap-2">
             <BaseButton size="sm" variant="secondary" :disabled="logLoading" @click="refreshLogs">
               {{ logLoading ? "Cargando…" : "Actualizar" }}
             </BaseButton>
             <BaseButton size="sm" variant="secondary" :disabled="!logLines.length" @click="copyLog">
               Copiar
             </BaseButton>
+            <BaseButton size="sm" variant="secondary" @click="exportClientLog">Exportar</BaseButton>
+            <BaseButton size="sm" variant="secondary" @click="openLatestLogFile">latest.log</BaseButton>
+            <BaseButton size="sm" variant="secondary" @click="openCrashFolder">Crashes</BaseButton>
           </div>
         </div>
-        <p class="mb-4 text-xs text-gray-500">
-          Últimas líneas del log de Minecraft. Si algo falla al jugar, copiá esto para diagnosticar.
-        </p>
         <pre
           v-if="logLoading"
           class="rounded-lg bg-surface-3 p-4 text-sm text-gray-500"
@@ -1029,6 +1127,22 @@ async function exportInstance() {
                 placeholder="-Dsun.java2d.opengl=true"
                 class="w-full rounded-lg border border-surface-5 bg-surface-3 px-3 py-2 text-sm outline-none focus:border-pc-green"
               />
+              <p class="mt-1 text-xs text-gray-500">
+                Se suman a los args globales de Ajustes.
+              </p>
+            </label>
+
+            <label class="block">
+              <span class="mb-1 block text-sm text-gray-300">Consola del juego</span>
+              <select
+                v-model="showGameConsole"
+                class="w-full rounded-lg border border-surface-5 bg-surface-3 px-3 py-2.5 text-sm outline-none focus:border-pc-green"
+                @change="autoManaged = false"
+              >
+                <option value="default">Usar ajuste global</option>
+                <option value="on">Siempre mostrar</option>
+                <option value="off">Nunca mostrar</option>
+              </select>
             </label>
 
             <label class="block">

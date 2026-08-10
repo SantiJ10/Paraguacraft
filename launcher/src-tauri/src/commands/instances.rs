@@ -101,8 +101,17 @@ pub fn set_instance_config(
     gc: Option<String>,
     java_path: Option<String>,
     performance_tier: Option<String>,
+    show_game_console: Option<String>,
 ) -> AppResult<InstanceMeta> {
-    profiles::set_config(&id, ram_mb, jvm_args, gc, java_path, performance_tier)
+    profiles::set_config(
+        &id,
+        ram_mb,
+        jvm_args,
+        gc,
+        java_path,
+        performance_tier,
+        show_game_console,
+    )
 }
 
 /// Activa/desactiva la autogestion por hardware.
@@ -246,6 +255,55 @@ pub async fn repair_instance(
 #[tauri::command]
 pub fn get_instance_log(id: String, max_lines: Option<usize>) -> AppResult<Vec<String>> {
     crate::core::instance_repair::read_log_lines(&id, max_lines.unwrap_or(200))
+}
+
+/// Consola del cliente en vivo (buffer del tail de latest.log mientras jugás).
+/// Si no hay sesión, devuelve las últimas líneas del archivo.
+#[tauri::command]
+pub fn get_client_console(id: String, max_lines: Option<usize>) -> AppResult<Vec<String>> {
+    let max = max_lines.unwrap_or(500);
+    let live = crate::core::client_console::get_lines(&id, max);
+    if !live.is_empty() {
+        return Ok(live);
+    }
+    crate::core::instance_repair::read_log_lines(&id, max)
+}
+
+#[tauri::command]
+pub fn export_client_console(id: String) -> AppResult<String> {
+    let dir = instances::content::folder_path(&id)?;
+    crate::core::client_console::export_to_file(&id, &dir)
+}
+
+/// Abre en el explorador: `log` → latest.log, `crashes` → crash-reports/, `folder` → raíz.
+#[tauri::command]
+pub fn open_instance_path(id: String, kind: String) -> AppResult<()> {
+    let base = instances::content::folder_path(&id)?;
+    match kind.as_str() {
+        "log" => {
+            let path = base.join("logs").join("latest.log");
+            if path.is_file() {
+                instances::content::reveal_abs(&path)
+            } else {
+                let logs = base.join("logs");
+                if logs.is_dir() {
+                    instances::content::open_abs(&logs)
+                } else {
+                    instances::content::open_folder(&id)
+                }
+            }
+        }
+        "crashes" => {
+            let crash = base.join("crash-reports");
+            if crash.is_dir() {
+                instances::content::open_abs(&crash)
+            } else {
+                std::fs::create_dir_all(&crash)?;
+                instances::content::open_abs(&crash)
+            }
+        }
+        _ => instances::content::open_folder(&id),
+    }
 }
 
 #[tauri::command]

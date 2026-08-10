@@ -80,32 +80,38 @@ pub fn ensure_vsync_off(game_dir: &Path) -> AppResult<()> {
 
 /// Preset PvP 1.21.11 — más agresivo que `tier_options` genérico (Sodium/Iris ya cubren parte del render).
 fn tier_options_modern_pvp(tier: &str) -> HashMap<String, String> {
-    match tier {
+    tier_options_modern_pvp_style(tier, "competitive")
+}
+
+/// Options de PvP modern con estilo `competitive` | `casual`.
+pub fn tier_options_modern_pvp_style(tier: &str, play_style: &str) -> HashMap<String, String> {
+    let competitive = !matches!(play_style.to_lowercase().as_str(), "casual" | "relaxed" | "chill");
+    let mut base = match tier {
         "alta" => HashMap::from([
-            ("renderDistance".into(), "12".into()),
-            ("simulationDistance".into(), "10".into()),
-            ("particles".into(), "2".into()),
+            ("renderDistance".into(), if competitive { "10" } else { "14" }.into()),
+            ("simulationDistance".into(), if competitive { "8" } else { "12" }.into()),
+            ("particles".into(), if competitive { "2" } else { "1" }.into()),
             ("graphicsMode".into(), "FAST".into()),
             ("cloudRenderMode".into(), "OFF".into()),
-            ("entityDistanceScaling".into(), "0.75".into()),
+            ("entityDistanceScaling".into(), if competitive { "0.65" } else { "0.85" }.into()),
             ("entityShadows".into(), "false".into()),
-            ("ao".into(), "0".into()),
-            ("biomeBlendRadius".into(), "2".into()),
+            ("ao".into(), if competitive { "0" } else { "1" }.into()),
+            ("biomeBlendRadius".into(), if competitive { "0" } else { "2" }.into()),
             ("maxFps".into(), "260".into()),
             ("enableVsync".into(), "false".into()),
             ("fboEnable".into(), "true".into()),
         ]),
         "media" => HashMap::from([
-            ("renderDistance".into(), "12".into()),
-            ("simulationDistance".into(), "10".into()),
-            ("particles".into(), "1".into()),
+            ("renderDistance".into(), if competitive { "10" } else { "12" }.into()),
+            ("simulationDistance".into(), if competitive { "8" } else { "10" }.into()),
+            ("particles".into(), if competitive { "2" } else { "1" }.into()),
             ("graphicsMode".into(), "FAST".into()),
             ("cloudRenderMode".into(), "OFF".into()),
-            ("entityDistanceScaling".into(), "0.75".into()),
+            ("entityDistanceScaling".into(), if competitive { "0.65" } else { "0.75" }.into()),
             ("entityShadows".into(), "false".into()),
-            ("ao".into(), "1".into()),
-            ("biomeBlendRadius".into(), "2".into()),
-            ("maxFps".into(), "240".into()),
+            ("ao".into(), if competitive { "0" } else { "1" }.into()),
+            ("biomeBlendRadius".into(), if competitive { "0" } else { "1" }.into()),
+            ("maxFps".into(), "260".into()),
             ("enableVsync".into(), "false".into()),
             ("fboEnable".into(), "true".into()),
         ]),
@@ -119,11 +125,19 @@ fn tier_options_modern_pvp(tier: &str) -> HashMap<String, String> {
             ("entityShadows".into(), "false".into()),
             ("ao".into(), "0".into()),
             ("biomeBlendRadius".into(), "0".into()),
-            ("maxFps".into(), "120".into()),
+            ("maxFps".into(), "180".into()),
             ("enableVsync".into(), "false".into()),
             ("fboEnable".into(), "true".into()),
         ]),
-    }
+    };
+    // Feel 1.8-like: menos “peso” de cámara / UI.
+    base.insert("bobView".into(), if competitive { "false" } else { "true" }.into());
+    base.insert("attackIndicator".into(), "0".into());
+    base.insert("fovEffectScale".into(), "0.0".into());
+    base.insert("distortionEffectScale".into(), "0.0".into());
+    base.insert("damageTiltStrength".into(), if competitive { "0.0" } else { "1.0" }.into());
+    base.insert("rawMouseInput".into(), "true".into());
+    base
 }
 
 fn patch_properties_file(path: &Path, entries: &[(&str, &str)]) -> AppResult<()> {
@@ -373,11 +387,19 @@ pub fn optimize_modern_pvp_options(
     game_dir: &Path,
     tier: &str,
 ) -> AppResult<OptionsOptimizeResult> {
-    let opciones = tier_options_modern_pvp(tier);
+    optimize_modern_pvp_options_style(game_dir, tier, "competitive")
+}
+
+pub fn optimize_modern_pvp_options_style(
+    game_dir: &Path,
+    tier: &str,
+    play_style: &str,
+) -> AppResult<OptionsOptimizeResult> {
+    let opciones = tier_options_modern_pvp_style(tier, play_style);
     let path = game_dir.join("options.txt");
     let applied = patch_options_file(&path, opciones)?;
     Ok(OptionsOptimizeResult {
-        tier: tier.into(),
+        tier: format!("{tier}/{play_style}"),
         applied,
         path: path.to_string_lossy().into(),
     })
@@ -969,10 +991,20 @@ config_version: 6
     write_text(&config.join("badoptimizations.txt"), body)
 }
 
-/// Ajusta configs de Sodium, Lithium, Dynamic FPS y Gamma Utils según tier PvP modern.
+/// Ajusta configs de Sodium, Lithium, Dynamic FPS, Gamma Utils y Sodium Extra
+/// según tier + estilo de juego PvP modern.
 pub fn apply_modern_pvp_mod_configs(game_dir: &Path, tier: &str) -> AppResult<()> {
+    apply_modern_pvp_mod_configs_style(game_dir, tier, "competitive")
+}
+
+pub fn apply_modern_pvp_mod_configs_style(
+    game_dir: &Path,
+    tier: &str,
+    play_style: &str,
+) -> AppResult<()> {
     let config = game_dir.join("config");
     std::fs::create_dir_all(&config)?;
+    let competitive = !matches!(play_style.to_lowercase().as_str(), "casual" | "relaxed" | "chill");
 
     let lithium_entries: &[(&str, &str)] = match tier {
         "alta" => &[
@@ -991,6 +1023,21 @@ pub fn apply_modern_pvp_mod_configs(game_dir: &Path, tier: &str) -> AppResult<()
 
     repair_dynamic_fps_config(&config.join("dynamic_fps.json"))?;
     seed_gammautils_config(&config)?;
+
+    // Sodium Extra: en competitive, menos animaciones/cielo (más “liviano” tipo OptiFine Fast).
+    let sodium_tier = if competitive { "baja" } else { tier };
+    let _ = write_sodium_extra_options_json(&config, sodium_tier);
+    let _ = write_entityculling_json(&config, if competitive { "baja" } else { tier });
+    let _ = write_immediatelyfast_json(&config);
+
+    // Iris: apagar shader pack en competitive (el mod también lo hace en match).
+    if competitive {
+        let iris = config.join("iris.properties");
+        patch_properties_file(
+            &iris,
+            &[("shaderPack", ""), ("enableShaders", "false")],
+        )?;
+    }
 
     // No parchear sodium-options.json: el esquema cambia entre versiones y puede corromper el archivo.
     // Si quedó inválido de un parche anterior, borrarlo para que Sodium regenere defaults.

@@ -43,6 +43,7 @@ pub mod spotify;
 pub mod performance;
 pub mod overlay_ipc;
 pub mod game_session;
+pub mod client_console;
 pub mod compete_mode;
 pub mod pre_launch;
 pub mod instance_weight;

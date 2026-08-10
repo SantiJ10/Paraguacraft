@@ -2,6 +2,7 @@
 import { onMounted, watch } from "vue";
 import TitleBar from "@/components/layout/TitleBar.vue";
 import PostCrashBanner from "@/components/layout/PostCrashBanner.vue";
+import GameConsolePanel from "@/components/layout/GameConsolePanel.vue";
 import { useSettingsStore } from "@/stores/settings";
 import { applyAccentTheme } from "@/composables/useAccent";
 import { setLocale, type Locale } from "@/i18n";
@@ -52,5 +53,6 @@ watch(
     <TitleBar />
     <PostCrashBanner />
     <RouterView />
+    <GameConsolePanel />
   </div>
 </template>

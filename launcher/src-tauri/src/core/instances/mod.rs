@@ -61,6 +61,9 @@ pub struct InstanceMeta {
     /// Override de perfil: `auto` | `baja` | `media` | `alta` | `custom` (vacío = auto).
     #[serde(default)]
     pub performance_tier: Option<String>,
+    /// Override consola del juego: None = ajuste global, Some(true/false) fuerza.
+    #[serde(default)]
+    pub show_game_console: Option<bool>,
 }
 
 fn default_true() -> bool {
@@ -367,6 +370,7 @@ pub fn resolve_external_meta(ext_id: &str) -> Option<InstanceMeta> {
         gc: None,
         java_path: None,
         performance_tier: None,
+        show_game_console: None,
     })
 }
 
@@ -449,5 +453,6 @@ pub fn meta_from_folder_name(folder: &str) -> InstanceMeta {
         gc: None,
         java_path: None,
         performance_tier: None,
+        show_game_console: None,
     }
 }
