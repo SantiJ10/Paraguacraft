@@ -1,12 +1,12 @@
 //! Preset **Paraguacraft PvP** (solo Minecraft 1.8.9).
 //!
 //! ## Actualizar solo el cliente (sin recompilar el launcher)
-//! La versiÃƒÂ³n publicada vive en el manifest remoto:
+//! La versión publicada vive en el manifest remoto:
 //! `clientes/paraguacraft-pvp/manifest.json` + JAR en `bundled/pvp/`.
 //! En cada lanzamiento se llama a `install_bundle`, que descarga el JAR si el SHA-1
 //! no coincide. **No hace falta** subir un launcher nuevo para cada cliente.
 //!
-//! Las constantes `FALLBACK_*` son solo respaldo offline (sin internet o manifest caÃƒÂ­do).
+//! Las constantes `FALLBACK_*` son solo respaldo offline (sin internet o manifest caído).
 
 use std::path::{Path, PathBuf};
 
