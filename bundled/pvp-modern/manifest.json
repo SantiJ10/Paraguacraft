@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP Modern",
   "mc_version": "1.21.11",
   "loader": "fabric",
-  "client_version": "0.9.24",
-  "release_tag": "pvp-modern-0.9.24",
-  "descripcion": "PlayStyle competitive, multi-server, HUD presets, pack armor/HUD.",
+  "client_version": "0.9.25",
+  "release_tag": "pvp-modern-0.9.25",
+  "descripcion": "Hotbar transparente, viewmodel arma mas bajo, multiplayer sin notas, fuente nitida.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-Modern-0.9.24.jar",
-      "sha1": "1fd2c5d3e5ed84324ab23b01c0716f2a191810a9"
+      "filename": "ParaguacraftPvP-Modern-0.9.25.jar",
+      "sha1": "4070b20935ba06a8b2c237410310466e2e1f95e4"
     }
   ]
 }

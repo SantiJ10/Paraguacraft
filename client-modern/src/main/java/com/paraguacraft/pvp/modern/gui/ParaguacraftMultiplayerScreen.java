@@ -31,9 +31,7 @@ public class ParaguacraftMultiplayerScreen extends ParaguacraftScreen {
         for (int i = 0; i < servers.size(); i++) {
             DefaultServers.Entry entry = servers.get(i);
             int y = startY + i * gap;
-            String label = entry.note().isBlank()
-                ? entry.name()
-                : entry.name() + "  ·  " + entry.note();
+            String label = entry.name();
             addDrawableChild(FlatMenuButton.create(width / 2 - btnW / 2, y, btnW, btnH,
                 Text.literal(label), () -> connect(entry)));
         }
@@ -56,17 +54,9 @@ public class ParaguacraftMultiplayerScreen extends ParaguacraftScreen {
             textRenderer,
             Text.literal("Servidores PvP"),
             width / 2,
-            40,
+            48,
             UiTheme.accent()
         );
-        if (DefaultServers.offlineNote != null && !DefaultServers.offlineNote.isBlank()) {
-            context.drawCenteredTextWithShadow(
-                textRenderer,
-                Text.literal(DefaultServers.offlineNote),
-                width / 2,
-                54,
-                0xAAAAAA
-            );
-        }
+        // Sin banner de premium ni descripciones — solo nombres.
     }
 }

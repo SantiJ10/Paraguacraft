@@ -80,6 +80,10 @@ public abstract class MixinHeldItemRenderer {
         int light,
         CallbackInfo ci
     ) {
+        // Bajar un poco el viewmodel (espadas/herramientas se veían muy altas).
+        if (item != null && !item.isEmpty() && OldAnimations.isMeleeWeapon(item)) {
+            matrices.translate(0.0F, -0.08F, 0.02F);
+        }
         if (!OldAnimations.enabled() || player == null || item == null || item.isEmpty()) {
             return;
         }
