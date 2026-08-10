@@ -1,6 +1,6 @@
-//! Cliente **Paraguacraft PvP Modern** (Fabric 1.21.11) â€” loader dedicado + mod HUD propio.
+//! Cliente **Paraguacraft PvP Modern** (Fabric 1.21.11) — loader dedicado + mod HUD propio.
 //!
-//! Separado de `fabric-iris` (solo optimizaciÃ³n). Espeja `loaders/pvp.rs` en 1.8.9.
+//! Separado de `fabric-iris` (solo optimización). Espeja `loaders/pvp.rs` en 1.8.9.
 
 use std::path::{Path, PathBuf};
 
@@ -34,7 +34,7 @@ const FALLBACK_RELEASE_TAG: &str = "pvp-modern-0.9.24";
 
 const FALLBACK_MODS: &[(&str, &str)] = &[(
     "ParaguacraftPvP-Modern-0.9.24.jar",
-    "0b592608f3b1241595312b78ef20f05775a38b48",
+    "1fd2c5d3e5ed84324ab23b01c0716f2a191810a9",
 )];
 
 #[derive(Debug, Clone, Deserialize)]

@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
 """
 Oleada 3 del pack oficial:
-- HUD hearts/hunger/hotbar (modern sprites 9blue)
-- icons.png / widgets.png reafirmados desde Dewier (1.8)
-- fuente ASCII más “fina” (delgada) en 1.8 via reconstruir ascii.png
-- crosshair más limpio si hay dewier
+- HUD: icons/widgets (hearts, hunger, armor, crosshair) 1.8 más nítidos
+- HUD modern: hearts/food/hotbar desde 9blue + contraste
+- Fuente: ascii más limpia/delgada (sin grasa innecesaria)
 """
 
 from __future__ import annotations
 
 import io
 import os
-import shutil
 import zipfile
 from pathlib import Path
 
@@ -20,7 +18,6 @@ from PIL import Image, ImageEnhance, ImageFilter, ImageOps
 ROOT = Path(__file__).resolve().parents[1]
 OVERLAY_189 = ROOT / "resourcepacks-src" / "overlay-189"
 OVERLAY_MODERN = ROOT / "resourcepacks-src" / "overlay-modern"
-
 DEWIER = Path(
     os.environ.get(
         "DEWIER_ZIP",
@@ -32,182 +29,226 @@ DEWIER = Path(
         / "dewier-20k.zip",
     )
 )
-NINEBLUE = ROOT / ".tmp-rp-9blue"
 VANILLA_189 = Path(
     os.environ.get(
         "MC_189_JAR",
         Path(os.environ.get("APPDATA", "")) / ".minecraft" / "versions" / "1.8.9" / "1.8.9.jar",
     )
 )
+NINEBLUE = ROOT / ".tmp-rp-9blue"
+OFFICIAL_MODERN = (
+    ROOT / "clientes" / "paraguacraft-pvp-modern" / "packs" / "paraguacraft-pvp-modern.zip"
+)
 
 
-def zip_read(zpath: Path, inner: str) -> bytes | None:
-    if not zpath.is_file():
+def read_zip(path: Path, inner: str) -> bytes | None:
+    if not path.is_file():
         return None
-    with zipfile.ZipFile(zpath, "r") as z:
+    with zipfile.ZipFile(path) as z:
         try:
             return z.read(inner)
         except KeyError:
             return None
 
 
-def write(path: Path, data: bytes) -> None:
+def save_png(path: Path, img: Image.Image) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(data)
+    img.save(path, format="PNG")
 
 
-def sync_icons_189() -> int:
-    n = 0
-    for name in ("icons.png", "widgets.png"):
-        inner = f"assets/minecraft/textures/gui/{name}"
-        data = zip_read(DEWIER, inner)
-        if not data:
-            print(f"  MISS dew {name}")
-            continue
-        # contrast slightly for HUD readability
-        im = Image.open(io.BytesIO(data)).convert("RGBA")
-        im = ImageEnhance.Contrast(im).enhance(1.08)
-        im = ImageEnhance.Sharpness(im).enhance(1.2)
-        dest = OVERLAY_189 / "assets" / "minecraft" / "textures" / "gui" / name
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        im.save(dest, format="PNG")
-        n += 1
-        print(f"  icons189 {name} {im.size}")
-    return n
-
-
-def thin_ascii_font_189() -> bool:
+def enhance_icons_189() -> bool:
     """
-    Fuente ASCII más fina: reduce el “peso” de cada glifo (erosiona alpha)
-    sin cambiar métricas. Fuente: dewier font/ascii.png o vanilla.
+    icons.png 1.8: sheet clásico.
+    Filas típicas (y aprox.) en 256px: hearts ~ y 0-8, hunger ~9-18, armor ~ y 9? Actually layout:
+    - hearts empty/full half at y=0
+    - hunger at y=27
+    - armor at y=9
+    - air bubbles y=18
+    Boost only the heart/hunger/armor rows slightly for clarity without recoloring theme.
     """
-    candidates = [
-        ("zip", DEWIER, "assets/minecraft/mcpatcher/font/ascii.png"),
-        ("zip", DEWIER, "assets/minecraft/textures/font/ascii.png"),
-        ("zip", VANILLA_189, "assets/minecraft/textures/font/ascii.png"),
-    ]
-    data = None
-    for _, zpath, inner in candidates:
-        data = zip_read(zpath, inner)
-        if data:
-            print(f"  font source {inner}")
-            break
+    data = read_zip(DEWIER, "assets/minecraft/textures/gui/icons.png")
     if not data:
-        print("  MISS ascii font source")
+        data = read_zip(VANILLA_189, "assets/minecraft/textures/gui/icons.png")
+    if not data:
+        print("  MISS icons.png")
         return False
-
-    im = Image.open(io.BytesIO(data)).convert("RGBA")
-    # Erosionar solo el canal alpha → glifos más delgados
-    r, g, b, a = im.split()
-    # dilate mask of solid pixels then combine: keep center
-    solid = a.point(lambda p: 255 if p > 32 else 0)
-    # erode by min-filter on alpha
-    thinned = a.filter(ImageFilter.MinFilter(3))
-    # prefer original where thinned too weak
-    a2 = Image.composite(thinned, a, solid)
-    # slight contrast on color
+    img = Image.open(io.BytesIO(data)).convert("RGBA")
+    # ligero contraste global
+    r, g, b, a = img.split()
     rgb = Image.merge("RGB", (r, g, b))
-    rgb = ImageEnhance.Contrast(rgb).enhance(1.05)
-    r, g, b = rgb.split()
-    out = Image.merge("RGBA", (r, g, b, a2))
+    rgb = ImageEnhance.Contrast(rgb).enhance(1.18)
+    rgb = ImageEnhance.Sharpness(rgb).enhance(1.25)
+    out = rgb.convert("RGBA")
+    out.putalpha(a)
 
-    # write both OptiFine/mcpatcher and vanilla paths
-    paths = [
-        OVERLAY_189 / "assets/minecraft/mcpatcher/font/ascii.png",
-        OVERLAY_189 / "assets/minecraft/textures/font/ascii.png",
-    ]
-    for p in paths:
-        p.parent.mkdir(parents=True, exist_ok=True)
-        out.save(p, format="PNG")
-        print(f"  font -> {p.relative_to(ROOT)}")
+    # reforzar filas de corazones (top ~18 px band)
+    def boost_band(y0: int, y1: int, factor: float = 1.2) -> None:
+        band = out.crop((0, y0, out.width, y1))
+        br, bg, bb, ba = band.split()
+        brgb = ImageEnhance.Brightness(Image.merge("RGB", (br, bg, bb))).enhance(factor)
+        brgb = ImageEnhance.Contrast(brgb).enhance(1.1)
+        band2 = brgb.convert("RGBA")
+        band2.putalpha(ba)
+        out.paste(band2, (0, y0))
+
+    boost_band(0, 18, 1.15)   # hearts
+    boost_band(27, 45, 1.12)  # hunger region typical
+    boost_band(9, 18, 1.1)    # armor icons overlap
+
+    dest = OVERLAY_189 / "assets/minecraft/textures/gui/icons.png"
+    save_png(dest, out)
+    print(f"  icons189 {out.size}")
+
+    # widgets hotbar
+    wdata = read_zip(DEWIER, "assets/minecraft/textures/gui/widgets.png")
+    if wdata:
+        w = Image.open(io.BytesIO(wdata)).convert("RGBA")
+        wr, wg, wb, wa = w.split()
+        wrgb = ImageEnhance.Contrast(Image.merge("RGB", (wr, wg, wb))).enhance(1.1)
+        w2 = wrgb.convert("RGBA")
+        w2.putalpha(wa)
+        save_png(OVERLAY_189 / "assets/minecraft/textures/gui/widgets.png", w2)
+        print(f"  widgets189 {w2.size}")
     return True
 
 
-def sync_hud_modern() -> int:
-    src_root = NINEBLUE / "assets" / "minecraft" / "textures" / "gui"
-    if not src_root.is_dir():
-        print("  MISS 9blue gui")
-        return 0
-    dest_root = OVERLAY_MODERN / "assets" / "minecraft" / "textures" / "gui"
+def thin_font_ascii(src: Image.Image) -> Image.Image:
+    """
+    Reduce grasa de glifos: erode ligero de opacidad alta en ascii sheet.
+    Conserva negrita útil pero limpia smear.
+    """
+    img = src.convert("RGBA")
+    # sube contraste y un poco sharpen; no dilatar
+    r, g, b, a = img.split()
+    rgb = Image.merge("RGB", (r, g, b))
+    rgb = ImageEnhance.Contrast(rgb).enhance(1.2)
+    rgb = ImageEnhance.Sharpness(rgb).enhance(1.35)
+    # erode alpha sobre glifos muy blancos para thinning sutil
+    pixels = img.load()
+    out = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    op = out.load()
+    w, h = img.size
+    for y in range(h):
+        for x in range(w):
+            pr, pg, pb, pa = pixels[x, y]
+            if pa < 8:
+                continue
+            # si es borde (vecino transparente), bajar alpha un poco
+            border = False
+            for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                nx, ny = x + dx, y + dy
+                if 0 <= nx < w and 0 <= ny < h:
+                    if pixels[nx, ny][3] < 8:
+                        border = True
+                        break
+                else:
+                    border = True
+            na = pa
+            if border and max(pr, pg, pb) > 180:
+                na = max(0, int(pa * 0.55))
+            # interior: ligera recorte de alpha muy alto para "thin"
+            elif max(pr, pg, pb) > 230 and pa > 200:
+                na = min(pa, 230)
+            op[x, y] = (pr, pg, pb, na)
+    # re-aplicar contraste RGB sobre resultado
+    r2, g2, b2, a2 = out.split()
+    rgb2 = ImageEnhance.Contrast(Image.merge("RGB", (r2, g2, b2))).enhance(1.05)
+    final = rgb2.convert("RGBA")
+    final.putalpha(a2)
+    return final
+
+
+def font_189() -> int:
     n = 0
-    # hearts, food, hotbar, experience if present
-    patterns = [
-        "sprites/hud/heart",
-        "sprites/hud/food_*.png",
-        "sprites/hud/hotbar*.png",
-        "sprites/hud/jump_bar*.png",
-        "sprites/hud/experience_bar*.png",
-        "sprites/hud/armor*.png",
-        "sprites/hud/air*.png",
-    ]
-    files: list[Path] = []
-    hud = src_root / "sprites" / "hud"
-    if hud.is_dir():
-        files.extend(hud.rglob("*.png"))
-    for f in files:
-        rel = f.relative_to(src_root)
-        dest = dest_root / rel
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        # mild contrast boost
-        im = Image.open(f).convert("RGBA")
-        im = ImageEnhance.Contrast(im).enhance(1.1)
-        im = ImageEnhance.Brightness(im).enhance(1.05)
-        im.save(dest, format="PNG")
+    for name in ("ascii.png", "ascii_sga.png"):
+        data = read_zip(DEWIER, f"assets/minecraft/textures/font/{name}")
+        if not data:
+            continue
+        im = thin_font_ascii(Image.open(io.BytesIO(data)))
+        save_png(OVERLAY_189 / f"assets/minecraft/textures/font/{name}", im)
+        # también mcpatcher path (OptiFine HD font)
+        save_png(OVERLAY_189 / f"assets/minecraft/mcpatcher/font/{name}", im)
+        print(f"  font189 {name} {im.size}")
+        n += 1
+        # properties
+        for base in (
+            f"assets/minecraft/textures/font/{name.replace('.png', '.properties')}",
+            f"assets/minecraft/mcpatcher/font/{name.replace('.png', '.properties')}",
+        ):
+            pdata = read_zip(DEWIER, base)
+            if pdata:
+                dest = OVERLAY_189 / base
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                dest.write_bytes(pdata)
+    return n
+
+
+def modern_hud() -> int:
+    n = 0
+    root = NINEBLUE / "assets/minecraft/textures/gui/sprites/hud"
+    if not root.is_dir():
+        print("  MISS 9blue hud dir")
+        return 0
+    for src in root.rglob("*.png"):
+        rel = src.relative_to(NINEBLUE)
+        dest = OVERLAY_MODERN / rel
+        im = Image.open(src).convert("RGBA")
+        # contrast boost for hearts/food/crosshair
+        r, g, b, a = im.split()
+        rgb = ImageEnhance.Contrast(Image.merge("RGB", (r, g, b))).enhance(1.15)
+        rgb = ImageEnhance.Brightness(rgb).enhance(1.05)
+        out = rgb.convert("RGBA")
+        out.putalpha(a)
+        save_png(dest, out)
         n += 1
     print(f"  modern hud sprites {n}")
-    return n
 
-
-def sync_modern_icons_fallback() -> int:
-    """Si 9blue tiene icons/widgets legacy, copiar."""
-    n = 0
-    for name in ("icons.png", "widgets.png"):
-        src = NINEBLUE / "assets/minecraft/textures/gui" / name
-        if not src.is_file():
-            continue
-        dest = OVERLAY_MODERN / "assets/minecraft/textures/gui" / name
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(src, dest)
+    # particle heart
+    ph = NINEBLUE / "assets/minecraft/textures/particle/heart.png"
+    if ph.is_file():
+        im = Image.open(ph).convert("RGBA")
+        r, g, b, a = im.split()
+        rgb = ImageEnhance.Contrast(Image.merge("RGB", (r, g, b))).enhance(1.2)
+        out = rgb.convert("RGBA")
+        out.putalpha(a)
+        save_png(OVERLAY_MODERN / "assets/minecraft/textures/particle/heart.png", out)
         n += 1
-        print(f"  modern {name}")
+        print("  particle heart.png")
     return n
+
+
+def modern_font() -> int:
+    """1.21: textures/font/ascii.png si existe en 9blue o vanilla-like; si no skip."""
+    candidates = [
+        NINEBLUE / "assets/minecraft/textures/font/ascii.png",
+        NINEBLUE / "assets/minecraft/font/ascii.png",
+    ]
+    for c in candidates:
+        if c.is_file():
+            im = thin_font_ascii(Image.open(c))
+            save_png(OVERLAY_MODERN / "assets/minecraft/textures/font/ascii.png", im)
+            print(f"  font modern ascii {im.size}")
+            return 1
+    # fallback: dewier ascii ported (works for default font provider in some packs)
+    data = read_zip(DEWIER, "assets/minecraft/textures/font/ascii.png")
+    if data:
+        im = thin_font_ascii(Image.open(io.BytesIO(data)))
+        save_png(OVERLAY_MODERN / "assets/minecraft/textures/font/ascii.png", im)
+        print(f"  font modern from dewier ascii {im.size}")
+        return 1
+    print("  skip modern font (no source)")
+    return 0
 
 
 def main() -> int:
-    print("=== Wave 3: HUD / font ===")
-    print(f"Dewier={DEWIER.is_file()} 9blue={NINEBLUE.is_dir()}")
-    print("\n[1] 1.8 icons/widgets")
-    sync_icons_189()
-    print("\n[2] 1.8 thinner ascii font")
-    thin_ascii_font_189()
-    print("\n[3] modern HUD hearts/food/hotbar")
-    sync_hud_modern()
-    print("\n[4] modern icons fallback")
-    sync_modern_icons_fallback()
-    # mcmeta
-    (OVERLAY_189 / "pack.mcmeta").write_text(
-        """{
-  "pack": {
-    "pack_format": 1,
-    "description": "§9Paraguacraft §fPvP §8· §7HUD · armor · crit · bridge"
-  }
-}
-""",
-        encoding="utf-8",
-    )
-    (OVERLAY_MODERN / "pack.mcmeta").write_text(
-        """{
-  "pack": {
-    "pack_format": 75,
-    "description": "Paraguacraft PvP · HUD hearts · armor · crit · bridge",
-    "min_format": [75, 0],
-    "max_format": [99, 0]
-  }
-}
-""",
-        encoding="utf-8",
-    )
-    print("\nNext: patch_189 + patch_modern")
+    print("=== Wave 3: HUD hearts + font ===")
+    print(f"Dewier exists={DEWIER.is_file()} 9blue={NINEBLUE.is_dir()}")
+    enhance_icons_189()
+    f1 = font_189()
+    h = modern_hud()
+    f2 = modern_font()
+    print(f"Done font189={f1} modernHud={h} modernFont={f2}")
+    print("Next: patch_189 + patch_modern")
     return 0
 
 
