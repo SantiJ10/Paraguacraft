@@ -3,6 +3,13 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [1.1.26] - 2026-08-10
+
+### Launcher
+- Instalador: mismos fixes multi-server / PlayStyle / Optimized del árbol main.
+- Clientes embebidos/fallback: PvP **2.1.46** y Modern **0.9.24**.
+- Packs oficiales con armor, bridge, crit, HUD/font.
+
 ## [1.1.25] - 2026-08-10
 
 ### Launcher
