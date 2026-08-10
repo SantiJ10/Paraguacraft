@@ -15,12 +15,18 @@ import java.util.Locale;
 /** Servidores escritos por el launcher en `paraguacraft_servers.json`. */
 public final class DefaultServers {
 
-    public record Entry(String name, String address, String description) {}
+    public record Entry(String name, String address, String description, String note) {
+        public Entry(String name, String address, String description) {
+            this(name, address, description, "");
+        }
+    }
 
-    /** v3: UniversoCraft + Mush (reemplazan Hylex / MineLatino). */
-    private static final int CURRENT_VERSION = 3;
+    /** v4: Minemen + notas offline/premium. */
+    private static final int CURRENT_VERSION = 4;
 
     private DefaultServers() {}
+
+    public static String offlineNote = "";
 
     public static List<Entry> load(MinecraftClient client) {
         Path path = client.runDirectory.toPath().resolve("paraguacraft_servers.json");
@@ -29,6 +35,9 @@ public final class DefaultServers {
                 String json = Files.readString(path);
                 JsonObject root = JsonParser.parseString(json).getAsJsonObject();
                 int version = root.has("version") ? root.get("version").getAsInt() : 0;
+                if (root.has("offlineNote")) {
+                    offlineNote = root.get("offlineNote").getAsString();
+                }
                 JsonArray arr = root.getAsJsonArray("servers");
                 List<Entry> out = new ArrayList<>();
                 for (var el : arr) {
@@ -36,7 +45,8 @@ public final class DefaultServers {
                     out.add(new Entry(
                         o.get("name").getAsString(),
                         o.get("address").getAsString(),
-                        o.has("description") ? o.get("description").getAsString() : ""
+                        o.has("description") ? o.get("description").getAsString() : "",
+                        o.has("note") ? o.get("note").getAsString() : ""
                     ));
                 }
                 if (version >= CURRENT_VERSION && !out.isEmpty()) {
@@ -45,12 +55,14 @@ public final class DefaultServers {
             } catch (IOException | RuntimeException ignored) {
             }
         }
+        offlineNote =
+            "Algunos servidores (Hypixel, Minemen, CubeCraft) exigen cuenta premium. Offline solo donde el server lo permite.";
         return fallback();
     }
 
-    /** Corrige entradas viejas y migra Hylex/MineLatino → UniversoCraft/Mush. */
     private static List<Entry> normalize(List<Entry> entries) {
         List<Entry> out = new ArrayList<>(entries.size());
+        boolean hasMinemen = false;
         for (Entry e : entries) {
             String name = e.name();
             String address = e.address();
@@ -71,18 +83,30 @@ public final class DefaultServers {
                 name = "Mush";
                 address = "mush.com.br";
             }
-            out.add(new Entry(name, address, e.description()));
+            if (nameLower.contains("minemen") || lower.contains("minemen")) {
+                hasMinemen = true;
+            }
+            out.add(new Entry(name, address, e.description(), e.note()));
+        }
+        if (!hasMinemen) {
+            out.add(1, new Entry(
+                "Minemen Club",
+                "na.minemen.club",
+                "Practice · Duels · Pots",
+                "Premium · anticheat estricto"
+            ));
         }
         return out;
     }
 
     private static List<Entry> fallback() {
         return List.of(
-            new Entry("Hypixel", "mc.hypixel.net", "BedWars · SkyWars"),
-            new Entry("CubeCraft", "play.cubecraft.net", "EggWars · SkyWars"),
-            new Entry("Regorland", "regorland.net", "Survival · PvP"),
-            new Entry("UniversoCraft", "mc.universocraft.net", "SkyWars · BedWars LATAM"),
-            new Entry("Mush", "mush.com.br", "PvP · BedWars BR")
+            new Entry("Hypixel", "mc.hypixel.net", "BedWars · SkyWars · Duels", "Premium (Microsoft)"),
+            new Entry("Minemen Club", "na.minemen.club", "Practice · Duels", "Premium · AC estricto"),
+            new Entry("CubeCraft", "play.cubecraft.net", "EggWars · SkyWars · Lucky", "Premium"),
+            new Entry("UniversoCraft", "mc.universocraft.net", "SkyWars · BedWars LATAM", ""),
+            new Entry("Mush", "mush.com.br", "PvP · BedWars BR", ""),
+            new Entry("Regorland", "regorland.net", "Survival · PvP latino", "A menudo no-premium OK")
         );
     }
 }

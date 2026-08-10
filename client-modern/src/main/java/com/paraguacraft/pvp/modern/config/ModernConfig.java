@@ -31,14 +31,14 @@ public final class ModernConfig {
     public static boolean showCps = true;
     public static boolean noHurtCam = true;
     public static boolean fullbright = false;
-    public static boolean dynamicFov = true;
+    public static boolean dynamicFov = false;
     public static boolean hideTitles = true;
     public static boolean scoreboardEnabled = true;
     public static boolean scoreboardTransparentBg = false;
     public static boolean scoreboardHideRedNumbers = false;
     public static boolean scoreboardHideStats = false;
     public static boolean lowFire = true;
-    public static boolean itemPhysics = true;
+    public static boolean itemPhysics = false;
     public static boolean oldAnimations = true;
     public static boolean comboCounter = true;
     public static boolean showTntCountdown = true;

@@ -1,10 +1,13 @@
 package com.paraguacraft.pvp.modern.gui;
 
+import com.paraguacraft.pvp.modern.config.LauncherProfile;
 import com.paraguacraft.pvp.modern.config.ModernConfig;
 import com.paraguacraft.pvp.modern.core.FullbrightManager;
 import com.paraguacraft.pvp.modern.core.PerformanceBootstrap;
 import com.paraguacraft.pvp.modern.core.PerformanceConfig;
+import com.paraguacraft.pvp.modern.core.PlayStyle;
 import com.paraguacraft.pvp.modern.gui.theme.UiTheme;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
@@ -224,7 +227,7 @@ public class ModMenuScreen extends ParaguacraftScreen {
         cards.add(toggle(3, "Shaders auto-off en partida", () -> ModernConfig.shaderAutoOffInMatch, v -> ModernConfig.shaderAutoOffInMatch = v));
         cards.add(toggle(3, "Perfiles auto por modo", () -> ModernConfig.autoGameModeProfiles, v -> ModernConfig.autoGameModeProfiles = v));
         cards.add(toggle(3, "Reach solo practica", () -> ModernConfig.reachDisplayPracticeOnly, v -> ModernConfig.reachDisplayPracticeOnly = v));
-        cards.add(toggle(3, "Animaciones 1.7 (swing/block)", () -> ModernConfig.oldAnimations, v -> {
+        cards.add(toggle(3, "Animaciones 1.7 (swing/blockhit espada)", () -> ModernConfig.oldAnimations, v -> {
             ModernConfig.oldAnimations = v;
             PerformanceConfig.oldAnimations = v;
         }));
@@ -243,6 +246,11 @@ public class ModMenuScreen extends ParaguacraftScreen {
         cards.add(open(4, "Particulas: " + PerformanceConfig.particleModeLabel(), "particles"));
         cards.add(open(4, "Limpiar memoria", "clean_memory"));
         cards.add(open(4, "Aplicar preset de hardware", "apply_hw_preset"));
+        cards.add(toggle(4, "Full rendimiento (vs Casual)", () -> PlayStyle.isCompetitive(), v -> {
+            LauncherProfile.playStyle = v ? "competitive" : "casual";
+            PerformanceBootstrap.applyPresetNow(MinecraftClient.getInstance());
+            ModernConfig.save();
+        }));
         cards.add(open(4, "Mira: " + ModernConfig.crosshairModeLabel(), "crosshair"));
         cards.add(open(5, "Quick Play (`)", "quickplay"));
         cards.add(open(5, "Cubecraft Quick Play", "cubecraft_qp"));

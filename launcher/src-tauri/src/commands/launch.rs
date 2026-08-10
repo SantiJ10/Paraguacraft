@@ -17,6 +17,36 @@ fn now_secs() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
 }
 
+/// Escribe `playStyle` en `paraguacraft_v2.properties` (PvP 1.8.9).
+fn write_legacy_pvp_play_style(instance_id: &str, play_style: &str) -> AppResult<()> {
+    let path = instances::instance_dir(instance_id).join("paraguacraft_v2.properties");
+    let mut props: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    if path.is_file() {
+        if let Ok(text) = std::fs::read_to_string(&path) {
+            for line in text.lines() {
+                let line = line.trim();
+                if line.is_empty() || line.starts_with('#') {
+                    continue;
+                }
+                if let Some((k, v)) = line.split_once('=') {
+                    props.insert(k.trim().into(), v.trim().into());
+                }
+            }
+        }
+    }
+    props.insert("playStyle".into(), play_style.into());
+    props.insert("oldAnimations".into(), "true".into());
+    props.insert("boostFps".into(), "true".into());
+    let mut keys: Vec<_> = props.keys().cloned().collect();
+    keys.sort();
+    let body: Vec<String> = keys
+        .into_iter()
+        .map(|k| format!("{k}={}", props[&k]))
+        .collect();
+    std::fs::write(path, format!("{}\n", body.join("\n")))?;
+    Ok(())
+}
+
 async fn resolve_auth(http: &reqwest::Client) -> AppResult<AuthCtx> {
     let account = accounts::active_account()
         .ok_or_else(|| AppError::msg("No hay cuenta activa. Agrega una en Ajustes."))?;
@@ -127,7 +157,13 @@ async fn spawn_for_instance(
         settings,
         meta.performance_tier.as_deref(),
     );
-    crate::core::launch::optimizer::apply_pre_launch(&game_dir, &loader, &hw_tier, settings);
+    crate::core::launch::optimizer::apply_pre_launch(
+        &game_dir,
+        &loader,
+        &hw_tier,
+        &mc,
+        settings,
+    );
 
     if crate::core::branding::should_apply(&loader) {
         let _ = crate::core::branding::inject_logos(
@@ -208,13 +244,19 @@ async fn spawn_for_instance(
         .gc
         .clone()
         .unwrap_or_else(|| settings.gc_type.clone());
-    let extra_args: Vec<String> = meta
-        .jvm_args
-        .clone()
-        .unwrap_or_default()
-        .split_whitespace()
-        .map(String::from)
-        .collect();
+    let extra_args: Vec<String> = {
+        let mut out = Vec::new();
+        for part in settings.global_jvm_args.split_whitespace() {
+            out.push(part.to_string());
+        }
+        if let Some(inst) = meta.jvm_args.as_deref() {
+            for part in inst.split_whitespace() {
+                out.push(part.to_string());
+            }
+        }
+        out
+    };
+    let show_console = meta.show_game_console.unwrap_or(settings.show_game_console);
     let java_path = crate::core::java::resolve::ensure_launch_java(
         app,
         state,
@@ -224,6 +266,14 @@ async fn spawn_for_instance(
         settings.java_path.as_deref(),
     )
     .await?;
+    // Consola OS: `java.exe` (con ventana). Por defecto `javaw` sin consola.
+    let java_path = if show_console {
+        PathBuf::from(crate::core::java::resolve::prefer_java_exe(
+            &java_path.to_string_lossy(),
+        ))
+    } else {
+        java_path
+    };
     let java_major = crate::core::java::verify::verify(&java_path, "launch")
         .map(|j| j.version_major)
         .unwrap_or_else(|| crate::core::java::required_for_mc(&mc));
@@ -240,6 +290,8 @@ async fn spawn_for_instance(
 
     let resolution = if settings.papa_mode {
         Some((800u32, 600u32))
+    } else if settings.game_width > 0 && settings.game_height > 0 {
+        Some((settings.game_width, settings.game_height))
     } else {
         None
     };
@@ -281,8 +333,18 @@ async fn spawn_for_instance(
         .iter()
         .map(|(k, v)| (k.as_str(), v.as_str()))
         .collect();
-    let child = launch::spawn_game(&java, &args, &game_dir, &launch_env, java_major)?;
+    let child = launch::spawn_game(
+        &java,
+        &args,
+        &game_dir,
+        &launch_env,
+        java_major,
+        show_console,
+    )?;
     let pid = child.id();
+
+    crate::core::game_session::set_last_launch_instance(instance_id);
+    crate::core::client_console::begin_session(instance_id, &game_dir);
 
     let java_priority = compete
         .as_ref()
@@ -312,6 +374,8 @@ async fn spawn_for_instance(
         .as_ref()
         .map(|p| p.close_on_launch)
         .unwrap_or(settings.close_on_launch);
+    // Con consola ON no matamos el proceso del launcher (soft → bandeja / restaurar al cerrar MC).
+    let soft_close = compete.is_some() || show_console;
     launch::watch_exit(
         app.clone(),
         instance_id.to_string(),
@@ -325,13 +389,13 @@ async fn spawn_for_instance(
         false,
         overlay_ipc,
         compete.is_some(),
-        compete.is_some(),
+        soft_close,
     );
 
     state.shutdown_network();
     *state.java_cache.lock().unwrap() = None;
 
-    launch::apply_launch_window(app, close_on_launch, compete.is_some());
+    launch::apply_launch_window(app, close_on_launch, soft_close);
 
     if !instance_id.starts_with("ext::") {
         meta.last_played = Some(now_secs().to_string());
@@ -481,8 +545,12 @@ pub async fn launch_instance(
         if loader == "paraguacraft-pvp-modern" {
             launch::emit_status(&app, "downloading", "Sincronizando cliente PvP…");
             modern_pvp::sync_instance_bundles(&app, &http, &instance_id).await?;
-            let tier = crate::core::hardware::detect().perfil_sugerido;
-            let _ = modern_pvp::ensure_launch_defaults(&instance_id, &tier);
+            let settings_tier = crate::core::performance::resolve_tier(
+                &settings,
+                meta.performance_tier.as_deref(),
+            );
+            let play_style = settings.pvp_play_style.as_str();
+            let _ = modern_pvp::ensure_launch_defaults(&instance_id, &settings_tier, play_style);
             let _ = modern_pvp::sync_instance_content(&app, &http, &instance_id).await;
         }
         if loader == "paraguacraft-pvp" {
@@ -495,6 +563,7 @@ pub async fn launch_instance(
                 use_compete,
             )
             .await?;
+            let _ = write_legacy_pvp_play_style(&instance_id, settings.pvp_play_style.as_str());
         }
 
         launch::emit_status(&app, "preparing", "Validando cuenta…");
@@ -519,6 +588,33 @@ pub async fn launch_instance(
         compete_plan,
     )
     .await
+}
+
+/// Args del último launch (o de una instancia concreta) para copiar / soporte.
+#[tauri::command]
+pub fn get_last_launch_args(instance_id: Option<String>) -> AppResult<LastLaunchArgsDto> {
+    let id = instance_id
+        .filter(|s| !s.trim().is_empty())
+        .or_else(crate::core::game_session::last_launch_instance)
+        .ok_or_else(|| {
+            AppError::msg(
+                "Todavía no hay un launch reciente. Jugá una partida y volvé a intentar.",
+            )
+        })?;
+    let (path, text) = launch::read_last_args_file(&id)?;
+    Ok(LastLaunchArgsDto {
+        instance_id: id,
+        path: path.to_string_lossy().into_owned(),
+        args: text,
+    })
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LastLaunchArgsDto {
+    pub instance_id: String,
+    pub path: String,
+    pub args: String,
 }
 
 /// Sincroniza titulo/artista de musica al HUD in-game (IPC overlay).

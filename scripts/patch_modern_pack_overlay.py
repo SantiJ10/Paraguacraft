@@ -17,12 +17,15 @@ BUNDLED_RP = ROOT / "bundled" / "pvp-modern" / "resourcepacks" / "paraguacraft-p
 BUNDLED_PACKS = ROOT / "bundled" / "pvp-modern" / "packs" / "paraguacraft-pvp-modern.zip"
 
 # Basura / duplicados que no deben quedar en el pack publicado.
-DROP_PREFIXES = ()
+DROP_PREFIXES = (
+    "assets/minecraft/textures/block/hardened_clay_stained_",
+)
 DROP_EXACT = {
     "assets/minecraft/textures/block/fire_layer_0 - kopie.png",
     "assets/minecraft/textures/block/fire_layer_1 - kopie.png",
     "assets/minecraft/textures/block/fire_layer_0old.png",
     "assets/minecraft/textures/block/fire_layer_1old.png",
+    "assets/minecraft/textures/block/hardened_clay.png",
 }
 
 
@@ -118,7 +121,10 @@ def main() -> int:
 
     for dest in (BUNDLED_RP, BUNDLED_PACKS):
         dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(OUT, dest)
+        try:
+            shutil.copy2(OUT, dest)
+        except OSError as e:
+            print(f"WARN bundled copy {dest.name}: {e}")
 
     update_catalogs(sha, OUT.name)
     print(f"OK {OUT.name} sha1={sha} size={OUT.stat().st_size // 1024}KB")

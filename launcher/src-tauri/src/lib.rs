@@ -143,6 +143,9 @@ pub fn run() {
             commands::instances::reinstall_instance_loader,
             commands::instances::repair_instance,
             commands::instances::get_instance_log,
+            commands::instances::get_client_console,
+            commands::instances::export_client_console,
+            commands::instances::open_instance_path,
             commands::instances::remove_instance_content,
             commands::instances::reveal_instance_content,
             commands::instances::pick_and_add_instance_content,
@@ -178,6 +181,7 @@ pub fn run() {
             commands::store::update_instance_content,
             // Lanzamiento (Fase 3)
             commands::launch::launch_instance,
+            commands::launch::get_last_launch_args,
             commands::launch::sync_overlay_music,
             commands::favorites::list_favorite_servers,
             commands::favorites::add_favorite_server,

@@ -18,6 +18,7 @@ public class GuiGameModeOverrideScreen extends ParaguacraftScreen {
         GameModeDetector.Mode.BUILD_BATTLE,
         GameModeDetector.Mode.TNT_RUN,
         GameModeDetector.Mode.LUCKY_ISLANDS,
+        GameModeDetector.Mode.HUNGER_GAMES,
         GameModeDetector.Mode.PVP,
         GameModeDetector.Mode.OTHER,
     };

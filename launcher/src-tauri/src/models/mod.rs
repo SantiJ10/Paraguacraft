@@ -69,6 +69,20 @@ pub struct AppSettings {
     /// Preset de uso (solo con perfil `auto`): `balanced` | `gameplay` | `shaders` | `pvp` | `lightweight`.
     #[serde(default = "default_usage_balanced")]
     pub usage_preset: String,
+    /// Estilo de juego en clientes PvP: `competitive` (Full rendimiento) | `casual`.
+    #[serde(default = "default_pvp_play_style")]
+    pub pvp_play_style: String,
+    /// Mostrar consola nativa al jugar (`java.exe` en Windows). Útil para debug de mods/crash.
+    #[serde(default)]
+    pub show_game_console: bool,
+    /// Args JVM globales (se concatenan antes de los de cada instancia).
+    #[serde(default)]
+    pub global_jvm_args: String,
+    /// Resolución forzada al lanzar (0 = no forzar). Papa Mode tiene prioridad (800×600).
+    #[serde(default)]
+    pub game_width: u32,
+    #[serde(default)]
+    pub game_height: u32,
 }
 
 fn default_auto_update_check() -> bool {
@@ -85,6 +99,10 @@ fn default_perf_auto() -> String {
 
 fn default_usage_balanced() -> String {
     "balanced".into()
+}
+
+fn default_pvp_play_style() -> String {
+    "competitive".into()
 }
 
 impl Default for AppSettings {
@@ -114,6 +132,11 @@ impl Default for AppSettings {
             tray_lite: true,
             performance_tier: "auto".into(),
             usage_preset: "balanced".into(),
+            pvp_play_style: "competitive".into(),
+            show_game_console: false,
+            global_jvm_args: String::new(),
+            game_width: 0,
+            game_height: 0,
         }
     }
 }

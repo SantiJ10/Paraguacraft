@@ -17,6 +17,8 @@ export const useAppStore = defineStore("app", () => {
     exitCode: number;
     diagnosis: CrashDiagnosis;
   } | null>(null);
+  /** Instancia del launch en curso / última partida (consola en vivo). */
+  const activeGameInstanceId = ref<string | null>(null);
   const updateInfo = ref<UpdateInfo | null>(null);
   const updateProgress = ref<UpdateProgress | null>(null);
   const updating = ref(false);
@@ -60,7 +62,8 @@ export const useAppStore = defineStore("app", () => {
     gameEventsBound = true;
     const { listen } = await import("@tauri-apps/api/event");
     const skins = useSkinsStore();
-    await listen("game://started", () => {
+    await listen<{ instanceId?: string }>("game://started", (ev) => {
+      activeGameInstanceId.value = ev.payload?.instanceId ?? null;
       setLaunch("running", "Jugando — launcher suspendido");
     });
     await listen<{ phase?: string; message?: string }>("game://status", (ev) => {
@@ -183,6 +186,7 @@ export const useAppStore = defineStore("app", () => {
     competeMode = false,
   ) {
     await initGameEvents();
+    activeGameInstanceId.value = instanceId;
     setLaunch(
       "preparing",
       competeMode ? `Modo Competir — ${name}…` : `Preparando ${name}…`,
@@ -193,6 +197,7 @@ export const useAppStore = defineStore("app", () => {
         setLaunch("launching", competeMode ? `Competir — ${name}…` : `Lanzando ${name}…`);
       }
     } catch (e) {
+      activeGameInstanceId.value = null;
       setLaunch("idle", "Listo para jugar");
       throw e;
     }
@@ -203,6 +208,7 @@ export const useAppStore = defineStore("app", () => {
     runningInTauri,
     launchPhase,
     launchMessage,
+    activeGameInstanceId,
     lastCrash,
     dismissCrash,
     updateInfo,

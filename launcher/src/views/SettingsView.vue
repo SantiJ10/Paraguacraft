@@ -33,6 +33,23 @@ const showAddAccount = ref(false);
 const skinBusy = ref(false);
 const skinMessage = ref<string | null>(null);
 
+const copyArgsBusy = ref(false);
+const copyArgsMessage = ref<string | null>(null);
+
+async function copyLastLaunchArgs() {
+  copyArgsBusy.value = true;
+  copyArgsMessage.value = null;
+  try {
+    const { args, instanceId } = await api.getLastLaunchArgs();
+    await navigator.clipboard.writeText(args);
+    copyArgsMessage.value = `Args copiados (${instanceId}).`;
+  } catch (e) {
+    copyArgsMessage.value = String(e).replace(/^Error:\s*/i, "");
+  } finally {
+    copyArgsBusy.value = false;
+  }
+}
+
 /** Renombrar cuenta offline (inline). */
 const renamingId = ref<string | null>(null);
 const renameDraft = ref("");
@@ -428,6 +445,21 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
         </label>
 
         <label class="mb-5 block">
+          <span class="mb-1 block text-sm text-gray-300">Estilo de juego PvP</span>
+          <select
+            :value="settings.settings.pvpPlayStyle ?? 'competitive'"
+            class="w-full max-w-xs rounded-lg border border-surface-5 bg-surface-3 px-3 py-2.5 text-sm outline-none focus:border-pc-green"
+            @change="settings.update('pvpPlayStyle', ($event.target as HTMLSelectElement).value)"
+          >
+            <option value="competitive">Full rendimiento — fluidez 1.8-like</option>
+            <option value="casual">Casual — un poco más visual</option>
+          </select>
+          <p class="mt-1 text-xs text-gray-500">
+            Se aplica a PvP 1.21.11 (y configs del launcher) al jugar: bobView off, RD/sim justos, Sodium Extra, shaders off.
+          </p>
+        </label>
+
+        <label class="mb-5 block">
           <span class="mb-1 block text-sm text-gray-300">Preset por uso</span>
           <select
             :value="settings.settings.usagePreset ?? 'balanced'"
@@ -470,6 +502,29 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
             hint="Libera RAM y procesos en segundo plano."
             @update:model-value="settings.update('closeOnLaunch', $event)"
           />
+          <BaseToggle
+            :model-value="settings.settings.showGameConsole ?? false"
+            label="Mostrar consola del juego"
+            hint="Abre la ventana de Java al jugar (útil para ver crashes de mods). Si también cerrás el launcher, queda en bandeja en vez de salir."
+            @update:model-value="settings.update('showGameConsole', $event)"
+          />
+          <div class="flex flex-wrap items-center gap-2">
+            <BaseButton
+              size="sm"
+              variant="secondary"
+              :disabled="copyArgsBusy || !isTauri()"
+              @click="copyLastLaunchArgs"
+            >
+              {{ copyArgsBusy ? "Copiando…" : "Copiar args del último launch" }}
+            </BaseButton>
+            <p
+              v-if="copyArgsMessage"
+              class="text-xs"
+              :class="copyArgsMessage.startsWith('Args copiados') ? 'text-pc-green' : 'text-red-400'"
+            >
+              {{ copyArgsMessage }}
+            </p>
+          </div>
           <BaseToggle
             :model-value="settings.settings.competeTurbo ?? false"
             label="Turbo en Modo Competir"
@@ -555,6 +610,48 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
             hint="Fuerza resolución baja al lanzar el juego."
             @update:model-value="settings.update('papaMode', $event)"
           />
+          <div class="flex flex-wrap gap-3">
+            <label class="block">
+              <span class="mb-1 block text-sm text-gray-300">Ancho personalizado</span>
+              <input
+                type="number"
+                min="0"
+                max="7680"
+                :value="settings.settings.gameWidth ?? 0"
+                :disabled="settings.settings.papaMode"
+                class="w-28 rounded-lg border border-surface-5 bg-surface-3 px-3 py-2.5 text-sm outline-none focus:border-pc-green disabled:opacity-50"
+                @input="settings.update('gameWidth', Number(($event.target as HTMLInputElement).value) || 0)"
+              />
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-sm text-gray-300">Alto personalizado</span>
+              <input
+                type="number"
+                min="0"
+                max="4320"
+                :value="settings.settings.gameHeight ?? 0"
+                :disabled="settings.settings.papaMode"
+                class="w-28 rounded-lg border border-surface-5 bg-surface-3 px-3 py-2.5 text-sm outline-none focus:border-pc-green disabled:opacity-50"
+                @input="settings.update('gameHeight', Number(($event.target as HTMLInputElement).value) || 0)"
+              />
+            </label>
+          </div>
+          <p class="text-xs text-gray-500">
+            0 × 0 = no forzar (salvo Modo PC Papa). Ej: 1920 × 1080.
+          </p>
+          <label class="block">
+            <span class="mb-1 block text-sm text-gray-300">Argumentos JVM globales</span>
+            <input
+              type="text"
+              :value="settings.settings.globalJvmArgs ?? ''"
+              placeholder="-XX:+UseG1GC …"
+              class="w-full max-w-xl rounded-lg border border-surface-5 bg-surface-3 px-3 py-2.5 text-sm outline-none focus:border-pc-green"
+              @input="settings.update('globalJvmArgs', ($event.target as HTMLInputElement).value)"
+            />
+            <p class="mt-1 text-xs text-gray-500">
+              Se aplican a todas las instancias, antes de los args de cada una.
+            </p>
+          </label>
           <BaseToggle
             :model-value="settings.settings.deepCleanOnLaunch ?? false"
             label="Limpieza profunda al jugar"

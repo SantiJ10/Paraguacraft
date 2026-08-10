@@ -8,6 +8,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 static RUNNING: AtomicBool = AtomicBool::new(false);
 static PENDING_PVP_SYNC: LazyLock<Mutex<HashSet<String>>> =
     LazyLock::new(|| Mutex::new(HashSet::new()));
+/// Última instancia lanzada (args en `.paraguacraft-java-args.txt`).
+static LAST_LAUNCH_ID: LazyLock<Mutex<Option<String>>> = LazyLock::new(|| Mutex::new(None));
 
 pub fn set_running(running: bool) {
     RUNNING.store(running, Ordering::SeqCst);
@@ -15,6 +17,16 @@ pub fn set_running(running: bool) {
 
 pub fn is_running() -> bool {
     RUNNING.load(Ordering::SeqCst)
+}
+
+pub fn set_last_launch_instance(id: impl Into<String>) {
+    if let Ok(mut guard) = LAST_LAUNCH_ID.lock() {
+        *guard = Some(id.into());
+    }
+}
+
+pub fn last_launch_instance() -> Option<String> {
+    LAST_LAUNCH_ID.lock().ok().and_then(|g| g.clone())
 }
 
 pub fn queue_pvp_sync(instance_id: impl Into<String>) {

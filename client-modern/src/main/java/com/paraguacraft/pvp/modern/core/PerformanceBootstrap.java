@@ -64,6 +64,9 @@ public final class PerformanceBootstrap {
     }
 
     private static void onClientStarted(MinecraftClient client) {
+        // Siempre re-aplicar feel del estilo PvP (no depende del marker de options).
+        PlayStyle.apply(client);
+
         Path gameDir = net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir();
         Path marker = gameDir.resolve(".paraguacraft_vanilla_preset_applied");
         if (PerformanceConfig.boostFps && PerformanceConfig.applyVanillaPreset) {
@@ -79,6 +82,11 @@ public final class PerformanceBootstrap {
             } catch (java.io.IOException ignored) {
             }
         }
+        // competitive: reafirma distancias aunque existan options viejos (RD 16 etc.).
+        if (PlayStyle.isCompetitive()) {
+            applyGameOptions(client.options);
+            PlayStyle.apply(client);
+        }
         if (ModernConfig.windowedFullscreen) {
             WindowedFullscreenManager.enable(client);
         }
@@ -87,6 +95,7 @@ public final class PerformanceBootstrap {
     /** Boton "Aplicar preset de hardware" del Mod Menu: re-ejecuta el auto-preset a demanda, sin esperar al marker de arranque. */
     public static void applyPresetNow(MinecraftClient client) {
         applyGameOptions(client.options);
+        PlayStyle.apply(client);
     }
 
     /** Boton "Particulas" del Mod Menu: aplica el modo elegido de inmediato (sin esperar a reiniciar). */
@@ -108,6 +117,7 @@ public final class PerformanceBootstrap {
 
     private static void applyGameOptions(GameOptions options) {
         String tier = LauncherProfile.hardwareTier == null ? "media" : LauncherProfile.hardwareTier.toLowerCase();
+        boolean competitive = PlayStyle.isCompetitive();
         int renderDistance = PerformanceConfig.renderDistance;
         int simDistance = PerformanceConfig.simulationDistance;
         double entityScale = PerformanceConfig.entityDistanceScaling;
@@ -116,17 +126,24 @@ public final class PerformanceBootstrap {
         boolean ao = false;
         int biomeBlend = 1;
 
-        if ("alta".equals(tier) || "high".equals(tier)) {
+        if (competitive) {
+            renderDistance = Math.min(renderDistance, 10);
+            simDistance = Math.min(simDistance, 8);
+            entityScale = Math.min(entityScale, 0.65);
+            particles = ParticlesMode.MINIMAL;
+            ao = false;
+            biomeBlend = 0;
+        } else if ("alta".equals(tier) || "high".equals(tier)) {
             renderDistance = Math.max(renderDistance, 12);
             simDistance = Math.max(simDistance, 10);
             entityScale = Math.max(entityScale, 0.75);
             biomeBlend = 2;
         } else if ("media".equals(tier) || "medium".equals(tier)) {
-            renderDistance = Math.max(renderDistance, 12);
-            simDistance = Math.max(simDistance, 10);
-            entityScale = Math.max(entityScale, 0.75);
+            renderDistance = Math.max(renderDistance, 10);
+            simDistance = Math.max(simDistance, 8);
+            entityScale = Math.max(entityScale, 0.7);
             ao = true;
-            biomeBlend = 2;
+            biomeBlend = 1;
         }
 
         options.getViewDistance().setValue(clampChunkDistance(renderDistance));
@@ -138,6 +155,7 @@ public final class PerformanceBootstrap {
         options.getAo().setValue(ao);
         options.getEntityDistanceScaling().setValue(clamp(entityScale, 0.25, 1.0));
         options.getBiomeBlendRadius().setValue(biomeBlend);
+        options.getEnableVsync().setValue(false);
     }
 
     private static ParticlesMode toParticlesMode(PerformanceConfig.ParticleMode mode) {

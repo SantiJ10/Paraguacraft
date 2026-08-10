@@ -33,10 +33,42 @@ NINEBLUE = Path(os.environ.get("APPDATA", "")) / ".minecraft" / "instancias" / "
 
 SKIP_IN_ZIP = re.compile(r"(^|/)(\.DS_Store|Thumbs\.db|__MACOSX|\.git)", re.I)
 
-# Bloques custom que SÍ queremos (visibilidad competitiva + tema azul BedWars)
+# Bloques custom que SÍ queremos (visibilidad competitiva + BedWars/SkyWars).
+# No incluye terreno genérico (grass/dirt) para no “pintar” el mundo entero.
 BLOCK_ALLOW = re.compile(
-    r"(ore|fire|wool_colored|wool\.png|destroy_stage_\d+)",
+    r"("
+    r"ore|"
+    r"fire|"
+    r"wool|"
+    r"destroy_stage_\d+|"
+    r"glass|obsidian|ladder|web|cobweb|"
+    r"tnt_|planks_|oak_planks|sand|gravel|"
+    r"slime|ice|end_stone|end_bricks|"
+    r"water_still|water_flow|"
+    r"concrete|scaffolding|"
+    r"stonebrick|stone_bricks|cobble|brick|"
+    r"stone_slab|smooth_stone|andesite|diorite|granite|"
+    r"quartz|sponge|netherrack|glowstone|soul_sand|clay|"
+    r"^stone\.png$|^blocks/stone\.png$"
+    r")",
     re.I,
+)
+
+# Basura de packs fuente que no debe publicarse.
+DROP_EXACT = {
+    "assets/minecraft/textures/blocks/fire_layer_0 - kopie.png",
+    "assets/minecraft/textures/blocks/fire_layer_1 - kopie.png",
+    "assets/minecraft/textures/blocks/fire_layer_0old.png",
+    "assets/minecraft/textures/blocks/fire_layer_1old.png",
+    "assets/minecraft/textures/block/fire_layer_0 - kopie.png",
+    "assets/minecraft/textures/block/fire_layer_1 - kopie.png",
+    "assets/minecraft/textures/block/fire_layer_0old.png",
+    "assets/minecraft/textures/block/fire_layer_1old.png",
+    # Nombres 1.8 mal mapeados a 1.21 (no aplican en modern).
+    "assets/minecraft/textures/block/hardened_clay.png",
+}
+DROP_PREFIXES = (
+    "assets/minecraft/textures/block/hardened_clay_stained_",
 )
 
 ALWAYS_PREFIXES_189 = (
@@ -44,6 +76,8 @@ ALWAYS_PREFIXES_189 = (
     "assets/minecraft/mcpatcher/font/",
     "assets/minecraft/textures/gui/",
     "assets/minecraft/textures/items/",
+    "assets/minecraft/textures/particle/",
+    "assets/minecraft/textures/models/armor/",
 )
 
 ALWAYS_PREFIXES_MODERN = (
@@ -51,6 +85,8 @@ ALWAYS_PREFIXES_MODERN = (
     "assets/minecraft/textures/gui/",
     "assets/minecraft/textures/item/",
     "assets/minecraft/textures/particle/",
+    "assets/minecraft/textures/entity/equipment/",
+    "assets/minecraft/textures/models/armor/",
 )
 
 # Solo herramientas simples. bow/crossbow/shield/fishing_rod tienen estados
@@ -95,7 +131,15 @@ def norm(path: str) -> str:
 
 
 def should_skip(path: str) -> bool:
-    return bool(SKIP_IN_ZIP.search(path))
+    p = norm(path)
+    if SKIP_IN_ZIP.search(p):
+        return True
+    if p in DROP_EXACT:
+        return True
+    for pref in DROP_PREFIXES:
+        if p.startswith(pref):
+            return True
+    return False
 
 
 def block_path_ok(path: str) -> bool:

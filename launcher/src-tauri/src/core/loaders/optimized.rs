@@ -38,7 +38,7 @@ const FORGE_1_12_2: &str = "14.23.5.2860";
 
 const MODRINTH: &str = "https://api.modrinth.com/v2";
 const TUNED_MARKER: &str = ".paraguacraft_optimized_tuned";
-const TUNED_VERSION: &str = "v8";
+const TUNED_VERSION: &str = "v9";
 /// Única versión del pack Optimized que ve el usuario (el loader real se resuelve solo).
 pub const PACK_VERSION: &str = "1.0.0";
 

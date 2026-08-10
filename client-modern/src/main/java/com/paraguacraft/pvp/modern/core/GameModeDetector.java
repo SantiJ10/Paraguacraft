@@ -11,7 +11,7 @@ import net.minecraft.text.Text;
 import java.util.Collection;
 import java.util.Locale;
 
-/** Deduce el modo de juego desde scoreboard + servidor (Hypixel / Cubecraft). */
+/** Deduce el modo de juego desde scoreboard + servidor (Hypixel / Cubecraft / LATAM). */
 public final class GameModeDetector {
 
     public enum Mode {
@@ -22,6 +22,7 @@ public final class GameModeDetector {
         BUILD_BATTLE,
         TNT_RUN,
         LUCKY_ISLANDS,
+        HUNGER_GAMES,
         PVP,
         OTHER,
         AUTO
@@ -108,7 +109,6 @@ public final class GameModeDetector {
             refreshLabel();
             return;
         }
-        // Cualquier multiplayer (Hypixel, Cubecraft u otros): leer sidebar.
         Scoreboard board = client.world.getScoreboard();
         ScoreboardObjective obj = board.getObjectiveForSlot(ScoreboardDisplaySlot.SIDEBAR);
         String haystack = collectSidebarText(board, obj);
@@ -166,6 +166,8 @@ public final class GameModeDetector {
         return switch (server) {
             case CUBECRAFT -> detectCubecraft(t);
             case HYPIXEL -> detectHypixel(t);
+            case MINEMEN -> detectMinemen(t);
+            case MUSH, UNIVERSOCRAFT, REGORLAND -> detectGeneric(t);
             default -> detectGeneric(t);
         };
     }
@@ -212,7 +214,7 @@ public final class GameModeDetector {
             return Mode.PVP;
         }
         if (t.contains("SURVIVAL GAME") || t.contains("SURVIVAL GAMES")) {
-            return Mode.PVP;
+            return Mode.HUNGER_GAMES;
         }
         if (t.contains("DUEL")) {
             return Mode.DUELS;
@@ -229,17 +231,63 @@ public final class GameModeDetector {
         return Mode.OTHER;
     }
 
+    /** Minemen Club: practice / pots / ranked duels. */
+    private static Mode detectMinemen(String t) {
+        if (t.contains("DUEL") || t.contains("RANKED") || t.contains("UNRANKED") || t.contains("QUEUE")) {
+            return Mode.DUELS;
+        }
+        if (t.contains("PRACTICE") || t.contains("NODEBUFF") || t.contains("POTP") || t.contains("SOUP")) {
+            return Mode.DUELS;
+        }
+        if (t.contains("LOBBY") || t.contains("HUB") || t.contains("ONLINE")) {
+            return Mode.LOBBY;
+        }
+        // Cualquier sidebar en Minemen: pelea si no es lobby genérico.
+        if (t.contains("ELO") || t.contains("PING") || t.contains("CPS") || t.contains("COMBO")) {
+            return Mode.DUELS;
+        }
+        return Mode.PVP;
+    }
+
     private static Mode detectGeneric(String t) {
         if (isBedwarsText(t)) {
             return Mode.BEDWARS;
         }
-        if (t.contains("SKY WAR") || t.contains("SKYWAR")) {
+        if (t.contains("SKY WAR") || t.contains("SKYWAR") || t.contains("SW ")) {
             return Mode.SKYWARS;
         }
-        if (t.contains("LOBBY") || t.contains("HUB")) {
+        if (t.contains("DUEL") || t.contains("1V1") || t.contains("2V2") || t.contains("SUMO")) {
+            return Mode.DUELS;
+        }
+        if (isHungerGamesText(t)) {
+            return Mode.HUNGER_GAMES;
+        }
+        if (t.contains("BUILD BATTLE") || t.contains("SPEED BUILD") || t.contains("CONSTRUCTOR")) {
+            return Mode.BUILD_BATTLE;
+        }
+        if (t.contains("TNT RUN") || t.contains("TNTRUN") || t.contains("TNT TAG")) {
+            return Mode.TNT_RUN;
+        }
+        if (t.contains("LUCKY")) {
+            return Mode.LUCKY_ISLANDS;
+        }
+        if (t.contains("LOBBY") || t.contains("HUB") || t.contains("SPAWN") || t.contains("SALIDA")) {
             return Mode.LOBBY;
         }
+        if (t.contains("KIT PVP") || t.contains("KITPVP") || t.contains("FACTIONS") || t.contains("SURVIVAL")) {
+            return Mode.PVP;
+        }
         return Mode.OTHER;
+    }
+
+    private static boolean isHungerGamesText(String t) {
+        return t.contains("HUNGER")
+            || t.contains("HUNGER GAMES")
+            || t.contains("HG ")
+            || t.contains(" HG")
+            || t.contains("SURVIVAL GAME")
+            || t.contains("SURVIVAL GAMES")
+            || t.contains("JUEGOS DEL HAMBRE");
     }
 
     /** Keywords BedWars / EggWars (EN + ES) en scoreboard de cualquier red. */
@@ -266,6 +314,7 @@ public final class GameModeDetector {
             case BUILD_BATTLE -> "Build Battle";
             case TNT_RUN -> "TNT Run";
             case LUCKY_ISLANDS -> "Lucky Islands";
+            case HUNGER_GAMES -> "Hunger Games";
             case PVP -> "PvP";
             case LOBBY -> "Lobby";
             case AUTO -> "Auto";

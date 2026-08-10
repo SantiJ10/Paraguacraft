@@ -206,6 +206,14 @@ pub fn open_folder(id: &str) -> AppResult<()> {
     open_in_file_manager(&dir)
 }
 
+pub fn open_abs(path: &Path) -> AppResult<()> {
+    open_in_file_manager(path)
+}
+
+pub fn reveal_abs(path: &Path) -> AppResult<()> {
+    reveal_in_file_manager(path)
+}
+
 pub fn remove(id: &str, rel_path: &str) -> AppResult<()> {
     let base = game_dir_for(id).ok_or_else(|| AppError::msg("Instancia no encontrada"))?;
     let rel = rel_path.replace('\\', "/");

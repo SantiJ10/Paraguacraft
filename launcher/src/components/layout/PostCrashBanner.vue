@@ -95,6 +95,57 @@ async function openHealth() {
   dismiss();
   await router.push({ name: "instance-detail", params: { id }, query: { health: "1" } });
 }
+
+async function openLogs() {
+  const id = crash.value?.instanceId;
+  if (!id) return;
+  dismiss();
+  await router.push({ name: "instance-detail", params: { id }, query: { tab: "logs" } });
+}
+
+async function openLatestLog() {
+  const id = crash.value?.instanceId;
+  if (!id) return;
+  busy.value = true;
+  actionMsg.value = null;
+  try {
+    await api.openInstancePath(id, "log");
+    actionMsg.value = "Abriendo latest.log…";
+  } catch (e) {
+    actionMsg.value = String(e);
+  } finally {
+    busy.value = false;
+  }
+}
+
+async function openCrashReports() {
+  const id = crash.value?.instanceId;
+  if (!id) return;
+  busy.value = true;
+  actionMsg.value = null;
+  try {
+    await api.openInstancePath(id, "crashes");
+    actionMsg.value = "Abriendo crash-reports…";
+  } catch (e) {
+    actionMsg.value = String(e);
+  } finally {
+    busy.value = false;
+  }
+}
+
+async function copyLogTail() {
+  const tail = crash.value?.diagnosis?.logTail?.trim();
+  if (!tail) {
+    actionMsg.value = "No hay fragmento de log en el diagnóstico.";
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(tail);
+    actionMsg.value = "Log del crash copiado.";
+  } catch {
+    actionMsg.value = "No se pudo copiar.";
+  }
+}
 </script>
 
 <template>
@@ -139,6 +190,14 @@ async function openHealth() {
         >
           Salud
         </BaseButton>
+        <BaseButton size="sm" variant="secondary" @click="openLogs">Ver log</BaseButton>
+        <BaseButton size="sm" variant="secondary" :disabled="busy" @click="openLatestLog">
+          latest.log
+        </BaseButton>
+        <BaseButton size="sm" variant="secondary" :disabled="busy" @click="openCrashReports">
+          Crashes
+        </BaseButton>
+        <BaseButton size="sm" variant="secondary" @click="copyLogTail">Copiar log</BaseButton>
         <BaseButton size="sm" variant="secondary" @click="openInstance">Ver instancia</BaseButton>
         <BaseButton size="sm" variant="secondary" @click="askBot">Paraguabot</BaseButton>
         <BaseButton size="sm" @click="dismiss">Cerrar</BaseButton>

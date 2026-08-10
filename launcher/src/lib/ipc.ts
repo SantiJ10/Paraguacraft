@@ -7,6 +7,7 @@
 import type {
   Account,
   AppSettings,
+  LastLaunchArgs,
   BackupInfo,
   ContentProvider,
   ContentType,
@@ -141,6 +142,10 @@ export const api = {
       deepCleanOnLaunch: false,
       backupAutoHours: 0,
       javaPriority: "high",
+      showGameConsole: false,
+      globalJvmArgs: "",
+      gameWidth: 0,
+      gameHeight: 0,
     });
   },
 
@@ -627,6 +632,12 @@ export const api = {
     });
   },
 
+  async getLastLaunchArgs(instanceId?: string | null): Promise<LastLaunchArgs> {
+    return invokeReal<LastLaunchArgs>("get_last_launch_args", {
+      instanceId: instanceId ?? null,
+    });
+  },
+
   async getResourceBudget(instanceId: string): Promise<ResourceBudget> {
     return invokeReal<ResourceBudget>("get_resource_budget", { instanceId });
   },
@@ -691,6 +702,8 @@ export const api = {
     gc?: string | null;
     javaPath?: string | null;
     performanceTier?: string | null;
+    /** default | on | off */
+    showGameConsole?: string | null;
   }): Promise<InstanceMeta> {
     return invokeReal<InstanceMeta>("set_instance_config", { ...payload });
   },
@@ -730,6 +743,18 @@ export const api = {
 
   async getInstanceLog(id: string, maxLines = 400): Promise<string[]> {
     return invokeReal<string[]>("get_instance_log", { id, maxLines });
+  },
+
+  async getClientConsole(id: string, maxLines = 500): Promise<string[]> {
+    return invokeReal<string[]>("get_client_console", { id, maxLines });
+  },
+
+  async exportClientConsole(id: string): Promise<string> {
+    return invokeReal<string>("export_client_console", { id });
+  },
+
+  async openInstancePath(id: string, kind: "log" | "crashes" | "folder"): Promise<void> {
+    await invokeReal<void>("open_instance_path", { id, kind });
   },
 
   async removeInstanceContent(id: string, path: string): Promise<void> {
