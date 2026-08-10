@@ -211,17 +211,23 @@ public final class AdvancedHud {
 
     private static void drawBwLine(ItemStack icon, String name, int count, int x, int y) {
         Minecraft mc = Minecraft.getMinecraft();
-        GlStateManager.enableDepth();
-        GlStateManager.disableLighting();
-        // Icono 16×16 (se escalarán con NEAREST vía HudModuleScale)
         GlStateManager.pushMatrix();
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        GlStateManager.enableRescaleNormal();
+        GlStateManager.enableBlend();
+        GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
+        GlStateManager.enableDepth();
         float is = 0.75f;
         GlStateManager.translate(x, y, 0f);
         GlStateManager.scale(is, is, 1f);
+        net.minecraft.client.renderer.RenderHelper.enableGUIStandardItemLighting();
         mc.getRenderItem().renderItemAndEffectIntoGUI(icon, 0, 0);
+        net.minecraft.client.renderer.RenderHelper.disableStandardItemLighting();
         GlStateManager.popMatrix();
-        GlStateManager.disableDepth();
+        GlStateManager.disableRescaleNormal();
         GlStateManager.disableLighting();
+        GlStateManager.disableDepth();
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         if (ModConfig.showItemNames) {
             HudDraw.labeled(name + " ", String.valueOf(count), x + 14, y + 2);
         } else {

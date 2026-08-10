@@ -224,12 +224,23 @@ public class HUDOverlay extends Gui {
         int x = ModConfig.blocksX;
         int y = ModConfig.blocksY;
         ItemStack icon = new ItemStack(net.minecraft.init.Blocks.wool);
+        // Estado GL canónico de item 2D (evita icono casi-transparente por blend/depth residuales)
+        GlStateManager.pushMatrix();
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        GlStateManager.enableRescaleNormal();
+        GlStateManager.enableBlend();
+        GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
+        GlStateManager.enableDepth();
+        net.minecraft.client.renderer.RenderHelper.enableGUIStandardItemLighting();
         mc.getRenderItem().renderItemAndEffectIntoGUI(icon, x, y);
+        net.minecraft.client.renderer.RenderHelper.disableStandardItemLighting();
+        GlStateManager.disableRescaleNormal();
         GlStateManager.disableLighting();
         GlStateManager.disableDepth();
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         HudDraw.text(String.valueOf(blocks), x + 18, y + 4, 0xFFFFFFFF);
         GlStateManager.enableDepth();
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        GlStateManager.popMatrix();
     }
 
     private int countPlaceableBlocks() {
