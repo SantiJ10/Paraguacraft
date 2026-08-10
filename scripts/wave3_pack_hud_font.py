@@ -99,78 +99,44 @@ def enhance_icons_189() -> bool:
     save_png(dest, out)
     print(f"  icons189 {out.size}")
 
-    # widgets hotbar
-    wdata = read_zip(DEWIER, "assets/minecraft/textures/gui/widgets.png")
+    # widgets: vanilla 1.8 (botones grises legibles). Dewier es casi negro y se ve “roto”
+    # en menús con fondo dark del cliente.
+    wdata = read_zip(VANILLA_189, "assets/minecraft/textures/gui/widgets.png")
+    if not wdata:
+        wdata = read_zip(DEWIER, "assets/minecraft/textures/gui/widgets.png")
     if wdata:
-        w = Image.open(io.BytesIO(wdata)).convert("RGBA")
-        wr, wg, wb, wa = w.split()
-        wrgb = ImageEnhance.Contrast(Image.merge("RGB", (wr, wg, wb))).enhance(1.1)
-        w2 = wrgb.convert("RGBA")
-        w2.putalpha(wa)
-        save_png(OVERLAY_189 / "assets/minecraft/textures/gui/widgets.png", w2)
-        print(f"  widgets189 {w2.size}")
+        dest = OVERLAY_189 / "assets/minecraft/textures/gui/widgets.png"
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(wdata)
+        print(f"  widgets189 vanilla/pristine {len(wdata)}B")
     return True
 
 
 def thin_font_ascii(src: Image.Image) -> Image.Image:
     """
-    Reduce grasa de glifos: erode ligero de opacidad alta en ascii sheet.
-    Conserva negrita útil pero limpia smear.
+    NO alterar alpha de fuentes 1.8: el thinning rompe scoreboard/chat
+    (glifos con alpha <255 se ven “rayados” con filtrado bilinear).
+    Se deja por compatibilidad de firma; devuelve copia intacta.
     """
-    img = src.convert("RGBA")
-    # sube contraste y un poco sharpen; no dilatar
-    r, g, b, a = img.split()
-    rgb = Image.merge("RGB", (r, g, b))
-    rgb = ImageEnhance.Contrast(rgb).enhance(1.2)
-    rgb = ImageEnhance.Sharpness(rgb).enhance(1.35)
-    # erode alpha sobre glifos muy blancos para thinning sutil
-    pixels = img.load()
-    out = Image.new("RGBA", img.size, (0, 0, 0, 0))
-    op = out.load()
-    w, h = img.size
-    for y in range(h):
-        for x in range(w):
-            pr, pg, pb, pa = pixels[x, y]
-            if pa < 8:
-                continue
-            # si es borde (vecino transparente), bajar alpha un poco
-            border = False
-            for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
-                nx, ny = x + dx, y + dy
-                if 0 <= nx < w and 0 <= ny < h:
-                    if pixels[nx, ny][3] < 8:
-                        border = True
-                        break
-                else:
-                    border = True
-            na = pa
-            if border and max(pr, pg, pb) > 180:
-                na = max(0, int(pa * 0.55))
-            # interior: ligera recorte de alpha muy alto para "thin"
-            elif max(pr, pg, pb) > 230 and pa > 200:
-                na = min(pa, 230)
-            op[x, y] = (pr, pg, pb, na)
-    # re-aplicar contraste RGB sobre resultado
-    r2, g2, b2, a2 = out.split()
-    rgb2 = ImageEnhance.Contrast(Image.merge("RGB", (r2, g2, b2))).enhance(1.05)
-    final = rgb2.convert("RGBA")
-    final.putalpha(a2)
-    return final
+    return src.convert("RGBA")
 
 
 def font_189() -> int:
+    """Copia fuente Dewier intacta (ascii + SGA). Nunca mutar alpha."""
     n = 0
     for name in ("ascii.png", "ascii_sga.png"):
         data = read_zip(DEWIER, f"assets/minecraft/textures/font/{name}")
         if not data:
             continue
-        im = thin_font_ascii(Image.open(io.BytesIO(data)))
-        save_png(OVERLAY_189 / f"assets/minecraft/textures/font/{name}", im)
-        # también mcpatcher path (OptiFine HD font)
-        save_png(OVERLAY_189 / f"assets/minecraft/mcpatcher/font/{name}", im)
-        print(f"  font189 {name} {im.size}")
+        for base in (
+            f"assets/minecraft/textures/font/{name}",
+            f"assets/minecraft/mcpatcher/font/{name}",
+        ):
+            dest = OVERLAY_189 / base
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(data)
+        print(f"  font189 {name} (pristine dewier) {len(data)}B")
         n += 1
-        # properties
         for base in (
             f"assets/minecraft/textures/font/{name.replace('.png', '.properties')}",
             f"assets/minecraft/mcpatcher/font/{name.replace('.png', '.properties')}",
@@ -218,23 +184,25 @@ def modern_hud() -> int:
 
 
 def modern_font() -> int:
-    """1.21: textures/font/ascii.png si existe en 9blue o vanilla-like; si no skip."""
+    """1.21: copiar ascii sin mutar alpha (thinning rompe UI text)."""
     candidates = [
         NINEBLUE / "assets/minecraft/textures/font/ascii.png",
         NINEBLUE / "assets/minecraft/font/ascii.png",
     ]
     for c in candidates:
         if c.is_file():
-            im = thin_font_ascii(Image.open(c))
-            save_png(OVERLAY_MODERN / "assets/minecraft/textures/font/ascii.png", im)
-            print(f"  font modern ascii {im.size}")
+            data = c.read_bytes()
+            dest = OVERLAY_MODERN / "assets/minecraft/textures/font/ascii.png"
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(data)
+            print(f"  font modern ascii pristine {len(data)}B")
             return 1
-    # fallback: dewier ascii ported (works for default font provider in some packs)
     data = read_zip(DEWIER, "assets/minecraft/textures/font/ascii.png")
     if data:
-        im = thin_font_ascii(Image.open(io.BytesIO(data)))
-        save_png(OVERLAY_MODERN / "assets/minecraft/textures/font/ascii.png", im)
-        print(f"  font modern from dewier ascii {im.size}")
+        dest = OVERLAY_MODERN / "assets/minecraft/textures/font/ascii.png"
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(data)
+        print(f"  font modern from dewier pristine {len(data)}B")
         return 1
     print("  skip modern font (no source)")
     return 0
