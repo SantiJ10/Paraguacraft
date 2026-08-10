@@ -1,12 +1,12 @@
-{
-  "version": "1.1.25",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.25/Instalar_Paraguacraft_v1.1.25.exe",
-  "size_bytes": 5650059,
-  "sha256": "8a1e79830182f921e8d2308b4ed219b863003d1edf442259794dc8c993165d53",
-  "notes": "- Geyser+playit: broadcast-port, HAProxy y floodgate automaticos\n- Playit: IP Java + Bedrock, reintentos de tunel y reloj de Windows\n- Sin freeze al navegar; restaura el server abierto; sin crash al iniciar\n- Mata Java huerfano (session.lock) y agente playit mas estable",
+﻿{
+  "version": "1.1.26",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.26/Instalar_Paraguacraft_v1.1.26.exe",
+  "size_bytes": 5665391,
+  "sha256": "83dc322d38126ab407654738e5a18fd5c21dd7b2fc53b0d54c86d5287338cb39",
+  "notes": "- Instalador 1.1.26 con clientes PvP 2.1.46 / Modern 0.9.24\n- Multi-servidor, PlayStyle Full/Casual, Optimized preconfig\n- Packs oficiales: armor, bridge, crit, HUD/font\n- Consola de juego y catalogo de redes",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.25/Instalar_Paraguacraft_v1.1.25.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.26/Instalar_Paraguacraft_v1.1.26.exe",
       "signature": ""
     }
   }
