@@ -37,13 +37,20 @@ public class ParaguacraftPvP {
 
     public static final String MODID = "paraguacraftpvp";
     public static final String NAME = "Paraguacraft PvP Client";
-    public static final String VERSION = "2.1.46";
+    public static final String VERSION = "2.1.48";
 
     @Mod.Instance(MODID)
     public static ParaguacraftPvP instance;
 
     @EventHandler
     public void preInit(FMLPreInitializationEvent event) {
+        // Antes de abrir resource packs: instalar/actualizar zip oficial (evita lock Windows).
+        try {
+            java.io.File gameDir = event.getModConfigurationDirectory().getParentFile();
+            com.paraguacraft.pvp.resourcepack.ResourcePackManager.bootstrapOfficialPack(gameDir);
+        } catch (Throwable t) {
+            System.err.println("[Paraguacraft] bootstrap pack: " + t.getMessage());
+        }
         HytilsDefaults.applyIfNeeded();
     }
 

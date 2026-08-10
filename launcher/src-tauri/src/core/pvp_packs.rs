@@ -14,7 +14,7 @@ use crate::core::paths;
 use crate::error::{AppError, AppResult};
 
 pub const PACK_189: &str = "paraguacraft-pvp-189.zip";
-pub const PACK_189_SHA1: &str = "fca79a31d31806e9a9fbcc742e8b83fe6f0750ef";
+pub const PACK_189_SHA1: &str = "63723b3115acc98c323e4c3f57c93789adc199ad";
 pub const PACK_MODERN: &str = "paraguacraft-pvp-modern.zip";
 
 const BASE_URL_189: &str =
@@ -96,8 +96,16 @@ async fn ensure_primary_189(
     dest_dir: &Path,
 ) -> AppResult<()> {
     let dest = dest_dir.join(PACK_189);
-    if sha_matches(&dest, PACK_189_SHA1) {
-        return Ok(());
+
+    // Si ya hay un pack oficial instalado, no pisarlo con el SHA del binario del launcher.
+    // El cliente (ResourcePackManager) actualiza el zip al SHA del catálogo/release.
+    // Re-forzar PACK_189_SHA1 aquí degradaba packs cuando el instalador es viejo.
+    if dest.is_file() {
+        if let Ok(meta) = std::fs::metadata(&dest) {
+            if meta.len() > 1024 {
+                return Ok(());
+            }
+        }
     }
 
     if let Some(src) = find_local_pack(app, PACK_189) {
@@ -117,9 +125,19 @@ async fn ensure_primary_189(
             let _ = std::fs::remove_file(&tmp);
             continue;
         }
-        if !sha_matches(&tmp, PACK_189_SHA1) {
+        // Aceptamos el zip si el download termina y es un zip válido; en éxito total
+        // preferimos el SHA oficial, pero no descartamos un pack más nuevo del repo.
+        let ok_sha = sha_matches(&tmp, PACK_189_SHA1);
+        let ok_size = std::fs::metadata(&tmp).map(|m| m.len() > 1024).unwrap_or(false);
+        if !ok_size {
             let _ = std::fs::remove_file(&tmp);
             continue;
+        }
+        if !ok_sha {
+            // Dejar pasar zips frescos del repo aunque el binario del launcher traiga SHA viejo.
+            eprintln!(
+                "[pvp_packs] pack descargado con SHA distinto al embedded; se instala de todos modos ({url})"
+            );
         }
         std::fs::create_dir_all(dest_dir)?;
         if dest.exists() {

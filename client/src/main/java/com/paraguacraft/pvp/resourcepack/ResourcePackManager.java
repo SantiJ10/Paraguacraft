@@ -19,11 +19,13 @@ public final class ResourcePackManager {
     public static final String OFFICIAL_PACK = "paraguacraft-pvp-189.zip";
     public static final String BRAND_PACK = "ParaguacraftBrandPack";
     /** Debe coincidir con catalog.json / launcher PACK_189_SHA1. */
-    public static final String OFFICIAL_SHA1 = "fca79a31d31806e9a9fbcc742e8b83fe6f0750ef";
-    private static final String OFFICIAL_URL =
-        "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/clientes/paraguacraft-pvp/packs/paraguacraft-pvp-189.zip";
-    private static final String OFFICIAL_URL_FALLBACK =
-        "https://cdn.jsdelivr.net/gh/SantiJ10/Paraguacraft@main/clientes/paraguacraft-pvp/packs/paraguacraft-pvp-189.zip";
+    public static final String OFFICIAL_SHA1 = "63723b3115acc98c323e4c3f57c93789adc199ad";
+    private static final String PENDING_PACK = OFFICIAL_PACK + ".pending";
+    private static final String[] OFFICIAL_URLS = new String[] {
+        "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/clientes/paraguacraft-pvp/packs/paraguacraft-pvp-189.zip",
+        "https://github.com/SantiJ10/Paraguacraft/raw/main/clientes/paraguacraft-pvp/packs/paraguacraft-pvp-189.zip",
+        "https://cdn.jsdelivr.net/gh/SantiJ10/Paraguacraft@main/clientes/paraguacraft-pvp/packs/paraguacraft-pvp-189.zip",
+    };
 
     private static boolean officialRefreshStarted;
 
@@ -37,6 +39,70 @@ public final class ResourcePackManager {
 
     public static File packsDir() {
         return new File(Minecraft.getMinecraft().mcDataDir, "resourcepacks");
+    }
+
+    private static File packsDir(File gameDir) {
+        return new File(gameDir, "resourcepacks");
+    }
+
+    /**
+     * Antes de cargar texture packs (FML preInit): aplica .pending e instala el pack oficial
+     * con el SHA embebido. En Windows el zip activo no se puede borrar in-game.
+     */
+    public static void bootstrapOfficialPack(File gameDir) {
+        if (gameDir == null) {
+            return;
+        }
+        File dir = packsDir(gameDir);
+        if (!dir.exists() && !dir.mkdirs()) {
+            System.err.println("[Paraguacraft] No se pudo crear resourcepacks/");
+            return;
+        }
+        File dest = new File(dir, OFFICIAL_PACK);
+        File pending = new File(dir, PENDING_PACK);
+        applyPendingIfValid(pending, dest);
+        if (dest.isFile() && sha1Matches(dest, OFFICIAL_SHA1)) {
+            return;
+        }
+        System.out.println("[Paraguacraft] Actualizando pack oficial (SHA distinto o ausente)...");
+        try {
+            downloadOfficialTo(pending);
+            if (!applyPendingIfValid(pending, dest)) {
+                System.err.println("[Paraguacraft] No se pudo instalar " + OFFICIAL_PACK + " tras descargar");
+            } else {
+                System.out.println("[Paraguacraft] Pack oficial listo: " + OFFICIAL_PACK);
+            }
+        } catch (Exception e) {
+            System.err.println("[Paraguacraft] Fallo al actualizar pack: " + e.getMessage());
+        }
+    }
+
+    private static boolean applyPendingIfValid(File pending, File dest) {
+        if (pending == null || !pending.isFile() || !sha1Matches(pending, OFFICIAL_SHA1)) {
+            return dest != null && dest.isFile() && sha1Matches(dest, OFFICIAL_SHA1);
+        }
+        try {
+            if (dest.exists() && !dest.delete()) {
+                // Renombrar viejo y reintentar
+                File bak = new File(dest.getParentFile(), OFFICIAL_PACK + ".old");
+                if (bak.exists()) {
+                    bak.delete();
+                }
+                if (!dest.renameTo(bak)) {
+                    System.err.println("[Paraguacraft] ZIP oficial bloqueado; queda " + PENDING_PACK);
+                    return false;
+                }
+                bak.delete();
+            }
+            if (!pending.renameTo(dest)) {
+                copyFile(pending, dest);
+                pending.delete();
+            }
+            return dest.isFile() && sha1Matches(dest, OFFICIAL_SHA1);
+        } catch (Exception e) {
+            System.err.println("[Paraguacraft] applyPending: " + e.getMessage());
+            return false;
+        }
     }
 
     /** Token 1.8.9: nombre exacto del zip o carpeta (sin prefijo file/). */
@@ -210,7 +276,7 @@ public final class ResourcePackManager {
         applyOfficialStack();
     }
 
-    /** Reemplaza el zip oficial si no coincide el SHA embebido (async). */
+    /** Reemplaza el zip oficial si no coincide el SHA embebido (async; usa .pending si está bloqueado). */
     private static void ensureOfficialFileCurrentAsync() {
         File official = new File(packsDir(), OFFICIAL_PACK);
         if (official.isFile() && sha1Matches(official, OFFICIAL_SHA1)) {
@@ -224,11 +290,21 @@ public final class ResourcePackManager {
             @Override
             public void run() {
                 try {
-                    downloadOfficialOverwrite();
+                    File pending = new File(packsDir(), PENDING_PACK);
+                    downloadOfficialTo(pending);
                     Minecraft.getMinecraft().addScheduledTask(new Runnable() {
                         @Override
                         public void run() {
-                            applyOfficialStack();
+                            File dest = new File(packsDir(), OFFICIAL_PACK);
+                            if (applyPendingIfValid(pending, dest)) {
+                                applyOfficialStack();
+                            } else {
+                                System.err.println(
+                                    "[Paraguacraft] Pack descargado a "
+                                        + PENDING_PACK
+                                        + "; se aplicará al reiniciar el juego."
+                                );
+                            }
                         }
                     });
                 } catch (Exception e) {
@@ -239,15 +315,10 @@ public final class ResourcePackManager {
         }, "Paraguacraft-OfficialPack").start();
     }
 
-    private static void downloadOfficialOverwrite() throws Exception {
-        File dir = packsDir();
-        if (!dir.exists()) {
-            dir.mkdirs();
-        }
-        File dest = new File(dir, OFFICIAL_PACK);
-        File tmp = new File(dir, OFFICIAL_PACK + ".part");
+    private static void downloadOfficialTo(File dest) throws Exception {
+        File tmp = new File(dest.getParentFile(), dest.getName() + ".part");
         Exception last = null;
-        for (String url : new String[] { OFFICIAL_URL, OFFICIAL_URL_FALLBACK }) {
+        for (String url : OFFICIAL_URLS) {
             try {
                 downloadUrlToFile(url, tmp);
                 if (!sha1Matches(tmp, OFFICIAL_SHA1)) {
@@ -256,11 +327,17 @@ public final class ResourcePackManager {
                     continue;
                 }
                 if (dest.exists() && !dest.delete()) {
-                    throw new IllegalStateException("No se pudo reemplazar " + OFFICIAL_PACK);
+                    // dejar .part renombrable
+                }
+                if (dest.exists()) {
+                    dest.delete();
                 }
                 if (!tmp.renameTo(dest)) {
                     copyFile(tmp, dest);
                     tmp.delete();
+                }
+                if (!sha1Matches(dest, OFFICIAL_SHA1)) {
+                    throw new IllegalStateException("SHA invalid final " + dest.getName());
                 }
                 return;
             } catch (Exception e) {

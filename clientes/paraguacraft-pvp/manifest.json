@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.47",
-  "release_tag": "pvp-client-2.1.47",
-  "descripcion": "Fix fuente scoreboard/botones GUI + pack HUD.",
+  "client_version": "2.1.48",
+  "release_tag": "pvp-client-2.1.48",
+  "descripcion": "Fuente vanilla 1.8 + fondo menús clásico; fix update pack Windows.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.47.jar",
-      "sha1": "b45ee99e58ca00d3d789e98087c100579139dbce"
+      "filename": "ParaguacraftPvP-2.1.48.jar",
+      "sha1": "5d55ba3aefb7ce852a9695b868c19b6be532137d"
     },
     {
       "filename": "Hytils-Reborn-1.8.9-forge-1.7.5.jar",

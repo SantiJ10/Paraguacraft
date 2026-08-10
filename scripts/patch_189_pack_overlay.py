@@ -20,7 +20,16 @@ DROP_EXACT = {
     "assets/minecraft/textures/blocks/fire_layer_1 - kopie.png",
     "assets/minecraft/textures/blocks/fire_layer_0old.png",
     "assets/minecraft/textures/blocks/fire_layer_1old.png",
+    # Menú: volvemos a dirt vanilla (no tile custom oscuro).
+    "assets/minecraft/textures/gui/options_background.png",
 }
+
+# Fuentes custom (Dewier HD) se ven finas/rotas en scoreboard y menús 1.8.9.
+# Mejor vanilla del JAR de Minecraft.
+DROP_PREFIXES = (
+    "assets/minecraft/textures/font/",
+    "assets/minecraft/mcpatcher/font/",
+)
 
 
 def sha1_file(path: Path) -> str:
@@ -42,6 +51,22 @@ def load_zip(path: Path) -> dict[str, bytes]:
     return out
 
 
+def drop_unwanted(entries: dict[str, bytes]) -> int:
+    """Quita fuentes custom y backgrounds que no queremos en el pack oficial."""
+    n = 0
+    for name in list(entries.keys()):
+        if name in DROP_EXACT:
+            del entries[name]
+            n += 1
+            continue
+        for pref in DROP_PREFIXES:
+            if name.startswith(pref):
+                del entries[name]
+                n += 1
+                break
+    return n
+
+
 def apply_overlay(entries: dict[str, bytes]) -> None:
     if PACK_LOGO.is_file():
         entries["pack.png"] = PACK_LOGO.read_bytes()
@@ -49,6 +74,11 @@ def apply_overlay(entries: dict[str, bytes]) -> None:
         if not path.is_file():
             continue
         rel = path.relative_to(OVERLAY).as_posix()
+        # No reintroducir fuentes ni options_background desde overlay
+        if rel in DROP_EXACT:
+            continue
+        if any(rel.startswith(p) for p in DROP_PREFIXES):
+            continue
         entries[rel] = path.read_bytes()
 
 
@@ -118,9 +148,11 @@ def main() -> int:
         raise SystemExit(f"No existe overlay: {OVERLAY}")
 
     entries = load_zip(OUT)
-    for drop in DROP_EXACT:
-        entries.pop(drop, None)
+    dropped_before = drop_unwanted(entries)
     apply_overlay(entries)
+    # Por si el overlay reintrodujo algo no deseado
+    dropped_after = drop_unwanted(entries)
+    print(f"dropped fonts/bg: {dropped_before + dropped_after}")
     write_zip(entries, OUT)
     sha = sha1_file(OUT)
 

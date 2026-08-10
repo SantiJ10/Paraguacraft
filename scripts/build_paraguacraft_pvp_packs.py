@@ -73,12 +73,11 @@ DROP_PREFIXES = (
 
 ALWAYS_PREFIXES_189 = (
     "assets/minecraft/mcpatcher/sky/",
-    "assets/minecraft/mcpatcher/font/",
+    # Sin fuentes custom: 1.8.9 usa vanilla (Dewier HD rompe scoreboard/menú).
     "assets/minecraft/textures/gui/",
     "assets/minecraft/textures/items/",
     "assets/minecraft/textures/particle/",
     "assets/minecraft/textures/models/armor/",
-    "assets/minecraft/textures/font/",
 )
 
 ALWAYS_PREFIXES_MODERN = (
@@ -131,13 +130,25 @@ def norm(path: str) -> str:
     return path.replace("\\", "/")
 
 
+# Nunca empacar fuentes ni options_background custom en 1.8.
+FONT_DROP_PREFIXES = (
+    "assets/minecraft/textures/font/",
+    "assets/minecraft/mcpatcher/font/",
+)
+
+
 def should_skip(path: str) -> bool:
     p = norm(path)
     if SKIP_IN_ZIP.search(p):
         return True
     if p in DROP_EXACT:
         return True
+    if p.endswith("options_background.png") and "/textures/gui/" in p:
+        return True
     for pref in DROP_PREFIXES:
+        if p.startswith(pref):
+            return True
+    for pref in FONT_DROP_PREFIXES:
         if p.startswith(pref):
             return True
     return False
