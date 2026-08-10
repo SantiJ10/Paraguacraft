@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.50",
-  "release_tag": "pvp-client-2.1.50",
-  "descripcion": "Fix agua/lana/inventario pack + contador bloques HUD.",
+  "client_version": "2.1.51",
+  "release_tag": "pvp-client-2.1.51",
+  "descripcion": "Hotbar 1.8 transparente (sin cuadrados).",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.50.jar",
-      "sha1": "7519f4e666d11e37f30b55b2ec789b1957b9e876"
+      "filename": "ParaguacraftPvP-2.1.51.jar",
+      "sha1": "068f477a05e170c532994c1137b45e4550401c0d"
     },
     {
       "filename": "Hytils-Reborn-1.8.9-forge-1.7.5.jar",

@@ -33,13 +33,13 @@ const MANIFEST_MIRROR_URLS: &[&str] = &[
     "https://cdn.jsdelivr.net/gh/SantiJ10/Paraguacraft@main/clientes/paraguacraft-pvp/manifest.json",
 ];
 
-const FALLBACK_CLIENT_VERSION: &str = "2.1.50";
-const FALLBACK_RELEASE_TAG: &str = "pvp-client-2.1.50";
+const FALLBACK_CLIENT_VERSION: &str = "2.1.51";
+const FALLBACK_RELEASE_TAG: &str = "pvp-client-2.1.51";
 
 const FALLBACK_MODS: &[(&str, &str)] = &[
     (
-        "ParaguacraftPvP-2.1.50.jar",
-        "7519f4e666d11e37f30b55b2ec789b1957b9e876",
+        "ParaguacraftPvP-2.1.51.jar",
+        "068f477a05e170c532994c1137b45e4550401c0d",
     ),
     (
         "Hytils-Reborn-1.8.9-forge-1.7.5.jar",
