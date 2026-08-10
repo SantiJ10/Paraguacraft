@@ -16,17 +16,19 @@ use super::fabric_iris;
 
 pub const MC: &str = "1.21.11";
 const GITHUB_REPO: &str = "SantiJ10/Paraguacraft";
-// Preferir `bundled/` (formato `mods`, igual que 1.8.9). `clientes/` a veces queda
-// cacheado en raw.githubusercontent con el schema viejo `files`.
+// Preferir CDN frescos (jsDelivr / githack). raw.githubusercontent cachea `main` a
+// veces varios minutos/horas con un manifest viejo y bloquearía la actualización.
 const MANIFEST_URL: &str =
-    "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/bundled/pvp-modern/manifest.json";
+    "https://cdn.jsdelivr.net/gh/SantiJ10/Paraguacraft@main/bundled/pvp-modern/manifest.json";
 
 const MANIFEST_MIRROR_URLS: &[&str] = &[
     MANIFEST_URL,
-    "https://github.com/SantiJ10/Paraguacraft/raw/main/bundled/pvp-modern/manifest.json",
-    "https://cdn.jsdelivr.net/gh/SantiJ10/Paraguacraft@main/bundled/pvp-modern/manifest.json",
-    "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/clientes/paraguacraft-pvp-modern/manifest.json",
+    "https://rawcdn.githack.com/SantiJ10/Paraguacraft/main/bundled/pvp-modern/manifest.json",
+    "https://cdn.statically.io/gh/SantiJ10/Paraguacraft/main/bundled/pvp-modern/manifest.json",
     "https://cdn.jsdelivr.net/gh/SantiJ10/Paraguacraft@main/clientes/paraguacraft-pvp-modern/manifest.json",
+    "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/bundled/pvp-modern/manifest.json",
+    "https://github.com/SantiJ10/Paraguacraft/raw/main/bundled/pvp-modern/manifest.json",
+    "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/clientes/paraguacraft-pvp-modern/manifest.json",
 ];
 
 const FALLBACK_CLIENT_VERSION: &str = "0.9.26";
@@ -98,16 +100,57 @@ impl ModernManifest {
     }
 }
 
+/// Compara `a` vs `b` por segmentos numéricos (`0.9.26` > `0.9.25`).
+fn client_version_is_newer(a: &str, b: &str) -> bool {
+    let parse = |s: &str| -> Vec<u32> {
+        s.split(|c: char| !c.is_ascii_digit())
+            .filter(|p| !p.is_empty())
+            .filter_map(|p| p.parse().ok())
+            .collect()
+    };
+    let pa = parse(a);
+    let pb = parse(b);
+    let n = pa.len().max(pb.len());
+    for i in 0..n {
+        let ai = pa.get(i).copied().unwrap_or(0);
+        let bi = pb.get(i).copied().unwrap_or(0);
+        if ai != bi {
+            return ai > bi;
+        }
+    }
+    false
+}
+
 async fn fetch_manifest_with_source(
     client: &reqwest::Client,
     app: Option<&AppHandle>,
 ) -> (ModernManifest, &'static str) {
+    // Consultar TODOS los mirrors y quedarse con el client_version más alto.
+    // Si no, raw.githubusercontent con cache stale gana y “congela” el cliente.
+    let mut best: Option<(ModernManifest, &'static str)> = None;
     for url in MANIFEST_MIRROR_URLS {
         if let Ok(m) = net::fetch_json::<ModernManifest>(client, url).await {
-            if m.has_entries() {
-                return (m, "remote");
+            if !m.has_entries() {
+                continue;
+            }
+            let take = match &best {
+                None => true,
+                Some((cur, _)) => client_version_is_newer(&m.client_version, &cur.client_version),
+            };
+            if take {
+                best = Some((m, "remote"));
             }
         }
+    }
+    if let Some(pair) = best {
+        // Si el binario trae FALLBACK más nuevo (dev build), usarlo.
+        let fb = ModernManifest::default();
+        if fb.has_entries()
+            && client_version_is_newer(&fb.client_version, &pair.0.client_version)
+        {
+            return (fb, "fallback");
+        }
+        return pair;
     }
     if let Some(app) = app {
         if let Some(m) = read_bundled_manifest(app) {
@@ -331,6 +374,13 @@ fn try_local_bundled(
 
 fn remote_urls(filename: &str) -> Vec<String> {
     vec![
+        format!(
+            "https://cdn.jsdelivr.net/gh/{GITHUB_REPO}@main/bundled/pvp-modern/{filename}"
+        ),
+        format!(
+            "https://cdn.jsdelivr.net/gh/{GITHUB_REPO}@main/clientes/paraguacraft-pvp-modern/{filename}"
+        ),
+        format!("https://rawcdn.githack.com/{GITHUB_REPO}/main/bundled/pvp-modern/{filename}"),
         format!("https://raw.githubusercontent.com/{GITHUB_REPO}/main/bundled/pvp-modern/{filename}"),
         format!("https://github.com/{GITHUB_REPO}/raw/main/bundled/pvp-modern/{filename}"),
         format!(
