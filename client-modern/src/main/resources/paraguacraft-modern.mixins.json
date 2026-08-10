@@ -10,7 +10,6 @@
     "MixinWorldRendererOutline",
     "CreateWorldScreenAccessor",
     "MixinGameRendererHurtCam",
-    "MixinGameRendererFov",
     "MixinCameraFreelook",
     "MixinEntityFreelook",
     "MixinInGameHudTitles",

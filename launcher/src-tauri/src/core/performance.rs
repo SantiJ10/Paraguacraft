@@ -137,6 +137,11 @@ pub fn tier_options_modern_pvp_style(tier: &str, play_style: &str) -> HashMap<St
     base.insert("distortionEffectScale".into(), "0.0".into());
     base.insert("damageTiltStrength".into(), if competitive { "0.0" } else { "1.0" }.into());
     base.insert("rawMouseInput".into(), "true".into());
+    // C libre para Zoomify (vanilla “Guardar barra” usa C por defecto y choca).
+    base.insert(
+        "key_key.saveToolbarActivator".into(),
+        "key.keyboard.unknown".into(),
+    );
     base
 }
 
@@ -761,7 +766,7 @@ fn write_sodium_extra_options_json(config: &Path, tier: &str) -> AppResult<()> {
   "extra_settings": {{
     "overlay_corner": "TOP_LEFT",
     "text_contrast": "NONE",
-    "show_fps": true,
+    "show_fps": false,
     "show_f_p_s_extended": false,
     "show_coords": false,
     "reduce_resolution_on_mac": false,

@@ -239,7 +239,14 @@ public class ModMenuScreen extends ParaguacraftScreen {
         }));
         cards.add(toggle(3, "Pantalla sin bordes", () -> ModernConfig.windowedFullscreen, v -> ModernConfig.windowedFullscreen = v));
         cards.add(open(3, FullbrightManager.menuLabel(), "fullbright"));
-        cards.add(toggle(3, "FOV dinamico", () -> ModernConfig.dynamicFov, v -> ModernConfig.dynamicFov = v));
+        cards.add(toggle(3, "FOV dinamico", () -> ModernConfig.dynamicFov, v -> {
+            ModernConfig.dynamicFov = v;
+            // Solo escala de FOV sprint/volar (vanilla). Zoomify toca FOV de otra forma;
+            // forzar getFov() rompía el zoom.
+            if (client != null && client.options != null && client.options.getFovEffectScale() != null) {
+                client.options.getFovEffectScale().setValue(v ? 1.0 : 0.0);
+            }
+        }));
         cards.add(toggle(3, "Freelook (Alt)", () -> ModernConfig.freelookEnabled, v -> ModernConfig.freelookEnabled = v));
         cards.add(toggle(3, "Freelook blacklist ranked", () -> ModernConfig.freelookBlacklistServers, v -> ModernConfig.freelookBlacklistServers = v));
         cards.add(toggle(3, "Shaders auto-off en partida", () -> ModernConfig.shaderAutoOffInMatch, v -> ModernConfig.shaderAutoOffInMatch = v));
