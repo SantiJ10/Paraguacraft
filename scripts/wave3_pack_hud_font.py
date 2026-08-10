@@ -122,31 +122,20 @@ def thin_font_ascii(src: Image.Image) -> Image.Image:
 
 
 def font_189() -> int:
-    """Copia fuente Dewier intacta (ascii + SGA). Nunca mutar alpha."""
-    n = 0
-    for name in ("ascii.png", "ascii_sga.png"):
-        data = read_zip(DEWIER, f"assets/minecraft/textures/font/{name}")
-        if not data:
-            continue
-        for base in (
-            f"assets/minecraft/textures/font/{name}",
-            f"assets/minecraft/mcpatcher/font/{name}",
-        ):
-            dest = OVERLAY_189 / base
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            dest.write_bytes(data)
-        print(f"  font189 {name} (pristine dewier) {len(data)}B")
-        n += 1
-        for base in (
-            f"assets/minecraft/textures/font/{name.replace('.png', '.properties')}",
-            f"assets/minecraft/mcpatcher/font/{name.replace('.png', '.properties')}",
-        ):
-            pdata = read_zip(DEWIER, base)
-            if pdata:
-                dest = OVERLAY_189 / base
-                dest.parent.mkdir(parents=True, exist_ok=True)
-                dest.write_bytes(pdata)
-    return n
+    """No empacar fuentes: 1.8.9 usa vanilla (Dewier HD se ve fina/rota)."""
+    # Limpiar residuales del overlay si existieran
+    for rel in (
+        "assets/minecraft/textures/font",
+        "assets/minecraft/mcpatcher/font",
+    ):
+        d = OVERLAY_189 / rel
+        if d.is_dir():
+            import shutil
+
+            shutil.rmtree(d, ignore_errors=True)
+            print(f"  cleaned overlay {rel}")
+    print("  font189 skipped (vanilla)")
+    return 0
 
 
 def modern_hud() -> int:
