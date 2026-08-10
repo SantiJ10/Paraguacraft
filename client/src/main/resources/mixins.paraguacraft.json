@@ -21,7 +21,7 @@
     "animations.MixinEntityLivingBaseSwing",
     "cosmetics.MixinNametagLogo"
   ],
-  "client": [
+    "client": [
     "MixinDisplayTitle",
     "client.MixinFontRenderer",
     "client.MixinTextureManagerHudCrisp",
@@ -29,6 +29,8 @@
     "client.MixinEntityFreelook",
     "client.MixinMinecraftFullscreen",
     "client.MixinGuiMultiplayerIcons",
+    "client.MixinGuiButton",
+    "client.MixinGuiSlotSelection",
     "client.MixinRenderPlayerCleanup",
     "client.MixinEntityPlayerSPQoL"
   ],

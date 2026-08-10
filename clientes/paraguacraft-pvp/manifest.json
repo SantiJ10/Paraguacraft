@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.48",
-  "release_tag": "pvp-client-2.1.48",
-  "descripcion": "Fuente vanilla 1.8 + fondo menús clásico; fix update pack Windows.",
+  "client_version": "2.1.49",
+  "release_tag": "pvp-client-2.1.49",
+  "descripcion": "Fondo menus oscuro + hover celeste en botones y listas.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.48.jar",
-      "sha1": "5d55ba3aefb7ce852a9695b868c19b6be532137d"
+      "filename": "ParaguacraftPvP-2.1.49.jar",
+      "sha1": "ab15660270ed505f451c2e1c2efa4805b9275a69"
     },
     {
       "filename": "Hytils-Reborn-1.8.9-forge-1.7.5.jar",

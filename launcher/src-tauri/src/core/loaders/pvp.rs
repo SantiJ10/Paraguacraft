@@ -1,12 +1,12 @@
 //! Preset **Paraguacraft PvP** (solo Minecraft 1.8.9).
 //!
 //! ## Actualizar solo el cliente (sin recompilar el launcher)
-//! La versión publicada vive en el manifest remoto:
+//! La versiÃƒÂ³n publicada vive en el manifest remoto:
 //! `clientes/paraguacraft-pvp/manifest.json` + JAR en `bundled/pvp/`.
 //! En cada lanzamiento se llama a `install_bundle`, que descarga el JAR si el SHA-1
 //! no coincide. **No hace falta** subir un launcher nuevo para cada cliente.
 //!
-//! Las constantes `FALLBACK_*` son solo respaldo offline (sin internet o manifest caído).
+//! Las constantes `FALLBACK_*` son solo respaldo offline (sin internet o manifest caÃƒÂ­do).
 
 use std::path::{Path, PathBuf};
 
@@ -33,13 +33,13 @@ const MANIFEST_MIRROR_URLS: &[&str] = &[
     "https://cdn.jsdelivr.net/gh/SantiJ10/Paraguacraft@main/clientes/paraguacraft-pvp/manifest.json",
 ];
 
-const FALLBACK_CLIENT_VERSION: &str = "2.1.48";
-const FALLBACK_RELEASE_TAG: &str = "pvp-client-2.1.48";
+const FALLBACK_CLIENT_VERSION: &str = "2.1.49";
+const FALLBACK_RELEASE_TAG: &str = "pvp-client-2.1.49";
 
 const FALLBACK_MODS: &[(&str, &str)] = &[
     (
-        "ParaguacraftPvP-2.1.48.jar",
-        "5d55ba3aefb7ce852a9695b868c19b6be532137d",
+        "ParaguacraftPvP-2.1.49.jar",
+        "ab15660270ed505f451c2e1c2efa4805b9275a69",
     ),
     (
         "Hytils-Reborn-1.8.9-forge-1.7.5.jar",
@@ -251,7 +251,7 @@ pub async fn client_status(
     }
 }
 
-/// Versión publicada del cliente PvP (manifest remoto).
+/// VersiÃƒÂ³n publicada del cliente PvP (manifest remoto).
 pub async fn remote_client_version(client: &reqwest::Client) -> String {
     fetch_manifest(client, None).await.client_version
 }
@@ -337,7 +337,7 @@ fn find_local_file(app: &AppHandle, filename: &str) -> Option<PathBuf> {
 }
 
 fn resolve_sha(app: &AppHandle, filename: &str, remote_sha: &str) -> String {
-    // El manifest remoto define la versión publicada; el embebido solo sirve como fuente de copia.
+    // El manifest remoto define la versiÃƒÂ³n publicada; el embebido solo sirve como fuente de copia.
     if !remote_sha.is_empty() {
         return remote_sha.to_string();
     }
@@ -458,7 +458,7 @@ async fn download_verified(
     Err(AppError::msg(format!("No se pudo descargar {filename}")))
 }
 
-/// Elimina JARs PvP viejos cuando cambia el nombre (ej. 1.0.0 → 2.0.0).
+/// Elimina JARs PvP viejos cuando cambia el nombre (ej. 1.0.0 Ã¢â€ â€™ 2.0.0).
 fn prune_stale_pvp_mods(mods_dir: &Path, keep: &[String]) {
     let Ok(rd) = std::fs::read_dir(mods_dir) else {
         return;
@@ -483,7 +483,7 @@ fn prune_stale_pvp_mods(mods_dir: &Path, keep: &[String]) {
     }
 }
 
-/// Pre-configura OneConfig/Hytils en la primera instalación:
+/// Pre-configura OneConfig/Hytils en la primera instalaciÃƒÂ³n:
 /// - OneConfig sin tecla (RShift queda para el Mod Menu de Paraguacraft).
 /// - Hytils: solo camas coloreadas; resto desactivado.
 const ONECONFIG_SEED_MARKER: &str = ".paraguacraft-hytils-v1";
@@ -536,9 +536,9 @@ fn seed_oneconfig_defaults(app: &AppHandle, instance_dir: &Path) {
 }
 
 /// Borra restos de Essential/Patcher: carpetas de datos y configs que quedaron
-/// de versiones anteriores del cliente (Essential pedía login y rompía ajustes).
+/// de versiones anteriores del cliente (Essential pedÃƒÂ­a login y rompÃƒÂ­a ajustes).
 fn cleanup_essential_leftovers(instance_dir: &Path, mods_dir: &Path) {
-    // Carpetas de datos en la raíz de la instancia.
+    // Carpetas de datos en la raÃƒÂ­z de la instancia.
     for dir in ["essential", "ModCoreOSS"] {
         let path = instance_dir.join(dir);
         if path.is_dir() {
@@ -554,7 +554,7 @@ fn cleanup_essential_leftovers(instance_dir: &Path, mods_dir: &Path) {
             let _ = std::fs::remove_file(&path);
         }
     }
-    // Essential también deja una carpeta "essential" dentro de mods/.
+    // Essential tambiÃƒÂ©n deja una carpeta "essential" dentro de mods/.
     let mods_essential = mods_dir.join("essential");
     if mods_essential.is_dir() {
         let _ = std::fs::remove_dir_all(&mods_essential);
@@ -602,14 +602,14 @@ async fn ensure_mod(
             return Ok(());
         }
         return Err(AppError::msg(format!(
-            "No se pudo obtener {filename} (cliente PvP). Actualizá el launcher o usá Reparar instancia. ({e})"
+            "No se pudo obtener {filename} (cliente PvP). ActualizÃƒÂ¡ el launcher o usÃƒÂ¡ Reparar instancia. ({e})"
         )));
     }
     let _ = std::fs::copy(&dest, &cache_path);
     Ok(())
 }
 
-/// Sincroniza mods PvP según el manifest remoto (versión + SHA-1).
+/// Sincroniza mods PvP segÃƒÂºn el manifest remoto (versiÃƒÂ³n + SHA-1).
 pub async fn install_bundle(
     app: &AppHandle,
     client: &reqwest::Client,
@@ -689,7 +689,7 @@ mod tests {
         let client = test_client();
         let (m, src) = fetch_manifest_with_source(&client, None).await;
         eprintln!("source={src} version={} mods={}", m.client_version, m.mods.len());
-        assert_eq!(src, "remote", "manifest remoto inalcanzable o JSON inválido");
+        assert_eq!(src, "remote", "manifest remoto inalcanzable o JSON invÃƒÂ¡lido");
         assert!(
             m.client_version.starts_with("2.1."),
             "version inesperada: {}",
