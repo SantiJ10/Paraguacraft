@@ -78,6 +78,7 @@ ALWAYS_PREFIXES_189 = (
     "assets/minecraft/textures/items/",
     "assets/minecraft/textures/particle/",
     "assets/minecraft/textures/models/armor/",
+    "assets/minecraft/textures/font/",
 )
 
 ALWAYS_PREFIXES_MODERN = (

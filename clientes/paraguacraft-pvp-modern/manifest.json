@@ -5,11 +5,11 @@
   "loader": "fabric",
   "client_version": "0.9.24",
   "release_tag": "pvp-modern-0.9.24",
-  "descripcion": "Server catalog, playStyle competitive, pack v3 HUD/armor/crit/bridge.",
+  "descripcion": "PlayStyle competitive, multi-server, HUD presets, pack armor/HUD.",
   "mods": [
     {
       "filename": "ParaguacraftPvP-Modern-0.9.24.jar",
-      "sha1": "0b592608f3b1241595312b78ef20f05775a38b48"
+      "sha1": "1fd2c5d3e5ed84324ab23b01c0716f2a191810a9"
     }
   ]
 }

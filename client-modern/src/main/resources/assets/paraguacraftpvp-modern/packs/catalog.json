@@ -6,10 +6,10 @@
     {
       "id": "paraguacraft-pvp",
       "title": "Paraguacraft PvP",
-      "subtitle": "BedWars beds/TNT, SkyWars bridging, PvP HUD",
+      "subtitle": "armor · crit · bridge · clean HUD/font",
       "badge": "16x",
       "fileName": "paraguacraft-pvp-modern.zip",
-      "sha1": "71448909ae23c847b22e7e657c9e06e0f281e4db",
+      "sha1": "91f5ea569f1fe4555a60f29468af0d6e53b9b0ce",
       "fallbackDownloadUrl": "https://cdn.jsdelivr.net/gh/SantiJ10/Paraguacraft@main/clientes/paraguacraft-pvp-modern/packs/paraguacraft-pvp-modern.zip"
     }
   ]
