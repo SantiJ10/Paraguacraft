@@ -19,7 +19,7 @@ public final class ResourcePackManager {
     public static final String OFFICIAL_PACK = "paraguacraft-pvp-189.zip";
     public static final String BRAND_PACK = "ParaguacraftBrandPack";
     /** Debe coincidir con catalog.json / launcher PACK_189_SHA1. */
-    public static final String OFFICIAL_SHA1 = "b2b9095b22378f1e6a622eb3fda64a7d1f9ebf2f";
+    public static final String OFFICIAL_SHA1 = "5a14ce92d1e8d2ef05b50421376ae0536c8736c6";
     private static final String PENDING_PACK = OFFICIAL_PACK + ".pending";
     private static final String[] OFFICIAL_URLS = new String[] {
         "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/clientes/paraguacraft-pvp/packs/paraguacraft-pvp-189.zip",
