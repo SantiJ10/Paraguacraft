@@ -1,15 +1,15 @@
-﻿{
+{
   "id": "paraguacraft-pvp",
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.46",
-  "release_tag": "pvp-client-2.1.46",
-  "descripcion": "PlayStyle competitive defaults + pack oficial armor/HUD/bridge.",
+  "client_version": "2.1.47",
+  "release_tag": "pvp-client-2.1.47",
+  "descripcion": "Fix fuente scoreboard/botones GUI + pack HUD.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.46.jar",
-      "sha1": "a2cbc226c550ae0c7d2825b0a1171ac6ef12ccf3"
+      "filename": "ParaguacraftPvP-2.1.47.jar",
+      "sha1": "b45ee99e58ca00d3d789e98087c100579139dbce"
     },
     {
       "filename": "Hytils-Reborn-1.8.9-forge-1.7.5.jar",
