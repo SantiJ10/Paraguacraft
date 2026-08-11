@@ -40,16 +40,6 @@ public final class ModernConfig {
     public static boolean lowFire = true;
     public static boolean itemPhysics = false;
     public static boolean oldAnimations = true;
-    /**
-     * Escala 1ª persona (viewmodel). 100 = sin cambio extra.
-     * Armas/herramientas del pack van más chicas; recursos/bloques van a escala vanilla y “tapan” más.
-     */
-    public static int viewmodelWeaponsScale = 120;
-    public static int viewmodelItemsScale = 58;
-    public static int viewmodelHandScale = 62;
-    public static final int VIEWMODEL_SCALE_MIN = 40;
-    public static final int VIEWMODEL_SCALE_MAX = 150;
-    public static final int VIEWMODEL_SCALE_STEP = 5;
     public static boolean comboCounter = true;
     public static boolean showTntCountdown = true;
     public static boolean chatTriggers = true;
@@ -260,65 +250,6 @@ public final class ModernConfig {
         };
     }
 
-    private static int clampViewmodelScale(int v) {
-        if (v < VIEWMODEL_SCALE_MIN) {
-            return VIEWMODEL_SCALE_MIN;
-        }
-        if (v > VIEWMODEL_SCALE_MAX) {
-            return VIEWMODEL_SCALE_MAX;
-        }
-        return v;
-    }
-
-    private static int cycleViewmodelScale(int current) {
-        int next = current + VIEWMODEL_SCALE_STEP;
-        if (next > VIEWMODEL_SCALE_MAX) {
-            return VIEWMODEL_SCALE_MIN;
-        }
-        return next;
-    }
-
-    public static void cycleViewmodelWeaponsScale() {
-        viewmodelWeaponsScale = cycleViewmodelScale(viewmodelWeaponsScale);
-    }
-
-    public static void cycleViewmodelItemsScale() {
-        viewmodelItemsScale = cycleViewmodelScale(viewmodelItemsScale);
-    }
-
-    public static void cycleViewmodelHandScale() {
-        viewmodelHandScale = cycleViewmodelScale(viewmodelHandScale);
-    }
-
-    /**
-     * Multiplicador de matrices 1ª persona según mano vacía / arma-tool / resto.
-     * Aplica encima del display del item (pack o vanilla).
-     */
-    public static float viewmodelScaleFor(net.minecraft.item.ItemStack item) {
-        int pct;
-        if (item == null || item.isEmpty()) {
-            pct = viewmodelHandScale;
-        } else if (isViewmodelWeaponOrTool(item)) {
-            pct = viewmodelWeaponsScale;
-        } else {
-            pct = viewmodelItemsScale;
-        }
-        return clampViewmodelScale(pct) / 100.0f;
-    }
-
-    private static boolean isViewmodelWeaponOrTool(net.minecraft.item.ItemStack stack) {
-        return stack.isIn(net.minecraft.registry.tag.ItemTags.SWORDS)
-            || stack.isIn(net.minecraft.registry.tag.ItemTags.AXES)
-            || stack.isIn(net.minecraft.registry.tag.ItemTags.PICKAXES)
-            || stack.isIn(net.minecraft.registry.tag.ItemTags.SHOVELS)
-            || stack.isIn(net.minecraft.registry.tag.ItemTags.HOES)
-            || stack.isOf(net.minecraft.item.Items.TRIDENT)
-            || stack.isOf(net.minecraft.item.Items.MACE)
-            || stack.isOf(net.minecraft.item.Items.BOW)
-            || stack.isOf(net.minecraft.item.Items.CROSSBOW)
-            || stack.isOf(net.minecraft.item.Items.FISHING_ROD);
-    }
-
     private ModernConfig() {}
 
     private static Path configPath() {
@@ -361,9 +292,6 @@ public final class ModernConfig {
             lowFire = bool(props, "lowFire", lowFire);
             itemPhysics = bool(props, "itemPhysics", itemPhysics);
             oldAnimations = bool(props, "oldAnimations", oldAnimations);
-            viewmodelWeaponsScale = clampViewmodelScale(intProp(props, "viewmodelWeaponsScale", viewmodelWeaponsScale));
-            viewmodelItemsScale = clampViewmodelScale(intProp(props, "viewmodelItemsScale", viewmodelItemsScale));
-            viewmodelHandScale = clampViewmodelScale(intProp(props, "viewmodelHandScale", viewmodelHandScale));
             comboCounter = bool(props, "comboCounter", comboCounter);
             showTntCountdown = bool(props, "showTntCountdown", showTntCountdown);
             chatTriggers = bool(props, "chatTriggers", chatTriggers);
@@ -554,9 +482,6 @@ public final class ModernConfig {
         props.setProperty("lowFire", String.valueOf(lowFire));
         props.setProperty("itemPhysics", String.valueOf(itemPhysics));
         props.setProperty("oldAnimations", String.valueOf(oldAnimations));
-        props.setProperty("viewmodelWeaponsScale", String.valueOf(viewmodelWeaponsScale));
-        props.setProperty("viewmodelItemsScale", String.valueOf(viewmodelItemsScale));
-        props.setProperty("viewmodelHandScale", String.valueOf(viewmodelHandScale));
         props.setProperty("comboCounter", String.valueOf(comboCounter));
         props.setProperty("showTntCountdown", String.valueOf(showTntCountdown));
         props.setProperty("chatTriggers", String.valueOf(chatTriggers));
