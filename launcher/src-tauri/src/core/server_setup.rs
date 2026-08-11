@@ -81,11 +81,19 @@ pub async fn prepare(
         "fabric" => {
             download_fabric(client, app, &prof.mc_version, &jar).await?;
             setup_fabric_mods(client, app, dir, sid, &prof.mc_version, false).await?;
+            let java_major = crate::core::java::required_for_mc(&prof.mc_version);
+            for msg in sanitize_server_mods(dir, &prof.mc_version, java_major) {
+                crate::core::server_console::append(sid, &msg);
+            }
             jar
         }
         "fabric-geyser" => {
             download_fabric(client, app, &prof.mc_version, &jar).await?;
             setup_fabric_mods(client, app, dir, sid, &prof.mc_version, true).await?;
+            let java_major = crate::core::java::required_for_mc(&prof.mc_version);
+            for msg in sanitize_server_mods(dir, &prof.mc_version, java_major) {
+                crate::core::server_console::append(sid, &msg);
+            }
             jar
         }
         "forge" | "neoforge" => setup_forge_style(client, app, dir, &prof.mc_version, &kind).await?,
@@ -189,6 +197,14 @@ pub async fn soft_ensure_launcher_deps(
     let sid = prof.id.as_str();
     let _ = std::fs::create_dir_all(dir.join("plugins"));
     let _ = std::fs::create_dir_all(dir.join("mods"));
+
+    // Quitar JARs incompatibles (p. ej. SkinsRestorer 26.x instalado por fallback) antes de re-descargar.
+    if kind.starts_with("fabric") {
+        let java_major = crate::core::java::required_for_mc(&prof.mc_version);
+        for msg in sanitize_server_mods(dir, &prof.mc_version, java_major) {
+            crate::core::server_console::append(sid, &msg);
+        }
+    }
 
     if kind.starts_with("paper") {
         let with_geyser = kind.contains("geyser");
@@ -517,27 +533,52 @@ async fn download_modrinth_file(
     mc: &str,
     dest: PathBuf,
 ) -> AppResult<()> {
-    if dest.is_file() && dest.metadata().map(|m| m.len()).unwrap_or(0) > 100_000 {
+    // Nunca reutilizar un JAR ya presente sin comprobar: SkinsRestorer mal versionado
+    // (fallback sin filtro MC) rompía servidores 1.21.x con builds 26.x / Java 25+.
+    if dest.is_file()
+        && dest.metadata().map(|m| m.len()).unwrap_or(0) > 100_000
+        && !jar_incompatible_with_server(&dest, mc, 0)
+    {
         return Ok(());
     }
-    let loaders_json = format!("[{}]", loaders.iter().map(|l| format!("\"{l}\"")).collect::<Vec<_>>().join(","));
-    let mut url = format!(
+    if dest.is_file() && jar_incompatible_with_server(&dest, mc, 0) {
+        let _ = quarantine_mod_jar(&dest);
+    }
+
+    let loaders_json = format!(
+        "[{}]",
+        loaders
+            .iter()
+            .map(|l| format!("\"{l}\""))
+            .collect::<Vec<_>>()
+            .join(",")
+    );
+    // ESTRICITO: solo versiones que declaran este `game_versions`. Sin fallback a
+    // "latest any MC" (eso instalaba SkinsRestorer 26.2 en servers 1.21.1).
+    let url = format!(
         "https://api.modrinth.com/v2/project/{slug}/version?game_versions={}&loaders={}",
         net::url_encode(&format!("[\"{mc}\"]")),
         net::url_encode(&loaders_json)
     );
-    let mut versions: Value = net::fetch_json(client, &url).await.unwrap_or(Value::Array(vec![]));
-    if !versions.as_array().map(|a| !a.is_empty()).unwrap_or(false) {
-        url = format!(
-            "https://api.modrinth.com/v2/project/{slug}/version?loaders={}",
-            net::url_encode(&loaders_json)
-        );
-        versions = net::fetch_json(client, &url).await?;
-    }
+    let versions: Value = net::fetch_json(client, &url).await.unwrap_or(Value::Array(vec![]));
     let ver = versions
         .as_array()
         .and_then(|a| a.first())
         .ok_or_else(|| AppError::msg(format!("Modrinth: {slug} no disponible para {mc}")))?;
+    // Doble check del array game_versions del resultado.
+    let game_versions: Vec<String> = ver["game_versions"]
+        .as_array()
+        .map(|a| {
+            a.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        })
+        .unwrap_or_default();
+    if !game_versions.is_empty() && !game_versions.iter().any(|v| v == mc) {
+        return Err(AppError::msg(format!(
+            "Modrinth: {slug} sin build exacta para {mc}"
+        )));
+    }
     let files = ver["files"].as_array().cloned().unwrap_or_default();
     let file = files
         .iter()
@@ -561,6 +602,164 @@ async fn download_modrinth_file(
     )
     .await?;
     Ok(())
+}
+
+/// Cuarentena de JARs del launcher o del pack incompatibles con MC/Java del server.
+/// Devuelve mensajes para la consola del launcher.
+pub fn sanitize_server_mods(dir: &Path, mc: &str, java_major: u32) -> Vec<String> {
+    let mods = dir.join("mods");
+    let Ok(rd) = std::fs::read_dir(&mods) else {
+        return vec![];
+    };
+    let mut msgs = Vec::new();
+    for e in rd.flatten() {
+        let p = e.path();
+        if p.extension().and_then(|x| x.to_str()).map(|x| x.eq_ignore_ascii_case("jar")) != Some(true)
+        {
+            continue;
+        }
+        let name = p
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        // Submódulo C2ME que exige Java 25 en packs 1.21.1; el resto de C2ME suele andar en 21.
+        let force_native_math = name.contains("c2me") && name.contains("natives-math") && java_major < 25;
+        if force_native_math || jar_incompatible_with_server(&p, mc, java_major) {
+            match quarantine_mod_jar(&p) {
+                Ok(dest) => {
+                    msgs.push(format!(
+                        "[launcher] ⚠ Cuarentena (incompatible con MC {mc} / Java {java_major}): {} → {}",
+                        p.file_name().and_then(|n| n.to_str()).unwrap_or("?"),
+                        dest.file_name().and_then(|n| n.to_str()).unwrap_or("?")
+                    ));
+                }
+                Err(err) => {
+                    msgs.push(format!(
+                        "[launcher] ⚠ No se pudo aislar {}: {err}",
+                        p.file_name().and_then(|n| n.to_str()).unwrap_or("?")
+                    ));
+                }
+            }
+        }
+    }
+    msgs
+}
+
+fn quarantine_mod_jar(path: &Path) -> AppResult<PathBuf> {
+    let parent = path
+        .parent()
+        .ok_or_else(|| AppError::msg("Ruta de mod inválida"))?;
+    let quarantine = parent.join(".paraguacraft-incompatible");
+    std::fs::create_dir_all(&quarantine)?;
+    let name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("mod.jar");
+    let mut dest = quarantine.join(name);
+    if dest.exists() {
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        dest = quarantine.join(format!("{stamp}_{name}"));
+    }
+    if std::fs::rename(path, &dest).is_err() {
+        std::fs::copy(path, &dest)
+            .map_err(|e| AppError::msg(format!("Cuarentena de mod (copia): {e}")))?;
+        std::fs::remove_file(path)
+            .map_err(|e| AppError::msg(format!("Cuarentena de mod (borrar origen): {e}")))?;
+    }
+    Ok(dest)
+}
+
+/// Lee `fabric.mod.json` / `quilt.mod.json` y detecta depends MC/Java fuera de rango.
+fn jar_incompatible_with_server(path: &Path, mc: &str, java_major: u32) -> bool {
+    let Some(meta) = read_fabric_mod_json(path) else {
+        return false;
+    };
+    let depends = meta.get("depends").cloned().unwrap_or(Value::Null);
+
+    if java_major > 0 {
+        if let Some(min_java) = parse_java_dep_min(&depends["java"]) {
+            if java_major < min_java {
+                return true;
+            }
+        }
+    }
+
+    let mc_dep = depends.get("minecraft").cloned().unwrap_or(Value::Null);
+    if mc_dep_incompatible_with(&mc_dep, mc) {
+        return true;
+    }
+
+    // id conocido: SkinsRestorer a veces viene sin depends legibles; confiar en el nombre
+    // solo si el JSON declara una versión de proyecto absurda no aplica. Nada extra.
+
+    false
+}
+
+fn read_fabric_mod_json(path: &Path) -> Option<Value> {
+    let file = std::fs::File::open(path).ok()?;
+    let mut zip = zip::ZipArchive::new(file).ok()?;
+    for entry_name in ["fabric.mod.json", "quilt.mod.json"] {
+        if let Ok(mut entry) = zip.by_name(entry_name) {
+            let mut buf = String::new();
+            if std::io::Read::read_to_string(&mut entry, &mut buf).is_ok() {
+                if let Ok(v) = serde_json::from_str::<Value>(&buf) {
+                    return Some(v);
+                }
+            }
+        }
+    }
+    None
+}
+
+fn parse_java_dep_min(dep: &Value) -> Option<u32> {
+    let s = match dep {
+        Value::String(s) => s.as_str(),
+        Value::Array(a) => a.first()?.as_str()?,
+        _ => return None,
+    };
+    // ">=25", ">=21", "21", "~21"
+    let digits: String = s
+        .chars()
+        .skip_while(|c| !c.is_ascii_digit())
+        .take_while(|c| c.is_ascii_digit())
+        .collect();
+    digits.parse().ok()
+}
+
+/// MC 1.21.x vs depends que piden esquema año (26.x) de Fabric loader reciente.
+fn mc_dep_incompatible_with(dep: &Value, server_mc: &str) -> bool {
+    let req = match dep {
+        Value::String(s) => s.clone(),
+        Value::Array(a) => a
+            .iter()
+            .filter_map(|v| v.as_str())
+            .collect::<Vec<_>>()
+            .join(" "),
+        _ => return false,
+    };
+    if req.is_empty() {
+        return false;
+    }
+    let server_year_style = server_mc
+        .split('.')
+        .next()
+        .and_then(|p| p.parse::<u32>().ok())
+        .map(|n| n >= 26)
+        .unwrap_or(false);
+    // Server 1.x: cualquier depends que mencione solo 26.x es incompatible.
+    if !server_year_style {
+        let wants_26 = req.contains("26.") || req.contains("~26") || req.contains(">=26") || req.contains("=26");
+        if wants_26 && !req.contains("1.2") {
+            return true;
+        }
+        // Si declara lista de 1.21.x y no incluye el exacto, no bloqueamos (rango ~1.21).
+    }
+    // Server 26.x con depends solo 1.21: menos común; no forzar.
+    false
 }
 
 const GEYSER_DOWNLOAD_API: &str = "https://download.geysermc.org/v2";

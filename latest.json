@@ -1,12 +1,12 @@
 {
-  "version": "1.1.27",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.27/Instalar_Paraguacraft_v1.1.27.exe",
-  "size_bytes": 5680102,
-  "sha256": "a496704933cb1c399a83dc47af56602ecc393ba4b346e6421b5179e69e870d72",
-  "notes": "- Fix servidores Fabric (modpacks Cobbleverse / importar .mrpack)\n- Importar modpack en servidor existente (Tienda o pestaña Mods)\n- Clientes PvP Modern 0.9.27 (Zoomify + viewmodel)",
+  "version": "1.1.28",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.28/Instalar_Paraguacraft_v1.1.28.exe",
+  "size_bytes": 5687160,
+  "sha256": "394da941bc7a4d39b42a01e381c66f4fefcfffbf2efd69d4aad755070ed07915",
+  "notes": "- RAM editable por servidor (Propiedades) y -Xmx al iniciar\n- Mods del server con nombres/iconos (Modrinth + fabric.mod.json)\n- Fix SkinsRestorer/mods incompatibles (c2me Java 25) en packs 1.21.x",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.27/Instalar_Paraguacraft_v1.1.27.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.28/Instalar_Paraguacraft_v1.1.28.exe",
       "signature": ""
     }
   }

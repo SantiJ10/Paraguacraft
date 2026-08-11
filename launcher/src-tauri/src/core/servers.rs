@@ -480,6 +480,9 @@ pub fn start_mc(id: &str) -> AppResult<u32> {
         .parent()
         .and_then(|bin| bin.parent())
         .map(|h| h.to_path_buf());
+    let java_major = crate::core::java::verify::verify(&java, "server")
+        .map(|j| j.version_major)
+        .unwrap_or_else(|| crate::core::java::required_for_mc(&prof.mc_version));
     let ram = prof.ram_mb;
     let kind = crate::core::server_setup::normalize_server_type(&prof.server_type)?;
 
@@ -488,6 +491,12 @@ pub fn start_mc(id: &str) -> AppResult<u32> {
         crate::core::server_console::clear(id);
     }
     crate::core::server_console::append(id, "[launcher] Iniciando servidor…");
+    if kind.starts_with("fabric") {
+        for msg in crate::core::server_setup::sanitize_server_mods(&dir, &prof.mc_version, java_major)
+        {
+            crate::core::server_console::append(id, &msg);
+        }
+    }
 
     let run_bat = dir.join("run.bat");
     let mut child = if crate::core::server_setup::is_forge_style(&kind) && run_bat.is_file() {
@@ -1793,13 +1802,39 @@ pub struct ServerContentItem {
     pub path: String,
     pub size_bytes: u64,
     pub kind: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sha1: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub author: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub compatible: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub compat_message: Option<String>,
+}
+
+fn sha1_mod_file(path: &Path) -> Option<String> {
+    let meta = path.metadata().ok()?;
+    if meta.len() > 12_000_000 {
+        return None;
+    }
+    let bytes = std::fs::read(path).ok()?;
+    Some(crate::core::net::sha1_hex(&bytes))
 }
 
 pub fn list_content(id: &str) -> AppResult<Vec<ServerContentItem>> {
     let prof = profile_by_id(id)?;
     let dir = folder_for(&prof);
     let is_fabric = prof.server_type.starts_with("fabric");
-    let sub = if is_fabric { "mods" } else { "plugins" };
+    let is_forge = crate::core::server_setup::is_forge_style(
+        &crate::core::server_setup::normalize_server_type(&prof.server_type).unwrap_or_default(),
+    );
+    let sub = if is_fabric || is_forge { "mods" } else { "plugins" };
     let folder = dir.join(sub);
     let mut out = Vec::new();
     if let Ok(rd) = std::fs::read_dir(&folder) {
@@ -1809,16 +1844,229 @@ pub fn list_content(id: &str) -> AppResult<Vec<ServerContentItem>> {
                 continue;
             }
             let size = e.metadata().map(|m| m.len()).unwrap_or(0);
-            out.push(ServerContentItem {
-                name: e.file_name().to_string_lossy().to_string(),
+            let name = e.file_name().to_string_lossy().to_string();
+            let mut item = ServerContentItem {
+                name,
                 path: p.to_string_lossy().to_string(),
                 size_bytes: size,
                 kind: sub.to_string(),
-            });
+                sha1: sha1_mod_file(&p),
+                display_name: None,
+                icon_url: None,
+                author: None,
+                description: None,
+                compatible: None,
+                compat_message: None,
+            };
+            enrich_from_local_jar(&p, &mut item);
+            out.push(item);
         }
     }
     out.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
     Ok(out)
+}
+
+/// Nombre / icono embebidos en fabric.mod.json (o quilt).
+fn enrich_from_local_jar(path: &Path, item: &mut ServerContentItem) {
+    let Ok(file) = std::fs::File::open(path) else {
+        return;
+    };
+    let Ok(mut zip) = zip::ZipArchive::new(file) else {
+        return;
+    };
+    let mut meta: Option<serde_json::Value> = None;
+    for entry_name in ["fabric.mod.json", "quilt.mod.json"] {
+        if let Ok(mut entry) = zip.by_name(entry_name) {
+            let mut buf = String::new();
+            if std::io::Read::read_to_string(&mut entry, &mut buf).is_ok() {
+                if let Ok(v) = serde_json::from_str(&buf) {
+                    meta = Some(v);
+                    break;
+                }
+            }
+        }
+    }
+    let Some(meta) = meta else {
+        return;
+    };
+    if let Some(n) = meta["name"].as_str().filter(|s| !s.is_empty()) {
+        item.display_name = Some(n.to_string());
+    }
+    if let Some(desc) = meta["description"].as_str().filter(|s| !s.is_empty()) {
+        let t = if desc.chars().count() > 120 {
+            format!("{}…", desc.chars().take(120).collect::<String>())
+        } else {
+            desc.to_string()
+        };
+        item.description = Some(t);
+    }
+    if let Some(authors) = meta["authors"].as_array() {
+        let names: Vec<String> = authors
+            .iter()
+            .filter_map(|a| {
+                a.as_str()
+                    .map(String::from)
+                    .or_else(|| a["name"].as_str().map(String::from))
+            })
+            .collect();
+        if !names.is_empty() {
+            item.author = Some(names.join(", "));
+        }
+    }
+    if let Some(icon_rel) = meta["icon"].as_str() {
+        if let Ok(mut entry) = zip.by_name(icon_rel) {
+            let mut buf = Vec::new();
+            if std::io::Read::read_to_end(&mut entry, &mut buf).is_ok() && buf.len() > 32 {
+                use base64::Engine;
+                item.icon_url = Some(format!(
+                    "data:image/png;base64,{}",
+                    base64::engine::general_purpose::STANDARD.encode(buf)
+                ));
+            }
+        }
+    }
+}
+
+/// Enriquece con títulos/iconos de Modrinth (por hash SHA-1), como en instancias.
+pub async fn enrich_content_modrinth(
+    client: &reqwest::Client,
+    mc: &str,
+    loader: &str,
+    items: &mut [ServerContentItem],
+) -> AppResult<()> {
+    use std::collections::{HashMap, HashSet};
+
+    const API: &str = "https://api.modrinth.com/v2";
+    let mut hashes: Vec<String> = items.iter().filter_map(|i| i.sha1.clone()).collect();
+    hashes.sort();
+    hashes.dedup();
+    if hashes.is_empty() {
+        return Ok(());
+    }
+
+    let body = serde_json::json!({ "hashes": hashes, "algorithm": "sha1" });
+    let mut hash_to_project: HashMap<String, String> = HashMap::new();
+    let mut hash_version: HashMap<String, serde_json::Value> = HashMap::new();
+    if let Ok(resp) = client
+        .post(format!("{API}/version_files"))
+        .json(&body)
+        .send()
+        .await
+    {
+        if let Ok(map) = resp
+            .json::<HashMap<String, serde_json::Value>>()
+            .await
+        {
+            for (hash, ver) in map {
+                if let Some(pid) = ver["project_id"].as_str() {
+                    hash_to_project.insert(hash.clone(), pid.to_string());
+                }
+                hash_version.insert(hash, ver);
+            }
+        }
+    }
+
+    let project_ids: Vec<String> = hash_to_project
+        .values()
+        .cloned()
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect();
+    let mut projects: HashMap<String, (String, String, String, String)> = HashMap::new();
+    if !project_ids.is_empty() {
+        let ids_json = serde_json::to_string(&project_ids).unwrap_or_else(|_| "[]".into());
+        if let Ok(resp) = client
+            .get(format!("{API}/projects"))
+            .query(&[("ids", ids_json.as_str())])
+            .send()
+            .await
+        {
+            if let Ok(arr) = resp.json::<Vec<serde_json::Value>>().await {
+                for p in arr {
+                    let id = p["id"].as_str().unwrap_or_default().to_string();
+                    projects.insert(
+                        id,
+                        (
+                            p["title"].as_str().unwrap_or_default().to_string(),
+                            p["author"].as_str().unwrap_or("Modrinth").to_string(),
+                            p["icon_url"].as_str().unwrap_or_default().to_string(),
+                            p["description"].as_str().unwrap_or_default().to_string(),
+                        ),
+                    );
+                }
+            }
+        }
+    }
+
+    let loader_norm = crate::core::loaders::normalize(loader);
+    for item in items.iter_mut() {
+        let Some(ref hash) = item.sha1 else {
+            continue;
+        };
+        if let Some(pid) = hash_to_project.get(hash) {
+            if let Some((title, author, icon, desc)) = projects.get(pid) {
+                if !title.is_empty() {
+                    item.display_name = Some(title.clone());
+                }
+                if !author.is_empty() {
+                    item.author = Some(author.clone());
+                }
+                if !icon.is_empty() {
+                    item.icon_url = Some(icon.clone());
+                }
+                if !desc.is_empty() && item.description.is_none() {
+                    let t = if desc.chars().count() > 120 {
+                        format!("{}…", desc.chars().take(120).collect::<String>())
+                    } else {
+                        desc.clone()
+                    };
+                    item.description = Some(t);
+                }
+            }
+        }
+        if let Some(ver) = hash_version.get(hash) {
+            let versions: Vec<String> = ver["game_versions"]
+                .as_array()
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect()
+                })
+                .unwrap_or_default();
+            let loaders: Vec<String> = ver["loaders"]
+                .as_array()
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect()
+                })
+                .unwrap_or_default();
+            if !versions.is_empty() && !versions.iter().any(|v| v == mc) {
+                item.compatible = Some(false);
+                item.compat_message = Some(format!(
+                    "Versión del mod: {} (servidor {mc})",
+                    versions.join(", ")
+                ));
+            } else if item.kind == "mods"
+                && loader_norm != "vanilla"
+                && !loaders.is_empty()
+                && !loaders.iter().any(|l| {
+                    l == &loader_norm
+                        || (loader_norm == "fabric" && l == "quilt")
+                        || (loader_norm.starts_with("forge") && (l == "forge" || l == "neoforge"))
+                })
+            {
+                item.compatible = Some(false);
+                item.compat_message = Some(format!(
+                    "Loader del mod: {} (servidor {loader_norm})",
+                    loaders.join(", ")
+                ));
+            } else {
+                item.compatible = Some(true);
+            }
+        }
+    }
+    Ok(())
 }
 
 pub fn open_folder(id: &str) -> AppResult<()> {

@@ -4,11 +4,15 @@ import { computed, onActivated, onDeactivated, onMounted, onUnmounted, ref, watc
 import { useRoute, useRouter } from "vue-router";
 import { useServersStore } from "@/stores/servers";
 import { useFavoritesStore } from "@/stores/favorites";
+import { useAppStore } from "@/stores/app";
 import { api, isTauri } from "@/lib/ipc";
 import type { HangarPlugin, ServerContentItem, ServerRepairReport, ServerStatus } from "@/lib/types";
 import BaseButton from "@/components/common/BaseButton.vue";
+import { contentFolderIcon } from "@/lib/contentIcons";
 
 type TabId = "console" | "properties" | "plugins" | "admin" | "files";
+
+const SERVER_RAM_PRESETS_MB = [2048, 4096, 6144, 8192, 12288, 16384] as const;
 
 const PROP_FIELDS: Array<{ key: string; label: string; type?: "select"; options?: string[] }> = [
   { key: "motd", label: "MOTD" },
@@ -28,8 +32,10 @@ const route = useRoute();
 const router = useRouter();
 const serversStore = useServersStore();
 const favoritesStore = useFavoritesStore();
+const appStore = useAppStore();
 
 const tab = ref<TabId>("console");
+const editRamMb = ref(4096);
 const status = ref<ServerStatus | null>(null);
 const logLines = ref<string[]>([]);
 const command = ref("");
@@ -120,6 +126,26 @@ const isForge = computed(() => {
 const isModpackServer = computed(() => isFabric.value || isForge.value || isNeoForge.value);
 const isPaper = computed(() => !isModpackServer.value);
 
+const ramOptions = computed(() => {
+  const maxMb = appStore.hardware
+    ? Math.floor(appStore.hardware.ramGb * 1024 * 0.75)
+    : Infinity;
+  return SERVER_RAM_PRESETS_MB.filter((mb) => mb <= maxMb);
+});
+
+function formatRamGb(mb: number): string {
+  return `${mb / 1024} GB`;
+}
+
+function contentTitle(item: ServerContentItem): string {
+  return item.displayName?.trim() || item.name.replace(/\.jar$/i, "");
+}
+
+function contentIcon(item: ServerContentItem): string {
+  if (item.iconUrl) return item.iconUrl;
+  return contentFolderIcon(item.kind === "plugins" ? "mods" : item.kind || "mods");
+}
+
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 let fastPollTimer: ReturnType<typeof setInterval> | null = null;
 const consoleRef = ref<HTMLElement | null>(null);
@@ -180,6 +206,8 @@ async function loadAll(opts?: { soft?: boolean }) {
     }
     serversStore.setLastActive(serverId.value);
     playitAddr.value = server.value.playitAddress ?? "";
+    editRamMb.value = server.value.ramMb || 4096;
+    if (!appStore.hardware) void appStore.loadHardware();
     await refreshStatus();
     if (tab.value === "console" || !soft) {
       await refreshLog();
@@ -381,6 +409,24 @@ async function saveProps() {
   try {
     await api.writeServerProperties(serverId.value, props.value);
     message.value = "Propiedades guardadas.";
+  } catch (e) {
+    error.value = String(e);
+  } finally {
+    busy.value = false;
+  }
+}
+
+async function saveRam() {
+  if (!server.value) return;
+  if (status.value?.running) {
+    error.value = "Detené el servidor antes de cambiar la RAM.";
+    return;
+  }
+  busy.value = true;
+  error.value = null;
+  try {
+    await serversStore.update({ id: serverId.value, ramMb: editRamMb.value });
+    message.value = `RAM del servidor: ${formatRamGb(editRamMb.value)}. Se aplica al reiniciar (JVM -Xmx).`;
   } catch (e) {
     error.value = String(e);
   } finally {
@@ -1002,7 +1048,40 @@ function serverTypeLabel(t: string) {
       </section>
 
       <!-- Propiedades -->
-      <section v-else-if="tab === 'properties'" class="rounded-xl border border-surface-4 bg-surface-2 p-6">
+      <section v-else-if="tab === 'properties'" class="space-y-4">
+        <div class="rounded-xl border border-surface-4 bg-surface-2 p-6">
+          <h2 class="mb-1 text-lg font-bold">Memoria (RAM)</h2>
+          <p class="mb-4 text-sm text-gray-500">
+            Se guarda en el perfil del servidor y se aplica al iniciar (JVM
+            <code class="text-gray-400">-Xmx</code>). No afecta un server ya en ejecución.
+          </p>
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="mb in ramOptions"
+              :key="mb"
+              type="button"
+              class="rounded-lg border px-3 py-2 text-sm font-semibold transition"
+              :class="
+                editRamMb === mb
+                  ? 'border-pc-green bg-pc-green/15 text-pc-green'
+                  : 'border-surface-5 bg-surface-3 text-gray-300 hover:border-surface-5 hover:text-white'
+              "
+              :disabled="busy || !!status?.running"
+              @click="editRamMb = mb"
+            >
+              {{ formatRamGb(mb) }}
+            </button>
+          </div>
+          <BaseButton
+            class="mt-4"
+            :disabled="busy || !!status?.running || editRamMb === server.ramMb"
+            @click="saveRam"
+          >
+            Guardar RAM
+          </BaseButton>
+        </div>
+
+        <div class="rounded-xl border border-surface-4 bg-surface-2 p-6">
         <h2 class="mb-4 text-lg font-bold">server.properties</h2>
         <div class="grid gap-4 sm:grid-cols-2">
           <label v-for="f in PROP_FIELDS" :key="f.key" class="block text-sm">
@@ -1022,6 +1101,7 @@ function serverTypeLabel(t: string) {
           </label>
         </div>
         <BaseButton class="mt-6" :disabled="busy" @click="saveProps">Guardar propiedades</BaseButton>
+        </div>
       </section>
 
       <!-- Plugins / Hangar / Modpacks -->
@@ -1084,9 +1164,40 @@ function serverTypeLabel(t: string) {
             Instalados ({{ content.length }})
           </h3>
           <ul v-if="content.length" class="divide-y divide-surface-3">
-            <li v-for="item in content" :key="item.path" class="flex justify-between px-4 py-2 text-sm">
-              <span>{{ item.name }}</span>
-              <span class="text-gray-500">{{ formatSize(item.sizeBytes) }}</span>
+            <li
+              v-for="item in content"
+              :key="item.path"
+              class="flex items-start gap-3 px-4 py-3"
+            >
+              <img
+                :src="contentIcon(item)"
+                alt=""
+                class="mt-0.5 h-12 w-12 shrink-0 rounded-lg bg-surface-3 object-cover"
+              />
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <p class="truncate font-semibold text-white">{{ contentTitle(item) }}</p>
+                  <span
+                    v-if="item.compatible === false"
+                    class="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-300"
+                    :title="item.compatMessage ?? 'Incompatible'"
+                  >
+                    Incompatible
+                  </span>
+                  <span
+                    v-else
+                    class="rounded bg-pc-green/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-pc-green"
+                  >
+                    Activo
+                  </span>
+                </div>
+                <p v-if="item.author" class="text-xs text-gray-500">por {{ item.author }}</p>
+                <p v-if="item.description" class="mt-1 line-clamp-2 text-xs text-gray-400">
+                  {{ item.description }}
+                </p>
+                <p class="mt-1 text-xs text-gray-600">{{ item.name }}</p>
+              </div>
+              <span class="shrink-0 text-sm text-gray-500">{{ formatSize(item.sizeBytes) }}</span>
             </li>
           </ul>
           <p v-else class="px-4 py-8 text-center text-gray-500">No hay plugins/mods instalados.</p>
