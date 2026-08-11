@@ -110,13 +110,91 @@ async fn bootstrap_server(
     Ok((prof, dest))
 }
 
-/// Instala un .mrpack de Modrinth en un servidor local nuevo.
+/// Reutiliza un servidor ya creado (p. ej. el vacío que el usuario abrió a mano).
+fn resolve_existing_server(
+    server_id: &str,
+    pack_mc: &str,
+    pack_loader: &str,
+) -> AppResult<(ServerProfile, PathBuf)> {
+    let prof = servers::list()
+        .into_iter()
+        .find(|s| s.id == server_id)
+        .ok_or_else(|| AppError::msg("No se encontró ese servidor. ¿Lo borraste?"))?;
+    if !prof.mc_version.is_empty()
+        && prof.mc_version != "?"
+        && prof.mc_version != pack_mc
+    {
+        return Err(AppError::msg(format!(
+            "El servidor es MC {} y el modpack es {}. Deben ser iguales.",
+            prof.mc_version, pack_mc
+        )));
+    }
+    let want = loader_to_server_type(pack_loader)?;
+    let st = prof.server_type.to_ascii_lowercase();
+    let ok = match want {
+        "fabric" => st.starts_with("fabric"),
+        "forge" => st.starts_with("forge") && !st.contains("neoforge"),
+        "neoforge" => st.contains("neoforge"),
+        _ => st.contains(want),
+    };
+    if !ok {
+        return Err(AppError::msg(format!(
+            "Este pack es {want} y el servidor es «{}». Creá un servidor del mismo loader o elegí otro destino.",
+            prof.server_type
+        )));
+    }
+    let dest = servers::folder_for_id(&prof.id)?;
+    Ok((prof, dest))
+}
+
+async fn apply_mrpack_to_dest(
+    app: &AppHandle,
+    client: &reqwest::Client,
+    bytes: &[u8],
+    index: &Value,
+    dest: &PathBuf,
+    label: &str,
+) -> AppResult<()> {
+    let mut items = Vec::new();
+    if let Some(file_list) = index["files"].as_array() {
+        for f in file_list {
+            if !include_for_server(&f["env"]) {
+                continue;
+            }
+            let Some(path) = f["path"].as_str() else {
+                continue;
+            };
+            let url = f["downloads"]
+                .as_array()
+                .and_then(|d| d.first())
+                .and_then(|u| u.as_str());
+            let Some(url) = url else {
+                continue;
+            };
+            let sha1 = f["hashes"]["sha1"].as_str().map(String::from);
+            items.push(DownloadItem::new(url, dest.join(path)).with_sha1(sha1));
+        }
+    }
+    if !items.is_empty() {
+        net::download_all(client, items, 12, app, "server-modpack", label).await?;
+    }
+    super::run_blocking({
+        let b = bytes.to_vec();
+        let d = dest.clone();
+        move || apply_zip_prefixes(&b, &d, &["overrides", "server-overrides"])
+    })
+    .await?;
+    Ok(())
+}
+
+/// Instala un .mrpack de Modrinth en un servidor local (nuevo o ya existente).
 pub async fn import_mrpack_version_to_server(
     app: &AppHandle,
     state: &AppState,
     client: &reqwest::Client,
     version_id: &str,
     ram_mb: u32,
+    existing_server_id: Option<&str>,
 ) -> AppResult<ServerProfile> {
     let version: Value = net::fetch_json(client, &format!("{MR_API}/version/{version_id}")).await?;
     let files = version["files"].as_array().cloned().unwrap_or_default();
@@ -139,46 +217,45 @@ pub async fn import_mrpack_version_to_server(
         .to_string();
     let (loader, _) = detect_mr_loader(deps);
 
-    let (prof, dest) = bootstrap_server(app, state, client, &name, &mc, &loader, ram_mb).await?;
+    let (prof, dest) = if let Some(id) = existing_server_id.filter(|s| !s.trim().is_empty()) {
+        let pair = resolve_existing_server(id, &mc, &loader)?;
+        crate::core::java::resolve::ensure_installer_java(app, state, &mc).await?;
+        // Por si el jar del server no se preparó bien antes.
+        let _ = servers::ensure_server_jar(app, client, &pair.0.id).await;
+        pair
+    } else {
+        bootstrap_server(app, state, client, &name, &mc, &loader, ram_mb).await?
+    };
 
-    let mut items = Vec::new();
-    if let Some(file_list) = index["files"].as_array() {
-        for f in file_list {
-            if !include_for_server(&f["env"]) {
-                continue;
-            }
-            let Some(path) = f["path"].as_str() else {
-                continue;
-            };
-            let url = f["downloads"]
-                .as_array()
-                .and_then(|d| d.first())
-                .and_then(|u| u.as_str());
-            let Some(url) = url else {
-                continue;
-            };
-            let sha1 = f["hashes"]["sha1"].as_str().map(String::from);
-            items.push(DownloadItem::new(url, dest.join(path)).with_sha1(sha1));
-        }
-    }
-    if !items.is_empty() {
-        net::download_all(
-            client,
-            items,
-            12,
-            app,
-            "server-modpack",
-            &format!("Servidor {name}"),
-        )
-        .await?;
-    }
-    super::run_blocking({
+    apply_mrpack_to_dest(app, client, &bytes, &index, &dest, &format!("Servidor {name}")).await?;
+    Ok(prof)
+}
+
+/// Importa un `.mrpack` local a un servidor ya existente (archivo desde disco).
+pub async fn import_mrpack_file_to_server(
+    app: &AppHandle,
+    state: &AppState,
+    client: &reqwest::Client,
+    server_id: &str,
+    mrpack_path: &std::path::Path,
+) -> AppResult<ServerProfile> {
+    let bytes = std::fs::read(mrpack_path)
+        .map_err(|e| AppError::msg(format!("No se pudo leer el .mrpack: {e}")))?;
+    let index = {
         let b = bytes.clone();
-        let d = dest.clone();
-        move || apply_zip_prefixes(&b, &d, &["overrides", "server-overrides"])
-    })
-    .await?;
-
+        super::run_blocking(move || read_mr_index(&b)).await?
+    };
+    let name = index["name"].as_str().unwrap_or("Modpack").to_string();
+    let deps = &index["dependencies"];
+    let mc = deps["minecraft"]
+        .as_str()
+        .ok_or_else(|| AppError::msg("El modpack no declara versión de Minecraft"))?
+        .to_string();
+    let (loader, _) = detect_mr_loader(deps);
+    let (prof, dest) = resolve_existing_server(server_id, &mc, &loader)?;
+    crate::core::java::resolve::ensure_installer_java(app, state, &mc).await?;
+    let _ = servers::ensure_server_jar(app, client, &prof.id).await;
+    apply_mrpack_to_dest(app, client, &bytes, &index, &dest, &format!("Servidor {name}")).await?;
     Ok(prof)
 }
 
@@ -269,7 +346,7 @@ async fn install_cf_manifest_to_server(
     Ok(())
 }
 
-/// Instala un modpack CurseForge (.zip) en un servidor local nuevo.
+/// Instala un modpack CurseForge (.zip) en un servidor local (nuevo o ya existente).
 pub async fn import_cfpack_version_to_server(
     app: &AppHandle,
     state: &AppState,
@@ -278,6 +355,7 @@ pub async fn import_cfpack_version_to_server(
     mod_id: &str,
     file_id: &str,
     ram_mb: u32,
+    existing_server_id: Option<&str>,
 ) -> AppResult<ServerProfile> {
     if cf_key.trim().is_empty() {
         return Err(AppError::msg(
@@ -309,8 +387,14 @@ pub async fn import_cfpack_version_to_server(
         return Err(AppError::msg("El modpack no declara versión de Minecraft"));
     }
 
-    let (prof, dest) =
-        bootstrap_server(app, state, client, &pack_name, &mc, &loader, ram_mb).await?;
+    let (prof, dest) = if let Some(id) = existing_server_id.filter(|s| !s.trim().is_empty()) {
+        let pair = resolve_existing_server(id, &mc, &loader)?;
+        crate::core::java::resolve::ensure_installer_java(app, state, &mc).await?;
+        let _ = servers::ensure_server_jar(app, client, &pair.0.id).await;
+        pair
+    } else {
+        bootstrap_server(app, state, client, &pack_name, &mc, &loader, ram_mb).await?
+    };
 
     install_cf_manifest_to_server(app, client, cf_key, &manifest, &dest, &pack_name).await?;
 

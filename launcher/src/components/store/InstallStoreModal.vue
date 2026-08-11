@@ -41,6 +41,8 @@ const destination = ref<StoreInstallDestination>("instance");
 const installTarget = ref<"local" | "external" | "server">("local");
 /** Destino de modpack: instancia cliente o servidor local Fabric/Forge. */
 const modpackTarget = ref<"instance" | "server">("instance");
+/** Si es servidor: crear uno nuevo o rellenar uno ya listado (mismo MC/loader). */
+const modpackServerMode = ref<"new" | "existing">("new");
 const instanceWorlds = ref<WorldInfo[]>([]);
 const serverWorlds = ref<WorldInfo[]>([]);
 const modVersions = ref<StoreVersion[]>([]);
@@ -229,7 +231,24 @@ const modCompatibleServers = computed(() => {
   return servers.servers.filter((s) => {
     if (s.mcVersion !== mcVersion.value && s.mcVersion !== "?" && s.mcVersion) return false;
     if (s.serverType.startsWith("fabric")) return loadersCompatible("fabric", loaderId.value, mcVersion.value);
-    if (s.serverType.startsWith("forge")) return loadersCompatible("forge", loaderId.value, mcVersion.value);
+    if (s.serverType.startsWith("forge") || s.serverType.includes("neoforge")) {
+      return loadersCompatible("forge", loaderId.value, mcVersion.value)
+        || loadersCompatible("neoforge", loaderId.value, mcVersion.value);
+    }
+    return false;
+  });
+});
+
+/** Servidores vacíos o existentes donde se puede aplicar este modpack. */
+const modpackCompatibleServers = computed(() => {
+  if (!mcVersion.value || !isModpack.value) return [];
+  const l = loaderId.value;
+  return servers.servers.filter((s) => {
+    if (s.mcVersion !== mcVersion.value && s.mcVersion !== "?" && s.mcVersion) return false;
+    const st = (s.serverType || "").toLowerCase();
+    if (l === "fabric" || l === "quilt" || l === "iris") return st.startsWith("fabric");
+    if (l === "neoforge") return st.includes("neoforge");
+    if (l === "forge") return st.startsWith("forge") && !st.includes("neoforge");
     return false;
   });
 });
@@ -286,7 +305,13 @@ const canNext = computed(() => {
     return installLoaders.value.some((l) => l.id === loaderId.value);
   }
   if (isModpack.value && step.value === destinationStep.value) {
-    if (modpackTarget.value === "server") return modpackServerAvailable.value;
+    if (modpackTarget.value === "server") {
+      if (!modpackServerAvailable.value) return false;
+      if (modpackServerMode.value === "existing") {
+        return !!serverId.value && modpackCompatibleServers.value.some((s) => s.id === serverId.value);
+      }
+      return true;
+    }
     return true;
   }
   if (step.value === targetStep.value) {
@@ -689,10 +714,21 @@ async function install() {
 
     if (isModpack.value) {
       if (modpackTarget.value === "server") {
+        const existingId =
+          modpackServerMode.value === "existing" ? serverId.value || undefined : undefined;
         const srv =
           props.item.provider === "curseforge"
-            ? await api.importCfpackVersionToServer(props.item.id, selectedVersionId.value)
-            : await api.importMrpackVersionToServer(selectedVersionId.value);
+            ? await api.importCfpackVersionToServer(
+                props.item.id,
+                selectedVersionId.value,
+                undefined,
+                existingId,
+              )
+            : await api.importMrpackVersionToServer(
+                selectedVersionId.value,
+                undefined,
+                existingId,
+              );
         installedModpackName.value = srv.name;
         await servers.load(true);
       } else {
@@ -1065,11 +1101,70 @@ async function installRecommended(p: RecommendedPlugin) {
                   <p class="text-xs text-gray-500">
                     {{
                       modpackServerAvailable
-                        ? `Fabric/Forge · mods del lado servidor · ${loaderId}`
+                        ? `Fabric/Forge/NeoForge · mods server · ${loaderId}`
                         : "Solo modpacks Fabric o Forge pueden ir a servidor"
                     }}
                   </p>
                 </button>
+              </div>
+
+              <div v-if="modpackTarget === 'server' && modpackServerAvailable" class="space-y-2 rounded-xl border border-surface-4 bg-surface-2 p-3">
+                <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Servidor destino</p>
+                <div class="grid gap-2 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    class="rounded-lg border-2 p-3 text-left text-sm transition-all"
+                    :class="
+                      modpackServerMode === 'new'
+                        ? 'border-pc-green bg-pc-green/10'
+                        : 'border-surface-4 bg-surface-3 hover:border-surface-6'
+                    "
+                    @click="modpackServerMode = 'new'"
+                  >
+                    <p class="font-semibold">Crear servidor nuevo</p>
+                    <p class="text-xs text-gray-500">Instala jar + mods del pack</p>
+                  </button>
+                  <button
+                    type="button"
+                    class="rounded-lg border-2 p-3 text-left text-sm transition-all"
+                    :class="
+                      modpackServerMode === 'existing'
+                        ? 'border-pc-green bg-pc-green/10'
+                        : 'border-surface-4 bg-surface-3 hover:border-surface-6'
+                    "
+                    :disabled="!modpackCompatibleServers.length"
+                    @click="
+                      modpackServerMode = 'existing';
+                      serverId = modpackCompatibleServers[0]?.id ?? '';
+                    "
+                  >
+                    <p class="font-semibold">Usar servidor existente</p>
+                    <p class="text-xs text-gray-500">
+                      {{
+                        modpackCompatibleServers.length
+                          ? `${modpackCompatibleServers.length} compatible(s) con ${mcVersion} · ${loaderId}`
+                          : `Ninguno ${mcVersion} / ${loaderId} — creá uno en Servidores`
+                      }}
+                    </p>
+                  </button>
+                </div>
+                <div v-if="modpackServerMode === 'existing'" class="max-h-40 space-y-1 overflow-y-auto">
+                  <button
+                    v-for="srv in modpackCompatibleServers"
+                    :key="srv.id"
+                    type="button"
+                    class="w-full rounded-lg border px-3 py-2 text-left text-sm transition-all"
+                    :class="
+                      serverId === srv.id
+                        ? 'border-pc-green bg-pc-green/10'
+                        : 'border-surface-4 bg-surface-3 hover:border-surface-6'
+                    "
+                    @click="serverId = srv.id"
+                  >
+                    <p class="font-medium">{{ srv.name }}</p>
+                    <p class="text-xs text-gray-500">{{ srv.mcVersion }} · {{ serverTypeLabel(srv.serverType) }}</p>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1460,7 +1555,11 @@ async function installRecommended(p: RecommendedPlugin) {
                     : busy
                       ? "Instalando…"
                       : isModpack
-                        ? (modpackTarget === "server" ? "Crear servidor" : "Crear instancia")
+                        ? modpackTarget === "server"
+                          ? modpackServerMode === "existing"
+                            ? "Instalar en servidor"
+                            : "Crear servidor"
+                          : "Crear instancia"
                         : "Instalar"
                 }}
               </BaseButton>
