@@ -211,13 +211,14 @@ pub async fn import_cfpack_version(
     store::cfpack::import_by_file_id(&app, &http, &key, &mod_id, &file_id).await
 }
 
-/// Instala un modpack Modrinth (.mrpack) en un servidor local Fabric/Forge nuevo.
+/// Instala un modpack Modrinth (.mrpack) en un servidor local Fabric/Forge (nuevo o existente).
 #[tauri::command]
 pub async fn import_mrpack_version_to_server(
     app: AppHandle,
     state: State<'_, AppState>,
     version_id: String,
     ram_mb: Option<u32>,
+    server_id: Option<String>,
 ) -> AppResult<ServerProfile> {
     let (http, _net) = state.net_scope();
     store::server_modpack::import_mrpack_version_to_server(
@@ -226,11 +227,12 @@ pub async fn import_mrpack_version_to_server(
         &http,
         &version_id,
         ram_mb.unwrap_or(4096),
+        server_id.as_deref(),
     )
     .await
 }
 
-/// Instala un modpack CurseForge (.zip) en un servidor local Fabric/Forge nuevo.
+/// Instala un modpack CurseForge (.zip) en un servidor local Fabric/Forge (nuevo o existente).
 #[tauri::command]
 pub async fn import_cfpack_version_to_server(
     app: AppHandle,
@@ -238,6 +240,7 @@ pub async fn import_cfpack_version_to_server(
     mod_id: String,
     file_id: String,
     ram_mb: Option<u32>,
+    server_id: Option<String>,
 ) -> AppResult<ServerProfile> {
     let key = keys::curseforge_api_key();
     let (http, _net) = state.net_scope();
@@ -249,8 +252,34 @@ pub async fn import_cfpack_version_to_server(
         &mod_id,
         &file_id,
         ram_mb.unwrap_or(4096),
+        server_id.as_deref(),
     )
     .await
+}
+
+/// Elegí un .mrpack del disco e instalalo en un servidor Fabric/Forge ya creado.
+#[tauri::command]
+pub async fn pick_and_import_mrpack_to_server(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    server_id: String,
+) -> AppResult<ServerProfile> {
+    use tauri_plugin_dialog::DialogExt;
+
+    let picked = app
+        .dialog()
+        .file()
+        .add_filter("Modpack Modrinth", &["mrpack"])
+        .blocking_pick_file();
+    let Some(file) = picked else {
+        return Err(crate::error::AppError::msg("No se seleccionó ningún archivo"));
+    };
+    let path = file
+        .into_path()
+        .map_err(|e| crate::error::AppError::msg(format!("Ruta inválida: {e}")))?;
+    let (http, _net) = state.net_scope();
+    store::server_modpack::import_mrpack_file_to_server(&app, &state, &http, &server_id, &path)
+        .await
 }
 
 #[tauri::command]

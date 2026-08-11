@@ -111,7 +111,14 @@ const server = computed(
   () => serversStore.servers.find((s) => s.id === serverId.value) ?? null,
 );
 const isFabric = computed(() => server.value?.serverType.startsWith("fabric") ?? false);
-const isPaper = computed(() => !isFabric.value);
+const isNeoForge = computed(() => (server.value?.serverType ?? "").includes("neoforge"));
+const isForge = computed(() => {
+  const t = (server.value?.serverType ?? "").toLowerCase();
+  return t.startsWith("forge") && !t.includes("neoforge");
+});
+/** Fabric / Forge / NeoForge — pueden importar modpacks. */
+const isModpackServer = computed(() => isFabric.value || isForge.value || isNeoForge.value);
+const isPaper = computed(() => !isModpackServer.value);
 
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 let fastPollTimer: ReturnType<typeof setInterval> | null = null;
@@ -121,7 +128,7 @@ const tabs = computed(() => {
   const base: Array<{ id: TabId; label: string }> = [
     { id: "console", label: "Consola" },
     { id: "properties", label: "Propiedades" },
-    { id: "plugins", label: isFabric.value ? "Mods" : "Plugins" },
+    { id: "plugins", label: isModpackServer.value ? "Mods" : "Plugins" },
     { id: "admin", label: "Admin" },
     { id: "files", label: "Archivos" },
   ];
@@ -382,7 +389,7 @@ async function saveProps() {
 }
 
 async function searchHangar() {
-  if (!hangarQuery.value.trim() || isFabric.value) return;
+  if (!hangarQuery.value.trim() || isModpackServer.value) return;
   busy.value = true;
   try {
     hangarResults.value = await api.hangarSearchPlugins(hangarQuery.value.trim());
@@ -391,6 +398,32 @@ async function searchHangar() {
   } finally {
     busy.value = false;
   }
+}
+
+async function importMrpackToThisServer() {
+  if (!serverId.value || status.value?.running) {
+    error.value = "Detené el servidor antes de importar un modpack.";
+    return;
+  }
+  busy.value = true;
+  error.value = null;
+  message.value = null;
+  try {
+    const prof = await api.pickAndImportMrpackToServer(serverId.value);
+    message.value = `Modpack importado en «${prof.name}». Revisá la lista de mods e iniciá el servidor.`;
+    content.value = await api.listServerContent(serverId.value);
+  } catch (e) {
+    const msg = String(e);
+    if (!msg.toLowerCase().includes("no se seleccion")) {
+      error.value = msg;
+    }
+  } finally {
+    busy.value = false;
+  }
+}
+
+function goStoreModpacks() {
+  router.push({ name: "store", query: { tab: "modpack" } });
 }
 
 async function installPlugin(p: HangarPlugin) {
@@ -991,7 +1024,7 @@ function serverTypeLabel(t: string) {
         <BaseButton class="mt-6" :disabled="busy" @click="saveProps">Guardar propiedades</BaseButton>
       </section>
 
-      <!-- Plugins / Hangar -->
+      <!-- Plugins / Hangar / Modpacks -->
       <section v-else-if="tab === 'plugins'" class="space-y-4">
         <div v-if="isPaper" class="rounded-xl border border-surface-4 bg-surface-2 p-4">
           <h3 class="mb-2 font-bold">Buscar en Hangar</h3>
@@ -1014,7 +1047,37 @@ function serverTypeLabel(t: string) {
             </li>
           </ul>
         </div>
-        <p v-else class="text-sm text-gray-500">Para mods de Fabric usá la tienda del launcher o arrastrá JARs a la carpeta mods/.</p>
+
+        <div v-if="isModpackServer" class="rounded-xl border border-surface-4 bg-surface-2 p-4">
+          <h3 class="mb-1 font-bold">Modpack (Fabric / Forge / NeoForge)</h3>
+          <p class="mb-3 text-sm text-gray-500">
+            Importá un .mrpack de Modrinth (COBBLEVERSE, Cobblemon, etc.) a este servidor, o buscá el pack en la Tienda
+            y elegí «Usar servidor existente».
+          </p>
+          <div class="flex flex-wrap gap-2">
+            <BaseButton
+              :disabled="busy || !!status?.running"
+              :title="status?.running ? 'Detené el servidor primero' : undefined"
+              @click="importMrpackToThisServer"
+            >
+              {{ busy ? "Importando…" : "Importar .mrpack…" }}
+            </BaseButton>
+            <BaseButton variant="secondary" :disabled="busy" @click="goStoreModpacks">
+              Buscar pack en Tienda
+            </BaseButton>
+            <BaseButton
+              variant="ghost"
+              size="sm"
+              :disabled="busy"
+              @click="content = []; loadTabData()"
+            >
+              Actualizar lista
+            </BaseButton>
+          </div>
+        </div>
+        <p v-else-if="!isPaper" class="text-sm text-gray-500">
+          Para mods usá la tienda del launcher o arrastrá JARs a la carpeta mods/.
+        </p>
 
         <div class="rounded-xl border border-surface-4 bg-surface-2">
           <h3 class="border-b border-surface-3 px-4 py-2 text-xs font-bold uppercase tracking-wider text-gray-500">

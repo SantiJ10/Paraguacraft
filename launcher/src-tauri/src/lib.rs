@@ -175,6 +175,7 @@ pub fn run() {
             commands::store::import_cfpack,
             commands::store::import_cfpack_version,
             commands::store::import_cfpack_version_to_server,
+            commands::store::pick_and_import_mrpack_to_server,
             commands::store::pick_and_import_cfpack_zip,
             commands::store::list_instance_worlds,
             commands::store::list_server_worlds,

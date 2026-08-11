@@ -583,8 +583,16 @@ export const api = {
     return invokeReal<Instance>("import_mrpack_version", { versionId });
   },
 
-  async importMrpackVersionToServer(versionId: string, ramMb?: number): Promise<ServerProfile> {
-    return invokeReal<ServerProfile>("import_mrpack_version_to_server", { versionId, ramMb });
+  async importMrpackVersionToServer(
+    versionId: string,
+    ramMb?: number,
+    serverId?: string | null,
+  ): Promise<ServerProfile> {
+    return invokeReal<ServerProfile>("import_mrpack_version_to_server", {
+      versionId,
+      ramMb,
+      serverId: serverId ?? null,
+    });
   },
 
   async importCfpack(source: string, mc: string): Promise<Instance> {
@@ -599,8 +607,18 @@ export const api = {
     modId: string,
     fileId: string,
     ramMb?: number,
+    serverId?: string | null,
   ): Promise<ServerProfile> {
-    return invokeReal<ServerProfile>("import_cfpack_version_to_server", { modId, fileId, ramMb });
+    return invokeReal<ServerProfile>("import_cfpack_version_to_server", {
+      modId,
+      fileId,
+      ramMb,
+      serverId: serverId ?? null,
+    });
+  },
+
+  async pickAndImportMrpackToServer(serverId: string): Promise<ServerProfile> {
+    return invokeReal<ServerProfile>("pick_and_import_mrpack_to_server", { serverId });
   },
 
   async pickAndImportCfpackZip(): Promise<Instance> {
