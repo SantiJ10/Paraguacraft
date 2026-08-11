@@ -1,12 +1,12 @@
-﻿{
-  "version": "1.1.26",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.26/Instalar_Paraguacraft_v1.1.26.exe",
-  "size_bytes": 5665391,
-  "sha256": "83dc322d38126ab407654738e5a18fd5c21dd7b2fc53b0d54c86d5287338cb39",
-  "notes": "- Instalador 1.1.26 con clientes PvP 2.1.46 / Modern 0.9.24\n- Multi-servidor, PlayStyle Full/Casual, Optimized preconfig\n- Packs oficiales: armor, bridge, crit, HUD/font\n- Consola de juego y catalogo de redes",
+{
+  "version": "1.1.27",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.27/Instalar_Paraguacraft_v1.1.27.exe",
+  "size_bytes": 5680102,
+  "sha256": "a496704933cb1c399a83dc47af56602ecc393ba4b346e6421b5179e69e870d72",
+  "notes": "- Fix servidores Fabric (modpacks Cobbleverse / importar .mrpack)\n- Importar modpack en servidor existente (Tienda o pestaña Mods)\n- Clientes PvP Modern 0.9.27 (Zoomify + viewmodel)",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.26/Instalar_Paraguacraft_v1.1.26.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.27/Instalar_Paraguacraft_v1.1.27.exe",
       "signature": ""
     }
   }

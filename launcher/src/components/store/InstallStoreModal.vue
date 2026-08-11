@@ -246,7 +246,7 @@ const modpackCompatibleServers = computed(() => {
   return servers.servers.filter((s) => {
     if (s.mcVersion !== mcVersion.value && s.mcVersion !== "?" && s.mcVersion) return false;
     const st = (s.serverType || "").toLowerCase();
-    if (l === "fabric" || l === "quilt" || l === "iris") return st.startsWith("fabric");
+    if (l === "fabric" || l === "quilt") return st.startsWith("fabric");
     if (l === "neoforge") return st.includes("neoforge");
     if (l === "forge") return st.startsWith("forge") && !st.includes("neoforge");
     return false;
