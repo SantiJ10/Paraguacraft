@@ -197,8 +197,24 @@ pub fn get_server_folder_path(id: String) -> AppResult<String> {
 }
 
 #[tauri::command]
-pub fn list_server_content(id: String) -> AppResult<Vec<ServerContentItem>> {
-    servers::list_content(&id)
+pub async fn list_server_content(
+    state: State<'_, AppState>,
+    id: String,
+) -> AppResult<Vec<ServerContentItem>> {
+    let prof = servers::profile_by_id(&id)?;
+    let mut items = servers::list_content(&id)?;
+    let loader = if prof.server_type.starts_with("fabric") {
+        "fabric"
+    } else if prof.server_type.contains("neoforge") {
+        "neoforge"
+    } else if prof.server_type.starts_with("forge") {
+        "forge"
+    } else {
+        "paper"
+    };
+    let (http, _) = state.net_scope();
+    let _ = servers::enrich_content_modrinth(&http, &prof.mc_version, loader, &mut items).await;
+    Ok(items)
 }
 
 #[tauri::command]

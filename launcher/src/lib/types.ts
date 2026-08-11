@@ -310,6 +310,13 @@ export interface ServerContentItem {
   path: string;
   sizeBytes: number;
   kind: string;
+  sha1?: string | null;
+  displayName?: string | null;
+  iconUrl?: string | null;
+  author?: string | null;
+  description?: string | null;
+  compatible?: boolean | null;
+  compatMessage?: string | null;
 }
 
 export interface HangarPlugin {
