@@ -118,7 +118,7 @@ async fn ensure_primary_189(
 
     let tmp = dest.with_extension("part");
     for url in pack_urls_189(PACK_189) {
-        if net::download_one(client, &DownloadItem::new(url, tmp.clone()))
+        if net::download_one(client, &DownloadItem::new(url.clone(), tmp.clone()))
             .await
             .is_err()
         {

@@ -58,6 +58,27 @@ pub async fn download_paper_server(
     .await
 }
 
+/// Versión estable del fabric-installer (endpoint separado del listado de loaders).
+/// La meta API dejó de embebber `installer` en `/versions/loader/{mc}`.
+async fn fabric_stable_installer(client: &reqwest::Client) -> AppResult<String> {
+    let entries: Value = net::fetch_json(
+        client,
+        "https://meta.fabricmc.net/v2/versions/installer",
+    )
+    .await
+    .map_err(|e| AppError::msg(format!("Fabric installer: no se pudo consultar meta API ({e})")))?;
+    let arr = entries.as_array().cloned().unwrap_or_default();
+    let entry = arr
+        .iter()
+        .find(|e| e["stable"].as_bool().unwrap_or(false))
+        .or_else(|| arr.first())
+        .ok_or_else(|| AppError::msg("Fabric: no hay versiones de installer en meta.fabricmc.net"))?;
+    entry["version"]
+        .as_str()
+        .map(str::to_string)
+        .ok_or_else(|| AppError::msg("Fabric: sin version de installer"))
+}
+
 pub async fn download_fabric_server(
     client: &reqwest::Client,
     app: &AppHandle,
@@ -82,10 +103,13 @@ pub async fn download_fabric_server(
         })?;
     let loader_ver = entry["loader"]["version"]
         .as_str()
-        .ok_or_else(|| AppError::msg("Fabric: sin version de loader"))?;
-    let inst_ver = entry["installer"]["version"]
-        .as_str()
-        .ok_or_else(|| AppError::msg("Fabric: sin version de installer"))?;
+        .ok_or_else(|| AppError::msg("Fabric: sin version de loader"))?
+        .to_string();
+    // Preferir installer embebido (API vieja) o el endpoint global estable (API actual).
+    let inst_ver = match entry["installer"]["version"].as_str() {
+        Some(v) => v.to_string(),
+        None => fabric_stable_installer(client).await?,
+    };
     let dl = format!(
         "https://meta.fabricmc.net/v2/versions/loader/{mc}/{loader_ver}/{inst_ver}/server/jar"
     );
