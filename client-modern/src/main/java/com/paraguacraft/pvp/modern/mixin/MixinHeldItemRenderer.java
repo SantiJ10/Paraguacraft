@@ -1,7 +1,6 @@
 package com.paraguacraft.pvp.modern.mixin;
 
 import com.paraguacraft.pvp.modern.animations.OldAnimations;
-import com.paraguacraft.pvp.modern.config.ModernConfig;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.render.item.HeldItemRenderer;
@@ -18,6 +17,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /**
  * Swing + blockhit espada/eje + comer/beber estilo 1.7 en primera persona.
  * El blockhit no usa UseAction.BLOCK (inexistente en espadas 1.9+): usa RMB visual.
+ *
+ * Sin escalas ni offsets extra de viewmodel: el tamaño/pose 1ª persona sale del
+ * model display del pack y de las animaciones 1.7.
  */
 @Mixin(HeldItemRenderer.class)
 public abstract class MixinHeldItemRenderer {
@@ -81,15 +83,6 @@ public abstract class MixinHeldItemRenderer {
         int light,
         CallbackInfo ci
     ) {
-        // Escala viewmodel: armas/tools vs recursos/bloques vs mano vacía (config en Mod Menu).
-        float vm = ModernConfig.viewmodelScaleFor(item);
-        if (vm != 1.0F) {
-            matrices.scale(vm, vm, vm);
-        }
-        // Bajar un poco el viewmodel (espadas/herramientas se veían muy altas).
-        if (item != null && !item.isEmpty() && OldAnimations.isMeleeWeapon(item)) {
-            matrices.translate(0.0F, -0.08F, 0.02F);
-        }
         if (!OldAnimations.enabled() || player == null || item == null || item.isEmpty()) {
             return;
         }

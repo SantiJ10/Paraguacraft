@@ -3,13 +3,13 @@
     "nombre":  "Paraguacraft PvP Modern",
     "mc_version":  "1.21.11",
     "loader":  "fabric",
-    "client_version":  "0.9.27",
-    "release_tag":  "pvp-modern-0.9.27",
-    "descripcion":  "Zoomify arreglado, sin FPS de Sodium Extra, viewmodel configurable.",
+    "client_version":  "0.9.28",
+    "release_tag":  "pvp-modern-0.9.28",
+    "descripcion":  "Viewmodel de armas/objetos restaurado (pre-0.9.25). Zoomify y pack intactos; sin tocar armaduras.",
     "mods":  [
                  {
-                     "sha1":  "9a508eedda4b84a9aa230bbf4ab9143d2e46acc4",
-                     "filename":  "ParaguacraftPvP-Modern-0.9.27.jar"
+                     "sha1":  "8d84c145dc9bbcb3e9feb68fed694d360b8df021",
+                     "filename":  "ParaguacraftPvP-Modern-0.9.28.jar"
                  }
              ]
 }

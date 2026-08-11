@@ -67,8 +67,8 @@ public final class OldAnimations {
         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(side * f * -20.0F));
         matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(side * f1 * -20.0F));
         matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(f1 * -80.0F));
-        // Un poco más cerca / compacto, sin empujar la mano hacia arriba.
-        matrices.translate(side * -0.02F, -0.02F, 0.04F);
+        // Un poco más cerca / compacto, estilo hand 1.7.
+        matrices.translate(side * -0.02F, 0.04F, 0.04F);
         matrices.scale(0.92F, 0.92F, 0.92F);
     }
 
@@ -78,8 +78,8 @@ public final class OldAnimations {
      */
     public static void applySwordBlockPose(MatrixStack matrices, Arm arm, float swingProgress) {
         float side = arm == Arm.RIGHT ? 1.0F : -1.0F;
-        // Pose block: menos elevación (antes 0.14 subía mucho el arma).
-        matrices.translate(side * -0.08F, 0.02F, 0.06F);
+        // Llevar la mano al pecho en diagonal (1.7 “block”).
+        matrices.translate(side * -0.08F, 0.14F, 0.06F);
         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(side * 50.0F));
         matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-70.0F));
         matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(side * -25.0F));
