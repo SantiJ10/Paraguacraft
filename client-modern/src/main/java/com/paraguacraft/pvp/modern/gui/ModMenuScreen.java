@@ -147,6 +147,9 @@ public class ModMenuScreen extends ParaguacraftScreen {
             case "nickfinder" -> client.setScreen(new NickFinderScreen(this));
             case "music_hud" -> client.setScreen(new GuiMusicHudOptionsScreen(this));
             case "armor_hud" -> client.setScreen(GuiSubmodOptionsScreen.armor(this));
+            case "keystrokes" -> client.setScreen(GuiSubmodOptionsScreen.keystrokes(this));
+            case "cosmetics" -> client.setScreen(GuiSubmodOptionsScreen.cosmetics(this));
+            case "pvp_trackers" -> client.setScreen(GuiSubmodOptionsScreen.pvpTrackers(this));
             case "fps_group" -> client.setScreen(GuiSubmodOptionsScreen.fps(this));
             case "entity_group" -> client.setScreen(GuiSubmodOptionsScreen.entity(this));
             case "bedwars_group" -> client.setScreen(GuiSubmodOptionsScreen.bedwars(this));
@@ -194,9 +197,11 @@ public class ModMenuScreen extends ParaguacraftScreen {
         cards.add(open(1, "FPS", "fps_group"));
         cards.add(toggle(1, "Ping", () -> ModernConfig.showPing, v -> ModernConfig.showPing = v));
         cards.add(toggle(1, "CPS", () -> ModernConfig.showCps, v -> ModernConfig.showCps = v));
-        cards.add(toggle(1, "Keystrokes", () -> ModernConfig.showKeystrokes, v -> ModernConfig.showKeystrokes = v));
+        cards.add(open(1, "Keystrokes", "keystrokes"));
         cards.add(toggle(1, "Coordenadas", () -> ModernConfig.showCoords, v -> ModernConfig.showCoords = v));
         cards.add(open(1, "Armadura HUD", "armor_hud"));
+        cards.add(open(1, "Cosmeticos / nametags", "cosmetics"));
+        cards.add(open(1, "Waypoints y trackers", "pvp_trackers"));
         cards.add(toggle(1, "Contador bloques", () -> ModernConfig.showBlockCount, v -> ModernConfig.showBlockCount = v));
         cards.add(toggle(1, "Objeto en mano", () -> ModernConfig.showHeldItem, v -> ModernConfig.showHeldItem = v));
         cards.add(open(1, "BedWars", "bedwars_group"));
@@ -221,12 +226,11 @@ public class ModMenuScreen extends ParaguacraftScreen {
         }));
         cards.add(toggle(3, "Pantalla sin bordes", () -> ModernConfig.windowedFullscreen, v -> ModernConfig.windowedFullscreen = v));
         cards.add(open(3, FullbrightManager.menuLabel(), "fullbright"));
-        cards.add(toggle(3, "FOV dinamico", () -> ModernConfig.dynamicFov, v -> {
-            ModernConfig.dynamicFov = v;
-            // Solo escala de FOV sprint/volar (vanilla). Zoomify toca FOV de otra forma;
-            // forzar getFov() rompía el zoom.
+        cards.add(toggle(3, "FOV estatico", () -> !ModernConfig.dynamicFov, v -> {
+            // ON = sin speed FOV (sprint/volar). Zoomify toca FOV aparte; no forzar getFov().
+            ModernConfig.dynamicFov = !v;
             if (client != null && client.options != null && client.options.getFovEffectScale() != null) {
-                client.options.getFovEffectScale().setValue(v ? 1.0 : 0.0);
+                client.options.getFovEffectScale().setValue(ModernConfig.dynamicFov ? 1.0 : 0.0);
             }
         }));
         cards.add(toggle(3, "Freelook (Alt)", () -> ModernConfig.freelookEnabled, v -> ModernConfig.freelookEnabled = v));

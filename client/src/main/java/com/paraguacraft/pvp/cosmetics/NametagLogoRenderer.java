@@ -11,7 +11,7 @@ import net.minecraft.util.ResourceLocation;
 /** Dibuja el icono Paraguacraft junto al nametag (Módulo 5). */
 public final class NametagLogoRenderer {
 
-    private static final ResourceLocation LOGO = new ResourceLocation("paraguacraft", "textures/gui/tightfault.png");
+    public static final ResourceLocation LOGO = WatermarkRenderer.ICON;
     public static final int LOGO_SIZE = 9;
 
     private NametagLogoRenderer() {}
@@ -24,7 +24,14 @@ public final class NametagLogoRenderer {
         int half = font.getStringWidth(name) / 2;
         int x = -half - LOGO_SIZE - 2;
         int y = (font.FONT_HEIGHT - LOGO_SIZE) / 2 - 1;
+        drawAt(x, y, badgeId);
+    }
 
+    public static void drawAt(int x, int y) {
+        drawAt(x, y, BadgeProtocol.BADGE_PARAGUACRAFT);
+    }
+
+    public static void drawAt(int x, int y, byte badgeId) {
         GlStateManager.pushMatrix();
         try {
             GlStateManager.enableTexture2D();

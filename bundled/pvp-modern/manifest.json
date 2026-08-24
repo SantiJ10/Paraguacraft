@@ -3,13 +3,13 @@
     "nombre":  "Paraguacraft PvP Modern",
     "mc_version":  "1.21.11",
     "loader":  "fabric",
-    "client_version":  "0.9.28",
-    "release_tag":  "pvp-modern-0.9.28",
-    "descripcion":  "Viewmodel de armas/objetos restaurado (pre-0.9.25). Zoomify y pack intactos; sin tocar armaduras.",
+    "client_version":  "0.9.29",
+    "release_tag":  "pvp-modern-0.9.29",
+    "descripcion":  "Nametags 3D con logo y vida, watermark GUI, keystrokes WASD+espacio, waypoints, item tracker, alerta de armadura y FOV estatico.",
     "mods":  [
                  {
-                     "sha1":  "8d84c145dc9bbcb3e9feb68fed694d360b8df021",
-                     "filename":  "ParaguacraftPvP-Modern-0.9.28.jar"
+                     "sha1":  "8a69dc7a2738ec38da5624678c43161bba377eab",
+                     "filename":  "ParaguacraftPvP-Modern-0.9.29.jar"
                  }
              ]
 }

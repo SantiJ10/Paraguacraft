@@ -91,7 +91,7 @@ public class GuiEditHudScreen extends Screen {
             drawBox(ctx, 2, ModernConfig.cpsX, ModernConfig.cpsY, 50, 10);
         }
         if (ModernConfig.showKeystrokes) {
-            drawBox(ctx, 3, ModernConfig.keysX, ModernConfig.keysY, 68, 68);
+            drawBox(ctx, 3, ModernConfig.keysX, ModernConfig.keysY, HudRenderer.keystrokesWidth(), HudRenderer.keystrokesHeight());
         }
         if (ModernConfig.showArmor) {
             drawBox(ctx, 4, ModernConfig.armorX, ModernConfig.armorY, 45, HudRenderer.armorPanelHeight(client));
@@ -142,6 +142,12 @@ public class GuiEditHudScreen extends Screen {
         }
         if (ModernConfig.showServerHud) {
             drawBox(ctx, 18, ModernConfig.serverHudX, ModernConfig.serverHudY, 120, 10);
+        }
+        if (ModernConfig.itemTracker2d) {
+            drawBox(ctx, 19, ModernConfig.itemsX, ModernConfig.itemsY, 140, com.paraguacraft.pvp.modern.core.ItemTracker.hudHeight());
+        }
+        if (ModernConfig.showWaypoints) {
+            drawBox(ctx, 20, ModernConfig.waypointsX, ModernConfig.waypointsY, 140, com.paraguacraft.pvp.modern.core.WaypointManager.hudHeight());
         }
 
         matrices.popMatrix();
@@ -217,7 +223,7 @@ public class GuiEditHudScreen extends Screen {
             return true;
         }
 
-        for (int id = 18; id >= 0; id--) {
+        for (int id = 20; id >= 0; id--) {
             if (!isVisible(id)) {
                 continue;
             }
@@ -284,7 +290,7 @@ public class GuiEditHudScreen extends Screen {
     }
 
     private int hitHandle(int mx, int my) {
-        for (int id = 0; id <= 18; id++) {
+        for (int id = 0; id <= 20; id++) {
             if (!isVisible(id)) {
                 continue;
             }
@@ -328,6 +334,8 @@ public class GuiEditHudScreen extends Screen {
             case 16 -> ModernConfig.showBridgeTimer;
             case 17 -> ModernConfig.reachDisplay && ServerContext.reachDisplayAllowed(client);
             case 18 -> ModernConfig.showServerHud;
+            case 19 -> ModernConfig.itemTracker2d;
+            case 20 -> ModernConfig.showWaypoints;
             default -> false;
         };
     }
@@ -341,7 +349,7 @@ public class GuiEditHudScreen extends Screen {
             case 0 -> new int[] {ModernConfig.fpsX, ModernConfig.fpsY, 55, 10};
             case 1 -> new int[] {ModernConfig.pingX, ModernConfig.pingY, 70, 10};
             case 2 -> new int[] {ModernConfig.cpsX, ModernConfig.cpsY, 50, 10};
-            case 3 -> new int[] {ModernConfig.keysX, ModernConfig.keysY, 68, 68};
+            case 3 -> new int[] {ModernConfig.keysX, ModernConfig.keysY, HudRenderer.keystrokesWidth(), HudRenderer.keystrokesHeight()};
             case 4 -> new int[] {ModernConfig.armorX, ModernConfig.armorY, 45, HudRenderer.armorPanelHeight(client)};
             case 5 -> new int[] {ModernConfig.heldX, ModernConfig.heldY, 130, 40};
             case 6 -> new int[] {ModernConfig.bwResX, ModernConfig.bwResY, HudRenderer.bwPanelW(client.textRenderer), HudRenderer.bwPanelH()};
@@ -369,6 +377,8 @@ public class GuiEditHudScreen extends Screen {
             case 16 -> new int[] {ModernConfig.bridgeTimerX, ModernConfig.bridgeTimerY, 80, 10};
             case 17 -> new int[] {ModernConfig.reachDisplayX, ModernConfig.reachDisplayY, 70, 10};
             case 18 -> new int[] {ModernConfig.serverHudX, ModernConfig.serverHudY, 120, 10};
+            case 19 -> new int[] {ModernConfig.itemsX, ModernConfig.itemsY, 140, com.paraguacraft.pvp.modern.core.ItemTracker.hudHeight()};
+            case 20 -> new int[] {ModernConfig.waypointsX, ModernConfig.waypointsY, 140, com.paraguacraft.pvp.modern.core.WaypointManager.hudHeight()};
             default -> new int[] {0, 0, 10, 10};
         };
     }
@@ -394,6 +404,8 @@ public class GuiEditHudScreen extends Screen {
             case 16 -> { ModernConfig.bridgeTimerX = x; ModernConfig.bridgeTimerY = y; }
             case 17 -> { ModernConfig.reachDisplayX = x; ModernConfig.reachDisplayY = y; }
             case 18 -> { ModernConfig.serverHudX = x; ModernConfig.serverHudY = y; }
+            case 19 -> { ModernConfig.itemsX = x; ModernConfig.itemsY = y; }
+            case 20 -> { ModernConfig.waypointsX = x; ModernConfig.waypointsY = y; }
             default -> {}
         }
     }

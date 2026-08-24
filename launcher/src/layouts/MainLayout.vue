@@ -85,7 +85,8 @@ onMounted(() => {
     void app.loadHardware();
   }, 600);
   window.setTimeout(() => {
-    void skins.refresh();
+    void skins.refresh(true);
+    skins.startWatch();
   }, 900);
   window.setTimeout(() => {
     void instances.scan();

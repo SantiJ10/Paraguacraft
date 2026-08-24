@@ -65,6 +65,32 @@ public class GuiSubmodOptionsScreen extends ParaguacraftScreen {
         return new GuiSubmodOptionsScreen(parent, "Armadura HUD", new Row[] {
             new Row("Mostrar iconos", () -> ModernConfig.showArmor, v -> ModernConfig.showArmor = v),
             new Row("Mostrar % durabilidad", () -> ModernConfig.showArmorPercentage, v -> ModernConfig.showArmorPercentage = v),
+            new Row("Alerta durabilidad baja", () -> ModernConfig.armorDurabilityAlert, v -> ModernConfig.armorDurabilityAlert = v),
+        });
+    }
+
+    public static GuiSubmodOptionsScreen keystrokes(Screen parent) {
+        return new GuiSubmodOptionsScreen(parent, "Keystrokes", new Row[] {
+            new Row("Mostrar HUD (WASD + espacio)", () -> ModernConfig.showKeystrokes, v -> ModernConfig.showKeystrokes = v),
+            new Row("Mostrar LMB / RMB", () -> ModernConfig.showKeystrokesMouse, v -> ModernConfig.showKeystrokesMouse = v),
+        });
+    }
+
+    public static GuiSubmodOptionsScreen cosmetics(Screen parent) {
+        return new GuiSubmodOptionsScreen(parent, "Cosmeticos / nametags", new Row[] {
+            new Row("Vida en nametag", () -> ModernConfig.showNametagHealth, v -> ModernConfig.showNametagHealth = v),
+            new Row("Logo propio", () -> ModernConfig.showNametagLogo, v -> ModernConfig.showNametagLogo = v),
+            new Row("Logo en rivales", () -> ModernConfig.showNametagLogoOthers, v -> ModernConfig.showNametagLogoOthers = v),
+            new Row("Overlay inventario", () -> ModernConfig.showInventoryTags, v -> ModernConfig.showInventoryTags = v),
+            new Row("Watermark GUI", () -> ModernConfig.showWatermark, v -> ModernConfig.showWatermark = v),
+        });
+    }
+
+    public static GuiSubmodOptionsScreen pvpTrackers(Screen parent) {
+        return new GuiSubmodOptionsScreen(parent, "Waypoints y trackers", new Row[] {
+            new Row("Waypoints HUD / 3D", () -> ModernConfig.showWaypoints, v -> ModernConfig.showWaypoints = v),
+            new Row("Item tracker 2D", () -> ModernConfig.itemTracker2d, v -> ModernConfig.itemTracker2d = v),
+            new Row("Item tracker 3D", () -> ModernConfig.itemTracker3d, v -> ModernConfig.itemTracker3d = v),
         });
     }
 

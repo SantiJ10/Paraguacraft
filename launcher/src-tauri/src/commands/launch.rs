@@ -47,10 +47,23 @@ fn write_legacy_pvp_play_style(instance_id: &str, play_style: &str) -> AppResult
     Ok(())
 }
 
-async fn resolve_auth(http: &reqwest::Client) -> AppResult<AuthCtx> {
+async fn resolve_auth(http: &reqwest::Client, offline: bool) -> AppResult<AuthCtx> {
     let account = accounts::active_account()
         .ok_or_else(|| AppError::msg("No hay cuenta activa. Agrega una en Ajustes."))?;
     if account.kind == "microsoft" {
+        if offline {
+            let tok = accounts::cached_token(&account.id).ok_or_else(|| {
+                AppError::msg(
+                    "Sin conexión: no hay una sesión Microsoft guardada. Conectate una vez para iniciar sesión.",
+                )
+            })?;
+            return Ok(AuthCtx {
+                username: account.username,
+                uuid: account.uuid,
+                access_token: tok.mc_access_token,
+                user_type: "msa".into(),
+            });
+        }
         let tok = accounts::ensure_valid_token(http, &account.id).await?;
         Ok(AuthCtx {
             username: account.username,
@@ -68,6 +81,13 @@ async fn resolve_auth(http: &reqwest::Client) -> AppResult<AuthCtx> {
     }
 }
 
+fn local_profile_ready(version_id: &str) -> bool {
+    versions::read_local_json(version_id).is_some()
+}
+
+const OFFLINE_MISSING: &str =
+    "Sin conexión a internet. Esta instancia no está descargada por completo; conectate una vez para instalarla y después podés jugar offline.";
+
 async fn resolve_launch_id(
     app: &AppHandle,
     http: &reqwest::Client,
@@ -77,15 +97,20 @@ async fn resolve_launch_id(
     version_hint: Option<&str>,
     meta: &mut instances::InstanceMeta,
     instance_id: &str,
+    offline: bool,
 ) -> AppResult<String> {
     let loader = loaders::normalize(loader);
-    // Siempre asegurar vanilla base (idempotente; corrige libraries/ incompletas).
-    versions::install_vanilla(app, http, mc).await?;
+    if !offline {
+        // Siempre asegurar vanilla base (idempotente; corrige libraries/ incompletas).
+        versions::install_vanilla(app, http, mc).await?;
+    }
     if let Some(v) = meta.version_id.clone() {
-        let profile_ok = versions::read_local_json(&v).is_some()
-            && loaders::version_id_matches_loader(&loader, &v, mc);
+        let profile_ok = local_profile_ready(&v) && loaders::version_id_matches_loader(&loader, &v, mc);
         if profile_ok {
             if loader == "vanilla" && !versions::jar_path(&v).is_file() {
+                if offline {
+                    return Err(AppError::msg(OFFLINE_MISSING));
+                }
                 versions::install_vanilla(app, http, mc).await?;
             } else {
                 return Ok(v);
@@ -96,7 +121,7 @@ async fn resolve_launch_id(
     }
     if loader != "vanilla" {
         if let Some(vid) = loaders::find_version_id_for_loader(mc, &loader) {
-            if versions::read_local_json(&vid).is_some() {
+            if local_profile_ready(&vid) {
                 meta.version_id = Some(vid.clone());
                 if meta.loader_version.is_empty() {
                     if let Some(lv) =
@@ -113,20 +138,23 @@ async fn resolve_launch_id(
         }
     }
     if loader == "vanilla" {
-        if let Some(hint) = version_hint.filter(|h| versions::read_local_json(h).is_some()) {
+        if let Some(hint) = version_hint.filter(|h| local_profile_ready(h)) {
             meta.version_id = Some(hint.to_string());
             if !instance_id.starts_with("ext::") {
                 let _ = instances::write_meta(instance_id, meta);
             }
             return Ok(hint.to_string());
         }
-        if versions::read_local_json(mc).is_some() {
+        if local_profile_ready(mc) {
             meta.version_id = Some(mc.to_string());
             if !instance_id.starts_with("ext::") {
                 let _ = instances::write_meta(instance_id, meta);
             }
             return Ok(mc.to_string());
         }
+    }
+    if offline {
+        return Err(AppError::msg(OFFLINE_MISSING));
     }
     let id = loaders::install_loader(app, http, mc, &loader, loader_version).await?;
     meta.version_id = Some(id.clone());
@@ -149,6 +177,7 @@ async fn spawn_for_instance(
     settings: &AppSettings,
     server_address: Option<String>,
     compete: Option<crate::core::compete_mode::CompeteLaunchPlan>,
+    offline: bool,
 ) -> AppResult<u32> {
     // Motor de optimizacion dinamica: limpieza + perfil de graficos diferenciado por
     // gama de PC (Baja/Media/Alta) y por loader (1.8.9 Forge+OptiFine, 1.21.11
@@ -193,22 +222,26 @@ async fn spawn_for_instance(
             }
         }
 
-        let http = state.client();
-        if let Err(e) = crate::core::pvp_packs::prepare_launch(
-            app,
-            &http,
-            &game_dir,
-            &loader,
-            &mc,
-        )
-        .await
-        {
-            eprintln!("[paraguacraft] resource pack prepare_launch: {e}");
+        if !offline {
+            let http = state.client();
+            if let Err(e) = crate::core::pvp_packs::prepare_launch(
+                app,
+                &http,
+                &game_dir,
+                &loader,
+                &mc,
+            )
+            .await
+            {
+                eprintln!("[paraguacraft] resource pack prepare_launch: {e}");
+            }
+        } else if let Err(e) = crate::core::pvp_packs::enable_local_only(&game_dir, &loader, &mc) {
+            eprintln!("[paraguacraft] resource pack local: {e}");
         }
     }
 
     // Offline / no-premium: CustomSkinLoader + Ely.by para skins multiplayer.
-    {
+    if !offline {
         let http = state.client();
         let _ = crate::core::skins::csl::ensure_for_offline_launch(
             app,
@@ -219,6 +252,8 @@ async fn spawn_for_instance(
             &auth.user_type,
         )
         .await;
+    } else {
+        crate::core::skins::csl::ensure_local_config(&game_dir, &loader, &auth.user_type);
     }
 
     if settings.backup_auto_hours > 0 && !instance_id.starts_with("ext::") {
@@ -264,6 +299,7 @@ async fn spawn_for_instance(
         &launch_id,
         meta.java_path.as_deref(),
         settings.java_path.as_deref(),
+        !offline,
     )
     .await?;
     // Consola OS: `java.exe` (con ventana). Por defecto `javaw` sin consola.
@@ -421,29 +457,68 @@ async fn launch_external(
     let settings = config::read_json::<AppSettings>(&paths::config_file()).unwrap_or_default();
 
     let loader_version = meta.loader_version.clone();
-    let (auth, launch_id) = {
+    let (auth, launch_id, offline) = {
         let (http, _net) = state.net_scope();
-        let launch_id = resolve_launch_id(
+        let mut offline = !crate::core::net::is_online(&http).await;
+        launch::emit_status(
             app,
-            &http,
-            &mc,
-            &loader,
-            &loader_version,
-            version_hint,
-            &mut meta,
-            instance_id,
-        )
-        .await?;
-        let merged = launch::load_merged(&launch_id)?;
-        versions::ensure_merged_libraries(
-            app,
-            &http,
-            &merged,
-            &format!("Dependencias {mc}"),
-        )
-        .await?;
-        let auth = resolve_auth(&http).await?;
-        (auth, launch_id)
+            "preparing",
+            if offline {
+                "Sin conexión — usando archivos locales…"
+            } else {
+                "Resolviendo loader / perfil…"
+            },
+        );
+        let prepared = async {
+            let launch_id = resolve_launch_id(
+                app,
+                &http,
+                &mc,
+                &loader,
+                &loader_version,
+                version_hint,
+                &mut meta,
+                instance_id,
+                offline,
+            )
+            .await?;
+            if !offline {
+                let merged = launch::load_merged(&launch_id)?;
+                versions::ensure_merged_libraries(
+                    app,
+                    &http,
+                    &merged,
+                    &format!("Dependencias {mc}"),
+                )
+                .await?;
+            }
+            let auth = resolve_auth(&http, offline).await?;
+            Ok::<_, AppError>((auth, launch_id))
+        }
+        .await;
+
+        match prepared {
+            Ok(pair) => (pair.0, pair.1, offline),
+            Err(e) if !offline && e.is_connectivity() => {
+                offline = true;
+                launch::emit_status(app, "preparing", "Sin conexión — usando archivos locales…");
+                let launch_id = resolve_launch_id(
+                    app,
+                    &http,
+                    &mc,
+                    &loader,
+                    &loader_version,
+                    version_hint,
+                    &mut meta,
+                    instance_id,
+                    true,
+                )
+                .await?;
+                let auth = resolve_auth(&http, true).await?;
+                (auth, launch_id, true)
+            }
+            Err(e) => return Err(e),
+        }
     };
 
     spawn_for_instance(
@@ -459,6 +534,7 @@ async fn launch_external(
         &settings,
         None,
         None,
+        offline,
     )
     .await
 }
@@ -505,70 +581,132 @@ pub async fn launch_instance(
     };
 
     let loader_version = meta.loader_version.clone();
-    let (auth, launch_id) = {
+    let (auth, launch_id, offline) = {
         let (http, _net) = state.net_scope();
+        let mut offline = !crate::core::net::is_online(&http).await;
 
-        launch::emit_status(&app, "preparing", "Resolviendo loader / perfil…");
-        let launch_id = resolve_launch_id(
+        launch::emit_status(
             &app,
-            &http,
-            &mc,
-            &loader,
-            &loader_version,
-            None,
-            &mut meta,
-            &instance_id,
-        )
-        .await?;
+            "preparing",
+            if offline {
+                "Sin conexión — usando archivos locales…"
+            } else {
+                "Resolviendo loader / perfil…"
+            },
+        );
 
-        launch::emit_status(&app, "downloading", &format!("Verificando librerías de {mc}…"));
-        let merged = launch::load_merged(&launch_id)?;
-        versions::ensure_merged_libraries(
-            &app,
-            &http,
-            &merged,
-            &format!("Dependencias {mc}"),
-        )
-        .await?;
-
-        if loader == "fabric-iris" {
-            launch::emit_status(&app, "downloading", "Sincronizando Fabric + Iris…");
-            let inst_dir = instances::instance_dir(&instance_id);
-            loaders::fabric_iris::install_bundle(&app, &http, &mc, &inst_dir).await?;
-        }
-        if loader == "paraguacraft-optimized" || loader == "paraguacraft-optimized-neoforge" {
-            launch::emit_status(&app, "downloading", "Sincronizando pack Optimized…");
-            let inst_dir = instances::instance_dir(&instance_id);
-            loaders::optimized::install_bundle_for_launch(&app, &http, &mc, &loader, &inst_dir)
-                .await?;
-        }
-        if loader == "paraguacraft-pvp-modern" {
-            launch::emit_status(&app, "downloading", "Sincronizando cliente PvP…");
-            modern_pvp::sync_instance_bundles(&app, &http, &instance_id).await?;
-            let settings_tier = crate::core::performance::resolve_tier(
-                &settings,
-                meta.performance_tier.as_deref(),
-            );
-            let play_style = settings.pvp_play_style.as_str();
-            let _ = modern_pvp::ensure_launch_defaults(&instance_id, &settings_tier, play_style);
-            let _ = modern_pvp::sync_instance_content(&app, &http, &instance_id).await;
-        }
-        if loader == "paraguacraft-pvp" {
-            launch::emit_status(&app, "downloading", "Sincronizando cliente PvP 1.8.9…");
-            loaders::pvp::install_bundle_for_launch(
+        let prepared = async {
+            let launch_id = resolve_launch_id(
                 &app,
                 &http,
-                &inst_dir,
+                &mc,
+                &loader,
+                &loader_version,
+                None,
+                &mut meta,
                 &instance_id,
-                use_compete,
+                offline,
             )
             .await?;
-            let _ = write_legacy_pvp_play_style(&instance_id, settings.pvp_play_style.as_str());
-        }
 
-        launch::emit_status(&app, "preparing", "Validando cuenta…");
-        let auth = resolve_auth(&http).await?;
-        (auth, launch_id)
+            if !offline {
+                launch::emit_status(&app, "downloading", &format!("Verificando librerías de {mc}…"));
+                let merged = launch::load_merged(&launch_id)?;
+                versions::ensure_merged_libraries(
+                    &app,
+                    &http,
+                    &merged,
+                    &format!("Dependencias {mc}"),
+                )
+                .await?;
+
+                if loader == "fabric-iris" {
+                    launch::emit_status(&app, "downloading", "Sincronizando Fabric + Iris…");
+                    let inst_dir = instances::instance_dir(&instance_id);
+                    loaders::fabric_iris::install_bundle(&app, &http, &mc, &inst_dir).await?;
+                }
+                if loader == "paraguacraft-optimized" || loader == "paraguacraft-optimized-neoforge" {
+                    launch::emit_status(&app, "downloading", "Sincronizando pack Optimized…");
+                    let inst_dir = instances::instance_dir(&instance_id);
+                    loaders::optimized::install_bundle_for_launch(&app, &http, &mc, &loader, &inst_dir)
+                        .await?;
+                }
+                if loader == "paraguacraft-pvp-modern" {
+                    launch::emit_status(&app, "downloading", "Sincronizando cliente PvP…");
+                    modern_pvp::sync_instance_bundles(&app, &http, &instance_id).await?;
+                    let settings_tier = crate::core::performance::resolve_tier(
+                        &settings,
+                        meta.performance_tier.as_deref(),
+                    );
+                    let play_style = settings.pvp_play_style.as_str();
+                    let _ = modern_pvp::ensure_launch_defaults(&instance_id, &settings_tier, play_style);
+                    let _ = modern_pvp::sync_instance_content(&app, &http, &instance_id).await;
+                }
+                if loader == "paraguacraft-pvp" {
+                    launch::emit_status(&app, "downloading", "Sincronizando cliente PvP 1.8.9…");
+                    loaders::pvp::install_bundle_for_launch(
+                        &app,
+                        &http,
+                        &inst_dir,
+                        &instance_id,
+                        use_compete,
+                    )
+                    .await?;
+                    let _ = write_legacy_pvp_play_style(&instance_id, settings.pvp_play_style.as_str());
+                }
+                launch::emit_status(&app, "preparing", "Validando cuenta…");
+            } else if loader == "paraguacraft-pvp" {
+                let _ = write_legacy_pvp_play_style(&instance_id, settings.pvp_play_style.as_str());
+            } else if loader == "paraguacraft-pvp-modern" {
+                let settings_tier = crate::core::performance::resolve_tier(
+                    &settings,
+                    meta.performance_tier.as_deref(),
+                );
+                let play_style = settings.pvp_play_style.as_str();
+                let _ = modern_pvp::ensure_launch_defaults(&instance_id, &settings_tier, play_style);
+            }
+
+            let auth = resolve_auth(&http, offline).await?;
+            Ok::<_, AppError>((auth, launch_id))
+        }
+        .await;
+
+        match prepared {
+            Ok(pair) => (pair.0, pair.1, offline),
+            Err(e) if !offline && e.is_connectivity() => {
+                offline = true;
+                launch::emit_status(&app, "preparing", "Sin conexión — usando archivos locales…");
+                let launch_id = resolve_launch_id(
+                    &app,
+                    &http,
+                    &mc,
+                    &loader,
+                    &loader_version,
+                    None,
+                    &mut meta,
+                    &instance_id,
+                    true,
+                )
+                .await?;
+                if loader == "paraguacraft-pvp" {
+                    let _ = write_legacy_pvp_play_style(&instance_id, settings.pvp_play_style.as_str());
+                }
+                if loader == "paraguacraft-pvp-modern" {
+                    let settings_tier = crate::core::performance::resolve_tier(
+                        &settings,
+                        meta.performance_tier.as_deref(),
+                    );
+                    let _ = modern_pvp::ensure_launch_defaults(
+                        &instance_id,
+                        &settings_tier,
+                        settings.pvp_play_style.as_str(),
+                    );
+                }
+                let auth = resolve_auth(&http, true).await?;
+                (auth, launch_id, true)
+            }
+            Err(e) => return Err(e),
+        }
     };
 
     launch::emit_status(&app, "launching", "Iniciando Java…");
@@ -586,6 +724,7 @@ pub async fn launch_instance(
         &settings,
         server_address,
         compete_plan,
+        offline,
     )
     .await
 }

@@ -84,6 +84,8 @@ public final class HudModuleScale {
             case 12: return ModConfig.scaleReach;
             case 13: return ModConfig.scaleCombo;
             case 14: return ModConfig.scaleBlocks;
+            case 15: return ModConfig.scaleItems;
+            case 16: return ModConfig.scaleWaypoints;
             default: return 100;
         }
     }
@@ -106,6 +108,8 @@ public final class HudModuleScale {
             case 12: ModConfig.scaleReach = pct; break;
             case 13: ModConfig.scaleCombo = pct; break;
             case 14: ModConfig.scaleBlocks = pct; break;
+            case 15: ModConfig.scaleItems = pct; break;
+            case 16: ModConfig.scaleWaypoints = pct; break;
             default: break;
         }
     }

@@ -211,3 +211,19 @@ pub async fn prepare_launch(
     }
     Ok(())
 }
+
+/// Activa el pack oficial ya presente en disco (sin descargar).
+pub fn enable_local_only(game_dir: &Path, loader: &str, mc_version: &str) -> AppResult<()> {
+    let norm = loaders::normalize(loader);
+    let packs_dir = game_dir.join("resourcepacks");
+    match norm.as_str() {
+        "paraguacraft-pvp-modern" if packs_dir.join(PACK_MODERN).is_file() => {
+            enable_primary_pack(game_dir, mc_version, PACK_MODERN)?;
+        }
+        "paraguacraft-pvp" if packs_dir.join(PACK_189).is_file() => {
+            enable_primary_pack(game_dir, mc_version, PACK_189)?;
+        }
+        _ => {}
+    }
+    Ok(())
+}

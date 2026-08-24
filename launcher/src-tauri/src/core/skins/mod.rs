@@ -142,6 +142,13 @@ pub async fn enrich_profile(http: &reqwest::Client, mut profile: SkinProfile) ->
     if let Ok(info) = mojang::lookup_player(http, Some(&profile.username), Some(&profile.uuid)).await {
         if info.ok {
             if !info.username.is_empty() {
+                if profile.username != info.username {
+                    if let Some(acc) = accounts::active_account() {
+                        if acc.premium && acc.uuid == profile.uuid {
+                            let _ = accounts::sync_premium_username(&acc.id, &info.username);
+                        }
+                    }
+                }
                 profile.username = info.username;
             }
             profile.skin_url = info.skin_url.clone();
@@ -149,7 +156,13 @@ pub async fn enrich_profile(http: &reqwest::Client, mut profile: SkinProfile) ->
 
             if let Some(skin_url) = info.skin_url {
                 let bust = texture_cache_key(&skin_url);
-                profile.avatar_url = format!("{}?v={bust}", avatar_url(&profile.uuid));
+                profile.avatar_url = format!("{}?t={bust}", avatar_url(&profile.uuid));
+                profile.body_url = format!("{}?t={bust}", body_url(&profile.uuid));
+                if let Some(ref mut su) = profile.skin_url {
+                    if !su.starts_with("data:") && !su.starts_with("file:") {
+                        *su = format!("{su}{}t={bust}", if su.contains('?') { "&" } else { "?" });
+                    }
+                }
                 if let Ok(bytes) = mojang::download_skin_png(http, &skin_url).await {
                     profile.avatar_data_url = mojang::helm_data_url_from_skin_png(&bytes);
                 }
@@ -158,7 +171,8 @@ pub async fn enrich_profile(http: &reqwest::Client, mut profile: SkinProfile) ->
     }
 
     if profile.avatar_data_url.is_none() {
-        profile.avatar_url = format!("{}?v={cache_bust}", avatar_url(&profile.uuid));
+        profile.avatar_url = format!("{}?t={cache_bust}", avatar_url(&profile.uuid));
+        profile.body_url = format!("{}?t={cache_bust}", body_url(&profile.uuid));
         profile.avatar_data_url =
             mojang::fetch_avatar_data_url(http, &profile.uuid, &profile.username, cache_bust).await;
     }

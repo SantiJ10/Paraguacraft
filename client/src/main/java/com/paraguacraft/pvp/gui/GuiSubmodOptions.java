@@ -81,6 +81,7 @@ public class GuiSubmodOptions extends GuiScreen {
         return new GuiSubmodOptions("Armadura HUD", new Row[] {
             row("Mostrar iconos de armadura", new BoolGet() { public boolean get() { return ModConfig.showArmor; } }, new BoolSet() { public void set(boolean v) { ModConfig.showArmor = v; } }),
             row("Mostrar % de durabilidad", new BoolGet() { public boolean get() { return ModConfig.showArmorPercentage; } }, new BoolSet() { public void set(boolean v) { ModConfig.showArmorPercentage = v; } }),
+            row("Alerta de durabilidad baja", new BoolGet() { public boolean get() { return ModConfig.armorDurabilityAlert; } }, new BoolSet() { public void set(boolean v) { ModConfig.armorDurabilityAlert = v; } }),
         });
     }
 
@@ -111,6 +112,30 @@ public class GuiSubmodOptions extends GuiScreen {
             row("Contador de bloques", new BoolGet() { public boolean get() { return ModConfig.showBlockCount; } }, new BoolSet() { public void set(boolean v) { ModConfig.showBlockCount = v; } }),
             row("Auto HUD al detectar BedWars", new BoolGet() { public boolean get() { return ModConfig.autoBedwarsHud; } }, new BoolSet() { public void set(boolean v) { ModConfig.autoBedwarsHud = v; } }),
             row("Fondo transparente", new BoolGet() { public boolean get() { return ModConfig.bwResTransparentBg; } }, new BoolSet() { public void set(boolean v) { ModConfig.bwResTransparentBg = v; } }),
+        });
+    }
+
+    public static GuiSubmodOptions keystrokes() {
+        return new GuiSubmodOptions("Teclas", new Row[] {
+            row("Mostrar teclas WASD + espacio", new BoolGet() { public boolean get() { return ModConfig.showKeystrokes; } }, new BoolSet() { public void set(boolean v) { ModConfig.showKeystrokes = v; } }),
+            row("Mostrar LMB / RMB", new BoolGet() { public boolean get() { return ModConfig.showKeystrokesMouse; } }, new BoolSet() { public void set(boolean v) { ModConfig.showKeystrokesMouse = v; } }),
+        });
+    }
+
+    public static GuiSubmodOptions nametag() {
+        return new GuiSubmodOptions("Nametag / UI", new Row[] {
+            row("Logo en nametag local", new BoolGet() { public boolean get() { return ModConfig.showNametagLogo; } }, new BoolSet() { public void set(boolean v) { ModConfig.showNametagLogo = v; } }),
+            row("Logo en otros jugadores", new BoolGet() { public boolean get() { return ModConfig.showNametagLogoOthers; } }, new BoolSet() { public void set(boolean v) { ModConfig.showNametagLogoOthers = v; } }),
+            row("Salud en nametag", new BoolGet() { public boolean get() { return ModConfig.showNametagHealth; } }, new BoolSet() { public void set(boolean v) { ModConfig.showNametagHealth = v; } }),
+            row("Nombre y salud en inventario", new BoolGet() { public boolean get() { return ModConfig.showInventoryTags; } }, new BoolSet() { public void set(boolean v) { ModConfig.showInventoryTags = v; } }),
+            row("Watermark en contenedores", new BoolGet() { public boolean get() { return ModConfig.showWatermark; } }, new BoolSet() { public void set(boolean v) { ModConfig.showWatermark = v; } }),
+        });
+    }
+
+    public static GuiSubmodOptions items() {
+        return new GuiSubmodOptions("Item Tracker", new Row[] {
+            row("Lista 2D (HUD)", new BoolGet() { public boolean get() { return ModConfig.itemTracker2d; } }, new BoolSet() { public void set(boolean v) { ModConfig.itemTracker2d = v; } }),
+            row("Etiquetas 3D en el mundo", new BoolGet() { public boolean get() { return ModConfig.itemTracker3d; } }, new BoolSet() { public void set(boolean v) { ModConfig.itemTracker3d = v; } }),
         });
     }
 

@@ -338,6 +338,25 @@ pub async fn download_all(
     Ok(())
 }
 
+/// Comprueba si hay internet con un GET corto (sin reintentos largos).
+/// Usar antes de instalar assets para poder lanzar 100% local si ya está descargado.
+pub async fn is_online(client: &reqwest::Client) -> bool {
+    const URLS: [&str; 2] = [
+        "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json",
+        "https://launchermeta.mojang.com/mc/game/version_manifest.json",
+    ];
+    for url in URLS {
+        let fut = client.get(url).send();
+        match tokio::time::timeout(std::time::Duration::from_secs(3), fut).await {
+            Ok(Ok(resp)) if resp.status().is_success() || resp.status().as_u16() == 304 => {
+                return true;
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
 /// Descarga un recurso a memoria (JSON/metadata). No toca disco.
 pub async fn fetch_bytes(client: &reqwest::Client, url: &str) -> AppResult<Vec<u8>> {
     let u = url.to_string();

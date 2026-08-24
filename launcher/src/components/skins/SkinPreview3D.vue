@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { IdleAnimation, SkinViewer } from "skinview3d";
+import { withCacheBust } from "@/lib/skins";
 
 const props = withDefaults(
   defineProps<{
@@ -49,7 +50,7 @@ function syncSize() {
 
 async function applySkin() {
   if (!viewer) return;
-  const url = props.skinUrl?.trim();
+  const url = withCacheBust(props.skinUrl?.trim() || null);
   if (!url) {
     viewer.loadSkin(null);
     viewer.loadCape(null);

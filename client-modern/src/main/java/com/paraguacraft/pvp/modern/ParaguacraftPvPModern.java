@@ -24,7 +24,7 @@ import net.minecraft.client.MinecraftClient;
 public class ParaguacraftPvPModern implements ClientModInitializer {
 
     public static final String MOD_ID = "paraguacraftpvp-modern";
-    public static final String VERSION = "0.9.28";
+    public static final String VERSION = "0.9.29";
 
     @Override
     public void onInitializeClient() {
@@ -47,6 +47,11 @@ public class ParaguacraftPvPModern implements ClientModInitializer {
         TntCountdownBootstrap.register();
         ModKeybinds.register();
         BadgeNetHandler.register();
+        com.paraguacraft.pvp.modern.cosmetics.NametagWorldRenderer.register();
+        com.paraguacraft.pvp.modern.core.WaypointManager.register();
+        com.paraguacraft.pvp.modern.core.ItemTracker.register();
+        com.paraguacraft.pvp.modern.core.ArmorDurabilityAlert.register();
+        com.paraguacraft.pvp.modern.core.WaypointCommands.register();
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
             applyClientOptions(client);
             com.paraguacraft.pvp.modern.resourcepack.ResourcePackService.restoreSavedPack();
@@ -56,5 +61,8 @@ public class ParaguacraftPvPModern implements ClientModInitializer {
 
     private static void applyClientOptions(MinecraftClient client) {
         client.options.getSprintToggled().setValue(false);
+        if (client.options.getFovEffectScale() != null) {
+            client.options.getFovEffectScale().setValue(ModernConfig.dynamicFov ? 1.0 : 0.0);
+        }
     }
 }

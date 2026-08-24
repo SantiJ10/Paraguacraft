@@ -144,7 +144,10 @@ public final class ModCardIcons {
         if (key.contains("texture") || key.contains("pack")) {
             return new ItemStack(Items.PAINTING);
         }
-        if (key.contains("nick")) {
+        if (key.contains("waypoint") || key.contains("tracker")) {
+            return new ItemStack(Items.MAP);
+        }
+        if (key.contains("cosmet") || key.contains("nametag") || key.contains("watermark") || key.contains("nick")) {
             return new ItemStack(Items.NAME_TAG);
         }
         if (key.contains("cama")) {

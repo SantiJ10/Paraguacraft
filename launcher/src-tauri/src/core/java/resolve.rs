@@ -125,6 +125,7 @@ pub async fn ensure_launch_java(
     version_id: &str,
     meta_override: Option<&str>,
     settings_override: Option<&str>,
+    allow_download: bool,
 ) -> AppResult<PathBuf> {
     // Override por instancia: el usuario eligió Java para esta versión.
     if let Some(p) = meta_override.filter(|s| !s.is_empty()) {
@@ -140,10 +141,12 @@ pub async fn ensure_launch_java(
     }
 
     // Runtime oficial Mojang (descarga si falta).
-    if let Some(comp) = mojang::component_from_version_id(version_id) {
-        let (http, _guard) = state.net_scope();
-        if let Ok(p) = mojang::ensure_runtime(app, &http, &comp).await {
-            return Ok(format_path(&p, JavaRole::Launch));
+    if allow_download {
+        if let Some(comp) = mojang::component_from_version_id(version_id) {
+            let (http, _guard) = state.net_scope();
+            if let Ok(p) = mojang::ensure_runtime(app, &http, &comp).await {
+                return Ok(format_path(&p, JavaRole::Launch));
+            }
         }
     }
 
@@ -158,6 +161,12 @@ pub async fn ensure_launch_java(
     let required = required_for_mc(mc_version);
     if let Some(p) = adoptium::find_installed(required) {
         return Ok(format_path(&p, JavaRole::Launch));
+    }
+
+    if !allow_download {
+        return Err(AppError::msg(format!(
+            "Sin conexión: no hay Java {required} instalado para Minecraft {mc_version}."
+        )));
     }
 
     let (http, _guard) = state.net_scope();

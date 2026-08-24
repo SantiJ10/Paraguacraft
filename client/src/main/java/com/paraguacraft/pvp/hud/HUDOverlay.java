@@ -31,11 +31,10 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import javax.imageio.ImageIO;
 import org.apache.commons.codec.binary.Base64;
-import org.lwjgl.input.Keyboard;
-import org.lwjgl.input.Mouse;
-import org.lwjgl.opengl.Display;
 import org.lwjgl.opengl.GL11;
+import com.paraguacraft.pvp.core.InputPoll;
 import com.paraguacraft.pvp.core.ModConfigApply;
+import com.paraguacraft.pvp.network.ParaguacraftNetwork;
 
 public class HUDOverlay extends Gui {
     private final Minecraft mc = Minecraft.getMinecraft();
@@ -64,6 +63,8 @@ public class HUDOverlay extends Gui {
         GlStateManager.enableBlend();
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         try {
+            InputPoll.beginFrame();
+            ParaguacraftNetwork.tickLocal();
             if (ModConfig.showFPS) {
                 HudModuleScale.begin(ModConfig.fpsX, ModConfig.fpsY, ModConfig.scaleFps);
                 HudDraw.labeled("FPS: ", String.valueOf(Minecraft.getDebugFPS()), 0, 0);
@@ -181,6 +182,16 @@ public class HUDOverlay extends Gui {
                 drawBlockCount();
                 ModConfig.blocksX = ox;
                 ModConfig.blocksY = oy;
+                HudModuleScale.end();
+            }
+            if (ModConfig.itemTracker2d) {
+                HudModuleScale.begin(ModConfig.itemsX, ModConfig.itemsY, ModConfig.scaleItems);
+                com.paraguacraft.pvp.modules.ItemTracker.drawHud();
+                HudModuleScale.end();
+            }
+            if (ModConfig.showWaypoints) {
+                HudModuleScale.begin(ModConfig.waypointsX, ModConfig.waypointsY, ModConfig.scaleWaypoints);
+                com.paraguacraft.pvp.modules.WaypointManager.drawHud();
                 HudModuleScale.end();
             }
             drawCombatStats();
@@ -482,29 +493,55 @@ public class HUDOverlay extends Gui {
     // ============================================================
     // --- MÉTODOS ORIGINALES (NO TOCAR) ---
     // ============================================================
+    public static void clearCaches() {
+        serverIconCache.clear();
+    }
+
+    public static int keystrokesWidth() {
+        return 64;
+    }
+
+    public static int keystrokesHeight() {
+        int gap = 2;
+        int size = 20;
+        int spaceH = 14;
+        int h = size + gap + size + gap + spaceH;
+        if (ModConfig.showKeystrokesMouse) {
+            h += gap + size;
+        }
+        return h;
+    }
+
     private void drawKeystrokes() {
         int x = ModConfig.keysX;
         int y = ModConfig.keysY;
-        int gap = 2, size = 20;
+        int gap = 2;
+        int size = 20;
+        int totalW = size * 3 + gap * 2;
         drawKey(x + size + gap, y, size, size, mc.gameSettings.keyBindForward);
-        drawKey(x, y + size + gap, size, size, mc.gameSettings.keyBindLeft); 
-        drawKey(x + size + gap, y + size + gap, size, size, mc.gameSettings.keyBindBack); 
-        drawKey(x + (size + gap) * 2, y + size + gap, size, size, mc.gameSettings.keyBindRight); 
-        drawMouseKey(x, y + (size + gap) * 2, 31, size, 0, "LMB"); 
-        drawMouseKey(x + 31 + gap, y + (size + gap) * 2, 31, size, 1, "RMB"); 
+        drawKey(x, y + size + gap, size, size, mc.gameSettings.keyBindLeft);
+        drawKey(x + size + gap, y + size + gap, size, size, mc.gameSettings.keyBindBack);
+        drawKey(x + (size + gap) * 2, y + size + gap, size, size, mc.gameSettings.keyBindRight);
+        int row = y + (size + gap) * 2;
+        if (ModConfig.showKeystrokesMouse) {
+            int mw = (totalW - gap) / 2;
+            drawMouseKey(x, row, mw, size, 0, "LMB");
+            drawMouseKey(x + mw + gap, row, totalW - mw - gap, size, 1, "RMB");
+            row += size + gap;
+        }
+        drawKey(x, row, totalW, 14, mc.gameSettings.keyBindJump);
     }
 
     private void drawKey(int x, int y, int w, int h, KeyBinding key) {
-        boolean pressed = Keyboard.isKeyDown(key.getKeyCode());
+        boolean pressed = key.isKeyDown();
         int bg = pressed ? 0x88FFFFFF : 0x88000000;
         int fg = pressed ? 0x000000 : 0xFFFFFF;
         Gui.drawRect(x, y, x + w, y + h, bg);
-        String name = Keyboard.getKeyName(key.getKeyCode());
-        HudDraw.centered(name, x + w / 2f, y + h / 2f - 4, fg);
+        HudDraw.centered(InputPoll.name(key), x + w / 2f, y + h / 2f - 4, fg);
     }
 
     private void drawMouseKey(int x, int y, int w, int h, int button, String name) {
-        boolean pressed = Mouse.isButtonDown(button);
+        boolean pressed = InputPoll.mouse(button);
         int bg = pressed ? 0x88FFFFFF : 0x88000000;
         int fg = pressed ? 0x000000 : 0xFFFFFF;
         Gui.drawRect(x, y, x + w, y + h, bg);
@@ -539,7 +576,7 @@ public class HUDOverlay extends Gui {
 
     private void calculateCPS() {
         long time = System.currentTimeMillis();
-        if (Mouse.isButtonDown(0)) {
+        if (InputPoll.lmb) {
             if (leftClicks.isEmpty() || time - leftClicks.get(leftClicks.size() - 1) > 50) {
                 leftClicks.add(time);
             }

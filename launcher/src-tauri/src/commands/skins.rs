@@ -25,9 +25,11 @@ pub async fn get_active_skin(
         .unwrap_or_else(|| "steve".into());
     let force = force.unwrap_or(false);
     if !force {
-        if let Some(cached) = state.cached_skin(&acc_key, 120) {
+        if let Some(cached) = state.cached_skin(&acc_key, 8) {
             return Ok(cached);
         }
+    } else {
+        state.clear_skin_cache();
     }
 
     let http = state.client();
@@ -118,6 +120,7 @@ async fn apply_skin_file_path(
         .unwrap_or("skin")
         .to_string();
     let result = skins::apply_skin_file(&http, &path, &variant, &name, "").await?;
+    state.clear_skin_cache();
     state.shutdown_network();
     Ok(result)
 }
@@ -172,6 +175,7 @@ pub async fn apply_skin_from_username(
 ) -> AppResult<offline::ApplySkinResult> {
     let http = state.client();
     let result = skins::apply_from_username(&http, &username, &variant).await?;
+    state.clear_skin_cache();
     state.shutdown_network();
     Ok(result)
 }
@@ -185,6 +189,7 @@ pub async fn apply_skin_from_url(
 ) -> AppResult<offline::ApplySkinResult> {
     let http = state.client();
     let result = skins::apply_from_url(&http, &url, &variant, &name).await?;
+    state.clear_skin_cache();
     state.shutdown_network();
     Ok(result)
 }

@@ -14,6 +14,8 @@ public class ModConfig {
     public static boolean showPing = true;
     public static boolean showCPS = true;
     public static boolean showKeystrokes = true;
+    /** LMB/RMB en el HUD de teclas (WASD + espacio siempre se dibujan). */
+    public static boolean showKeystrokesMouse = true;
     public static boolean noHurtCam = true;
     
     // Modulos V2.0 (Premium)
@@ -92,6 +94,14 @@ public class ModConfig {
     /** Auto-activa recursos/bloques/armadura/mano/pociones al detectar BedWars en el scoreboard. */
     public static boolean autoBedwarsHud = true;
     public static boolean forceItem3d = true;
+    public static boolean itemTracker2d = true;
+    public static boolean itemTracker3d = true;
+    public static boolean showSaturation = true;
+    public static boolean armorDurabilityAlert = true;
+    public static boolean showWatermark = true;
+    public static boolean showInventoryTags = true;
+    public static boolean showNametagHealth = true;
+    public static boolean showWaypoints = true;
     public static int overlayHudX = 5;
     public static int overlayHudY = 260;
     public static int overlayHudW = 118;
@@ -131,6 +141,10 @@ public class ModConfig {
     public static int scaleReach = 100;
     public static int scaleCombo = 100;
     public static int scaleBlocks = 100;
+    public static int scaleItems = 100;
+    public static int scaleWaypoints = 100;
+    public static int itemsX = 5, itemsY = 180;
+    public static int waypointsX = 5, waypointsY = 200;
 
     private static final int[] MUSIC_ALPHA_PRESETS = {255, 192, 128, 64, 0};
     private static final int[] UI_SCALE_PRESETS = {50, 75, 100, 125, 150, 175, 200};
@@ -200,6 +214,7 @@ public class ModConfig {
             props.setProperty("showPing", String.valueOf(showPing));
             props.setProperty("showCPS", String.valueOf(showCPS));
             props.setProperty("showKeystrokes", String.valueOf(showKeystrokes));
+            props.setProperty("showKeystrokesMouse", String.valueOf(showKeystrokesMouse));
             props.setProperty("noHurtCam", String.valueOf(noHurtCam));
             props.setProperty("showArmor", String.valueOf(showArmor));
             props.setProperty("showPotions", String.valueOf(showPotions));
@@ -276,6 +291,20 @@ public class ModConfig {
             props.setProperty("showBlockCount", String.valueOf(showBlockCount));
             props.setProperty("autoBedwarsHud", String.valueOf(autoBedwarsHud));
             props.setProperty("forceItem3d", String.valueOf(forceItem3d));
+            props.setProperty("itemTracker2d", String.valueOf(itemTracker2d));
+            props.setProperty("itemTracker3d", String.valueOf(itemTracker3d));
+            props.setProperty("showSaturation", String.valueOf(showSaturation));
+            props.setProperty("armorDurabilityAlert", String.valueOf(armorDurabilityAlert));
+            props.setProperty("showWatermark", String.valueOf(showWatermark));
+            props.setProperty("showInventoryTags", String.valueOf(showInventoryTags));
+            props.setProperty("showNametagHealth", String.valueOf(showNametagHealth));
+            props.setProperty("showWaypoints", String.valueOf(showWaypoints));
+            props.setProperty("scaleItems", String.valueOf(scaleItems));
+            props.setProperty("scaleWaypoints", String.valueOf(scaleWaypoints));
+            props.setProperty("itemsX", String.valueOf(itemsX));
+            props.setProperty("itemsY", String.valueOf(itemsY));
+            props.setProperty("waypointsX", String.valueOf(waypointsX));
+            props.setProperty("waypointsY", String.valueOf(waypointsY));
             props.setProperty("overlayHudX", String.valueOf(overlayHudX));
             props.setProperty("overlayHudY", String.valueOf(overlayHudY));
             props.setProperty("overlayHudW", String.valueOf(overlayHudW));
@@ -324,6 +353,7 @@ public class ModConfig {
             showPing = Boolean.parseBoolean(props.getProperty("showPing", String.valueOf(showPing)));
             showCPS = Boolean.parseBoolean(props.getProperty("showCPS", String.valueOf(showCPS)));
             showKeystrokes = Boolean.parseBoolean(props.getProperty("showKeystrokes", String.valueOf(showKeystrokes)));
+            showKeystrokesMouse = Boolean.parseBoolean(props.getProperty("showKeystrokesMouse", String.valueOf(showKeystrokesMouse)));
             noHurtCam = Boolean.parseBoolean(props.getProperty("noHurtCam", String.valueOf(noHurtCam)));
             showArmor = Boolean.parseBoolean(props.getProperty("showArmor", String.valueOf(showArmor)));
             showPotions = Boolean.parseBoolean(props.getProperty("showPotions", String.valueOf(showPotions)));
@@ -422,6 +452,20 @@ public class ModConfig {
             showBlockCount = Boolean.parseBoolean(props.getProperty("showBlockCount", String.valueOf(showBlockCount)));
             autoBedwarsHud = Boolean.parseBoolean(props.getProperty("autoBedwarsHud", String.valueOf(autoBedwarsHud)));
             forceItem3d = Boolean.parseBoolean(props.getProperty("forceItem3d", String.valueOf(forceItem3d)));
+            itemTracker2d = Boolean.parseBoolean(props.getProperty("itemTracker2d", String.valueOf(itemTracker2d)));
+            itemTracker3d = Boolean.parseBoolean(props.getProperty("itemTracker3d", String.valueOf(itemTracker3d)));
+            showSaturation = Boolean.parseBoolean(props.getProperty("showSaturation", String.valueOf(showSaturation)));
+            armorDurabilityAlert = Boolean.parseBoolean(props.getProperty("armorDurabilityAlert", String.valueOf(armorDurabilityAlert)));
+            showWatermark = Boolean.parseBoolean(props.getProperty("showWatermark", String.valueOf(showWatermark)));
+            showInventoryTags = Boolean.parseBoolean(props.getProperty("showInventoryTags", String.valueOf(showInventoryTags)));
+            showNametagHealth = Boolean.parseBoolean(props.getProperty("showNametagHealth", String.valueOf(showNametagHealth)));
+            showWaypoints = Boolean.parseBoolean(props.getProperty("showWaypoints", String.valueOf(showWaypoints)));
+            scaleItems = clampScale(props, "scaleItems", scaleItems);
+            scaleWaypoints = clampScale(props, "scaleWaypoints", scaleWaypoints);
+            itemsX = Integer.parseInt(props.getProperty("itemsX", String.valueOf(itemsX)));
+            itemsY = Integer.parseInt(props.getProperty("itemsY", String.valueOf(itemsY)));
+            waypointsX = Integer.parseInt(props.getProperty("waypointsX", String.valueOf(waypointsX)));
+            waypointsY = Integer.parseInt(props.getProperty("waypointsY", String.valueOf(waypointsY)));
             overlayHudX = Integer.parseInt(props.getProperty("overlayHudX", String.valueOf(overlayHudX)));
             overlayHudY = Integer.parseInt(props.getProperty("overlayHudY", String.valueOf(overlayHudY)));
             overlayHudW = Integer.parseInt(props.getProperty("overlayHudW", String.valueOf(overlayHudW)));
