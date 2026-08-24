@@ -87,7 +87,7 @@ public class GuiEditHUD extends GuiScreen {
         if (ModConfig.reachDisplay) drawBox(12, ModConfig.reachDisplayX, ModConfig.reachDisplayY, 70, 10);
         if (ModConfig.comboCounter) drawBox(13, ModConfig.comboDisplayX, ModConfig.comboDisplayY, 70, 10);
         if (ModConfig.showBlockCount) drawBox(14, ModConfig.blocksX, ModConfig.blocksY, 40, 18);
-        if (ModConfig.itemTracker2d) drawBox(15, ModConfig.itemsX, ModConfig.itemsY, 140, ItemTracker.hudHeight());
+        if (ModConfig.itemTracker2d) drawBox(15, ModConfig.itemsX, ModConfig.itemsY, 110, ItemTracker.hudHeight());
         if (ModConfig.showWaypoints) drawBox(16, ModConfig.waypointsX, ModConfig.waypointsY, 140, WaypointManager.hudHeight());
 
         GlStateManager.popMatrix();

@@ -34,9 +34,9 @@ public final class PanoramaBackground {
         GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
         GlStateManager.color(1f, 1f, 1f, 1f);
 
-        int logoSize = Math.min(w / 5, 96);
+        int logoSize = Math.min(Math.min(w / 4, h / 5), 112);
         int lx = w / 2 - logoSize / 2;
-        int ly = h / 5 - logoSize / 2;
+        int ly = h / 6 - logoSize / 8;
         screen.mc.getTextureManager().bindTexture(LOGO);
         Gui.drawModalRectWithCustomSizedTexture(lx, ly, 0, 0, logoSize, logoSize, logoSize, logoSize);
 
@@ -45,8 +45,8 @@ public final class PanoramaBackground {
         String title = "PARAGUACRAFT";
         int titleW = fr.getStringWidth(title);
         GlStateManager.pushMatrix();
-        GlStateManager.translate(w / 2f, ly + logoSize + 10, 0);
-        GlStateManager.scale(2.0f, 2.0f, 1f);
+        GlStateManager.translate(w / 2f, ly + logoSize + 8, 0);
+        GlStateManager.scale(1.5f, 1.5f, 1f);
         fr.drawStringWithShadow(title, -titleW / 2, 0, UiTheme.ACCENT);
         GlStateManager.popMatrix();
 
@@ -54,7 +54,7 @@ public final class PanoramaBackground {
         fr.drawStringWithShadow(
             subtitle,
             w / 2 - fr.getStringWidth(subtitle) / 2,
-            ly + logoSize + 48,
+            ly + logoSize + 36,
             UiTheme.TEXT_DIM
         );
     }

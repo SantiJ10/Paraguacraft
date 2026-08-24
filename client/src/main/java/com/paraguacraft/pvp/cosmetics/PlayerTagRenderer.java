@@ -26,7 +26,9 @@ public final class PlayerTagRenderer {
     private static final int MODEL_SCALE = 30;
     private static final int MODEL_OFFSET_X = 51;
     private static final int MODEL_FEET_Y = 75;
-    private static final float OVERLAY_SCALE = 0.85F;
+    private static final float OVERLAY_SCALE = 0.7F;
+    /** How strongly the tag tracks the same look vector as {@code drawEntityOnScreen}. */
+    private static final float LOOK_FOLLOW = 16.0F;
 
     /** >0 while {@link GuiInventory#drawEntityOnScreen} is rendering a GUI preview. */
     private static int guiEntityDepth;
@@ -47,8 +49,8 @@ public final class PlayerTagRenderer {
         return guiEntityDepth > 0;
     }
 
-    public static void drawInventoryOverlay(int guiLeft, int guiTop, EntityPlayer player) {
-        drawOnModel(guiLeft + MODEL_OFFSET_X, guiTop + MODEL_FEET_Y, player);
+    public static void drawInventoryOverlay(int guiLeft, int guiTop, int mouseX, int mouseY, EntityPlayer player) {
+        drawOnModel(guiLeft + MODEL_OFFSET_X, guiTop + MODEL_FEET_Y, mouseX, mouseY, player);
     }
 
     /**
@@ -67,7 +69,7 @@ public final class PlayerTagRenderer {
             (float) (feetY - 50 - mouseY),
             player
         );
-        drawOnModel(feetX, feetY, player);
+        drawOnModel(feetX, feetY, mouseX, mouseY, player);
         GlStateManager.disableLighting();
         GlStateManager.enableTexture2D();
         GlStateManager.enableAlpha();
@@ -75,14 +77,19 @@ public final class PlayerTagRenderer {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
     }
 
-    public static void drawOnModel(int modelCenterX, int modelFeetY, EntityPlayer player) {
+    public static void drawOnModel(int modelCenterX, int modelFeetY, int mouseX, int mouseY, EntityPlayer player) {
         if (player == null || !ModConfig.showInventoryTags) {
             return;
         }
         Minecraft mc = Minecraft.getMinecraft();
         FontRenderer fr = mc.fontRendererObj;
+        float lookX = (float) (modelCenterX - mouseX);
+        float lookY = (float) (modelFeetY - 50 - mouseY);
+        // Invert so the tag slides with the cursor / head (drawEntityOnScreen flips X).
+        float shiftX = -(float) Math.atan(lookX / 40.0F) * LOOK_FOLLOW;
+        float shiftY = -(float) Math.atan(lookY / 40.0F) * LOOK_FOLLOW;
         int modelHeadY = modelFeetY - MODEL_SCALE * 2;
-        int nameY = modelHeadY - fr.FONT_HEIGHT - 2;
+        int nameY = (int) (modelHeadY - fr.FONT_HEIGHT - 2 + shiftY);
         String name = player.getName();
         int nameW = fr.getStringWidth(name);
         boolean logo = ModConfig.showNametagLogo && ParaguacraftNetwork.hasLogo(player);
@@ -95,7 +102,7 @@ public final class PlayerTagRenderer {
             GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
             GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
             GlStateManager.enableTexture2D();
-            GlStateManager.translate(modelCenterX, nameY, 300.0F);
+            GlStateManager.translate(modelCenterX + shiftX, nameY, 300.0F);
             GlStateManager.scale(OVERLAY_SCALE, OVERLAY_SCALE, OVERLAY_SCALE);
 
             int localNameX = -nameW / 2;

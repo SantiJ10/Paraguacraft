@@ -1,18 +1,22 @@
 package com.paraguacraft.pvp.cosmetics;
 
+import com.paraguacraft.pvp.gui.CustomPauseMenu;
 import com.paraguacraft.pvp.modules.ModConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
+import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
+import net.minecraft.client.gui.inventory.GuiChest;
+import net.minecraft.client.gui.inventory.GuiCrafting;
+import net.minecraft.client.gui.inventory.GuiFurnace;
+import net.minecraft.client.gui.inventory.GuiInventory;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.client.event.GuiScreenEvent;
-import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
 /**
- * Watermark estilo Lunar: banner (icono + PARAGUACRAFT) en la esquina inferior derecha.
- * En partida se dibuja en el HUD; con un GUI abierto, encima de la pantalla.
+ * Watermark estilo Lunar: solo en pausa, inventario, cofre, horno y mesa de crafteo.
  */
 public final class WatermarkRenderer {
 
@@ -21,18 +25,9 @@ public final class WatermarkRenderer {
     public static final ResourceLocation BANNER =
         new ResourceLocation("paraguacraft", "textures/gui/watermark.png");
 
-    /** Alto en px GUI, comparable al watermark de Lunar Client. */
     private static final int BANNER_H = 48;
     private static final float BANNER_ASPECT = 436.0F / 128.0F;
     private static final int PAD = 8;
-
-    @SubscribeEvent
-    public void onHud(RenderGameOverlayEvent.Text event) {
-        if (Minecraft.getMinecraft().currentScreen != null) {
-            return;
-        }
-        draw();
-    }
 
     @SubscribeEvent
     public void onDrawScreen(GuiScreenEvent.DrawScreenEvent.Post event) {
@@ -40,7 +35,18 @@ public final class WatermarkRenderer {
         if (!ModConfig.showWatermark || event.gui == null || mc.theWorld == null) {
             return;
         }
+        if (!isContainerScreen(event.gui)) {
+            return;
+        }
         draw();
+    }
+
+    private static boolean isContainerScreen(GuiScreen gui) {
+        return gui instanceof GuiInventory
+            || gui instanceof GuiChest
+            || gui instanceof GuiFurnace
+            || gui instanceof GuiCrafting
+            || gui instanceof CustomPauseMenu;
     }
 
     public static void draw() {

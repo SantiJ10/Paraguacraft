@@ -39,6 +39,6 @@ public abstract class MixinGuiInventoryOverlay extends GuiContainer {
             return;
         }
         // Centro del modelo: vanilla drawEntityOnScreen(guiLeft+51, guiTop+75, 30, ...)
-        PlayerTagRenderer.drawInventoryOverlay(this.guiLeft, this.guiTop, mc.thePlayer);
+        PlayerTagRenderer.drawInventoryOverlay(this.guiLeft, this.guiTop, mouseX, mouseY, mc.thePlayer);
     }
 }

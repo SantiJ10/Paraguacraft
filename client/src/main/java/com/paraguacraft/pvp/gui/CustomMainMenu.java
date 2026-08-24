@@ -20,7 +20,9 @@ public class CustomMainMenu extends GuiScreen {
         ResourcePackManager.ensureOfficialSelected();
         int btnW = 220;
         int btnH = 26;
-        int startY = this.height / 2 + 10;
+        int logoSize = Math.min(Math.min(this.width / 4, this.height / 5), 112);
+        int ly = this.height / 6 - logoSize / 8;
+        int startY = Math.max(this.height / 2 - 20, ly + logoSize + 50);
         int gap = 26;
 
         this.buttonList.clear();
