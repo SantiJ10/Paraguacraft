@@ -11,7 +11,9 @@ import net.minecraft.util.ResourceLocation;
 /** Dibuja el icono Paraguacraft junto al nametag (Módulo 5). */
 public final class NametagLogoRenderer {
 
-    public static final ResourceLocation LOGO = WatermarkRenderer.ICON;
+    public static final ResourceLocation MINI_ICON =
+        new ResourceLocation("paraguacraft", "textures/gui/mini_icon.png");
+    public static final ResourceLocation LOGO = MINI_ICON;
     public static final int LOGO_SIZE = 9;
 
     private NametagLogoRenderer() {}

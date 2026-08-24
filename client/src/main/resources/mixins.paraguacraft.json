@@ -32,7 +32,8 @@
     "client.MixinGuiSlotSelection",
     "client.MixinRenderPlayerCleanup",
     "client.MixinEntityPlayerSPQoL",
-    "client.MixinGuiInventoryOverlay"
+    "client.MixinGuiInventoryOverlay",
+    "client.MixinGuiContainerPlayerTag"
   ],
   "injectors": {
     "defaultRequire": 0

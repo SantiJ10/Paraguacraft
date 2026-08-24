@@ -35,11 +35,34 @@ public final class NametagSpecialsRenderer {
             return;
         }
         EntityPlayer player = (EntityPlayer) event.entity;
+        if (PlayerTagRenderer.isGuiEntityPass()) {
+            event.setCanceled(true);
+            return;
+        }
         if (shouldCull(player)) {
             event.setCanceled(true);
             return;
         }
         event.setCanceled(true);
+        draw(player, event.x, event.y, event.z);
+    }
+
+    @SubscribeEvent
+    public void onLocalNametagF5(RenderLivingEvent.Post event) {
+        if (!(event.entity instanceof EntityPlayer)) {
+            return;
+        }
+        Minecraft mc = Minecraft.getMinecraft();
+        if (event.entity != mc.thePlayer || mc.gameSettings.thirdPersonView == 0) {
+            return;
+        }
+        if (PlayerTagRenderer.isGuiEntityPass()) {
+            return;
+        }
+        EntityPlayer player = (EntityPlayer) event.entity;
+        if (shouldCull(player)) {
+            return;
+        }
         draw(player, event.x, event.y, event.z);
     }
 
@@ -108,8 +131,9 @@ public final class NametagSpecialsRenderer {
         try {
             GlStateManager.translate((float) x, (float) y + player.height + 0.5F, (float) z);
             GL11.glNormal3f(0.0F, 1.0F, 0.0F);
+            float pitchSign = Minecraft.getMinecraft().gameSettings.thirdPersonView == 2 ? -1.0F : 1.0F;
             GlStateManager.rotate(-rm.playerViewY, 0.0F, 1.0F, 0.0F);
-            GlStateManager.rotate(rm.playerViewX, 1.0F, 0.0F, 0.0F);
+            GlStateManager.rotate(rm.playerViewX * pitchSign, 1.0F, 0.0F, 0.0F);
             GlStateManager.scale(-0.026666668F, -0.026666668F, 0.026666668F);
             GlStateManager.disableLighting();
             GlStateManager.enableBlend();
@@ -172,7 +196,7 @@ public final class NametagSpecialsRenderer {
         } else {
             GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         }
-        Minecraft.getMinecraft().getTextureManager().bindTexture(WatermarkRenderer.ICON);
+        Minecraft.getMinecraft().getTextureManager().bindTexture(NametagLogoRenderer.MINI_ICON);
         texturedQuad(x, y, LOGO, LOGO, 0, 0, LOGO, LOGO, LOGO, LOGO);
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
     }

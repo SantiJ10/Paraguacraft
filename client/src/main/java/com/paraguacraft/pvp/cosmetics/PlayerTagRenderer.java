@@ -4,6 +4,7 @@ import com.paraguacraft.pvp.modules.ModConfig;
 import com.paraguacraft.pvp.network.ParaguacraftNetwork;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
+import net.minecraft.client.gui.inventory.GuiInventory;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.WorldRenderer;
@@ -12,8 +13,9 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.ResourceLocation;
 
 /**
- * Overlay 2D en GuiInventory: nombre + logo + vida, anclado al centro
- * del modelo 3D vanilla ({@code guiLeft + 51}, {@code guiTop + 75}, scale 30).
+ * Overlay 2D sobre el modelo 3D: nombre + mini-logo + vida.
+ * Anclado al centro del {@code GuiInventory.drawEntityOnScreen} vanilla
+ * ({@code guiLeft + 51}, {@code guiTop + 75}, scale 30).
  */
 public final class PlayerTagRenderer {
 
@@ -23,39 +25,89 @@ public final class PlayerTagRenderer {
     private static final int MODEL_SCALE = 30;
     private static final int MODEL_OFFSET_X = 51;
     private static final int MODEL_FEET_Y = 75;
+    private static final float OVERLAY_SCALE = 1.5F;
+
+    /** >0 while {@link GuiInventory#drawEntityOnScreen} is rendering a GUI preview. */
+    private static int guiEntityDepth;
 
     private PlayerTagRenderer() {}
 
+    public static void beginGuiEntityPass() {
+        guiEntityDepth++;
+    }
+
+    public static void endGuiEntityPass() {
+        if (guiEntityDepth > 0) {
+            guiEntityDepth--;
+        }
+    }
+
+    public static boolean isGuiEntityPass() {
+        return guiEntityDepth > 0;
+    }
+
     public static void drawInventoryOverlay(int guiLeft, int guiTop, EntityPlayer player) {
+        drawOnModel(guiLeft + MODEL_OFFSET_X, guiTop + MODEL_FEET_Y, player);
+    }
+
+    /**
+     * Preview 3D + overlay for chests, furnaces and the pause menu
+     * (screens that do not already draw the player).
+     */
+    public static void drawPreview(int feetX, int feetY, int mouseX, int mouseY, EntityPlayer player) {
+        if (player == null || !ModConfig.showInventoryTags) {
+            return;
+        }
+        GuiInventory.drawEntityOnScreen(
+            feetX,
+            feetY,
+            MODEL_SCALE,
+            (float) (feetX - mouseX),
+            (float) (feetY - 50 - mouseY),
+            player
+        );
+        drawOnModel(feetX, feetY, player);
+        GlStateManager.disableLighting();
+        GlStateManager.enableTexture2D();
+        GlStateManager.enableAlpha();
+        GlStateManager.enableBlend();
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+    }
+
+    public static void drawOnModel(int modelCenterX, int modelFeetY, EntityPlayer player) {
         if (player == null || !ModConfig.showInventoryTags) {
             return;
         }
         Minecraft mc = Minecraft.getMinecraft();
         FontRenderer fr = mc.fontRendererObj;
-        int modelCenterX = guiLeft + MODEL_OFFSET_X;
-        int modelFeetY = guiTop + MODEL_FEET_Y;
         int modelHeadY = modelFeetY - MODEL_SCALE * 2;
         int nameY = modelHeadY - fr.FONT_HEIGHT - 2;
         String name = player.getName();
         int nameW = fr.getStringWidth(name);
-        int nameX = modelCenterX - nameW / 2;
         boolean logo = ModConfig.showNametagLogo && ParaguacraftNetwork.hasLogo(player);
 
         GlStateManager.pushMatrix();
-        GlStateManager.enableBlend();
-        GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        GlStateManager.disableLighting();
-        GlStateManager.enableTexture2D();
+        try {
+            GlStateManager.disableDepth();
+            GlStateManager.disableLighting();
+            GlStateManager.enableBlend();
+            GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
+            GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+            GlStateManager.enableTexture2D();
+            GlStateManager.translate(modelCenterX, nameY, 300.0F);
+            GlStateManager.scale(OVERLAY_SCALE, OVERLAY_SCALE, OVERLAY_SCALE);
 
-        if (logo) {
-            NametagLogoRenderer.drawAt(nameX - NametagLogoRenderer.LOGO_SIZE - 2, nameY - 1);
+            int localNameX = -nameW / 2;
+            if (logo) {
+                NametagLogoRenderer.drawAt(localNameX - NametagLogoRenderer.LOGO_SIZE - 2, -1);
+            }
+            fr.drawStringWithShadow(name, localNameX, 0, 0xFFFFFF);
+            drawHealthRow(fr, 0, fr.FONT_HEIGHT + 2, player.getHealth());
+        } finally {
+            GlStateManager.enableDepth();
+            GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+            GlStateManager.popMatrix();
         }
-        fr.drawStringWithShadow(name, nameX, nameY, 0xFFFFFF);
-        drawHealthRow(fr, modelCenterX, nameY + fr.FONT_HEIGHT + 2, player.getHealth());
-
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        GlStateManager.popMatrix();
     }
 
     public static void drawHealthRow(FontRenderer font, int centerX, int y, float health) {

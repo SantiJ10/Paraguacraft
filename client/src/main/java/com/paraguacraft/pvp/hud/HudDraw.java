@@ -16,9 +16,13 @@ public final class HudDraw {
     }
 
     public static void labeled(String label, String value, float x, float y) {
+        labeled(label, value, x, y, UiTheme.TEXT);
+    }
+
+    public static void labeled(String label, String value, float x, float y, int valueColor) {
         FontRenderer fr = font();
         fr.drawStringWithShadow(label, (int) x, (int) y, UiTheme.ACCENT);
-        fr.drawStringWithShadow(value, (int) (x + fr.getStringWidth(label)), (int) y, UiTheme.TEXT);
+        fr.drawStringWithShadow(value, (int) (x + fr.getStringWidth(label)), (int) y, valueColor);
     }
 
     public static void text(String line, float x, float y, int color) {

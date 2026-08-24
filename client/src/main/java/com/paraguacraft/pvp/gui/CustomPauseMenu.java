@@ -1,5 +1,6 @@
 package com.paraguacraft.pvp.gui;
 
+import com.paraguacraft.pvp.cosmetics.PlayerTagRenderer;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiMultiplayer;
 import net.minecraft.client.gui.GuiOptions;
@@ -55,5 +56,8 @@ public class CustomPauseMenu extends GuiScreen {
         this.drawRect(0, 0, this.width, this.height, 0x80000000);
         this.drawCenteredString(this.fontRendererObj, "PAUSA - PARAGUACRAFT V2.0", this.width / 2, this.height / 2 - 80, 0x00E5FF);
         super.drawScreen(mouseX, mouseY, partialTicks);
+        if (this.mc != null && this.mc.thePlayer != null) {
+            PlayerTagRenderer.drawPreview(50, this.height / 2 + 40, mouseX, mouseY, this.mc.thePlayer);
+        }
     }
 }

@@ -40,6 +40,9 @@ public class HUDOverlay extends Gui {
     private final Minecraft mc = Minecraft.getMinecraft();
     private final int colorParagua = 0x00E5FF; // Cian
     private List<Long> leftClicks = new ArrayList<Long>();
+    private List<Long> rightClicks = new ArrayList<Long>();
+    private boolean wasLmb;
+    private boolean wasRmb;
     
     private static final ResourceLocation LOGO_GENERICO = new ResourceLocation("textures/items/ender_pearl.png");
     private static final ResourceLocation INVENTORY_TEXTURE = new ResourceLocation("textures/gui/container/inventory.png");
@@ -70,17 +73,22 @@ public class HUDOverlay extends Gui {
                 HudDraw.labeled("FPS: ", String.valueOf(Minecraft.getDebugFPS()), 0, 0);
                 HudModuleScale.end();
             }
+            if (ModConfig.showCPS || ModConfig.showKeystrokes) {
+                tickClicks();
+            }
             if (ModConfig.showPing) {
                 int ping = 0;
                 if (mc.getNetHandler() != null && mc.getNetHandler().getPlayerInfo(mc.thePlayer.getUniqueID()) != null) {
                     ping = mc.getNetHandler().getPlayerInfo(mc.thePlayer.getUniqueID()).getResponseTime();
                 }
+                if (ping < 0) {
+                    ping = 0;
+                }
                 HudModuleScale.begin(ModConfig.pingX, ModConfig.pingY, ModConfig.scalePing);
-                HudDraw.labeled("Ping: ", (ping < 0 ? 0 : ping) + " ms", 0, 0);
+                HudDraw.labeled("Ping: ", ping + " ms", 0, 0, pingColor(ping));
                 HudModuleScale.end();
             }
             if (ModConfig.showCPS) {
-                calculateCPS();
                 HudModuleScale.begin(ModConfig.cpsX, ModConfig.cpsY, ModConfig.scaleCps);
                 HudDraw.labeled("CPS: ", String.valueOf(leftClicks.size()), 0, 0);
                 HudModuleScale.end();
@@ -505,7 +513,8 @@ public class HUDOverlay extends Gui {
         int gap = 2;
         int size = 20;
         int spaceH = 14;
-        int h = size + gap + size + gap + spaceH;
+        int cpsH = 10;
+        int h = size + gap + size + gap + spaceH + gap + cpsH;
         if (ModConfig.showKeystrokesMouse) {
             h += gap + size;
         }
@@ -518,18 +527,25 @@ public class HUDOverlay extends Gui {
         int gap = 2;
         int size = 20;
         int totalW = size * 3 + gap * 2;
+        // Fila 1: [W] centrada
         drawKey(x + size + gap, y, size, size, mc.gameSettings.keyBindForward);
+        // Fila 2: [A] [S] [D]
         drawKey(x, y + size + gap, size, size, mc.gameSettings.keyBindLeft);
         drawKey(x + size + gap, y + size + gap, size, size, mc.gameSettings.keyBindBack);
         drawKey(x + (size + gap) * 2, y + size + gap, size, size, mc.gameSettings.keyBindRight);
         int row = y + (size + gap) * 2;
+        // Fila 3: barra de espacio
+        drawSpaceBar(x, row, totalW, 14);
+        row += 14 + gap;
+        // Fila 4: LMB / RMB (opcional)
         if (ModConfig.showKeystrokesMouse) {
             int mw = (totalW - gap) / 2;
             drawMouseKey(x, row, mw, size, 0, "LMB");
             drawMouseKey(x + mw + gap, row, totalW - mw - gap, size, 1, "RMB");
             row += size + gap;
         }
-        drawKey(x, row, totalW, 14, mc.gameSettings.keyBindJump);
+        // Fila 5: CPS L | R
+        HudDraw.centered(leftClicks.size() + " | " + rightClicks.size(), x + totalW / 2f, row + 1, 0xFFFFFF);
     }
 
     private void drawKey(int x, int y, int w, int h, KeyBinding key) {
@@ -538,6 +554,18 @@ public class HUDOverlay extends Gui {
         int fg = pressed ? 0x000000 : 0xFFFFFF;
         Gui.drawRect(x, y, x + w, y + h, bg);
         HudDraw.centered(InputPoll.name(key), x + w / 2f, y + h / 2f - 4, fg);
+    }
+
+    private void drawSpaceBar(int x, int y, int w, int h) {
+        boolean pressed = mc.gameSettings.keyBindJump.isKeyDown();
+        int bg = pressed ? 0x88FFFFFF : 0x88000000;
+        int fg = pressed ? 0xFF111111 : 0xFFFFFFFF;
+        Gui.drawRect(x, y, x + w, y + h, bg);
+        int lineW = Math.max(16, w / 2);
+        int lineH = 2;
+        int lx = x + (w - lineW) / 2;
+        int ly = y + (h - lineH) / 2;
+        Gui.drawRect(lx, ly, lx + lineW, ly + lineH, fg);
     }
 
     private void drawMouseKey(int x, int y, int w, int h, int button, String name) {
@@ -574,13 +602,27 @@ public class HUDOverlay extends Gui {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
     }
 
-    private void calculateCPS() {
+    private void tickClicks() {
         long time = System.currentTimeMillis();
-        if (InputPoll.lmb) {
-            if (leftClicks.isEmpty() || time - leftClicks.get(leftClicks.size() - 1) > 50) {
-                leftClicks.add(time);
-            }
+        if (InputPoll.lmb && !wasLmb) {
+            leftClicks.add(time);
         }
+        if (InputPoll.rmb && !wasRmb) {
+            rightClicks.add(time);
+        }
+        wasLmb = InputPoll.lmb;
+        wasRmb = InputPoll.rmb;
         leftClicks.removeIf(click -> time - click > 1000);
+        rightClicks.removeIf(click -> time - click > 1000);
+    }
+
+    private static int pingColor(int ping) {
+        if (ping < 80) {
+            return 0xFF55FF55;
+        }
+        if (ping < 150) {
+            return 0xFFFFFF55;
+        }
+        return 0xFFFF5555;
     }
 }

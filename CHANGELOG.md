@@ -9,7 +9,13 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - **Modo offline nativo**: si no hay internet, no intenta bajar assets ni muestra errores de conexión. Lanza la instancia con los archivos locales si ya está instalada.
 - **Skins Premium en vivo**: refresco en segundo plano al cambiar skin o nick (sin cerrar sesión). Cache-buster `?t=` para no mostrar la skin vieja.
 - **Servidores locales**: guía colapsable paso a paso (mismo estilo que skins no-premium).
-- Clientes embebidos/fallback: PvP **2.1.52** y Modern **0.9.29**.
+- Clientes embebidos/fallback: PvP **2.1.53** y Modern **0.9.29**.
+
+### Cliente PvP 1.8.9 (2.1.53)
+- Keystrokes centrados: WASD, barra de espacio, LMB/RMB opcional y CPS `L | R` en tiempo real.
+- Ping real vía `getResponseTime()` (Hypixel/Minemen/Hylex), con color por latencia.
+- Overlay de inventario (nombre, vida, mini-logo) a 1.5x sin duplicado; también en cofres, hornos y menú de pausa.
+- Nametags 3D billboard correctos en F5, con blending del mini-logo.
 
 ### Cliente PvP 1.8.9 (2.1.52)
 - Nametags 3D con logo y vida, watermark GUI, keystrokes WASD+espacio, waypoints, item tracker, alerta de armadura y FOV estático.
