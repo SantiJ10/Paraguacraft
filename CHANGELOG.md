@@ -9,7 +9,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - **Modo offline nativo**: si no hay internet, no intenta bajar assets ni muestra errores de conexión. Lanza la instancia con los archivos locales si ya está instalada.
 - **Skins Premium en vivo**: refresco en segundo plano al cambiar skin o nick (sin cerrar sesión). Cache-buster `?t=` para no mostrar la skin vieja.
 - **Servidores locales**: guía colapsable paso a paso (mismo estilo que skins no-premium).
-- Clientes embebidos/fallback: PvP **2.1.55** y Modern **0.9.29**.
+- Clientes embebidos/fallback: PvP **2.1.56** y Modern **0.9.29**.
+
+### Cliente PvP 1.8.9 (2.1.56)
+- Menú de pausa: skin más grande, solo nombre (sin vida ni logo). Inventario y cofres sin cambios.
 
 ### Cliente PvP 1.8.9 (2.1.55)
 - Watermark solo en pausa, inventario, cofre, horno y mesa de crafteo (no en gameplay).

@@ -57,7 +57,7 @@ public class CustomPauseMenu extends GuiScreen {
         this.drawCenteredString(this.fontRendererObj, "PAUSA - PARAGUACRAFT V2.0", this.width / 2, this.height / 2 - 80, 0x00E5FF);
         super.drawScreen(mouseX, mouseY, partialTicks);
         if (this.mc != null && this.mc.thePlayer != null) {
-            PlayerTagRenderer.drawPreview(50, this.height / 2 + 40, mouseX, mouseY, this.mc.thePlayer);
+            PlayerTagRenderer.drawPausePreview(56, this.height / 2 + 48, mouseX, mouseY, this.mc.thePlayer);
         }
     }
 }

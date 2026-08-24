@@ -49,27 +49,35 @@ public final class PlayerTagRenderer {
         return guiEntityDepth > 0;
     }
 
-    public static void drawInventoryOverlay(int guiLeft, int guiTop, int mouseX, int mouseY, EntityPlayer player) {
-        drawOnModel(guiLeft + MODEL_OFFSET_X, guiTop + MODEL_FEET_Y, mouseX, mouseY, player);
-    }
-
     /**
      * Preview 3D + overlay for chests, furnaces and the pause menu
      * (screens that do not already draw the player).
      */
     public static void drawPreview(int feetX, int feetY, int mouseX, int mouseY, EntityPlayer player) {
+        drawPreview(feetX, feetY, mouseX, mouseY, player, MODEL_SCALE, true, true);
+    }
+
+    /** Pause menu: modelo un poco más grande, solo nombre (sin vida ni logo). */
+    public static void drawPausePreview(int feetX, int feetY, int mouseX, int mouseY, EntityPlayer player) {
+        drawPreview(feetX, feetY, mouseX, mouseY, player, 42, false, false);
+    }
+
+    private static void drawPreview(
+        int feetX, int feetY, int mouseX, int mouseY, EntityPlayer player,
+        int modelScale, boolean showHealth, boolean showLogo
+    ) {
         if (player == null || !ModConfig.showInventoryTags) {
             return;
         }
         GuiInventory.drawEntityOnScreen(
             feetX,
             feetY,
-            MODEL_SCALE,
+            modelScale,
             (float) (feetX - mouseX),
             (float) (feetY - 50 - mouseY),
             player
         );
-        drawOnModel(feetX, feetY, mouseX, mouseY, player);
+        drawOnModel(feetX, feetY, mouseX, mouseY, player, modelScale, showHealth, showLogo);
         GlStateManager.disableLighting();
         GlStateManager.enableTexture2D();
         GlStateManager.enableAlpha();
@@ -77,7 +85,18 @@ public final class PlayerTagRenderer {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
     }
 
+    public static void drawInventoryOverlay(int guiLeft, int guiTop, int mouseX, int mouseY, EntityPlayer player) {
+        drawOnModel(guiLeft + MODEL_OFFSET_X, guiTop + MODEL_FEET_Y, mouseX, mouseY, player, MODEL_SCALE, true, true);
+    }
+
     public static void drawOnModel(int modelCenterX, int modelFeetY, int mouseX, int mouseY, EntityPlayer player) {
+        drawOnModel(modelCenterX, modelFeetY, mouseX, mouseY, player, MODEL_SCALE, true, true);
+    }
+
+    private static void drawOnModel(
+        int modelCenterX, int modelFeetY, int mouseX, int mouseY, EntityPlayer player,
+        int modelScale, boolean showHealth, boolean showLogo
+    ) {
         if (player == null || !ModConfig.showInventoryTags) {
             return;
         }
@@ -85,14 +104,14 @@ public final class PlayerTagRenderer {
         FontRenderer fr = mc.fontRendererObj;
         float lookX = (float) (modelCenterX - mouseX);
         float lookY = (float) (modelFeetY - 50 - mouseY);
-        // Invert so the tag slides with the cursor / head (drawEntityOnScreen flips X).
-        float shiftX = -(float) Math.atan(lookX / 40.0F) * LOOK_FOLLOW;
-        float shiftY = -(float) Math.atan(lookY / 40.0F) * LOOK_FOLLOW;
-        int modelHeadY = modelFeetY - MODEL_SCALE * 2;
+        float follow = LOOK_FOLLOW * (modelScale / (float) MODEL_SCALE);
+        float shiftX = -(float) Math.atan(lookX / 40.0F) * follow;
+        float shiftY = -(float) Math.atan(lookY / 40.0F) * follow;
+        int modelHeadY = modelFeetY - modelScale * 2;
         int nameY = (int) (modelHeadY - fr.FONT_HEIGHT - 2 + shiftY);
         String name = player.getName();
         int nameW = fr.getStringWidth(name);
-        boolean logo = ModConfig.showNametagLogo && ParaguacraftNetwork.hasLogo(player);
+        boolean logo = showLogo && ModConfig.showNametagLogo && ParaguacraftNetwork.hasLogo(player);
 
         GlStateManager.pushMatrix();
         try {
@@ -110,7 +129,9 @@ public final class PlayerTagRenderer {
                 NametagLogoRenderer.drawAt(localNameX - NametagLogoRenderer.LOGO_SIZE - 2, -1);
             }
             fr.drawStringWithShadow(name, localNameX, 0, 0xFFFFFF);
-            drawHealthRow(fr, 0, fr.FONT_HEIGHT + 2, player.getHealth());
+            if (showHealth) {
+                drawHealthRow(fr, 0, fr.FONT_HEIGHT + 2, player.getHealth());
+            }
         } finally {
             GlStateManager.enableDepth();
             GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);

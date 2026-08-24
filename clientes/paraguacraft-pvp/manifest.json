@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.55",
-  "release_tag": "pvp-client-2.1.55",
-  "descripcion": "Watermark solo en GUIs, overlay de inventario sigue el mouse, logo bandera y item tracker discreto.",
+  "client_version": "2.1.56",
+  "release_tag": "pvp-client-2.1.56",
+  "descripcion": "Pausa: skin más grande, solo nombre. Inventario y cofres igual.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.55.jar",
-      "sha1": "cc8322ae36238c90706fc554e21b91e02d2d6361"
+      "filename": "ParaguacraftPvP-2.1.56.jar",
+      "sha1": "7df3b8ee7451f75c20b6b8d10b2eedc78b58b78c"
     },
     {
       "filename": "Hytils-Reborn-1.8.9-forge-1.7.5.jar",
