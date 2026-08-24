@@ -24,10 +24,14 @@ public final class MenuBackground {
 
     private MenuBackground() {}
 
-    public static int headerBottom(int screenHeight) {
-        int logoSize = logoSize(screenHeight, screenHeight);
+    public static int headerBottom(int screenWidth, int screenHeight) {
+        int logoSize = logoSize(screenWidth, screenHeight);
         int ly = logoY(screenHeight, logoSize);
-        return ly + logoSize + 58;
+        return ly + logoSize + 50;
+    }
+
+    public static int headerBottom(int screenHeight) {
+        return headerBottom(screenHeight, screenHeight);
     }
 
     /** @deprecated use {@link #headerBottom(int)} */
@@ -36,11 +40,11 @@ public final class MenuBackground {
     }
 
     private static int logoSize(int w, int h) {
-        return Math.min(w / 5, 96);
+        return Math.min(Math.min(w / 4, h / 5), 112);
     }
 
     private static int logoY(int h, int logoSize) {
-        return h / 5 - logoSize / 2;
+        return h / 6 - logoSize / 8;
     }
 
     public static void draw(Screen screen, DrawContext ctx, int mouseX, int mouseY, float delta) {
@@ -75,8 +79,8 @@ public final class MenuBackground {
         int titleW = tr.getWidth(title);
         var matrices = ctx.getMatrices();
         matrices.pushMatrix();
-        matrices.translate(w / 2f, ly + logoSize + 10f);
-        matrices.scale(2f, 2f);
+        matrices.translate(w / 2f, ly + logoSize + 8f);
+        matrices.scale(1.5f, 1.5f);
         ctx.drawText(tr, Text.literal(title), -titleW / 2, 0, UiTheme.accent(), true);
         matrices.popMatrix();
 
@@ -84,7 +88,7 @@ public final class MenuBackground {
             tr,
             Text.literal("PvP Modern · 1.21.11"),
             w / 2 - tr.getWidth("PvP Modern · 1.21.11") / 2,
-            ly + logoSize + 48,
+            ly + logoSize + 36,
             UiTheme.textDim(),
             true
         );

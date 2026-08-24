@@ -57,6 +57,9 @@ public final class NametagWorldRenderer {
         int light = LightmapTextureManager.pack(15, 15);
 
         for (PlayerEntity player : client.world.getPlayers()) {
+            if (player == client.player && NametagOverlay.isLocalPreviewScreen(client.currentScreen)) {
+                continue;
+            }
             double distSq = client.player.squaredDistanceTo(player);
             if (ModernConfig.nametagCull && player != client.player && distSq > CullHelper.NAMETAG_CULL_DISTANCE_SQ) {
                 continue;

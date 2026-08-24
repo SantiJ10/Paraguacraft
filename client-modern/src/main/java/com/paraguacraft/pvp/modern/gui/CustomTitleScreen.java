@@ -25,7 +25,7 @@ public class CustomTitleScreen extends Screen {
         int gap = btnH + 8;
         int cx = width / 2 - btnW / 2;
 
-        int headerBottom = MenuBackground.headerBottom(height);
+        int headerBottom = MenuBackground.headerBottom(width, height);
         int footerTop = height - 88;
         int startY = headerBottom + 10;
         int mainBlock = 4 * gap;

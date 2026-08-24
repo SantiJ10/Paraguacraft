@@ -144,7 +144,7 @@ public class GuiEditHudScreen extends Screen {
             drawBox(ctx, 18, ModernConfig.serverHudX, ModernConfig.serverHudY, 120, 10);
         }
         if (ModernConfig.itemTracker2d) {
-            drawBox(ctx, 19, ModernConfig.itemsX, ModernConfig.itemsY, 140, com.paraguacraft.pvp.modern.core.ItemTracker.hudHeight());
+            drawBox(ctx, 19, ModernConfig.itemsX, ModernConfig.itemsY, com.paraguacraft.pvp.modern.core.ItemTracker.hudWidth(), com.paraguacraft.pvp.modern.core.ItemTracker.hudHeight());
         }
         if (ModernConfig.showWaypoints) {
             drawBox(ctx, 20, ModernConfig.waypointsX, ModernConfig.waypointsY, 140, com.paraguacraft.pvp.modern.core.WaypointManager.hudHeight());
@@ -377,7 +377,7 @@ public class GuiEditHudScreen extends Screen {
             case 16 -> new int[] {ModernConfig.bridgeTimerX, ModernConfig.bridgeTimerY, 80, 10};
             case 17 -> new int[] {ModernConfig.reachDisplayX, ModernConfig.reachDisplayY, 70, 10};
             case 18 -> new int[] {ModernConfig.serverHudX, ModernConfig.serverHudY, 120, 10};
-            case 19 -> new int[] {ModernConfig.itemsX, ModernConfig.itemsY, 140, com.paraguacraft.pvp.modern.core.ItemTracker.hudHeight()};
+            case 19 -> new int[] {ModernConfig.itemsX, ModernConfig.itemsY, com.paraguacraft.pvp.modern.core.ItemTracker.hudWidth(), com.paraguacraft.pvp.modern.core.ItemTracker.hudHeight()};
             case 20 -> new int[] {ModernConfig.waypointsX, ModernConfig.waypointsY, 140, com.paraguacraft.pvp.modern.core.WaypointManager.hudHeight()};
             default -> new int[] {0, 0, 10, 10};
         };

@@ -402,7 +402,9 @@ public final class HudRenderer {
     public static int keystrokesHeight() {
         int gap = 2;
         int size = 20;
-        int h = size + gap + size + gap + 14;
+        int spaceH = 14;
+        int cpsH = 10;
+        int h = size + gap + size + gap + spaceH + gap + cpsH;
         if (ModernConfig.showKeystrokesMouse) {
             h += gap + size;
         }
@@ -421,13 +423,27 @@ public final class HudRenderer {
         drawKeyBox(ctx, tr, x + size + gap, y + size + gap, size, size, client.options.backKey.isPressed(), "S");
         drawKeyBox(ctx, tr, x + (size + gap) * 2, y + size + gap, size, size, client.options.rightKey.isPressed(), "D");
         int row = y + (size + gap) * 2;
+        drawSpaceBar(ctx, x, row, totalW, 14, client.options.jumpKey.isPressed());
+        row += 14 + gap;
         if (ModernConfig.showKeystrokesMouse) {
             int mw = (totalW - gap) / 2;
             drawMouseBox(ctx, tr, x, row, mw, size, GLFW.GLFW_MOUSE_BUTTON_LEFT, "LMB");
             drawMouseBox(ctx, tr, x + mw + gap, row, totalW - mw - gap, size, GLFW.GLFW_MOUSE_BUTTON_RIGHT, "RMB");
             row += size + gap;
         }
-        drawKeyBox(ctx, tr, x, row, totalW, 14, client.options.jumpKey.isPressed(), "——");
+        String cps = HudCpsTracker.leftCps() + " | " + HudCpsTracker.rightCps();
+        ctx.drawText(tr, Text.literal(cps), x + totalW / 2 - tr.getWidth(cps) / 2, row + 1, 0xFFFFFFFF, false);
+    }
+
+    private static void drawSpaceBar(DrawContext ctx, int x, int y, int w, int h, boolean pressed) {
+        int bg = pressed ? 0x88FFFFFF : 0x88000000;
+        int fg = pressed ? 0xFF111111 : 0xFFFFFFFF;
+        ctx.fill(x, y, x + w, y + h, bg);
+        int lineW = Math.max(16, w / 2);
+        int lineH = 2;
+        int lx = x + (w - lineW) / 2;
+        int ly = y + (h - lineH) / 2;
+        ctx.fill(lx, ly, lx + lineW, ly + lineH, fg);
     }
 
     private static void drawKeyBox(DrawContext ctx, TextRenderer tr, int x, int y, int w, int h, boolean pressed, String label) {

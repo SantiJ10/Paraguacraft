@@ -19,6 +19,7 @@
     "MixinEntityRendererNametag",
     "MixinInventoryScreenOverlay",
     "MixinHandledScreenWatermark",
+    "MixinHandledScreenPlayerPreview",
     "HandledScreenAccessor",
     "MixinGameRendererFov",
     "MixinInGameHudScoreboard",

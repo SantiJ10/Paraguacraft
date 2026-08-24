@@ -31,7 +31,10 @@ public final class HudCpsTracker {
     }
 
     private static void tick(MinecraftClient client) {
-        if (!ModernConfig.showCps || client == null || client.player == null) {
+        if (!ModernConfig.showCps && !ModernConfig.showKeystrokes) {
+            return;
+        }
+        if (client == null || client.player == null) {
             return;
         }
         long now = System.currentTimeMillis();

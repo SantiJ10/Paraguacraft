@@ -1,10 +1,11 @@
 package com.paraguacraft.pvp.modern.gui;
 
+import com.paraguacraft.pvp.modern.cosmetics.NametagOverlay;
 import com.paraguacraft.pvp.modern.gui.theme.UiTheme;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.GameMenuScreen;
 
-/** Menú de pausa con overlay oscuro Paraguacraft. */
+/** Menú de pausa: overlay oscuro, preview 3D (nombre) y watermark Lunar. */
 public class CustomPauseScreen extends GameMenuScreen {
 
     public CustomPauseScreen(boolean showMenu) {
@@ -15,5 +16,9 @@ public class CustomPauseScreen extends GameMenuScreen {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         context.fill(0, 0, width, height, UiTheme.OVERLAY);
         super.render(context, mouseX, mouseY, delta);
+        if (client != null && client.player != null) {
+            NametagOverlay.drawPausePreview(context, 56, height / 2 + 48, mouseX, mouseY, client.player);
+        }
+        NametagOverlay.drawWatermark(context, width, height);
     }
 }

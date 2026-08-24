@@ -12,4 +12,7 @@ public interface HandledScreenAccessor {
 
     @Accessor("y")
     int paraguacraft$getGuiY();
+
+    @Accessor("backgroundWidth")
+    int paraguacraft$getBackgroundWidth();
 }

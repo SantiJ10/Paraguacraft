@@ -9,7 +9,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - **Modo offline nativo**: si no hay internet, no intenta bajar assets ni muestra errores de conexión. Lanza la instancia con los archivos locales si ya está instalada.
 - **Skins Premium en vivo**: refresco en segundo plano al cambiar skin o nick (sin cerrar sesión). Cache-buster `?t=` para no mostrar la skin vieja.
 - **Servidores locales**: guía colapsable paso a paso (mismo estilo que skins no-premium).
-- Clientes embebidos/fallback: PvP **2.1.56** y Modern **0.9.29**.
+- Clientes embebidos/fallback: PvP **2.1.56** y Modern **0.9.30**.
 
 ### Cliente PvP 1.8.9 (2.1.56)
 - Menú de pausa: skin más grande, solo nombre (sin vida ni logo). Inventario y cofres sin cambios.
@@ -33,6 +33,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ### Cliente PvP 1.8.9 (2.1.52)
 - Nametags 3D con logo y vida, watermark GUI, keystrokes WASD+espacio, waypoints, item tracker, alerta de armadura y FOV estático.
+
+### Cliente PvP Modern (0.9.30)
+- Watermark Lunar (banner) solo en pausa, inventario, cofre, horno y mesa de crafteo.
+- Overlay de inventario: nombre, logo y vida siguen el mouse junto a la skin; preview en cofres/hornos.
+- Menú de pausa: skin más grande, solo nombre. Logo del menú: creeper sobre la bandera de Paraguay.
+- Item tracker más discreto; keystrokes con barra de espacio y CPS `L | R`.
 
 ### Cliente PvP Modern (0.9.29)
 - Nametags 3D (Sodium-safe), watermark, keystrokes con LMB/RMB opcional, waypoints `/wp`, item tracker, alerta de durabilidad y FOV estático.

@@ -19,6 +19,8 @@ public abstract class MixinInventoryScreenOverlay {
             return;
         }
         HandledScreenAccessor acc = (HandledScreenAccessor) this;
-        NametagOverlay.drawInventoryTag(context, acc.paraguacraft$getGuiX(), acc.paraguacraft$getGuiY(), client.player);
+        NametagOverlay.drawInventoryTag(
+            context, acc.paraguacraft$getGuiX(), acc.paraguacraft$getGuiY(), mouseX, mouseY, client.player
+        );
     }
 }

@@ -14,6 +14,9 @@ public abstract class MixinHandledScreenWatermark {
     @Inject(method = "render", at = @At("TAIL"))
     private void paraguacraft$watermark(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         HandledScreen<?> self = (HandledScreen<?>) (Object) this;
+        if (!NametagOverlay.isWatermarkScreen(self)) {
+            return;
+        }
         NametagOverlay.drawWatermark(context, self.width, self.height);
     }
 }
