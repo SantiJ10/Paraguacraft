@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.57",
-  "release_tag": "pvp-client-2.1.57",
-  "descripcion": "Ping debajo del keystrokes, pausa con versión real, nametag F5 sin duplicado.",
+  "client_version": "2.1.58",
+  "release_tag": "pvp-client-2.1.58",
+  "descripcion": "Pausa: solo la skin, sin nombre ni vida.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.57.jar",
-      "sha1": "412def7ce0b90ca1e12ca804155e639ae6897a70"
+      "filename": "ParaguacraftPvP-2.1.58.jar",
+      "sha1": "07510504ec311d73ee2f733530d5a6c60580c9b8"
     },
     {
       "filename": "Hytils-Reborn-1.8.9-forge-1.7.5.jar",

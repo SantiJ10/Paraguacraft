@@ -22,5 +22,7 @@ public abstract class MixinInventoryScreenOverlay {
         NametagOverlay.drawInventoryTag(
             context, acc.paraguacraft$getGuiX(), acc.paraguacraft$getGuiY(), mouseX, mouseY, client.player
         );
+        InventoryScreen self = (InventoryScreen) (Object) this;
+        NametagOverlay.drawWatermark(context, self.width, self.height);
     }
 }

@@ -9,7 +9,14 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - **Modo offline nativo**: si no hay internet, no intenta bajar assets ni muestra errores de conexión. Lanza la instancia con los archivos locales si ya está instalada.
 - **Skins Premium en vivo**: refresco en segundo plano al cambiar skin o nick (sin cerrar sesión). Cache-buster `?t=` para no mostrar la skin vieja.
 - **Servidores locales**: guía colapsable paso a paso (mismo estilo que skins no-premium).
-- Clientes embebidos/fallback: PvP **2.1.57** y Modern **0.9.31**.
+- Clientes embebidos/fallback: PvP **2.1.58** y Modern **0.9.32**.
+
+### Cliente PvP 1.8.9 (2.1.58)
+- Pausa: solo la skin (sin nombre ni vida).
+
+### Cliente PvP Modern (0.9.32)
+- Overlay de inventario a 0.7x (como 1.8.9). Pausa: solo la skin.
+- Watermark Lunar también en el inventario survival (se dibuja al final del render).
 
 ### Cliente PvP 1.8.9 (2.1.57)
 - Ping debajo del Keystrokes (módulo arrastrable). Título de pausa con la versión real.

@@ -3,13 +3,13 @@
     "nombre":  "Paraguacraft PvP Modern",
     "mc_version":  "1.21.11",
     "loader":  "fabric",
-    "client_version":  "0.9.31",
-    "release_tag":  "pvp-modern-0.9.31",
-    "descripcion":  "Keystrokes CPS real, ping getLatency, overlay inventario 1.5x sin fantasma, nametags F5.",
+    "client_version":  "0.9.32",
+    "release_tag":  "pvp-modern-0.9.32",
+    "descripcion":  "Overlay inventario 0.7x, pausa solo skin, watermark en inventario.",
     "mods":  [
                  {
-                     "sha1":  "19f25458dd42f7284bafa8e40501743745f23ea5",
-                     "filename":  "ParaguacraftPvP-Modern-0.9.31.jar"
+                     "sha1":  "e32c83d95a2acd2f88204b99c2b41629876f5cba",
+                     "filename":  "ParaguacraftPvP-Modern-0.9.32.jar"
                  }
              ]
 }

@@ -29,7 +29,7 @@ public final class NametagOverlay {
     private static final int MODEL_BOX_X1 = 26;
     private static final int MODEL_BOX_Y1 = 8;
     private static final int MODEL_BOX_X2 = 75;
-    private static final float OVERLAY_SCALE = 1.5F;
+    private static final float OVERLAY_SCALE = 0.7F;
     private static final float LOOK_FOLLOW = 16.0F;
 
     /** >0 while the GUI 3D player preview is actually rendering. */
@@ -92,19 +92,19 @@ public final class NametagOverlay {
     public static void drawPreview(
         DrawContext context, int feetX, int feetY, int mouseX, int mouseY, PlayerEntity player
     ) {
-        drawPreview(context, feetX, feetY, mouseX, mouseY, player, MODEL_SCALE, true, true);
+        drawPreview(context, feetX, feetY, mouseX, mouseY, player, MODEL_SCALE, true, true, true);
     }
 
-    /** Menú de pausa: mismo overlay (nombre + logo + vida), modelo un poco más grande. */
+    /** Menú de pausa: solo la skin (sin nombre, logo ni vida). */
     public static void drawPausePreview(
         DrawContext context, int feetX, int feetY, int mouseX, int mouseY, PlayerEntity player
     ) {
-        drawPreview(context, feetX, feetY, mouseX, mouseY, player, 42, true, true);
+        drawPreview(context, feetX, feetY, mouseX, mouseY, player, 42, false, false, false);
     }
 
     private static void drawPreview(
         DrawContext context, int feetX, int feetY, int mouseX, int mouseY, PlayerEntity player,
-        int modelScale, boolean showHealth, boolean showLogo
+        int modelScale, boolean showHealth, boolean showLogo, boolean showName
     ) {
         if (player == null || !ModernConfig.showInventoryTags) {
             return;
@@ -117,7 +117,9 @@ public final class NametagOverlay {
         InventoryScreen.drawEntity(
             context, x1, y1, x2, feetY, modelScale, 0.0625F, (float) mouseX, (float) mouseY, player
         );
-        drawOnModel(context, x1, y1, x2, feetY, mouseX, mouseY, player, modelScale, showHealth, showLogo);
+        if (showName || showHealth || showLogo) {
+            drawOnModel(context, x1, y1, x2, feetY, mouseX, mouseY, player, modelScale, showHealth, showLogo);
+        }
     }
 
     private static void drawOnModel(

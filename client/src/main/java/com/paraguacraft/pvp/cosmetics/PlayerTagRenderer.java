@@ -57,9 +57,24 @@ public final class PlayerTagRenderer {
         drawPreview(feetX, feetY, mouseX, mouseY, player, MODEL_SCALE, true, true);
     }
 
-    /** Pause menu: modelo un poco más grande, solo nombre (sin vida ni logo). */
+    /** Pause menu: solo la skin (sin nombre, logo ni vida). */
     public static void drawPausePreview(int feetX, int feetY, int mouseX, int mouseY, EntityPlayer player) {
-        drawPreview(feetX, feetY, mouseX, mouseY, player, 42, false, false);
+        if (player == null || !ModConfig.showInventoryTags) {
+            return;
+        }
+        GuiInventory.drawEntityOnScreen(
+            feetX,
+            feetY,
+            42,
+            (float) (feetX - mouseX),
+            (float) (feetY - 50 - mouseY),
+            player
+        );
+        GlStateManager.disableLighting();
+        GlStateManager.enableTexture2D();
+        GlStateManager.enableAlpha();
+        GlStateManager.enableBlend();
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
     }
 
     private static void drawPreview(
