@@ -1,12 +1,12 @@
 {
-  "version": "1.1.28",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.28/Instalar_Paraguacraft_v1.1.28.exe",
+  "version": "1.1.29",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.29/Instalar_Paraguacraft_v1.1.29.exe",
   "size_bytes": 5687160,
   "sha256": "394da941bc7a4d39b42a01e381c66f4fefcfffbf2efd69d4aad755070ed07915",
-  "notes": "- RAM editable por servidor (Propiedades) y -Xmx al iniciar\n- Mods del server con nombres/iconos (Modrinth + fabric.mod.json)\n- Fix SkinsRestorer/mods incompatibles (c2me Java 25) en packs 1.21.x",
+  "notes": "- Modo offline nativo: lanza con archivos locales si no hay internet\n- Skins Premium en vivo (sin cerrar sesion) + cache-buster\n- Guia colapsable de servidores locales\n- Clientes PvP 2.1.52 / Modern 0.9.29",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.28/Instalar_Paraguacraft_v1.1.28.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.29/Instalar_Paraguacraft_v1.1.29.exe",
       "signature": ""
     }
   }

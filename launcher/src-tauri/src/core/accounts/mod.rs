@@ -180,6 +180,30 @@ pub fn upsert_microsoft(login: &MsLogin) -> AppResult<Vec<Account>> {
     Ok(accounts)
 }
 
+/// Actualiza nick/avatar de una cuenta Microsoft si Mojang devolvió un nombre nuevo.
+pub fn sync_premium_username(id: &str, new_username: &str) -> AppResult<Vec<Account>> {
+    let new_username = new_username.trim();
+    if new_username.is_empty() {
+        return Ok(store::load_accounts());
+    }
+    let mut accounts = store::load_accounts();
+    let Some(acc) = accounts.iter_mut().find(|a| a.id == id) else {
+        return Ok(accounts);
+    };
+    if acc.kind != "microsoft" || acc.username == new_username {
+        return Ok(accounts);
+    }
+    acc.username = new_username.to_string();
+    acc.avatar_url = avatar_url(&acc.uuid);
+    store::save_accounts(&accounts)?;
+    Ok(accounts)
+}
+
+/// Token cacheado sin validar contra Mojang (lanzamiento offline).
+pub fn cached_token(id: &str) -> Option<TokenRecord> {
+    store::get_token(id).filter(|t| !t.mc_access_token.is_empty())
+}
+
 /// Garantiza un access_token valido para la cuenta `id` (refresh perezoso).
 /// Solo refresca si el token fue rechazado o si pasaron >55 min. Se usa antes
 /// de lanzar el juego (Fase 3). Reemplaza el hilo de auto-refresh del Python.

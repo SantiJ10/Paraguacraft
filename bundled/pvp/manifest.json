@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.51",
-  "release_tag": "pvp-client-2.1.51",
+  "client_version": "2.1.52",
+  "release_tag": "pvp-client-2.1.52",
   "descripcion": "Hotbar 1.8 transparente (sin cuadrados).",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.51.jar",
-      "sha1": "068f477a05e170c532994c1137b45e4550401c0d"
+      "filename": "ParaguacraftPvP-2.1.52.jar",
+      "sha1": "d73a53206b78164993d1501523659e50e2c8ba87"
     },
     {
       "filename": "Hytils-Reborn-1.8.9-forge-1.7.5.jar",

@@ -14,6 +14,8 @@ public final class ModernConfig {
     public static boolean showFps = true;
     public static boolean showPing = true;
     public static boolean showKeystrokes = true;
+    /** LMB/RMB en el HUD de teclas (WASD + espacio siempre). */
+    public static boolean showKeystrokesMouse = true;
     public static boolean showPerfBadge = false;
     public static boolean showCoords = false;
     public static boolean showArmor = true;
@@ -84,7 +86,14 @@ public final class ModernConfig {
     /** Insignias + ping rival en nametags (Fase 3 — paridad social 1.8.9). */
     public static boolean showNametagLogo = true;
     public static boolean showNametagLogoOthers = true;
+    public static boolean showNametagHealth = true;
     public static boolean showOpponentPing = false;
+    public static boolean showWatermark = true;
+    public static boolean showInventoryTags = true;
+    public static boolean showWaypoints = true;
+    public static boolean itemTracker2d = true;
+    public static boolean itemTracker3d = true;
+    public static boolean armorDurabilityAlert = true;
     /** HUD con nombre/IP del servidor conectado (Fase 3 — paridad `drawServerHUD` 1.8.9). */
     public static boolean showServerHud = false;
     public static int serverHudX = 5;
@@ -154,6 +163,12 @@ public final class ModernConfig {
     public static int scaleBridge = 100;
     public static int scaleReach = 100;
     public static int scaleServer = 100;
+    public static int scaleItems = 100;
+    public static int scaleWaypoints = 100;
+    public static int itemsX = 5;
+    public static int itemsY = 180;
+    public static int waypointsX = 5;
+    public static int waypointsY = 200;
     public static int coordsX = 5;
     public static int coordsY = 44;
     private static final int[] MUSIC_ALPHA_PRESETS = {255, 192, 128, 64, 0};
@@ -267,6 +282,7 @@ public final class ModernConfig {
             showFps = bool(props, "showFps", showFps);
             showPing = bool(props, "showPing", showPing);
             showKeystrokes = bool(props, "showKeystrokes", showKeystrokes);
+            showKeystrokesMouse = bool(props, "showKeystrokesMouse", showKeystrokesMouse);
             showPerfBadge = bool(props, "showPerfBadge", showPerfBadge);
             showCoords = bool(props, "showCoords", showCoords);
             showArmor = bool(props, "showArmor", showArmor);
@@ -343,7 +359,14 @@ public final class ModernConfig {
             itemFrameCull = bool(props, "itemFrameCull", itemFrameCull);
             showNametagLogo = bool(props, "showNametagLogo", showNametagLogo);
             showNametagLogoOthers = bool(props, "showNametagLogoOthers", showNametagLogoOthers);
+            showNametagHealth = bool(props, "showNametagHealth", showNametagHealth);
             showOpponentPing = bool(props, "showOpponentPing", showOpponentPing);
+            showWatermark = bool(props, "showWatermark", showWatermark);
+            showInventoryTags = bool(props, "showInventoryTags", showInventoryTags);
+            showWaypoints = bool(props, "showWaypoints", showWaypoints);
+            itemTracker2d = bool(props, "itemTracker2d", itemTracker2d);
+            itemTracker3d = bool(props, "itemTracker3d", itemTracker3d);
+            armorDurabilityAlert = bool(props, "armorDurabilityAlert", armorDurabilityAlert);
             showServerHud = bool(props, "showServerHud", showServerHud);
             serverHudX = intProp(props, "serverHudX", serverHudX);
             serverHudY = intProp(props, "serverHudY", serverHudY);
@@ -424,6 +447,12 @@ public final class ModernConfig {
             scaleBridge = clampScale(props, "scaleBridge", scaleBridge);
             scaleReach = clampScale(props, "scaleReach", scaleReach);
             scaleServer = clampScale(props, "scaleServer", scaleServer);
+            scaleItems = clampScale(props, "scaleItems", scaleItems);
+            scaleWaypoints = clampScale(props, "scaleWaypoints", scaleWaypoints);
+            itemsX = intProp(props, "itemsX", itemsX);
+            itemsY = intProp(props, "itemsY", itemsY);
+            waypointsX = intProp(props, "waypointsX", waypointsX);
+            waypointsY = intProp(props, "waypointsY", waypointsY);
             coordsX = intProp(props, "coordsX", coordsX);
             coordsY = intProp(props, "coordsY", coordsY);
             comboX = intProp(props, "comboX", comboX);
@@ -457,6 +486,7 @@ public final class ModernConfig {
         props.setProperty("showFps", String.valueOf(showFps));
         props.setProperty("showPing", String.valueOf(showPing));
         props.setProperty("showKeystrokes", String.valueOf(showKeystrokes));
+        props.setProperty("showKeystrokesMouse", String.valueOf(showKeystrokesMouse));
         props.setProperty("showPerfBadge", String.valueOf(showPerfBadge));
         props.setProperty("showCoords", String.valueOf(showCoords));
         props.setProperty("showArmor", String.valueOf(showArmor));
@@ -521,7 +551,14 @@ public final class ModernConfig {
         props.setProperty("itemFrameCull", String.valueOf(itemFrameCull));
         props.setProperty("showNametagLogo", String.valueOf(showNametagLogo));
         props.setProperty("showNametagLogoOthers", String.valueOf(showNametagLogoOthers));
+        props.setProperty("showNametagHealth", String.valueOf(showNametagHealth));
         props.setProperty("showOpponentPing", String.valueOf(showOpponentPing));
+        props.setProperty("showWatermark", String.valueOf(showWatermark));
+        props.setProperty("showInventoryTags", String.valueOf(showInventoryTags));
+        props.setProperty("showWaypoints", String.valueOf(showWaypoints));
+        props.setProperty("itemTracker2d", String.valueOf(itemTracker2d));
+        props.setProperty("itemTracker3d", String.valueOf(itemTracker3d));
+        props.setProperty("armorDurabilityAlert", String.valueOf(armorDurabilityAlert));
         props.setProperty("showServerHud", String.valueOf(showServerHud));
         props.setProperty("serverHudX", String.valueOf(serverHudX));
         props.setProperty("serverHudY", String.valueOf(serverHudY));
@@ -579,6 +616,12 @@ public final class ModernConfig {
         props.setProperty("scaleBridge", String.valueOf(scaleBridge));
         props.setProperty("scaleReach", String.valueOf(scaleReach));
         props.setProperty("scaleServer", String.valueOf(scaleServer));
+        props.setProperty("scaleItems", String.valueOf(scaleItems));
+        props.setProperty("scaleWaypoints", String.valueOf(scaleWaypoints));
+        props.setProperty("itemsX", String.valueOf(itemsX));
+        props.setProperty("itemsY", String.valueOf(itemsY));
+        props.setProperty("waypointsX", String.valueOf(waypointsX));
+        props.setProperty("waypointsY", String.valueOf(waypointsY));
         props.setProperty("coordsX", String.valueOf(coordsX));
         props.setProperty("coordsY", String.valueOf(coordsY));
         props.setProperty("comboX", String.valueOf(comboX));

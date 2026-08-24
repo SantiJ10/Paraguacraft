@@ -1,5 +1,6 @@
 package com.paraguacraft.pvp.mixins.performance;
 
+import com.paraguacraft.pvp.core.MemoryCleanup;
 import com.paraguacraft.pvp.core.PerformanceConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.WorldClient;
@@ -47,6 +48,6 @@ public abstract class MixinMinecraft {
         if (!PerformanceConfig.memoryCleanupOnWorldChange || worldClientIn != null) {
             return;
         }
-        System.gc();
+        MemoryCleanup.onWorldUnload();
     }
 }

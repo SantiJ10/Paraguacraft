@@ -48,6 +48,7 @@ fn g1_flags_baja() -> Vec<&'static str> {
         "-XX:G1NewSizePercent=20",
         "-XX:G1ReservePercent=20",
         "-XX:MaxTenuringThreshold=1",
+        "-XX:+DisableExplicitGC",
     ]
 }
 

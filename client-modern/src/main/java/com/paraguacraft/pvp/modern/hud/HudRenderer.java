@@ -220,6 +220,16 @@ public final class HudRenderer {
             drawLabeled(client.textRenderer, context, "Bridge: ", String.format("%.1fs", BridgeTimer.seconds()), 0, 0, 0xFF55FFFF);
             HudModuleScale.end(context);
         }
+        if (ModernConfig.itemTracker2d) {
+            HudModuleScale.begin(context, ModernConfig.itemsX, ModernConfig.itemsY, ModernConfig.scaleItems);
+            com.paraguacraft.pvp.modern.core.ItemTracker.drawHud(context, client.textRenderer);
+            HudModuleScale.end(context);
+        }
+        if (ModernConfig.showWaypoints) {
+            HudModuleScale.begin(context, ModernConfig.waypointsX, ModernConfig.waypointsY, ModernConfig.scaleWaypoints);
+            com.paraguacraft.pvp.modern.core.WaypointManager.drawHud(context, client.textRenderer);
+            HudModuleScale.end(context);
+        }
         } finally {
             matrices.popMatrix();
         }
@@ -385,29 +395,45 @@ public final class HudRenderer {
         ctx.drawText(tr, Text.literal(value), x + tr.getWidth(label), y, valueColor, true);
     }
 
+    public static int keystrokesWidth() {
+        return 64;
+    }
+
+    public static int keystrokesHeight() {
+        int gap = 2;
+        int size = 20;
+        int h = size + gap + size + gap + 14;
+        if (ModernConfig.showKeystrokesMouse) {
+            h += gap + size;
+        }
+        return h;
+    }
+
     private static void drawKeystrokes(DrawContext ctx, TextRenderer tr, MinecraftClient client) {
         int x = ModernConfig.keysX;
         int y = ModernConfig.keysY;
         int gap = 2;
         int size = 20;
+        int totalW = size * 3 + gap * 2;
 
-        drawKeyBox(ctx, tr, x + size + gap, y, size, size, client.options.forwardKey);
-        drawKeyBox(ctx, tr, x, y + size + gap, size, size, client.options.leftKey);
-        drawKeyBox(ctx, tr, x + size + gap, y + size + gap, size, size, client.options.backKey);
-        drawKeyBox(ctx, tr, x + (size + gap) * 2, y + size + gap, size, size, client.options.rightKey);
-        drawMouseBox(ctx, tr, x, y + (size + gap) * 2, 31, size, GLFW.GLFW_MOUSE_BUTTON_LEFT, "LMB");
-        drawMouseBox(ctx, tr, x + 31 + gap, y + (size + gap) * 2, 31, size, GLFW.GLFW_MOUSE_BUTTON_RIGHT, "RMB");
+        drawKeyBox(ctx, tr, x + size + gap, y, size, size, client.options.forwardKey.isPressed(), "W");
+        drawKeyBox(ctx, tr, x, y + size + gap, size, size, client.options.leftKey.isPressed(), "A");
+        drawKeyBox(ctx, tr, x + size + gap, y + size + gap, size, size, client.options.backKey.isPressed(), "S");
+        drawKeyBox(ctx, tr, x + (size + gap) * 2, y + size + gap, size, size, client.options.rightKey.isPressed(), "D");
+        int row = y + (size + gap) * 2;
+        if (ModernConfig.showKeystrokesMouse) {
+            int mw = (totalW - gap) / 2;
+            drawMouseBox(ctx, tr, x, row, mw, size, GLFW.GLFW_MOUSE_BUTTON_LEFT, "LMB");
+            drawMouseBox(ctx, tr, x + mw + gap, row, totalW - mw - gap, size, GLFW.GLFW_MOUSE_BUTTON_RIGHT, "RMB");
+            row += size + gap;
+        }
+        drawKeyBox(ctx, tr, x, row, totalW, 14, client.options.jumpKey.isPressed(), "——");
     }
 
-    private static void drawKeyBox(DrawContext ctx, TextRenderer tr, int x, int y, int w, int h, net.minecraft.client.option.KeyBinding key) {
-        boolean pressed = key.isPressed();
+    private static void drawKeyBox(DrawContext ctx, TextRenderer tr, int x, int y, int w, int h, boolean pressed, String label) {
         int bg = pressed ? 0x88FFFFFF : 0x88000000;
         int fg = pressed ? 0xFF111111 : 0xFFFFFFFF;
         ctx.fill(x, y, x + w, y + h, bg);
-        String label = key.getBoundKeyLocalizedText().getString();
-        if (label.length() > 3) {
-            label = label.substring(0, 1);
-        }
         ctx.drawText(tr, Text.literal(label), x + w / 2 - tr.getWidth(label) / 2, y + h / 2 - 4, fg, false);
     }
 

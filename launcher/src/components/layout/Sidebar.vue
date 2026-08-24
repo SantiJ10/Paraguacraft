@@ -36,7 +36,7 @@ const serversNavActive = computed(
   () => route.name === "servers" || route.name === "server-detail",
 );
 
-const FOCUS_REFRESH_MS = 60_000;
+const FOCUS_REFRESH_MS = 12_000;
 let unlistenFocus: (() => void) | null = null;
 let lastFocusRefresh = 0;
 
@@ -48,7 +48,7 @@ onMounted(async () => {
       const now = Date.now();
       if (now - lastFocusRefresh < FOCUS_REFRESH_MS) return;
       lastFocusRefresh = now;
-      void skins.refresh();
+      void skins.refresh(true);
     });
   } catch {
     /* ignore */

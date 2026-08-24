@@ -392,7 +392,11 @@ async fn collect_asset_items(
         return Ok(Vec::new());
     };
     let index_path = assets_root.join("indexes").join(format!("{asset_id}.json"));
-    let bytes = net::fetch_bytes(client, url).await?;
+    let bytes = match net::fetch_bytes(client, url).await {
+        Ok(b) => b,
+        Err(e) if e.is_connectivity() && index_path.is_file() => std::fs::read(&index_path)?,
+        Err(e) => return Err(e),
+    };
     if let Some(parent) = index_path.parent() {
         std::fs::create_dir_all(parent)?;
     }

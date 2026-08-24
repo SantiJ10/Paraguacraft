@@ -1,7 +1,21 @@
-﻿# Changelog Paraguacraft Launcher
+# Changelog Paraguacraft Launcher
 
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
+
+## [1.1.29] - 2026-08-24
+
+### Launcher
+- **Modo offline nativo**: si no hay internet, no intenta bajar assets ni muestra errores de conexión. Lanza la instancia con los archivos locales si ya está instalada.
+- **Skins Premium en vivo**: refresco en segundo plano al cambiar skin o nick (sin cerrar sesión). Cache-buster `?t=` para no mostrar la skin vieja.
+- **Servidores locales**: guía colapsable paso a paso (mismo estilo que skins no-premium).
+- Clientes embebidos/fallback: PvP **2.1.52** y Modern **0.9.29**.
+
+### Cliente PvP 1.8.9 (2.1.52)
+- Nametags 3D con logo y vida, watermark GUI, keystrokes WASD+espacio, waypoints, item tracker, alerta de armadura y FOV estático.
+
+### Cliente PvP Modern (0.9.29)
+- Nametags 3D (Sodium-safe), watermark, keystrokes con LMB/RMB opcional, waypoints `/wp`, item tracker, alerta de durabilidad y FOV estático.
 
 ## [1.1.26] - 2026-08-10
 

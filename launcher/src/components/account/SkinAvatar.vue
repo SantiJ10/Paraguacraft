@@ -51,7 +51,11 @@ const src = computed(() => {
   }
 
   const url = props.avatarUrl?.trim();
-  if (url) return url;
+  if (url) {
+    if (url.startsWith("data:") || url.startsWith("blob:")) return url;
+    const t = Date.now();
+    return url.includes("t=") ? url : `${url}${url.includes("?") ? "&" : "?"}t=${t}`;
+  }
 
   return STEVE_AVATAR_URL;
 });

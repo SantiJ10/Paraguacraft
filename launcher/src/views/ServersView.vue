@@ -29,6 +29,25 @@ function serverTypeLabel(t: string): string {
 
 const SERVER_RAM_PRESETS_MB = [2048, 4096, 6144, 8192, 12288, 16384] as const;
 
+const GUIDE_KEY = "paraguacraft.servers.localGuideOpen";
+const guideOpen = ref(true);
+try {
+  const saved = localStorage.getItem(GUIDE_KEY);
+  if (saved === "0") guideOpen.value = false;
+  if (saved === "1") guideOpen.value = true;
+} catch {
+  /* ignore */
+}
+
+function toggleGuide() {
+  guideOpen.value = !guideOpen.value;
+  try {
+    localStorage.setItem(GUIDE_KEY, guideOpen.value ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
+}
+
 function formatRamGb(mb: number): string {
   return `${mb / 1024} GB`;
 }
@@ -231,6 +250,74 @@ async function onMenuSelect(id: string) {
       </div>
       <span class="text-sm text-pc-green">Abrir →</span>
     </button>
+
+    <section
+      class="mb-6 overflow-hidden rounded-2xl border border-sky-500/30 bg-gradient-to-br from-sky-500/10 via-surface-2 to-surface-2"
+    >
+      <button
+        type="button"
+        class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-white/5"
+        @click="toggleGuide"
+      >
+        <div class="min-w-0">
+          <p class="text-sm font-bold text-sky-200">Cómo crear un servidor local</p>
+          <p class="mt-0.5 truncate text-xs text-gray-400">
+            Mini tutorial: Paper, Fabric, mods, EULA, localhost y Playit para tus amigos
+          </p>
+        </div>
+        <span class="shrink-0 text-xs font-bold text-sky-300">{{ guideOpen ? "Ocultar" : "Ver guía" }}</span>
+      </button>
+      <div v-if="guideOpen" class="border-t border-sky-500/20 px-4 py-4 text-sm text-gray-300">
+        <ol class="list-decimal space-y-3 pl-5">
+          <li>
+            <span class="font-semibold text-white">Creá el servidor acá</span>
+            — tocá
+            <span class="text-white">Nuevo servidor</span>, poné un nombre y elegí la versión de Minecraft.
+            La RAM se limita sola según tu PC.
+          </li>
+          <li>
+            <span class="font-semibold text-white">Elegí el tipo según qué querés instalar</span>
+            —
+            <span class="text-white">Paper</span> (plugins, el más estable),
+            <span class="text-white">Fabric</span> (mods server-side),
+            <span class="text-white">Forge / NeoForge</span> (modpacks).
+            Las variantes con Geyser dejan entrar también desde Bedrock.
+          </li>
+          <li>
+            <span class="font-semibold text-white">Crear e instalar</span>
+            — Paraguacraft baja el JAR (Paper/Fabric/Forge) y deja la carpeta lista.
+            Entrá al servidor desde esta lista: vas a ver consola, propiedades, plugins/mods y backups.
+          </li>
+          <li>
+            <span class="font-semibold text-white">Aceptá el EULA y arrancá</span>
+            — la primera vez Minecraft pide el acuerdo de Mojang. Aceptalo desde el panel y tocá Iniciar.
+            Esperá a que la consola diga que el server está listo.
+          </li>
+          <li>
+            <span class="font-semibold text-white">Conectate desde el juego</span>
+            —
+            en Multijugador usá
+            <span class="font-mono text-pc-green">localhost</span>
+            (o <span class="font-mono text-pc-green">127.0.0.1</span>) y el puerto de Propiedades
+            (por defecto 25565). Jugá con la misma cuenta del launcher.
+          </li>
+          <li>
+            <span class="font-semibold text-white">Invitá amigos (Playit.gg)</span>
+            — en el detalle del server activá Playit. Te da una IP pública tipo
+            <span class="font-mono text-sky-300">*.tun.ply.gg</span>
+            para que otros entren sin abrir puertos del router.
+          </li>
+          <li>
+            <span class="font-semibold text-white">Plugins, mods y SkinsRestorer</span>
+            — instalalos desde la Tienda o copiando JARs a
+            <span class="font-mono text-white">plugins/</span> (Paper) o
+            <span class="font-mono text-white">mods/</span> (Fabric).
+            Si tus amigos son no-premium, usá online-mode=false + SkinsRestorer.
+            Cuentas Microsoft Premium funcionan con online-mode=true.
+          </li>
+        </ol>
+      </div>
+    </section>
 
     <div v-if="showCreate" class="mb-6 rounded-xl border border-surface-3 bg-surface-2 p-4">
       <h2 class="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-400">Nuevo servidor</h2>

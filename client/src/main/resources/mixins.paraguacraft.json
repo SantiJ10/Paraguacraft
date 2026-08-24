@@ -18,8 +18,7 @@
     "performance.MixinTileEntityRenderDispatcher",
     "performance.MixinDecorEntityCull",
     "performance.MixinSkipCombatFx",
-    "animations.MixinEntityLivingBaseSwing",
-    "cosmetics.MixinNametagLogo"
+    "animations.MixinEntityLivingBaseSwing"
   ],
     "client": [
     "MixinDisplayTitle",
@@ -32,7 +31,8 @@
     "client.MixinGuiButton",
     "client.MixinGuiSlotSelection",
     "client.MixinRenderPlayerCleanup",
-    "client.MixinEntityPlayerSPQoL"
+    "client.MixinEntityPlayerSPQoL",
+    "client.MixinGuiInventoryOverlay"
   ],
   "injectors": {
     "defaultRequire": 0

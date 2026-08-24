@@ -3,8 +3,11 @@ package com.paraguacraft.pvp.gui;
 import com.paraguacraft.pvp.core.LauncherIpc;
 import com.paraguacraft.pvp.gui.theme.UiTheme;
 import com.paraguacraft.pvp.hud.AdvancedHud;
+import com.paraguacraft.pvp.hud.HUDOverlay;
 import com.paraguacraft.pvp.hud.HudModuleScale;
+import com.paraguacraft.pvp.modules.ItemTracker;
 import com.paraguacraft.pvp.modules.ModConfig;
+import com.paraguacraft.pvp.modules.WaypointManager;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiScreen;
@@ -60,7 +63,7 @@ public class GuiEditHUD extends GuiScreen {
         if (ModConfig.showFPS) drawBox(0, ModConfig.fpsX, ModConfig.fpsY, 55, 10);
         if (ModConfig.showPing) drawBox(1, ModConfig.pingX, ModConfig.pingY, 60, 10);
         if (ModConfig.showCPS) drawBox(2, ModConfig.cpsX, ModConfig.cpsY, 50, 10);
-        if (ModConfig.showKeystrokes) drawBox(3, ModConfig.keysX, ModConfig.keysY, 68, 68);
+        if (ModConfig.showKeystrokes) drawBox(3, ModConfig.keysX, ModConfig.keysY, HUDOverlay.keystrokesWidth(), HUDOverlay.keystrokesHeight());
         if (ModConfig.showArmor) drawBox(4, ModConfig.armorX, ModConfig.armorY, 45, 65);
         if (ModConfig.showPotions) drawBox(5, ModConfig.potionX, ModConfig.potionY, 120, 48);
         if (ModConfig.showCoords) drawBox(6, ModConfig.coordsX, ModConfig.coordsY, 100, 10);
@@ -84,6 +87,8 @@ public class GuiEditHUD extends GuiScreen {
         if (ModConfig.reachDisplay) drawBox(12, ModConfig.reachDisplayX, ModConfig.reachDisplayY, 70, 10);
         if (ModConfig.comboCounter) drawBox(13, ModConfig.comboDisplayX, ModConfig.comboDisplayY, 70, 10);
         if (ModConfig.showBlockCount) drawBox(14, ModConfig.blocksX, ModConfig.blocksY, 40, 18);
+        if (ModConfig.itemTracker2d) drawBox(15, ModConfig.itemsX, ModConfig.itemsY, 140, ItemTracker.hudHeight());
+        if (ModConfig.showWaypoints) drawBox(16, ModConfig.waypointsX, ModConfig.waypointsY, 140, WaypointManager.hudHeight());
 
         GlStateManager.popMatrix();
         super.drawScreen(mouseX, mouseY, partialTicks);
@@ -157,7 +162,7 @@ public class GuiEditHUD extends GuiScreen {
         }
 
         // Cuerpo = mover
-        for (int id = 14; id >= 0; id--) {
+        for (int id = 16; id >= 0; id--) {
             if (!isVisible(id)) {
                 continue;
             }
@@ -223,7 +228,7 @@ public class GuiEditHUD extends GuiScreen {
     }
 
     private int hitHandle(int mx, int my) {
-        for (int id = 0; id <= 14; id++) {
+        for (int id = 0; id <= 16; id++) {
             if (!isVisible(id)) {
                 continue;
             }
@@ -263,6 +268,8 @@ public class GuiEditHUD extends GuiScreen {
             case 12: return ModConfig.reachDisplay;
             case 13: return ModConfig.comboCounter;
             case 14: return ModConfig.showBlockCount;
+            case 15: return ModConfig.itemTracker2d;
+            case 16: return ModConfig.showWaypoints;
             default: return false;
         }
     }
@@ -275,7 +282,7 @@ public class GuiEditHUD extends GuiScreen {
             case 0: return new int[] {ModConfig.fpsX, ModConfig.fpsY, 55, 10};
             case 1: return new int[] {ModConfig.pingX, ModConfig.pingY, 60, 10};
             case 2: return new int[] {ModConfig.cpsX, ModConfig.cpsY, 50, 10};
-            case 3: return new int[] {ModConfig.keysX, ModConfig.keysY, 68, 68};
+            case 3: return new int[] {ModConfig.keysX, ModConfig.keysY, HUDOverlay.keystrokesWidth(), HUDOverlay.keystrokesHeight()};
             case 4: return new int[] {ModConfig.armorX, ModConfig.armorY, 45, 65};
             case 5: return new int[] {ModConfig.potionX, ModConfig.potionY, 120, 48};
             case 6: return new int[] {ModConfig.coordsX, ModConfig.coordsY, 100, 10};
@@ -292,6 +299,8 @@ public class GuiEditHUD extends GuiScreen {
             case 12: return new int[] {ModConfig.reachDisplayX, ModConfig.reachDisplayY, 70, 10};
             case 13: return new int[] {ModConfig.comboDisplayX, ModConfig.comboDisplayY, 70, 10};
             case 14: return new int[] {ModConfig.blocksX, ModConfig.blocksY, 40, 18};
+            case 15: return new int[] {ModConfig.itemsX, ModConfig.itemsY, 140, ItemTracker.hudHeight()};
+            case 16: return new int[] {ModConfig.waypointsX, ModConfig.waypointsY, 140, WaypointManager.hudHeight()};
             default: return new int[] {0, 0, 10, 10};
         }
     }
@@ -313,6 +322,8 @@ public class GuiEditHUD extends GuiScreen {
             case 12: ModConfig.reachDisplayX = x; ModConfig.reachDisplayY = y; break;
             case 13: ModConfig.comboDisplayX = x; ModConfig.comboDisplayY = y; break;
             case 14: ModConfig.blocksX = x; ModConfig.blocksY = y; break;
+            case 15: ModConfig.itemsX = x; ModConfig.itemsY = y; break;
+            case 16: ModConfig.waypointsX = x; ModConfig.waypointsY = y; break;
             default: break;
         }
     }

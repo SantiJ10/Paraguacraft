@@ -132,3 +132,15 @@ pub async fn ensure_for_offline_launch(
         }
     }
 }
+
+/// Solo escribe CustomSkinLoader.json (sin descargar el jar).
+pub fn ensure_local_config(game_dir: &Path, loader: &str, auth_type: &str) {
+    let auth = auth_type.trim().to_ascii_lowercase();
+    if auth != "legacy" && auth != "offline" {
+        return;
+    }
+    if csl_loader_tag(loader).is_none() {
+        return;
+    }
+    write_ely_config(game_dir);
+}

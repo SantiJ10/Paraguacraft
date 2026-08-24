@@ -62,6 +62,7 @@ public class GuiParaguaMenu extends GuiScreen {
         new ModEntry(1, "paraguacraft.menu.mod.ping", 1),
         new ModEntry(2, "paraguacraft.menu.mod.cps", 1),
         new ModEntry(3, "paraguacraft.menu.mod.keystrokes", 1),
+        new ModEntry(63, "paraguacraft.menu.mod.saturation", 1),
         new ModEntry(5, "paraguacraft.menu.mod.coords", 1),
         new ModEntry(6, "paraguacraft.menu.mod.armor", 1),
         new ModEntry(8, "paraguacraft.menu.mod.potions", 1),
@@ -93,6 +94,9 @@ public class GuiParaguaMenu extends GuiScreen {
         new ModEntry(37, "paraguacraft.menu.mod.tnt_countdown", 2),
         new ModEntry(38, "paraguacraft.menu.mod.bw_resources", 2),
         new ModEntry(39, "paraguacraft.menu.mod.item_3d", 3),
+        new ModEntry(62, "paraguacraft.menu.mod.waypoints", 2),
+        new ModEntry(64, "paraguacraft.menu.mod.item_tracker", 2),
+        new ModEntry(65, "paraguacraft.menu.mod.watermark", 4),
         new ModEntry(41, "paraguacraft.menu.mod.low_fire", 2),
         new ModEntry(43, "paraguacraft.menu.mod.opponent_ping", 2),
         new ModEntry(44, "paraguacraft.menu.mod.quick_play", 7),
@@ -264,7 +268,7 @@ public class GuiParaguaMenu extends GuiScreen {
             String openLbl = ModLang.format("paraguacraft.menu.open");
             Gui.drawRect(x + 8, toggleY, x + CARD_W - 8, toggleY + 16, hover ? UiTheme.ACCENT : 0xFF226688);
             fr.drawStringWithShadow(openLbl, x + CARD_W / 2 - fr.getStringWidth(openLbl) / 2, toggleY + 4, 0xFFFFFF);
-        } else if (mod.id == 6 || mod.id == 9 || mod.id == 36 || mod.id == 38 || mod.id == 45 || mod.id == 60 || mod.id == 61) {
+        } else if (hasOptions(mod.id)) {
             int half = (CARD_W - 20) / 2;
             int optX = x + 8;
             int togX = x + 8 + half + 4;
@@ -377,17 +381,21 @@ public class GuiParaguaMenu extends GuiScreen {
             int cardY = gridY + 8 + cy * (CARD_H + GAP) - (int) scrollOffset;
             if (cardY + CARD_H >= gridY && cardY <= gridY + panelH - TOPBAR - 12
                 && mx >= cardX && mx <= cardX + CARD_W && my >= cardY && my <= cardY + CARD_H) {
-                if (mod.id == 6 || mod.id == 9 || mod.id == 36 || mod.id == 38 || mod.id == 45 || mod.id == 60 || mod.id == 61) {
+                if (hasOptions(mod.id)) {
                     int toggleY = cardY + CARD_H - 22;
                     int half = (CARD_W - 20) / 2;
                     int optX = cardX + 8;
                     int togX = cardX + 8 + half + 4;
                     if (my >= toggleY && my <= toggleY + 16) {
                         if (mx >= optX && mx <= optX + half) {
-                            if (mod.id == 6) {
+                            if (mod.id == 3) {
+                                mc.displayGuiScreen(GuiSubmodOptions.keystrokes());
+                            } else if (mod.id == 6) {
                                 mc.displayGuiScreen(GuiSubmodOptions.armor());
                             } else if (mod.id == 9) {
                                 mc.displayGuiScreen(new GuiScoreboardOptions());
+                            } else if (mod.id == 17) {
+                                mc.displayGuiScreen(GuiSubmodOptions.nametag());
                             } else if (mod.id == 36) {
                                 mc.displayGuiScreen(new GuiMusicHudOptions());
                             } else if (mod.id == 38) {
@@ -396,6 +404,8 @@ public class GuiParaguaMenu extends GuiScreen {
                                 mc.displayGuiScreen(new GuiChatTriggersOptions());
                             } else if (mod.id == 60) {
                                 mc.displayGuiScreen(GuiSubmodOptions.fps());
+                            } else if (mod.id == 64) {
+                                mc.displayGuiScreen(GuiSubmodOptions.items());
                             } else {
                                 mc.displayGuiScreen(GuiSubmodOptions.entity());
                             }
@@ -539,8 +549,17 @@ public class GuiParaguaMenu extends GuiScreen {
             case 50: return ModConfig.hideTitles;
             case 60: return ModConfig.showFPS;
             case 61: return PerformanceConfig.entityCull;
+            case 62: return ModConfig.showWaypoints;
+            case 63: return ModConfig.showSaturation;
+            case 64: return ModConfig.itemTracker2d || ModConfig.itemTracker3d;
+            case 65: return ModConfig.showWatermark;
             default: return false;
         }
+    }
+
+    private static boolean hasOptions(int id) {
+        return id == 3 || id == 6 || id == 9 || id == 17 || id == 36 || id == 38
+            || id == 45 || id == 60 || id == 61 || id == 64;
     }
 
     private void toggleMod(int id) {
@@ -632,6 +651,18 @@ public class GuiParaguaMenu extends GuiScreen {
                 PerformanceConfig.reduceFpsWhenUnfocused = !PerformanceConfig.reduceFpsWhenUnfocused;
                 ModConfig.save();
                 break;
+            case 62: ModConfig.showWaypoints = !ModConfig.showWaypoints; break;
+            case 63: ModConfig.showSaturation = !ModConfig.showSaturation; break;
+            case 64:
+                if (ModConfig.itemTracker2d || ModConfig.itemTracker3d) {
+                    ModConfig.itemTracker2d = false;
+                    ModConfig.itemTracker3d = false;
+                } else {
+                    ModConfig.itemTracker2d = true;
+                    ModConfig.itemTracker3d = true;
+                }
+                break;
+            case 65: ModConfig.showWatermark = !ModConfig.showWatermark; break;
             default: break;
         }
     }
