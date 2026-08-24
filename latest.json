@@ -1,8 +1,8 @@
 {
   "version": "1.1.29",
   "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.29/Instalar_Paraguacraft_v1.1.29.exe",
-  "size_bytes": 5687160,
-  "sha256": "394da941bc7a4d39b42a01e381c66f4fefcfffbf2efd69d4aad755070ed07915",
+  "size_bytes": 5697281,
+  "sha256": "b005051bececa54379c2d2058faf9cdefc22e8fa86bcc8392c815ace0282f98b",
   "notes": "- Modo offline nativo: lanza con archivos locales si no hay internet\n- Skins Premium en vivo (sin cerrar sesion) + cache-buster\n- Guia colapsable de servidores locales\n- Clientes PvP 2.1.52 / Modern 0.9.29",
   "platforms": {
     "windows-x86_64": {
