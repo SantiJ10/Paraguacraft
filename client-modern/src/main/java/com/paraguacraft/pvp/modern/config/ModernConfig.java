@@ -109,7 +109,7 @@ public final class ModernConfig {
     public static int fpsX = 5;
     public static int fpsY = 5;
     public static int pingX = 5;
-    public static int pingY = 18;
+    public static int pingY = 155;
     public static int cpsX = 5;
     public static int cpsY = 31;
     public static int keysX = 5;
@@ -385,6 +385,9 @@ public final class ModernConfig {
             cpsY = intProp(props, "cpsY", cpsY);
             keysX = intProp(props, "keysX", keysX);
             keysY = intProp(props, "keysY", keysY);
+            if (pingX == 5 && pingY == 18 && keysX == 5 && keysY == 55) {
+                pingY = 155;
+            }
             armorLayoutMigrated = bool(props, "armorLayoutMigrated", armorLayoutMigrated);
             armorX = intProp(props, "armorX", armorX);
             armorY = intProp(props, "armorY", armorY);

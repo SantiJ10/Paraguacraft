@@ -17,6 +17,7 @@
     "MixinPlayerListHudNickTeam",
     "MixinEntityRendererNickfinder",
     "MixinEntityRendererNametag",
+    "MixinEntityGuiElementRenderer",
     "MixinInventoryScreenOverlay",
     "MixinHandledScreenWatermark",
     "MixinHandledScreenPlayerPreview",

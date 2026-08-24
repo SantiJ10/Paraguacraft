@@ -25,6 +25,10 @@ public abstract class MixinPlayerEntityRendererNametagCull {
         CallbackInfo ci
     ) {
         MinecraftClient client = MinecraftClient.getInstance();
+        if (com.paraguacraft.pvp.modern.cosmetics.NametagOverlay.isGuiEntityPass()) {
+            ci.cancel();
+            return;
+        }
         if (CullHelper.shouldCullNametag(state, client.targetedEntity)) {
             ci.cancel();
             return;

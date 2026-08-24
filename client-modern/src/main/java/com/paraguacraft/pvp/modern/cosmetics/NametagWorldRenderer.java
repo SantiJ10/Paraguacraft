@@ -12,6 +12,8 @@ import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.network.PlayerListEntry;
+import net.minecraft.client.option.Perspective;
+import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.RenderLayers;
 import net.minecraft.client.render.VertexConsumer;
@@ -21,14 +23,17 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.text.TextColor;
+import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 
 /**
  * Nametags 3D fuera del pipeline de EntityRenderer (Sodium-safe).
- * El mixin solo cancela el label vanilla; este evento dibuja nombre, logo y vida.
+ * Billboard con yaw/pitch de cámara, pitch invertido en F5 frontal.
  */
 public final class NametagWorldRenderer {
+
+    private static final float LABEL_SCALE = 0.026666668F;
 
     private NametagWorldRenderer() {}
 
@@ -44,6 +49,9 @@ public final class NametagWorldRenderer {
         if (client.world == null || client.player == null || context.matrices() == null || context.consumers() == null) {
             return;
         }
+        if (NametagOverlay.isGuiEntityPass()) {
+            return;
+        }
         CameraRenderState camera = context.worldState().cameraRenderState;
         if (camera == null || !camera.initialized) {
             return;
@@ -55,21 +63,26 @@ public final class NametagWorldRenderer {
         VertexConsumerProvider consumers = context.consumers();
         TextRenderer tr = client.textRenderer;
         int light = LightmapTextureManager.pack(15, 15);
+        Perspective perspective = client.options.getPerspective();
 
         for (PlayerEntity player : client.world.getPlayers()) {
-            if (player == client.player && NametagOverlay.isLocalPreviewScreen(client.currentScreen)) {
+            boolean local = player == client.player;
+            if (local && perspective.isFirstPerson()) {
+                continue;
+            }
+            if (local && NametagOverlay.isLocalPreviewScreen(client.currentScreen)) {
                 continue;
             }
             double distSq = client.player.squaredDistanceTo(player);
-            if (ModernConfig.nametagCull && player != client.player && distSq > CullHelper.NAMETAG_CULL_DISTANCE_SQ) {
+            if (ModernConfig.nametagCull && !local && distSq > CullHelper.NAMETAG_CULL_DISTANCE_SQ) {
                 continue;
             }
-            if (ModernConfig.nametagLod && player != client.player && distSq > CullHelper.NAMETAG_LOD_DISTANCE_SQ) {
+            if (ModernConfig.nametagLod && !local && distSq > CullHelper.NAMETAG_LOD_DISTANCE_SQ) {
                 if (client.targetedEntity != player) {
                     continue;
                 }
             }
-            drawPlayer(player, client, matrices, consumers, tr, camera, cam, tickDelta, light);
+            drawPlayer(player, client, matrices, consumers, tr, cam, tickDelta, light, perspective);
         }
     }
 
@@ -79,10 +92,10 @@ public final class NametagWorldRenderer {
         MatrixStack matrices,
         VertexConsumerProvider consumers,
         TextRenderer tr,
-        CameraRenderState camera,
         Vec3d cam,
         float tickDelta,
-        int light
+        int light,
+        Perspective perspective
     ) {
         Text name = resolveName(player, client);
         boolean local = player == client.player;
@@ -91,13 +104,17 @@ public final class NametagWorldRenderer {
             : (ModernConfig.showNametagLogoOthers && ParaguacraftNetwork.hasLogo(player));
 
         double x = player.lastX + (player.getX() - player.lastX) * tickDelta - cam.x;
-        double y = player.lastY + (player.getY() - player.lastY) * tickDelta - cam.y + player.getHeight() + 0.35;
+        double y = player.lastY + (player.getY() - player.lastY) * tickDelta - cam.y + player.getHeight() + 0.5;
         double z = player.lastZ + (player.getZ() - player.lastZ) * tickDelta - cam.z;
+
+        Camera camera = client.gameRenderer.getCamera();
+        float pitchSign = perspective.isFrontView() ? -1.0F : 1.0F;
 
         matrices.push();
         matrices.translate(x, y, z);
-        matrices.multiply(camera.orientation);
-        matrices.scale(0.025F, -0.025F, 0.025F);
+        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-camera.getYaw()));
+        matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(camera.getPitch() * pitchSign));
+        matrices.scale(-LABEL_SCALE, -LABEL_SCALE, LABEL_SCALE);
         Matrix4f matrix = matrices.peek().getPositionMatrix();
 
         int nameW = tr.getWidth(name);
@@ -111,7 +128,7 @@ public final class NametagWorldRenderer {
         tr.draw(name, left, 0.0F, 0xFFFFFFFF, false, matrix, consumers, TextRenderer.TextLayerType.NORMAL, 0, light);
 
         if (ModernConfig.showNametagHealth) {
-            String hp = String.format("%.1f ❤", Math.max(0.0F, player.getHealth()));
+            String hp = String.format("%.1f", Math.max(0.0F, player.getHealth()));
             Text hpText = Text.literal(hp).styled(s -> s.withColor(TextColor.fromRgb(0xFF5555)));
             float hpW = tr.getWidth(hpText) / 2.0F;
             tr.draw(hpText, -hpW, 10.0F, 0xFFFF5555, false, matrix, consumers, TextRenderer.TextLayerType.NORMAL, 0, light);
@@ -154,11 +171,17 @@ public final class NametagWorldRenderer {
     }
 
     private static void drawIcon(VertexConsumerProvider consumers, Matrix4f matrix, float x, float y, int light) {
-        VertexConsumer vc = consumers.getBuffer(RenderLayers.text(ParaguacraftTextures.MINI_ICON));
         float s = ParaguacraftTextures.MINI_SIZE;
-        vc.vertex(matrix, x, y + s, 0).color(255, 255, 255, 255).texture(0f, 1f).light(light);
-        vc.vertex(matrix, x + s, y + s, 0).color(255, 255, 255, 255).texture(1f, 1f).light(light);
-        vc.vertex(matrix, x + s, y, 0).color(255, 255, 255, 255).texture(1f, 0f).light(light);
-        vc.vertex(matrix, x, y, 0).color(255, 255, 255, 255).texture(0f, 0f).light(light);
+        VertexConsumer see = consumers.getBuffer(RenderLayers.textSeeThrough(ParaguacraftTextures.MINI_ICON));
+        quad(see, matrix, x, y, s, light, 180);
+        VertexConsumer solid = consumers.getBuffer(RenderLayers.text(ParaguacraftTextures.MINI_ICON));
+        quad(solid, matrix, x, y, s, light, 255);
+    }
+
+    private static void quad(VertexConsumer vc, Matrix4f matrix, float x, float y, float s, int light, int alpha) {
+        vc.vertex(matrix, x, y + s, 0).color(255, 255, 255, alpha).texture(0f, 1f).light(light);
+        vc.vertex(matrix, x + s, y + s, 0).color(255, 255, 255, alpha).texture(1f, 1f).light(light);
+        vc.vertex(matrix, x + s, y, 0).color(255, 255, 255, alpha).texture(1f, 0f).light(light);
+        vc.vertex(matrix, x, y, 0).color(255, 255, 255, alpha).texture(0f, 0f).light(light);
     }
 }

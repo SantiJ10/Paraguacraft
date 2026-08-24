@@ -9,7 +9,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - **Modo offline nativo**: si no hay internet, no intenta bajar assets ni muestra errores de conexión. Lanza la instancia con los archivos locales si ya está instalada.
 - **Skins Premium en vivo**: refresco en segundo plano al cambiar skin o nick (sin cerrar sesión). Cache-buster `?t=` para no mostrar la skin vieja.
 - **Servidores locales**: guía colapsable paso a paso (mismo estilo que skins no-premium).
-- Clientes embebidos/fallback: PvP **2.1.56** y Modern **0.9.30**.
+- Clientes embebidos/fallback: PvP **2.1.56** y Modern **0.9.31**.
 
 ### Cliente PvP 1.8.9 (2.1.56)
 - Menú de pausa: skin más grande, solo nombre (sin vida ni logo). Inventario y cofres sin cambios.
@@ -33,6 +33,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ### Cliente PvP 1.8.9 (2.1.52)
 - Nametags 3D con logo y vida, watermark GUI, keystrokes WASD+espacio, waypoints, item tracker, alerta de armadura y FOV estático.
+
+### Cliente PvP Modern (0.9.31)
+- Keystrokes: W / ASD / barra de espacio / LMB+RMB / CPS `L | R` con flanco de bajada real.
+- Ping solo de `PlayerListEntry.getLatency()` (equivalente a `getResponseTime`), color verde/amarillo/rojo; módulo debajo del keystrokes.
+- Overlay de inventario a 1.5x; nametag 3D cancelado sobre el modelo GUI (sin fantasma). Misma preview en cofres, hornos y pausa.
+- Nametags F5 billboard (pitch invertido en frontal) con mini-logo blended; nametag local visible en F5.
 
 ### Cliente PvP Modern (0.9.30)
 - Watermark Lunar (banner) solo en pausa, inventario, cofre, horno y mesa de crafteo.

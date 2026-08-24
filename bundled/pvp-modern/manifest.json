@@ -3,13 +3,13 @@
     "nombre":  "Paraguacraft PvP Modern",
     "mc_version":  "1.21.11",
     "loader":  "fabric",
-    "client_version":  "0.9.30",
-    "release_tag":  "pvp-modern-0.9.30",
-    "descripcion":  "Watermark Lunar en GUI, overlay de inventario con follow, pausa con skin, logo bandera e item tracker discreto.",
+    "client_version":  "0.9.31",
+    "release_tag":  "pvp-modern-0.9.31",
+    "descripcion":  "Keystrokes CPS real, ping getLatency, overlay inventario 1.5x sin fantasma, nametags F5.",
     "mods":  [
                  {
-                     "sha1":  "9d646a960d5c88ba1545ee32e23d628a04ed7370",
-                     "filename":  "ParaguacraftPvP-Modern-0.9.30.jar"
+                     "sha1":  "19f25458dd42f7284bafa8e40501743745f23ea5",
+                     "filename":  "ParaguacraftPvP-Modern-0.9.31.jar"
                  }
              ]
 }

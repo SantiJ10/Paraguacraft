@@ -28,7 +28,14 @@ public abstract class MixinEntityRendererNametag<T extends Entity, S extends Ent
         CameraRenderState cameraRenderState,
         CallbackInfo ci
     ) {
-        if (state instanceof PlayerEntityRenderState && NametagOverlay.shouldReplace3dLabel()) {
+        if (!(state instanceof PlayerEntityRenderState)) {
+            return;
+        }
+        if (NametagOverlay.isGuiEntityPass()) {
+            ci.cancel();
+            return;
+        }
+        if (NametagOverlay.shouldReplace3dLabel()) {
             ci.cancel();
         }
     }

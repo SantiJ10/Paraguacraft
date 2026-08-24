@@ -5,7 +5,7 @@ import com.paraguacraft.pvp.modern.gui.theme.UiTheme;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.GameMenuScreen;
 
-/** Menú de pausa: overlay oscuro, preview 3D (nombre) y watermark Lunar. */
+/** Menú de pausa: overlay oscuro, preview 3D (nombre + logo + vida) y watermark Lunar. */
 public class CustomPauseScreen extends GameMenuScreen {
 
     public CustomPauseScreen(boolean showMenu) {

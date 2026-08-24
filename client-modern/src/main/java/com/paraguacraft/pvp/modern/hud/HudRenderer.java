@@ -77,6 +77,7 @@ public final class HudRenderer {
         } else if (!(client.currentScreen instanceof GuiEditHudScreen)) {
             return;
         }
+        HudCpsTracker.poll(client);
 
         var matrices = context.getMatrices();
         matrices.pushMatrix();
@@ -92,9 +93,8 @@ public final class HudRenderer {
         }
         if (ModernConfig.showPing) {
             int ping = resolvePing(client);
-            int color = ping < 80 ? 0xFF55FF55 : (ping < 150 ? 0xFFFFFF55 : 0xFFFF5555);
             HudModuleScale.begin(context, ModernConfig.pingX, ModernConfig.pingY, ModernConfig.scalePing);
-            drawLabeled(client.textRenderer, context, "Ping: ", ping + " ms", 0, 0, color);
+            drawLabeled(client.textRenderer, context, "Ping: ", ping + " ms", 0, 0, pingColor(ping));
             HudModuleScale.end(context);
         }
         if (ModernConfig.showCps) {
@@ -822,21 +822,19 @@ public final class HudRenderer {
             return 0;
         }
         PlayerListEntry self = handler.getPlayerListEntry(client.player.getUuid());
-        if (self != null) {
-            return Math.max(0, self.getLatency());
+        if (self == null) {
+            return 0;
         }
-        int sum = 0;
-        int count = 0;
-        for (PlayerListEntry entry : handler.getPlayerList()) {
-            int lat = entry.getLatency();
-            if (lat > 0) {
-                sum += lat;
-                count++;
-            }
+        return Math.max(0, self.getLatency());
+    }
+
+    private static int pingColor(int ping) {
+        if (ping < 80) {
+            return 0xFF55FF55;
         }
-        if (count > 0) {
-            return sum / count;
+        if (ping < 150) {
+            return 0xFFFFFF55;
         }
-        return 0;
+        return 0xFFFF5555;
     }
 }

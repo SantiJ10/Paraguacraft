@@ -29,10 +29,27 @@ public final class NametagOverlay {
     private static final int MODEL_BOX_X1 = 26;
     private static final int MODEL_BOX_Y1 = 8;
     private static final int MODEL_BOX_X2 = 75;
-    private static final float OVERLAY_SCALE = 0.7F;
+    private static final float OVERLAY_SCALE = 1.5F;
     private static final float LOOK_FOLLOW = 16.0F;
 
+    /** >0 while the GUI 3D player preview is actually rendering. */
+    private static int guiEntityDepth;
+
     private NametagOverlay() {}
+
+    public static void beginGuiEntityPass() {
+        guiEntityDepth++;
+    }
+
+    public static void endGuiEntityPass() {
+        if (guiEntityDepth > 0) {
+            guiEntityDepth--;
+        }
+    }
+
+    public static boolean isGuiEntityPass() {
+        return guiEntityDepth > 0;
+    }
 
     public static boolean shouldReplace3dLabel() {
         return ModernConfig.showNametagHealth
@@ -78,11 +95,11 @@ public final class NametagOverlay {
         drawPreview(context, feetX, feetY, mouseX, mouseY, player, MODEL_SCALE, true, true);
     }
 
-    /** Menú de pausa: modelo más grande, solo nombre. */
+    /** Menú de pausa: mismo overlay (nombre + logo + vida), modelo un poco más grande. */
     public static void drawPausePreview(
         DrawContext context, int feetX, int feetY, int mouseX, int mouseY, PlayerEntity player
     ) {
-        drawPreview(context, feetX, feetY, mouseX, mouseY, player, 42, false, false);
+        drawPreview(context, feetX, feetY, mouseX, mouseY, player, 42, true, true);
     }
 
     private static void drawPreview(
