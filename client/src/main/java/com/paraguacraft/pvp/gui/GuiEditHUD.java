@@ -87,7 +87,7 @@ public class GuiEditHUD extends GuiScreen {
         if (ModConfig.reachDisplay) drawBox(12, ModConfig.reachDisplayX, ModConfig.reachDisplayY, 70, 10);
         if (ModConfig.comboCounter) drawBox(13, ModConfig.comboDisplayX, ModConfig.comboDisplayY, 70, 10);
         if (ModConfig.showBlockCount) drawBox(14, ModConfig.blocksX, ModConfig.blocksY, 40, 18);
-        if (ModConfig.itemTracker2d) drawBox(15, ModConfig.itemsX, ModConfig.itemsY, 110, ItemTracker.hudHeight());
+        if (ModConfig.itemTracker2d) drawBox(15, ModConfig.itemsX, ModConfig.itemsY, ItemTracker.hudWidth(), ItemTracker.hudHeight());
         if (ModConfig.showWaypoints) drawBox(16, ModConfig.waypointsX, ModConfig.waypointsY, 140, WaypointManager.hudHeight());
 
         GlStateManager.popMatrix();
@@ -299,7 +299,7 @@ public class GuiEditHUD extends GuiScreen {
             case 12: return new int[] {ModConfig.reachDisplayX, ModConfig.reachDisplayY, 70, 10};
             case 13: return new int[] {ModConfig.comboDisplayX, ModConfig.comboDisplayY, 70, 10};
             case 14: return new int[] {ModConfig.blocksX, ModConfig.blocksY, 40, 18};
-            case 15: return new int[] {ModConfig.itemsX, ModConfig.itemsY, 140, ItemTracker.hudHeight()};
+            case 15: return new int[] {ModConfig.itemsX, ModConfig.itemsY, ItemTracker.hudWidth(), ItemTracker.hudHeight()};
             case 16: return new int[] {ModConfig.waypointsX, ModConfig.waypointsY, 140, WaypointManager.hudHeight()};
             default: return new int[] {0, 0, 10, 10};
         }

@@ -35,7 +35,14 @@ public final class NametagSpecialsRenderer {
             return;
         }
         EntityPlayer player = (EntityPlayer) event.entity;
+        Minecraft mc = Minecraft.getMinecraft();
         if (PlayerTagRenderer.isGuiEntityPass() || isLocalPreviewScreen(player)) {
+            event.setCanceled(true);
+            return;
+        }
+        // El nametag local en F5 lo dibuja onLocalNametagF5 (Post). Si Specials.Pre
+        // también dispara, cancelar vanilla acá evita el duplicado sobre la cabeza.
+        if (player == mc.thePlayer) {
             event.setCanceled(true);
             return;
         }

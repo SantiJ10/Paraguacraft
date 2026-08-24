@@ -21,6 +21,7 @@ import com.paraguacraft.pvp.gui.theme.TextUtil;
 import com.paraguacraft.pvp.gui.theme.UiTheme;
 import com.paraguacraft.pvp.modules.ModConfig;
 import com.paraguacraft.pvp.modules.CombatStats;
+import net.minecraft.client.network.NetworkPlayerInfo;
 import java.util.Collection;
 import java.util.ArrayList;
 import java.util.List;
@@ -78,11 +79,12 @@ public class HUDOverlay extends Gui {
             }
             if (ModConfig.showPing) {
                 int ping = 0;
-                if (mc.getNetHandler() != null && mc.getNetHandler().getPlayerInfo(mc.thePlayer.getUniqueID()) != null) {
-                    ping = mc.getNetHandler().getPlayerInfo(mc.thePlayer.getUniqueID()).getResponseTime();
-                }
-                if (ping < 0) {
-                    ping = 0;
+                if (mc.getNetHandler() != null) {
+                    NetworkPlayerInfo info =
+                        mc.getNetHandler().getPlayerInfo(mc.thePlayer.getUniqueID());
+                    if (info != null) {
+                        ping = Math.max(0, info.getResponseTime());
+                    }
                 }
                 HudModuleScale.begin(ModConfig.pingX, ModConfig.pingY, ModConfig.scalePing);
                 HudDraw.labeled("Ping: ", ping + " ms", 0, 0, pingColor(ping));
@@ -551,7 +553,7 @@ public class HUDOverlay extends Gui {
     private void drawKey(int x, int y, int w, int h, KeyBinding key) {
         boolean pressed = key.isKeyDown();
         int bg = pressed ? 0x88FFFFFF : 0x88000000;
-        int fg = pressed ? 0x000000 : 0xFFFFFF;
+        int fg = pressed ? 0xFF111111 : 0xFFFFFFFF;
         Gui.drawRect(x, y, x + w, y + h, bg);
         HudDraw.centered(InputPoll.name(key), x + w / 2f, y + h / 2f - 4, fg);
     }
@@ -571,7 +573,7 @@ public class HUDOverlay extends Gui {
     private void drawMouseKey(int x, int y, int w, int h, int button, String name) {
         boolean pressed = InputPoll.mouse(button);
         int bg = pressed ? 0x88FFFFFF : 0x88000000;
-        int fg = pressed ? 0x000000 : 0xFFFFFF;
+        int fg = pressed ? 0xFF111111 : 0xFFFFFFFF;
         Gui.drawRect(x, y, x + w, y + h, bg);
         HudDraw.centered(name, x + w / 2f, y + h / 2f - 4, fg);
     }

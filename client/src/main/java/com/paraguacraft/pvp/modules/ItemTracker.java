@@ -68,6 +68,10 @@ public final class ItemTracker {
         }
     }
 
+    public static int hudWidth() {
+        return 110;
+    }
+
     public static int hudHeight() {
         if (!ModConfig.itemTracker2d) {
             return 10;

@@ -110,7 +110,7 @@ public class ModConfig {
     public static int blocksX = 5;
     public static int blocksY = 300;
     public static int fpsX = 5, fpsY = 5;
-    public static int pingX = 5, pingY = 15;
+    public static int pingX = 5, pingY = 155;
     public static int cpsX = 5, cpsY = 25;
     public static int coordsX = 5, coordsY = 35;
     public static int keysX = 5, keysY = 55;
@@ -488,6 +488,9 @@ public class ModConfig {
             coordsY = Integer.parseInt(props.getProperty("coordsY", String.valueOf(coordsY)));
             keysX = Integer.parseInt(props.getProperty("keysX", String.valueOf(keysX)));
             keysY = Integer.parseInt(props.getProperty("keysY", String.valueOf(keysY)));
+            if (pingX == 5 && pingY == 15 && keysX == 5 && keysY == 55) {
+                pingY = 155;
+            }
             armorX = Integer.parseInt(props.getProperty("armorX", String.valueOf(armorX)));
             armorY = Integer.parseInt(props.getProperty("armorY", String.valueOf(armorY)));
             potionX = Integer.parseInt(props.getProperty("potionX", String.valueOf(potionX)));
