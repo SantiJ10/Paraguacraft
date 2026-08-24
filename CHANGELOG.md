@@ -9,7 +9,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - **Modo offline nativo**: si no hay internet, no intenta bajar assets ni muestra errores de conexión. Lanza la instancia con los archivos locales si ya está instalada.
 - **Skins Premium en vivo**: refresco en segundo plano al cambiar skin o nick (sin cerrar sesión). Cache-buster `?t=` para no mostrar la skin vieja.
 - **Servidores locales**: guía colapsable paso a paso (mismo estilo que skins no-premium).
-- Clientes embebidos/fallback: PvP **2.1.53** y Modern **0.9.29**.
+- Clientes embebidos/fallback: PvP **2.1.54** y Modern **0.9.29**.
+
+### Cliente PvP 1.8.9 (2.1.54)
+- Logo Paraguacraft embebido (`mini_icon.png`) para nametags e inventario (sin textura missing).
+- Watermark tipo Lunar, más grande: banner icono + PARAGUACRAFT en la esquina inferior.
+- Overlay de inventario más chico; el modelo 3D vuelve a seguir el mouse.
 
 ### Cliente PvP 1.8.9 (2.1.53)
 - Keystrokes centrados: WASD, barra de espacio, LMB/RMB opcional y CPS `L | R` en tiempo real.

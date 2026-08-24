@@ -6,6 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.inventory.GuiInventory;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.WorldRenderer;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
@@ -25,7 +26,7 @@ public final class PlayerTagRenderer {
     private static final int MODEL_SCALE = 30;
     private static final int MODEL_OFFSET_X = 51;
     private static final int MODEL_FEET_Y = 75;
-    private static final float OVERLAY_SCALE = 1.5F;
+    private static final float OVERLAY_SCALE = 0.85F;
 
     /** >0 while {@link GuiInventory#drawEntityOnScreen} is rendering a GUI preview. */
     private static int guiEntityDepth;
@@ -107,6 +108,9 @@ public final class PlayerTagRenderer {
             GlStateManager.enableDepth();
             GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
             GlStateManager.popMatrix();
+            RenderHelper.disableStandardItemLighting();
+            GlStateManager.disableLighting();
+            GlStateManager.enableTexture2D();
         }
     }
 

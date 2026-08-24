@@ -18,14 +18,14 @@ public abstract class MixinGuiInventoryOverlay extends GuiContainer {
         super(inventorySlotsIn);
     }
 
-    @Inject(method = "drawEntityOnScreen", at = @At("HEAD"))
+    @Inject(method = "drawEntityOnScreen", at = @At("HEAD"), require = 1)
     private static void paraguacraft$beginGuiEntity(
         int posX, int posY, int scale, float mouseX, float mouseY, EntityLivingBase ent, CallbackInfo ci
     ) {
         PlayerTagRenderer.beginGuiEntityPass();
     }
 
-    @Inject(method = "drawEntityOnScreen", at = @At("RETURN"))
+    @Inject(method = "drawEntityOnScreen", at = @At("RETURN"), require = 1)
     private static void paraguacraft$endGuiEntity(
         int posX, int posY, int scale, float mouseX, float mouseY, EntityLivingBase ent, CallbackInfo ci
     ) {

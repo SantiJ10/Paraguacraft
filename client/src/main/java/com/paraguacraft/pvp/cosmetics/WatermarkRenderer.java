@@ -2,66 +2,73 @@ package com.paraguacraft.pvp.cosmetics;
 
 import com.paraguacraft.pvp.modules.ModConfig;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.FontRenderer;
+import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.ScaledResolution;
-import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.renderer.Tessellator;
-import net.minecraft.client.renderer.WorldRenderer;
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.client.event.GuiScreenEvent;
+import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
-/** Watermark global en contenedores, anclado con {@link ScaledResolution}. */
+/**
+ * Watermark estilo Lunar: banner (icono + PARAGUACRAFT) en la esquina inferior derecha.
+ * En partida se dibuja en el HUD; con un GUI abierto, encima de la pantalla.
+ */
 public final class WatermarkRenderer {
 
     public static final ResourceLocation ICON =
-        new ResourceLocation("paraguacraft", "textures/gui/watermark_icon.png");
+        new ResourceLocation("paraguacraft", "textures/gui/mini_icon.png");
     public static final ResourceLocation BANNER =
         new ResourceLocation("paraguacraft", "textures/gui/watermark.png");
 
-    private static final int ICON_SIZE = 8;
-    private static final int PAD = 4;
+    /** Alto en px GUI, comparable al watermark de Lunar Client. */
+    private static final int BANNER_H = 48;
+    private static final float BANNER_ASPECT = 436.0F / 128.0F;
+    private static final int PAD = 8;
+
+    @SubscribeEvent
+    public void onHud(RenderGameOverlayEvent.Text event) {
+        if (Minecraft.getMinecraft().currentScreen != null) {
+            return;
+        }
+        draw();
+    }
 
     @SubscribeEvent
     public void onDrawScreen(GuiScreenEvent.DrawScreenEvent.Post event) {
-        if (!ModConfig.showWatermark || event.gui == null) {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (!ModConfig.showWatermark || event.gui == null || mc.theWorld == null) {
             return;
         }
-        if (!(event.gui instanceof GuiContainer)) {
+        draw();
+    }
+
+    public static void draw() {
+        if (!ModConfig.showWatermark) {
             return;
         }
         Minecraft mc = Minecraft.getMinecraft();
-        FontRenderer fr = mc.fontRendererObj;
-        if (fr == null) {
+        if (mc.getTextureManager() == null) {
             return;
         }
         ScaledResolution sr = new ScaledResolution(mc);
-        String text = "Paraguacraft";
-        int tw = fr.getStringWidth(text);
-        int x = sr.getScaledWidth() - PAD - ICON_SIZE - 3 - tw;
-        int y = sr.getScaledHeight() - PAD - ICON_SIZE;
+        int h = BANNER_H;
+        int w = Math.round(h * BANNER_ASPECT);
+        int x = sr.getScaledWidth() - PAD - w;
+        int y = sr.getScaledHeight() - PAD - h;
 
         GlStateManager.pushMatrix();
         try {
+            GlStateManager.disableLighting();
+            GlStateManager.disableDepth();
             GlStateManager.enableBlend();
             GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
-            GlStateManager.color(1.0F, 1.0F, 1.0F, 0.85F);
-            GlStateManager.disableLighting();
+            GlStateManager.color(1.0F, 1.0F, 1.0F, 0.95F);
             GlStateManager.enableTexture2D();
-            mc.getTextureManager().bindTexture(ICON);
-            Tessellator tess = Tessellator.getInstance();
-            WorldRenderer wr = tess.getWorldRenderer();
-            wr.begin(7, DefaultVertexFormats.POSITION_TEX);
-            wr.pos(x, y + ICON_SIZE, 0.0D).tex(0.0D, 1.0D).endVertex();
-            wr.pos(x + ICON_SIZE, y + ICON_SIZE, 0.0D).tex(1.0D, 1.0D).endVertex();
-            wr.pos(x + ICON_SIZE, y, 0.0D).tex(1.0D, 0.0D).endVertex();
-            wr.pos(x, y, 0.0D).tex(0.0D, 0.0D).endVertex();
-            tess.draw();
-            GlStateManager.color(1.0F, 1.0F, 1.0F, 0.85F);
-            fr.drawStringWithShadow(text, x + ICON_SIZE + 3, y, 0xAAFFFFFF);
+            mc.getTextureManager().bindTexture(BANNER);
+            Gui.drawModalRectWithCustomSizedTexture(x, y, 0, 0, w, h, w, h);
         } finally {
+            GlStateManager.enableDepth();
             GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
             GlStateManager.popMatrix();
         }

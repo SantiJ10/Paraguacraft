@@ -35,7 +35,7 @@ public final class NametagSpecialsRenderer {
             return;
         }
         EntityPlayer player = (EntityPlayer) event.entity;
-        if (PlayerTagRenderer.isGuiEntityPass()) {
+        if (PlayerTagRenderer.isGuiEntityPass() || isLocalPreviewScreen(player)) {
             event.setCanceled(true);
             return;
         }
@@ -52,18 +52,27 @@ public final class NametagSpecialsRenderer {
         if (!(event.entity instanceof EntityPlayer)) {
             return;
         }
-        Minecraft mc = Minecraft.getMinecraft();
-        if (event.entity != mc.thePlayer || mc.gameSettings.thirdPersonView == 0) {
-            return;
-        }
-        if (PlayerTagRenderer.isGuiEntityPass()) {
-            return;
-        }
         EntityPlayer player = (EntityPlayer) event.entity;
+        Minecraft mc = Minecraft.getMinecraft();
+        if (player != mc.thePlayer || mc.gameSettings.thirdPersonView == 0) {
+            return;
+        }
+        if (PlayerTagRenderer.isGuiEntityPass() || isLocalPreviewScreen(player)) {
+            return;
+        }
         if (shouldCull(player)) {
             return;
         }
         draw(player, event.x, event.y, event.z);
+    }
+
+    private static boolean isLocalPreviewScreen(EntityPlayer player) {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (player != mc.thePlayer || mc.currentScreen == null) {
+            return false;
+        }
+        return mc.currentScreen instanceof net.minecraft.client.gui.inventory.GuiContainer
+            || mc.currentScreen instanceof com.paraguacraft.pvp.gui.CustomPauseMenu;
     }
 
     private static boolean shouldCull(EntityPlayer player) {
