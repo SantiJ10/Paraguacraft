@@ -1,34 +1,28 @@
-<div align="center">
-
 # Paraguacraft
 
-**Launcher de Minecraft de alto rendimiento** — Tauri v2 + Rust + Vue 3
+**Launcher de Minecraft de alto rendimiento**
 
-[**Descargar**](https://github.com/SantiJ10/Paraguacraft/releases/latest) · [**Web**](https://paraguacraft.pages.dev) · [**Issues**](https://github.com/SantiJ10/Paraguacraft/issues)
+**[Descargar](https://github.com/SantiJ10/Paraguacraft/releases/latest)** · **[Web](https://paraguacraft.pages.dev)** · **[Issues](https://github.com/SantiJ10/Paraguacraft/issues)**
 
 ![Versión](https://img.shields.io/github/v/release/SantiJ10/Paraguacraft?label=launcher)
-
-</div>
 
 ---
 
 ## ¿Qué es Paraguacraft?
 
-Paraguacraft es un launcher de **Minecraft Java Edition** pensado para jugadores que quieren **más FPS y menos lag del propio launcher**. No compite con tu PC mientras jugás: cuando abrís Minecraft, el runtime del launcher se apaga y queda en **0 % CPU** en segundo plano.
+Paraguacraft es un launcher de **Minecraft Java Edition** pensado para jugadores que quieren **más FPS y menos lag del propio launcher**.
 
-Incluye el **cliente oficial Paraguacraft PvP** (Forge 1.8.9 + OptiFine + mod propio con HUD estilo Lunar), tienda **Modrinth + CurseForge**, modpacks, servidores locales con **Playit.gg**, skins offline y diagnóstico de crashes.
+Incluye el **cliente oficial Paraguacraft PvP** (Forge 1.8.9 + OptiFine + mod propio con HUD y Fabric 1.21.11), tienda **Modrinth + CurseForge**, modpacks, servidores locales con **Playit.gg**, skins offline y diagnóstico de crashes.
 
 ## ⭐ Cliente destacado: Paraguacraft PvP
 
-Cliente competitivo de **Minecraft 1.8.9** listo para Hypixel: **Forge + OptiFine** y un mod propio con HUD estilo Lunar y optimizaciones integradas. **Más FPS, cero configuración, sin login ni mods extra** y se actualiza solo desde el launcher.
+Cliente competitivo de **Minecraft 1.8.9** y **1.21.11** listo para Hypixel: **Forge + OptiFine y Fabric + Sodium** y un mod propio con HUD y optimizaciones integradas. **Más FPS, cero configuración, sin login ni mods extra** y se actualiza solo desde el launcher.
 
-<div align="center">
 
-| Menú principal | BedWars en Hypixel |
-|:---:|:---:|
+| Menú principal                                          | BedWars en Hypixel                                            |
+| ------------------------------------------------------- | ------------------------------------------------------------- |
 | ![Menú Paraguacraft PvP](docs/screenshots/pvp_menu.png) | ![Paraguacraft PvP en partida](docs/screenshots/pvp_game.png) |
 
-</div>
 
 **Qué trae:**
 
@@ -41,43 +35,49 @@ Cliente competitivo de **Minecraft 1.8.9** listo para Hypixel: **Forge + OptiFin
 
 ### FPS promedio (BedWars, render 4–6 chunks)
 
-| Hardware | Vanilla 1.8.9 | Paraguacraft PvP | Ganancia |
-|----------|---------------|------------------|----------|
-| Gama baja (Intel UHD / Ryzen 3 · 4 GB) | 60 – 110 | **230 – 380** | ≈ 3.5× |
-| Gama media (GTX 1050/1650 · 8 GB) | 180 – 350 | **700 – 1100** | ≈ 3× |
-| Gama alta (RTX 3060+ · 16 GB) | 450 – 800 | **1500 – 2200** | ≈ 3× |
+
+| Hardware                               | Vanilla 1.8.9 | Paraguacraft PvP | Ganancia |
+| -------------------------------------- | ------------- | ---------------- | -------- |
+| Gama baja (Intel UHD / Ryzen 3 · 4 GB) | 60 – 110      | **230 – 380**    | ≈ 3.5×   |
+| Gama media (GTX 1050/1650 · 8 GB)      | 180 – 350     | **700 – 1100**   | ≈ 3×     |
+| Gama alta (RTX 3060+ · 16 GB)          | 450 – 800     | **1500 – 2200**  | ≈ 3×     |
+
 
 > Valores aproximados; varían según GPU, drivers y resolución.
 
 ### Paraguacraft PvP vs otros clientes
 
-| Aspecto | Paraguacraft PvP | Lunar | Badlion | Vanilla + OptiFine |
-|---------|------------------|-------|---------|--------------------|
-| Precio | Gratis | Gratis | Gratis / Plus pago | Gratis |
-| Boost de FPS | Fast Render + culling + anti-leak | Alto | Alto | Solo OptiFine |
-| Overlay de música | Spotify + YouTube con carátula | Solo Spotify | Solo Spotify | No |
-| Quick Play Hypixel | Sí (menú integrado) | Sí | Sí | No |
-| Cuenta / login extra | No requiere | Cuenta Lunar | Cuenta Badlion | No |
+
+| Aspecto              | Paraguacraft PvP                  | Lunar        | Badlion            | Vanilla + OptiFine |
+| -------------------- | --------------------------------- | ------------ | ------------------ | ------------------ |
+| Precio               | Gratis                            | Gratis       | Gratis / Plus pago | Gratis             |
+| Boost de FPS         | Fast Render + culling + anti-leak | Alto         | Alto               | Solo OptiFine      |
+| Overlay de música    | Spotify + YouTube con carátula    | Solo Spotify | Solo Spotify       | No                 |
+| Quick Play Hypixel   | Sí (menú integrado)               | Sí           | Sí                 | No                 |
+| Cuenta / login extra | No requiere                       | Cuenta Lunar | Cuenta Badlion     | No                 |
+
 
 ## Para qué sirve
 
 - Jugar **vanilla o con mods** (Fabric, Forge, NeoForge, Quilt, Iris…) en instancias separadas.
-- Competir en **1.8.9 PvP** con el cliente optimizado del servidor Paraguacraft.
+- Competir en **1.8.9 y 1.21.11 PvP** con el cliente optimizado del servidor Paraguacraft.
 - Instalar mods, shaders y resource packs desde la **tienda integrada**.
 - Crear **servidores Paper/Fabric/Forge** para amigos sin abrir puertos.
 - **Reparar instancias** corruptas y ver logs sin salir del launcher.
 
 ## Qué incluye
 
-| Área | Detalle |
-|------|---------|
-| **Rendimiento** | Motor de descargas en Rust, SHA-1, 0 % CPU al jugar, JVM/RAM automática por hardware |
-| **Paraguacraft PvP 2.1.14** | Forge 1.8.9, OptiFine, mod HUD/GUI con optimizaciones, Quick Play Hypixel, overlay de música, alertas chat — **se actualiza solo** desde GitHub |
-| **Tienda** | Modrinth + CurseForge, modpacks `.mrpack` y `.zip` |
-| **Instancias** | Mods por carpeta, exportar/importar, reparar, favoritos con join directo |
-| **Servidores** | Paper, Fabric, Forge + túnel Playit.gg |
-| **Cuentas** | Microsoft (premium) y modo offline |
-| **Extras** | Skins offline, Discord RPC, diagnóstico con IA, auto-update |
+
+| Área                 | Detalle                                                                                                                                                                 |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Rendimiento**      | Motor de descargas en Rust, SHA-1, 0 % CPU al jugar, JVM/RAM automática por hardware                                                                                    |
+| **Paraguacraft PvP** | Forge 1.8.9, OptiFine, Fabric 1.21.11, Sodium, mod HUD/GUI con optimizaciones, Quick Play Hypixel, overlay de música, alertas chat — **se actualiza solo** desde GitHub |
+| **Tienda**           | Modrinth + CurseForge, modpacks `.mrpack` y `.zip`                                                                                                                      |
+| **Instancias**       | Mods por carpeta, exportar/importar, reparar, favoritos con join directo                                                                                                |
+| **Servidores**       | Paper, Fabric, Forge + túnel Playit.gg                                                                                                                                  |
+| **Cuentas**          | Microsoft (premium) y modo offline                                                                                                                                      |
+| **Extras**           | Skins offline, Discord RPC, diagnóstico con IA, auto-update                                                                                                             |
+
 
 ## Instalación
 
@@ -99,7 +99,7 @@ El cliente PvP se sincroniza automáticamente al instalar o lanzar (manifest + S
 
 ## Compatibilidad Hypixel
 
-Los mods del cliente Paraguacraft PvP son **solo visuales y de HUD** (estilo Lunar/Badlion/OptiFine). No modifican alcance de golpe, movimiento, paquetes de red ni dan ventaja competitiva:
+Los mods del cliente Paraguacraft PvP son **solo visuales y de HUD**. No modifican alcance de golpe, movimiento, paquetes de red ni dan ventaja competitiva:
 
 - **Permitidos**: fuego bajo, camas coloridas, ping en nametag, freelook, HUD reach/combo (solo lectura), keystrokes, overlay de música, títulos al chat, física de ítems, alertas de chat, juego rápido (`/play` manual).
 - **No incluidos**: reach hack, autoclicker, xray, macros de combate, auto-play.
@@ -108,12 +108,14 @@ Reach Display y Combo Counter miden **tus** acciones locales para entrenar W-tap
 
 ## Requisitos
 
-| | |
-|---|---|
-| **SO** | Windows 10 / 11 (64-bit) |
-| **RAM** | 4 GB mínimo · 8 GB recomendado |
-| **Disco** | ~500 MB launcher + espacio para Minecraft y mods |
-| **Internet** | Para descargar versiones y mods |
+
+|              |                                                  |
+| ------------ | ------------------------------------------------ |
+| **SO**       | Windows 10 / 11 (64-bit)                         |
+| **RAM**      | 4 GB mínimo · 8 GB recomendado                   |
+| **Disco**    | ~500 MB launcher + espacio para Minecraft y mods |
+| **Internet** | Para descargar versiones y mods                  |
+
 
 Mac y Linux están en el roadmap (el código es multiplataforma).
 
@@ -123,7 +125,7 @@ El launcher avisa cuando hay una versión nueva y descarga desde **GitHub Releas
 
 ## Enlaces
 
-- **Sitio web:** [paraguacraft.pages.dev](https://paraguacraft.pages.dev) — código en [paraguacraft-web](https://github.com/SantiJ10/paraguacraft-web) (no vive en este repo).
+- **Sitio web:** [paraguacraft.pages.dev](https://paraguacraft.pages.dev)
 - **Código:** [github.com/SantiJ10/Paraguacraft](https://github.com/SantiJ10/Paraguacraft)
 - **Changelog:** [CHANGELOG.md](CHANGELOG.md)
 - **Desarrollo del launcher:** [launcher/README.md](launcher/README.md)
