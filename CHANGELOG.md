@@ -3,6 +3,12 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [1.1.36] - 2026-09-01
+
+### Launcher
+- **Discord RPC estilo Badlion**: servidor conocido → logo del server grande + `paraguacraft_base` chico. Menú, un jugador, Playit o IP desconocida → logo del launcher.
+- **Cambio de servidor en caliente**: cada `Connecting to` pisa el host anterior; `Disconnecting from` / `Quitting` / `Stopping client` vuelven al menú. Ya no se queda en Minemen al pasar a Hypixel.
+
 ## [1.1.35] - 2026-09-01
 
 ### Launcher

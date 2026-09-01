@@ -63,8 +63,9 @@ pub fn lookup(host: &str) -> Option<(String, String)> {
     None
 }
 
-/// Arte in-game: servidor conocido → logo grande + Paraguacraft chico.
-/// IP desconocida / local / menú → creeper grande.
+/// Arte in-game estilo Badlion:
+/// servidor conocido → logo del server grande + `paraguacraft_base` chico.
+/// menú / un jugador / IP desconocida / Playit → logo del launcher grande.
 pub fn art_for_host(host: Option<&str>) -> RpcArt {
     if let Some(host) = host.filter(|h| !h.is_empty()) {
         if let Some((asset, name)) = lookup(host) {
@@ -78,7 +79,7 @@ pub fn art_for_host(host: Option<&str>) -> RpcArt {
     }
     RpcArt {
         large_image: BASE_ASSET.into(),
-        large_text: "Paraguacraft".into(),
+        large_text: BASE_HOVER.into(),
         small_image: None,
         small_text: None,
     }
@@ -99,7 +100,9 @@ mod tests {
     fn hypixel_maps_to_logo() {
         let art = art_for_host(Some("mc.hypixel.net"));
         assert_eq!(art.large_image, "logo_hypixel");
+        assert_eq!(art.large_text, "Hypixel");
         assert_eq!(art.small_image.as_deref(), Some(BASE_ASSET));
+        assert_eq!(art.small_text.as_deref(), Some(BASE_HOVER));
         assert_eq!(pretty_name("mc.hypixel.net"), "Hypixel");
     }
 
@@ -107,6 +110,15 @@ mod tests {
     fn unknown_keeps_base() {
         let art = art_for_host(Some("play.randomsmp.net"));
         assert_eq!(art.large_image, BASE_ASSET);
+        assert_eq!(art.large_text, BASE_HOVER);
+        assert!(art.small_image.is_none());
+    }
+
+    #[test]
+    fn menu_uses_launcher_logo() {
+        let art = art_for_host(None);
+        assert_eq!(art.large_image, BASE_ASSET);
+        assert_eq!(art.large_text, BASE_HOVER);
         assert!(art.small_image.is_none());
     }
 }

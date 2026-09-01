@@ -240,6 +240,7 @@ fn art_for_session(state: &str, host: Option<&str>, loader: &str) -> RpcArt {
     let hosting = s.contains("hosteando") || s.contains("abierto a amigos") || s.contains(" lan");
     if let Some(host) = host.filter(|h| !h.is_empty()) {
         let mut art = server_assets::art_for_host(Some(host));
+        // Badlion: servidor conocido ya trae small = paraguacraft_base. No pisarlo.
         if art.small_image.is_none() {
             let (img, txt) = small_for_loader(loader);
             art.small_image = img.map(|s| s.to_string());
@@ -248,6 +249,7 @@ fn art_for_session(state: &str, host: Option<&str>, loader: &str) -> RpcArt {
         return art;
     }
     let mut art = server_assets::art_for_host(None);
+    art.large_text = server_assets::BASE_HOVER.into();
     if hosting {
         art.small_image = Some("hosting".into());
         art.small_text = Some("Hosteando".into());
@@ -388,16 +390,21 @@ fn apply(snap: &PresenceSnap) -> bool {
         return false;
     };
     let mut assets = Assets::new();
-    if let Some(img) = snap.large_image.as_deref() {
-        assets = assets.large_image(img);
-    }
-    if let Some(txt) = snap.large_text.as_deref() {
-        assets = assets.large_text(txt);
-    } else {
-        assets = assets.large_text("Paraguacraft");
-    }
-    if let (Some(img), Some(txt)) = (snap.small_image.as_deref(), snap.small_text.as_deref()) {
-        assets = assets.small_image(img).small_text(txt);
+    let large = snap
+        .large_image
+        .as_deref()
+        .unwrap_or(server_assets::BASE_ASSET);
+    assets = assets.large_image(large);
+    assets = assets.large_text(
+        snap.large_text
+            .as_deref()
+            .unwrap_or(server_assets::BASE_HOVER),
+    );
+    if let Some(img) = snap.small_image.as_deref() {
+        assets = assets.small_image(img);
+        if let Some(txt) = snap.small_text.as_deref() {
+            assets = assets.small_text(txt);
+        }
     }
     let mut act = Activity::new()
         .activity_type(ActivityType::Playing)
@@ -445,5 +452,47 @@ pub fn clear_activity() {
     }
     if let Ok(mut last) = LAST.lock() {
         *last = None;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn known_server_uses_badlion_overlay() {
+        let art = art_for_session(
+            "Jugando en Minemen Club",
+            Some("na.minemen.club"),
+            "paraguacraft-pvp",
+        );
+        assert_eq!(art.large_image, "logo_minemen");
+        assert_eq!(art.large_text, "Minemen Club");
+        assert_eq!(art.small_image.as_deref(), Some(server_assets::BASE_ASSET));
+        assert_eq!(art.small_text.as_deref(), Some(server_assets::BASE_HOVER));
+    }
+
+    #[test]
+    fn hypixel_keeps_launcher_as_small() {
+        let art = art_for_session("Jugando en Hypixel", Some("mc.hypixel.net"), "fabric");
+        assert_eq!(art.large_image, "logo_hypixel");
+        assert_eq!(art.small_image.as_deref(), Some(server_assets::BASE_ASSET));
+        assert_eq!(art.small_text.as_deref(), Some("Paraguacraft Launcher"));
+    }
+
+    #[test]
+    fn menu_uses_launcher_large_and_loader_small() {
+        let art = art_for_session("En el menú", None, "paraguacraft-pvp");
+        assert_eq!(art.large_image, server_assets::BASE_ASSET);
+        assert_eq!(art.large_text, server_assets::BASE_HOVER);
+        assert_eq!(art.small_image.as_deref(), Some("pvp"));
+    }
+
+    #[test]
+    fn unknown_or_playit_keeps_launcher_large() {
+        let art = art_for_session("Jugando en play.foo.net", Some("play.foo.net"), "fabric");
+        assert_eq!(art.large_image, server_assets::BASE_ASSET);
+        assert_eq!(art.large_text, server_assets::BASE_HOVER);
+        assert_eq!(art.small_image.as_deref(), Some("play"));
     }
 }

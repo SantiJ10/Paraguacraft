@@ -1,12 +1,12 @@
 {
-  "version": "1.1.35",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.35/Instalar_Paraguacraft_v1.1.35.exe",
-  "size_bytes": 5711520,
-  "sha256": "8c867e4510e09ffe3ac02f9db2acfe0a6078aec780b89abbc3c28e8e4c11727f",
-  "notes": "- Discord Overlay: javaw.exe + net.minecraft.client.main.Main visible (Fabric/Forge/Optimized)\n- Ya no hace falta agregar el juego en Juegos registrados\n- Clientes PvP 2.1.60 / Modern 0.9.34",
+  "version": "1.1.36",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.36/Instalar_Paraguacraft_v1.1.36.exe",
+  "size_bytes": 5710644,
+  "sha256": "52b9ec0388bf254efb839aec48c500cd760ac058a46e7b519ef83cbdc7d941d0",
+  "notes": "- Discord RPC estilo Badlion: logo del server + Paraguacraft chico\n- Cambio de servidor en caliente sin estado congelado\n- Overlay automatico + clientes PvP 2.1.60 / Modern 0.9.34",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.35/Instalar_Paraguacraft_v1.1.35.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.36/Instalar_Paraguacraft_v1.1.36.exe",
       "signature": ""
     }
   }

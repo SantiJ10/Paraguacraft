@@ -34,11 +34,13 @@ enum Session {
 }
 
 static CONNECTING: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)Connecting to ([\w.-]+(?::\d+)?)").expect("connecting regex")
+    Regex::new(r"(?i)Connecting to (?:the server[, ]+)?([\w.-]+(?::\d+)?)").expect("connecting regex")
 });
+/// Solo cortes reales de sesión. `Reached end of stream` / `Lost connection`
+/// salen en transfers de Hypixel y pisaban el `Connecting to` nuevo.
 static DISCONNECT: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-        r"(?i)(Stopping client|Disconnecting from|Quitting(?: the game)?|Stopping!|Reached end of stream|Lost connection:|Connecting aborted)",
+        r"(?i)(?:Stopping client|Disconnecting from|Quitting(?: the game)?|Stopping!|Connecting aborted)",
     )
     .expect("disconnect regex")
 });
@@ -46,7 +48,10 @@ static DISCONNECT: LazyLock<Regex> = LazyLock::new(|| {
 /// Tail asíncrono (tokio) del log mientras corre el juego.
 pub fn watch(ctx: PresenceCtx, stop: Arc<AtomicBool>) {
     tauri::async_runtime::spawn(async move {
-        let mut last_mode = String::new();
+        let mut last_session: Option<Session> = None;
+        let mut last_rev = 0u64;
+        let mut revision = 0u64;
+        let mut launch_hint = ctx.launch_server.clone();
         let mut session = Session::Menu;
         let mut pos = 0u64;
         let mut primed = false;
@@ -64,12 +69,16 @@ pub fn watch(ctx: PresenceCtx, stop: Arc<AtomicBool>) {
             if let Ok(Some((new_pos, text))) = chunk {
                 pos = new_pos;
                 for line in text.lines() {
-                    apply_line(&mut session, line);
+                    if apply_line(&mut session, line) {
+                        revision = revision.wrapping_add(1);
+                        launch_hint = None;
+                    }
                 }
             }
-            let (mode, host) = session_line(&session, &ctx);
-            if mode != last_mode {
-                last_mode = mode.clone();
+            if last_session.as_ref() != Some(&session) || last_rev != revision {
+                last_session = Some(session.clone());
+                last_rev = revision;
+                let (mode, host) = session_line(&session, launch_hint.as_deref());
                 if ctx.settings.discord_rpc {
                     discord_rpc::set_playing_session(
                         &ctx.username,
@@ -87,7 +96,7 @@ pub fn watch(ctx: PresenceCtx, stop: Arc<AtomicBool>) {
     });
 }
 
-fn session_line(session: &Session, ctx: &PresenceCtx) -> (String, Option<String>) {
+fn session_line(session: &Session, launch_hint: Option<&str>) -> (String, Option<String>) {
     match session {
         Session::Remote(host) => (
             format!("Jugando en {}", server_assets::pretty_name(host)),
@@ -101,12 +110,7 @@ fn session_line(session: &Session, ctx: &PresenceCtx) -> (String, Option<String>
             if crate::core::servers::any_playit_running() {
                 return ("Hosteando Servidor Local".into(), None);
             }
-            if let Some(addr) = ctx
-                .launch_server
-                .as_deref()
-                .map(str::trim)
-                .filter(|s| !s.is_empty())
-            {
+            if let Some(addr) = launch_hint.map(str::trim).filter(|s| !s.is_empty()) {
                 let (host, _) = crate::core::favorites::parse_address(addr);
                 if !host.is_empty() && !is_local_or_tunnel(&host) {
                     return (
@@ -127,25 +131,26 @@ fn with_world(prefix: &str, world: Option<&str>) -> String {
     }
 }
 
-fn apply_line(session: &mut Session, line: &str) {
+/// `true` si hubo conexión nueva o corte de sesión: hay que pise el RPC entero.
+fn apply_line(session: &mut Session, line: &str) -> bool {
     let low_line = line.to_lowercase();
     if low_line.contains("[chat]") {
-        return;
+        return false;
     }
     if let Some(host) = parse_connecting_to(line) {
-        if is_local_or_tunnel(&host) {
-            *session = Session::HostingLocal;
+        // Reset atómico: no arrastrar Minemen/Hypixel/local al destino nuevo.
+        *session = Session::Menu;
+        *session = if is_local_or_tunnel(&host) {
+            Session::HostingLocal
         } else {
-            *session = Session::Remote(strip_port(&host));
-        }
-        return;
+            Session::Remote(strip_port(&host))
+        };
+        return true;
     }
 
     if DISCONNECT.is_match(line) {
-        if !matches!(session, Session::Singleplayer(_)) {
-            *session = Session::Menu;
-        }
-        return;
+        *session = Session::Menu;
+        return true;
     }
 
     if let Some(world) = world_name_in_line(line) {
@@ -159,24 +164,25 @@ fn apply_line(session: &mut Session, line: &str) {
     }
 
     if matches!(session, Session::Remote(_) | Session::HostingLocal) {
-        return;
+        return false;
     }
 
     let low = line.to_lowercase();
     if is_friend_host_log(&low) {
         let world = session_world(session);
         *session = Session::Friends(world);
-        return;
+        return false;
     }
     if is_lan_host_log(&low) {
         let world = session_world(session);
         *session = Session::Lan(world);
-        return;
+        return false;
     }
     if is_integrated_server(&low) {
         let world = session_world(session);
         *session = Session::Singleplayer(world);
     }
+    false
 }
 
 fn session_world(session: &Session) -> Option<String> {
@@ -403,13 +409,50 @@ mod tests {
     fn disconnect_returns_to_menu() {
         let log = "[Client thread/INFO]: Connecting to mc.hypixel.net, 25565\n\
                    [Client thread/INFO]: [CHAT] hi\n\
-                   [Client thread/INFO]: Reached end of stream.\n";
+                   [Client thread/INFO]: Disconnecting from server\n";
         assert_eq!(replay(log), Session::Menu);
+    }
+
+    #[test]
+    fn stream_end_does_not_drop_multiplayer() {
+        let log = "[Client thread/INFO]: Connecting to mc.hypixel.net, 25565\n\
+                   [Client thread/INFO]: Reached end of stream.\n";
+        assert_eq!(replay(log), Session::Remote("mc.hypixel.net".into()));
+    }
+
+    #[test]
+    fn hot_swap_minemen_to_hypixel_is_atomic() {
+        let log = "[INFO]: Connecting to na.minemen.club, 25565\n\
+                   [INFO]: Disconnecting from server\n\
+                   [INFO]: Connecting to mc.hypixel.net, 25565\n\
+                   [INFO]: Reached end of stream.\n\
+                   [INFO]: Lost connection: Timed out\n";
+        assert_eq!(replay(log), Session::Remote("mc.hypixel.net".into()));
+    }
+
+    #[test]
+    fn connecting_overwrites_without_disconnect_line() {
+        let log = "[INFO]: Connecting to na.minemen.club, 25565\n\
+                   [INFO]: Connecting to mc.hypixel.net, 25565\n";
+        assert_eq!(replay(log), Session::Remote("mc.hypixel.net".into()));
+    }
+
+    #[test]
+    fn connecting_to_local_clears_remote() {
+        let log = "[INFO]: Connecting to mc.hypixel.net, 25565\n\
+                   [INFO]: Connecting to 127.0.0.1, 25565\n";
+        assert_eq!(replay(log), Session::HostingLocal);
     }
 
     #[test]
     fn quitting_returns_to_menu() {
         let log = "[INFO]: Connecting to na.minemen.club, 25565\n[INFO]: Quitting\n";
+        assert_eq!(replay(log), Session::Menu);
+    }
+
+    #[test]
+    fn stopping_client_returns_to_menu() {
+        let log = "[INFO]: Connecting to mc.hypixel.net, 25565\n[INFO]: Stopping client\n";
         assert_eq!(replay(log), Session::Menu);
     }
 
