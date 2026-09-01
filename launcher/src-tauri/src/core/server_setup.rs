@@ -101,16 +101,12 @@ pub async fn prepare(
     };
 
     ensure_playit_plugin(client, dir, &kind).await;
-    // Agente desktop: Forge/NeoForge, Fabric, y **siempre Geyser** (UDP Bedrock).
-    // Paper sin Geyser: el plugin nativo gestiona Java al arrancar.
-    let need_agent = !kind.starts_with("paper") || kind.contains("geyser");
-    if need_agent {
-        if let Err(e) = ensure_playit_exe(client, app, dir).await {
-            crate::core::server_console::append(
-                sid,
-                &format!("[launcher] ⚠ playit agent: {e}"),
-            );
-        }
+    // Túnel siempre en playit.exe (independiente del proceso Java).
+    if let Err(e) = ensure_playit_exe(client, app, dir).await {
+        crate::core::server_console::append(
+            sid,
+            &format!("[launcher] ⚠ playit agent: {e}"),
+        );
     }
     if kind.contains("geyser") {
         crate::core::server_console::append(
@@ -121,69 +117,21 @@ pub async fn prepare(
     Ok(result)
 }
 
-const PLAYIT_PLUGIN_URLS: &[&str] = &[
-    "https://github.com/playit-cloud/playit-minecraft-plugin/releases/latest/download/playit-minecraft-plugin.jar",
-    "https://github.com/playit-cloud/playit-minecraft-plugin/releases/download/v0.2.0/playit-minecraft-plugin.jar",
-];
-
-const PLAYIT_PLUGIN_NAME: &str = "playit-minecraft-plugin.jar";
-const PLAYIT_PLUGIN_MIN_BYTES: u64 = 200_000;
-
-/// Descarga el plugin oficial Playit.gg en `plugins/` (Paper/Spigot).
-/// El túnel queda nativo al arrancar el servidor MC; no hace falta la app desktop.
-///
-/// Excepción Geyser: el plugin **no enruta UDP**. Usamos solo playit.exe + API
-/// (túneles minecraft-java + minecraft-bedrock).
-async fn ensure_playit_plugin(client: &reqwest::Client, dir: &Path, kind: &str) {
-    // El plugin es Spigot/Paper. Fabric puro no lo carga en plugins/.
-    if !kind.starts_with("paper") {
-        return;
-    }
-    // Geyser → sin plugin Paper (UDP). Quitamos jars playit residuales.
-    if kind.contains("geyser") {
-        if let Ok(rd) = std::fs::read_dir(dir.join("plugins")) {
-            for e in rd.flatten() {
-                let n = e.file_name().to_string_lossy().to_ascii_lowercase();
-                if n.ends_with(".jar") && n.contains("playit") {
-                    let _ = std::fs::remove_file(e.path());
-                }
-            }
-        }
-        return;
-    }
+/// Desactiva jars playit en plugins/ para que el túnel viva en playit.exe.
+async fn ensure_playit_plugin(_client: &reqwest::Client, dir: &Path, kind: &str) {
     let plugins = dir.join("plugins");
-    let _ = std::fs::create_dir_all(&plugins);
-    if plugins.is_dir() {
-        if let Ok(rd) = std::fs::read_dir(&plugins) {
-            let already = rd.flatten().any(|e| {
-                let n = e.file_name().to_string_lossy().to_ascii_lowercase();
-                n.ends_with(".jar") && n.contains("playit")
-            });
-            if already {
-                return;
-            }
+    let Ok(rd) = std::fs::read_dir(&plugins) else {
+        return;
+    };
+    for e in rd.flatten() {
+        let n = e.file_name().to_string_lossy().to_string();
+        let low = n.to_ascii_lowercase();
+        if low.contains("playit") && low.ends_with(".jar") && !low.ends_with(".disabled") {
+            let dest = e.path().with_file_name(format!("{n}.disabled"));
+            let _ = std::fs::rename(e.path(), dest);
         }
     }
-    let dest = plugins.join(PLAYIT_PLUGIN_NAME);
-    let tmp = plugins.join("playit-minecraft-plugin.part");
-    for url in PLAYIT_PLUGIN_URLS {
-        let item = DownloadItem::new(url.to_string(), tmp.clone());
-        if net::download_one(client, &item).await.is_err() {
-            let _ = std::fs::remove_file(&tmp);
-            continue;
-        }
-        if tmp.metadata().map(|m| m.len()).unwrap_or(0) < PLAYIT_PLUGIN_MIN_BYTES {
-            let _ = std::fs::remove_file(&tmp);
-            continue;
-        }
-        if dest.exists() {
-            let _ = std::fs::remove_file(&dest);
-        }
-        if std::fs::rename(&tmp, &dest).is_ok() {
-            return;
-        }
-    }
-    let _ = std::fs::remove_file(&tmp);
+    let _ = kind;
 }
 
 /// Rellena dependencias estándar sin sobrescribir jar/configs existentes.
@@ -211,10 +159,8 @@ pub async fn soft_ensure_launcher_deps(
         // setup_paper_* ya saltan/ toleran fallos; no reescribe properties del user.
         let _ = setup_paper_plugins(client, app, dir, sid, &prof.mc_version, with_geyser).await;
         ensure_playit_plugin(client, dir, &kind).await;
-        if with_geyser {
-            if let Err(e) = ensure_playit_exe(client, app, dir).await {
-                crate::core::server_console::append(sid, &format!("[launcher] ⚠ playit agent: {e}"));
-            }
+        if let Err(e) = ensure_playit_exe(client, app, dir).await {
+            crate::core::server_console::append(sid, &format!("[launcher] ⚠ playit agent: {e}"));
         }
     } else if kind.starts_with("fabric") {
         let with_geyser = kind.contains("geyser");

@@ -193,6 +193,18 @@ async fn spawn_for_instance(
         &mc,
         settings,
     );
+    if settings.papa_mode {
+        let _ = crate::core::performance::apply_papa_profile(&game_dir);
+        crate::core::launch::optimizer::inject_papa_mods(
+            app,
+            state,
+            &game_dir,
+            &loader,
+            &mc,
+            offline,
+        )
+        .await;
+    }
 
     if crate::core::branding::should_apply(&loader) {
         let _ = crate::core::branding::inject_logos(
@@ -273,12 +285,20 @@ async fn spawn_for_instance(
     let ram = {
         let total_mb = ((hw.ram_gb * 1024.0).round() as u32).max(2048);
         let max_safe = total_mb.saturating_sub(1536).max(1024);
-        ram.max(1024).min(max_safe)
+        let ram = ram.max(1024).min(max_safe);
+        if settings.papa_mode {
+            ram.min(2048)
+        } else {
+            ram
+        }
     };
-    let gc = meta
-        .gc
-        .clone()
-        .unwrap_or_else(|| settings.gc_type.clone());
+    let gc = if settings.papa_mode {
+        "G1".into()
+    } else {
+        meta.gc
+            .clone()
+            .unwrap_or_else(|| settings.gc_type.clone())
+    };
     let extra_args: Vec<String> = {
         let mut out = Vec::new();
         for part in settings.global_jvm_args.split_whitespace() {
@@ -287,6 +307,17 @@ async fn spawn_for_instance(
         if let Some(inst) = meta.jvm_args.as_deref() {
             for part in inst.split_whitespace() {
                 out.push(part.to_string());
+            }
+        }
+        if settings.papa_mode {
+            for flag in [
+                "-XX:MaxGCPauseMillis=100",
+                "-XX:ParallelGCThreads=2",
+                "-XX:ConcGCThreads=1",
+            ] {
+                if !out.iter().any(|a| a.starts_with(flag.split('=').next().unwrap_or(flag))) {
+                    out.push(flag.into());
+                }
             }
         }
         out
@@ -399,6 +430,7 @@ async fn spawn_for_instance(
             &auth.username,
             &mc,
             &loader,
+            &meta.name,
             settings.discord_rpc_version,
             settings.discord_rpc_time,
         );
@@ -419,6 +451,7 @@ async fn spawn_for_instance(
         mc.clone(),
         auth.username.clone(),
         loader.clone(),
+        meta.name.clone(),
         game_dir.clone(),
         server_address.clone(),
         settings.clone(),

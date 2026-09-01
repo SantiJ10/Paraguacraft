@@ -185,6 +185,8 @@ export interface CrashDiagnosis {
   crashFile: string | null;
   logTail: string;
   suggestions: string[];
+  suspectMod?: string | null;
+  suspectModPath?: string | null;
 }
 
 export interface SkinProfile {

@@ -327,6 +327,13 @@ watch(tab, () => {
   void loadTabData();
 });
 
+watch(
+  () => serversStore.servers.find((s) => s.id === serverId.value)?.playitAddress,
+  (addr) => {
+    if (addr) playitAddr.value = addr;
+  },
+);
+
 async function startServer() {
   busy.value = true;
   error.value = null;
@@ -883,8 +890,8 @@ function serverTypeLabel(t: string) {
           <BaseButton
             size="sm"
             variant="secondary"
-            :disabled="!isTauri() || !!status?.playitPluginMode"
-            :title="status?.playitPluginMode ? 'Con el plugin de Paper el túnel arranca solo con el servidor' : undefined"
+            :disabled="!isTauri()"
+            title="Túnel independiente (playit.exe). El plugin de Minecraft queda desactivado."
             @click="startPlayit"
           >
             Playit.gg

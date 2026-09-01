@@ -4,6 +4,7 @@ import type { HardwareInfo, UpdateInfo, UpdateProgress, CrashDiagnosis } from "@
 import { api, isTauri, openUrl } from "@/lib/ipc";
 import { useSettingsStore } from "@/stores/settings";
 import { useSkinsStore } from "@/stores/skins";
+import { useServersStore } from "@/stores/servers";
 
 export type LaunchPhase = "idle" | "preparing" | "downloading" | "launching" | "running";
 
@@ -99,6 +100,21 @@ export const useAppStore = defineStore("app", () => {
             exitCode: ev.payload.exitCode,
             diagnosis: ev.payload.diagnosis,
           };
+        }
+      },
+    );
+    await listen<{ serverId: string; address: string; kind?: string }>(
+      "playit://address",
+      (ev) => {
+        const { serverId, address, kind } = ev.payload ?? {};
+        if (!serverId || !address) return;
+        const servers = useServersStore();
+        const current = servers.servers.find((s) => s.id === serverId);
+        if (!current) return;
+        if (kind === "bedrock") {
+          servers.upsert({ ...current, playitBedrockAddress: address });
+        } else {
+          servers.upsert({ ...current, playitAddress: address });
         }
       },
     );

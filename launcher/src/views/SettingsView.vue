@@ -606,8 +606,8 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
 
           <BaseToggle
             :model-value="settings.settings.papaMode ?? false"
-            label="Modo PC Papa (800×600)"
-            hint="Fuerza resolución baja al lanzar el juego."
+            label="Modo Papa inteligente"
+            hint="PCs débiles: 800×600, 2 GB RAM, G1GC, chunks 4, gráficos Fast y mods de rendimiento (Sodium/Lithium/Iris en Fabric)."
             @update:model-value="settings.update('papaMode', $event)"
           />
           <div class="flex flex-wrap gap-3">

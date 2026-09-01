@@ -19,7 +19,7 @@ const actionMsg = ref<string | null>(null);
 const category = computed(() => crash.value?.diagnosis.category ?? "");
 
 const showRepair = computed(() =>
-  ["launch_early", "corrupt_jar", "mod_crash", "mixin", "generic", "native"].includes(category.value),
+  ["launch_early", "corrupt_jar", "mod_crash", "mods", "mixin", "generic", "native"].includes(category.value),
 );
 const showLowPerf = computed(() =>
   ["oom_java", "oom_reserve", "gpu", "opengl", "launch_early"].includes(category.value) ||
@@ -146,6 +146,30 @@ async function copyLogTail() {
     actionMsg.value = "No se pudo copiar.";
   }
 }
+
+async function disableSuspectMod(retry: boolean) {
+  const c = crash.value;
+  const path = c?.diagnosis?.suspectModPath;
+  const id = c?.instanceId;
+  if (!c || !path || !id || id.startsWith("ext::")) return;
+  busy.value = true;
+  actionMsg.value = null;
+  try {
+    await api.toggleInstanceContent(id, path, false);
+    const name = c.diagnosis.suspectMod ?? path;
+    if (retry) {
+      actionMsg.value = `Desactivé ${name}. Relanzando…`;
+      await app.launch(id, id);
+      dismiss();
+    } else {
+      actionMsg.value = `Desactivé ${name} (.jar.disabled). Probá jugar de nuevo.`;
+    }
+  } catch (e) {
+    actionMsg.value = String(e);
+  } finally {
+    busy.value = false;
+  }
+}
 </script>
 
 <template>
@@ -165,6 +189,14 @@ async function copyLogTail() {
         <p v-if="actionMsg" class="mt-2 text-xs text-pc-green">{{ actionMsg }}</p>
       </div>
       <div class="flex flex-wrap gap-2">
+        <BaseButton
+          v-if="crash.diagnosis.suspectModPath && !crash.instanceId.startsWith('ext::')"
+          size="sm"
+          :disabled="busy"
+          @click="disableSuspectMod(true)"
+        >
+          {{ busy ? "…" : `Desactivar ${crash.diagnosis.suspectMod ?? "mod"} y reintentar` }}
+        </BaseButton>
         <BaseButton
           v-if="showRepair"
           size="sm"

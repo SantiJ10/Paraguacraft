@@ -79,21 +79,16 @@ pub async fn start_server(
     }
     let _ = crate::core::java::resolve::ensure_server_java(&app, &state, &prof.mc_version).await?;
     let pid = servers::start_mc(&id)?;
-    // Preferir plugin nativo en plugins/ (túnel al arrancar Paper) sobre el agente desktop.
-    // Playit no se espera: validar secret / claim puede tardar segundos y congelaba la UI.
-    if servers::playit_plugin_present(&id) {
-        crate::core::server_console::append(
-            &id,
-            "[playit] Plugin detectado en plugins/: el túnel se vincula al arrancar el servidor. Revisá la consola MC para el enlace de claim (playit.gg).",
-        );
-    } else if servers::playit_available(&id) {
+    // Túnel siempre en playit.exe (Rust), no en el plugin de Java.
+    servers::disable_playit_plugin_jars(&id);
+    if servers::playit_available(&id) {
         let id_playit = id.clone();
         std::thread::Builder::new()
             .name("playit-autostart".into())
             .spawn(move || match servers::start_playit(&id_playit) {
                 Ok(_) => crate::core::server_console::append(
                     &id_playit,
-                    "[playit] Túnel playit.gg (agente) iniciado automáticamente.",
+                    "[playit] Túnel playit.gg iniciado automáticamente.",
                 ),
                 Err(e) => crate::core::server_console::append(
                     &id_playit,

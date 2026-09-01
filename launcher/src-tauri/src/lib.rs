@@ -43,6 +43,8 @@ pub fn run() {
             }
             let settings =
                 config::read_json::<models::AppSettings>(&core::paths::config_file()).unwrap_or_default();
+            core::app_ctx::set(app.handle().clone());
+            core::servers::cleanup_orphans_on_boot();
             if settings.discord_rpc {
                 core::extras::discord_rpc::connect(true);
                 if let Some(acc) = core::accounts::active_account() {

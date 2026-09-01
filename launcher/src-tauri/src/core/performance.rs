@@ -67,6 +67,43 @@ fn min_graphics_options() -> HashMap<String, String> {
     ])
 }
 
+/// Preset de emergencia «Modo Papa»: chunks bajos, Fast, sin mipmaps ni vsync.
+pub fn apply_papa_profile(game_dir: &Path) -> AppResult<()> {
+    let opts = HashMap::from([
+        ("renderDistance".into(), "4".into()),
+        ("simulationDistance".into(), "4".into()),
+        ("graphicsMode".into(), "FAST".into()),
+        ("fancyGraphics".into(), "false".into()),
+        ("mipmapLevels".into(), "0".into()),
+        ("enableVsync".into(), "false".into()),
+        ("particles".into(), "2".into()),
+        ("ao".into(), "false".into()),
+        ("entityShadows".into(), "false".into()),
+        ("maxFps".into(), "60".into()),
+        ("entityDistanceScaling".into(), "0.5".into()),
+        ("renderClouds".into(), "false".into()),
+        ("cloudRenderMode".into(), "OFF".into()),
+        ("biomeBlendRadius".into(), "0".into()),
+        ("prioritizeChunkUpdates".into(), "0".into()),
+    ]);
+    let _ = patch_options_file(&game_dir.join("options.txt"), opts)?;
+    let of = game_dir.join("optionsof.txt");
+    let of_opts = HashMap::from([
+        ("ofFastRender".into(), "true".into()),
+        ("ofFastMath".into(), "true".into()),
+        ("ofChunkUpdates".into(), "1".into()),
+        ("ofLazyChunkLoading".into(), "true".into()),
+        ("ofRenderRegions".into(), "true".into()),
+        ("ofAaLevel".into(), "0".into()),
+        ("ofAfLevel".into(), "1".into()),
+        ("ofVignette".into(), "false".into()),
+        ("ofClouds".into(), "3".into()),
+        ("ofDroppedItems".into(), "0".into()),
+    ]);
+    let _ = patch_options_file(&of, of_opts)?;
+    Ok(())
+}
+
 /// Fuerza `enableVsync:false` en options.txt (global y por instancia) sin tocar
 /// el resto de preferencias del usuario. Se usa en cada lanzamiento.
 pub fn ensure_vsync_off(game_dir: &Path) -> AppResult<()> {

@@ -1,12 +1,12 @@
 {
-  "version": "1.1.29",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.29/Instalar_Paraguacraft_v1.1.29.exe",
-  "size_bytes": 5697281,
-  "sha256": "b005051bececa54379c2d2058faf9cdefc22e8fa86bcc8392c815ace0282f98b",
-  "notes": "- Modo offline nativo: lanza con archivos locales si no hay internet\n- Skins Premium en vivo (sin cerrar sesion) + cache-buster\n- Guia colapsable de servidores locales\n- Clientes PvP 2.1.52 / Modern 0.9.29",
+  "version": "1.1.30",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.30/Instalar_Paraguacraft_v1.1.30.exe",
+  "size_bytes": 5701451,
+  "sha256": "707ee0168ed8f51f5b90da81ccb3c9a7f6a3e2260475682e269fd75c65170442",
+  "notes": "- Playit solo binario (sin plugin): mas estable al hostear y al cerrar el server\n- IP Java/Bedrock en vivo en la ficha del servidor\n- Modo Papa: 2 GB RAM, G1GC y Sodium/Lithium/Iris en Fabric\n- Tras un crash: desactivar el mod sospechoso y reintentar\n- Discord Rich Presence (mundo, LAN, Essential, multiplayer)\n- Clientes PvP 2.1.58 / Modern 0.9.32",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.29/Instalar_Paraguacraft_v1.1.29.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.30/Instalar_Paraguacraft_v1.1.30.exe",
       "signature": ""
     }
   }

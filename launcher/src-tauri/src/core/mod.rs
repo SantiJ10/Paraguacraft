@@ -5,6 +5,7 @@
 
 pub mod hardware;
 pub mod paths;
+pub mod app_ctx;
 
 // Fase 2
 pub mod accounts;

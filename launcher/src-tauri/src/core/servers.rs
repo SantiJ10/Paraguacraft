@@ -11,6 +11,7 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 
 use crate::config;
+use crate::core::app_ctx;
 use crate::core::paths;
 use crate::error::{AppError, AppResult};
 
@@ -410,6 +411,62 @@ fn kill_orphan_java_for_dir(dir: &Path) -> usize {
     killed
 }
 
+/// Mata `playit.exe` huérfanos cuyo cwd/cmd apunta a nuestras carpetas de servers.
+fn kill_orphan_playit() -> usize {
+    let root = paths::data_dir().join("servers");
+    let Ok(root_canon) = root
+        .canonicalize()
+        .or_else(|_| Ok::<_, std::io::Error>(root.clone()))
+    else {
+        return 0;
+    };
+    let needle = root_canon.to_string_lossy().replace('\\', "/");
+    let mut sys = sysinfo::System::new();
+    sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+    let mut killed = 0usize;
+    for (_pid, proc) in sys.processes() {
+        let name = proc.name().to_string_lossy().to_ascii_lowercase();
+        if name != "playit.exe" && name != "playit" {
+            continue;
+        }
+        let cmd = proc
+            .cmd()
+            .iter()
+            .map(|s| s.to_string_lossy())
+            .collect::<Vec<_>>()
+            .join(" ")
+            .replace('\\', "/");
+        let cwd = proc
+            .cwd()
+            .map(|p| p.to_string_lossy().replace('\\', "/"))
+            .unwrap_or_default();
+        if cmd.contains(&needle) || cwd.contains(&needle) {
+            if proc.kill() {
+                killed += 1;
+            }
+        }
+    }
+    killed
+}
+
+/// Arranque del launcher: limpia Java/playit de servers que quedaron de un cierre sucio.
+pub fn cleanup_orphans_on_boot() {
+    let n_playit = kill_orphan_playit();
+    let mut n_java = 0usize;
+    for prof in load_all() {
+        n_java += kill_orphan_java_for_dir(&folder_for(&prof));
+    }
+    if n_playit + n_java > 0 {
+        eprintln!(
+            "[paraguacraft] limpieza de huérfanos al arrancar: playit={n_playit} java={n_java}"
+        );
+    }
+}
+
+pub fn any_playit_running() -> bool {
+    load_all().iter().any(|p| playit_process_running(&p.id))
+}
+
 /// Inicia el proceso del servidor MC (Java headless, sin ventana).
 pub fn start_mc(id: &str) -> AppResult<u32> {
     let st = status(id)?;
@@ -595,19 +652,14 @@ pub fn start_mc(id: &str) -> AppResult<u32> {
         &format!("[launcher] PID {pid} — consola integrada (copiá desde la pestaña Consola)"),
     );
 
+    disable_playit_plugin_jars(id);
+
     // Geyser: encolar create/list de túneles (hilo). El agente desktop lo arranca
     // `start_server` (comando async) — acá no llamamos start_playit para no
     // validar secret/API dos veces al mismo boot.
     let is_geyser = prof.server_type.contains("geyser");
     if is_geyser {
-        if playit_plugin_present(id) {
-            crate::core::server_console::append(
-                id,
-                "[playit] ⚠ Detecté el plugin playit en plugins/. Solo hace Java TCP; Bedrock necesita el agente. Quitá el jar playit de plugins/ y reiniciá, o usá un server solo Paper sin Geyser.",
-            );
-        } else {
-            spawn_ensure_playit_tunnels(id.to_string(), true);
-        }
+        spawn_ensure_playit_tunnels(id.to_string(), true);
     }
 
     Ok(pid)
@@ -643,6 +695,7 @@ fn spawn_mc_lifecycle_watcher(id: String) {
                             sp2.mc = None;
                         }
                     }
+                    let _ = stop_playit_only(&id);
                     break;
                 }
                 Ok(None) => {}
@@ -815,6 +868,14 @@ fn set_playit_address(id: &str, address: &str) -> AppResult<()> {
         p.playit_address = Some(address.to_string());
     }
     save_all(&all)?;
+    app_ctx::emit(
+        "playit://address",
+        serde_json::json!({
+            "serverId": id,
+            "address": address,
+            "kind": "java",
+        }),
+    );
     let _ = same_local;
     Ok(())
 }
@@ -840,6 +901,14 @@ fn set_playit_bedrock_address(id: &str, address: &str) -> AppResult<()> {
         p.playit_bedrock_address = Some(address.to_string());
     }
     save_all(&all)?;
+    app_ctx::emit(
+        "playit://address",
+        serde_json::json!({
+            "serverId": id,
+            "address": address,
+            "kind": "bedrock",
+        }),
+    );
     Ok(())
 }
 
@@ -1488,11 +1557,13 @@ pub fn stop_mc_graceful(id: &str) -> AppResult<()> {
                 }
             }
             crate::core::server_console::append(id, "[launcher] Servidor detenido correctamente.");
+            let _ = stop_playit_only(id);
             return Ok(());
         }
         std::thread::sleep(std::time::Duration::from_secs(1));
     }
-    stop_mc(id)
+    stop_mc(id)?;
+    stop_playit_only(id)
 }
 
 pub fn send_command(id: &str, cmd: &str) -> AppResult<()> {
@@ -1530,17 +1601,9 @@ pub fn stop_playit(id: &str) -> AppResult<()> {
 
 /// Inicia playit.gg sin ventana CMD (Windows: CREATE_NO_WINDOW).
 pub fn start_playit(id: &str) -> AppResult<String> {
-    // Con el plugin de Paper el túnel ya corre dentro de Java: NO hay que lanzar playit.exe
-    // (si se lanzan los dos, el daemon se cuelga en "Waiting for frontend secret provisioning").
-    if playit_plugin_present(id) {
-        crate::core::server_console::append(
-            id,
-            "[playit] Plugin en plugins/: el túnel arranca con el servidor Paper. Revisá la consola por playit.gg/claim y la IP *.tun.ply.gg. No uses el agente desktop en este modo.",
-        );
-        return Err(AppError::msg(
-            "Este servidor usa el plugin playit-gg. Iniciá el servidor y mirá la consola (claim + IP). Si falló el cupo de agentes, usá «Resetear Playit» y borrá agentes en playit.gg.",
-        ));
-    }
+    // El plugin de Minecraft se cuelga tras días / cierres sucios. El túnel
+    // vive en playit.exe gestionado por el launcher.
+    disable_playit_plugin_jars(id);
 
     let prof = profile_by_id(id)?;
     let dir = folder_for(&prof);
@@ -1744,17 +1807,46 @@ pub fn playit_available(id: &str) -> bool {
 
 /// True si el jar del plugin Playit está en `plugins/` (túnel nativo paper).
 pub fn playit_plugin_present(id: &str) -> bool {
+    playit_plugin_jars(id).into_iter().any(|p| {
+        p.file_name()
+            .and_then(|n| n.to_str())
+            .map(|n| n.to_ascii_lowercase().ends_with(".jar") && !n.to_ascii_lowercase().ends_with(".disabled"))
+            .unwrap_or(false)
+    })
+}
+
+fn playit_plugin_jars(id: &str) -> Vec<PathBuf> {
     let Ok(prof) = profile_by_id(id) else {
-        return false;
+        return Vec::new();
     };
     let plugins = folder_for(&prof).join("plugins");
     let Ok(rd) = std::fs::read_dir(plugins) else {
-        return false;
+        return Vec::new();
     };
-    rd.flatten().any(|e| {
-        let n = e.file_name().to_string_lossy().to_ascii_lowercase();
-        n.ends_with(".jar") && n.contains("playit")
-    })
+    rd.flatten()
+        .filter(|e| {
+            let n = e.file_name().to_string_lossy().to_ascii_lowercase();
+            (n.ends_with(".jar") || n.ends_with(".jar.disabled")) && n.contains("playit")
+        })
+        .map(|e| e.path())
+        .collect()
+}
+
+/// Apaga el plugin de Minecraft para que no compita con playit.exe.
+pub fn disable_playit_plugin_jars(id: &str) {
+    for path in playit_plugin_jars(id) {
+        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if name.to_ascii_lowercase().ends_with(".jar.disabled") {
+            continue;
+        }
+        let dest = path.with_file_name(format!("{name}.disabled"));
+        if std::fs::rename(&path, &dest).is_ok() {
+            crate::core::server_console::append(
+                id,
+                "[playit] Plugin de Minecraft desactivado: el túnel lo maneja playit.exe (más estable).",
+            );
+        }
+    }
 }
 
 /// Prepara el servidor (jar + mods/plugins según tipo).

@@ -112,6 +112,37 @@ pub fn apply_pre_launch(
     }
 }
 
+fn papa_wants_fabric_stack(loader: &str, mc_version: &str) -> bool {
+    let l = loader.trim().to_lowercase();
+    if l.contains("pvp") || l.contains("optimized") {
+        return false;
+    }
+    if mc_version.starts_with("1.8") || mc_version.starts_with("1.12") {
+        return false;
+    }
+    l.contains("fabric") || l.contains("quilt")
+}
+
+/// Inyecta Sodium/Lithium/Iris en Fabric moderno cuando Modo Papa está activo.
+pub async fn inject_papa_mods(
+    app: &tauri::AppHandle,
+    state: &crate::state::AppState,
+    game_dir: &Path,
+    loader: &str,
+    mc_version: &str,
+    offline: bool,
+) {
+    if offline || !papa_wants_fabric_stack(loader, mc_version) {
+        return;
+    }
+    let http = state.client();
+    if let Err(e) =
+        crate::core::loaders::fabric_iris::install_bundle(app, &http, mc_version, game_dir).await
+    {
+        eprintln!("[paraguacraft] modo papa mods: {e}");
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -3,6 +3,16 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [1.1.30] - 2026-09-01
+
+### Launcher
+- **Playit solo binario**: el hosting usa `playit.exe` oculto (sin plugin .jar). Limpia Java/Playit huérfanos al arrancar y apaga Playit al parar el server.
+- **IP en vivo**: la ficha del servidor muestra la dirección Playit Java/Bedrock cuando el túnel queda listo.
+- **Modo Papa**: tope de 2 GB de RAM, G1GC y perfil de rendimiento (render distance 4, Fast). En Fabric inyecta Sodium/Lithium/Iris.
+- **Tras un crash**: el banner ofrece desactivar el mod sospechoso y reintentar.
+- **Discord Rich Presence**: estado en el launcher y en partida (mundo propio, LAN, Essential/e4mc, multiplayer remoto o servidor Playit).
+- Clientes embebidos/fallback: PvP **2.1.58** y Modern **0.9.32**.
+
 ## [1.1.29] - 2026-08-24
 
 ### Launcher

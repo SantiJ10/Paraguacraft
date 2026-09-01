@@ -17,6 +17,12 @@ pub struct CrashDiagnosis {
     pub crash_file: Option<String>,
     pub log_tail: String,
     pub suggestions: Vec<String>,
+    /// Nombre del jar sospechoso (si se pudo identificar).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub suspect_mod: Option<String>,
+    /// Ruta relativa tipo `mods/foo.jar` para desactivar con un clic.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub suspect_mod_path: Option<String>,
 }
 
 fn read_tail(path: &Path, max: usize) -> String {
@@ -391,6 +397,18 @@ pub fn analyze_paths(log_path: &Path, crash_dir: &Path, exit_code: i32) -> Crash
         .rev()
         .collect();
 
+    let game_dir = log_path.parent().and_then(|p| p.parent());
+    let (suspect_mod, suspect_mod_path) = game_dir
+        .and_then(|dir| detect_suspect_mod(dir, &combined))
+        .map(|(n, p)| (Some(n), Some(p)))
+        .unwrap_or((None, None));
+    if let Some(ref name) = suspect_mod {
+        suggestions.insert(
+            0,
+            format!("Mod sospechoso: {name}. Podés desactivarlo desde el aviso de crash."),
+        );
+    }
+
     CrashDiagnosis {
         category: core.category.into(),
         message: core.message,
@@ -400,5 +418,57 @@ pub fn analyze_paths(log_path: &Path, crash_dir: &Path, exit_code: i32) -> Crash
         crash_file: crash.map(|(n, _)| n),
         log_tail: tail_display,
         suggestions,
+        suspect_mod,
+        suspect_mod_path,
     }
+}
+
+fn detect_suspect_mod(game_dir: &Path, combined: &str) -> Option<(String, String)> {
+    let mods = game_dir.join("mods");
+    let rd = std::fs::read_dir(&mods).ok()?;
+    let low = combined.to_lowercase();
+    const SKIP: &[&str] = &[
+        "sodium",
+        "lithium",
+        "iris",
+        "fabric-api",
+        "fabricapi",
+        "optifine",
+        "paraguacraft",
+        "modmenu",
+        "ferritecore",
+        "ferrite-core",
+        "entityculling",
+        "immediatelyfast",
+    ];
+    let mut jars: Vec<String> = rd
+        .flatten()
+        .filter_map(|e| {
+            let name = e.file_name().to_string_lossy().to_string();
+            let l = name.to_ascii_lowercase();
+            if l.ends_with(".jar") && !l.ends_with(".disabled") {
+                Some(name)
+            } else {
+                None
+            }
+        })
+        .collect();
+    jars.sort_by_key(|a| std::cmp::Reverse(a.len()));
+    for name in jars {
+        let stem = name
+            .trim_end_matches(".jar")
+            .to_ascii_lowercase()
+            .replace('_', "-");
+        if SKIP.iter().any(|s| stem.contains(s)) {
+            continue;
+        }
+        let token = stem.split('-').next().unwrap_or(&stem);
+        if token.len() < 4 {
+            continue;
+        }
+        if low.contains(&stem) || low.contains(token) {
+            return Some((name.clone(), format!("mods/{name}")));
+        }
+    }
+    None
 }
