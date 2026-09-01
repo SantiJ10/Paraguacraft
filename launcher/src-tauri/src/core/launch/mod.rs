@@ -9,6 +9,7 @@
 //! caches: queda en ~0% CPU y RAM minima mientras el juego corre.
 
 pub mod window_title;
+pub mod game_hwnd;
 pub mod borderless;
 pub mod pvp_jvm;
 pub mod modern_pvp_jvm;

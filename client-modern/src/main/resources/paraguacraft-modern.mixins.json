@@ -36,6 +36,7 @@
     "MixinHandledScreenDim",
     "MixinScreenClose",
     "MixinWindowFullscreen",
+    "MixinWindowTitle",
     "MixinLightmapTextureManager",
     "MixinMultiplayerScreenIcons"
   ],

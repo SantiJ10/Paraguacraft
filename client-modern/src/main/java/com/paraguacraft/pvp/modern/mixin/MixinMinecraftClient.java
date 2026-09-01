@@ -10,6 +10,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(net.minecraft.client.MinecraftClient.class)
 public class MixinMinecraftClient {
@@ -26,6 +27,11 @@ public class MixinMinecraftClient {
             return new CustomPauseScreen(true);
         }
         return screen;
+    }
+
+    @Inject(method = "getWindowTitle", at = @At("HEAD"), cancellable = true)
+    private void paraguacraft$discordWindowTitle(CallbackInfoReturnable<String> cir) {
+        cir.setReturnValue("Minecraft - Paraguacraft [1.21.11/PvP]");
     }
 
     @Inject(method = "tick", at = @At("HEAD"))

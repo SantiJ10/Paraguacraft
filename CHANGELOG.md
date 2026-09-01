@@ -3,6 +3,18 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [1.1.33] - 2026-09-01
+
+### Launcher
+- **Discord Overlay**: el título de la ventana es siempre `Minecraft - Paraguacraft [versión/perfil]` (vanilla, Fabric, Forge, Quilt, NeoForge, OptiFine, PvP, Optimized y modpacks). Minecraft 1.15+ ya no queda como «Multijugador (servidor de terceros)».
+- **Borderless HWND**: localiza la ventana por PID y tamaño, no por el texto del título.
+
+### Cliente PvP 1.8.9 (2.1.59)
+- Título de ventana `Minecraft - Paraguacraft [1.8.9/PvP]` para que Discord Overlay inyecte solo.
+
+### Cliente PvP Modern (0.9.33)
+- Título de ventana `Minecraft - Paraguacraft [1.21.11/PvP]` (GLFW / 1.21 no pisa a «Multijugador»).
+
 ## [1.1.32] - 2026-09-01
 
 ### Launcher

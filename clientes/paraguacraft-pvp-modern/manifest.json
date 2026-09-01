@@ -1,15 +1,15 @@
 {
-    "id":  "paraguacraft-pvp-modern",
-    "nombre":  "Paraguacraft PvP Modern",
-    "mc_version":  "1.21.11",
-    "loader":  "fabric",
-    "client_version":  "0.9.32",
-    "release_tag":  "pvp-modern-0.9.32",
-    "descripcion":  "Overlay inventario 0.7x, pausa solo skin, watermark en inventario.",
-    "mods":  [
-                 {
-                     "sha1":  "e32c83d95a2acd2f88204b99c2b41629876f5cba",
-                     "filename":  "ParaguacraftPvP-Modern-0.9.32.jar"
-                 }
-             ]
+  "id": "paraguacraft-pvp-modern",
+  "nombre": "Paraguacraft PvP Modern",
+  "mc_version": "1.21.11",
+  "loader": "fabric",
+  "client_version": "0.9.33",
+  "release_tag": "pvp-modern-0.9.33",
+  "descripcion": "Titulo Minecraft - Paraguacraft [1.21.11/PvP] para Discord Overlay.",
+  "mods": [
+    {
+      "filename": "ParaguacraftPvP-Modern-0.9.33.jar",
+      "sha1": "c75f410dab32be5705460fbb4fbb92d8d2ff64bd"
+    }
+  ]
 }

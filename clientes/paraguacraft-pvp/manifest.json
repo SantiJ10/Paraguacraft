@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.58",
-  "release_tag": "pvp-client-2.1.58",
-  "descripcion": "Pausa: solo la skin, sin nombre ni vida.",
+  "client_version": "2.1.59",
+  "release_tag": "pvp-client-2.1.59",
+  "descripcion": "Titulo Minecraft - Paraguacraft [1.8.9/PvP] para Discord Overlay.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.58.jar",
-      "sha1": "07510504ec311d73ee2f733530d5a6c60580c9b8"
+      "filename": "ParaguacraftPvP-2.1.59.jar",
+      "sha1": "ffbb57e4544882c1ea33ee568819520c144617ce"
     },
     {
       "filename": "Hytils-Reborn-1.8.9-forge-1.7.5.jar",

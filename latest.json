@@ -1,12 +1,12 @@
 {
-  "version": "1.1.32",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.32/Instalar_Paraguacraft_v1.1.32.exe",
-  "size_bytes": 5713793,
-  "sha256": "da8716329e89999c3324f0a7114dfc7020da688a3795c7c948d36f97fa0bfde6",
-  "notes": "- Pantalla completa borderless: Discord Overlay en todas las versiones (1.7 a 1.20+)\n- El launcher se oculta en la bandeja al jugar y vuelve al salir\n- Discord RPC atado a javaw: servidor en vivo (Hypixel, Minemen, local)\n- Clientes PvP 2.1.58 / Modern 0.9.32",
+  "version": "1.1.33",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.33/Instalar_Paraguacraft_v1.1.33.exe",
+  "size_bytes": 5710822,
+  "sha256": "1c7096932e69cbae97319edb6bc5c7931493752482754e38269514ecedd09779",
+  "notes": "- Discord Overlay: titulo Minecraft - Paraguacraft en todas las versiones y loaders\n- Clientes PvP 2.1.59 / Modern 0.9.33: Discord detecta Minecraft solo\n- Borderless y bandeja al jugar",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.32/Instalar_Paraguacraft_v1.1.32.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.33/Instalar_Paraguacraft_v1.1.33.exe",
       "signature": ""
     }
   }
