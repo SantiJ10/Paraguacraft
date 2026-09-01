@@ -593,8 +593,9 @@ pub fn spawn_game(
     show_console: bool,
 ) -> AppResult<std::process::Child> {
     std::fs::create_dir_all(instance_dir)?;
-    let exe = discord_java::overlay_executable(java);
-    let mut cmd = Command::new(&exe);
+    // Discord solo aplica la heurística de Minecraft a `javaw.exe`, no a un
+    // Java copiado como Minecraft.exe (1.1.34). Hay que lanzar el javaw real.
+    let mut cmd = Command::new(java);
     cmd.current_dir(instance_dir);
 
     for (key, value) in extra_env {
@@ -613,6 +614,9 @@ pub fn spawn_game(
     let use_arg_file = java_major >= 9;
     #[cfg(not(target_os = "windows"))]
     let use_arg_file = false;
+
+    // Visible en GetCommandLineW. Si va solo dentro de @args.txt, Discord no lo ve.
+    cmd.arg(discord_java::DETECT_FLAG);
 
     if use_arg_file {
         let at = arg_file.to_string_lossy();
@@ -645,7 +649,7 @@ pub fn spawn_game(
         let preview: String = args.iter().take(8).cloned().collect::<Vec<_>>().join(" ");
         AppError::msg(format!(
             "No se pudo iniciar Java ({}): {e}. Args: {preview}…",
-            exe.display()
+            java.display()
         ))
     })
 }

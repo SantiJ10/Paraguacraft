@@ -3,6 +3,11 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [1.1.35] - 2026-09-01
+
+### Launcher
+- **Discord Overlay**: Discord no detecta un Java renombrado a `Minecraft.exe`. Busca `javaw.exe` cuya línea de comandos tenga `net.minecraft.client.main.Main`. Fabric/Forge no usan esa clase, y en 1.21 los args van en `@args.txt` (Discord no lo lee). El launcher pasa `-Ddiscordfix=net.minecraft.client.main.Main` visible en el comando, en todos los loaders.
+
 ## [1.1.34] - 2026-09-01
 
 ### Launcher
