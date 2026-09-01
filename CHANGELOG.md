@@ -3,6 +3,18 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [1.1.34] - 2026-09-01
+
+### Launcher
+- **Discord Overlay automático**: lanza `Minecraft.exe` (alias del Java 8/21) y deja el título vanilla (`Minecraft {ver}` / `Minecraft* {ver}`) en todos los loaders. Ya no hace falta agregar el juego a mano.
+- Quita el sufijo «Multijugador (servidor de terceros)» de 1.15+.
+
+### Cliente PvP 1.8.9 (2.1.60)
+- Título `Minecraft* 1.8.9` (formato que Discord ya conoce).
+
+### Cliente PvP Modern (0.9.34)
+- Título `Minecraft* 1.21.11`; no pisa a multiplayer al entrar a un server.
+
 ## [1.1.33] - 2026-09-01
 
 ### Launcher

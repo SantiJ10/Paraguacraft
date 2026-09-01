@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.59",
-  "release_tag": "pvp-client-2.1.59",
-  "descripcion": "Titulo Minecraft - Paraguacraft [1.8.9/PvP] para Discord Overlay.",
+  "client_version": "2.1.60",
+  "release_tag": "pvp-client-2.1.60",
+  "descripcion": "Titulo Minecraft* 1.8.9 para Discord Overlay.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.59.jar",
-      "sha1": "ffbb57e4544882c1ea33ee568819520c144617ce"
+      "filename": "ParaguacraftPvP-2.1.60.jar",
+      "sha1": "7003707358fd026ab5a6fdb45e322410685e322e"
     },
     {
       "filename": "Hytils-Reborn-1.8.9-forge-1.7.5.jar",

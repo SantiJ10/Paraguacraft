@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP Modern",
   "mc_version": "1.21.11",
   "loader": "fabric",
-  "client_version": "0.9.33",
-  "release_tag": "pvp-modern-0.9.33",
-  "descripcion": "Titulo Minecraft - Paraguacraft [1.21.11/PvP] para Discord Overlay.",
+  "client_version": "0.9.34",
+  "release_tag": "pvp-modern-0.9.34",
+  "descripcion": "Titulo Minecraft* 1.21.11 para Discord Overlay.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-Modern-0.9.33.jar",
-      "sha1": "c75f410dab32be5705460fbb4fbb92d8d2ff64bd"
+      "filename": "ParaguacraftPvP-Modern-0.9.34.jar",
+      "sha1": "d1b18047f6eecb9c754f2bc04a30a75501633c9b"
     }
   ]
 }

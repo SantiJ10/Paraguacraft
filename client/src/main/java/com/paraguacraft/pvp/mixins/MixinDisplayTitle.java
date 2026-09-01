@@ -6,19 +6,19 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
 /**
- * Discord Overlay exige que el título empiece por {@code Minecraft}.
- * Marca: {@code Minecraft - Paraguacraft [1.8.9/PvP]}.
+ * Discord Overlay exige el título vanilla ({@code Minecraft 1.8.9} /
+ * {@code Minecraft* 1.8.9}). Forge es cliente modificado → asterisco.
  */
 @Mixin(value = Display.class, remap = false)
 public class MixinDisplayTitle {
 
-    private static final String WINDOW_TITLE = "Minecraft - Paraguacraft [1.8.9/PvP]";
+    private static final String WINDOW_TITLE = "Minecraft* 1.8.9";
 
     private static String paraguacraftTitle(String title) {
         if (title == null || title.isEmpty()) {
             return WINDOW_TITLE;
         }
-        if (title.startsWith("Minecraft - Paraguacraft")) {
+        if (title.equals(WINDOW_TITLE)) {
             return title;
         }
         if (title.contains("Minecraft") || title.contains("Paraguacraft")) {

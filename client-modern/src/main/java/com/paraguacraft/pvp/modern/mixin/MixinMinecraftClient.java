@@ -31,7 +31,7 @@ public class MixinMinecraftClient {
 
     @Inject(method = "getWindowTitle", at = @At("HEAD"), cancellable = true)
     private void paraguacraft$discordWindowTitle(CallbackInfoReturnable<String> cir) {
-        cir.setReturnValue("Minecraft - Paraguacraft [1.21.11/PvP]");
+        cir.setReturnValue("Minecraft* 1.21.11");
     }
 
     @Inject(method = "tick", at = @At("HEAD"))

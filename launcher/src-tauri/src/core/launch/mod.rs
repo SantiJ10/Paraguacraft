@@ -10,6 +10,7 @@
 
 pub mod window_title;
 pub mod game_hwnd;
+pub mod discord_java;
 pub mod borderless;
 pub mod pvp_jvm;
 pub mod modern_pvp_jvm;
@@ -592,7 +593,8 @@ pub fn spawn_game(
     show_console: bool,
 ) -> AppResult<std::process::Child> {
     std::fs::create_dir_all(instance_dir)?;
-    let mut cmd = Command::new(java);
+    let exe = discord_java::overlay_executable(java);
+    let mut cmd = Command::new(&exe);
     cmd.current_dir(instance_dir);
 
     for (key, value) in extra_env {
@@ -643,7 +645,7 @@ pub fn spawn_game(
         let preview: String = args.iter().take(8).cloned().collect::<Vec<_>>().join(" ");
         AppError::msg(format!(
             "No se pudo iniciar Java ({}): {e}. Args: {preview}…",
-            java.display()
+            exe.display()
         ))
     })
 }
