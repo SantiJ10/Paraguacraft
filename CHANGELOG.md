@@ -3,6 +3,12 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [1.1.31] - 2026-09-01
+
+### Launcher
+- **Discord RPC**: el servidor (Hypixel, etc.) ya no se pierde entre el spam del `latest.log`; queda en «Jugando en Hypixel» hasta desconectar.
+- **Cerrar el launcher**: ya no se congela en «No responde». Discord IPC y el stop de servers no bloquean la UI.
+
 ## [1.1.30] - 2026-09-01
 
 ### Launcher

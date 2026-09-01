@@ -16,6 +16,7 @@ const DOWNLOAD_URL: &str = "https://paraguacraft.pages.dev";
 static CLIENT: Mutex<Option<DiscordIpcClient>> = Mutex::new(None);
 static SESSION_START: Mutex<Option<i64>> = Mutex::new(None);
 static WATCHDOG: AtomicBool = AtomicBool::new(false);
+static SHUTDOWN: AtomicBool = AtomicBool::new(false);
 static LAST: Mutex<Option<PresenceSnap>> = Mutex::new(None);
 
 #[derive(Clone)]
@@ -42,15 +43,18 @@ fn spawn_watchdog() {
         .name("discord-rpc-watch".into())
         .spawn(|| loop {
             std::thread::sleep(Duration::from_secs(40));
+            if SHUTDOWN.load(Ordering::SeqCst) {
+                return;
+            }
             let settings: crate::models::AppSettings =
                 crate::config::read_json(&crate::core::paths::config_file()).unwrap_or_default();
             if !settings.discord_rpc {
                 continue;
             }
-            let disconnected = CLIENT.lock().unwrap().is_none();
+            let disconnected = CLIENT.lock().map(|g| g.is_none()).unwrap_or(true);
             if disconnected {
                 connect(true);
-                if let Some(snap) = LAST.lock().unwrap().clone() {
+                if let Some(snap) = LAST.lock().ok().and_then(|g| g.clone()) {
                     apply(&snap);
                 } else if let Some(acc) = crate::core::accounts::active_account() {
                     set_launcher_idle(&acc.username.replace(" [PREMIUM]", ""));
@@ -61,32 +65,76 @@ fn spawn_watchdog() {
 }
 
 pub fn connect(enabled: bool) {
+    if SHUTDOWN.load(Ordering::SeqCst) {
+        return;
+    }
     if !enabled {
         disconnect();
         return;
     }
     spawn_watchdog();
-    let mut guard = CLIENT.lock().unwrap();
-    if guard.is_some() {
-        return;
+    {
+        let guard = match CLIENT.lock() {
+            Ok(g) => g,
+            Err(_) => return,
+        };
+        if guard.is_some() {
+            return;
+        }
     }
     let mut client = DiscordIpcClient::new(APP_ID);
-    if client.connect().is_ok() {
-        if SESSION_START.lock().unwrap().is_none() {
-            *SESSION_START.lock().unwrap() = Some(now_secs());
-        }
-        *guard = Some(client);
+    if client.connect().is_err() {
+        return;
     }
+    let mut guard = match CLIENT.lock() {
+        Ok(g) => g,
+        Err(_) => return,
+    };
+    if guard.is_some() {
+        drop(guard);
+        std::thread::spawn(move || {
+            let _ = client.close();
+        });
+        return;
+    }
+    if let Ok(mut start) = SESSION_START.lock() {
+        if start.is_none() {
+            *start = Some(now_secs());
+        }
+    }
+    *guard = Some(client);
 }
 
 pub fn disconnect() {
-    let mut guard = CLIENT.lock().unwrap();
-    if let Some(mut c) = guard.take() {
-        let _ = c.clear_activity();
-        let _ = c.close();
+    take_client_and_close();
+    if let Ok(mut start) = SESSION_START.lock() {
+        *start = None;
     }
-    *SESSION_START.lock().unwrap() = None;
-    *LAST.lock().unwrap() = None;
+    if let Ok(mut last) = LAST.lock() {
+        *last = None;
+    }
+}
+
+/// Cierra Discord IPC sin bloquear el hilo de la UI (el pipe puede colgarse).
+pub fn shutdown() {
+    SHUTDOWN.store(true, Ordering::SeqCst);
+    take_client_and_close();
+}
+
+fn take_client_and_close() {
+    let client = match CLIENT.try_lock() {
+        Ok(mut g) => g.take(),
+        Err(_) => {
+            std::thread::sleep(Duration::from_millis(50));
+            CLIENT.try_lock().ok().and_then(|mut g| g.take())
+        }
+    };
+    if let Some(mut c) = client {
+        std::thread::spawn(move || {
+            let _ = c.clear_activity();
+            let _ = c.close();
+        });
+    }
 }
 
 pub fn set_launcher_idle(_username: &str) {
@@ -235,6 +283,9 @@ fn update(
     small_image: Option<&str>,
     small_text: Option<&str>,
 ) {
+    if SHUTDOWN.load(Ordering::SeqCst) {
+        return;
+    }
     let snap = PresenceSnap {
         details: details.to_string(),
         state: state.to_string(),
@@ -242,18 +293,26 @@ fn update(
         small_image: small_image.map(|s| s.to_string()),
         small_text: small_text.map(|s| s.to_string()),
     };
-    *LAST.lock().unwrap() = Some(snap.clone());
+    if let Ok(mut last) = LAST.lock() {
+        *last = Some(snap.clone());
+    }
     if !apply(&snap) {
-        let mut guard = CLIENT.lock().unwrap();
-        *guard = None;
-        drop(guard);
+        if let Ok(mut guard) = CLIENT.lock() {
+            *guard = None;
+        }
         connect(true);
         let _ = apply(&snap);
     }
 }
 
 fn apply(snap: &PresenceSnap) -> bool {
-    let mut guard = CLIENT.lock().unwrap();
+    if SHUTDOWN.load(Ordering::SeqCst) {
+        return false;
+    }
+    let mut guard = match CLIENT.lock() {
+        Ok(g) => g,
+        Err(_) => return false,
+    };
     let Some(client) = guard.as_mut() else {
         return false;
     };
@@ -268,17 +327,22 @@ fn apply(snap: &PresenceSnap) -> bool {
         .assets(assets)
         .buttons(vec![Button::new("Descargar Launcher", DOWNLOAD_URL)]);
     if snap.show_time {
-        if let Some(start) = *SESSION_START.lock().unwrap() {
-            act = act.timestamps(Timestamps::new().start(start));
+        if let Ok(start) = SESSION_START.lock() {
+            if let Some(start) = *start {
+                act = act.timestamps(Timestamps::new().start(start));
+            }
         }
     }
     client.set_activity(act).is_ok()
 }
 
 pub fn clear_activity() {
-    let mut guard = CLIENT.lock().unwrap();
-    if let Some(client) = guard.as_mut() {
-        let _ = client.clear_activity();
+    if let Ok(mut guard) = CLIENT.lock() {
+        if let Some(client) = guard.as_mut() {
+            let _ = client.clear_activity();
+        }
     }
-    *LAST.lock().unwrap() = None;
+    if let Ok(mut last) = LAST.lock() {
+        *last = None;
+    }
 }

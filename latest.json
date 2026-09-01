@@ -1,12 +1,12 @@
 {
-  "version": "1.1.30",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.30/Instalar_Paraguacraft_v1.1.30.exe",
-  "size_bytes": 5701451,
-  "sha256": "707ee0168ed8f51f5b90da81ccb3c9a7f6a3e2260475682e269fd75c65170442",
-  "notes": "- Playit solo binario (sin plugin): mas estable al hostear y al cerrar el server\n- IP Java/Bedrock en vivo en la ficha del servidor\n- Modo Papa: 2 GB RAM, G1GC y Sodium/Lithium/Iris en Fabric\n- Tras un crash: desactivar el mod sospechoso y reintentar\n- Discord Rich Presence (mundo, LAN, Essential, multiplayer)\n- Clientes PvP 2.1.58 / Modern 0.9.32",
+  "version": "1.1.31",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.31/Instalar_Paraguacraft_v1.1.31.exe",
+  "size_bytes": 5703608,
+  "sha256": "c09a1965747d2858f4ff34633f7147bc7fb8560962ec73e4cc937bc519efbf44",
+  "notes": "- Discord RPC: muestra el servidor (Hypixel, etc.) y no se queda en el menu\n- Cerrar el launcher ya no se congela en No responde\n- Playit solo binario, Modo Papa, crash-mod y Discord RPC\n- Clientes PvP 2.1.58 / Modern 0.9.32",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.30/Instalar_Paraguacraft_v1.1.30.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.31/Instalar_Paraguacraft_v1.1.31.exe",
       "signature": ""
     }
   }

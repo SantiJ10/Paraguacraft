@@ -69,7 +69,10 @@ pub fn run() {
                     core::tray_lite::hide_to_tray(window.app_handle());
                     return;
                 }
-                core::servers::stop_all_running();
+                core::extras::discord_rpc::shutdown();
+                std::thread::spawn(|| {
+                    core::servers::stop_all_running();
+                });
             }
         })
         .invoke_handler(tauri::generate_handler![

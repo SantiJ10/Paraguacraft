@@ -368,7 +368,7 @@ fn is_mc_running(id: &str) -> bool {
     if let Some(map) = g.as_mut() {
         if let Some(sp) = map.get_mut(id) {
             if let Some(mc) = &mut sp.mc {
-                return mc.child.try_wait().ok().flatten().is_none();
+                return matches!(mc.child.try_wait(), Ok(None));
             }
         }
     }
@@ -1509,21 +1509,20 @@ pub fn stop(id: &str) -> AppResult<()> {
 }
 
 /// Detiene todos los servidores locales y túneles playit (al cerrar el launcher).
+/// Kill inmediato: no esperar el `stop` de 45 s en el hilo de la UI.
 pub fn stop_all_running() {
-    for prof in load_all() {
-        let _ = stop_mc_graceful(&prof.id);
-        let _ = stop_playit_only(&prof.id);
+    let ids: Vec<String> = {
+        let g = procs();
+        g.as_ref()
+            .map(|m| m.keys().cloned().collect())
+            .unwrap_or_default()
+    };
+    for id in ids {
+        let _ = stop_mc(&id);
+        let _ = stop_playit_only(&id);
     }
     let mut g = procs();
     if let Some(map) = g.as_mut() {
-        for sp in map.values_mut() {
-            if let Some(mut mc) = sp.mc.take() {
-                let _ = mc.child.kill();
-            }
-            if let Some(mut p) = sp.playit.take() {
-                let _ = p.kill();
-            }
-        }
         map.clear();
     }
 }

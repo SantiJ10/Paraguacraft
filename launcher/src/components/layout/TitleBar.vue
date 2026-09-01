@@ -20,11 +20,8 @@ async function toggleMaximize() {
 async function close() {
   if (isTauri()) {
     const { api } = await import("@/lib/ipc");
-    try {
-      await api.shutdownBackgroundServices();
-    } catch {
-      /* best effort */
-    }
+    // No esperar: stop de servers/Discord en segundo plano para no congelar la UI.
+    void api.shutdownBackgroundServices();
     (await win()).close();
   }
 }
