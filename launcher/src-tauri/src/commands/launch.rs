@@ -409,6 +409,7 @@ async fn spawn_for_instance(
         show_console,
     )?;
     let pid = child.id();
+    crate::core::extras::discord_rpc::bind_game_pid(pid);
 
     crate::core::game_session::set_last_launch_instance(instance_id);
     crate::core::client_console::begin_session(instance_id, &game_dir);

@@ -115,6 +115,18 @@ pub fn ensure_vsync_off(game_dir: &Path) -> AppResult<()> {
     Ok(())
 }
 
+/// Fuerza `fullscreen:false` para que el launcher ponga borderless a nivel HWND
+/// (Discord Overlay no sobrevive al fullscreen exclusivo de LWJGL).
+pub fn ensure_windowed(game_dir: &Path) -> AppResult<()> {
+    let keys = HashMap::from([("fullscreen".into(), "false".into())]);
+    let _ = patch_options_file(&game_dir.join("options.txt"), keys.clone())?;
+    let of = game_dir.join("optionsof.txt");
+    if of.is_file() {
+        let _ = patch_options_file(&of, keys)?;
+    }
+    Ok(())
+}
+
 /// Preset PvP 1.21.11 — más agresivo que `tier_options` genérico (Sodium/Iris ya cubren parte del render).
 fn tier_options_modern_pvp(tier: &str) -> HashMap<String, String> {
     tier_options_modern_pvp_style(tier, "competitive")
@@ -293,8 +305,8 @@ pub fn apply_min_graphics(game_dir: &Path) -> AppResult<()> {
 }
 
 /// Options.txt para Paraguacraft Optimized: rendimiento primero, sin saturar la PC.
-/// No fuerza windowed/fullscreen: se respeta la preferencia nativa del usuario
-/// (Discord Overlay detecta mejor el proceso).
+/// No toca `fullscreen` aquí: `ensure_windowed` lo fuerza a false en el launch
+/// para aplicar borderless a nivel HWND (Discord Overlay).
 fn tier_options_optimized(tier: &str) -> HashMap<String, String> {
     match tier {
         "alta" => HashMap::from([
@@ -1140,4 +1152,31 @@ pub fn apply_hardware_defaults(settings: &mut AppSettings) -> HardwareInfo {
     settings.hardware_defaults_applied = true;
     settings.performance_tier = "auto".into();
     hw
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn ensure_windowed_writes_fullscreen_false() {
+        let dir = std::env::temp_dir().join(format!(
+            "pc_win_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("options.txt");
+        fs::write(&path, "fullscreen:true\nfoo:bar\n").unwrap();
+        ensure_windowed(&dir).unwrap();
+        let body = fs::read_to_string(&path).unwrap();
+        let _ = fs::remove_dir_all(&dir);
+        assert!(body.contains("fullscreen:false"));
+        assert!(!body.contains("fullscreen:true"));
+        assert!(body.contains("foo:bar"));
+    }
 }

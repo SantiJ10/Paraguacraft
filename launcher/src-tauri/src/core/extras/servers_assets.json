@@ -1,0 +1,10 @@
+[
+  { "pattern": "(?i)hypixel\\.net", "asset": "logo_hypixel", "name": "Hypixel" },
+  { "pattern": "(?i)minemen\\.club", "asset": "logo_minemen", "name": "Minemen Club" },
+  { "pattern": "(?i)cubecraft\\.net", "asset": "logo_cubecraft", "name": "CubeCraft" },
+  { "pattern": "(?i)universocraft\\.net", "asset": "logo_universocraft", "name": "UniversoCraft" },
+  { "pattern": "(?i)mush(mc)?\\.com\\.br", "asset": "logo_mush", "name": "Mush" },
+  { "pattern": "(?i)regorland\\.net", "asset": "logo_regorland", "name": "Regorland" },
+  { "pattern": "(?i)hylex\\.net", "asset": "logo_hylex", "name": "Hylex" },
+  { "pattern": "(?i)bedwarspractice\\.club", "asset": "logo_bwp", "name": "Bedwars Practice" }
+]

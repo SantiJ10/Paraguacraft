@@ -13,10 +13,24 @@ fn tray_err(e: tauri::Error) -> AppError {
 }
 
 pub fn install(app: &AppHandle) -> AppResult<()> {
-    let settings: crate::models::AppSettings =
-        crate::config::read_json(&crate::core::paths::config_file()).unwrap_or_default();
-    if !settings.tray_lite {
-        return Ok(());
+    install_inner(app, false)
+}
+
+/// Instala el icono de bandeja si hace falta (modo fantasma al jugar).
+pub fn ensure_installed(app: &AppHandle) {
+    if app.tray_by_id(TRAY_ID).is_some() {
+        return;
+    }
+    let _ = install_inner(app, true);
+}
+
+fn install_inner(app: &AppHandle, force: bool) -> AppResult<()> {
+    if !force {
+        let settings: crate::models::AppSettings =
+            crate::config::read_json(&crate::core::paths::config_file()).unwrap_or_default();
+        if !settings.tray_lite {
+            return Ok(());
+        }
     }
 
     let show = MenuItem::with_id(app, "tray_show", "Mostrar launcher", true, None::<&str>)
@@ -56,11 +70,6 @@ pub fn install(app: &AppHandle) -> AppResult<()> {
 }
 
 pub fn set_playing(app: &AppHandle, playing: bool) {
-    let settings: crate::models::AppSettings =
-        crate::config::read_json(&crate::core::paths::config_file()).unwrap_or_default();
-    if !settings.tray_lite {
-        return;
-    }
     if let Some(tray) = app.tray_by_id(TRAY_ID) {
         let tip = if playing {
             "Jugando — clic para abrir Paraguacraft"
@@ -80,11 +89,7 @@ pub fn show_main(app: &AppHandle) {
 }
 
 pub fn hide_to_tray(app: &AppHandle) {
-    let settings: crate::models::AppSettings =
-        crate::config::read_json(&crate::core::paths::config_file()).unwrap_or_default();
-    if !settings.tray_lite {
-        return;
-    }
+    ensure_installed(app);
     if let Some(win) = app.get_webview_window("main") {
         let _ = win.hide();
     }

@@ -5,6 +5,7 @@ pub mod game_presence;
 pub mod game_mode;
 pub mod java_priority;
 pub mod maintenance;
+pub mod server_assets;
 pub mod turbo;
 
 use serde::Serialize;

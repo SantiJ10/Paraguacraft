@@ -9,6 +9,7 @@
 //! caches: queda en ~0% CPU y RAM minima mientras el juego corre.
 
 pub mod window_title;
+pub mod borderless;
 pub mod pvp_jvm;
 pub mod modern_pvp_jvm;
 pub mod optimizer;
@@ -726,19 +727,10 @@ pub fn emit_status(app: &AppHandle, phase: &str, message: &str) {
     );
 }
 
-/// Tras lanzar el juego: minimiza, oculta o cierra el launcher según Ajustes.
-pub fn apply_launch_window(app: &AppHandle, close_on_launch: bool, soft_close: bool) {
-    if close_on_launch {
-        if soft_close {
-            suspend_for_game(app);
-            return;
-        }
-        app.exit(0);
-        return;
-    }
-    if let Some(win) = app.get_webview_window("main") {
-        let _ = win.minimize();
-    }
+/// Tras lanzar el juego: siempre modo fantasma (hide → bandeja). Nunca `exit`.
+pub fn apply_launch_window(app: &AppHandle, _close_on_launch: bool, _soft_close: bool) {
+    crate::core::tray_lite::ensure_installed(app);
+    suspend_for_game(app);
 }
 
 fn suspend_for_game(app: &AppHandle) {
@@ -753,8 +745,8 @@ fn restore_launch_window(app: &AppHandle) {
     crate::core::tray_lite::show_main(app);
 }
 
-/// Espera (en hilo BLOQUEADO = 0% CPU, sin red) a que el juego cierre, suma el
-/// tiempo jugado y emite `game://exited`. No hay polling ni busy-loop.
+/// Espera en `spawn_blocking` (tokio, 0% CPU) a que `javaw` termine, limpia RPC
+/// y restaura la ventana del launcher desde la bandeja.
 pub fn watch_exit(
     app: AppHandle,
     instance_id: String,
@@ -769,12 +761,14 @@ pub fn watch_exit(
     game_rpc_handoff: bool,
     overlay_ipc: bool,
     compete_session: bool,
-    soft_close: bool,
+    _soft_close: bool,
 ) {
     let started = std::time::Instant::now();
     let pid = child.id();
+    crate::core::extras::discord_rpc::bind_game_pid(pid);
     let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     window_title::watch_window_title(pid, &mc_version, &loader, stop.clone());
+    borderless::watch(pid, stop.clone());
 
     if overlay_ipc {
         crate::core::overlay_ipc::watch(stop.clone());
@@ -823,9 +817,8 @@ pub fn watch_exit(
             "exitCode": exit_code,
             "diagnosis": diagnosis,
         });
-        if soft_close || !settings.close_on_launch {
-            restore_launch_window(&app);
-        }
+        restore_launch_window(&app);
+        crate::core::extras::discord_rpc::clear_game_pid();
         crate::core::game_session::set_running(false);
         crate::core::tray_lite::set_playing(&app, false);
         let pending_pvp = crate::core::game_session::take_pending_pvp_sync();

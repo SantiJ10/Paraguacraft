@@ -3,6 +3,13 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [1.1.32] - 2026-09-01
+
+### Launcher
+- **Pantalla completa borderless (OS)**: Minecraft arranca siempre en ventana; el launcher quita bordes y maximiza al monitor con la API de Windows. Discord Overlay funciona en 1.7–1.20+ (LWJGL 2 y 3).
+- **Bandeja al jugar**: al lanzar, el launcher se oculta (no se cierra) y vuelve solo al salir de Minecraft.
+- **Discord RPC**: se ata al PID de `javaw` (como Lunar) y muestra el servidor (Hypixel, Minemen, local/Playit) leyendo `latest.log`.
+
 ## [1.1.31] - 2026-09-01
 
 ### Launcher

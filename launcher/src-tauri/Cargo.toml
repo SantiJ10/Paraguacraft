@@ -1,6 +1,6 @@
 [package]
 name = "paraguacraft-launcher"
-version = "1.1.31"
+version = "1.1.32"
 description = "Paraguacraft Launcher"
 authors = ["Paraguacraft"]
 edition = "2021"
@@ -47,6 +47,7 @@ base64 = "0.22"
 urlencoding = "2"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
 discord-rich-presence = "1.1"
+regex = "1"
 # Rutas multiplataforma + manejo de errores.
 dirs = "5"
 thiserror = "1"
@@ -63,6 +64,7 @@ windows-sys = { version = "0.59", features = [
   "Win32_Foundation",
   "Win32_UI_WindowsAndMessaging",
   "Win32_UI_Shell",
+  "Win32_Graphics_Gdi",
 ] }
 
 [profile.release]

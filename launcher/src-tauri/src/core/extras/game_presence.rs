@@ -1,13 +1,16 @@
-//! Detecta mundo / servidor en juego (latest.log incremental) y actualiza Discord RPC.
+//! Tail no bloqueante de `logs/latest.log` (cualquier loader) → Discord RPC.
 
-use std::fs::File;
+use std::fs::OpenOptions;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 use std::time::Duration;
 
+use regex::Regex;
+
 use crate::core::extras::discord_rpc;
+use crate::core::extras::server_assets;
 use crate::models::AppSettings;
 
 pub struct PresenceCtx {
@@ -27,27 +30,44 @@ enum Session {
     Lan(Option<String>),
     Friends(Option<String>),
     Remote(String),
+    HostingLocal,
 }
 
-/// Hilo ligero: lee `latest.log` por incrementos y refresca el RPC mientras el juego corre.
+static CONNECTING: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)Connecting to ([\w.-]+(?::\d+)?)").expect("connecting regex")
+});
+static DISCONNECT: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)(Stopping client|Disconnecting from|Quitting(?: the game)?|Stopping!|Reached end of stream|Lost connection:|Connecting aborted)",
+    )
+    .expect("disconnect regex")
+});
+
+/// Tail asíncrono (tokio) del log mientras corre el juego.
 pub fn watch(ctx: PresenceCtx, stop: Arc<AtomicBool>) {
-    std::thread::spawn(move || {
+    tauri::async_runtime::spawn(async move {
         let mut last_mode = String::new();
         let mut session = Session::Menu;
         let mut pos = 0u64;
         let mut primed = false;
+        let mut interval = tokio::time::interval(Duration::from_millis(750));
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         while !stop.load(Ordering::Relaxed) {
+            interval.tick().await;
             let log = ctx.game_dir.join("logs").join("latest.log");
             if !primed {
                 pos = initial_read_pos(&log);
                 primed = true;
             }
-            if let Some(chunk) = read_new_bytes(&log, &mut pos) {
-                for line in chunk.lines() {
+            let pos_now = pos;
+            let chunk = tokio::task::spawn_blocking(move || read_new_bytes(&log, pos_now)).await;
+            if let Ok(Some((new_pos, text))) = chunk {
+                pos = new_pos;
+                for line in text.lines() {
                     apply_line(&mut session, line);
                 }
             }
-            let mode = session_line(&session, &ctx);
+            let (mode, host) = session_line(&session, &ctx);
             if mode != last_mode {
                 last_mode = mode.clone();
                 if ctx.settings.discord_rpc {
@@ -57,34 +77,45 @@ pub fn watch(ctx: PresenceCtx, stop: Arc<AtomicBool>) {
                         &ctx.loader,
                         &ctx.profile,
                         Some(&mode),
+                        host.as_deref(),
                         ctx.settings.discord_rpc_version,
                         ctx.settings.discord_rpc_time,
                     );
                 }
             }
-            std::thread::sleep(Duration::from_millis(800));
         }
     });
 }
 
-fn session_line(session: &Session, ctx: &PresenceCtx) -> String {
+fn session_line(session: &Session, ctx: &PresenceCtx) -> (String, Option<String>) {
     match session {
-        Session::Remote(host) => format!("Jugando en {}", pretty_host(host)),
-        Session::Friends(world) => with_world("Mundo abierto a amigos", world.as_deref()),
-        Session::Lan(world) => with_world("Hosteando LAN", world.as_deref()),
-        Session::Singleplayer(world) => with_world("Un jugador", world.as_deref()),
+        Session::Remote(host) => (
+            format!("Jugando en {}", server_assets::pretty_name(host)),
+            Some(host.clone()),
+        ),
+        Session::HostingLocal => ("Hosteando Servidor Local".into(), None),
+        Session::Friends(world) => (with_world("Mundo abierto a amigos", world.as_deref()), None),
+        Session::Lan(world) => (with_world("Hosteando LAN", world.as_deref()), None),
+        Session::Singleplayer(world) => (with_world("Un jugador", world.as_deref()), None),
         Session::Menu => {
             if crate::core::servers::any_playit_running() {
-                return "Hosteando Servidor para amigos".into();
+                return ("Hosteando Servidor Local".into(), None);
             }
-            if let Some(addr) = ctx.launch_server.as_deref().map(str::trim).filter(|s| !s.is_empty())
+            if let Some(addr) = ctx
+                .launch_server
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
             {
                 let (host, _) = crate::core::favorites::parse_address(addr);
-                if !host.is_empty() && !is_local_host(&host) {
-                    return format!("Conectando a {}…", pretty_host(&host));
+                if !host.is_empty() && !is_local_or_tunnel(&host) {
+                    return (
+                        format!("Conectando a {}…", server_assets::pretty_name(&host)),
+                        Some(host),
+                    );
                 }
             }
-            "En el menú".into()
+            ("En el menú".into(), None)
         }
     }
 }
@@ -102,26 +133,16 @@ fn apply_line(session: &mut Session, line: &str) {
         return;
     }
     if let Some(host) = parse_connecting_to(line) {
-        if is_local_host(&host) {
-            if !matches!(session, Session::Remote(_)) {
-                let world = match session {
-                    Session::Lan(w) | Session::Friends(w) | Session::Singleplayer(w) => w.clone(),
-                    _ => None,
-                };
-                *session = Session::Lan(world);
-            }
+        if is_local_or_tunnel(&host) {
+            *session = Session::HostingLocal;
         } else {
-            *session = Session::Remote(host);
+            *session = Session::Remote(strip_port(&host));
         }
         return;
     }
 
-    let low = line.to_lowercase();
-    if is_disconnect(&low) {
-        if matches!(
-            session,
-            Session::Remote(_) | Session::Lan(_) | Session::Friends(_)
-        ) {
+    if DISCONNECT.is_match(line) {
+        if !matches!(session, Session::Singleplayer(_)) {
             *session = Session::Menu;
         }
         return;
@@ -129,7 +150,7 @@ fn apply_line(session: &mut Session, line: &str) {
 
     if let Some(world) = world_name_in_line(line) {
         match session {
-            Session::Remote(_) => {}
+            Session::Remote(_) | Session::HostingLocal => {}
             Session::Friends(w) => *w = Some(world),
             Session::Lan(w) => *w = Some(world),
             Session::Singleplayer(w) => *w = Some(world),
@@ -137,10 +158,11 @@ fn apply_line(session: &mut Session, line: &str) {
         }
     }
 
-    if matches!(session, Session::Remote(_)) {
+    if matches!(session, Session::Remote(_) | Session::HostingLocal) {
         return;
     }
 
+    let low = line.to_lowercase();
     if is_friend_host_log(&low) {
         let world = session_world(session);
         *session = Session::Friends(world);
@@ -165,35 +187,52 @@ fn session_world(session: &Session) -> Option<String> {
 }
 
 fn parse_connecting_to(line: &str) -> Option<String> {
-    let idx = line.find("Connecting to ")?;
-    let rest = line[idx + 14..].trim();
-    let token = rest
-        .split([',', ' ', '\t'])
-        .next()
-        .unwrap_or("")
-        .trim()
-        .trim_end_matches('.')
-        .trim_end_matches(':');
-    let host = token.split(':').next().unwrap_or(token).trim();
-    if host.is_empty() || host.contains('/') || host.len() > 128 {
+    let caps = CONNECTING.captures(line)?;
+    let raw = caps.get(1)?.as_str().trim().trim_end_matches('.');
+    if raw.is_empty() || raw.len() > 128 {
         return None;
     }
-    Some(host.to_string())
+    Some(raw.to_string())
 }
 
-fn is_disconnect(low: &str) -> bool {
-    const MARKERS: &[&str] = &[
-        "disconnected from",
-        "lost connection: ",
-        "connection closed",
-        "reached end of stream",
-        "stopping!",
-        "connecting aborted",
-        "el servidor cerró la conexión",
-        "conexion perdida",
-        "conexión perdida",
-    ];
-    MARKERS.iter().any(|m| low.contains(m))
+fn strip_port(host: &str) -> String {
+    if let Some((h, _)) = host.rsplit_once(':') {
+        if !h.contains(':') {
+            return h.to_string();
+        }
+    }
+    host.to_string()
+}
+
+fn is_local_or_tunnel(host: &str) -> bool {
+    let h = host
+        .trim()
+        .trim_end_matches('.')
+        .split(':')
+        .next()
+        .unwrap_or(host)
+        .to_ascii_lowercase();
+    if h == "localhost"
+        || h == "127.0.0.1"
+        || h == "0.0.0.0"
+        || h == "::1"
+        || h.contains("playit.gg")
+        || h.contains("ply.gg")
+        || h.contains("playit.io")
+    {
+        return true;
+    }
+    if h.starts_with("192.168.") || h.starts_with("10.") {
+        return true;
+    }
+    if let Some(rest) = h.strip_prefix("172.") {
+        if let Some(oct) = rest.split('.').next() {
+            if let Ok(n) = oct.parse::<u16>() {
+                return (16..=31).contains(&n);
+            }
+        }
+    }
+    false
 }
 
 fn is_friend_host_log(low: &str) -> bool {
@@ -235,38 +274,6 @@ fn is_integrated_server(low: &str) -> bool {
     low.contains("starting integrated minecraft server")
         || low.contains("integrated server loaded")
         || low.contains("loading world")
-}
-
-fn is_local_host(host: &str) -> bool {
-    let h = host.trim().trim_end_matches('.').to_ascii_lowercase();
-    h == "localhost"
-        || h == "127.0.0.1"
-        || h == "0.0.0.0"
-        || h == "::1"
-        || h.starts_with("192.168.")
-        || h.starts_with("10.")
-        || h.starts_with("172.16.")
-}
-
-fn pretty_host(host: &str) -> String {
-    let h = host.trim().trim_end_matches('.').to_ascii_lowercase();
-    const MAP: &[(&str, &str)] = &[
-        ("hypixel.net", "Hypixel"),
-        ("minemen.club", "Minemen Club"),
-        ("cubecraft.net", "CubeCraft"),
-        ("universocraft.net", "UniversoCraft"),
-        ("mushmc.com.br", "Mush"),
-        ("mush.com.br", "Mush"),
-        ("regorland.net", "Regorland"),
-        ("hylex.net", "Hylex"),
-        ("bedwarspractice.club", "Bedwars Practice"),
-    ];
-    for (suffix, name) in MAP {
-        if h == *suffix || h.ends_with(&format!(".{suffix}")) {
-            return (*name).to_string();
-        }
-    }
-    host.trim().trim_end_matches('.').to_string()
 }
 
 fn world_name_in_line(line: &str) -> Option<String> {
@@ -320,20 +327,35 @@ fn initial_read_pos(path: &Path) -> u64 {
     }
 }
 
-fn read_new_bytes(path: &Path, pos: &mut u64) -> Option<String> {
-    let mut f = File::open(path).ok()?;
-    let len = f.metadata().ok()?.len();
-    if len < *pos {
-        *pos = initial_read_pos(path);
+/// Lectura compartida en Windows: MC mantiene `latest.log` abierto con write share.
+fn open_log_shared(path: &Path) -> std::io::Result<std::fs::File> {
+    let mut opts = OpenOptions::new();
+    opts.read(true);
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        const FILE_SHARE_READ: u32 = 0x1;
+        const FILE_SHARE_WRITE: u32 = 0x2;
+        const FILE_SHARE_DELETE: u32 = 0x4;
+        opts.share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE);
     }
-    if len == *pos {
+    opts.open(path)
+}
+
+fn read_new_bytes(path: &Path, pos: u64) -> Option<(u64, String)> {
+    let mut f = open_log_shared(path).ok()?;
+    let len = f.metadata().ok()?.len();
+    let mut pos = pos;
+    if len < pos {
+        pos = initial_read_pos(path);
+    }
+    if len == pos {
         return None;
     }
-    f.seek(SeekFrom::Start(*pos)).ok()?;
+    f.seek(SeekFrom::Start(pos)).ok()?;
     let mut buf = String::new();
     f.read_to_string(&mut buf).ok()?;
-    *pos = len;
-    Some(buf)
+    Some((len, buf))
 }
 
 #[cfg(test)]
@@ -354,23 +376,27 @@ mod tests {
         for i in 0..2000 {
             log.push_str(&format!("[Client thread/INFO]: [CHAT] lobby spam {i}\n"));
         }
+        assert_eq!(replay(&log), Session::Remote("mc.hypixel.net".into()));
+    }
+
+    #[test]
+    fn regex_connecting_host_port() {
         assert_eq!(
-            replay(&log),
-            Session::Remote("mc.hypixel.net".into())
+            parse_connecting_to("[Render thread/INFO]: Connecting to mc.hypixel.net:25565"),
+            Some("mc.hypixel.net:25565".into())
+        );
+        assert_eq!(
+            parse_connecting_to("[Client thread/INFO]: Connecting to mc.hypixel.net, 25565"),
+            Some("mc.hypixel.net".into())
         );
     }
 
     #[test]
-    fn pretty_hypixel_name() {
-        assert_eq!(pretty_host("mc.hypixel.net"), "Hypixel");
-        assert_eq!(pretty_host("na.minemen.club"), "Minemen Club");
-    }
-
-    #[test]
-    fn ignores_localhost_lan() {
-        assert_eq!(parse_connecting_to("[INFO]: Connecting to localhost, 25565"), Some("localhost".into()));
-        let s = replay("[Client thread/INFO]: Connecting to localhost, 25565\n");
-        assert_eq!(s, Session::Lan(None));
+    fn playit_is_local_hosting() {
+        let s = replay("[INFO]: Connecting to abc123.playit.gg, 25565\n");
+        assert_eq!(s, Session::HostingLocal);
+        let s = replay("[INFO]: Connecting to 127.0.0.1:25565\n");
+        assert_eq!(s, Session::HostingLocal);
     }
 
     #[test]
@@ -378,6 +404,12 @@ mod tests {
         let log = "[Client thread/INFO]: Connecting to mc.hypixel.net, 25565\n\
                    [Client thread/INFO]: [CHAT] hi\n\
                    [Client thread/INFO]: Reached end of stream.\n";
+        assert_eq!(replay(log), Session::Menu);
+    }
+
+    #[test]
+    fn quitting_returns_to_menu() {
+        let log = "[INFO]: Connecting to na.minemen.club, 25565\n[INFO]: Quitting\n";
         assert_eq!(replay(log), Session::Menu);
     }
 
@@ -407,7 +439,7 @@ mod tests {
     }
 
     #[test]
-    fn multiplayer_not_overwritten_by_world_save() {
+    fn saving_chunks_does_not_drop_multiplayer() {
         let log = "[Client thread/INFO]: Connecting to mc.hypixel.net, 25565\n\
                    [Server thread/INFO]: Saving chunks for level 'New World'/Overworld\n";
         assert_eq!(replay(log), Session::Remote("mc.hypixel.net".into()));

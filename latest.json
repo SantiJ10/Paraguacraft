@@ -1,12 +1,12 @@
 {
-  "version": "1.1.31",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.31/Instalar_Paraguacraft_v1.1.31.exe",
-  "size_bytes": 5703608,
-  "sha256": "c09a1965747d2858f4ff34633f7147bc7fb8560962ec73e4cc937bc519efbf44",
-  "notes": "- Discord RPC: muestra el servidor (Hypixel, etc.) y no se queda en el menu\n- Cerrar el launcher ya no se congela en No responde\n- Playit solo binario, Modo Papa, crash-mod y Discord RPC\n- Clientes PvP 2.1.58 / Modern 0.9.32",
+  "version": "1.1.32",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.32/Instalar_Paraguacraft_v1.1.32.exe",
+  "size_bytes": 5713793,
+  "sha256": "da8716329e89999c3324f0a7114dfc7020da688a3795c7c948d36f97fa0bfde6",
+  "notes": "- Pantalla completa borderless: Discord Overlay en todas las versiones (1.7 a 1.20+)\n- El launcher se oculta en la bandeja al jugar y vuelve al salir\n- Discord RPC atado a javaw: servidor en vivo (Hypixel, Minemen, local)\n- Clientes PvP 2.1.58 / Modern 0.9.32",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.31/Instalar_Paraguacraft_v1.1.31.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.32/Instalar_Paraguacraft_v1.1.32.exe",
       "signature": ""
     }
   }

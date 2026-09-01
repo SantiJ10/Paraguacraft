@@ -1,13 +1,15 @@
 //! Discord Rich Presence (mismo APP ID que el launcher Python).
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use discord_rich_presence::activity::{Activity, ActivityType, Assets, Button, Timestamps};
 use discord_rich_presence::DiscordIpc;
 use discord_rich_presence::DiscordIpcClient;
+use uuid::Uuid;
 
+use crate::core::extras::server_assets::{self, RpcArt};
 use crate::core::loaders;
 
 const APP_ID: &str = "1487516329631154206";
@@ -17,6 +19,7 @@ static CLIENT: Mutex<Option<DiscordIpcClient>> = Mutex::new(None);
 static SESSION_START: Mutex<Option<i64>> = Mutex::new(None);
 static WATCHDOG: AtomicBool = AtomicBool::new(false);
 static SHUTDOWN: AtomicBool = AtomicBool::new(false);
+static GAME_PID: AtomicU32 = AtomicU32::new(0);
 static LAST: Mutex<Option<PresenceSnap>> = Mutex::new(None);
 
 #[derive(Clone)]
@@ -24,8 +27,28 @@ struct PresenceSnap {
     details: String,
     state: String,
     show_time: bool,
+    large_image: Option<String>,
+    large_text: Option<String>,
     small_image: Option<String>,
     small_text: Option<String>,
+}
+
+/// Vincula el RPC / overlay de Discord al PID de `javaw` (no al del launcher).
+pub fn bind_game_pid(pid: u32) {
+    GAME_PID.store(pid, Ordering::SeqCst);
+}
+
+pub fn clear_game_pid() {
+    GAME_PID.store(0, Ordering::SeqCst);
+}
+
+fn activity_pid() -> u32 {
+    let p = GAME_PID.load(Ordering::SeqCst);
+    if p == 0 {
+        std::process::id()
+    } else {
+        p
+    }
 }
 
 fn now_secs() -> i64 {
@@ -144,6 +167,8 @@ pub fn set_launcher_idle(_username: &str) {
         true,
         None,
         None,
+        None,
+        None,
     );
 }
 
@@ -152,6 +177,8 @@ pub fn set_exploring_settings(username: &str) {
         "Navegando por el launcher",
         &format!("En ajustes · {username}"),
         true,
+        None,
+        None,
         None,
         None,
     );
@@ -167,8 +194,17 @@ pub fn set_playing(
     show_time: bool,
 ) {
     let details = playing_details(username, mc_version, loader, profile, show_version);
-    let small = small_for_loader(loader);
-    update(&details, "En el menú", show_time, small.0, small.1);
+    let art = server_assets::art_for_host(None);
+    let (small, small_txt) = small_for_loader(loader);
+    update(
+        &details,
+        "En el menú",
+        show_time,
+        Some(&art.large_image),
+        Some(&art.large_text),
+        small.or(art.small_image.as_deref()),
+        small_txt.or(art.small_text.as_deref()),
+    );
 }
 
 /// Formato in-game: `{user} - {version} ({loader}) - {perfil}` + servidor/mundo/menu en state.
@@ -178,6 +214,7 @@ pub fn set_playing_session(
     loader: &str,
     profile: &str,
     mode_line: Option<&str>,
+    host: Option<&str>,
     show_version: bool,
     show_time: bool,
 ) {
@@ -186,16 +223,40 @@ pub fn set_playing_session(
         .filter(|s| !s.is_empty())
         .unwrap_or("En el menú")
         .to_string();
-    let hosting = {
-        let s = state.to_lowercase();
-        s.contains("hosteando") || s.contains("abierto a amigos") || s.contains(" lan")
-    };
-    let (img, txt) = if hosting {
-        (Some("hosting"), Some("Hosteando"))
+    let art = art_for_session(&state, host, loader);
+    update(
+        &details,
+        &state,
+        show_time,
+        Some(&art.large_image),
+        Some(&art.large_text),
+        art.small_image.as_deref(),
+        art.small_text.as_deref(),
+    );
+}
+
+fn art_for_session(state: &str, host: Option<&str>, loader: &str) -> RpcArt {
+    let s = state.to_lowercase();
+    let hosting = s.contains("hosteando") || s.contains("abierto a amigos") || s.contains(" lan");
+    if let Some(host) = host.filter(|h| !h.is_empty()) {
+        let mut art = server_assets::art_for_host(Some(host));
+        if art.small_image.is_none() {
+            let (img, txt) = small_for_loader(loader);
+            art.small_image = img.map(|s| s.to_string());
+            art.small_text = txt.map(|s| s.to_string());
+        }
+        return art;
+    }
+    let mut art = server_assets::art_for_host(None);
+    if hosting {
+        art.small_image = Some("hosting".into());
+        art.small_text = Some("Hosteando".into());
     } else {
-        small_for_loader(loader)
-    };
-    update(&details, &state, show_time, img, txt);
+        let (img, txt) = small_for_loader(loader);
+        art.small_image = img.map(|s| s.to_string());
+        art.small_text = txt.map(|s| s.to_string());
+    }
+    art
 }
 
 fn playing_details(
@@ -231,10 +292,13 @@ fn small_for_loader(loader: &str) -> (Option<&'static str>, Option<&'static str>
 
 /// RPC al detectar el proceso Bedrock (antes de leer ventana).
 pub fn set_bedrock_loading(username: &str, show_time: bool) {
+    let art = server_assets::art_for_host(None);
     update(
         &format!("{username} - Bedrock Edition"),
         "En el menú",
         show_time,
+        Some(&art.large_image),
+        Some(&art.large_text),
         Some("play"),
         Some("Bedrock"),
     );
@@ -246,10 +310,13 @@ pub fn set_bedrock_session(username: &str, mode_line: Option<&str>, show_time: b
         .filter(|s| !s.is_empty())
         .unwrap_or("En el menú")
         .to_string();
+    let art = server_assets::art_for_host(None);
     update(
         &format!("{username} - Bedrock Edition"),
         &state,
         show_time,
+        Some(&art.large_image),
+        Some(&art.large_text),
         Some("play"),
         Some("Bedrock"),
     );
@@ -280,6 +347,8 @@ fn update(
     details: &str,
     state: &str,
     show_time: bool,
+    large_image: Option<&str>,
+    large_text: Option<&str>,
     small_image: Option<&str>,
     small_text: Option<&str>,
 ) {
@@ -290,6 +359,8 @@ fn update(
         details: details.to_string(),
         state: state.to_string(),
         show_time,
+        large_image: large_image.map(|s| s.to_string()),
+        large_text: large_text.map(|s| s.to_string()),
         small_image: small_image.map(|s| s.to_string()),
         small_text: small_text.map(|s| s.to_string()),
     };
@@ -316,7 +387,15 @@ fn apply(snap: &PresenceSnap) -> bool {
     let Some(client) = guard.as_mut() else {
         return false;
     };
-    let mut assets = Assets::new().large_text("Paraguacraft");
+    let mut assets = Assets::new();
+    if let Some(img) = snap.large_image.as_deref() {
+        assets = assets.large_image(img);
+    }
+    if let Some(txt) = snap.large_text.as_deref() {
+        assets = assets.large_text(txt);
+    } else {
+        assets = assets.large_text("Paraguacraft");
+    }
     if let (Some(img), Some(txt)) = (snap.small_image.as_deref(), snap.small_text.as_deref()) {
         assets = assets.small_image(img).small_text(txt);
     }
@@ -333,13 +412,35 @@ fn apply(snap: &PresenceSnap) -> bool {
             }
         }
     }
-    client.set_activity(act).is_ok()
+    set_activity_with_pid(client, act, activity_pid())
+}
+
+/// `discord-rich-presence` manda `std::process::id()` (el launcher). El overlay
+/// de Discord engancha el OpenGL de `javaw` solo si el PID del payload es el del juego.
+fn set_activity_with_pid(client: &mut DiscordIpcClient, activity: Activity<'_>, pid: u32) -> bool {
+    let data = serde_json::json!({
+        "cmd": "SET_ACTIVITY",
+        "args": {
+            "pid": pid,
+            "activity": activity
+        },
+        "nonce": Uuid::new_v4().to_string()
+    });
+    client.send(data, 1).is_ok()
 }
 
 pub fn clear_activity() {
     if let Ok(mut guard) = CLIENT.lock() {
         if let Some(client) = guard.as_mut() {
-            let _ = client.clear_activity();
+            let data = serde_json::json!({
+                "cmd": "SET_ACTIVITY",
+                "args": {
+                    "pid": activity_pid(),
+                    "activity": null
+                },
+                "nonce": Uuid::new_v4().to_string()
+            });
+            let _ = client.send(data, 1);
         }
     }
     if let Ok(mut last) = LAST.lock() {

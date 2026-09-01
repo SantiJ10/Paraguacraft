@@ -498,8 +498,8 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
           />
           <BaseToggle
             :model-value="settings.settings.closeOnLaunch"
-            label="Cerrar launcher al jugar"
-            hint="Libera RAM y procesos en segundo plano."
+            label="Ocultar launcher al jugar"
+            hint="Queda en la bandeja (no se cierra). Al salir de Minecraft vuelve solo."
             @update:model-value="settings.update('closeOnLaunch', $event)"
           />
           <BaseToggle
