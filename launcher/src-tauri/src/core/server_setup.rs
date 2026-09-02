@@ -481,6 +481,13 @@ async fn download_modrinth_file(
 ) -> AppResult<()> {
     // Nunca reutilizar un JAR ya presente sin comprobar: SkinsRestorer mal versionado
     // (fallback sin filtro MC) rompía servidores 1.21.x con builds 26.x / Java 25+.
+    // SR < 15.11 no tiene api.elyByEnabled (skins no-premium en vanilla).
+    if dest.is_file()
+        && slug.eq_ignore_ascii_case("skinsrestorer")
+        && skinsrestorer_needs_elyby_upgrade(&dest)
+    {
+        let _ = quarantine_mod_jar(&dest);
+    }
     if dest.is_file()
         && dest.metadata().map(|m| m.len()).unwrap_or(0) > 100_000
         && !jar_incompatible_with_server(&dest, mc, 0)
@@ -620,6 +627,53 @@ fn quarantine_mod_jar(path: &Path) -> AppResult<PathBuf> {
 }
 
 /// Lee `fabric.mod.json` / `quilt.mod.json` y detecta depends MC/Java fuera de rango.
+/// SkinsRestorer 15.11+ trae Ely.by. Si se puede leer la versión y es más vieja, hay que actualizar.
+fn skinsrestorer_needs_elyby_upgrade(path: &Path) -> bool {
+    match skinsrestorer_jar_version(path) {
+        Some(v) => v < (15, 11, 0),
+        None => false,
+    }
+}
+
+fn skinsrestorer_jar_version(path: &Path) -> Option<(u32, u32, u32)> {
+    let file = std::fs::File::open(path).ok()?;
+    let mut zip = zip::ZipArchive::new(file).ok()?;
+    for entry_name in ["paper-plugin.yml", "plugin.yml", "fabric.mod.json"] {
+        let Ok(mut entry) = zip.by_name(entry_name) else {
+            continue;
+        };
+        let mut buf = String::new();
+        if std::io::Read::read_to_string(&mut entry, &mut buf).is_err() {
+            continue;
+        }
+        if let Some(v) = parse_plugin_version(&buf) {
+            return Some(v);
+        }
+    }
+    None
+}
+
+fn parse_plugin_version(text: &str) -> Option<(u32, u32, u32)> {
+    for line in text.lines() {
+        let t = line.trim();
+        let raw = if let Some(rest) = t.strip_prefix("version:") {
+            rest.trim().trim_matches('"').trim_matches('\'').to_string()
+        } else if let Some(rest) = t.strip_prefix("\"version\"") {
+            let rest = rest.trim().trim_start_matches(':').trim();
+            rest.trim_matches(',').trim().trim_matches('"').to_string()
+        } else {
+            continue;
+        };
+        let ver = raw.split(['-', '+']).next().unwrap_or(&raw);
+        let mut parts = ver.split('.');
+        let maj: u32 = parts.next()?.parse().ok()?;
+        let min: u32 = parts.next().unwrap_or("0").parse().unwrap_or(0);
+        let pat: u32 = parts.next().unwrap_or("0").parse().unwrap_or(0);
+        return Some((maj, min, pat));
+    }
+    None
+}
+
 fn jar_incompatible_with_server(path: &Path, mc: &str, java_major: u32) -> bool {
     let Some(meta) = read_fabric_mod_json(path) else {
         return false;
@@ -781,5 +835,28 @@ async fn download_geyser_plugin(
             let loaders: &[&str] = if platform == "fabric" { &["fabric"] } else { &["paper", "spigot"] };
             download_modrinth_file(client, app, project, loaders, mc, dest.to_path_buf()).await
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_plugin_yml_and_fabric_json_versions() {
+        assert_eq!(
+            parse_plugin_version("name: SkinsRestorer\nversion: 15.10.2\n"),
+            Some((15, 10, 2))
+        );
+        assert_eq!(
+            parse_plugin_version("version: '15.11.0'\n"),
+            Some((15, 11, 0))
+        );
+        assert_eq!(
+            parse_plugin_version("{\n  \"id\": \"skinsrestorer\",\n  \"version\": \"15.11.0-SNAPSHOT\"\n}\n"),
+            Some((15, 11, 0))
+        );
+        assert!(parse_plugin_version("version: 15.10.2").unwrap() < (15, 11, 0));
+        assert!(parse_plugin_version("version: 15.11.0").unwrap() >= (15, 11, 0));
     }
 }

@@ -3,6 +3,14 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [1.1.37] - 2026-09-02
+
+### Launcher
+- **Detener servidor**: la espera de hasta 45 s ya no corre en el hilo de la UI; Windows no marca el launcher como «No responde».
+- **Servers nuevos**: icono del creeper Paraguacraft (`server-icon.png` 64×64) y MOTD `Un server creado en Paraguacraft`. No pisa un MOTD o icono que hayas puesto a mano.
+- **Skins no-premium**: SkinsRestorer 15.11+ consulta Ely.by (mismo nick que TLauncher / Paraguacraft / CSL). Vanilla y otros clientes ven la skin. `defaultSkins` sigue apagado para no tapar Floodgate.
+- **Pestaña server activo**: chip a la izquierda, arriba de «Listo para jugar». Sin sondeo. La X con el server prendido oculta a bandeja (no mata Java); Detener o «Salir» en la bandeja sí apaga el proceso.
+
 ## [1.1.36] - 2026-09-01
 
 ### Launcher

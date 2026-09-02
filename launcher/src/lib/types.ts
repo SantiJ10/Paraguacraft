@@ -307,6 +307,13 @@ export interface ServerStatus {
   wantsBedrock?: boolean;
 }
 
+/** Server Java local en ejecución (pestaña del launcher). */
+export interface RunningServer {
+  id: string;
+  name: string;
+  pid: number | null;
+}
+
 export interface ServerContentItem {
   name: string;
   path: string;

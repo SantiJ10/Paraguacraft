@@ -1,12 +1,12 @@
 {
-  "version": "1.1.36",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.36/Instalar_Paraguacraft_v1.1.36.exe",
-  "size_bytes": 5710644,
-  "sha256": "52b9ec0388bf254efb839aec48c500cd760ac058a46e7b519ef83cbdc7d941d0",
-  "notes": "- Discord RPC estilo Badlion: logo del server + Paraguacraft chico\n- Cambio de servidor en caliente sin estado congelado\n- Overlay automatico + clientes PvP 2.1.60 / Modern 0.9.34",
+  "version": "1.1.37",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.37/Instalar_Paraguacraft_v1.1.37.exe",
+  "size_bytes": 5720633,
+  "sha256": "5dc8b8349cbac11965cab5e9e9ff46b02ead6483ec5634cd83d214ad58cd7091",
+  "notes": "- Detener el server ya no congela el launcher\n- Icono Paraguacraft y MOTD default en servers nuevos\n- Skins no-premium (Ely.by) visibles para vanilla y otros launchers\n- Pestaña de server activo para no dejar Java comiendo RAM",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.36/Instalar_Paraguacraft_v1.1.36.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.37/Instalar_Paraguacraft_v1.1.37.exe",
       "signature": ""
     }
   }

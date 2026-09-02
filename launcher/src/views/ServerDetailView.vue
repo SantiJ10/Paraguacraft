@@ -756,7 +756,7 @@ function serverTypeLabel(t: string) {
             {{ busy ? "…" : "Iniciar" }}
           </BaseButton>
           <BaseButton size="lg" variant="secondary" :disabled="busy || !status?.running" @click="stopServer">
-            Detener
+            {{ busy && status?.running ? "Deteniendo…" : "Detener" }}
           </BaseButton>
           <BaseButton variant="secondary" :disabled="busy" @click="prepareJar">Preparar</BaseButton>
           <BaseButton
@@ -1030,6 +1030,12 @@ function serverTypeLabel(t: string) {
                     Si ya claimaste Java antes, solo agrega Bedrock. Hace falta
                     <strong class="font-semibold">playit.exe</strong>
                     (no el plugin Paper) para el tráfico UDP.
+                  </p>
+                  <p v-if="isGeyser" class="mt-2 w-full text-[11px] leading-snug text-gray-400">
+                    Skin del celu en Java: Floodgate la sube solo si en Bedrock usás una skin
+                    <strong class="font-semibold text-gray-300">clásica 64×64</strong>
+                    (PNG importado), no el creador de personajes. SkinsRestorer no traduce skins Bedrock;
+                    si Java ve Steve, esperá unos segundos o reconectá.
                   </p>
                   <BaseButton size="sm" variant="secondary" @click="addThisServerToFavorites">
                     + Agregar a favoritos

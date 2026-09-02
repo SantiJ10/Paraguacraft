@@ -50,7 +50,7 @@ fn install_inner(app: &AppHandle, force: bool) -> AppResult<()> {
         .show_menu_on_left_click(false)
         .on_menu_event(move |app, event| match event.id.as_ref() {
             "tray_show" => show_main(app),
-            "tray_quit" => app.exit(0),
+            "tray_quit" => quit_launcher(app),
             _ => {}
         })
         .on_tray_icon_event(move |_tray, event| {
@@ -69,15 +69,32 @@ fn install_inner(app: &AppHandle, force: bool) -> AppResult<()> {
     Ok(())
 }
 
-pub fn set_playing(app: &AppHandle, playing: bool) {
-    if let Some(tray) = app.tray_by_id(TRAY_ID) {
-        let tip = if playing {
-            "Jugando — clic para abrir Paraguacraft"
-        } else {
-            "Paraguacraft Launcher"
-        };
-        let _ = tray.set_tooltip(Some(tip));
-    }
+pub fn set_playing(app: &AppHandle, _playing: bool) {
+    refresh_tooltip(app);
+}
+
+/// Tooltip: juego, server local, o idle. Sin timers.
+pub fn refresh_tooltip(app: &AppHandle) {
+    let Some(tray) = app.tray_by_id(TRAY_ID) else {
+        return;
+    };
+    let playing = crate::core::game_session::is_running();
+    let servers = crate::core::servers::list_running();
+    let names: Vec<&str> = servers.iter().map(|s| s.name.as_str()).collect();
+    let tip = match (playing, names.as_slice()) {
+        (true, []) => "Jugando — clic para abrir Paraguacraft".to_string(),
+        (true, n) => format!("Jugando · server {} — clic para abrir", n.join(", ")),
+        (false, []) => "Paraguacraft Launcher".to_string(),
+        (false, n) => format!("Server activo: {} — Detener antes de salir", n.join(", ")),
+    };
+    let _ = tray.set_tooltip(Some(tip));
+}
+
+/// Cierra de verdad: apaga servers locales (kill inmediato) y Discord RPC.
+pub fn quit_launcher(app: &AppHandle) {
+    crate::core::extras::discord_rpc::shutdown();
+    crate::core::servers::stop_all_running();
+    app.exit(0);
 }
 
 pub fn show_main(app: &AppHandle) {

@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
-import { ref } from "vue";
-import type { ServerProfile, ServerStatus } from "@/lib/types";
-import { api } from "@/lib/ipc";
+import { computed, ref } from "vue";
+import type { RunningServer, ServerProfile, ServerStatus } from "@/lib/types";
+import { api, isTauri } from "@/lib/ipc";
 
 const LAST_ACTIVE_KEY = "pc.servers.lastActiveId";
 
@@ -18,6 +18,47 @@ export const useServersStore = defineStore("servers", () => {
   const loaded = ref(false);
   /** Último detail abierto: Servidores del sidebar vuelve acá (con consola en KeepAlive). */
   const lastActiveId = ref<string | null>(readLastActive());
+  const running = ref<RunningServer[]>([]);
+  const stoppingId = ref<string | null>(null);
+
+  const hasRunning = computed(() => running.value.length > 0);
+  const primaryRunning = computed(() => running.value[0] ?? null);
+
+  let runningWatchBound = false;
+
+  async function refreshRunning() {
+    if (!isTauri()) {
+      running.value = [];
+      return;
+    }
+    try {
+      running.value = await api.listRunningServers();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function watchRunning() {
+    if (runningWatchBound || !isTauri()) return;
+    runningWatchBound = true;
+    const { listen } = await import("@tauri-apps/api/event");
+    await listen<{ servers?: RunningServer[] }>("server://running", (ev) => {
+      running.value = ev.payload?.servers ?? [];
+    });
+    await refreshRunning();
+  }
+
+  async function stopRunning(id?: string) {
+    const target = id ?? primaryRunning.value?.id;
+    if (!target || stoppingId.value) return;
+    stoppingId.value = target;
+    try {
+      await api.stopServer(target);
+    } finally {
+      stoppingId.value = null;
+      await refreshRunning();
+    }
+  }
 
   async function load(force = false) {
     if (loaded.value && !force) return;
@@ -90,6 +131,10 @@ export const useServersStore = defineStore("servers", () => {
     servers,
     loaded,
     lastActiveId,
+    running,
+    stoppingId,
+    hasRunning,
+    primaryRunning,
     setLastActive,
     load,
     upsert,
@@ -98,5 +143,8 @@ export const useServersStore = defineStore("servers", () => {
     remove,
     status,
     importFolder,
+    watchRunning,
+    refreshRunning,
+    stopRunning,
   };
 });

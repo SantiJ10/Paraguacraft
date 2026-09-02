@@ -39,6 +39,11 @@ pub fn server_status(id: String) -> AppResult<ServerStatus> {
 }
 
 #[tauri::command]
+pub fn list_running_servers() -> Vec<servers::RunningServerInfo> {
+    servers::list_running()
+}
+
+#[tauri::command]
 pub fn update_server(
     id: String,
     name: Option<String>,
@@ -100,14 +105,20 @@ pub async fn start_server(
     Ok(pid)
 }
 
+/// Async: `stop_mc_graceful` espera hasta 45 s. En el hilo de IPC Windows marca
+/// el launcher como «No responde».
 #[tauri::command]
-pub fn stop_server(id: String) -> AppResult<()> {
-    servers::stop_mc_graceful(&id)
+pub async fn stop_server(id: String) -> AppResult<()> {
+    tauri::async_runtime::spawn_blocking(move || servers::stop_mc_graceful(&id))
+        .await
+        .map_err(|e| AppError::msg(format!("stop_server: {e}")))?
 }
 
 #[tauri::command]
-pub fn stop_server_force(id: String) -> AppResult<()> {
-    servers::stop(&id)
+pub async fn stop_server_force(id: String) -> AppResult<()> {
+    tauri::async_runtime::spawn_blocking(move || servers::stop(&id))
+        .await
+        .map_err(|e| AppError::msg(format!("stop_server_force: {e}")))?
 }
 
 #[tauri::command]

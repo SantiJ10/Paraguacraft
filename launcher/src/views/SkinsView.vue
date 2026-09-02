@@ -421,8 +421,9 @@ onMounted(async () => {
             <span class="font-semibold text-white">Quién te ve</span>
             —
             <span class="text-white">vos</span> (LocalSkin / pack local del launcher, solo tu nick);
-            <span class="text-white">otros con CSL / Ely.by</span> o servidores con SkinsRestorer según su nick;
-            vanilla puro en redes grandes a veces no. Nunca se reutiliza tu historial de skins en otros jugadores.
+            <span class="text-white">otros con CSL / Ely.by</span> (TLauncher y launchers parecidos);
+            en servers de Paraguacraft, <span class="text-white">SkinsRestorer pide a Ely.by</span>
+            y vanilla / PvP también te ven. Nunca se reutiliza tu historial de skins en otros jugadores.
           </li>
         </ol>
         <div class="mt-4 flex flex-wrap gap-2">

@@ -499,7 +499,7 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
           <BaseToggle
             :model-value="settings.settings.closeOnLaunch"
             label="Ocultar launcher al jugar"
-            hint="Queda en la bandeja (no se cierra). Al salir de Minecraft vuelve solo."
+            hint="Queda en la bandeja (no se cierra). Discord RPC sigue. Al salir de Minecraft vuelve. Un server local prendido también sigue: usá la pestaña verde o Detener."
             @update:model-value="settings.update('closeOnLaunch', $event)"
           />
           <BaseToggle
@@ -534,7 +534,7 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
           <BaseToggle
             :model-value="settings.settings.trayLite ?? true"
             label="Bandeja ultra-lite"
-            hint="Icono en la bandeja mientras jugás; clic para restaurar el launcher."
+            hint="Icono en la bandeja mientras jugás o hay un server activo. «Salir» desde ahí sí apaga los servers locales."
             @update:model-value="settings.update('trayLite', $event)"
           />
         </div>

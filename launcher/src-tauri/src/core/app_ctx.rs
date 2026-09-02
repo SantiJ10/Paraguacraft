@@ -16,3 +16,7 @@ pub fn emit(event: &str, payload: impl Serialize + Clone) {
         let _ = app.emit(event, payload);
     }
 }
+
+pub fn handle() -> Option<&'static AppHandle> {
+    APP.get()
+}

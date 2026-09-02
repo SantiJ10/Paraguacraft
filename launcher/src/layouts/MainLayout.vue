@@ -7,6 +7,7 @@ import StatusBar from "@/components/layout/StatusBar.vue";
 import AiPanel from "@/components/layout/AiPanel.vue";
 import MusicPlayer from "@/components/layout/MusicPlayer.vue";
 import MusicOverlay from "@/components/layout/MusicOverlay.vue";
+import ServerRunningOverlay from "@/components/layout/ServerRunningOverlay.vue";
 import UpdateBanner from "@/components/layout/UpdateBanner.vue";
 import { useAppStore } from "@/stores/app";
 import { useAccountsStore } from "@/stores/accounts";
@@ -61,6 +62,7 @@ function scheduleIdle(fn: () => void, fallbackMs = 400) {
 onMounted(() => {
   app.initGameEvents();
   downloads.initEvents();
+  void servers.watchRunning();
 
   // 1) Crítico para pintar Inicio: cuentas + instancias (settings ya en App.vue).
   void Promise.all([
@@ -111,6 +113,7 @@ onMounted(() => {
       <AiPanel />
       <MusicPlayer />
       <MusicOverlay />
+      <ServerRunningOverlay />
     </div>
   </div>
 </template>

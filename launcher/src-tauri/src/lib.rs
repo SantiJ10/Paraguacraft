@@ -64,7 +64,8 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                if core::game_session::is_running() {
+                // Juego o server local activo: no matar el proceso. Ocultar a bandeja.
+                if core::game_session::is_running() || core::servers::any_running() {
                     api.prevent_close();
                     core::tray_lite::hide_to_tray(window.app_handle());
                     return;
@@ -210,6 +211,7 @@ pub fn run() {
             commands::servers::update_server,
             commands::servers::delete_server,
             commands::servers::server_status,
+            commands::servers::list_running_servers,
             commands::servers::start_server,
             commands::servers::stop_server,
             commands::servers::stop_server_force,

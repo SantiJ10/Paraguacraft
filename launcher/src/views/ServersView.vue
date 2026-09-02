@@ -312,7 +312,8 @@ async function onMenuSelect(id: string) {
             — instalalos desde la Tienda o copiando JARs a
             <span class="font-mono text-white">plugins/</span> (Paper) o
             <span class="font-mono text-white">mods/</span> (Fabric).
-            Si tus amigos son no-premium, usá online-mode=false + SkinsRestorer.
+            Si tus amigos son no-premium, usá online-mode=false + SkinsRestorer (Ely.by).
+            El mismo nick que en Ely.by / TLauncher / Paraguacraft se ve en vanilla.
             Cuentas Microsoft Premium funcionan con online-mode=true.
           </li>
         </ol>

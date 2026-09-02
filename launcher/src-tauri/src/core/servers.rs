@@ -59,6 +59,15 @@ pub struct ServerStatus {
     pub wants_bedrock: bool,
 }
 
+/// Resumen liviano para la pestaña “server activo” (sin I/O de logs).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RunningServerInfo {
+    pub id: String,
+    pub name: String,
+    pub pid: Option<u32>,
+}
+
 #[derive(Default, Serialize, Deserialize)]
 struct ServersFile {
     #[serde(default)]
@@ -253,13 +262,37 @@ fn write_server_meta(dir: &Path, prof: &ServerProfile) -> AppResult<()> {
     config::write_json_atomic(&dir.join("_paragua_srv.json"), &meta)
 }
 
+const DEFAULT_MOTD: &str = "Un server creado en Paraguacraft";
+const PARAGUACRAFT_ICON_PNG: &[u8] = include_bytes!("../../icons/128x128.png");
+
+fn is_placeholder_motd(motd: &str) -> bool {
+    let t = motd.trim();
+    t.is_empty()
+        || t.eq_ignore_ascii_case("A Minecraft Server")
+        || t.eq_ignore_ascii_case("Paraguacraft Server")
+}
+
+/// `server-icon.png` 64×64: icono del creeper Paraguacraft. No pisa uno custom.
+fn ensure_server_icon(dir: &Path) {
+    let dest = dir.join("server-icon.png");
+    if dest.is_file() {
+        return;
+    }
+    let Ok(img) = image::load_from_memory(PARAGUACRAFT_ICON_PNG) else {
+        return;
+    };
+    let icon = img.resize_exact(64, 64, image::imageops::FilterType::CatmullRom);
+    let _ = icon.save(&dest);
+}
+
 fn ensure_server_properties(dir: &Path, port: u16) -> AppResult<()> {
+    ensure_server_icon(dir);
     let path = dir.join("server.properties");
     if !path.is_file() {
         std::fs::write(
             path,
             format!(
-                "online-mode=false\nserver-port={port}\nmotd=Paraguacraft Server\nmax-players=20\nview-distance=10\nsimulation-distance=8\n"
+                "online-mode=false\nserver-port={port}\nmotd={DEFAULT_MOTD}\nmax-players=20\nview-distance=10\nsimulation-distance=8\n"
             ),
         )?;
         return Ok(());
@@ -273,6 +306,13 @@ fn ensure_server_properties(dir: &Path, port: u16) -> AppResult<()> {
         .is_none()
     {
         updates.insert("online-mode".to_string(), "false".to_string());
+    }
+    let current_motd = crate::core::server_properties::read(dir)
+        .ok()
+        .and_then(|p| p.get("motd").cloned())
+        .unwrap_or_default();
+    if is_placeholder_motd(&current_motd) {
+        updates.insert("motd".to_string(), DEFAULT_MOTD.to_string());
     }
     let _ = crate::core::server_properties::write(dir, &updates);
     Ok(())
@@ -373,6 +413,46 @@ fn is_mc_running(id: &str) -> bool {
         }
     }
     false
+}
+
+pub fn any_running() -> bool {
+    !list_running().is_empty()
+}
+
+pub fn list_running() -> Vec<RunningServerInfo> {
+    let ids: Vec<(String, Option<u32>)> = {
+        let mut g = procs();
+        let Some(map) = g.as_mut() else {
+            return Vec::new();
+        };
+        map.iter_mut()
+            .filter_map(|(id, sp)| {
+                let mc = sp.mc.as_mut()?;
+                if matches!(mc.child.try_wait(), Ok(None)) {
+                    Some((id.clone(), Some(mc.child.id())))
+                } else {
+                    None
+                }
+            })
+            .collect()
+    };
+    ids.into_iter()
+        .map(|(id, pid)| RunningServerInfo {
+            name: profile_by_id(&id)
+                .map(|p| p.name)
+                .unwrap_or_else(|_| id.clone()),
+            id,
+            pid,
+        })
+        .collect()
+}
+
+pub fn emit_running_changed() {
+    let servers = list_running();
+    app_ctx::emit("server://running", serde_json::json!({ "servers": servers }));
+    if let Some(app) = app_ctx::handle() {
+        crate::core::tray_lite::refresh_tooltip(app);
+    }
 }
 
 /// Java de este server fuera del mapa del launcher (crash del UI, kill forzado, etc.).
@@ -661,7 +741,13 @@ pub fn start_mc(id: &str) -> AppResult<u32> {
     if is_geyser {
         spawn_ensure_playit_tunnels(id.to_string(), true);
     }
+    // Paper/Fabric (y Geyser): SkinsRestorer escribe config.yml al boot.
+    // Ely.by + sin defaultSkins para que vanilla vea no-premium y Floodgate no quede Steve.
+    if is_geyser || kind.contains("paper") || kind.starts_with("fabric") {
+        spawn_skinsrestorer_compat(id.to_string(), dir.clone());
+    }
 
+    emit_running_changed();
     Ok(pid)
 }
 
@@ -696,6 +782,7 @@ fn spawn_mc_lifecycle_watcher(id: String) {
                         }
                     }
                     let _ = stop_playit_only(&id);
+                    emit_running_changed();
                     break;
                 }
                 Ok(None) => {}
@@ -919,6 +1006,26 @@ fn any_geyser_server() -> bool {
 }
 
 /// Hilo: con secret compartido, lista/crea túneles Java (+ Bedrock si Geyser).
+/// Tras el primer boot, Geyser/SR ya escribieron config.yml.
+fn spawn_skinsrestorer_compat(id: String, dir: PathBuf) {
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(14));
+        match crate::core::geyser_playit::apply_skinsrestorer_compat(&dir) {
+            Ok(notes) => {
+                for n in notes {
+                    crate::core::server_console::append(&id, &format!("[launcher] {n}"));
+                }
+            }
+            Err(e) => {
+                crate::core::server_console::append(
+                    &id,
+                    &format!("[launcher] ⚠ SkinsRestorer: {e}"),
+                );
+            }
+        }
+    });
+}
+
 pub fn spawn_ensure_playit_tunnels(id: String, want_bedrock: bool) {
     std::thread::spawn(move || {
         {
@@ -1505,6 +1612,8 @@ pub fn stop(id: &str) -> AppResult<()> {
     if let Some(map) = g.as_mut() {
         map.remove(id);
     }
+    drop(g);
+    emit_running_changed();
     Ok(())
 }
 
@@ -1525,6 +1634,8 @@ pub fn stop_all_running() {
     if let Some(map) = g.as_mut() {
         map.clear();
     }
+    drop(g);
+    emit_running_changed();
 }
 
 pub fn stop_mc(id: &str) -> AppResult<()> {
@@ -1545,7 +1656,12 @@ pub fn stop_mc(id: &str) -> AppResult<()> {
 }
 
 /// Envía `stop` por stdin y espera hasta 45 s antes de forzar kill.
+/// Llamar desde `spawn_blocking` / un hilo de trabajo: el sleep congela la UI.
 pub fn stop_mc_graceful(id: &str) -> AppResult<()> {
+    crate::core::server_console::append(
+        id,
+        "[launcher] Enviando stop — el launcher sigue respondiendo mientras el server cierra.",
+    );
     let _ = send_command(id, "stop");
     for _ in 0..45 {
         if !is_mc_running(id) {
@@ -1557,12 +1673,15 @@ pub fn stop_mc_graceful(id: &str) -> AppResult<()> {
             }
             crate::core::server_console::append(id, "[launcher] Servidor detenido correctamente.");
             let _ = stop_playit_only(id);
+            emit_running_changed();
             return Ok(());
         }
         std::thread::sleep(std::time::Duration::from_secs(1));
     }
     stop_mc(id)?;
-    stop_playit_only(id)
+    stop_playit_only(id)?;
+    emit_running_changed();
+    Ok(())
 }
 
 pub fn send_command(id: &str, cmd: &str) -> AppResult<()> {
@@ -2347,3 +2466,29 @@ fn hide_console(cmd: &mut Command) {
 
 #[cfg(not(target_os = "windows"))]
 fn hide_console(_cmd: &mut Command) {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn placeholder_motd_detects_vanilla_and_old_default() {
+        assert!(is_placeholder_motd(""));
+        assert!(is_placeholder_motd("A Minecraft Server"));
+        assert!(is_placeholder_motd("Paraguacraft Server"));
+        assert!(!is_placeholder_motd(DEFAULT_MOTD));
+        assert!(!is_placeholder_motd("Survival Paraguay"));
+    }
+
+    #[test]
+    fn writes_64x64_server_icon() {
+        let dir = std::env::temp_dir().join(format!("pc_icon_{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        ensure_server_icon(&dir);
+        let icon = dir.join("server-icon.png");
+        assert!(icon.is_file());
+        let (w, h) = image::image_dimensions(&icon).unwrap();
+        assert_eq!((w, h), (64, 64));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+}

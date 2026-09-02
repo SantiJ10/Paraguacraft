@@ -26,6 +26,7 @@ import type {
   ApplySkinResult,
   ServerProfile,
   ServerStatus,
+  RunningServer,
   ServerContentItem,
   HangarPlugin,
   ServerBackupResult,
@@ -918,6 +919,11 @@ export const api = {
 
   async serverStatus(id: string): Promise<ServerStatus> {
     return invokeReal<ServerStatus>("server_status", { id });
+  },
+
+  async listRunningServers(): Promise<RunningServer[]> {
+    if (!isTauri()) return [];
+    return invokeReal<RunningServer[]>("list_running_servers");
   },
 
   async stopServer(id: string): Promise<void> {
