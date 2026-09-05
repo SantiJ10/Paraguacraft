@@ -3,12 +3,13 @@ package com.paraguacraft.pvp.modern.core;
 import com.paraguacraft.pvp.modern.config.ModernConfig;
 import net.minecraft.client.MinecraftClient;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL20;
 import org.lwjgl.opengl.GL30;
 
 /**
- * Motion blur por accumulation FBO (mezcla el color buffer actual con el frame anterior).
- * No usa el pipeline de post-process de Iris: si hay shader pack activo, se omite.
+ * Motion blur por accumulation: copia el color buffer actual y lo mezcla al
+ * siguiente frame. No dibuja la textura hasta que el blit haya llenado un frame.
  */
 public final class MotionBlurRenderer {
 
@@ -26,8 +27,8 @@ public final class MotionBlurRenderer {
         + "uniform float mixFactor;\n"
         + "out vec4 frag;\n"
         + "void main(){\n"
-        + "  vec4 p = texture(prevTex, vec2(uv.x, uv.y));\n"
-        + "  frag = vec4(p.rgb, mixFactor);\n"
+        + "  vec3 p = texture(prevTex, vec2(uv.x, uv.y)).rgb;\n"
+        + "  frag = vec4(p, mixFactor);\n"
         + "}\n";
 
     private static int fbo;
@@ -67,8 +68,11 @@ public final class MotionBlurRenderer {
             int prevTex = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
             int prevProg = GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM);
             int prevVao = GL11.glGetInteger(GL30.GL_VERTEX_ARRAY_BINDING);
+            int prevActive = GL11.glGetInteger(GL13.GL_ACTIVE_TEXTURE);
             boolean blend = GL11.glIsEnabled(GL11.GL_BLEND);
             boolean depth = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
+
+            GL13.glActiveTexture(GL13.GL_TEXTURE0);
 
             if (primed) {
                 GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, gameFbo);
@@ -93,6 +97,7 @@ public final class MotionBlurRenderer {
             GL20.glUseProgram(prevProg);
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, prevTex);
             GL30.glBindVertexArray(prevVao);
+            GL13.glActiveTexture(prevActive);
             if (depth) {
                 GL11.glEnable(GL11.GL_DEPTH_TEST);
             } else {
@@ -137,10 +142,14 @@ public final class MotionBlurRenderer {
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, 0x812F);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, 0x812F);
-        GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA8, w, h, 0, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, 0L);
+        GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGB8, w, h, 0, GL11.GL_RGB, GL11.GL_UNSIGNED_BYTE, 0L);
         fbo = GL30.glGenFramebuffers();
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, fbo);
         GL30.glFramebufferTexture2D(GL30.GL_FRAMEBUFFER, GL30.GL_COLOR_ATTACHMENT0, GL11.GL_TEXTURE_2D, tex, 0);
+        int status = GL30.glCheckFramebufferStatus(GL30.GL_FRAMEBUFFER);
+        if (status != GL30.GL_FRAMEBUFFER_COMPLETE) {
+            throw new IllegalStateException("motion blur FBO incomplete: " + status);
+        }
         lastW = w;
         lastH = h;
         primed = false;

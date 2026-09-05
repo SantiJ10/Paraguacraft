@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.61",
-  "release_tag": "pvp-client-2.1.61",
-  "descripcion": "Titulo Minecraft* 1.8.9 para Discord Overlay.",
+  "client_version": "2.1.62",
+  "release_tag": "pvp-client-2.1.62",
+  "descripcion": "Motion Blur copia el color buffer real (fix pantalla blanca).",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.61.jar",
-      "sha1": "5eafedb3912cd0c1208bd96e4124c194eea69fed"
+      "filename": "ParaguacraftPvP-2.1.62.jar",
+      "sha1": "6838f77fb78c5aa641db75cd5a0dcf584fa02175"
     },
     {
       "filename": "Hytils-Reborn-1.8.9-forge-1.7.5.jar",

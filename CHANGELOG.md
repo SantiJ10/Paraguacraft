@@ -12,11 +12,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - **Prioridad High + GC**: `SetPriorityClass(HIGH_PRIORITY_CLASS)` al spawn de `javaw`; G1 de baja latencia en 1.8.9 y ZGC generacional en 1.21.11.
 - **Tienda**: ficha de proyecto estilo Modrinth/CurseForge (galería, markdown, tags, creadores) y aviso si la RAM del PC no llega a la recomendada.
 
-### Cliente PvP 1.8.9 (2.1.61)
-- Motion Blur por accumulation buffer (mezcla de frames) con slider estilo Lunar (Type V1/V2 + Value 0–1).
+### Cliente PvP 1.8.9 (2.1.62)
+- Motion Blur: copia el color buffer real (`glCopyTexSubImage2D`) en vez de un FBO de Minecraft que OptiFine Fast Render deja en blanco.
 
-### Cliente PvP Modern (0.9.35)
-- Motion Blur por accumulation FBO (se omite si Iris tiene un shader pack activo) y la misma GUI Lunar.
+### Cliente PvP Modern (0.9.36)
+- Motion Blur: textura RGB, unidad 0 y no dibuja hasta que el blit tenga un frame válido.
 
 ## [1.1.37] - 2026-09-02
 
