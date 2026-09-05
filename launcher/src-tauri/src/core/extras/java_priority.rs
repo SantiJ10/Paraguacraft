@@ -14,16 +14,67 @@ pub fn current_level() -> String {
     }
 }
 
+fn normalize_level(level: &str) -> &'static str {
+    match level {
+        "realtime" => "realtime",
+        "high" | "alta" => "high",
+        "low" | "baja" => "low",
+        _ => "normal",
+    }
+}
+
+/// Prioridad nativa del PID de `javaw` recién lanzado (`SetPriorityClass`).
+/// El fallback PowerShell cubre procesos java hijos que el juego pueda spawnar.
+pub fn set_for_pid(pid: u32, level: &str) -> crate::error::AppResult<()> {
+    let label = normalize_level(level);
+    #[cfg(windows)]
+    {
+        if set_priority_class_native(pid, label) {
+            *LEVEL.lock().unwrap() = label.to_string();
+            return Ok(());
+        }
+    }
+    let _ = set_level(label);
+    Ok(())
+}
+
+#[cfg(windows)]
+fn set_priority_class_native(pid: u32, level: &str) -> bool {
+    use windows_sys::Win32::Foundation::CloseHandle;
+    use windows_sys::Win32::System::Threading::{
+        OpenProcess, SetPriorityClass, HIGH_PRIORITY_CLASS, IDLE_PRIORITY_CLASS,
+        NORMAL_PRIORITY_CLASS, PROCESS_SET_INFORMATION, REALTIME_PRIORITY_CLASS,
+    };
+
+    let class = match level {
+        "realtime" => REALTIME_PRIORITY_CLASS,
+        "high" => HIGH_PRIORITY_CLASS,
+        "low" => IDLE_PRIORITY_CLASS,
+        _ => NORMAL_PRIORITY_CLASS,
+    };
+
+    unsafe {
+        let handle = OpenProcess(PROCESS_SET_INFORMATION, 0, pid);
+        if handle.is_null() {
+            return false;
+        }
+        let ok = SetPriorityClass(handle, class) != 0;
+        let _ = CloseHandle(handle);
+        ok
+    }
+}
+
 #[cfg(windows)]
 pub fn set_level(level: &str) -> crate::error::AppResult<u32> {
     use std::os::windows::process::CommandExt;
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
-    let (ps_prio, label) = match level {
-        "realtime" => ("RealTime", "realtime"),
-        "high" | "alta" => ("High", "high"),
-        "low" | "baja" => ("Idle", "low"),
-        _ => ("Normal", "normal"),
+    let label = normalize_level(level);
+    let ps_prio = match label {
+        "realtime" => "RealTime",
+        "high" => "High",
+        "low" => "Idle",
+        _ => "Normal",
     };
 
     let mut count = 0u32;
@@ -46,6 +97,6 @@ pub fn set_level(level: &str) -> crate::error::AppResult<u32> {
 
 #[cfg(not(windows))]
 pub fn set_level(level: &str) -> crate::error::AppResult<u32> {
-    *LEVEL.lock().unwrap() = level.to_string();
+    *LEVEL.lock().unwrap() = normalize_level(level).to_string();
     Ok(0)
 }

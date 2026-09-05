@@ -3,6 +3,21 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [1.1.38] - 2026-09-05
+
+### Launcher
+- **Mods de ventana**: al lanzar, deshabilita jars conflictivos (`borderless-mining`, `fullscreen-windowed`, etc.) para que el borderless HWND del launcher tenga el control.
+- **Sin pausa en segundo monitor**: fuerza `pauseOnLostFocus:false` en `options.txt` / `optionsof.txt`.
+- **Cursor lock**: `ClipCursor` mientras Minecraft tiene el foco y el puntero está oculto; ESC / Alt-Tab / menús lo liberan.
+- **Prioridad High + GC**: `SetPriorityClass(HIGH_PRIORITY_CLASS)` al spawn de `javaw`; G1 de baja latencia en 1.8.9 y ZGC generacional en 1.21.11.
+- **Tienda**: ficha de proyecto estilo Modrinth/CurseForge (galería, markdown, tags, creadores) y aviso si la RAM del PC no llega a la recomendada.
+
+### Cliente PvP 1.8.9 (2.1.61)
+- Motion Blur por accumulation buffer (mezcla de frames) con slider estilo Lunar (Type V1/V2 + Value 0–1).
+
+### Cliente PvP Modern (0.9.35)
+- Motion Blur por accumulation FBO (se omite si Iris tiene un shader pack activo) y la misma GUI Lunar.
+
 ## [1.1.37] - 2026-09-02
 
 ### Launcher

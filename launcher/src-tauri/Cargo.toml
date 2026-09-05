@@ -1,6 +1,6 @@
 [package]
 name = "paraguacraft-launcher"
-version = "1.1.37"
+version = "1.1.38"
 description = "Paraguacraft Launcher"
 authors = ["Paraguacraft"]
 edition = "2021"
@@ -65,6 +65,8 @@ windows-sys = { version = "0.59", features = [
   "Win32_UI_WindowsAndMessaging",
   "Win32_UI_Shell",
   "Win32_Graphics_Gdi",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_System_Threading",
 ] }
 
 [profile.release]

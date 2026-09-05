@@ -12,6 +12,8 @@ pub mod window_title;
 pub mod game_hwnd;
 pub mod discord_java;
 pub mod borderless;
+pub mod cursor_lock;
+pub mod window_mods;
 pub mod pvp_jvm;
 pub mod modern_pvp_jvm;
 pub mod optimizer;
@@ -415,18 +417,40 @@ fn build_jvm_ram_gc(jvm: &JvmCtx) -> Vec<String> {
     ];
 
     if jvm.java_major <= 8 {
-        args.push("-XX:+UseG1GC".into());
-        args.push("-XX:+UnlockExperimentalVMOptions".into());
-        args.push("-XX:MaxGCPauseMillis=200".into());
-        args.push("-XX:+DisableExplicitGC".into());
+        // G1 de baja latencia (1.8.9 / Java 8). Pausas cortas, no el default de 200 ms.
+        args.extend(
+            [
+                "-XX:+UnlockExperimentalVMOptions",
+                "-XX:+UseG1GC",
+                "-XX:MaxGCPauseMillis=30",
+                "-XX:G1NewSizePercent=20",
+                "-XX:G1ReservePercent=20",
+                "-XX:MaxTenuringThreshold=1",
+                "-XX:+DisableExplicitGC",
+            ]
+            .iter()
+            .map(|s| (*s).to_string()),
+        );
     } else {
         args.extend([
             "-XX:+UnlockExperimentalVMOptions".into(),
             "-XX:+DisableExplicitGC".into(),
             "-XX:+AlwaysPreTouch".into(),
         ]);
+        let force_zgc = jvm.mc_version.trim() == "1.21.11" && jvm.java_major >= 21
+            && jvm.gc != "Shenandoah"
+            && jvm.gc != "G1GC";
         match jvm.gc.as_str() {
-            "ZGC" if jvm.java_major >= 15 => args.push("-XX:+UseZGC".into()),
+            "ZGC" if jvm.java_major >= 15 => {
+                args.push("-XX:+UseZGC".into());
+                if jvm.java_major >= 21 {
+                    args.push("-XX:+ZGenerational".into());
+                }
+            }
+            _ if force_zgc => {
+                args.push("-XX:+UseZGC".into());
+                args.push("-XX:+ZGenerational".into());
+            }
             "Shenandoah" if jvm.java_major >= 12 => args.push("-XX:+UseShenandoahGC".into()),
             _ => args.extend(
                 [
@@ -645,13 +669,19 @@ pub fn spawn_game(
         let _ = show_console;
     }
 
-    cmd.spawn().map_err(|e| {
-        let preview: String = args.iter().take(8).cloned().collect::<Vec<_>>().join(" ");
-        AppError::msg(format!(
-            "No se pudo iniciar Java ({}): {e}. Args: {preview}…",
-            java.display()
-        ))
-    })
+    cmd.spawn()
+        .map_err(|e| {
+            let preview: String = args.iter().take(8).cloned().collect::<Vec<_>>().join(" ");
+            AppError::msg(format!(
+                "No se pudo iniciar Java ({}): {e}. Args: {preview}…",
+                java.display()
+            ))
+        })
+        .map(|child| {
+            let pid = child.id();
+            let _ = crate::core::extras::java_priority::set_for_pid(pid, "high");
+            child
+        })
 }
 
 /// Lee el archivo de args del último (o de una instancia concreta) launch.
@@ -776,6 +806,7 @@ pub fn watch_exit(
     let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     window_title::watch_window_title(pid, &mc_version, &loader, stop.clone());
     borderless::watch(pid, stop.clone());
+    cursor_lock::watch(pid, stop.clone());
 
     if overlay_ipc {
         crate::core::overlay_ipc::watch(stop.clone());

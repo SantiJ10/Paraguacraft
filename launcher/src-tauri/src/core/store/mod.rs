@@ -20,7 +20,7 @@ use crate::core::instances;
 use crate::core::loaders;
 use crate::core::servers;
 use crate::error::{AppError, AppResult};
-use crate::models::{StoreDependency, StoreSearchResult, StoreVersion};
+use crate::models::{StoreDependency, StoreProjectDetail, StoreSearchResult, StoreVersion};
 
 /// Ejecuta trabajo bloqueante (ZIP, hashing, I/O de disco grande) en el pool de
 /// `tokio::spawn_blocking` en vez del runtime async, para que la UI de Tauri
@@ -99,6 +99,75 @@ pub async fn search(
             curseforge::search(client, cf_key, query, project_type, mc, &loader, offset, limit).await
         }
         other => Err(AppError::msg(format!("Proveedor desconocido: {other}"))),
+    }
+}
+
+/// Ficha de proyecto (galería, descripción, autores, RAM recomendada).
+pub async fn project_detail(
+    client: &reqwest::Client,
+    provider: &str,
+    cf_key: &str,
+    project_id: &str,
+    project_type: &str,
+) -> AppResult<StoreProjectDetail> {
+    let mut detail = match provider {
+        "modrinth" => modrinth::project_detail(client, project_id).await?,
+        "curseforge" => curseforge::project_detail(client, cf_key, project_id, project_type).await?,
+        other => return Err(AppError::msg(format!("Proveedor desconocido: {other}"))),
+    };
+    if detail.recommended_ram_gb.is_none() {
+        detail.recommended_ram_gb = recommended_ram_gb(
+            &detail.item.project_type,
+            &detail.body,
+            &detail.item.description,
+        );
+    }
+    Ok(detail)
+}
+
+/// Extrae GB de RAM mencionados junto a "ram" en un texto de tienda.
+pub fn parse_recommended_ram_gb(text: &str) -> Option<u32> {
+    let t = text.to_ascii_lowercase().replace('\n', " ");
+    let chars: Vec<char> = t.chars().collect();
+    let mut best: Option<u32> = None;
+    let mut i = 0;
+    while i < chars.len() {
+        if chars[i].is_ascii_digit() {
+            let start = i;
+            let mut n: u32 = 0;
+            while i < chars.len() && chars[i].is_ascii_digit() {
+                n = n.saturating_mul(10).saturating_add(chars[i].to_digit(10).unwrap_or(0));
+                i += 1;
+            }
+            let mut j = i;
+            while j < chars.len() && chars[j] == ' ' {
+                j += 1;
+            }
+            let unit: String = chars.get(j..).unwrap_or(&[]).iter().take(4).collect();
+            if (unit.starts_with("gb") || unit.starts_with("gi")) && (2..=128).contains(&n) {
+                let ctx_from = start.saturating_sub(28);
+                let ctx_to = (j + 12).min(chars.len());
+                let ctx: String = chars[ctx_from..ctx_to].iter().collect();
+                if ctx.contains("ram") || ctx.contains("memory") || ctx.contains("memoria") {
+                    best = Some(best.map_or(n, |b| b.max(n)));
+                }
+            }
+            continue;
+        }
+        i += 1;
+    }
+    best
+}
+
+fn recommended_ram_gb(project_type: &str, body: &str, summary: &str) -> Option<u32> {
+    let blob = format!("{summary}\n{body}");
+    if let Some(n) = parse_recommended_ram_gb(&blob) {
+        return Some(n);
+    }
+    if project_type == "modpack" {
+        Some(8)
+    } else {
+        None
     }
 }
 
@@ -422,3 +491,32 @@ pub async fn install(
         other => Err(AppError::msg(format!("Proveedor desconocido: {other}"))),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_ram_from_modpack_blurb() {
+        assert_eq!(
+            parse_recommended_ram_gb("Recommended RAM: 16 GB. Minimum 8GB RAM."),
+            Some(16)
+        );
+        assert_eq!(
+            parse_recommended_ram_gb("Allocate at least 8GB RAM for this pack."),
+            Some(8)
+        );
+        assert_eq!(parse_recommended_ram_gb("Sodium is a rendering engine."), None);
+        assert_eq!(
+            parse_recommended_ram_gb("Memoria recomendada: 12 gb ram"),
+            Some(12)
+        );
+    }
+
+    #[test]
+    fn modpack_defaults_to_8gb() {
+        assert_eq!(recommended_ram_gb("modpack", "", "un pack"), Some(8));
+        assert_eq!(recommended_ram_gb("mod", "", "sodium"), None);
+    }
+}
+

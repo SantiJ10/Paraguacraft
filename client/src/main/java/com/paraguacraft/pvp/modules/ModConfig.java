@@ -35,6 +35,9 @@ public class ModConfig {
     public static boolean windowedFullscreen = false;
     /** Estado en caliente del borderless (no se persiste). */
     public static boolean windowedActive = false;
+    public static boolean motionBlurEnabled = false;
+    public static float motionBlurAmount = 0.45f;
+    public static int motionBlurType = 0;
     public static boolean toggleSprintActive = true;
     /** Modo legacy: {@code setSprinting} al final del tick (2.1.23). */
     public static boolean toggleSprintLegacyActive = false;
@@ -229,6 +232,9 @@ public class ModConfig {
             props.setProperty("toggleSneak", String.valueOf(toggleSneak));
             props.setProperty("showArmorPercentage", String.valueOf(showArmorPercentage));
             props.setProperty("windowedFullscreen", String.valueOf(windowedFullscreen));
+            props.setProperty("motionBlurEnabled", String.valueOf(motionBlurEnabled));
+            props.setProperty("motionBlurAmount", String.valueOf(motionBlurAmount));
+            props.setProperty("motionBlurType", String.valueOf(motionBlurType));
             props.setProperty("toggleSprintActive", String.valueOf(toggleSprintActive));
             props.setProperty("toggleSprintLegacyActive", String.valueOf(toggleSprintLegacyActive));
             props.setProperty("fullbrightActive", String.valueOf(fullbrightActive));
@@ -373,6 +379,17 @@ public class ModConfig {
             toggleSneak = Boolean.parseBoolean(props.getProperty("toggleSneak", String.valueOf(toggleSneak)));
             showArmorPercentage = Boolean.parseBoolean(props.getProperty("showArmorPercentage", String.valueOf(showArmorPercentage)));
             windowedFullscreen = Boolean.parseBoolean(props.getProperty("windowedFullscreen", String.valueOf(windowedFullscreen)));
+            motionBlurEnabled = Boolean.parseBoolean(props.getProperty("motionBlurEnabled", String.valueOf(motionBlurEnabled)));
+            try {
+                motionBlurAmount = Float.parseFloat(props.getProperty("motionBlurAmount", String.valueOf(motionBlurAmount)));
+            } catch (Exception ignored) {
+            }
+            if (motionBlurAmount < 0f) motionBlurAmount = 0f;
+            if (motionBlurAmount > 1f) motionBlurAmount = 1f;
+            try {
+                motionBlurType = Integer.parseInt(props.getProperty("motionBlurType", String.valueOf(motionBlurType)));
+            } catch (Exception ignored) {
+            }
             toggleSprintActive = Boolean.parseBoolean(props.getProperty("toggleSprintActive", String.valueOf(toggleSprintActive)));
             toggleSprintLegacyActive = Boolean.parseBoolean(props.getProperty("toggleSprintLegacyActive", String.valueOf(toggleSprintLegacyActive)));
             fullbrightActive = Boolean.parseBoolean(props.getProperty("fullbrightActive", String.valueOf(fullbrightActive)));

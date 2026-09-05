@@ -12,7 +12,10 @@ use serde_json::{json, Value};
 use super::jar_already_present;
 use crate::core::net::{self, DownloadItem};
 use crate::error::{AppError, AppResult, StructuredError};
-use crate::models::{StoreDependency, StoreItem, StoreSearchResult, StoreVersion};
+use crate::models::{
+    StoreCreator, StoreDependency, StoreGalleryImage, StoreItem, StoreProjectDetail, StoreSearchResult,
+    StoreVersion,
+};
 
 const API: &str = "https://api.curseforge.com/v1";
 const GAME_ID: &str = "432"; // Minecraft
@@ -90,6 +93,110 @@ async fn get_json(client: &reqwest::Client, url: &str, key: &str) -> AppResult<V
     }
     let resp = resp.error_for_status()?;
     Ok(resp.json().await?)
+}
+
+/// Ficha completa (screenshots + descripción + autores).
+pub async fn project_detail(
+    client: &reqwest::Client,
+    key: &str,
+    project_id: &str,
+    project_type: &str,
+) -> AppResult<StoreProjectDetail> {
+    if key.trim().is_empty() {
+        return Err(AppError::msg(
+            "CurseForge requiere una API key. Configurala en Ajustes.",
+        ));
+    }
+    let url = format!("{API}/mods/{project_id}");
+    let resp = get_json(client, &url, key).await?;
+    let m = &resp["data"];
+    let mut item = mod_to_item(m, if project_type.is_empty() {
+        class_to_type(m["classId"].as_u64().unwrap_or(6))
+    } else {
+        project_type
+    });
+
+    let gallery: Vec<StoreGalleryImage> = m["screenshots"]
+        .as_array()
+        .map(|a| {
+            a.iter()
+                .filter_map(|s| {
+                    Some(StoreGalleryImage {
+                        url: s["url"].as_str()?.to_string(),
+                        title: s["title"].as_str().map(String::from),
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let creators: Vec<StoreCreator> = m["authors"]
+        .as_array()
+        .map(|a| {
+            a.iter()
+                .filter_map(|au| {
+                    let name = au["name"].as_str()?.to_string();
+                    Some(StoreCreator {
+                        name,
+                        role: au["url"].as_str().map(|_| "Author").unwrap_or("Author").into(),
+                        avatar_url: au["avatarUrl"].as_str().unwrap_or_default().to_string(),
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    if item.author.is_empty() {
+        if let Some(first) = creators.first() {
+            item.author = first.name.clone();
+        }
+    }
+
+    let mut body = m["summary"].as_str().unwrap_or_default().to_string();
+    let desc_url = format!("{API}/mods/{project_id}/description");
+    if let Ok(desc) = get_json(client, &desc_url, key).await {
+        if let Some(html) = desc["data"].as_str() {
+            if !html.trim().is_empty() {
+                body = html.to_string();
+            }
+        }
+    }
+
+    let game_versions: Vec<String> = m["latestFilesIndexes"]
+        .as_array()
+        .map(|a| {
+            let mut v: Vec<String> = a
+                .iter()
+                .filter_map(|f| f["gameVersion"].as_str().map(String::from))
+                .collect();
+            v.sort();
+            v.dedup();
+            v
+        })
+        .unwrap_or_default();
+
+    Ok(StoreProjectDetail {
+        item,
+        body,
+        gallery,
+        creators,
+        license: String::new(),
+        game_versions,
+        loaders: Vec::new(),
+        created: m["dateCreated"].as_str().map(String::from),
+        updated: m["dateModified"].as_str().map(String::from),
+        recommended_ram_gb: None,
+    })
+}
+
+fn class_to_type(class_id: u64) -> &'static str {
+    match class_id {
+        12 => "resourcepack",
+        6552 => "shader",
+        4471 => "modpack",
+        6945 => "datapack",
+        5 => "plugin",
+        _ => "mod",
+    }
 }
 
 fn mod_to_item(m: &Value, project_type: &str) -> StoreItem {

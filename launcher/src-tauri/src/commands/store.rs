@@ -6,7 +6,10 @@ use crate::config::keys;
 use crate::core::store::{self, destinations, InstallDestination};
 use crate::error::AppResult;
 use crate::core::servers::ServerProfile;
-use crate::models::{Instance, ServerWorldsResult, StoreDependency, StoreSearchResult, StoreVersion, WorldInfo};
+use crate::models::{
+    Instance, ServerWorldsResult, StoreDependency, StoreProjectDetail, StoreSearchResult, StoreVersion,
+    WorldInfo,
+};
 use crate::state::AppState;
 
 #[tauri::command]
@@ -32,6 +35,25 @@ pub async fn store_search(
         &loader,
         offset.unwrap_or(0),
         limit.unwrap_or(40),
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn store_project_detail(
+    state: State<'_, AppState>,
+    provider: String,
+    project_id: String,
+    project_type: Option<String>,
+) -> AppResult<StoreProjectDetail> {
+    let key = keys::curseforge_api_key();
+    let (http, _net) = state.net_scope();
+    store::project_detail(
+        &http,
+        &provider,
+        &key,
+        &project_id,
+        project_type.as_deref().unwrap_or(""),
     )
     .await
 }

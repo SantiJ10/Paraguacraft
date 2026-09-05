@@ -39,6 +39,7 @@ paraguacraft.menu.mod.toggle_sprint=Toggle Sprint (M)
 paraguacraft.menu.mod.toggle_sprint_legacy=Toggle Sprint legacy (N)
 paraguacraft.menu.mod.dynamic_fov=Static FOV (no speed)
 paraguacraft.menu.mod.windowed_fullscreen=Windowed Fullscreen
+paraguacraft.menu.mod.motion_blur=Motion Blur
 paraguacraft.menu.mod.idle_fps_min=Reduce FPS when minimized
 paraguacraft.menu.mod.idle_fps_unfocus=Reduce FPS when unfocused
 paraguacraft.menu.mod.borderless=Borderless
@@ -116,3 +117,9 @@ paraguacraft.hud.bw.iron=Iron
 paraguacraft.hud.bw.gold=Gold
 paraguacraft.hud.bw.emerald=Emerald
 paraguacraft.hud.bw.diamond=Diamond
+
+paraguacraft.motion_blur.title=MOTION BLUR
+paraguacraft.motion_blur.desc=Blur your surroundings when moving.
+paraguacraft.motion_blur.type=Type
+paraguacraft.motion_blur.value=Value
+

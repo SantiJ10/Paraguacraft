@@ -99,6 +99,11 @@ public final class ModernConfig {
     public static int serverHudX = 5;
     public static int serverHudY = 72;
     public static boolean windowedFullscreen = false;
+    /** Accumulation motion blur (0..1). */
+    public static boolean motionBlurEnabled = false;
+    public static float motionBlurAmount = 0.45f;
+    /** 0 = V1 (lineal), 1 = V2 (curva). */
+    public static int motionBlurType = 0;
     public static boolean pvpTrainingAutoWorld = false;
     /** Estadisticas de combate por sesion (Fase 5 — feature innovadora, ver CombatStats). */
     public static boolean showCombatStatsHud = false;
@@ -371,6 +376,14 @@ public final class ModernConfig {
             serverHudX = intProp(props, "serverHudX", serverHudX);
             serverHudY = intProp(props, "serverHudY", serverHudY);
             windowedFullscreen = bool(props, "windowedFullscreen", windowedFullscreen);
+            motionBlurEnabled = bool(props, "motionBlurEnabled", motionBlurEnabled);
+            try {
+                motionBlurAmount = Float.parseFloat(props.getProperty("motionBlurAmount", String.valueOf(motionBlurAmount)));
+            } catch (Exception ignored) {
+            }
+            if (motionBlurAmount < 0f) motionBlurAmount = 0f;
+            if (motionBlurAmount > 1f) motionBlurAmount = 1f;
+            motionBlurType = intProp(props, "motionBlurType", motionBlurType);
             pvpTrainingAutoWorld = bool(props, "pvpTrainingAutoWorld", pvpTrainingAutoWorld);
             showCombatStatsHud = bool(props, "showCombatStatsHud", showCombatStatsHud);
             combatStatsX = intProp(props, "combatStatsX", combatStatsX);
@@ -566,6 +579,9 @@ public final class ModernConfig {
         props.setProperty("serverHudX", String.valueOf(serverHudX));
         props.setProperty("serverHudY", String.valueOf(serverHudY));
         props.setProperty("windowedFullscreen", String.valueOf(windowedFullscreen));
+        props.setProperty("motionBlurEnabled", String.valueOf(motionBlurEnabled));
+        props.setProperty("motionBlurAmount", String.valueOf(motionBlurAmount));
+        props.setProperty("motionBlurType", String.valueOf(motionBlurType));
         props.setProperty("pvpTrainingAutoWorld", String.valueOf(pvpTrainingAutoWorld));
         props.setProperty("showCombatStatsHud", String.valueOf(showCombatStatsHud));
         props.setProperty("combatStatsX", String.valueOf(combatStatsX));

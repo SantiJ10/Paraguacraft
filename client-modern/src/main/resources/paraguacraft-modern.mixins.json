@@ -23,6 +23,7 @@
     "MixinHandledScreenPlayerPreview",
     "HandledScreenAccessor",
     "MixinGameRendererFov",
+    "MixinGameRendererMotionBlur",
     "MixinInGameHudScoreboard",
     "MixinInGameHudLowFire",
     "MixinItemEntityRenderer",

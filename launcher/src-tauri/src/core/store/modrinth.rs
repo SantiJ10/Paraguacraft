@@ -12,7 +12,10 @@ use super::jar_already_present;
 use super::mod_family_present;
 use crate::core::net::{self, DownloadItem};
 use crate::error::{AppError, AppResult};
-use crate::models::{StoreDependency, StoreItem, StoreSearchResult, StoreVersion};
+use crate::models::{
+    StoreCreator, StoreDependency, StoreGalleryImage, StoreItem, StoreProjectDetail, StoreSearchResult,
+    StoreVersion,
+};
 
 const API: &str = "https://api.modrinth.com/v2";
 
@@ -167,6 +170,101 @@ fn version_from_json_typed(v: &Value, project_type: &str) -> StoreVersion {
             .unwrap_or_default(),
         published_at: v["date_published"].as_str().unwrap_or("").to_string(),
     }
+}
+
+/// Ficha completa del proyecto (galería + cuerpo Markdown + equipo).
+pub async fn project_detail(
+    client: &reqwest::Client,
+    project_id: &str,
+) -> AppResult<StoreProjectDetail> {
+    let url = format!("{API}/project/{project_id}");
+    let p: Value = net::fetch_json(client, &url).await?;
+    let slug = p["slug"].as_str().unwrap_or_default().to_string();
+    let ptype = p["project_type"].as_str().unwrap_or("mod").to_string();
+    let mut item = StoreItem {
+        id: p["id"].as_str().unwrap_or(project_id).to_string(),
+        slug: slug.clone(),
+        title: p["title"].as_str().unwrap_or_default().to_string(),
+        author: String::new(),
+        description: p["description"].as_str().unwrap_or_default().to_string(),
+        icon_url: p["icon_url"].as_str().unwrap_or_default().to_string(),
+        downloads: p["downloads"].as_u64().unwrap_or(0),
+        follows: p["followers"].as_u64().or(p["follows"].as_u64()).unwrap_or(0),
+        project_type: ptype.clone(),
+        provider: "modrinth".into(),
+        categories: p["categories"]
+            .as_array()
+            .map(|a| a.iter().filter_map(|c| c.as_str().map(String::from)).collect())
+            .unwrap_or_default(),
+        project_url: Some(format!("https://modrinth.com/{ptype}/{slug}")),
+    };
+
+    let mut gallery: Vec<(bool, StoreGalleryImage)> = p["gallery"]
+        .as_array()
+        .map(|a| {
+            a.iter()
+                .filter_map(|g| {
+                    Some((
+                        g["featured"].as_bool().unwrap_or(false),
+                        StoreGalleryImage {
+                            url: g["url"].as_str()?.to_string(),
+                            title: g["title"].as_str().map(String::from),
+                        },
+                    ))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    gallery.sort_by(|a, b| b.0.cmp(&a.0));
+    let gallery: Vec<StoreGalleryImage> = gallery.into_iter().map(|(_, img)| img).collect();
+
+    let mut creators: Vec<StoreCreator> = Vec::new();
+    let members_url = format!("{API}/project/{project_id}/members");
+    if let Ok(members) = net::fetch_json::<Value>(client, &members_url).await {
+        if let Some(arr) = members.as_array() {
+            for m in arr {
+                let name = m["user"]["username"]
+                    .as_str()
+                    .or(m["user"]["name"].as_str())
+                    .unwrap_or_default()
+                    .to_string();
+                if name.is_empty() {
+                    continue;
+                }
+                creators.push(StoreCreator {
+                    name,
+                    role: m["role"].as_str().unwrap_or("Member").to_string(),
+                    avatar_url: m["user"]["avatar_url"].as_str().unwrap_or_default().to_string(),
+                });
+            }
+        }
+    }
+    if let Some(first) = creators.first() {
+        item.author = first.name.clone();
+    }
+
+    Ok(StoreProjectDetail {
+        item,
+        body: p["body"].as_str().unwrap_or_default().to_string(),
+        gallery,
+        creators,
+        license: p["license"]["name"]
+            .as_str()
+            .or(p["license"]["id"].as_str())
+            .unwrap_or_default()
+            .to_string(),
+        game_versions: p["game_versions"]
+            .as_array()
+            .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+            .unwrap_or_default(),
+        loaders: p["loaders"]
+            .as_array()
+            .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+            .unwrap_or_default(),
+        created: p["published"].as_str().map(String::from),
+        updated: p["updated"].as_str().map(String::from),
+        recommended_ram_gb: None,
+    })
 }
 
 /// Lista versiones del proyecto filtradas por mc + loader.

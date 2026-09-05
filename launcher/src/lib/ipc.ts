@@ -44,6 +44,7 @@ import type {
   GameProfile,
   ModConflict,
   HardwareInfo,
+  SystemSpecs,
   ImportInstanceIconResult,
   BedrockStatus,
   Instance,
@@ -54,6 +55,7 @@ import type {
   MinecraftVersion,
   StoreVersion,
   StoreSearchResult,
+  StoreProjectDetail,
   StoreDependency,
   StoreInstallDestination,
   WorldInfo,
@@ -114,11 +116,32 @@ export const api = {
     if (isTauri()) {
       try {
         return await invokeReal<HardwareInfo>("get_hardware_info");
-      } catch (err) {
-        console.warn("[ipc] get_hardware_info fallback a mock:", err);
+      } catch {
+        return mockHardware;
       }
     }
     return delay(mockHardware);
+  },
+
+  async getSystemSpecs(): Promise<SystemSpecs> {
+    if (isTauri()) {
+      try {
+        return await invokeReal<SystemSpecs>("get_system_specs");
+      } catch {
+        return {
+          ramGb: mockHardware.ramGb,
+          cpuThreads: mockHardware.cpuThreads,
+          cpuCores: mockHardware.cpuCores,
+          os: mockHardware.os,
+        };
+      }
+    }
+    return delay({
+      ramGb: mockHardware.ramGb,
+      cpuThreads: mockHardware.cpuThreads,
+      cpuCores: mockHardware.cpuCores,
+      os: mockHardware.os,
+    });
   },
 
   // --- Settings ---
@@ -498,6 +521,31 @@ export const api = {
       totalHits: all.length,
       offset,
       limit,
+    });
+  },
+
+  async getStoreProjectDetail(payload: {
+    provider: ContentProvider;
+    projectId: string;
+    projectType?: ContentType;
+  }): Promise<StoreProjectDetail> {
+    if (isTauri()) {
+      return invokeReal<StoreProjectDetail>("store_project_detail", {
+        provider: payload.provider,
+        projectId: payload.projectId,
+        projectType: payload.projectType ?? "",
+      });
+    }
+    const item = mockStoreItems.find((i) => i.id === payload.projectId) ?? mockStoreItems[0];
+    return delay({
+      item,
+      body: `## ${item.title}\n\n${item.description}\n\n**Recommended RAM:** 8 GB RAM.`,
+      gallery: item.iconUrl ? [{ url: item.iconUrl, title: item.title }] : [],
+      creators: [{ name: item.author, role: "Owner", avatarUrl: "" }],
+      license: "All Rights Reserved",
+      gameVersions: ["1.21.1"],
+      loaders: ["fabric"],
+      recommendedRamGb: 8,
     });
   },
 

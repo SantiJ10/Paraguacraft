@@ -25,6 +25,7 @@
     "client.MixinFontRenderer",
     "client.MixinTextureManagerHudCrisp",
     "client.MixinEntityRendererFreelook",
+    "client.MixinEntityRendererMotionBlur",
     "client.MixinEntityFreelook",
     "client.MixinMinecraftFullscreen",
     "client.MixinGuiMultiplayerIcons",

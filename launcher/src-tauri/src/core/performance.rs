@@ -127,6 +127,21 @@ pub fn ensure_windowed(game_dir: &Path) -> AppResult<()> {
     Ok(())
 }
 
+/// Evita que el juego pause / abra el menú al hacer clic en un segundo monitor.
+pub fn ensure_pause_off(game_dir: &Path) -> AppResult<()> {
+    let vanilla = HashMap::from([("pauseOnLostFocus".into(), "false".into())]);
+    let _ = patch_options_file(&game_dir.join("options.txt"), vanilla)?;
+    let of = game_dir.join("optionsof.txt");
+    if of.is_file() {
+        let of_keys = HashMap::from([
+            ("pauseOnLostFocus".into(), "false".into()),
+            ("ofPauseOnLostFocus".into(), "false".into()),
+        ]);
+        let _ = patch_options_file(&of, of_keys)?;
+    }
+    Ok(())
+}
+
 /// Preset PvP 1.21.11 — más agresivo que `tier_options` genérico (Sodium/Iris ya cubren parte del render).
 fn tier_options_modern_pvp(tier: &str) -> HashMap<String, String> {
     tier_options_modern_pvp_style(tier, "competitive")
@@ -1178,5 +1193,29 @@ mod tests {
         assert!(body.contains("fullscreen:false"));
         assert!(!body.contains("fullscreen:true"));
         assert!(body.contains("foo:bar"));
+    }
+
+    #[test]
+    fn ensure_pause_off_writes_false() {
+        let dir = std::env::temp_dir().join(format!(
+            "pc_pause_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("options.txt"), "pauseOnLostFocus:true\nfoo:bar\n").unwrap();
+        fs::write(dir.join("optionsof.txt"), "ofPauseOnLostFocus:true\n").unwrap();
+        ensure_pause_off(&dir).unwrap();
+        let body = fs::read_to_string(dir.join("options.txt")).unwrap();
+        let of = fs::read_to_string(dir.join("optionsof.txt")).unwrap();
+        let _ = fs::remove_dir_all(&dir);
+        assert!(body.contains("pauseOnLostFocus:false"));
+        assert!(!body.contains("pauseOnLostFocus:true"));
+        assert!(body.contains("foo:bar"));
+        assert!(of.contains("ofPauseOnLostFocus:false"));
+        assert!(of.contains("pauseOnLostFocus:false"));
     }
 }

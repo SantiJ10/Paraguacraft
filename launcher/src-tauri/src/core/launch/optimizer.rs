@@ -107,11 +107,14 @@ pub fn apply_pre_launch(
     // y Discord Overlay se inyecta en LWJGL 2 y 3.
     let _ = performance::ensure_vsync_off(game_dir);
     let _ = performance::ensure_windowed(game_dir);
+    let _ = performance::ensure_pause_off(game_dir);
+    let _ = crate::core::launch::window_mods::disable_conflicting(game_dir);
     // `custom` = el usuario controla options.txt; no reescribir gráficos.
     if settings.optimize_graphics && tier != "custom" {
         let _ = apply_graphics_profile(game_dir, loader, tier, mc_version);
         let _ = performance::ensure_vsync_off(game_dir);
         let _ = performance::ensure_windowed(game_dir);
+        let _ = performance::ensure_pause_off(game_dir);
     }
 }
 

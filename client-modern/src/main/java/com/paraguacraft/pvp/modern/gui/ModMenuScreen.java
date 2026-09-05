@@ -146,6 +146,7 @@ public class ModMenuScreen extends ParaguacraftScreen {
             case "theme" -> client.setScreen(new ThemeSelectScreen(this));
             case "nickfinder" -> client.setScreen(new NickFinderScreen(this));
             case "music_hud" -> client.setScreen(new GuiMusicHudOptionsScreen(this));
+            case "motion_blur" -> client.setScreen(new GuiMotionBlurOptionsScreen(this));
             case "armor_hud" -> client.setScreen(GuiSubmodOptionsScreen.armor(this));
             case "keystrokes" -> client.setScreen(GuiSubmodOptionsScreen.keystrokes(this));
             case "cosmetics" -> client.setScreen(GuiSubmodOptionsScreen.cosmetics(this));
@@ -225,6 +226,7 @@ public class ModMenuScreen extends ParaguacraftScreen {
             ModernConfig.isSneakingToggled = false;
         }));
         cards.add(toggle(3, "Pantalla sin bordes", () -> ModernConfig.windowedFullscreen, v -> ModernConfig.windowedFullscreen = v));
+        cards.add(open(3, "Motion Blur", "motion_blur"));
         cards.add(open(3, FullbrightManager.menuLabel(), "fullbright"));
         cards.add(toggle(3, "FOV estatico", () -> !ModernConfig.dynamicFov, v -> {
             // ON = sin speed FOV (sprint/volar). Zoomify toca FOV aparte; no forzar getFov().

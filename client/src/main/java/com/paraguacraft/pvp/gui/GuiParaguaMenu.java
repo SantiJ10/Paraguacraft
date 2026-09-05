@@ -79,6 +79,7 @@ public class GuiParaguaMenu extends GuiScreen {
         new ModEntry(54, "paraguacraft.menu.mod.toggle_sprint_legacy", 3),
         new ModEntry(11, "paraguacraft.menu.mod.dynamic_fov", 3),
         new ModEntry(13, "paraguacraft.menu.mod.windowed_fullscreen", 3),
+        new ModEntry(66, "paraguacraft.menu.mod.motion_blur", 3),
         new ModEntry(20, "paraguacraft.menu.mod.old_anim", 3),
         new ModEntry(19, "paraguacraft.menu.mod.boost_fps", 6),
         new ModEntry(61, "paraguacraft.menu.mod.entity_cull", 6),
@@ -398,6 +399,8 @@ public class GuiParaguaMenu extends GuiScreen {
                                 mc.displayGuiScreen(GuiSubmodOptions.nametag());
                             } else if (mod.id == 36) {
                                 mc.displayGuiScreen(new GuiMusicHudOptions());
+                            } else if (mod.id == 66) {
+                                mc.displayGuiScreen(new GuiMotionBlurOptions());
                             } else if (mod.id == 38) {
                                 mc.displayGuiScreen(GuiSubmodOptions.bedwars());
                             } else if (mod.id == 45) {
@@ -519,6 +522,7 @@ public class GuiParaguaMenu extends GuiScreen {
             case 11: return ModConfig.dynamicFov;
             case 12: return ModConfig.showHeldItem;
             case 13: return ModConfig.windowedFullscreen;
+            case 66: return ModConfig.motionBlurEnabled;
             case 14: return ModConfig.showServerHUD;
             case 15: return ModConfig.showCompass;
             case 16: return true;
@@ -559,7 +563,7 @@ public class GuiParaguaMenu extends GuiScreen {
 
     private static boolean hasOptions(int id) {
         return id == 3 || id == 6 || id == 9 || id == 17 || id == 36 || id == 38
-            || id == 45 || id == 60 || id == 61 || id == 64;
+            || id == 45 || id == 60 || id == 61 || id == 64 || id == 66;
     }
 
     private void toggleMod(int id) {
@@ -663,6 +667,7 @@ public class GuiParaguaMenu extends GuiScreen {
                 }
                 break;
             case 65: ModConfig.showWatermark = !ModConfig.showWatermark; break;
+            case 66: ModConfig.motionBlurEnabled = !ModConfig.motionBlurEnabled; break;
             default: break;
         }
     }

@@ -79,6 +79,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             // Hardware
             commands::hardware::get_hardware_info,
+            commands::hardware::get_system_specs,
             // Settings
             commands::settings::get_settings,
             commands::settings::save_settings,
@@ -170,6 +171,7 @@ pub fn run() {
             commands::loaders::get_pvp_modern_client_status,
             // Tienda (Fase 3)
             commands::store::store_search,
+            commands::store::store_project_detail,
             commands::store::store_list_versions,
             commands::store::store_list_project_versions,
             commands::store::store_list_dependencies,

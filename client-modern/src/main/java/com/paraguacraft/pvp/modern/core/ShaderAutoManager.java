@@ -20,6 +20,21 @@ public final class ShaderAutoManager {
 
     private ShaderAutoManager() {}
 
+    /** True si Iris tiene un shader pack activo (el blur de acumulación no se mezcla con él). */
+    public static boolean shadersInUse() {
+        if (!FabricLoader.getInstance().isModLoaded("iris")) {
+            return false;
+        }
+        try {
+            Class<?> apiClass = Class.forName("net.irisshaders.iris.api.v0.IrisApi");
+            Object api = apiClass.getMethod("getInstance").invoke(null);
+            Object used = apiClass.getMethod("isShaderPackInUse").invoke(api);
+            return Boolean.TRUE.equals(used);
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
     public static void onJoin(MinecraftClient client) {
         if (!ModernConfig.shaderAutoOffInMatch || client == null) {
             return;

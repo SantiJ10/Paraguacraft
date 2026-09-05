@@ -226,6 +226,56 @@ pub struct StoreItem {
     pub project_url: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoreGalleryImage {
+    pub url: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoreCreator {
+    pub name: String,
+    #[serde(default)]
+    pub role: String,
+    #[serde(default)]
+    pub avatar_url: String,
+}
+
+/// Página de proyecto estilo Modrinth/CurseForge (galería, markdown, tags).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoreProjectDetail {
+    pub item: StoreItem,
+    /// Cuerpo largo (Markdown en Modrinth; HTML o texto en CurseForge).
+    pub body: String,
+    pub gallery: Vec<StoreGalleryImage>,
+    pub creators: Vec<StoreCreator>,
+    #[serde(default)]
+    pub license: String,
+    pub game_versions: Vec<String>,
+    pub loaders: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub updated: Option<String>,
+    /// RAM recomendada parseada de la descripción (GB). Heurística 8 GB en modpacks.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recommended_ram_gb: Option<u32>,
+}
+
+/// Specs mínimas para validar un modpack contra el PC del usuario.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SystemSpecs {
+    pub ram_gb: f64,
+    pub cpu_threads: u32,
+    pub cpu_cores: u32,
+    pub os: String,
+}
+
 /// Version/archivo de un proyecto de tienda compatible con mc+loader.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

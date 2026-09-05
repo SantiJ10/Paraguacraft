@@ -1,12 +1,12 @@
 {
-  "version": "1.1.37",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.37/Instalar_Paraguacraft_v1.1.37.exe",
-  "size_bytes": 5720633,
-  "sha256": "5dc8b8349cbac11965cab5e9e9ff46b02ead6483ec5634cd83d214ad58cd7091",
-  "notes": "- Detener el server ya no congela el launcher\n- Icono Paraguacraft y MOTD default en servers nuevos\n- Skins no-premium (Ely.by) visibles para vanilla y otros launchers\n- Pestaña de server activo para no dejar Java comiendo RAM",
+  "version": "1.1.38",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.38/Instalar_Paraguacraft_v1.1.38.exe",
+  "size_bytes": 5736993,
+  "sha256": "644fa260c69082b248586621c26a417e22ddbda299e13a68e50dd5b48d193610",
+  "notes": "- Tienda estilo Modrinth/CurseForge con aviso de RAM\n- Cursor lock en borderless y mods de ventana deshabilitados al lanzar\n- Prioridad High + ZGC/G1 de baja latencia\n- Motion Blur Lunar en PvP 1.8.9 (2.1.61) y 1.21.11 (0.9.35)",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.37/Instalar_Paraguacraft_v1.1.37.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.38/Instalar_Paraguacraft_v1.1.38.exe",
       "signature": ""
     }
   }

@@ -32,6 +32,13 @@ export interface HardwareInfo {
   recommendedGc: GcType;
 }
 
+export interface SystemSpecs {
+  ramGb: number;
+  cpuThreads: number;
+  cpuCores: number;
+  os: string;
+}
+
 export type VersionChannel = "release" | "snapshot" | "old_beta" | "old_alpha";
 
 export interface MinecraftVersion {
@@ -124,6 +131,30 @@ export interface StoreItem {
   provider: ContentProvider;
   categories: string[];
   projectUrl?: string | null;
+}
+
+export interface StoreGalleryImage {
+  url: string;
+  title?: string | null;
+}
+
+export interface StoreCreator {
+  name: string;
+  role: string;
+  avatarUrl: string;
+}
+
+export interface StoreProjectDetail {
+  item: StoreItem;
+  body: string;
+  gallery: StoreGalleryImage[];
+  creators: StoreCreator[];
+  license: string;
+  gameVersions: string[];
+  loaders: string[];
+  created?: string | null;
+  updated?: string | null;
+  recommendedRamGb?: number | null;
 }
 
 export interface StoreVersion {

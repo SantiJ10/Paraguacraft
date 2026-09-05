@@ -52,6 +52,7 @@ fn g1_flags_baja() -> Vec<&'static str> {
     ]
 }
 
+#[allow(dead_code)]
 fn g1_flags_media_alta() -> Vec<&'static str> {
     vec![
         "-XX:+UseG1GC",
@@ -89,9 +90,9 @@ pub fn build_jvm_args(ram_gb: f64) -> Vec<String> {
     ];
 
     let flags = match tier {
-        Tier::Alta => zgc_flags(),
-        Tier::Media => g1_flags_media_alta(),
         Tier::Baja => g1_flags_baja(),
+        // Java 21+: ZGC generacional en media/alta (pausas sub-ms vs G1).
+        Tier::Media | Tier::Alta => zgc_flags(),
     };
     args.extend(flags.iter().map(|s| (*s).to_string()));
 

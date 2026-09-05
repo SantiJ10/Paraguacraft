@@ -424,6 +424,7 @@ async fn spawn_for_instance(
                 &settings.java_priority
             }
         });
+    let _ = crate::core::extras::java_priority::set_for_pid(pid, java_priority);
     let _ = crate::core::extras::java_priority::set_level(java_priority);
 
     if settings.discord_rpc {
