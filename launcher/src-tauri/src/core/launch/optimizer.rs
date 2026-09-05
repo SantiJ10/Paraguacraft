@@ -103,17 +103,19 @@ pub fn apply_pre_launch(
     if settings.deep_clean_on_launch {
         let _ = crate::core::extras::maintenance::run("both");
     }
-    // VSYNC off + windowed siempre: el borderless OS (HWND) cubre la pantalla
-    // y Discord Overlay se inyecta en LWJGL 2 y 3.
+    // VSYNC off siempre. pauseOnLostFocus off (segundo monitor).
+    // Borderless HWND: solo vanilla/Forge/Fabric/Optimized si el setting está on
+    // y no hay fullscreen exclusivo. Los PvP usan el mod del menú.
     let _ = performance::ensure_vsync_off(game_dir);
-    let _ = performance::ensure_windowed(game_dir);
     let _ = performance::ensure_pause_off(game_dir);
-    let _ = crate::core::launch::window_mods::disable_conflicting(game_dir);
+    let os_borderless = super::borderless::should_apply(loader, game_dir, settings);
+    if os_borderless || super::borderless::pvp_owns_window_mode(loader) {
+        let _ = crate::core::launch::window_mods::disable_conflicting(game_dir);
+    }
     // `custom` = el usuario controla options.txt; no reescribir gráficos.
     if settings.optimize_graphics && tier != "custom" {
         let _ = apply_graphics_profile(game_dir, loader, tier, mc_version);
         let _ = performance::ensure_vsync_off(game_dir);
-        let _ = performance::ensure_windowed(game_dir);
         let _ = performance::ensure_pause_off(game_dir);
     }
 }

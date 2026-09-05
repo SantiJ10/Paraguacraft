@@ -503,6 +503,12 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
             @update:model-value="settings.update('closeOnLaunch', $event)"
           />
           <BaseToggle
+            :model-value="settings.settings.osBorderless !== false"
+            label="Pantalla completa sin bordes (otras instancias)"
+            hint="Vanilla, Fabric, Forge y Optimized: ventana sin bordes a nivel Windows (Alt-Tab y Discord Overlay). No pisa fullscreen exclusivo. En los clientes PvP es un mod del menú (Right Shift), no se aplica acá."
+            @update:model-value="settings.update('osBorderless', $event)"
+          />
+          <BaseToggle
             :model-value="settings.settings.showGameConsole ?? false"
             label="Mostrar consola del juego"
             hint="Abre la ventana de Java al jugar (útil para ver crashes de mods). Si también cerrás el launcher, queda en bandeja en vez de salir."

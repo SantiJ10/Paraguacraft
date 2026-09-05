@@ -1,12 +1,12 @@
 {
-  "version": "1.1.38",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.38/Instalar_Paraguacraft_v1.1.38.exe",
-  "size_bytes": 5736993,
-  "sha256": "644fa260c69082b248586621c26a417e22ddbda299e13a68e50dd5b48d193610",
-  "notes": "- Tienda estilo Modrinth/CurseForge con aviso de RAM\n- Cursor lock en borderless y mods de ventana deshabilitados al lanzar\n- Prioridad High + ZGC/G1 de baja latencia\n- Motion Blur Lunar en PvP 1.8.9 (2.1.61) y 1.21.11 (0.9.35)",
+  "version": "1.1.39",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.39/Instalar_Paraguacraft_v1.1.39.exe",
+  "size_bytes": 5739465,
+  "sha256": "7c13441efad5b64c97b89db325ba21a17f55c9ec82d62f0255d90ba9928bf72e",
+  "notes": "- PvP: borderless solo desde el Mod Menu; no se fuerza HWND ni fullscreen:false\n- Otras instancias: borderless OS opcional, no pisa exclusivo ni Alt-Tab\n- Cursor lock solo cuando aplica el borderless del launcher",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.38/Instalar_Paraguacraft_v1.1.38.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.39/Instalar_Paraguacraft_v1.1.39.exe",
       "signature": ""
     }
   }

@@ -1,5 +1,5 @@
-//! Deshabilita mods de ventana (borderless/fullscreen) para que el hook HWND
-//! del launcher tenga el control exclusivo. Conservador: no toca Sodium/Iris.
+//! Deshabilita mods de ventana (borderless/fullscreen) para que no peleen
+//! con el borderless HWND del launcher (otras instancias) ni con el mod PvP.
 
 use std::path::Path;
 

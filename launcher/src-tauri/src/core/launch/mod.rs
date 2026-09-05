@@ -805,8 +805,10 @@ pub fn watch_exit(
     crate::core::extras::discord_rpc::bind_game_pid(pid);
     let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     window_title::watch_window_title(pid, &mc_version, &loader, stop.clone());
-    borderless::watch(pid, stop.clone());
-    cursor_lock::watch(pid, stop.clone());
+    if borderless::should_apply(&loader, &game_dir, &settings) {
+        borderless::watch(pid, stop.clone());
+        cursor_lock::watch(pid, stop.clone());
+    }
 
     if overlay_ipc {
         crate::core::overlay_ipc::watch(stop.clone());

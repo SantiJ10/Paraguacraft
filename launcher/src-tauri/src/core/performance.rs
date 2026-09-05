@@ -115,8 +115,24 @@ pub fn ensure_vsync_off(game_dir: &Path) -> AppResult<()> {
     Ok(())
 }
 
-/// Fuerza `fullscreen:false` para que el launcher ponga borderless a nivel HWND
-/// (Discord Overlay no sobrevive al fullscreen exclusivo de LWJGL).
+/// True si `options.txt` pide fullscreen exclusivo. No reescribe el archivo.
+pub fn options_want_fullscreen(game_dir: &Path) -> bool {
+    let path = game_dir.join("options.txt");
+    let Ok(body) = std::fs::read_to_string(&path) else {
+        return false;
+    };
+    for line in body.lines() {
+        let t = line.trim();
+        let Some(rest) = t.strip_prefix("fullscreen:") else {
+            continue;
+        };
+        return rest.trim().eq_ignore_ascii_case("true");
+    }
+    false
+}
+
+/// Fuerza `fullscreen:false`. Ya no se usa al lanzar (respeta exclusivo / PvP).
+#[allow(dead_code)]
 pub fn ensure_windowed(game_dir: &Path) -> AppResult<()> {
     let keys = HashMap::from([("fullscreen".into(), "false".into())]);
     let _ = patch_options_file(&game_dir.join("options.txt"), keys.clone())?;
@@ -320,8 +336,7 @@ pub fn apply_min_graphics(game_dir: &Path) -> AppResult<()> {
 }
 
 /// Options.txt para Paraguacraft Optimized: rendimiento primero, sin saturar la PC.
-/// No toca `fullscreen` aquí: `ensure_windowed` lo fuerza a false en el launch
-/// para aplicar borderless a nivel HWND (Discord Overlay).
+/// No toca `fullscreen`: el usuario elige exclusivo o ventana.
 fn tier_options_optimized(tier: &str) -> HashMap<String, String> {
     match tier {
         "alta" => HashMap::from([
@@ -1173,6 +1188,24 @@ pub fn apply_hardware_defaults(settings: &mut AppSettings) -> HardwareInfo {
 mod tests {
     use super::*;
     use std::fs;
+
+    #[test]
+    fn options_want_fullscreen_reads_true() {
+        let dir = std::env::temp_dir().join(format!(
+            "pc_fs_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("options.txt"), "fov:1.0\nfullscreen:true\nfoo:bar\n").unwrap();
+        assert!(options_want_fullscreen(&dir));
+        fs::write(dir.join("options.txt"), "fullscreen:false\n").unwrap();
+        assert!(!options_want_fullscreen(&dir));
+        let _ = fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn ensure_windowed_writes_fullscreen_false() {

@@ -3,6 +3,12 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [1.1.39] - 2026-09-05
+
+### Launcher
+- **PvP**: ya no se fuerza borderless HWND ni `fullscreen:false`. El modo sin bordes queda solo como mod del menú (Right Shift). Fullscreen exclusivo y Alt-Tab no pelean con el launcher.
+- **Otras instancias** (vanilla/Forge/Fabric/Optimized): borderless OS opcional (Ajustes). No reescribe `fullscreen` en options.txt; si el juego ya está en exclusivo, no se toca la ventana.
+
 ## [1.1.38] - 2026-09-05
 
 ### Launcher

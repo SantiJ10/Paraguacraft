@@ -83,6 +83,9 @@ pub struct AppSettings {
     pub game_width: u32,
     #[serde(default)]
     pub game_height: u32,
+    /// Borderless HWND en vanilla/Forge/Fabric/Optimized. Nunca en clientes PvP.
+    #[serde(default = "default_true")]
+    pub os_borderless: bool,
 }
 
 fn default_auto_update_check() -> bool {
@@ -137,6 +140,7 @@ impl Default for AppSettings {
             global_jvm_args: String::new(),
             game_width: 0,
             game_height: 0,
+            os_borderless: true,
         }
     }
 }

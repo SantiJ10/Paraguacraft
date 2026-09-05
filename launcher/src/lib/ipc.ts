@@ -170,6 +170,7 @@ export const api = {
       globalJvmArgs: "",
       gameWidth: 0,
       gameHeight: 0,
+      osBorderless: true,
     });
   },
 

@@ -446,6 +446,8 @@ export interface AppSettings {
   /** Resolución forzada (0 = no forzar). Papa Mode gana. */
   gameWidth?: number;
   gameHeight?: number;
+  /** Borderless HWND en vanilla/Forge/Fabric. Los PvP usan el mod del menú. */
+  osBorderless?: boolean;
 }
 
 export interface LastLaunchArgs {

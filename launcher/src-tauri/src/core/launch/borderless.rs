@@ -1,12 +1,39 @@
 //! Borderless windowed a nivel OS (HWND), agnóstico de LWJGL 2/3.
 //!
-//! Minecraft en fullscreen exclusivo bloquea `DiscordHook64.dll`. Forzamos
-//! `fullscreen:false` y quitamos bordes/caption con la API de Windows para que
-//! parezca pantalla completa y Discord Overlay pueda inyectarse.
+//! Solo para instancias que **no** son clientes PvP (esos tienen el mod en el
+//! menú). No pisa fullscreen exclusivo: si la HWND ya no tiene bordes, no se
+//! toca (evita pelear con F11 / Alt-Tab).
 
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+
+use crate::models::AppSettings;
+
+/// Clientes PvP: el borderless vive en el Mod Menu, no en el launcher.
+pub fn pvp_owns_window_mode(loader: &str) -> bool {
+    let n = crate::core::loaders::normalize(loader);
+    n == "paraguacraft-pvp" || n == "paraguacraft-pvp-modern"
+}
+
+/// HWND borderless + cursor lock: otras instancias, si el setting está on y
+/// el juego no pidió fullscreen exclusivo. Nunca PvP / Papa / resolución forzada.
+pub fn should_apply(loader: &str, game_dir: &Path, settings: &AppSettings) -> bool {
+    if settings.papa_mode {
+        return false;
+    }
+    if settings.game_width > 0 && settings.game_height > 0 {
+        return false;
+    }
+    if pvp_owns_window_mode(loader) {
+        return false;
+    }
+    if !settings.os_borderless {
+        return false;
+    }
+    !crate::core::performance::options_want_fullscreen(game_dir)
+}
 
 /// Quita `WS_CAPTION | WS_THICKFRAME | WS_SYSMENU | min/max`.
 pub const DECORATION_STYLE: u32 = 0x00C0_0000 // WS_CAPTION (BORDER|DLGFRAME)
@@ -22,6 +49,10 @@ pub const DECORATION_EXSTYLE: u32 = 0x0000_0001 // WS_EX_DLGMODALFRAME
 
 const WS_POPUP: u32 = 0x8000_0000;
 const WS_VISIBLE: u32 = 0x1000_0000;
+
+pub fn is_decorated(style: u32) -> bool {
+    (style & 0x00C0_0000) != 0 || (style & 0x0004_0000) != 0
+}
 
 pub fn strip_style(style: u32) -> u32 {
     (style & !DECORATION_STYLE) | WS_POPUP | WS_VISIBLE
@@ -121,6 +152,11 @@ fn apply_borderless(hwnd: windows_sys::Win32::Foundation::HWND) -> bool {
     unsafe {
         let style = GetWindowLongPtrW(hwnd, GWL_STYLE) as u32;
         let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as u32;
+        // Sin caption/frame: ya es borderless nuestro o fullscreen exclusivo.
+        // No hacer SetWindowPos: pelea con F11 y rompe Alt-Tab.
+        if !is_decorated(style) {
+            return true;
+        }
         let new_style = strip_style(style);
         let new_ex = strip_exstyle(ex);
         let already = style == new_style && ex == new_ex && window_covers(hwnd, x, y, w, h);
@@ -181,5 +217,45 @@ mod tests {
         let clean = strip_exstyle(ex);
         assert_eq!(clean & DECORATION_EXSTYLE, 0);
         assert_ne!(clean & 0x0004_0000, 0);
+    }
+
+    #[test]
+    fn decorated_overlapped_vs_popup() {
+        assert!(is_decorated(0x00CF_0000));
+        assert!(!is_decorated(strip_style(0x00CF_0000)));
+    }
+
+    #[test]
+    fn pvp_loaders_own_window_mode() {
+        assert!(pvp_owns_window_mode("paraguacraft-pvp"));
+        assert!(pvp_owns_window_mode("paraguacraft-pvp-modern"));
+        assert!(!pvp_owns_window_mode("fabric"));
+        assert!(!pvp_owns_window_mode("forge"));
+        assert!(!pvp_owns_window_mode("vanilla"));
+        assert!(!pvp_owns_window_mode("paraguacraft-optimized"));
+    }
+
+    #[test]
+    fn should_apply_skips_pvp_exclusive_and_setting_off() {
+        let mut settings = AppSettings::default();
+        let dir = std::env::temp_dir().join(format!(
+            "pc_bl_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("options.txt"), "fullscreen:false\n").unwrap();
+        assert!(!should_apply("paraguacraft-pvp", &dir, &settings));
+        assert!(!should_apply("paraguacraft-pvp-modern", &dir, &settings));
+        assert!(should_apply("fabric", &dir, &settings));
+        std::fs::write(dir.join("options.txt"), "fullscreen:true\n").unwrap();
+        assert!(!should_apply("vanilla", &dir, &settings));
+        std::fs::write(dir.join("options.txt"), "fullscreen:false\n").unwrap();
+        settings.os_borderless = false;
+        assert!(!should_apply("forge", &dir, &settings));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
