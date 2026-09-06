@@ -41,6 +41,8 @@ impl Default for AppState {
 fn build_client() -> reqwest::Client {
     reqwest::Client::builder()
         .user_agent("SantiJ10/Paraguacraft/7.0.1 (https://paraguacraft.gg)")
+        .timeout(std::time::Duration::from_secs(20))
+        .connect_timeout(std::time::Duration::from_secs(10))
         .pool_idle_timeout(std::time::Duration::from_secs(30))
         .pool_max_idle_per_host(24)
         .tcp_keepalive(std::time::Duration::from_secs(30))

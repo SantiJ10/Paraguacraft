@@ -98,35 +98,85 @@ fn is_retryable_status(status: reqwest::StatusCode) -> bool {
     status.as_u16() == 429 || status.as_u16() == 502 || status.as_u16() == 503 || status.as_u16() == 504
 }
 
-async fn with_retries<F, Fut, T>(mut op: F) -> AppResult<T>
+fn http_retryable(e: &AppError) -> bool {
+    match e {
+        AppError::Http(http) => {
+            http.is_timeout()
+                || http.is_connect()
+                || http.is_request()
+                || http.status().map(is_retryable_status).unwrap_or(false)
+        }
+        AppError::Msg(s) => {
+            let low = s.to_ascii_lowercase();
+            low.contains("error sending request") || low.contains("error trying to connect")
+        }
+        _ => false,
+    }
+}
+
+async fn with_retries_n<F, Fut, T>(mut op: F, max: u32) -> AppResult<T>
 where
     F: FnMut() -> Fut,
     Fut: std::future::Future<Output = AppResult<T>>,
 {
-    const MAX: u32 = 6;
     let mut last = None;
-    for attempt in 0..MAX {
+    for attempt in 0..max {
         match op().await {
             Ok(v) => return Ok(v),
             Err(e) => {
-                let retry = match &e {
-                    AppError::Http(http) => {
-                        http.is_timeout()
-                            || http.is_connect()
-                            || http.status().map(is_retryable_status).unwrap_or(false)
-                    }
-                    _ => false,
-                };
+                let retry = http_retryable(&e);
                 last = Some(e);
-                if !retry || attempt + 1 >= MAX {
+                if !retry || attempt + 1 >= max {
                     break;
                 }
-                let wait_ms = 800u64 * (attempt as u64 + 1).pow(2);
+                let wait_ms = 400u64 * (attempt as u64 + 1).pow(2);
                 tokio::time::sleep(std::time::Duration::from_millis(wait_ms)).await;
             }
         }
     }
     Err(last.unwrap_or_else(|| AppError::msg("Error de red")))
+}
+
+/// Espejos para CDN de Mojang (piston-meta a veces no responde en LATAM).
+pub fn mirror_urls(url: &str) -> Vec<String> {
+    let mut out = Vec::with_capacity(4);
+    let mut push = |u: String| {
+        if !out.iter().any(|x| x == &u) {
+            out.push(u);
+        }
+    };
+    push(url.to_string());
+    if let Some(rest) = url.strip_prefix("https://piston-meta.mojang.com/") {
+        push(format!("https://launchermeta.mojang.com/{rest}"));
+        push(format!("https://bmclapi2.bangbang93.com/{rest}"));
+    }
+    if let Some(rest) = url.strip_prefix("https://launchermeta.mojang.com/") {
+        push(format!("https://piston-meta.mojang.com/{rest}"));
+        push(format!("https://bmclapi2.bangbang93.com/{rest}"));
+    }
+    if let Some(rest) = url.strip_prefix("https://piston-data.mojang.com/") {
+        push(format!("https://launcher.mojang.com/{rest}"));
+        push(format!("https://bmclapi2.bangbang93.com/{rest}"));
+    }
+    if let Some(rest) = url.strip_prefix("https://resources.download.minecraft.net/") {
+        push(format!("https://bmclapi2.bangbang93.com/assets/{rest}"));
+    }
+    if let Some(rest) = url.strip_prefix("https://libraries.minecraft.net/") {
+        push(format!("https://bmclapi2.bangbang93.com/maven/{rest}"));
+    }
+    out
+}
+
+async fn get_bytes(client: &reqwest::Client, url: &str) -> AppResult<Vec<u8>> {
+    let u = url.to_string();
+    with_retries_n(
+        || async {
+            let resp = client.get(&u).send().await?.error_for_status()?;
+            Ok(resp.bytes().await?.to_vec())
+        },
+        2,
+    )
+    .await
 }
 
 /// Descarga un archivo de forma atomica y verificada. Devuelve bytes escritos
@@ -145,14 +195,20 @@ pub async fn download_one(client: &reqwest::Client, item: &DownloadItem) -> AppR
         std::fs::create_dir_all(parent)?;
     }
 
-    let url = item.url.clone();
     let dest = item.dest.clone();
     let sha1 = item.sha1.clone();
-    let bytes = with_retries(|| async {
-        let resp = client.get(&url).send().await?.error_for_status()?;
-        Ok(resp.bytes().await?.to_vec())
-    })
-    .await?;
+    let mut last_err = None;
+    let mut bytes = None;
+    for url in mirror_urls(&item.url) {
+        match get_bytes(client, &url).await {
+            Ok(b) => {
+                bytes = Some(b);
+                break;
+            }
+            Err(e) => last_err = Some(e),
+        }
+    }
+    let bytes = bytes.ok_or_else(|| last_err.unwrap_or_else(|| AppError::msg("Error de red")))?;
 
     if let Some(expected) = &sha1 {
         let got = sha1_hex(&bytes);
@@ -341,9 +397,10 @@ pub async fn download_all(
 /// Comprueba si hay internet con un GET corto (sin reintentos largos).
 /// Usar antes de instalar assets para poder lanzar 100% local si ya está descargado.
 pub async fn is_online(client: &reqwest::Client) -> bool {
-    const URLS: [&str; 2] = [
+    const URLS: [&str; 3] = [
         "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json",
         "https://launchermeta.mojang.com/mc/game/version_manifest.json",
+        "https://bmclapi2.bangbang93.com/mc/game/version_manifest_v2.json",
     ];
     for url in URLS {
         let fut = client.get(url).send();
@@ -357,30 +414,28 @@ pub async fn is_online(client: &reqwest::Client) -> bool {
     false
 }
 
-/// Descarga un recurso a memoria (JSON/metadata). No toca disco.
+/// Descarga un recurso a memoria (JSON/metadata). Prueba espejos de Mojang.
 pub async fn fetch_bytes(client: &reqwest::Client, url: &str) -> AppResult<Vec<u8>> {
-    let u = url.to_string();
-    with_retries(|| async {
-        let resp = client.get(&u).send().await?.error_for_status()?;
-        Ok(resp.bytes().await?.to_vec())
-    })
-    .await
+    let mut last = None;
+    for candidate in mirror_urls(url) {
+        match get_bytes(client, &candidate).await {
+            Ok(b) => return Ok(b),
+            Err(e) => last = Some(e),
+        }
+    }
+    Err(last.unwrap_or_else(|| AppError::msg("Error de red")))
 }
 
 pub async fn fetch_json<T: serde::de::DeserializeOwned>(
     client: &reqwest::Client,
     url: &str,
 ) -> AppResult<T> {
-    let u = url.to_string();
-    with_retries(|| async {
-        let resp = client.get(&u).send().await?.error_for_status()?;
-        let mut text = resp.text().await?;
-        if text.starts_with('\u{FEFF}') {
-            text = text.trim_start_matches('\u{FEFF}').to_string();
-        }
-        Ok(serde_json::from_str(&text)?)
-    })
-    .await
+    let bytes = fetch_bytes(client, url).await?;
+    let mut text = String::from_utf8_lossy(&bytes).into_owned();
+    if text.starts_with('\u{FEFF}') {
+        text = text.trim_start_matches('\u{FEFF}').to_string();
+    }
+    Ok(serde_json::from_str(&text)?)
 }
 
 /// Percent-encoding minimo para querystrings (facets de Modrinth, etc.).
@@ -393,4 +448,25 @@ pub fn url_encode(s: &str) -> String {
         }
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mirrors_piston_meta_asset_index() {
+        let url = "https://piston-meta.mojang.com/v1/packages/412b37fe5b672961951430718c89127656b47ed5/29.json";
+        let mirrors = mirror_urls(url);
+        assert_eq!(mirrors[0], url);
+        assert!(mirrors.iter().any(|u| u.contains("launchermeta.mojang.com")));
+        assert!(mirrors.iter().any(|u| u.contains("bmclapi2.bangbang93.com")));
+    }
+
+    #[test]
+    fn mirrors_leave_unrelated_urls() {
+        let url = "https://cdn.modrinth.com/data/foo.jar";
+        let mirrors = mirror_urls(url);
+        assert_eq!(mirrors, vec![url.to_string()]);
+    }
 }

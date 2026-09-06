@@ -40,15 +40,24 @@ impl AppError {
                 e.is_connect()
                     || e.is_timeout()
                     || e.is_request()
-                    || (e.status().is_none() && (e.is_body() || e.is_decode()))
+                    || e.status().is_none()
+                    || {
+                        let low = e.to_string().to_ascii_lowercase();
+                        low.contains("error sending request")
+                            || low.contains("error trying to connect")
+                            || low.contains("dns error")
+                            || low.contains("timed out")
+                    }
             }
             AppError::Msg(s) => {
                 let low = s.to_ascii_lowercase();
                 low.contains("error trying to connect")
+                    || low.contains("error sending request")
                     || low.contains("dns error")
                     || low.contains("network is unreachable")
                     || low.contains("sin conex")
                     || low.contains("offline")
+                    || low.contains("timed out")
             }
             _ => false,
         }

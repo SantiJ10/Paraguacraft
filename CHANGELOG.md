@@ -3,6 +3,12 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [1.1.40] - 2026-09-06
+
+### Launcher
+- **piston-meta / assets**: si Mojang no responde (`29.json`, etc.), usa `launchermeta` y BMCLAPI. El índice de assets se lee del disco si ya está.
+- **Jugar con instancia instalada**: no vuelve a bajar vanilla en cada launch. Optimized, Fabric, Forge, PvP y vanilla ya descargados arrancan sin esa URL.
+
 ## [1.1.39] - 2026-09-05
 
 ### Launcher

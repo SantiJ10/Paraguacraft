@@ -51,10 +51,20 @@ pub async fn fetch_manifest(client: &reqwest::Client) -> AppResult<Value> {
             }
         }
     }
-    let bytes = net::fetch_bytes(client, MANIFEST_URL).await?;
-    let v: Value = serde_json::from_slice(&bytes)?;
-    let _ = std::fs::write(&cache, &bytes);
-    Ok(v)
+    let bytes = net::fetch_bytes(client, MANIFEST_URL).await;
+    match bytes {
+        Ok(bytes) => {
+            let v: Value = serde_json::from_slice(&bytes)?;
+            let _ = std::fs::write(&cache, &bytes);
+            Ok(v)
+        }
+        Err(e) => {
+            if let Some(v) = crate::config::read_json::<Value>(&cache) {
+                return Ok(v);
+            }
+            Err(e)
+        }
+    }
 }
 
 fn version_json_path(id: &str) -> PathBuf {
@@ -392,10 +402,10 @@ async fn collect_asset_items(
         return Ok(Vec::new());
     };
     let index_path = assets_root.join("indexes").join(format!("{asset_id}.json"));
-    let bytes = match net::fetch_bytes(client, url).await {
-        Ok(b) => b,
-        Err(e) if e.is_connectivity() && index_path.is_file() => std::fs::read(&index_path)?,
-        Err(e) => return Err(e),
+    let bytes = if index_path.is_file() {
+        std::fs::read(&index_path)?
+    } else {
+        net::fetch_bytes(client, url).await?
     };
     if let Some(parent) = index_path.parent() {
         std::fs::create_dir_all(parent)?;
@@ -421,6 +431,28 @@ async fn collect_asset_items(
 
 fn client_jar_path(id: &str) -> PathBuf {
     paths::default_minecraft_dir().join("versions").join(id).join(format!("{id}.jar"))
+}
+
+/// Vanilla ya está en disco (jar + JSON + índice de assets): no hace falta
+/// pegarle a piston-meta en cada Jugar.
+pub fn vanilla_locally_complete(id: &str) -> bool {
+    if !client_jar_path(id).is_file() || !version_json_path(id).is_file() {
+        return false;
+    }
+    let Some(v) = read_local_json(id) else {
+        return false;
+    };
+    if version_json_needs_refresh(&v) {
+        return false;
+    }
+    match v["assetIndex"]["id"].as_str() {
+        Some(asset_id) if !asset_id.is_empty() => paths::default_minecraft_dir()
+            .join("assets")
+            .join("indexes")
+            .join(format!("{asset_id}.json"))
+            .is_file(),
+        _ => true,
+    }
 }
 
 /// Instala una version vanilla completa (idempotente; reusa lo ya descargado).

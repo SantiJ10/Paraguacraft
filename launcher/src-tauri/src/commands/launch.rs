@@ -101,8 +101,9 @@ async fn resolve_launch_id(
 ) -> AppResult<String> {
     let loader = loaders::normalize(loader);
     if !offline {
-        // Siempre asegurar vanilla base (idempotente; corrige libraries/ incompletas).
-        versions::install_vanilla(app, http, mc).await?;
+        if !versions::vanilla_locally_complete(mc) {
+            versions::install_vanilla(app, http, mc).await?;
+        }
     }
     if let Some(v) = meta.version_id.clone() {
         let profile_ok = local_profile_ready(&v) && loaders::version_id_matches_loader(&loader, &v, mc);

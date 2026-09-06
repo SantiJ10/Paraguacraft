@@ -448,11 +448,15 @@ pub async fn install_loader(
 ) -> AppResult<String> {
     let kind = normalize(loader);
     if kind == "vanilla" {
-        crate::core::versions::install_vanilla(app, client, mc).await?;
+        if !crate::core::versions::vanilla_locally_complete(mc) {
+            crate::core::versions::install_vanilla(app, client, mc).await?;
+        }
         return Ok(mc.to_string());
     }
     // Base vanilla siempre necesaria (inheritsFrom / merge).
-    crate::core::versions::install_vanilla(app, client, mc).await?;
+    if !crate::core::versions::vanilla_locally_complete(mc) {
+        crate::core::versions::install_vanilla(app, client, mc).await?;
+    }
 
     let loader_version = resolve_loader_version(client, mc, loader, loader_version).await?;
 

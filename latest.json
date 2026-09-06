@@ -1,12 +1,12 @@
 {
-  "version": "1.1.39",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.39/Instalar_Paraguacraft_v1.1.39.exe",
-  "size_bytes": 5739465,
-  "sha256": "7c13441efad5b64c97b89db325ba21a17f55c9ec82d62f0255d90ba9928bf72e",
-  "notes": "- PvP: borderless solo desde el Mod Menu; no se fuerza HWND ni fullscreen:false\n- Otras instancias: borderless OS opcional, no pisa exclusivo ni Alt-Tab\n- Cursor lock solo cuando aplica el borderless del launcher",
+  "version": "1.1.40",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.40/Instalar_Paraguacraft_v1.1.40.exe",
+  "size_bytes": 5737429,
+  "sha256": "b1dcb84f1d28a393efc7699669da532dbddb1ad9ae29806dd5611164f54548e5",
+  "notes": "- Si Mojang no responde (piston-meta / 29.json), usa launchermeta y BMCLAPI\n- Instancias ya instaladas (Optimized, Fabric, Forge, PvP, vanilla) arrancan sin re-bajar vanilla",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.39/Instalar_Paraguacraft_v1.1.39.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.40/Instalar_Paraguacraft_v1.1.40.exe",
       "signature": ""
     }
   }
