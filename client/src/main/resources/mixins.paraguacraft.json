@@ -10,6 +10,8 @@
     "MixinItemRenderer",
     "MixinRendererLivingEntity",
     "MixinRenderEntityItem",
+    "MixinGuiNewChat",
+    "MixinGuiPlayerTabOverlay",
     "performance.MixinRenderManager",
     "performance.MixinEffectRenderer",
     "performance.MixinMinecraft",
@@ -34,6 +36,7 @@
     "client.MixinRenderPlayerCleanup",
     "client.MixinEntityPlayerSPQoL",
     "client.MixinGuiInventoryOverlay",
+    "client.MixinGuiContainerScale",
     "client.MixinGuiContainerPlayerTag"
   ],
   "injectors": {

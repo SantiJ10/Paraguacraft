@@ -5,9 +5,14 @@ paraguacraft.menu.empty=No mods in this category
 paraguacraft.menu.open=OPEN
 paraguacraft.menu.on=ON
 paraguacraft.menu.off=OFF
-paraguacraft.menu.hint=Right Shift - Mod Menu  |  Right Ctrl - Edit HUD  |  Textures - Resource Packs
+paraguacraft.menu.hint=Right Ctrl still edits HUD
 paraguacraft.menu.particles.prefix=Particles: %s
 paraguacraft.menu.hw.prefix=HW: %s
+paraguacraft.menu.tab.mods=Mods
+paraguacraft.menu.tab.settings=Settings
+paraguacraft.menu.tab.packs=Packs
+paraguacraft.menu.edit_hud=Edit HUD
+paraguacraft.menu.for_mode=For this mode
 
 paraguacraft.menu.cat.all=All
 paraguacraft.menu.cat.hud=HUD
@@ -81,6 +86,22 @@ paraguacraft.menu.mod.reach_display=Reach Display
 paraguacraft.menu.mod.combo_counter=Combo Counter
 paraguacraft.menu.mod.item_physics=Item Physics
 paraguacraft.menu.mod.hide_titles=Titles to Chat
+paraguacraft.menu.mod.chat=Chat
+paraguacraft.menu.mod.tab_editor=Tab Editor
+paraguacraft.menu.mod.hit_color=Hit Color
+paraguacraft.menu.mod.pack_hud=Pack Display
+paraguacraft.menu.mod.gui_scale=GUI Scale
+paraguacraft.menu.mod.height_limit=Height limit
+paraguacraft.menu.mod.crosshair=Crosshair
+paraguacraft.menu.mod.auto_profiles=Auto mode profiles
+paraguacraft.menu.mod.profile=Mode profile
+
+paraguacraft.scoreboard.title=Scoreboard Options
+paraguacraft.scoreboard.transparent=Transparent background
+paraguacraft.scoreboard.hide_red=Hide red numbers
+paraguacraft.scoreboard.hide_stats=Hide stats (Hypixel BW)
+paraguacraft.scoreboard.shadow=Text shadow
+paraguacraft.scoreboard.scale=Scale
 
 paraguacraft.quickplay.title=QUICK PLAY
 paraguacraft.quickplay.hypixel=Hypixel only — click to join
@@ -104,6 +125,8 @@ paraguacraft.scoreboard.title=Scoreboard Options
 paraguacraft.scoreboard.transparent=Transparent background
 paraguacraft.scoreboard.hide_red=Hide red numbers
 paraguacraft.scoreboard.hide_stats=Hide stats (Hypixel BW)
+paraguacraft.scoreboard.shadow=Text shadow
+paraguacraft.scoreboard.scale=Scale
 
 paraguacraft.bw_resources.title=BW Resources Options
 paraguacraft.bw_resources.transparent=Transparent background

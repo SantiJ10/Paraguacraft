@@ -88,14 +88,47 @@ public class ModConfig {
     /** Tamaño de la carátula del album: 16 o 32. */
     public static int musicArtSize = 32;
     public static boolean showTntCountdown = true;
+    /** 0 = auto (fuse del entity). 80 vanilla, 52 practice Minemen, etc. */
+    public static int tntFuseOverride = 0;
+    public static boolean tntPingCompensate = true;
+    public static boolean showArmorDurability = true;
+    public static boolean hitColorEnabled = true;
+    public static int hitColorPreset = 0;
+    public static boolean chatUnlimited = true;
+    public static boolean chatTextShadow = true;
+    public static boolean chatHighlightName = true;
+    public static boolean chatSmooth = false;
+    public static boolean tabEditor = true;
+    public static boolean tabPingNumbers = true;
+    public static boolean tabHideNpcs = true;
+    public static boolean tabHideHighPing = false;
+    public static boolean showPackHud = false;
+    public static int packHudX = 5;
+    public static int packHudY = 200;
+    public static int scalePack = 100;
+    public static int hotbarScale = 100;
+    public static int inventoryScale = 100;
+    public static int scoreboardScale = 100;
+    public static boolean scoreboardTextShadow = false;
+    public static boolean reachPersist = true;
     public static boolean showBedwarsResources = true;
     public static boolean bwResTransparentBg = false;
     /** Si true: [icono] [nombre] [cantidad]. Si false: [icono] [cantidad] compacto. */
     public static boolean showItemNames = true;
     /** Contador de bloques colocables en inventario (BedWars / builds). */
     public static boolean showBlockCount = false;
-    /** Auto-activa recursos/bloques/armadura/mano/pociones al detectar BedWars en el scoreboard. */
+    /** Auto-activa HUD segun modo (BedWars, SkyWars, Duels, UHC, Lobby). */
+    public static boolean autoGameModeProfiles = true;
+    /** Alias persistido; se sincroniza con {@link #autoGameModeProfiles}. */
     public static boolean autoBedwarsHud = true;
+    /** Override manual del modo detectado; vacio = auto. */
+    public static String gameModeOverride = "";
+    public static boolean showHeightLimit = false;
+    /** 0 = auto (256 en 1.8.9). */
+    public static int heightLimitOverride = 0;
+    public static int heightX = 5;
+    public static int heightY = 90;
+    public static int scaleHeight = 100;
     public static boolean forceItem3d = true;
     public static boolean itemTracker2d = true;
     public static boolean itemTracker3d = true;
@@ -207,6 +240,141 @@ public class ModConfig {
         return Math.max(0.5f, Math.min(2.0f, uiScale / 100f));
     }
 
+    public static float hotbarScaleFactor() {
+        return Math.max(0.5f, Math.min(2.0f, hotbarScale / 100f));
+    }
+
+    public static float inventoryScaleFactor() {
+        return Math.max(0.5f, Math.min(2.0f, inventoryScale / 100f));
+    }
+
+    public static float scoreboardScaleFactor() {
+        return Math.max(0.5f, Math.min(2.0f, scoreboardScale / 100f));
+    }
+
+    public static void cycleHotbarScale() {
+        hotbarScale = nextScalePreset(hotbarScale);
+    }
+
+    public static void cycleInventoryScale() {
+        inventoryScale = nextScalePreset(inventoryScale);
+    }
+
+    public static void cycleScoreboardScale() {
+        scoreboardScale = nextScalePreset(scoreboardScale);
+    }
+
+    private static int nextScalePreset(int current) {
+        int[] presets = {75, 100, 125, 150, 200};
+        int idx = 0;
+        for (int i = 0; i < presets.length; i++) {
+            if (current == presets[i]) {
+                idx = i;
+                break;
+            }
+        }
+        return presets[(idx + 1) % presets.length];
+    }
+
+    public static void cycleTntFuse() {
+        int[] opts = {0, 80, 60, 52, 40};
+        int idx = 0;
+        for (int i = 0; i < opts.length; i++) {
+            if (tntFuseOverride == opts[i]) {
+                idx = i;
+                break;
+            }
+        }
+        tntFuseOverride = opts[(idx + 1) % opts.length];
+    }
+
+    public static String tntFuseLabel() {
+        if (tntFuseOverride <= 0) {
+            return "Auto";
+        }
+        return tntFuseOverride + " ticks";
+    }
+
+    public static void cycleCrosshairMode() {
+        crosshairMode = (crosshairMode + 1) % 5;
+    }
+
+    public static String crosshairModeLabel() {
+        switch (crosshairMode) {
+            case 1: return "Cruz Cian";
+            case 2: return "Sniper";
+            case 3: return "Punto";
+            case 4: return "Tightfault";
+            default: return "Vanilla";
+        }
+    }
+
+    public static void cycleHeightLimit() {
+        int[] opts = {0, 256, 320};
+        int idx = 0;
+        for (int i = 0; i < opts.length; i++) {
+            if (heightLimitOverride == opts[i]) {
+                idx = i;
+                break;
+            }
+        }
+        heightLimitOverride = opts[(idx + 1) % opts.length];
+    }
+
+    public static String heightLimitLabel() {
+        if (heightLimitOverride <= 0) {
+            return "Auto";
+        }
+        return String.valueOf(heightLimitOverride);
+    }
+
+    public static int resolvedHeightLimit() {
+        if (heightLimitOverride > 0) {
+            return heightLimitOverride;
+        }
+        return 256;
+    }
+
+    public static void cycleHitColor() {
+        hitColorPreset = (hitColorPreset + 1) % 4;
+    }
+
+    public static String hitColorLabel() {
+        switch (hitColorPreset) {
+            case 1: return "Rojo";
+            case 2: return "Blanco";
+            case 3: return "Magenta";
+            default: return "Cian";
+        }
+    }
+
+    public static float hitColorR() {
+        switch (hitColorPreset) {
+            case 1: return 1.0F;
+            case 2: return 1.0F;
+            case 3: return 1.0F;
+            default: return 0.0F;
+        }
+    }
+
+    public static float hitColorG() {
+        switch (hitColorPreset) {
+            case 1: return 0.2F;
+            case 2: return 1.0F;
+            case 3: return 0.2F;
+            default: return 0.898F;
+        }
+    }
+
+    public static float hitColorB() {
+        switch (hitColorPreset) {
+            case 1: return 0.2F;
+            case 2: return 1.0F;
+            case 3: return 0.8F;
+            default: return 1.0F;
+        }
+    }
+
     public static void save() {
         try {
             File file = new File(Minecraft.getMinecraft().mcDataDir, "paraguacraft_v2.properties");
@@ -291,11 +459,39 @@ public class ModConfig {
             props.setProperty("scaleCombo", String.valueOf(scaleCombo));
             props.setProperty("scaleBlocks", String.valueOf(scaleBlocks));
             props.setProperty("showTntCountdown", String.valueOf(showTntCountdown));
+            props.setProperty("tntFuseOverride", String.valueOf(tntFuseOverride));
+            props.setProperty("tntPingCompensate", String.valueOf(tntPingCompensate));
+            props.setProperty("showArmorDurability", String.valueOf(showArmorDurability));
+            props.setProperty("hitColorEnabled", String.valueOf(hitColorEnabled));
+            props.setProperty("hitColorPreset", String.valueOf(hitColorPreset));
+            props.setProperty("chatUnlimited", String.valueOf(chatUnlimited));
+            props.setProperty("chatTextShadow", String.valueOf(chatTextShadow));
+            props.setProperty("chatHighlightName", String.valueOf(chatHighlightName));
+            props.setProperty("tabEditor", String.valueOf(tabEditor));
+            props.setProperty("tabPingNumbers", String.valueOf(tabPingNumbers));
+            props.setProperty("tabHideNpcs", String.valueOf(tabHideNpcs));
+            props.setProperty("tabHideHighPing", String.valueOf(tabHideHighPing));
+            props.setProperty("showPackHud", String.valueOf(showPackHud));
+            props.setProperty("packHudX", String.valueOf(packHudX));
+            props.setProperty("packHudY", String.valueOf(packHudY));
+            props.setProperty("scalePack", String.valueOf(scalePack));
+            props.setProperty("hotbarScale", String.valueOf(hotbarScale));
+            props.setProperty("inventoryScale", String.valueOf(inventoryScale));
+            props.setProperty("scoreboardScale", String.valueOf(scoreboardScale));
+            props.setProperty("scoreboardTextShadow", String.valueOf(scoreboardTextShadow));
+            props.setProperty("reachPersist", String.valueOf(reachPersist));
             props.setProperty("showBedwarsResources", String.valueOf(showBedwarsResources));
             props.setProperty("bwResTransparentBg", String.valueOf(bwResTransparentBg));
             props.setProperty("showItemNames", String.valueOf(showItemNames));
             props.setProperty("showBlockCount", String.valueOf(showBlockCount));
-            props.setProperty("autoBedwarsHud", String.valueOf(autoBedwarsHud));
+            props.setProperty("autoBedwarsHud", String.valueOf(autoGameModeProfiles));
+            props.setProperty("autoGameModeProfiles", String.valueOf(autoGameModeProfiles));
+            props.setProperty("gameModeOverride", gameModeOverride == null ? "" : gameModeOverride);
+            props.setProperty("showHeightLimit", String.valueOf(showHeightLimit));
+            props.setProperty("heightLimitOverride", String.valueOf(heightLimitOverride));
+            props.setProperty("heightX", String.valueOf(heightX));
+            props.setProperty("heightY", String.valueOf(heightY));
+            props.setProperty("scaleHeight", String.valueOf(scaleHeight));
             props.setProperty("forceItem3d", String.valueOf(forceItem3d));
             props.setProperty("itemTracker2d", String.valueOf(itemTracker2d));
             props.setProperty("itemTracker3d", String.valueOf(itemTracker3d));
@@ -463,11 +659,47 @@ public class ModConfig {
             scaleCombo = clampScale(props, "scaleCombo", scaleCombo);
             scaleBlocks = clampScale(props, "scaleBlocks", scaleBlocks);
             showTntCountdown = Boolean.parseBoolean(props.getProperty("showTntCountdown", String.valueOf(showTntCountdown)));
+            tntFuseOverride = Integer.parseInt(props.getProperty("tntFuseOverride", String.valueOf(tntFuseOverride)));
+            tntPingCompensate = Boolean.parseBoolean(props.getProperty("tntPingCompensate", String.valueOf(tntPingCompensate)));
+            showArmorDurability = Boolean.parseBoolean(props.getProperty("showArmorDurability", String.valueOf(showArmorDurability)));
+            hitColorEnabled = Boolean.parseBoolean(props.getProperty("hitColorEnabled", String.valueOf(hitColorEnabled)));
+            hitColorPreset = Integer.parseInt(props.getProperty("hitColorPreset", String.valueOf(hitColorPreset)));
+            chatUnlimited = Boolean.parseBoolean(props.getProperty("chatUnlimited", String.valueOf(chatUnlimited)));
+            chatTextShadow = Boolean.parseBoolean(props.getProperty("chatTextShadow", String.valueOf(chatTextShadow)));
+            chatHighlightName = Boolean.parseBoolean(props.getProperty("chatHighlightName", String.valueOf(chatHighlightName)));
+            tabEditor = Boolean.parseBoolean(props.getProperty("tabEditor", String.valueOf(tabEditor)));
+            tabPingNumbers = Boolean.parseBoolean(props.getProperty("tabPingNumbers", String.valueOf(tabPingNumbers)));
+            tabHideNpcs = Boolean.parseBoolean(props.getProperty("tabHideNpcs", String.valueOf(tabHideNpcs)));
+            tabHideHighPing = Boolean.parseBoolean(props.getProperty("tabHideHighPing", String.valueOf(tabHideHighPing)));
+            showPackHud = Boolean.parseBoolean(props.getProperty("showPackHud", String.valueOf(showPackHud)));
+            packHudX = Integer.parseInt(props.getProperty("packHudX", String.valueOf(packHudX)));
+            packHudY = Integer.parseInt(props.getProperty("packHudY", String.valueOf(packHudY)));
+            scalePack = clampScale(props, "scalePack", scalePack);
+            hotbarScale = clampScale(props, "hotbarScale", hotbarScale);
+            inventoryScale = clampScale(props, "inventoryScale", inventoryScale);
+            scoreboardScale = clampScale(props, "scoreboardScale", scoreboardScale);
+            scoreboardTextShadow = Boolean.parseBoolean(props.getProperty("scoreboardTextShadow", String.valueOf(scoreboardTextShadow)));
+            reachPersist = Boolean.parseBoolean(props.getProperty("reachPersist", String.valueOf(reachPersist)));
             showBedwarsResources = Boolean.parseBoolean(props.getProperty("showBedwarsResources", String.valueOf(showBedwarsResources)));
             bwResTransparentBg = Boolean.parseBoolean(props.getProperty("bwResTransparentBg", String.valueOf(bwResTransparentBg)));
             showItemNames = Boolean.parseBoolean(props.getProperty("showItemNames", String.valueOf(showItemNames)));
             showBlockCount = Boolean.parseBoolean(props.getProperty("showBlockCount", String.valueOf(showBlockCount)));
             autoBedwarsHud = Boolean.parseBoolean(props.getProperty("autoBedwarsHud", String.valueOf(autoBedwarsHud)));
+            if (props.containsKey("autoGameModeProfiles")) {
+                autoGameModeProfiles = Boolean.parseBoolean(props.getProperty("autoGameModeProfiles", String.valueOf(autoGameModeProfiles)));
+            } else {
+                autoGameModeProfiles = autoBedwarsHud;
+            }
+            autoBedwarsHud = autoGameModeProfiles;
+            gameModeOverride = props.getProperty("gameModeOverride", gameModeOverride);
+            if (gameModeOverride == null) {
+                gameModeOverride = "";
+            }
+            showHeightLimit = Boolean.parseBoolean(props.getProperty("showHeightLimit", String.valueOf(showHeightLimit)));
+            heightLimitOverride = Integer.parseInt(props.getProperty("heightLimitOverride", String.valueOf(heightLimitOverride)));
+            heightX = Integer.parseInt(props.getProperty("heightX", String.valueOf(heightX)));
+            heightY = Integer.parseInt(props.getProperty("heightY", String.valueOf(heightY)));
+            scaleHeight = clampScale(props, "scaleHeight", scaleHeight);
             forceItem3d = Boolean.parseBoolean(props.getProperty("forceItem3d", String.valueOf(forceItem3d)));
             itemTracker2d = Boolean.parseBoolean(props.getProperty("itemTracker2d", String.valueOf(itemTracker2d)));
             itemTracker3d = Boolean.parseBoolean(props.getProperty("itemTracker3d", String.valueOf(itemTracker3d)));

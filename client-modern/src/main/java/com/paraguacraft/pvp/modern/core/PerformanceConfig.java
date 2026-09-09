@@ -29,6 +29,8 @@ public final class PerformanceConfig {
     public static boolean applyVanillaPreset = true;
     public static boolean memoryCleanupOnWorldChange = true;
     public static boolean skipCombatFx = true;
+    public static boolean hideExplosionParticles = false;
+    public static boolean hidePotionParticles = false;
     public static boolean reduceFpsWhenMinimized = true;
     public static int minimizedFps = 5;
 

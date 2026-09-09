@@ -20,6 +20,8 @@ public final class GameModeProfileManager {
     private static boolean comboSaved;
     private static boolean compassSaved;
     private static boolean bwNamesSaved;
+    private static boolean heightSaved;
+    private static boolean opponentPingSaved;
 
     private GameModeProfileManager() {}
 
@@ -48,6 +50,8 @@ public final class GameModeProfileManager {
                 ModernConfig.showCoords = false;
                 ModernConfig.comboCounter = true;
                 ModernConfig.showCompass = true;
+                ModernConfig.showHeightLimit = true;
+                ModernConfig.showTntCountdown = true;
             }
             case SKYWARS, LUCKY_ISLANDS -> {
                 ModernConfig.showBedwarsResources = false;
@@ -59,9 +63,9 @@ public final class GameModeProfileManager {
                 ModernConfig.showCoords = false;
                 ModernConfig.comboCounter = true;
                 ModernConfig.showCompass = true;
+                ModernConfig.showHeightLimit = false;
             }
             case DUELS -> {
-                // HUD mínimo, enfocado a pelea.
                 ModernConfig.showBedwarsResources = false;
                 ModernConfig.showBlockCount = false;
                 ModernConfig.showBridgeTimer = false;
@@ -71,6 +75,21 @@ public final class GameModeProfileManager {
                 ModernConfig.showCoords = false;
                 ModernConfig.comboCounter = true;
                 ModernConfig.showCompass = false;
+                ModernConfig.showHeightLimit = false;
+                ModernConfig.showOpponentPing = true;
+                ModernConfig.reachDisplay = true;
+            }
+            case UHC -> {
+                ModernConfig.showBedwarsResources = false;
+                ModernConfig.showBlockCount = false;
+                ModernConfig.showBridgeTimer = false;
+                ModernConfig.showArmor = true;
+                ModernConfig.showHeldItem = true;
+                ModernConfig.showPotions = true;
+                ModernConfig.showCoords = true;
+                ModernConfig.comboCounter = true;
+                ModernConfig.showCompass = true;
+                ModernConfig.showHeightLimit = false;
             }
             case PVP, HUNGER_GAMES -> {
                 ModernConfig.showBedwarsResources = false;
@@ -82,6 +101,7 @@ public final class GameModeProfileManager {
                 ModernConfig.showCoords = coordsSaved;
                 ModernConfig.comboCounter = true;
                 ModernConfig.showCompass = compassSaved;
+                ModernConfig.showHeightLimit = false;
             }
             case BUILD_BATTLE, TNT_RUN -> {
                 ModernConfig.showBedwarsResources = false;
@@ -93,6 +113,7 @@ public final class GameModeProfileManager {
                 ModernConfig.showCoords = true;
                 ModernConfig.comboCounter = false;
                 ModernConfig.showCompass = true;
+                ModernConfig.showHeightLimit = false;
             }
             case LOBBY, OTHER -> restoreLobbyDefaults();
             default -> {}
@@ -110,6 +131,8 @@ public final class GameModeProfileManager {
         ModernConfig.comboCounter = comboSaved;
         ModernConfig.showCompass = compassSaved;
         ModernConfig.showItemNames = bwNamesSaved;
+        ModernConfig.showHeightLimit = heightSaved;
+        ModernConfig.showOpponentPing = opponentPingSaved;
     }
 
     /** Guarda defaults del usuario al entrar al primer mundo. */
@@ -124,6 +147,8 @@ public final class GameModeProfileManager {
         comboSaved = ModernConfig.comboCounter;
         compassSaved = ModernConfig.showCompass;
         bwNamesSaved = ModernConfig.showItemNames;
+        heightSaved = ModernConfig.showHeightLimit;
+        opponentPingSaved = ModernConfig.showOpponentPing;
     }
 
     public static void reset() {

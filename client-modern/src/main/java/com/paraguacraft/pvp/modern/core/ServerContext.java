@@ -140,4 +140,12 @@ public final class ServerContext {
             }
         };
     }
+
+    public static String chip(MinecraftClient client) {
+        String server = serverLabel(client);
+        if (client == null || (client.world == null && client.getCurrentServerEntry() == null && !client.isIntegratedServerRunning())) {
+            server = "Desconectado";
+        }
+        return server + " · " + GameModeDetector.currentLabel();
+    }
 }

@@ -149,6 +149,12 @@ public class GuiEditHudScreen extends Screen {
         if (ModernConfig.showWaypoints) {
             drawBox(ctx, 20, ModernConfig.waypointsX, ModernConfig.waypointsY, 140, com.paraguacraft.pvp.modern.core.WaypointManager.hudHeight());
         }
+        if (ModernConfig.showPackHud) {
+            drawBox(ctx, 21, ModernConfig.packHudX, ModernConfig.packHudY, 140, 10);
+        }
+        if (ModernConfig.showHeightLimit) {
+            drawBox(ctx, 22, ModernConfig.heightX, ModernConfig.heightY, 110, 10);
+        }
 
         matrices.popMatrix();
         super.render(ctx, mouseX, mouseY, delta);
@@ -223,7 +229,7 @@ public class GuiEditHudScreen extends Screen {
             return true;
         }
 
-        for (int id = 20; id >= 0; id--) {
+        for (int id = 21; id >= 0; id--) {
             if (!isVisible(id)) {
                 continue;
             }
@@ -290,7 +296,7 @@ public class GuiEditHudScreen extends Screen {
     }
 
     private int hitHandle(int mx, int my) {
-        for (int id = 0; id <= 20; id++) {
+        for (int id = 0; id <= 21; id++) {
             if (!isVisible(id)) {
                 continue;
             }
@@ -336,6 +342,8 @@ public class GuiEditHudScreen extends Screen {
             case 18 -> ModernConfig.showServerHud;
             case 19 -> ModernConfig.itemTracker2d;
             case 20 -> ModernConfig.showWaypoints;
+            case 21 -> ModernConfig.showPackHud;
+            case 22 -> ModernConfig.showHeightLimit;
             default -> false;
         };
     }
@@ -379,6 +387,8 @@ public class GuiEditHudScreen extends Screen {
             case 18 -> new int[] {ModernConfig.serverHudX, ModernConfig.serverHudY, 120, 10};
             case 19 -> new int[] {ModernConfig.itemsX, ModernConfig.itemsY, com.paraguacraft.pvp.modern.core.ItemTracker.hudWidth(), com.paraguacraft.pvp.modern.core.ItemTracker.hudHeight()};
             case 20 -> new int[] {ModernConfig.waypointsX, ModernConfig.waypointsY, 140, com.paraguacraft.pvp.modern.core.WaypointManager.hudHeight()};
+            case 21 -> new int[] {ModernConfig.packHudX, ModernConfig.packHudY, 140, 10};
+            case 22 -> new int[] {ModernConfig.heightX, ModernConfig.heightY, 110, 10};
             default -> new int[] {0, 0, 10, 10};
         };
     }
@@ -406,6 +416,8 @@ public class GuiEditHudScreen extends Screen {
             case 18 -> { ModernConfig.serverHudX = x; ModernConfig.serverHudY = y; }
             case 19 -> { ModernConfig.itemsX = x; ModernConfig.itemsY = y; }
             case 20 -> { ModernConfig.waypointsX = x; ModernConfig.waypointsY = y; }
+            case 21 -> { ModernConfig.packHudX = x; ModernConfig.packHudY = y; }
+            case 22 -> { ModernConfig.heightX = x; ModernConfig.heightY = y; }
             default -> {}
         }
     }

@@ -165,7 +165,7 @@ public final class HudRenderer {
             ModernConfig.musicHudX = ox; ModernConfig.musicHudY = oy;
             HudModuleScale.end(context);
         }
-        if (ServerContext.reachDisplayAllowed(client) && CombatStats.lastReach > 0.0) {
+        if (ServerContext.reachDisplayAllowed(client) && CombatStats.hasReach()) {
             HudModuleScale.begin(context, ModernConfig.reachDisplayX, ModernConfig.reachDisplayY, ModernConfig.scaleReach);
             drawLabeled(client.textRenderer, context, "Reach: ", String.format("%.2f", CombatStats.lastReach), 0, 0, 0xFF00E5FF);
             HudModuleScale.end(context);
@@ -230,8 +230,31 @@ public final class HudRenderer {
             com.paraguacraft.pvp.modern.core.WaypointManager.drawHud(context, client.textRenderer);
             HudModuleScale.end(context);
         }
+        if (ModernConfig.showPackHud) {
+            HudModuleScale.begin(context, ModernConfig.packHudX, ModernConfig.packHudY, ModernConfig.scalePack);
+            drawLabeled(client.textRenderer, context, "Pack: ", currentPackName(client), 0, 0, 0xFFFFFFFF);
+            HudModuleScale.end(context);
+        }
+        if (ModernConfig.showHeightLimit && client.player != null) {
+            HudModuleScale.begin(context, ModernConfig.heightX, ModernConfig.heightY, ModernConfig.scaleHeight);
+            int y = (int) Math.floor(client.player.getY());
+            int limit = ModernConfig.resolvedHeightLimit(client.world);
+            int remain = limit - y;
+            int color = remain < 5 ? 0xFFFF5555 : (remain < 12 ? 0xFFFFFF55 : 0xFF55FF55);
+            drawLabeled(client.textRenderer, context, "Altura ", y + " / " + limit, 0, 0, color);
+            HudModuleScale.end(context);
+        }
         } finally {
             matrices.popMatrix();
+        }
+        if (ModernConfig.showSaturation && client.player != null && client.interactionManager != null
+            && client.interactionManager.getCurrentGameMode().isSurvivalLike()) {
+            float sat = client.player.getHungerManager().getSaturationLevel();
+            int sw = client.getWindow().getScaledWidth();
+            int sh = client.getWindow().getScaledHeight();
+            String satTxt = "Sat " + Math.round(sat / 20f * 100f) + "%";
+            context.drawText(client.textRenderer, Text.literal(satTxt),
+                sw / 2 + 91 - client.textRenderer.getWidth(satTxt), sh - 50, 0xFFE8C040, true);
         }
     }
 
@@ -386,6 +409,22 @@ public final class HudRenderer {
         return Math.max(12, scaledMusic(ModernConfig.musicArtSizePx()));
     }
 
+    private static String currentPackName(MinecraftClient client) {
+        String name = "Vanilla";
+        try {
+            var manager = client.getResourcePackManager();
+            for (var profile : manager.getEnabledProfiles()) {
+                String id = profile.getId();
+                if (id == null || id.equals("vanilla") || id.equals("fabric") || id.contains("paraguacraft")) {
+                    continue;
+                }
+                name = profile.getDisplayName().getString();
+            }
+        } catch (Exception ignored) {
+        }
+        return name;
+    }
+
     private static void drawLabeled(TextRenderer tr, DrawContext ctx, String label, String value, int x, int y) {
         drawLabeled(tr, ctx, label, value, x, y, 0xFFFFFFFF);
     }
@@ -478,10 +517,20 @@ public final class HudRenderer {
             if (ModernConfig.showArmorPercentage && stack.isDamageable()) {
                 int max = stack.getMaxDamage();
                 int dmg = stack.getDamage();
-                int percent = max > 0 ? (int) (((max - dmg) * 100.0F) / max) : 100;
-                String text = percent + "%";
+                int remaining = max - dmg;
+                int percent = max > 0 ? (int) ((remaining * 100.0F) / max) : 100;
                 int color = percent < 25 ? 0xFFFF5555 : (percent < 50 ? 0xFFFFCC55 : 0xFF55FF55);
+                String text;
+                if (ModernConfig.showArmorDurability) {
+                    text = remaining + " " + percent + "%";
+                } else {
+                    text = percent + "%";
+                }
                 ctx.drawText(tr, Text.literal(text), x + 22 - tr.getWidth(text), y + 4, color, true);
+            } else if (ModernConfig.showArmorDurability && stack.isDamageable()) {
+                int remaining = stack.getMaxDamage() - stack.getDamage();
+                String text = String.valueOf(remaining);
+                ctx.drawText(tr, Text.literal(text), x + 22 - tr.getWidth(text), y + 4, 0xFFFFFFFF, true);
             }
             yOffset += 16;
         }

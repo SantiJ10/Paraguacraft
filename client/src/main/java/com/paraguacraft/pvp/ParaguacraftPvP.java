@@ -17,7 +17,8 @@ import com.paraguacraft.pvp.core.DiscordPresenceHandler;
 import com.paraguacraft.pvp.core.HardwarePreset;
 import com.paraguacraft.pvp.core.HytilsDefaults;
 import com.paraguacraft.pvp.core.QuickPlayState;
-import com.paraguacraft.pvp.core.BedwarsModeHelper;
+import com.paraguacraft.pvp.core.GameModeDetector;
+import com.paraguacraft.pvp.core.GameModeProfileManager;
 import com.paraguacraft.pvp.core.TrainingWorldHelper;
 import com.paraguacraft.pvp.modules.ModConfig;
 import com.paraguacraft.pvp.modules.QoLManager;
@@ -37,7 +38,7 @@ public class ParaguacraftPvP {
 
     public static final String MODID = "paraguacraftpvp";
     public static final String NAME = "Paraguacraft PvP Client";
-    public static final String VERSION = "2.1.60";
+    public static final String VERSION = "2.1.63";
 
     @Mod.Instance(MODID)
     public static ParaguacraftPvP instance;
@@ -57,6 +58,7 @@ public class ParaguacraftPvP {
     @EventHandler
     public void init(FMLInitializationEvent event) {
         ModConfig.load();
+        GameModeDetector.loadOverrideFromConfig();
         QuickPlayState.load();
         ModConfigApply.onStartup();
         HardwarePreset.applyIfEnabled();
@@ -74,7 +76,7 @@ public class ParaguacraftPvP {
         MinecraftForge.EVENT_BUS.register(new com.paraguacraft.pvp.modules.CombatStats());
         MinecraftForge.EVENT_BUS.register(new com.paraguacraft.pvp.modules.ChatTriggerManager());
         MinecraftForge.EVENT_BUS.register(new TrainingWorldHelper());
-        MinecraftForge.EVENT_BUS.register(new BedwarsModeHelper());
+        MinecraftForge.EVENT_BUS.register(new GameModeProfileManager());
         MinecraftForge.EVENT_BUS.register(new com.paraguacraft.pvp.cosmetics.WatermarkRenderer());
         MinecraftForge.EVENT_BUS.register(new com.paraguacraft.pvp.cosmetics.NametagSpecialsRenderer());
         MinecraftForge.EVENT_BUS.register(new com.paraguacraft.pvp.modules.WaypointManager());

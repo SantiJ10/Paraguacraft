@@ -89,6 +89,8 @@ public class GuiEditHUD extends GuiScreen {
         if (ModConfig.showBlockCount) drawBox(14, ModConfig.blocksX, ModConfig.blocksY, 40, 18);
         if (ModConfig.itemTracker2d) drawBox(15, ModConfig.itemsX, ModConfig.itemsY, ItemTracker.hudWidth(), ItemTracker.hudHeight());
         if (ModConfig.showWaypoints) drawBox(16, ModConfig.waypointsX, ModConfig.waypointsY, 140, WaypointManager.hudHeight());
+        if (ModConfig.showPackHud) drawBox(17, ModConfig.packHudX, ModConfig.packHudY, 140, 10);
+        if (ModConfig.showHeightLimit) drawBox(18, ModConfig.heightX, ModConfig.heightY, 110, 10);
 
         GlStateManager.popMatrix();
         super.drawScreen(mouseX, mouseY, partialTicks);
@@ -162,7 +164,7 @@ public class GuiEditHUD extends GuiScreen {
         }
 
         // Cuerpo = mover
-        for (int id = 16; id >= 0; id--) {
+        for (int id = 17; id >= 0; id--) {
             if (!isVisible(id)) {
                 continue;
             }
@@ -228,7 +230,7 @@ public class GuiEditHUD extends GuiScreen {
     }
 
     private int hitHandle(int mx, int my) {
-        for (int id = 0; id <= 16; id++) {
+        for (int id = 0; id <= 17; id++) {
             if (!isVisible(id)) {
                 continue;
             }
@@ -270,6 +272,8 @@ public class GuiEditHUD extends GuiScreen {
             case 14: return ModConfig.showBlockCount;
             case 15: return ModConfig.itemTracker2d;
             case 16: return ModConfig.showWaypoints;
+            case 17: return ModConfig.showPackHud;
+            case 18: return ModConfig.showHeightLimit;
             default: return false;
         }
     }
@@ -301,6 +305,8 @@ public class GuiEditHUD extends GuiScreen {
             case 14: return new int[] {ModConfig.blocksX, ModConfig.blocksY, 40, 18};
             case 15: return new int[] {ModConfig.itemsX, ModConfig.itemsY, ItemTracker.hudWidth(), ItemTracker.hudHeight()};
             case 16: return new int[] {ModConfig.waypointsX, ModConfig.waypointsY, 140, WaypointManager.hudHeight()};
+            case 17: return new int[] {ModConfig.packHudX, ModConfig.packHudY, 140, 10};
+            case 18: return new int[] {ModConfig.heightX, ModConfig.heightY, 110, 10};
             default: return new int[] {0, 0, 10, 10};
         }
     }
@@ -324,6 +330,8 @@ public class GuiEditHUD extends GuiScreen {
             case 14: ModConfig.blocksX = x; ModConfig.blocksY = y; break;
             case 15: ModConfig.itemsX = x; ModConfig.itemsY = y; break;
             case 16: ModConfig.waypointsX = x; ModConfig.waypointsY = y; break;
+            case 17: ModConfig.packHudX = x; ModConfig.packHudY = y; break;
+            case 18: ModConfig.heightX = x; ModConfig.heightY = y; break;
             default: break;
         }
     }

@@ -204,6 +204,21 @@ public class HUDOverlay extends Gui {
                 com.paraguacraft.pvp.modules.WaypointManager.drawHud();
                 HudModuleScale.end();
             }
+            if (ModConfig.showPackHud) {
+                HudModuleScale.begin(ModConfig.packHudX, ModConfig.packHudY, ModConfig.scalePack);
+                int ox = ModConfig.packHudX, oy = ModConfig.packHudY;
+                ModConfig.packHudX = 0;
+                ModConfig.packHudY = 0;
+                drawPackHud();
+                ModConfig.packHudX = ox;
+                ModConfig.packHudY = oy;
+                HudModuleScale.end();
+            }
+            if (ModConfig.showHeightLimit) {
+                HudModuleScale.begin(ModConfig.heightX, ModConfig.heightY, ModConfig.scaleHeight);
+                drawHeightLimit();
+                HudModuleScale.end();
+            }
             drawCombatStats();
         } finally {
             // Restauración estricta del estado GL al estado canónico que espera el
@@ -225,7 +240,7 @@ public class HUDOverlay extends Gui {
     }
 
     private void drawCombatStats() {
-        if (ModConfig.reachDisplay && CombatStats.lastReach > 0.0) {
+        if (ModConfig.reachDisplay && CombatStats.hasReach()) {
             HudModuleScale.begin(ModConfig.reachDisplayX, ModConfig.reachDisplayY, ModConfig.scaleReach);
             HudDraw.labeled("Reach: ", String.format("%.2f", CombatStats.lastReach), 0, 0);
             HudModuleScale.end();
@@ -590,10 +605,19 @@ public class HUDOverlay extends Gui {
                 if (ModConfig.showArmorPercentage && stack.isItemStackDamageable()) {
                     int maxDam = stack.getMaxDamage();
                     int currDam = stack.getItemDamage();
-                    int percent = (maxDam > 0) ? (int) (((maxDam - currDam) * 100.0F) / maxDam) : 100;
-                    String text = percent + "%";
+                    int remaining = maxDam - currDam;
+                    int percent = (maxDam > 0) ? (int) ((remaining * 100.0F) / maxDam) : 100;
                     int color = percent < 25 ? 0xFFFF5555 : (percent < 50 ? 0xFFFFCC55 : 0xFF55FF55);
+                    String text;
+                    if (ModConfig.showArmorDurability) {
+                        text = remaining + (ModConfig.showArmorPercentage ? " " + percent + "%" : "");
+                    } else {
+                        text = percent + "%";
+                    }
                     HudDraw.text(text, ModConfig.armorX + 22 - HudDraw.width(text), y + 4, color);
+                } else if (ModConfig.showArmorDurability && stack.isItemStackDamageable()) {
+                    int remaining = stack.getMaxDamage() - stack.getItemDamage();
+                    HudDraw.text(String.valueOf(remaining), ModConfig.armorX + 22 - HudDraw.width(String.valueOf(remaining)), y + 4, 0xFFFFFFFF);
                 }
                 GlStateManager.enableDepth();
                 GlStateManager.enableLighting();
@@ -602,6 +626,31 @@ public class HUDOverlay extends Gui {
         }
         GlStateManager.disableLighting();
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+    }
+
+    private void drawPackHud() {
+        int x = ModConfig.packHudX;
+        int y = ModConfig.packHudY;
+        String name = "Vanilla";
+        java.util.List<String> packs = mc.gameSettings.resourcePacks;
+        if (packs != null && !packs.isEmpty()) {
+            name = packs.get(packs.size() - 1);
+            if (name.endsWith(".zip")) {
+                name = name.substring(0, name.length() - 4);
+            }
+        }
+        HudDraw.labeled("Pack: ", name, x, y);
+    }
+
+    private void drawHeightLimit() {
+        if (mc.thePlayer == null) {
+            return;
+        }
+        int y = (int) Math.floor(mc.thePlayer.posY);
+        int limit = ModConfig.resolvedHeightLimit();
+        int remain = limit - y;
+        int color = remain < 5 ? 0xFFFF5555 : (remain < 12 ? 0xFFFFFF55 : 0xFF55FF55);
+        HudDraw.labeled("Altura ", y + " / " + limit, 0, 0, color);
     }
 
     private void tickClicks() {

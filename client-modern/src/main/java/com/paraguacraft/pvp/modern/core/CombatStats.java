@@ -22,7 +22,18 @@ public final class CombatStats {
     private static final long RECENT_HIT_WINDOW_MS = 5000L;
 
     public static double lastReach = 0.0;
+    public static long lastReachTime;
     public static int comboCount;
+
+    public static boolean hasReach() {
+        if (lastReach <= 0.0) {
+            return false;
+        }
+        if (!ModernConfig.reachPersist) {
+            return true;
+        }
+        return System.currentTimeMillis() - lastReachTime < 4000L;
+    }
     private static long lastHitTime;
 
     public static int hits;
@@ -44,6 +55,7 @@ public final class CombatStats {
             double dy = target.getEyeY() - client.player.getEyeY();
             double dz = target.getZ() - client.player.getZ();
             lastReach = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            lastReachTime = System.currentTimeMillis();
         }
         if (ModernConfig.comboCounter) {
             long now = System.currentTimeMillis();
@@ -97,6 +109,7 @@ public final class CombatStats {
     /** Reset de sesion (join a un servidor/mundo nuevo). */
     public static void reset() {
         lastReach = 0.0;
+        lastReachTime = 0L;
         comboCount = 0;
         lastHitTime = 0L;
         hits = 0;

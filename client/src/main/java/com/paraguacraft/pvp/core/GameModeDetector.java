@@ -1,17 +1,17 @@
-package com.paraguacraft.pvp.modern.core;
+package com.paraguacraft.pvp.core;
 
-import com.paraguacraft.pvp.modern.config.ModernConfig;
-import net.minecraft.client.MinecraftClient;
+import com.paraguacraft.pvp.modules.ModConfig;
+import net.minecraft.client.Minecraft;
+import net.minecraft.scoreboard.Score;
+import net.minecraft.scoreboard.ScoreObjective;
+import net.minecraft.scoreboard.ScorePlayerTeam;
 import net.minecraft.scoreboard.Scoreboard;
-import net.minecraft.scoreboard.ScoreboardDisplaySlot;
-import net.minecraft.scoreboard.ScoreboardEntry;
-import net.minecraft.scoreboard.ScoreboardObjective;
-import net.minecraft.text.Text;
+import net.minecraft.util.EnumChatFormatting;
 
 import java.util.Collection;
 import java.util.Locale;
 
-/** Deduce el modo de juego desde scoreboard + servidor (Hypixel / Cubecraft / LATAM). */
+/** Deduce el modo de juego desde scoreboard + servidor. */
 public final class GameModeDetector {
 
     public enum Mode {
@@ -61,13 +61,13 @@ public final class GameModeDetector {
         if (mode == null || mode == Mode.AUTO) {
             manualOverride = false;
             effective = Mode.AUTO;
-            ModernConfig.gameModeOverride = "";
+            ModConfig.gameModeOverride = "";
         } else {
             manualOverride = true;
             effective = mode;
-            ModernConfig.gameModeOverride = mode.name();
+            ModConfig.gameModeOverride = mode.name();
         }
-        ModernConfig.save();
+        ModConfig.save();
         refreshLabel();
     }
 
@@ -93,11 +93,12 @@ public final class GameModeDetector {
 
     public static void loadOverrideFromConfig() {
         applyConfigOverride();
+        refreshLabel();
     }
 
     private static void applyConfigOverride() {
-        String raw = ModernConfig.gameModeOverride;
-        if (raw == null || raw.isBlank() || "AUTO".equalsIgnoreCase(raw.trim())) {
+        String raw = ModConfig.gameModeOverride;
+        if (raw == null || raw.isEmpty() || "AUTO".equalsIgnoreCase(raw.trim())) {
             manualOverride = false;
             effective = Mode.AUTO;
             return;
@@ -117,23 +118,21 @@ public final class GameModeDetector {
         }
     }
 
-    public static void tick(MinecraftClient client) {
+    public static void tick() {
         applyConfigOverride();
-        if (client == null || client.world == null || client.player == null) {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc == null || mc.theWorld == null || mc.thePlayer == null) {
             detected = Mode.LOBBY;
             refreshLabel();
             return;
         }
-        // Practica / singleplayer: PvP (sin scoreboard de minijuegos).
-        if (ServerContext.isPractice(client)) {
+        if (ServerContext.isPractice()) {
             detected = Mode.PVP;
             refreshLabel();
             return;
         }
-        Scoreboard board = client.world.getScoreboard();
-        ScoreboardObjective obj = board.getObjectiveForSlot(ScoreboardDisplaySlot.SIDEBAR);
-        String haystack = collectSidebarText(board, obj);
-        detected = detectFromText(haystack, ServerContext.kind(client));
+        String haystack = collectSidebarText(mc);
+        detected = detectFromText(haystack, ServerContext.kind());
         refreshLabel();
     }
 
@@ -149,48 +148,57 @@ public final class GameModeDetector {
         }
     }
 
-    static String collectSidebarText(Scoreboard board, ScoreboardObjective obj) {
+    static String collectSidebarText(Minecraft mc) {
+        Scoreboard board = mc.theWorld.getScoreboard();
+        if (board == null) {
+            return "";
+        }
+        ScoreObjective obj = board.getObjectiveInDisplaySlot(1);
         if (obj == null) {
             return "";
         }
         StringBuilder out = new StringBuilder();
-        appendText(out, obj.getDisplayName());
-        Collection<ScoreboardEntry> entries = board.getScoreboardEntries(obj);
-        for (ScoreboardEntry entry : entries) {
-            if (entry.hidden()) {
+        appendPlain(out, obj.getDisplayName());
+        Collection<Score> scores = board.getSortedScores(obj);
+        for (Score score : scores) {
+            if (score == null || score.getPlayerName() == null || score.getPlayerName().startsWith("#")) {
                 continue;
             }
-            appendText(out, entry.display());
-            appendText(out, entry.name());
+            ScorePlayerTeam team = board.getPlayersTeam(score.getPlayerName());
+            String line = ScorePlayerTeam.formatPlayerName(team, score.getPlayerName());
+            appendPlain(out, line);
         }
         return out.toString().toUpperCase(Locale.ROOT);
     }
 
-    private static void appendText(StringBuilder out, Text text) {
-        if (text == null) {
+    private static void appendPlain(StringBuilder out, String raw) {
+        if (raw == null || raw.isEmpty()) {
             return;
         }
-        String plain = ScoreboardFilter.strip(text);
-        if (plain.isEmpty()) {
+        String plain = EnumChatFormatting.getTextWithoutFormattingCodes(raw);
+        if (plain == null || plain.isEmpty()) {
             return;
         }
-        if (!out.isEmpty()) {
+        if (out.length() > 0) {
             out.append(' ');
         }
         out.append(plain);
     }
 
     static Mode detectFromText(String t, ServerContext.Kind server) {
-        if (t.isEmpty()) {
+        if (t == null || t.isEmpty()) {
             return Mode.LOBBY;
         }
-        return switch (server) {
-            case CUBECRAFT -> detectCubecraft(t);
-            case HYPIXEL -> detectHypixel(t);
-            case MINEMEN -> detectMinemen(t);
-            case MUSH, UNIVERSOCRAFT, REGORLAND -> detectGeneric(t);
-            default -> detectGeneric(t);
-        };
+        switch (server) {
+            case CUBECRAFT:
+                return detectCubecraft(t);
+            case HYPIXEL:
+                return detectHypixel(t);
+            case MINEMEN:
+                return detectMinemen(t);
+            default:
+                return detectGeneric(t);
+        }
     }
 
     private static Mode detectHypixel(String t) {
@@ -234,14 +242,11 @@ public final class GameModeDetector {
         if (t.contains("LUCKY")) {
             return Mode.LUCKY_ISLANDS;
         }
-        if (t.contains("BLOCK WAR") || t.contains("BLOCKWAR")) {
-            return Mode.PVP;
+        if (t.contains("DUEL")) {
+            return Mode.DUELS;
         }
         if (t.contains("SURVIVAL GAME") || t.contains("SURVIVAL GAMES")) {
             return Mode.HUNGER_GAMES;
-        }
-        if (t.contains("DUEL")) {
-            return Mode.DUELS;
         }
         if (t.contains("BUILD BATTLE") || t.contains("SPEED BUILD")) {
             return Mode.BUILD_BATTLE;
@@ -255,7 +260,6 @@ public final class GameModeDetector {
         return Mode.OTHER;
     }
 
-    /** Minemen Club: practice / pots / ranked duels. */
     private static Mode detectMinemen(String t) {
         if (t.contains("DUEL") || t.contains("RANKED") || t.contains("UNRANKED") || t.contains("QUEUE")) {
             return Mode.DUELS;
@@ -266,7 +270,6 @@ public final class GameModeDetector {
         if (t.contains("LOBBY") || t.contains("HUB") || t.contains("ONLINE")) {
             return Mode.LOBBY;
         }
-        // Cualquier sidebar en Minemen: pelea si no es lobby genérico.
         if (t.contains("ELO") || t.contains("PING") || t.contains("CPS") || t.contains("COMBO")) {
             return Mode.DUELS;
         }
@@ -286,7 +289,7 @@ public final class GameModeDetector {
         if (t.contains("UHC") || t.contains("ULTRA HARDCORE") || t.contains("HARDCORE")) {
             return Mode.UHC;
         }
-        if (isHungerGamesText(t)) {
+        if (t.contains("HUNGER") || t.contains("SURVIVAL GAME") || t.contains("JUEGOS DEL HAMBRE")) {
             return Mode.HUNGER_GAMES;
         }
         if (t.contains("BUILD BATTLE") || t.contains("SPEED BUILD") || t.contains("CONSTRUCTOR")) {
@@ -307,18 +310,7 @@ public final class GameModeDetector {
         return Mode.OTHER;
     }
 
-    private static boolean isHungerGamesText(String t) {
-        return t.contains("HUNGER")
-            || t.contains("HUNGER GAMES")
-            || t.contains("HG ")
-            || t.contains(" HG")
-            || t.contains("SURVIVAL GAME")
-            || t.contains("SURVIVAL GAMES")
-            || t.contains("JUEGOS DEL HAMBRE");
-    }
-
-    /** Keywords BedWars / EggWars (EN + ES) en scoreboard de cualquier red. */
-    private static boolean isBedwarsText(String t) {
+    static boolean isBedwarsText(String t) {
         return t.contains("BED WARS")
             || t.contains("BED WAR")
             || t.contains("BEDWARS")
@@ -334,19 +326,19 @@ public final class GameModeDetector {
     }
 
     public static String labelFor(Mode mode) {
-        return switch (mode) {
-            case BEDWARS -> "BedWars";
-            case SKYWARS -> "SkyWars";
-            case DUELS -> "Duels";
-            case UHC -> "UHC";
-            case BUILD_BATTLE -> "Build Battle";
-            case TNT_RUN -> "TNT Run";
-            case LUCKY_ISLANDS -> "Lucky Islands";
-            case HUNGER_GAMES -> "Hunger Games";
-            case PVP -> "PvP";
-            case LOBBY -> "Lobby";
-            case AUTO -> "Auto";
-            default -> "Minijuego";
-        };
+        switch (mode) {
+            case BEDWARS: return "BedWars";
+            case SKYWARS: return "SkyWars";
+            case DUELS: return "Duels";
+            case UHC: return "UHC";
+            case BUILD_BATTLE: return "Build Battle";
+            case TNT_RUN: return "TNT Run";
+            case LUCKY_ISLANDS: return "Lucky Islands";
+            case HUNGER_GAMES: return "Hunger Games";
+            case PVP: return "PvP";
+            case LOBBY: return "Lobby";
+            case AUTO: return "Auto";
+            default: return "Minijuego";
+        }
     }
 }

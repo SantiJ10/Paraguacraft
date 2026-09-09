@@ -44,6 +44,34 @@ public final class ModernConfig {
     public static boolean oldAnimations = true;
     public static boolean comboCounter = true;
     public static boolean showTntCountdown = true;
+    public static int tntFuseOverride = 0;
+    public static boolean tntPingCompensate = true;
+    public static boolean showArmorDurability = true;
+    public static boolean hitColorEnabled = true;
+    public static int hitColorPreset = 0;
+    public static boolean chatUnlimited = true;
+    public static boolean chatTextShadow = true;
+    public static boolean chatHighlightName = true;
+    public static boolean tabEditor = true;
+    public static boolean tabPingNumbers = true;
+    public static boolean tabHideNpcs = true;
+    public static boolean tabHideHighPing = false;
+    public static boolean showPackHud = false;
+    public static int packHudX = 5;
+    public static int packHudY = 200;
+    public static int scalePack = 100;
+    public static boolean showHeightLimit = false;
+    /** 0 = auto (techo del mundo). */
+    public static int heightLimitOverride = 0;
+    public static int heightX = 5;
+    public static int heightY = 90;
+    public static int scaleHeight = 100;
+    public static boolean showSaturation = true;
+    public static int hotbarScale = 100;
+    public static int inventoryScale = 100;
+    public static int scoreboardScale = 100;
+    public static boolean scoreboardTextShadow = false;
+    public static boolean reachPersist = true;
     public static boolean chatTriggers = true;
     public static boolean chatAlertsEnabled = true;
     public static boolean freelookEnabled = true;
@@ -258,6 +286,96 @@ public final class ModernConfig {
         return Math.max(0.5f, Math.min(2.0f, uiScale / 100f));
     }
 
+    public static float hotbarScaleFactor() {
+        return Math.max(0.5f, Math.min(2.0f, hotbarScale / 100f));
+    }
+
+    public static float inventoryScaleFactor() {
+        return Math.max(0.5f, Math.min(2.0f, inventoryScale / 100f));
+    }
+
+    public static float scoreboardScaleFactor() {
+        return Math.max(0.5f, Math.min(2.0f, scoreboardScale / 100f));
+    }
+
+    private static int nextScalePreset(int current) {
+        int[] presets = {75, 100, 125, 150, 200};
+        int idx = 0;
+        for (int i = 0; i < presets.length; i++) {
+            if (current == presets[i]) {
+                idx = i;
+                break;
+            }
+        }
+        return presets[(idx + 1) % presets.length];
+    }
+
+    public static void cycleHotbarScale() {
+        hotbarScale = nextScalePreset(hotbarScale);
+    }
+
+    public static void cycleInventoryScale() {
+        inventoryScale = nextScalePreset(inventoryScale);
+    }
+
+    public static void cycleScoreboardScale() {
+        scoreboardScale = nextScalePreset(scoreboardScale);
+    }
+
+    public static void cycleTntFuse() {
+        int[] opts = {0, 80, 60, 52, 40};
+        int idx = 0;
+        for (int i = 0; i < opts.length; i++) {
+            if (tntFuseOverride == opts[i]) {
+                idx = i;
+                break;
+            }
+        }
+        tntFuseOverride = opts[(idx + 1) % opts.length];
+    }
+
+    public static String tntFuseLabel() {
+        return tntFuseOverride <= 0 ? "Auto" : tntFuseOverride + " ticks";
+    }
+
+    public static void cycleHitColor() {
+        hitColorPreset = (hitColorPreset + 1) % 4;
+    }
+
+    public static String hitColorLabel() {
+        return switch (hitColorPreset) {
+            case 1 -> "Rojo";
+            case 2 -> "Blanco";
+            case 3 -> "Magenta";
+            default -> "Cian";
+        };
+    }
+
+    public static float hitColorR() {
+        return switch (hitColorPreset) {
+            case 1, 2, 3 -> 1.0F;
+            default -> 0.0F;
+        };
+    }
+
+    public static float hitColorG() {
+        return switch (hitColorPreset) {
+            case 1 -> 0.2F;
+            case 2 -> 1.0F;
+            case 3 -> 0.2F;
+            default -> 0.898F;
+        };
+    }
+
+    public static float hitColorB() {
+        return switch (hitColorPreset) {
+            case 1 -> 0.2F;
+            case 2 -> 1.0F;
+            case 3 -> 0.8F;
+            default -> 1.0F;
+        };
+    }
+
     public static void cycleCrosshairMode() {
         crosshairMode = (crosshairMode + 1) % 3;
     }
@@ -268,6 +386,35 @@ public final class ModernConfig {
             case 2 -> "Dewiers";
             default -> "Vanilla";
         };
+    }
+
+    public static void cycleHeightLimit() {
+        int[] opts = {0, 256, 320};
+        int idx = 0;
+        for (int i = 0; i < opts.length; i++) {
+            if (heightLimitOverride == opts[i]) {
+                idx = i;
+                break;
+            }
+        }
+        heightLimitOverride = opts[(idx + 1) % opts.length];
+    }
+
+    public static String heightLimitLabel() {
+        if (heightLimitOverride <= 0) {
+            return "Auto";
+        }
+        return String.valueOf(heightLimitOverride);
+    }
+
+    public static int resolvedHeightLimit(net.minecraft.world.World world) {
+        if (heightLimitOverride > 0) {
+            return heightLimitOverride;
+        }
+        if (world == null) {
+            return 256;
+        }
+        return world.getBottomY() + world.getHeight() - 1;
     }
 
     private ModernConfig() {}
@@ -315,6 +462,33 @@ public final class ModernConfig {
             oldAnimations = bool(props, "oldAnimations", oldAnimations);
             comboCounter = bool(props, "comboCounter", comboCounter);
             showTntCountdown = bool(props, "showTntCountdown", showTntCountdown);
+            tntFuseOverride = intProp(props, "tntFuseOverride", tntFuseOverride);
+            tntPingCompensate = bool(props, "tntPingCompensate", tntPingCompensate);
+            showArmorDurability = bool(props, "showArmorDurability", showArmorDurability);
+            hitColorEnabled = bool(props, "hitColorEnabled", hitColorEnabled);
+            hitColorPreset = intProp(props, "hitColorPreset", hitColorPreset);
+            chatUnlimited = bool(props, "chatUnlimited", chatUnlimited);
+            chatTextShadow = bool(props, "chatTextShadow", chatTextShadow);
+            chatHighlightName = bool(props, "chatHighlightName", chatHighlightName);
+            tabEditor = bool(props, "tabEditor", tabEditor);
+            tabPingNumbers = bool(props, "tabPingNumbers", tabPingNumbers);
+            tabHideNpcs = bool(props, "tabHideNpcs", tabHideNpcs);
+            tabHideHighPing = bool(props, "tabHideHighPing", tabHideHighPing);
+            showPackHud = bool(props, "showPackHud", showPackHud);
+            packHudX = intProp(props, "packHudX", packHudX);
+            packHudY = intProp(props, "packHudY", packHudY);
+            scalePack = intProp(props, "scalePack", scalePack);
+            showHeightLimit = bool(props, "showHeightLimit", showHeightLimit);
+            heightLimitOverride = intProp(props, "heightLimitOverride", heightLimitOverride);
+            heightX = intProp(props, "heightX", heightX);
+            heightY = intProp(props, "heightY", heightY);
+            scaleHeight = intProp(props, "scaleHeight", scaleHeight);
+            showSaturation = bool(props, "showSaturation", showSaturation);
+            hotbarScale = intProp(props, "hotbarScale", hotbarScale);
+            inventoryScale = intProp(props, "inventoryScale", inventoryScale);
+            scoreboardScale = intProp(props, "scoreboardScale", scoreboardScale);
+            scoreboardTextShadow = bool(props, "scoreboardTextShadow", scoreboardTextShadow);
+            reachPersist = bool(props, "reachPersist", reachPersist);
             chatTriggers = bool(props, "chatTriggers", chatTriggers);
             chatAlertsEnabled = bool(props, "chatAlertsEnabled", chatAlertsEnabled);
             freelookEnabled = bool(props, "freelookEnabled", freelookEnabled);
@@ -530,6 +704,33 @@ public final class ModernConfig {
         props.setProperty("oldAnimations", String.valueOf(oldAnimations));
         props.setProperty("comboCounter", String.valueOf(comboCounter));
         props.setProperty("showTntCountdown", String.valueOf(showTntCountdown));
+        props.setProperty("tntFuseOverride", String.valueOf(tntFuseOverride));
+        props.setProperty("tntPingCompensate", String.valueOf(tntPingCompensate));
+        props.setProperty("showArmorDurability", String.valueOf(showArmorDurability));
+        props.setProperty("hitColorEnabled", String.valueOf(hitColorEnabled));
+        props.setProperty("hitColorPreset", String.valueOf(hitColorPreset));
+        props.setProperty("chatUnlimited", String.valueOf(chatUnlimited));
+        props.setProperty("chatTextShadow", String.valueOf(chatTextShadow));
+        props.setProperty("chatHighlightName", String.valueOf(chatHighlightName));
+        props.setProperty("tabEditor", String.valueOf(tabEditor));
+        props.setProperty("tabPingNumbers", String.valueOf(tabPingNumbers));
+        props.setProperty("tabHideNpcs", String.valueOf(tabHideNpcs));
+        props.setProperty("tabHideHighPing", String.valueOf(tabHideHighPing));
+        props.setProperty("showPackHud", String.valueOf(showPackHud));
+        props.setProperty("packHudX", String.valueOf(packHudX));
+        props.setProperty("packHudY", String.valueOf(packHudY));
+        props.setProperty("scalePack", String.valueOf(scalePack));
+        props.setProperty("showHeightLimit", String.valueOf(showHeightLimit));
+        props.setProperty("heightLimitOverride", String.valueOf(heightLimitOverride));
+        props.setProperty("heightX", String.valueOf(heightX));
+        props.setProperty("heightY", String.valueOf(heightY));
+        props.setProperty("scaleHeight", String.valueOf(scaleHeight));
+        props.setProperty("showSaturation", String.valueOf(showSaturation));
+        props.setProperty("hotbarScale", String.valueOf(hotbarScale));
+        props.setProperty("inventoryScale", String.valueOf(inventoryScale));
+        props.setProperty("scoreboardScale", String.valueOf(scoreboardScale));
+        props.setProperty("scoreboardTextShadow", String.valueOf(scoreboardTextShadow));
+        props.setProperty("reachPersist", String.valueOf(reachPersist));
         props.setProperty("chatTriggers", String.valueOf(chatTriggers));
         props.setProperty("chatAlertsEnabled", String.valueOf(chatAlertsEnabled));
         props.setProperty("freelookEnabled", String.valueOf(freelookEnabled));

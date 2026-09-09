@@ -12,23 +12,31 @@ import java.io.IOException;
 
 public class GuiScoreboardOptions extends GuiScreen {
 
-    private static final int ROWS = 3;
+    private static final int ROWS = 5;
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         drawRect(0, 0, width, height, 0x99000000);
         int px = width / 2 - 160;
-        int py = height / 2 - 80;
-        Gui.drawRect(px, py, px + 320, py + 160, 0xCC0A0C14);
+        int py = height / 2 - 100;
+        Gui.drawRect(px, py, px + 320, py + 200, 0xCC0A0C14);
         FontRenderer fr = fontRendererObj;
         fr.drawStringWithShadow(ModLang.format("paraguacraft.scoreboard.title"), px + 16, py + 12, UiTheme.ACCENT);
         for (int i = 0; i < ROWS; i++) {
             int rowY = py + 44 + i * 28;
-            boolean on = rowValue(i);
             Gui.drawRect(px + 12, rowY, px + 308, rowY + 20, 0x44000000);
             fr.drawStringWithShadow(rowLabel(i), px + 20, rowY + 6, UiTheme.TEXT);
-            String state = ModLang.format(on ? "paraguacraft.menu.on" : "paraguacraft.menu.off");
-            fr.drawStringWithShadow(state, px + 280 - fr.getStringWidth(state), rowY + 6, on ? 0xFF22CC66 : 0xFFCC4444);
+            String state;
+            int color;
+            if (i == 4) {
+                state = ModConfig.scoreboardScale + "%";
+                color = UiTheme.ACCENT;
+            } else {
+                boolean on = rowValue(i);
+                state = ModLang.format(on ? "paraguacraft.menu.on" : "paraguacraft.menu.off");
+                color = on ? 0xFF22CC66 : 0xFFCC4444;
+            }
+            fr.drawStringWithShadow(state, px + 280 - fr.getStringWidth(state), rowY + 6, color);
         }
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
@@ -39,7 +47,7 @@ public class GuiScoreboardOptions extends GuiScreen {
             return;
         }
         int px = width / 2 - 160;
-        int py = height / 2 - 80;
+        int py = height / 2 - 100;
         for (int i = 0; i < ROWS; i++) {
             int rowY = py + 44 + i * 28;
             if (mouseX >= px + 12 && mouseX <= px + 308 && mouseY >= rowY && mouseY <= rowY + 20) {
@@ -62,6 +70,8 @@ public class GuiScoreboardOptions extends GuiScreen {
             case 0: return ModLang.format("paraguacraft.scoreboard.transparent");
             case 1: return ModLang.format("paraguacraft.scoreboard.hide_red");
             case 2: return ModLang.format("paraguacraft.scoreboard.hide_stats");
+            case 3: return ModLang.format("paraguacraft.scoreboard.shadow");
+            case 4: return ModLang.format("paraguacraft.scoreboard.scale");
             default: return "";
         }
     }
@@ -71,6 +81,7 @@ public class GuiScoreboardOptions extends GuiScreen {
             case 0: return ModConfig.scoreboardTransparentBg;
             case 1: return ModConfig.scoreboardHideRedNumbers;
             case 2: return ModConfig.scoreboardHideStats;
+            case 3: return ModConfig.scoreboardTextShadow;
             default: return false;
         }
     }
@@ -80,6 +91,8 @@ public class GuiScoreboardOptions extends GuiScreen {
             case 0: ModConfig.scoreboardTransparentBg = !ModConfig.scoreboardTransparentBg; break;
             case 1: ModConfig.scoreboardHideRedNumbers = !ModConfig.scoreboardHideRedNumbers; break;
             case 2: ModConfig.scoreboardHideStats = !ModConfig.scoreboardHideStats; break;
+            case 3: ModConfig.scoreboardTextShadow = !ModConfig.scoreboardTextShadow; break;
+            case 4: ModConfig.cycleScoreboardScale(); break;
             default: break;
         }
     }

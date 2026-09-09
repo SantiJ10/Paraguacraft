@@ -3,9 +3,11 @@ package com.paraguacraft.pvp.modern.gui;
 import com.paraguacraft.pvp.modern.config.LauncherProfile;
 import com.paraguacraft.pvp.modern.config.ModernConfig;
 import com.paraguacraft.pvp.modern.core.FullbrightManager;
+import com.paraguacraft.pvp.modern.core.GameModeDetector;
 import com.paraguacraft.pvp.modern.core.PerformanceBootstrap;
 import com.paraguacraft.pvp.modern.core.PerformanceConfig;
 import com.paraguacraft.pvp.modern.core.PlayStyle;
+import com.paraguacraft.pvp.modern.core.ServerContext;
 import com.paraguacraft.pvp.modern.gui.theme.UiTheme;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
@@ -15,19 +17,24 @@ import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.text.Text;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
-/** Mod Menu estilo Lunar / Paraguacraft 1.8.9 con categorias y tarjetas. */
+/** Hub Right Shift: overlay compacto, pestañas Mods / Ajustes / Packs. */
 public class ModMenuScreen extends ParaguacraftScreen {
 
-    private static final String[] CATEGORIES = {"Todos", "HUD", "PvP", "Mecanicas", "Rendimiento", "Hypixel"};
-    private static final int SIDEBAR = 132;
-    private static final int TOPBAR = 44;
+    private static final String[] TABS = {"Mods", "Ajustes", "Packs"};
+    private static final int TOPBAR = 72;
+    private static final int FOOTER = 30;
+    private static final int TAB_MODS = 0;
+    private static final int TAB_SETTINGS = 1;
+    private static final int TAB_PACKS = 2;
 
-    private int selectedCategory;
+    private int selectedTab;
     private String search = "";
     private float scroll;
     private TextFieldWidget searchField;
@@ -36,27 +43,38 @@ public class ModMenuScreen extends ParaguacraftScreen {
         super(Text.literal("Paraguacraft Mods"), parent);
     }
 
+    private int[] panelGeom() {
+        int panelW = Math.min(width - 32, 720);
+        int panelH = Math.min(height - 28, 400);
+        int panelX = (width - panelW) / 2;
+        int panelY = Math.max(8, (height - panelH) / 2);
+        return new int[] {panelX, panelY, panelW, panelH};
+    }
+
     @Override
     protected void init() {
-        int panelX = Math.max(8, width / 2 - 420);
-        int panelY = 20;
-        int panelW = Math.min(width - 16, 840);
-        int panelH = height - 40;
-        int gridX = panelX + SIDEBAR + 8;
+        int[] g = panelGeom();
+        int panelX = g[0];
+        int panelY = g[1];
+        int panelW = g[2];
+        int panelH = g[3];
+        int gridX = panelX + 10;
         int gridY = panelY + TOPBAR + 8;
-        int gridW = panelW - SIDEBAR - 16;
+        int gridW = panelW - 20;
         int cardW = Math.min(168, (gridW - 12) / 2);
         int cardH = 56;
         int gap = 8;
 
         List<ModCard> cards = filteredCards();
+        int rec = recommendedCount(cards);
+        int headerH = rec > 0 ? 14 : 0;
         int cols = Math.max(1, gridW / (cardW + gap));
         int row = 0;
         int col = 0;
         for (ModCard card : cards) {
             int x = gridX + col * (cardW + gap);
-            int y = gridY + row * (cardH + gap) - (int) scroll;
-            if (y + cardH >= panelY + TOPBAR && y <= panelY + panelH - 8) {
+            int y = gridY + headerH + row * (cardH + gap) - (int) scroll;
+            if (y + cardH >= panelY + TOPBAR && y <= panelY + panelH - FOOTER) {
                 addCardButton(card, x, y, cardW, cardH);
             }
             col++;
@@ -66,32 +84,28 @@ public class ModMenuScreen extends ParaguacraftScreen {
             }
         }
 
-        int closeY = panelY + panelH - 26;
-        addDrawableChild(FlatMenuButton.create(panelX + 12, closeY, 100, 20,
+        int closeY = panelY + panelH - 24;
+        addDrawableChild(FlatMenuButton.create(panelX + 10, closeY, 100, 18,
             Text.literal("Editar HUD"), () -> client.setScreen(new GuiEditHudScreen(this))));
-        addDrawableChild(FlatMenuButton.create(panelX + 118, closeY, 100, 20,
+        addDrawableChild(FlatMenuButton.create(panelX + 114, closeY, 90, 18,
             Text.literal("Atajos"), () -> client.setScreen(
                 new net.minecraft.client.gui.screen.option.ControlsOptionsScreen(this, client.options))));
-        addDrawableChild(FlatMenuButton.create(panelX + 224, closeY, 100, 20,
-            Text.literal("Perfiles"), () -> client.setScreen(new ModProfilesScreen(this))));
-        addDrawableChild(FlatMenuButton.create(panelX + 330, closeY, 100, 20,
-            Text.literal("UI " + ModernConfig.uiScaleLabel()), () -> {
-                ModernConfig.cycleUiScale();
-                ModernConfig.save();
-                clearChildren();
-                init();
-            }));
-        addDrawableChild(FlatMenuButton.create(panelX + panelW - 112, closeY, 100, 20,
+        addDrawableChild(FlatMenuButton.create(panelX + 208, closeY, 110, 18,
+            Text.literal("Exportar JSON"), () -> client.setScreen(new ModProfilesScreen(this))));
+        addDrawableChild(FlatMenuButton.create(panelX + panelW - 100, closeY, 90, 18,
             Text.literal("Cerrar"), this::goBack));
 
-        initSearchField(panelX, panelY, panelW);
+        if (selectedTab == TAB_MODS) {
+            initSearchField(panelX, panelY, panelW);
+        } else {
+            searchField = null;
+        }
     }
 
-    /** Campo de busqueda real (teclado nativo: backspace, pegar, seleccion). */
     private void initSearchField(int panelX, int panelY, int panelW) {
         int fieldW = 160;
         int fieldX = panelX + panelW - fieldW - 14;
-        int fieldY = panelY + 12;
+        int fieldY = panelY + 48;
         if (searchField == null) {
             searchField = new TextFieldWidget(textRenderer, fieldX, fieldY, fieldW, 16, Text.literal("Buscar"));
             searchField.setMaxLength(32);
@@ -156,6 +170,14 @@ public class ModMenuScreen extends ParaguacraftScreen {
             case "bedwars_group" -> client.setScreen(GuiSubmodOptionsScreen.bedwars(this));
             case "chat_group" -> client.setScreen(GuiSubmodOptionsScreen.chat(this));
             case "scoreboard_group" -> client.setScreen(GuiSubmodOptionsScreen.scoreboard(this));
+            case "tnt_group" -> client.setScreen(GuiSubmodOptionsScreen.tnt(this));
+            case "tab_group" -> client.setScreen(GuiSubmodOptionsScreen.tab(this));
+            case "hit_color" -> client.setScreen(GuiSubmodOptionsScreen.hitColor(this));
+            case "particles" -> client.setScreen(GuiSubmodOptionsScreen.particles(this));
+            case "reach_group" -> client.setScreen(GuiSubmodOptionsScreen.reach(this));
+            case "gui_scale" -> client.setScreen(GuiSubmodOptionsScreen.guiScale(this));
+            case "pack_hud" -> client.setScreen(GuiSubmodOptionsScreen.packHud(this));
+            case "height_limit" -> client.setScreen(GuiSubmodOptionsScreen.heightLimit(this));
             case "badges_ping" -> client.setScreen(new GuiBadgesPingOptionsScreen(this));
             case "sprint" -> client.setScreen(new GuiSprintOptionsScreen(this));
             case "crosshair" -> {
@@ -164,10 +186,8 @@ public class ModMenuScreen extends ParaguacraftScreen {
                 clearChildren();
                 init();
             }
-            case "particles" -> {
-                PerformanceConfig.cycleParticleMode();
-                PerformanceBootstrap.applyParticleModeNow(client);
-                ModernConfig.save();
+            case "profile_cycle" -> {
+                GameModeDetector.cycleOverride();
                 clearChildren();
                 init();
             }
@@ -179,118 +199,198 @@ public class ModMenuScreen extends ParaguacraftScreen {
 
     private List<ModCard> filteredCards() {
         List<ModCard> all = allCards();
-        List<ModCard> out = new ArrayList<>();
+        List<ModCard> tabbed = new ArrayList<>();
         String q = search.toLowerCase(Locale.ROOT).trim();
         for (ModCard card : all) {
-            if (selectedCategory > 0 && card.category != selectedCategory) {
+            if (selectedTab == TAB_SETTINGS && card.tab != TAB_SETTINGS) {
                 continue;
             }
-            if (!q.isEmpty() && !card.label.toLowerCase(Locale.ROOT).contains(q)) {
+            if (selectedTab == TAB_PACKS && card.tab != TAB_PACKS) {
                 continue;
             }
-            out.add(card);
+            if (selectedTab == TAB_MODS && card.tab != TAB_MODS) {
+                continue;
+            }
+            if (selectedTab == TAB_MODS && !q.isEmpty() && !card.label.toLowerCase(Locale.ROOT).contains(q)) {
+                continue;
+            }
+            tabbed.add(card);
         }
-        return out;
+        if (selectedTab != TAB_MODS || !q.isEmpty()) {
+            return tabbed;
+        }
+        String[] rec = recommendedKeys();
+        List<ModCard> out = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        for (String key : rec) {
+            for (ModCard card : tabbed) {
+                if (key.equals(card.recKey) && seen.add(key)) {
+                    out.add(card);
+                    break;
+                }
+            }
+        }
+        for (ModCard card : tabbed) {
+            if (card.recKey == null || card.recKey.isEmpty() || !seen.contains(card.recKey)) {
+                out.add(card);
+            } else if (seen.contains(card.recKey) && !out.contains(card)) {
+                // already added as recommended
+            }
+        }
+        // Dedup: skip cards already in out
+        List<ModCard> unique = new ArrayList<>();
+        Set<ModCard> used = new HashSet<>(out);
+        unique.addAll(out);
+        for (ModCard card : tabbed) {
+            if (!used.contains(card)) {
+                unique.add(card);
+            }
+        }
+        return unique;
+    }
+
+    private int recommendedCount(List<ModCard> cards) {
+        if (selectedTab != TAB_MODS || !search.isBlank()) {
+            return 0;
+        }
+        String[] rec = recommendedKeys();
+        int n = 0;
+        for (String key : rec) {
+            for (ModCard card : cards) {
+                if (key.equals(card.recKey)) {
+                    n++;
+                    break;
+                }
+            }
+        }
+        return n;
+    }
+
+    private static String[] recommendedKeys() {
+        return switch (GameModeDetector.current()) {
+            case BEDWARS -> new String[] {"bedwars", "height", "tnt", "armor", "compass"};
+            case SKYWARS, LUCKY_ISLANDS -> new String[] {"armor", "potions", "held", "reach"};
+            case DUELS -> new String[] {"reach", "combo", "hit_color", "armor", "badges"};
+            case UHC -> new String[] {"coords", "armor", "potions", "compass"};
+            case LOBBY -> new String[] {"server", "packs", "quickplay"};
+            default -> new String[] {"reach", "combo", "armor", "nohurt"};
+        };
     }
 
     private List<ModCard> allCards() {
         List<ModCard> cards = new ArrayList<>();
-        cards.add(open(1, "FPS", "fps_group"));
-        cards.add(toggle(1, "Ping", () -> ModernConfig.showPing, v -> ModernConfig.showPing = v));
-        cards.add(toggle(1, "CPS", () -> ModernConfig.showCps, v -> ModernConfig.showCps = v));
-        cards.add(open(1, "Keystrokes", "keystrokes"));
-        cards.add(toggle(1, "Coordenadas", () -> ModernConfig.showCoords, v -> ModernConfig.showCoords = v));
-        cards.add(open(1, "Armadura HUD", "armor_hud"));
-        cards.add(open(1, "Cosmeticos / nametags", "cosmetics"));
-        cards.add(open(1, "Waypoints y trackers", "pvp_trackers"));
-        cards.add(toggle(1, "Contador bloques", () -> ModernConfig.showBlockCount, v -> ModernConfig.showBlockCount = v));
-        cards.add(toggle(1, "Objeto en mano", () -> ModernConfig.showHeldItem, v -> ModernConfig.showHeldItem = v));
-        cards.add(open(1, "BedWars", "bedwars_group"));
-        cards.add(toggle(1, "Hardware HUD", () -> ModernConfig.showHardwareHud, v -> ModernConfig.showHardwareHud = v));
-        cards.add(open(1, "Musica", "music_hud"));
-        cards.add(toggle(1, "Pociones HUD", () -> ModernConfig.showPotions, v -> ModernConfig.showPotions = v));
-        cards.add(toggle(1, "Brújula", () -> ModernConfig.showCompass, v -> ModernConfig.showCompass = v));
-        cards.add(toggle(1, "Combo counter", () -> ModernConfig.comboCounter, v -> ModernConfig.comboCounter = v));
-        cards.add(toggle(2, "Hitbox azul", () -> ModernConfig.showBlockOutline, v -> ModernConfig.showBlockOutline = v));
-        cards.add(toggle(2, "No hurt cam", () -> ModernConfig.noHurtCam, v -> ModernConfig.noHurtCam = v));
-        cards.add(toggle(2, "Low fire", () -> ModernConfig.lowFire, v -> ModernConfig.lowFire = v));
-        cards.add(toggle(2, "Item physics", () -> ModernConfig.itemPhysics, v -> ModernConfig.itemPhysics = v));
-        cards.add(toggle(2, "TNT countdown", () -> ModernConfig.showTntCountdown, v -> ModernConfig.showTntCountdown = v));
-        cards.add(toggle(2, "Reach display", () -> ModernConfig.reachDisplay, v -> ModernConfig.reachDisplay = v));
-        cards.add(open(2, "Insignias y Ping", "badges_ping"));
-        cards.add(toggle(2, "Estadisticas de combate", () -> ModernConfig.showCombatStatsHud, v -> ModernConfig.showCombatStatsHud = v));
-        cards.add(toggle(1, "HUD servidor (nombre/IP)", () -> ModernConfig.showServerHud, v -> ModernConfig.showServerHud = v));
-        cards.add(open(3, "Sprint", "sprint"));
-        cards.add(toggle(3, "Toggle sneak (Shift)", () -> ModernConfig.toggleSneak, v -> {
+        cards.add(open(TAB_MODS, "FPS", "fps_group", ""));
+        cards.add(toggle(TAB_MODS, "Ping", () -> ModernConfig.showPing, v -> ModernConfig.showPing = v, ""));
+        cards.add(toggle(TAB_MODS, "CPS", () -> ModernConfig.showCps, v -> ModernConfig.showCps = v, ""));
+        cards.add(open(TAB_MODS, "Keystrokes", "keystrokes", ""));
+        cards.add(toggle(TAB_MODS, "Coordenadas", () -> ModernConfig.showCoords, v -> ModernConfig.showCoords = v, "coords"));
+        cards.add(open(TAB_MODS, "Armadura HUD", "armor_hud", "armor"));
+        cards.add(open(TAB_MODS, "Cosmeticos / nametags", "cosmetics", ""));
+        cards.add(open(TAB_MODS, "Waypoints y trackers", "pvp_trackers", ""));
+        cards.add(toggle(TAB_MODS, "Contador bloques", () -> ModernConfig.showBlockCount, v -> ModernConfig.showBlockCount = v, ""));
+        cards.add(toggle(TAB_MODS, "Objeto en mano", () -> ModernConfig.showHeldItem, v -> ModernConfig.showHeldItem = v, "held"));
+        cards.add(open(TAB_MODS, "BedWars", "bedwars_group", "bedwars"));
+        cards.add(open(TAB_MODS, "Limite de altura", "height_limit", "height"));
+        cards.add(toggle(TAB_MODS, "Hardware HUD", () -> ModernConfig.showHardwareHud, v -> ModernConfig.showHardwareHud = v, ""));
+        cards.add(open(TAB_MODS, "Musica", "music_hud", ""));
+        cards.add(toggle(TAB_MODS, "Pociones HUD", () -> ModernConfig.showPotions, v -> ModernConfig.showPotions = v, "potions"));
+        cards.add(toggle(TAB_MODS, "Brújula", () -> ModernConfig.showCompass, v -> ModernConfig.showCompass = v, "compass"));
+        cards.add(toggle(TAB_MODS, "Combo counter", () -> ModernConfig.comboCounter, v -> ModernConfig.comboCounter = v, "combo"));
+        cards.add(toggle(TAB_MODS, "Hitbox azul", () -> ModernConfig.showBlockOutline, v -> ModernConfig.showBlockOutline = v, ""));
+        cards.add(toggle(TAB_MODS, "No hurt cam", () -> ModernConfig.noHurtCam, v -> ModernConfig.noHurtCam = v, "nohurt"));
+        cards.add(toggle(TAB_MODS, "Low fire", () -> ModernConfig.lowFire, v -> ModernConfig.lowFire = v, ""));
+        cards.add(toggle(TAB_MODS, "Item physics", () -> ModernConfig.itemPhysics, v -> ModernConfig.itemPhysics = v, ""));
+        cards.add(open(TAB_MODS, "TNT countdown", "tnt_group", "tnt"));
+        cards.add(open(TAB_MODS, "Reach display", "reach_group", "reach"));
+        cards.add(open(TAB_MODS, "Color de golpe", "hit_color", "hit_color"));
+        cards.add(open(TAB_MODS, "Editor de Tab", "tab_group", ""));
+        cards.add(toggle(TAB_MODS, "Estadisticas de combate", () -> ModernConfig.showCombatStatsHud, v -> ModernConfig.showCombatStatsHud = v, ""));
+        cards.add(toggle(TAB_MODS, "HUD servidor (nombre/IP)", () -> ModernConfig.showServerHud, v -> ModernConfig.showServerHud = v, "server"));
+        cards.add(open(TAB_MODS, "Sprint", "sprint", ""));
+        cards.add(toggle(TAB_MODS, "Toggle sneak (Shift)", () -> ModernConfig.toggleSneak, v -> {
             ModernConfig.toggleSneak = v;
             ModernConfig.isSneakingToggled = false;
-        }));
-        cards.add(toggle(3, "Pantalla sin bordes", () -> ModernConfig.windowedFullscreen, v -> ModernConfig.windowedFullscreen = v));
-        cards.add(open(3, "Motion Blur", "motion_blur"));
-        cards.add(open(3, FullbrightManager.menuLabel(), "fullbright"));
-        cards.add(toggle(3, "FOV estatico", () -> !ModernConfig.dynamicFov, v -> {
-            // ON = sin speed FOV (sprint/volar). Zoomify toca FOV aparte; no forzar getFov().
+        }, ""));
+        cards.add(open(TAB_MODS, FullbrightManager.menuLabel(), "fullbright", ""));
+        cards.add(toggle(TAB_MODS, "Freelook (Alt)", () -> ModernConfig.freelookEnabled, v -> ModernConfig.freelookEnabled = v, ""));
+        cards.add(toggle(TAB_MODS, "Freelook blacklist ranked", () -> ModernConfig.freelookBlacklistServers, v -> ModernConfig.freelookBlacklistServers = v, ""));
+        cards.add(toggle(TAB_MODS, "Shaders auto-off en partida", () -> ModernConfig.shaderAutoOffInMatch, v -> ModernConfig.shaderAutoOffInMatch = v, ""));
+        cards.add(toggle(TAB_MODS, "Reach solo practica", () -> ModernConfig.reachDisplayPracticeOnly, v -> ModernConfig.reachDisplayPracticeOnly = v, ""));
+        cards.add(toggle(TAB_MODS, "Animaciones 1.7 (swing/blockhit espada)", () -> ModernConfig.oldAnimations, v -> {
+            ModernConfig.oldAnimations = v;
+            PerformanceConfig.oldAnimations = v;
+        }, ""));
+        cards.add(toggle(TAB_MODS, "Ocultar titulos", () -> ModernConfig.hideTitles, v -> ModernConfig.hideTitles = v, ""));
+        cards.add(open(TAB_MODS, "Chat", "chat_group", ""));
+        cards.add(open(TAB_MODS, "Config chat triggers", "chat_triggers_cfg", ""));
+        cards.add(open(TAB_MODS, "Config chat alerts", "chat_alerts", ""));
+        cards.add(open(TAB_MODS, "Scoreboard", "scoreboard_group", ""));
+        cards.add(toggle(TAB_MODS, "HUD modo de juego", () -> ModernConfig.showGameModeHud, v -> ModernConfig.showGameModeHud = v, ""));
+        cards.add(toggle(TAB_MODS, "Boost FPS", () -> PerformanceConfig.boostFps, v -> {
+            PerformanceConfig.boostFps = v;
+            ModernConfig.save();
+        }, ""));
+        cards.add(open(TAB_MODS, "Entity / cull", "entity_group", ""));
+        cards.add(open(TAB_MODS, "Particulas", "particles", ""));
+        cards.add(open(TAB_MODS, "Limpiar memoria", "clean_memory", ""));
+        cards.add(open(TAB_MODS, "Aplicar preset de hardware", "apply_hw_preset", ""));
+        cards.add(toggle(TAB_MODS, "Full rendimiento (vs Casual)", () -> PlayStyle.isCompetitive(), v -> {
+            LauncherProfile.playStyle = v ? "competitive" : "casual";
+            PerformanceBootstrap.applyPresetNow(MinecraftClient.getInstance());
+            ModernConfig.save();
+        }, ""));
+        cards.add(open(TAB_MODS, "Quick Play (`)", "quickplay", "quickplay"));
+        cards.add(open(TAB_MODS, "Cubecraft Quick Play", "cubecraft_qp", ""));
+        cards.add(open(TAB_MODS, "NickFinder (N)", "nickfinder", ""));
+        cards.add(toggle(TAB_MODS, "Colores de equipo", () -> ModernConfig.teamColors, v -> ModernConfig.teamColors = v, ""));
+        cards.add(toggle(TAB_MODS, "NickFinder activo", () -> ModernConfig.nickFinderEnabled, v -> ModernConfig.nickFinderEnabled = v, ""));
+        cards.add(open(TAB_MODS, "Insignias y Ping", "badges_ping", "badges"));
+        cards.add(open(TAB_MODS, "Mira: " + ModernConfig.crosshairModeLabel(), "crosshair", ""));
+        cards.add(toggle(TAB_MODS, "Saturacion", () -> ModernConfig.showSaturation, v -> ModernConfig.showSaturation = v, ""));
+
+        cards.add(open(TAB_SETTINGS, "Mira: " + ModernConfig.crosshairModeLabel(), "crosshair", ""));
+        cards.add(toggle(TAB_SETTINGS, "Perfiles auto por modo", () -> ModernConfig.autoGameModeProfiles, v -> ModernConfig.autoGameModeProfiles = v, ""));
+        cards.add(open(TAB_SETTINGS, "Perfil: " + GameModeDetector.overrideLabel(), "profile_cycle", ""));
+        cards.add(open(TAB_SETTINGS, "Modo de juego (manual)", "gamemode_override", ""));
+        cards.add(toggle(TAB_SETTINGS, "Pantalla sin bordes", () -> ModernConfig.windowedFullscreen, v -> ModernConfig.windowedFullscreen = v, ""));
+        cards.add(open(TAB_SETTINGS, "Motion Blur", "motion_blur", ""));
+        cards.add(open(TAB_SETTINGS, "Escala GUI", "gui_scale", ""));
+        cards.add(toggle(TAB_SETTINGS, "FOV estatico", () -> !ModernConfig.dynamicFov, v -> {
             ModernConfig.dynamicFov = !v;
             if (client != null && client.options != null && client.options.getFovEffectScale() != null) {
                 client.options.getFovEffectScale().setValue(ModernConfig.dynamicFov ? 1.0 : 0.0);
             }
-        }));
-        cards.add(toggle(3, "Freelook (Alt)", () -> ModernConfig.freelookEnabled, v -> ModernConfig.freelookEnabled = v));
-        cards.add(toggle(3, "Freelook blacklist ranked", () -> ModernConfig.freelookBlacklistServers, v -> ModernConfig.freelookBlacklistServers = v));
-        cards.add(toggle(3, "Shaders auto-off en partida", () -> ModernConfig.shaderAutoOffInMatch, v -> ModernConfig.shaderAutoOffInMatch = v));
-        cards.add(toggle(3, "Perfiles auto por modo", () -> ModernConfig.autoGameModeProfiles, v -> ModernConfig.autoGameModeProfiles = v));
-        cards.add(toggle(3, "Reach solo practica", () -> ModernConfig.reachDisplayPracticeOnly, v -> ModernConfig.reachDisplayPracticeOnly = v));
-        cards.add(toggle(3, "Animaciones 1.7 (swing/blockhit espada)", () -> ModernConfig.oldAnimations, v -> {
-            ModernConfig.oldAnimations = v;
-            PerformanceConfig.oldAnimations = v;
-        }));
-        cards.add(toggle(3, "Ocultar titulos", () -> ModernConfig.hideTitles, v -> ModernConfig.hideTitles = v));
-        cards.add(open(3, "Chat", "chat_group"));
-        cards.add(open(3, "Config chat triggers", "chat_triggers_cfg"));
-        cards.add(open(3, "Config chat alerts", "chat_alerts"));
-        cards.add(open(3, "Scoreboard", "scoreboard_group"));
-        cards.add(open(1, "Modo de juego (manual)", "gamemode_override"));
-        cards.add(toggle(1, "HUD modo de juego", () -> ModernConfig.showGameModeHud, v -> ModernConfig.showGameModeHud = v));
-        cards.add(toggle(4, "Boost FPS", () -> PerformanceConfig.boostFps, v -> {
-            PerformanceConfig.boostFps = v;
+        }, ""));
+        cards.add(toggle(TAB_SETTINGS, "Saturacion", () -> ModernConfig.showSaturation, v -> ModernConfig.showSaturation = v, ""));
+        cards.add(toggle(TAB_SETTINGS, "UI " + ModernConfig.uiScaleLabel(), () -> true, v -> {
+            ModernConfig.cycleUiScale();
             ModernConfig.save();
-        }));
-        cards.add(open(4, "Entity / cull", "entity_group"));
-        cards.add(open(4, "Particulas: " + PerformanceConfig.particleModeLabel(), "particles"));
-        cards.add(open(4, "Limpiar memoria", "clean_memory"));
-        cards.add(open(4, "Aplicar preset de hardware", "apply_hw_preset"));
-        cards.add(toggle(4, "Full rendimiento (vs Casual)", () -> PlayStyle.isCompetitive(), v -> {
-            LauncherProfile.playStyle = v ? "competitive" : "casual";
-            PerformanceBootstrap.applyPresetNow(MinecraftClient.getInstance());
-            ModernConfig.save();
-        }));
-        cards.add(open(4, "Mira: " + ModernConfig.crosshairModeLabel(), "crosshair"));
-        cards.add(open(5, "Quick Play (`)", "quickplay"));
-        cards.add(open(5, "Cubecraft Quick Play", "cubecraft_qp"));
-        cards.add(open(5, "Texture packs", "packs"));
-        cards.add(open(5, "NickFinder (N)", "nickfinder"));
-        cards.add(toggle(5, "Colores de equipo", () -> ModernConfig.teamColors, v -> ModernConfig.teamColors = v));
-        cards.add(toggle(5, "NickFinder activo", () -> ModernConfig.nickFinderEnabled, v -> ModernConfig.nickFinderEnabled = v));
-        cards.add(open(5, "Tema del menu", "theme"));
+        }, ""));
+
+        cards.add(open(TAB_PACKS, "Texture packs", "packs", "packs"));
+        cards.add(open(TAB_PACKS, "Visualizacion de pack", "pack_hud", ""));
+        cards.add(open(TAB_PACKS, "Tema del menu", "theme", ""));
         return cards;
     }
 
-    private static ModCard toggle(int category, String label, BooleanSupplier getter, Consumer<Boolean> setter) {
+    private static ModCard toggle(int tab, String label, BooleanSupplier getter, Consumer<Boolean> setter, String recKey) {
         ModCard c = new ModCard();
-        c.category = category;
+        c.tab = tab;
         c.label = label;
         c.getter = getter;
         c.setter = setter;
         c.action = "toggle";
+        c.recKey = recKey;
         return c;
     }
 
-    private static ModCard open(int category, String label, String target) {
+    private static ModCard open(int tab, String label, String target, String recKey) {
         ModCard c = new ModCard();
-        c.category = category;
+        c.tab = tab;
         c.label = label;
         c.action = "open";
         c.openTarget = target;
+        c.recKey = recKey;
         c.getter = () -> false;
         c.setter = v -> {};
         return c;
@@ -306,14 +406,17 @@ public class ModMenuScreen extends ParaguacraftScreen {
 
     @Override
     public boolean mouseClicked(Click click, boolean doubled) {
-        int panelX = Math.max(8, width / 2 - 420);
-        int panelY = 20;
-        int panelH = height - 40;
-        if (click.x() >= panelX && click.x() < panelX + SIDEBAR && click.y() >= panelY + TOPBAR && click.y() < panelY + panelH - 8) {
-            int idx = (int) ((click.y() - panelY - TOPBAR) / 22);
-            if (idx >= 0 && idx < CATEGORIES.length) {
-                selectedCategory = idx;
+        int[] g = panelGeom();
+        int panelX = g[0];
+        int panelY = g[1];
+        int tabY = panelY + 24;
+        int tabW = 78;
+        for (int i = 0; i < TABS.length; i++) {
+            int tx = panelX + 12 + i * (tabW + 6);
+            if (click.x() >= tx && click.x() < tx + tabW && click.y() >= tabY && click.y() < tabY + 18) {
+                selectedTab = i;
                 scroll = 0;
+                searchField = null;
                 clearChildren();
                 init();
                 return true;
@@ -324,30 +427,49 @@ public class ModMenuScreen extends ParaguacraftScreen {
 
     @Override
     public void renderBackground(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        super.renderBackground(ctx, mouseX, mouseY, delta);
-        int panelX = Math.max(8, width / 2 - 420);
-        int panelY = 20;
-        int panelW = Math.min(width - 16, 840);
-        int panelH = height - 40;
+        if (client != null && client.world != null) {
+            ctx.fill(0, 0, width, height, 0x44000000);
+        } else {
+            super.renderBackground(ctx, mouseX, mouseY, delta);
+        }
+        int[] g = panelGeom();
+        int panelX = g[0];
+        int panelY = g[1];
+        int panelW = g[2];
+        int panelH = g[3];
         ctx.fill(panelX, panelY, panelX + panelW, panelY + panelH, 0xCC0A0C14);
         ctx.fill(panelX, panelY, panelX + panelW, panelY + 1, 0x33FFFFFF);
-        ctx.fill(panelX, panelY + TOPBAR, panelX + SIDEBAR, panelY + panelH, 0xBB080A10);
+        ctx.fill(panelX, panelY + panelH - FOOTER, panelX + panelW, panelY + panelH, 0xAA080A10);
     }
 
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
         super.render(ctx, mouseX, mouseY, delta);
-        int panelX = Math.max(8, width / 2 - 420);
-        int panelY = 20;
-        ctx.drawText(textRenderer, Text.literal("PARAGUACRAFT"), panelX + 14, panelY + 12, UiTheme.accent(), true);
-        ctx.drawText(textRenderer, Text.literal("Mod Menu"), panelX + 14, panelY + 26, UiTheme.textDim(), true);
-        int catY = panelY + TOPBAR + 8;
-        for (int i = 0; i < CATEGORIES.length; i++) {
-            if (i == selectedCategory) {
-                ctx.fill(panelX + 6, catY + i * 22 - 2, panelX + SIDEBAR - 6, catY + i * 22 + 12, 0x4400E5FF);
+        int[] g = panelGeom();
+        int panelX = g[0];
+        int panelY = g[1];
+        int panelW = g[2];
+        ctx.drawText(textRenderer, Text.literal("PARAGUACRAFT"), panelX + 12, panelY + 8, UiTheme.accent(), true);
+        String chip = ServerContext.chip(client);
+        int chipW = textRenderer.getWidth(chip) + 12;
+        int chipX = panelX + panelW - chipW - 12;
+        ctx.fill(chipX, panelY + 6, chipX + chipW, panelY + 20, 0xAA123040);
+        ctx.drawText(textRenderer, Text.literal(chip), chipX + 6, panelY + 9, UiTheme.accent(), true);
+
+        int tabY = panelY + 24;
+        int tabW = 78;
+        for (int i = 0; i < TABS.length; i++) {
+            int tx = panelX + 12 + i * (tabW + 6);
+            if (i == selectedTab) {
+                ctx.fill(tx, tabY, tx + tabW, tabY + 18, 0x4400E5FF);
             }
-            int color = i == selectedCategory ? UiTheme.accent() : UiTheme.textDim();
-            ctx.drawText(textRenderer, Text.literal(CATEGORIES[i]), panelX + 14, catY + i * 22, color, true);
+            int color = i == selectedTab ? UiTheme.TEXT : UiTheme.textDim();
+            int tw = textRenderer.getWidth(TABS[i]);
+            ctx.drawText(textRenderer, Text.literal(TABS[i]), tx + tabW / 2 - tw / 2, tabY + 5, color, true);
+        }
+
+        if (selectedTab == TAB_MODS && search.isBlank() && recommendedCount(filteredCards()) > 0) {
+            ctx.drawText(textRenderer, Text.literal("Para este modo"), panelX + 12, panelY + TOPBAR - 2, UiTheme.accent(), true);
         }
     }
 
@@ -357,10 +479,11 @@ public class ModMenuScreen extends ParaguacraftScreen {
     }
 
     private static final class ModCard {
-        int category;
+        int tab;
         String label;
         String action;
         String openTarget;
+        String recKey;
         BooleanSupplier getter;
         Consumer<Boolean> setter;
     }

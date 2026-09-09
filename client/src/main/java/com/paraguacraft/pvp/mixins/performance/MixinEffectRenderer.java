@@ -32,6 +32,10 @@ public class MixinEffectRenderer {
 
     @Inject(method = "addEffect", at = @At("HEAD"), cancellable = true)
     private void paraguacraft$limitParticles(EntityFX effect, CallbackInfo ci) {
+        if (shouldHideParticle(effect)) {
+            ci.cancel();
+            return;
+        }
         if (!PerformanceConfig.particleLimit) {
             return;
         }
@@ -45,5 +49,20 @@ public class MixinEffectRenderer {
         }
         paraguacraft$spawnedThisTick++;
         paraguacraft$estimatedActive++;
+    }
+
+    @Unique
+    private static boolean shouldHideParticle(EntityFX effect) {
+        if (effect == null) {
+            return false;
+        }
+        String name = effect.getClass().getSimpleName();
+        if (PerformanceConfig.hideExplosionParticles
+            && (name.contains("Explode") || name.contains("HugeExplode") || name.contains("LargeExplode")
+                || name.contains("SmokeFX") || name.contains("Firework"))) {
+            return true;
+        }
+        return PerformanceConfig.hidePotionParticles
+            && (name.contains("Aura") || name.contains("Spell") || name.contains("Potion"));
     }
 }

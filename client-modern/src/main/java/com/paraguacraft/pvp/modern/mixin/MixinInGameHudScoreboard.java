@@ -27,7 +27,30 @@ public class MixinInGameHudScoreboard {
     @Inject(method = SIDEBAR_ENTRY, at = @At("HEAD"), cancellable = true)
     private void paraguacraft$disableSidebar(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
         if (!ModernConfig.scoreboardEnabled) {
+            paraguacraft$scaled = false;
             ci.cancel();
+            return;
+        }
+        float s = ModernConfig.scoreboardScaleFactor();
+        if (s != 1.0F) {
+            context.getMatrices().pushMatrix();
+            float w = context.getScaledWindowWidth();
+            context.getMatrices().translate(w, 0);
+            context.getMatrices().scale(s, s);
+            context.getMatrices().translate(-w, 0);
+            paraguacraft$scaled = true;
+        } else {
+            paraguacraft$scaled = false;
+        }
+    }
+
+    private static boolean paraguacraft$scaled;
+
+    @Inject(method = SIDEBAR_ENTRY, at = @At("RETURN"))
+    private void paraguacraft$endSidebarScale(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
+        if (paraguacraft$scaled) {
+            context.getMatrices().popMatrix();
+            paraguacraft$scaled = false;
         }
     }
 
@@ -58,7 +81,7 @@ public class MixinInGameHudScoreboard {
         boolean shadow
     ) {
         if (!shouldSkip(text)) {
-            context.drawText(tr, text, x, y, color, shadow);
+            context.drawText(tr, text, x, y, color, ModernConfig.scoreboardTextShadow || shadow);
         }
     }
 

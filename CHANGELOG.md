@@ -3,6 +3,15 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## Clientes PvP 2.1.63 / 0.9.37 - 2026-09-09
+
+### Cliente PvP 1.8.9 (2.1.63)
+- Hub Right Shift compacto: chip servidor·modo, pestañas Mods / Ajustes / Packs y Editar HUD visible.
+- Perfiles auto BedWars / SkyWars / Duels / UHC / Lobby; HUD de límite de altura; mira en el menú vivo.
+
+### Cliente PvP Modern (0.9.37)
+- Mismo hub y perfiles (UHC real); height limit; saturación junto a la barra de hambre.
+
 ## [1.1.42] - 2026-09-09
 
 ### Launcher

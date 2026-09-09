@@ -13,8 +13,19 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 public class CombatStats {
 
     public static double lastReach = 0.0;
+    public static long lastReachTime = 0L;
     public static int comboCount = 0;
     private static long lastHitTime = 0L;
+
+    public static boolean hasReach() {
+        if (lastReach <= 0.0) {
+            return false;
+        }
+        if (!ModConfig.reachPersist) {
+            return true;
+        }
+        return System.currentTimeMillis() - lastReachTime < 4000L;
+    }
 
     private static Minecraft mc() {
         return Minecraft.getMinecraft();
@@ -34,6 +45,7 @@ public class CombatStats {
         double dy = target.posY + target.getEyeHeight() - (mc.thePlayer.posY + mc.thePlayer.getEyeHeight());
         double dz = target.posZ - mc.thePlayer.posZ;
         lastReach = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        lastReachTime = System.currentTimeMillis();
 
         if (ModConfig.comboCounter) {
             long now = System.currentTimeMillis();
@@ -58,6 +70,7 @@ public class CombatStats {
 
     public static void reset() {
         lastReach = 0.0;
+        lastReachTime = 0L;
         comboCount = 0;
         lastHitTime = 0L;
     }

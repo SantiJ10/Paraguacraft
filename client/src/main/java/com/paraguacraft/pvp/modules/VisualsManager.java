@@ -35,7 +35,7 @@ public class VisualsManager {
                 GlStateManager.disableTexture2D();
                 GlStateManager.depthMask(false);
 
-                GL11.glColor4f(0.0F, 0.898F, 1.0F, 0.9F);
+                GL11.glColor4f(ModConfig.hitColorR(), ModConfig.hitColorG(), ModConfig.hitColorB(), 0.9F);
                 
                 double d0 = mc.getRenderManager().viewerPosX;
                 double d1 = mc.getRenderManager().viewerPosY;

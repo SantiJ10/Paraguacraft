@@ -92,6 +92,8 @@ public final class PerformanceConfig {
 
     /** Menos partículas de daño / muerte en combate. */
     public static boolean skipCombatFx = true;
+    public static boolean hideExplosionParticles = false;
+    public static boolean hidePotionParticles = false;
 
     /** Aplica preset según RAM/CPU al primer arranque. */
     public static boolean hardwareAutoPreset = true;
@@ -168,6 +170,8 @@ public final class PerformanceConfig {
         props.setProperty("itemFrameCull", String.valueOf(itemFrameCull));
         props.setProperty("nametagLod", String.valueOf(nametagLod));
         props.setProperty("skipCombatFx", String.valueOf(skipCombatFx));
+        props.setProperty("hideExplosionParticles", String.valueOf(hideExplosionParticles));
+        props.setProperty("hidePotionParticles", String.valueOf(hidePotionParticles));
         props.setProperty("hardwareAutoPreset", String.valueOf(hardwareAutoPreset));
         props.setProperty("reduceFpsWhenMinimized", String.valueOf(reduceFpsWhenMinimized));
         props.setProperty("minimizedFps", String.valueOf(minimizedFps));
@@ -194,6 +198,8 @@ public final class PerformanceConfig {
         itemFrameCull = Boolean.parseBoolean(props.getProperty("itemFrameCull", String.valueOf(itemFrameCull)));
         nametagLod = Boolean.parseBoolean(props.getProperty("nametagLod", String.valueOf(nametagLod)));
         skipCombatFx = Boolean.parseBoolean(props.getProperty("skipCombatFx", String.valueOf(skipCombatFx)));
+        hideExplosionParticles = Boolean.parseBoolean(props.getProperty("hideExplosionParticles", String.valueOf(hideExplosionParticles)));
+        hidePotionParticles = Boolean.parseBoolean(props.getProperty("hidePotionParticles", String.valueOf(hidePotionParticles)));
         hardwareAutoPreset = Boolean.parseBoolean(
             props.getProperty("hardwareAutoPreset", String.valueOf(hardwareAutoPreset))
         );

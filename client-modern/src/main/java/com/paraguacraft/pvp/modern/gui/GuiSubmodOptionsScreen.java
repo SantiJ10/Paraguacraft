@@ -10,11 +10,16 @@ import net.minecraft.text.Text;
 
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /** Submods agrupados (Armadura, FPS, Entity, BedWars, Chat, Scoreboard). */
 public class GuiSubmodOptionsScreen extends ParaguacraftScreen {
 
-    public record Row(String label, BooleanSupplier getter, Consumer<Boolean> setter) {}
+    public record Row(String label, BooleanSupplier getter, Consumer<Boolean> setter, Supplier<String> state) {
+        public Row(String label, BooleanSupplier getter, Consumer<Boolean> setter) {
+            this(label, getter, setter, null);
+        }
+    }
 
     private final Row[] rows;
 
@@ -36,8 +41,9 @@ public class GuiSubmodOptionsScreen extends ParaguacraftScreen {
             ctx.fill(px + 12, rowY, px + 308, rowY + 22, 0x44000000);
             boolean on = rows[i].getter.getAsBoolean();
             ctx.drawText(textRenderer, Text.literal(rows[i].label), px + 20, rowY + 7, UiTheme.TEXT, true);
-            String value = on ? "ON" : "OFF";
-            ctx.drawText(textRenderer, Text.literal(value), px + 288 - textRenderer.getWidth(value), rowY + 7, on ? 0xFF22CC66 : 0xFFCC4444, true);
+            String value = rows[i].state() != null ? rows[i].state().get() : (on ? "ON" : "OFF");
+            int color = rows[i].state() != null ? UiTheme.accent() : (on ? 0xFF22CC66 : 0xFFCC4444);
+            ctx.drawText(textRenderer, Text.literal(value), px + 288 - textRenderer.getWidth(value), rowY + 7, color, true);
         }
         super.render(ctx, mouseX, mouseY, delta);
     }
@@ -53,7 +59,11 @@ public class GuiSubmodOptionsScreen extends ParaguacraftScreen {
         for (int i = 0; i < rows.length; i++) {
             int rowY = py + 44 + i * 32;
             if (click.x() >= px + 12 && click.x() <= px + 308 && click.y() >= rowY && click.y() <= rowY + 22) {
-                rows[i].setter.accept(!rows[i].getter.getAsBoolean());
+                if (rows[i].state() != null) {
+                    rows[i].setter.accept(true);
+                } else {
+                    rows[i].setter.accept(!rows[i].getter.getAsBoolean());
+                }
                 ModernConfig.save();
                 return true;
             }
@@ -65,6 +75,7 @@ public class GuiSubmodOptionsScreen extends ParaguacraftScreen {
         return new GuiSubmodOptionsScreen(parent, "Armadura HUD", new Row[] {
             new Row("Mostrar iconos", () -> ModernConfig.showArmor, v -> ModernConfig.showArmor = v),
             new Row("Mostrar % durabilidad", () -> ModernConfig.showArmorPercentage, v -> ModernConfig.showArmorPercentage = v),
+            new Row("Durabilidad numerica", () -> ModernConfig.showArmorDurability, v -> ModernConfig.showArmorDurability = v),
             new Row("Alerta durabilidad baja", () -> ModernConfig.armorDurabilityAlert, v -> ModernConfig.armorDurabilityAlert = v),
         });
     }
@@ -120,6 +131,7 @@ public class GuiSubmodOptionsScreen extends ParaguacraftScreen {
             new Row("Fondo transparente", () -> ModernConfig.bwResTransparentBg, v -> ModernConfig.bwResTransparentBg = v),
             new Row("Camas coloridas", () -> ModernConfig.coloredBeds, v -> ModernConfig.coloredBeds = v),
             new Row("Timer bridge", () -> ModernConfig.showBridgeTimer, v -> ModernConfig.showBridgeTimer = v),
+            new Row("Perfiles auto por modo", () -> ModernConfig.autoGameModeProfiles, v -> ModernConfig.autoGameModeProfiles = v),
         });
     }
 
@@ -131,6 +143,9 @@ public class GuiSubmodOptionsScreen extends ParaguacraftScreen {
                 com.paraguacraft.pvp.modern.core.ChatAlerts.enabled = v;
                 com.paraguacraft.pvp.modern.core.ChatAlerts.save();
             }),
+            new Row("Historial ilimitado", () -> ModernConfig.chatUnlimited, v -> ModernConfig.chatUnlimited = v),
+            new Row("Sombra de texto", () -> ModernConfig.chatTextShadow, v -> ModernConfig.chatTextShadow = v),
+            new Row("Resaltar tu nombre", () -> ModernConfig.chatHighlightName, v -> ModernConfig.chatHighlightName = v),
         });
     }
 
@@ -140,6 +155,70 @@ public class GuiSubmodOptionsScreen extends ParaguacraftScreen {
             new Row("Fondo transparente", () -> ModernConfig.scoreboardTransparentBg, v -> ModernConfig.scoreboardTransparentBg = v),
             new Row("Ocultar numeros rojos", () -> ModernConfig.scoreboardHideRedNumbers, v -> ModernConfig.scoreboardHideRedNumbers = v),
             new Row("Ocultar stats", () -> ModernConfig.scoreboardHideStats, v -> ModernConfig.scoreboardHideStats = v),
+            new Row("Sombra de texto", () -> ModernConfig.scoreboardTextShadow, v -> ModernConfig.scoreboardTextShadow = v),
+            new Row("Escala", () -> true, v -> ModernConfig.cycleScoreboardScale(), () -> ModernConfig.scoreboardScale + "%"),
+        });
+    }
+
+    public static GuiSubmodOptionsScreen tnt(Screen parent) {
+        return new GuiSubmodOptionsScreen(parent, "Cuenta TNT", new Row[] {
+            new Row("Mostrar countdown", () -> ModernConfig.showTntCountdown, v -> ModernConfig.showTntCountdown = v),
+            new Row("Compensar ping", () -> ModernConfig.tntPingCompensate, v -> ModernConfig.tntPingCompensate = v),
+            new Row("Fuse", () -> true, v -> ModernConfig.cycleTntFuse(), ModernConfig::tntFuseLabel),
+        });
+    }
+
+    public static GuiSubmodOptionsScreen tab(Screen parent) {
+        return new GuiSubmodOptionsScreen(parent, "Editor de Tab", new Row[] {
+            new Row("Editor activo", () -> ModernConfig.tabEditor, v -> ModernConfig.tabEditor = v),
+            new Row("Ping como numero", () -> ModernConfig.tabPingNumbers, v -> ModernConfig.tabPingNumbers = v),
+            new Row("Ocultar NPCs", () -> ModernConfig.tabHideNpcs, v -> ModernConfig.tabHideNpcs = v),
+            new Row("Ocultar ping > 500", () -> ModernConfig.tabHideHighPing, v -> ModernConfig.tabHideHighPing = v),
+        });
+    }
+
+    public static GuiSubmodOptionsScreen hitColor(Screen parent) {
+        return new GuiSubmodOptionsScreen(parent, "Color de golpe", new Row[] {
+            new Row("Color de golpe activo", () -> ModernConfig.hitColorEnabled, v -> ModernConfig.hitColorEnabled = v),
+            new Row("Preset", () -> true, v -> ModernConfig.cycleHitColor(), ModernConfig::hitColorLabel),
+        });
+    }
+
+    public static GuiSubmodOptionsScreen particles(Screen parent) {
+        return new GuiSubmodOptionsScreen(parent, "Particulas", new Row[] {
+            new Row("Modo", () -> true, v -> {
+                PerformanceConfig.cycleParticleMode();
+                com.paraguacraft.pvp.modern.core.PerformanceBootstrap.applyParticleModeNow(net.minecraft.client.MinecraftClient.getInstance());
+            }, PerformanceConfig::particleModeLabel),
+            new Row("Ocultar explosiones", () -> PerformanceConfig.hideExplosionParticles, v -> PerformanceConfig.hideExplosionParticles = v),
+            new Row("Ocultar particulas de pocion", () -> PerformanceConfig.hidePotionParticles, v -> PerformanceConfig.hidePotionParticles = v),
+        });
+    }
+
+    public static GuiSubmodOptionsScreen reach(Screen parent) {
+        return new GuiSubmodOptionsScreen(parent, "Reach display", new Row[] {
+            new Row("Mostrar alcance", () -> ModernConfig.reachDisplay, v -> ModernConfig.reachDisplay = v),
+            new Row("Mantener ultimo golpe (4s)", () -> ModernConfig.reachPersist, v -> ModernConfig.reachPersist = v),
+        });
+    }
+
+    public static GuiSubmodOptionsScreen guiScale(Screen parent) {
+        return new GuiSubmodOptionsScreen(parent, "Escala GUI", new Row[] {
+            new Row("Hotbar", () -> true, v -> ModernConfig.cycleHotbarScale(), () -> ModernConfig.hotbarScale + "%"),
+            new Row("Inventario", () -> true, v -> ModernConfig.cycleInventoryScale(), () -> ModernConfig.inventoryScale + "%"),
+        });
+    }
+
+    public static GuiSubmodOptionsScreen packHud(Screen parent) {
+        return new GuiSubmodOptionsScreen(parent, "Visualizacion de pack", new Row[] {
+            new Row("Mostrar pack actual en HUD", () -> ModernConfig.showPackHud, v -> ModernConfig.showPackHud = v),
+        });
+    }
+
+    public static GuiSubmodOptionsScreen heightLimit(Screen parent) {
+        return new GuiSubmodOptionsScreen(parent, "Limite de altura", new Row[] {
+            new Row("Mostrar altura / techo", () -> ModernConfig.showHeightLimit, v -> ModernConfig.showHeightLimit = v),
+            new Row("Techo", () -> true, v -> ModernConfig.cycleHeightLimit(), ModernConfig::heightLimitLabel),
         });
     }
 }

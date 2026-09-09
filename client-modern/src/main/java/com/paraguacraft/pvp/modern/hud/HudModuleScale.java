@@ -70,6 +70,8 @@ public final class HudModuleScale {
             case 18 -> ModernConfig.scaleServer;
             case 19 -> ModernConfig.scaleItems;
             case 20 -> ModernConfig.scaleWaypoints;
+            case 21 -> ModernConfig.scalePack;
+            case 22 -> ModernConfig.scaleHeight;
             default -> 100;
         };
     }
@@ -98,6 +100,8 @@ public final class HudModuleScale {
             case 18 -> ModernConfig.scaleServer = pct;
             case 19 -> ModernConfig.scaleItems = pct;
             case 20 -> ModernConfig.scaleWaypoints = pct;
+            case 21 -> ModernConfig.scalePack = pct;
+            case 22 -> ModernConfig.scaleHeight = pct;
             default -> {}
         }
     }
