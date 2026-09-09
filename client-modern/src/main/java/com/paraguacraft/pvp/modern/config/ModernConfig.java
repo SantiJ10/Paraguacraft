@@ -67,6 +67,8 @@ public final class ModernConfig {
     public static int heightY = 90;
     public static int scaleHeight = 100;
     public static boolean showSaturation = true;
+    /** Texto "Sat 100%" sobre la barra de hambre. Independiente del overlay. */
+    public static boolean showSaturationText = false;
     public static int hotbarScale = 100;
     public static int inventoryScale = 100;
     public static int scoreboardScale = 100;
@@ -484,6 +486,7 @@ public final class ModernConfig {
             heightY = intProp(props, "heightY", heightY);
             scaleHeight = intProp(props, "scaleHeight", scaleHeight);
             showSaturation = bool(props, "showSaturation", showSaturation);
+            showSaturationText = bool(props, "showSaturationText", showSaturationText);
             hotbarScale = intProp(props, "hotbarScale", hotbarScale);
             inventoryScale = intProp(props, "inventoryScale", inventoryScale);
             scoreboardScale = intProp(props, "scoreboardScale", scoreboardScale);
@@ -726,6 +729,7 @@ public final class ModernConfig {
         props.setProperty("heightY", String.valueOf(heightY));
         props.setProperty("scaleHeight", String.valueOf(scaleHeight));
         props.setProperty("showSaturation", String.valueOf(showSaturation));
+        props.setProperty("showSaturationText", String.valueOf(showSaturationText));
         props.setProperty("hotbarScale", String.valueOf(hotbarScale));
         props.setProperty("inventoryScale", String.valueOf(inventoryScale));
         props.setProperty("scoreboardScale", String.valueOf(scoreboardScale));

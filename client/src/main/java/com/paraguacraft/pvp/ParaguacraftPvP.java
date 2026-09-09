@@ -38,7 +38,7 @@ public class ParaguacraftPvP {
 
     public static final String MODID = "paraguacraftpvp";
     public static final String NAME = "Paraguacraft PvP Client";
-    public static final String VERSION = "2.1.63";
+    public static final String VERSION = "2.1.64";
 
     @Mod.Instance(MODID)
     public static ParaguacraftPvP instance;

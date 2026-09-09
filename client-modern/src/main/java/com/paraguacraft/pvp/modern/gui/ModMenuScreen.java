@@ -28,8 +28,10 @@ import java.util.function.Consumer;
 public class ModMenuScreen extends ParaguacraftScreen {
 
     private static final String[] TABS = {"Mods", "Ajustes", "Packs"};
-    private static final int TOPBAR = 72;
-    private static final int FOOTER = 30;
+    private static final int TOPBAR = 78;
+    private static final int FOOTER = 32;
+    private static final int CARD_H = 50;
+    private static final int GAP = 8;
     private static final int TAB_MODS = 0;
     private static final int TAB_SETTINGS = 1;
     private static final int TAB_PACKS = 2;
@@ -37,18 +39,36 @@ public class ModMenuScreen extends ParaguacraftScreen {
     private int selectedTab;
     private String search = "";
     private float scroll;
+    private float maxScroll;
     private TextFieldWidget searchField;
+    private boolean rebuilding;
 
     public ModMenuScreen(Screen parent) {
         super(Text.literal("Paraguacraft Mods"), parent);
     }
 
     private int[] panelGeom() {
-        int panelW = Math.min(width - 32, 720);
-        int panelH = Math.min(height - 28, 400);
+        int panelW = Math.min(width - 24, 740);
+        int panelH = Math.max(260, height - 18);
+        if (panelH > height - 12) {
+            panelH = height - 12;
+        }
         int panelX = (width - panelW) / 2;
-        int panelY = Math.max(8, (height - panelH) / 2);
+        int panelY = Math.max(6, (height - panelH) / 2);
         return new int[] {panelX, panelY, panelW, panelH};
+    }
+
+    private void rebuild() {
+        if (rebuilding) {
+            return;
+        }
+        rebuilding = true;
+        try {
+            clearChildren();
+            init();
+        } finally {
+            rebuilding = false;
+        }
     }
 
     @Override
@@ -59,23 +79,27 @@ public class ModMenuScreen extends ParaguacraftScreen {
         int panelW = g[2];
         int panelH = g[3];
         int gridX = panelX + 10;
-        int gridY = panelY + TOPBAR + 8;
+        int gridY = panelY + TOPBAR;
         int gridW = panelW - 20;
-        int cardW = Math.min(168, (gridW - 12) / 2);
-        int cardH = 56;
-        int gap = 8;
+        int gridH = panelH - TOPBAR - FOOTER;
+        int cols = gridW >= 520 ? 3 : 2;
+        int cardW = Math.max(140, (gridW - GAP * (cols - 1)) / cols);
 
         List<ModCard> cards = filteredCards();
         int rec = recommendedCount(cards);
-        int headerH = rec > 0 ? 14 : 0;
-        int cols = Math.max(1, gridW / (cardW + gap));
+        int headerH = rec > 0 ? 16 : 0;
+        int rows = Math.max(1, (cards.size() + cols - 1) / cols);
+        int contentH = 6 + headerH + rows * (CARD_H + GAP);
+        maxScroll = Math.max(0, contentH - gridH);
+        scroll = Math.max(0, Math.min(scroll, maxScroll));
+
         int row = 0;
         int col = 0;
         for (ModCard card : cards) {
-            int x = gridX + col * (cardW + gap);
-            int y = gridY + headerH + row * (cardH + gap) - (int) scroll;
-            if (y + cardH >= panelY + TOPBAR && y <= panelY + panelH - FOOTER) {
-                addCardButton(card, x, y, cardW, cardH);
+            int x = gridX + col * (cardW + GAP);
+            int y = gridY + 6 + headerH + row * (CARD_H + GAP) - (int) scroll;
+            if (y >= gridY && y + CARD_H <= gridY + gridH) {
+                addCardButton(card, x, y, cardW, CARD_H);
             }
             col++;
             if (col >= cols) {
@@ -103,26 +127,28 @@ public class ModMenuScreen extends ParaguacraftScreen {
     }
 
     private void initSearchField(int panelX, int panelY, int panelW) {
-        int fieldW = 160;
-        int fieldX = panelX + panelW - fieldW - 14;
-        int fieldY = panelY + 48;
+        int fieldW = Math.min(280, Math.max(160, panelW - 160));
+        int fieldX = panelX + 12;
+        int fieldY = panelY + 54;
         if (searchField == null) {
             searchField = new TextFieldWidget(textRenderer, fieldX, fieldY, fieldW, 16, Text.literal("Buscar"));
             searchField.setMaxLength(32);
             searchField.setPlaceholder(Text.literal("Buscar mods…"));
             searchField.setText(search);
             searchField.setChangedListener(text -> {
+                if (rebuilding) {
+                    return;
+                }
                 search = text;
                 scroll = 0;
-                clearChildren();
-                init();
+                rebuild();
             });
         } else {
             searchField.setX(fieldX);
             searchField.setY(fieldY);
+            searchField.setWidth(fieldW);
         }
         addDrawableChild(searchField);
-        setFocused(searchField);
     }
 
     private void addCardButton(ModCard card, int x, int y, int w, int h) {
@@ -138,8 +164,7 @@ public class ModMenuScreen extends ParaguacraftScreen {
                 if ("Pantalla sin bordes".equals(card.label)) {
                     com.paraguacraft.pvp.modern.core.WindowedFullscreenManager.sync(client);
                 }
-                clearChildren();
-                init();
+                rebuild();
             }));
         }
     }
@@ -152,8 +177,7 @@ public class ModMenuScreen extends ParaguacraftScreen {
             case "gamemode_override" -> client.setScreen(new GuiGameModeOverrideScreen(this));
             case "fullbright", "gamma_utils" -> {
                 FullbrightManager.toggle(client);
-                clearChildren();
-                init();
+                rebuild();
             }
             case "chat_triggers_cfg" -> client.setScreen(new GuiChatTriggersScreen(this));
             case "packs" -> client.setScreen(new PackSelectScreen(this));
@@ -176,6 +200,7 @@ public class ModMenuScreen extends ParaguacraftScreen {
             case "particles" -> client.setScreen(GuiSubmodOptionsScreen.particles(this));
             case "reach_group" -> client.setScreen(GuiSubmodOptionsScreen.reach(this));
             case "gui_scale" -> client.setScreen(GuiSubmodOptionsScreen.guiScale(this));
+            case "saturation" -> client.setScreen(GuiSubmodOptionsScreen.saturation(this));
             case "pack_hud" -> client.setScreen(GuiSubmodOptionsScreen.packHud(this));
             case "height_limit" -> client.setScreen(GuiSubmodOptionsScreen.heightLimit(this));
             case "badges_ping" -> client.setScreen(new GuiBadgesPingOptionsScreen(this));
@@ -183,13 +208,11 @@ public class ModMenuScreen extends ParaguacraftScreen {
             case "crosshair" -> {
                 ModernConfig.cycleCrosshairMode();
                 ModernConfig.save();
-                clearChildren();
-                init();
+                rebuild();
             }
             case "profile_cycle" -> {
                 GameModeDetector.cycleOverride();
-                clearChildren();
-                init();
+                rebuild();
             }
             case "clean_memory" -> PerformanceBootstrap.cleanMemoryNow();
             case "apply_hw_preset" -> PerformanceBootstrap.applyPresetNow(client);
@@ -346,7 +369,7 @@ public class ModMenuScreen extends ParaguacraftScreen {
         cards.add(toggle(TAB_MODS, "NickFinder activo", () -> ModernConfig.nickFinderEnabled, v -> ModernConfig.nickFinderEnabled = v, ""));
         cards.add(open(TAB_MODS, "Insignias y Ping", "badges_ping", "badges"));
         cards.add(open(TAB_MODS, "Mira: " + ModernConfig.crosshairModeLabel(), "crosshair", ""));
-        cards.add(toggle(TAB_MODS, "Saturacion", () -> ModernConfig.showSaturation, v -> ModernConfig.showSaturation = v, ""));
+        cards.add(open(TAB_MODS, "Saturacion", "saturation", ""));
 
         cards.add(open(TAB_SETTINGS, "Mira: " + ModernConfig.crosshairModeLabel(), "crosshair", ""));
         cards.add(toggle(TAB_SETTINGS, "Perfiles auto por modo", () -> ModernConfig.autoGameModeProfiles, v -> ModernConfig.autoGameModeProfiles = v, ""));
@@ -361,7 +384,7 @@ public class ModMenuScreen extends ParaguacraftScreen {
                 client.options.getFovEffectScale().setValue(ModernConfig.dynamicFov ? 1.0 : 0.0);
             }
         }, ""));
-        cards.add(toggle(TAB_SETTINGS, "Saturacion", () -> ModernConfig.showSaturation, v -> ModernConfig.showSaturation = v, ""));
+        cards.add(open(TAB_SETTINGS, "Saturacion", "saturation", ""));
         cards.add(toggle(TAB_SETTINGS, "UI " + ModernConfig.uiScaleLabel(), () -> true, v -> {
             ModernConfig.cycleUiScale();
             ModernConfig.save();
@@ -398,9 +421,11 @@ public class ModMenuScreen extends ParaguacraftScreen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontal, double vertical) {
-        scroll = Math.max(0, scroll - (float) vertical * 16f);
-        clearChildren();
-        init();
+        float next = Math.max(0, Math.min(maxScroll, scroll - (float) vertical * 18f));
+        if (next != scroll) {
+            scroll = next;
+            rebuild();
+        }
         return true;
     }
 
@@ -417,8 +442,7 @@ public class ModMenuScreen extends ParaguacraftScreen {
                 selectedTab = i;
                 scroll = 0;
                 searchField = null;
-                clearChildren();
-                init();
+                rebuild();
                 return true;
             }
         }
@@ -469,7 +493,7 @@ public class ModMenuScreen extends ParaguacraftScreen {
         }
 
         if (selectedTab == TAB_MODS && search.isBlank() && recommendedCount(filteredCards()) > 0) {
-            ctx.drawText(textRenderer, Text.literal("Para este modo"), panelX + 12, panelY + TOPBAR - 2, UiTheme.accent(), true);
+            ctx.drawText(textRenderer, Text.literal("Para este modo"), panelX + 12, panelY + TOPBAR + 4, UiTheme.accent(), true);
         }
     }
 

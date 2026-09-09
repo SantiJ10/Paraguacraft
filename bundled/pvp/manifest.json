@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP",
   "mc_version": "1.8.9",
   "loader": "forge",
-  "client_version": "2.1.63",
-  "release_tag": "pvp-client-2.1.63",
-  "descripcion": "Hub Right Shift unificado, perfiles por modo y HUD de limite de altura.",
+  "client_version": "2.1.64",
+  "release_tag": "pvp-client-2.1.64",
+  "descripcion": "Perfiles auto ya no pisan combo ni HUD del usuario.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-2.1.63.jar",
-      "sha1": "2a7ee24d3b0dc0ccba7a6139f4f05820e0158609"
+      "filename": "ParaguacraftPvP-2.1.64.jar",
+      "sha1": "9f305591a39fe467accba201b415c59a971265dd"
     },
     {
       "filename": "Hytils-Reborn-1.8.9-forge-1.7.5.jar",

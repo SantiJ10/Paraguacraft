@@ -247,7 +247,7 @@ public final class HudRenderer {
         } finally {
             matrices.popMatrix();
         }
-        if (ModernConfig.showSaturation && client.player != null && client.interactionManager != null
+        if (ModernConfig.showSaturationText && client.player != null && client.interactionManager != null
             && client.interactionManager.getCurrentGameMode().isSurvivalLike()) {
             float sat = client.player.getHungerManager().getSaturationLevel();
             int sw = client.getWindow().getScaledWidth();

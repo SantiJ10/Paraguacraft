@@ -209,6 +209,12 @@ public class GuiSubmodOptionsScreen extends ParaguacraftScreen {
         });
     }
 
+    public static GuiSubmodOptionsScreen saturation(Screen parent) {
+        return new GuiSubmodOptionsScreen(parent, "Saturacion", new Row[] {
+            new Row("Texto Sat %", () -> ModernConfig.showSaturationText, v -> ModernConfig.showSaturationText = v),
+        });
+    }
+
     public static GuiSubmodOptionsScreen packHud(Screen parent) {
         return new GuiSubmodOptionsScreen(parent, "Visualizacion de pack", new Row[] {
             new Row("Mostrar pack actual en HUD", () -> ModernConfig.showPackHud, v -> ModernConfig.showPackHud = v),

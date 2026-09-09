@@ -3,6 +3,15 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## Clientes PvP 2.1.64 / 0.9.38 - 2026-09-09
+
+### Cliente PvP 1.8.9 (2.1.64)
+- Los perfiles auto por modo ya no pisan combo, armadura, reach ni otros toggles del usuario.
+
+### Cliente PvP Modern (0.9.38)
+- Menú overlay sin tarjetas encima del pie/cabecera; subpantallas muestran el mundo, no la constelación.
+- Toggle **Texto Sat %** independiente; perfiles auto no reactivan combo ni HUD de combate.
+
 ## Clientes PvP 2.1.63 / 0.9.37 - 2026-09-09
 
 ### Cliente PvP 1.8.9 (2.1.63)

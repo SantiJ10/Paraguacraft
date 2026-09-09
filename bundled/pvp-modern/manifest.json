@@ -3,13 +3,13 @@
   "nombre": "Paraguacraft PvP Modern",
   "mc_version": "1.21.11",
   "loader": "fabric",
-  "client_version": "0.9.37",
-  "release_tag": "pvp-modern-0.9.37",
-  "descripcion": "Hub Right Shift unificado, perfiles UHC/BW y HUD de limite de altura.",
+  "client_version": "0.9.38",
+  "release_tag": "pvp-modern-0.9.38",
+  "descripcion": "Menu overlay sin superposiciones, fondo in-game y toggle de texto SAT.",
   "mods": [
     {
-      "filename": "ParaguacraftPvP-Modern-0.9.37.jar",
-      "sha1": "a35ea10e117e41802d7af311cd744b4e3475b150"
+      "filename": "ParaguacraftPvP-Modern-0.9.38.jar",
+      "sha1": "ded0ea088d581d33dad2e5f826811c8614dacc67"
     }
   ]
 }
