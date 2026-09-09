@@ -352,3 +352,13 @@ pub async fn update_instance_content(
     let (http, _net) = state.net_scope();
     store::autoupdate::update_instance(&app, &http, &key, &instance_id).await
 }
+
+#[tauri::command]
+pub async fn store_ensure_content_index(
+    state: State<'_, AppState>,
+    instance_id: String,
+) -> AppResult<u32> {
+    let key = keys::curseforge_api_key();
+    let (http, _net) = state.net_scope();
+    store::autoupdate::ensure_metadata(&http, &key, &instance_id).await
+}

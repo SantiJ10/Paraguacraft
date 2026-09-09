@@ -12,11 +12,12 @@ import AddAccountModal from "@/components/account/AddAccountModal.vue";
 import SkinAvatar from "@/components/account/SkinAvatar.vue";
 import JavaManager from "@/components/settings/JavaManager.vue";
 import { formatRam } from "@/composables/useFormat";
-import { applyAccentTheme } from "@/composables/useAccent";
+import { applyAccentTheme, ACCENT_SWATCHES, type AccentId } from "@/composables/useAccent";
+import { applyCustomCss } from "@/composables/useAppearance";
 import { api, isTauri } from "@/lib/ipc";
 import { normalizeLoaderId } from "@/lib/loaders";
 import { useI18n } from "@/composables/useI18n";
-import type { CleanupInfo, ExtrasStatus, GcType, PvpClientStatus, AppSettings } from "@/lib/types";
+import type { CleanupInfo, CustomThemeList, ExtrasStatus, GcType, PvpClientStatus, ResourceBudget, AppSettings } from "@/lib/types";
 
 const settings = useSettingsStore();
 const accounts = useAccountsStore();
@@ -157,6 +158,8 @@ onMounted(async () => {
     const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 800));
     idle(() => {
       javaSectionReady.value = true;
+      void refreshLauncherBudget();
+      void refreshCustomThemes();
     });
   }
 });
@@ -221,7 +224,7 @@ async function optimizeMinecraftOptions() {
   }
 }
 
-function setAccent(accent: "green" | "ai") {
+function setAccent(accent: AccentId) {
   settings.update("accent", accent);
   applyAccentTheme(accent);
 }
@@ -314,6 +317,56 @@ const javaPriorityOptions = [
   { value: "high", label: "Alta" },
   { value: "realtime", label: "Tiempo real (avanzado)" },
 ];
+const launcherBudget = ref<ResourceBudget | null>(null);
+const customThemes = ref<CustomThemeList>({
+  themes: [],
+  iconThemes: [],
+  themesDir: "",
+  iconThemesDir: "",
+});
+
+function formatRamMin(mb: number | undefined) {
+  if (!mb) return "Auto";
+  return formatRam(mb);
+}
+
+function updateRamMax(value: number) {
+  settings.update("ramMb", value);
+  const min = settings.settings?.ramMinMb ?? 0;
+  if (min > value) settings.update("ramMinMb", value);
+}
+
+function updateRamMin(value: number) {
+  const max = settings.settings?.ramMb ?? 4096;
+  settings.update("ramMinMb", Math.min(value, max));
+}
+
+async function refreshLauncherBudget() {
+  try {
+    launcherBudget.value = await api.getResourceBudgetGlobal();
+  } catch {
+    launcherBudget.value = null;
+  }
+}
+
+async function refreshCustomThemes() {
+  try {
+    customThemes.value = await api.listCustomThemes();
+  } catch {
+    /* ignore */
+  }
+}
+
+async function openThemeFolder(kind: "theme" | "icons") {
+  await api.openCustomThemesFolder(kind);
+  await refreshCustomThemes();
+}
+
+async function reloadCustomCss() {
+  await refreshCustomThemes();
+  await applyCustomCss("theme", settings.settings?.customTheme);
+  await applyCustomCss("icons", settings.settings?.customIconTheme);
+}
 
 async function refreshExtrasStatus() {
   if (!isTauri()) return;
@@ -409,7 +462,7 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
 
         <div class="mb-5">
           <div class="mb-1 flex justify-between text-sm">
-            <span class="text-gray-300">Memoria RAM asignada</span>
+            <span class="text-gray-300">Uso máximo de memoria (-Xmx)</span>
             <span class="font-bold text-pc-green">{{ formatRam(settings.settings.ramMb) }}</span>
           </div>
           <input
@@ -419,12 +472,45 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
             :max="maxRam"
             :step="512"
             class="w-full accent-pc-green"
-            @input="settings.update('ramMb', Number(($event.target as HTMLInputElement).value))"
+            @input="updateRamMax(Number(($event.target as HTMLInputElement).value))"
           />
           <p class="mt-1 text-xs text-gray-500">
             Recomendado para tu hardware: {{ formatRam(app.hardware?.recommendedRamMb ?? 4096) }}
           </p>
         </div>
+
+        <div class="mb-5">
+          <div class="mb-1 flex items-center justify-between text-sm">
+            <span class="text-gray-300">Uso mínimo de memoria (-Xms)</span>
+            <span class="font-bold text-pc-green">{{ formatRamMin(settings.settings.ramMinMb) }}</span>
+          </div>
+          <label class="mb-2 flex items-center gap-2 text-xs text-gray-400">
+            <input
+              type="checkbox"
+              :checked="!(settings.settings.ramMinMb)"
+              class="accent-pc-green"
+              @change="settings.update('ramMinMb', ($event.target as HTMLInputElement).checked ? 0 : 512)"
+            />
+            Automático (~25 % del máximo, mínimo 512 MiB)
+          </label>
+          <input
+            v-if="settings.settings.ramMinMb"
+            :value="settings.settings.ramMinMb"
+            type="range"
+            :min="256"
+            :max="settings.settings.ramMb"
+            :step="256"
+            class="w-full accent-pc-green"
+            @input="updateRamMin(Number(($event.target as HTMLInputElement).value))"
+          />
+        </div>
+
+        <p v-if="launcherBudget" class="mb-5 rounded-lg border border-surface-4 bg-surface-3 px-3 py-2 text-xs text-gray-400">
+          Launcher ahora: <span class="font-semibold text-pc-green">{{ launcherBudget.launcherMb }} MB</span>
+          · RAM libre del sistema: {{ formatRam(launcherBudget.systemFreeMb) }}
+          de {{ formatRam(launcherBudget.totalRamMb) }}.
+          Prism (Qt nativo) ronda 100 MB; este launcher usa WebView, así que el piso es más alto, pero no hay escaneos en segundo plano.
+        </p>
 
         <label class="mb-5 block">
           <span class="mb-1 block text-sm text-gray-300">Perfil de rendimiento</span>
@@ -1114,10 +1200,23 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
           <select
             :value="settings.settings.theme"
             class="w-full max-w-xs rounded-lg border border-surface-5 bg-surface-3 px-3 py-2.5 text-sm outline-none focus:border-pc-green"
-            @change="settings.update('theme', ($event.target as HTMLSelectElement).value as 'dark' | 'darker')"
+            @change="settings.update('theme', ($event.target as HTMLSelectElement).value as AppSettings['theme'])"
           >
             <option value="dark">{{ i18n.t("settings_theme_dark") }}</option>
             <option value="darker">{{ i18n.t("settings_theme_darker") }}</option>
+            <option value="light">{{ i18n.t("settings_theme_light") }}</option>
+          </select>
+        </label>
+
+        <label class="mb-5 block">
+          <span class="mb-1 block text-sm text-gray-300">{{ i18n.t("settings_icons") }}</span>
+          <select
+            :value="settings.settings.iconStyle ?? 'filled'"
+            class="w-full max-w-xs rounded-lg border border-surface-5 bg-surface-3 px-3 py-2.5 text-sm outline-none focus:border-pc-green"
+            @change="settings.update('iconStyle', ($event.target as HTMLSelectElement).value as AppSettings['iconStyle'])"
+          >
+            <option value="filled">{{ i18n.t("settings_icons_filled") }}</option>
+            <option value="simple">{{ i18n.t("settings_icons_simple") }}</option>
           </select>
         </label>
 
@@ -1136,19 +1235,57 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
         </label>
 
         <p class="mb-2 text-sm text-gray-300">{{ i18n.t("settings_accent") }}</p>
-        <div class="flex gap-3">
+        <div class="mb-5 flex gap-3">
           <button
+            v-for="swatch in ACCENT_SWATCHES"
+            :key="swatch.id"
+            type="button"
             class="h-9 w-9 rounded-full ring-2 ring-offset-2 ring-offset-surface-2"
-            style="background: #2ecc71"
-            :class="settings.settings.accent === 'green' ? 'ring-pc-green' : 'ring-transparent'"
-            @click="setAccent('green')"
+            :style="{ background: swatch.color }"
+            :class="settings.settings.accent === swatch.id ? 'ring-pc-green' : 'ring-transparent'"
+            @click="setAccent(swatch.id)"
           />
-          <button
-            class="h-9 w-9 rounded-full ring-2 ring-offset-2 ring-offset-surface-2"
-            style="background: #9b59b6"
-            :class="settings.settings.accent === 'ai' ? 'ring-pc-ai' : 'ring-transparent'"
-            @click="setAccent('ai')"
-          />
+        </div>
+
+        <div class="mb-4">
+          <span class="mb-1 block text-sm text-gray-300">Tema personalizado (CSS)</span>
+          <div class="flex flex-wrap items-center gap-2">
+            <select
+              :value="settings.settings.customTheme ?? ''"
+              class="w-full max-w-xs rounded-lg border border-surface-5 bg-surface-3 px-3 py-2.5 text-sm outline-none focus:border-pc-green"
+              @change="settings.update('customTheme', ($event.target as HTMLSelectElement).value)"
+            >
+              <option value="">Ninguno</option>
+              <option v-for="name in customThemes.themes" :key="name" :value="name">{{ name }}</option>
+            </select>
+            <BaseButton size="sm" variant="secondary" :disabled="!isTauri()" @click="openThemeFolder('theme')">
+              Abrir carpeta
+            </BaseButton>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <span class="mb-1 block text-sm text-gray-300">Pack de iconos (CSS)</span>
+          <div class="flex flex-wrap items-center gap-2">
+            <select
+              :value="settings.settings.customIconTheme ?? ''"
+              class="w-full max-w-xs rounded-lg border border-surface-5 bg-surface-3 px-3 py-2.5 text-sm outline-none focus:border-pc-green"
+              @change="settings.update('customIconTheme', ($event.target as HTMLSelectElement).value)"
+            >
+              <option value="">Ninguno</option>
+              <option v-for="name in customThemes.iconThemes" :key="name" :value="name">{{ name }}</option>
+            </select>
+            <BaseButton size="sm" variant="secondary" :disabled="!isTauri()" @click="openThemeFolder('icons')">
+              Abrir carpeta
+            </BaseButton>
+          </div>
+          <p class="mt-2 text-xs text-gray-500">
+            Soltá un <code class="text-gray-400">.css</code> en la carpeta y recargá. No es el motor de temas de Prism (Qt),
+            pero alcanza para cambiar colores, fondos e iconos.
+          </p>
+          <BaseButton size="sm" variant="ghost" class="mt-2" :disabled="!isTauri()" @click="reloadCustomCss">
+            Recargar todo
+          </BaseButton>
         </div>
       </section>
     </template>

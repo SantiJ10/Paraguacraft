@@ -97,6 +97,7 @@ pub fn get_instance_meta(id: String) -> AppResult<InstanceMeta> {
 pub fn set_instance_config(
     id: String,
     ram_mb: Option<u32>,
+    ram_min_mb: Option<u32>,
     jvm_args: Option<String>,
     gc: Option<String>,
     java_path: Option<String>,
@@ -106,6 +107,7 @@ pub fn set_instance_config(
     profiles::set_config(
         &id,
         ram_mb,
+        ram_min_mb,
         jvm_args,
         gc,
         java_path,
@@ -151,7 +153,7 @@ pub fn get_instance_folder_path(id: String) -> AppResult<String> {
 }
 
 #[tauri::command]
-pub fn set_instance_loader(id: String, loader: String, loader_version: String) -> AppResult<InstanceMeta> {
+pub fn set_instance_loader(id: String, loader: String, loader_version: String) -> AppResult<profiles::SetLoaderResult> {
     profiles::set_loader(&id, &loader, &loader_version)
 }
 

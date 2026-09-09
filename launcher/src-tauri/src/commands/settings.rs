@@ -43,3 +43,91 @@ pub fn save_settings(settings: AppSettings) -> AppResult<()> {
     }
     Ok(())
 }
+
+fn safe_css_name(name: &str) -> AppResult<String> {
+    let name = name.trim().replace('\\', "/");
+    let base = name.rsplit('/').next().unwrap_or("");
+    if base.is_empty()
+        || base.contains("..")
+        || !base.to_ascii_lowercase().ends_with(".css")
+    {
+        return Err(crate::error::AppError::msg("Nombre de tema inválido"));
+    }
+    Ok(base.to_string())
+}
+
+fn list_css_in(dir: &std::path::Path) -> Vec<String> {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    let mut names: Vec<String> = entries
+        .flatten()
+        .filter_map(|e| {
+            let n = e.file_name().to_string_lossy().to_string();
+            if n.to_ascii_lowercase().ends_with(".css") {
+                Some(n)
+            } else {
+                None
+            }
+        })
+        .collect();
+    names.sort();
+    names
+}
+
+fn write_theme_readme(dir: &std::path::Path) {
+    let readme = dir.join("LEEME.txt");
+    if readme.is_file() {
+        return;
+    }
+    let _ = std::fs::write(
+        readme,
+        "Poné archivos .css acá y recargá desde Ajustes → Apariencia.\n\
+         El CSS se aplica sobre el launcher (variables --surface-* y --pc-accent).\n",
+    );
+}
+
+/// Temas CSS del usuario + packs de iconos.
+#[tauri::command]
+pub fn list_custom_themes() -> serde_json::Value {
+    let themes = paths::themes_dir();
+    let icons = paths::icon_themes_dir();
+    write_theme_readme(&themes);
+    write_theme_readme(&icons);
+    serde_json::json!({
+        "themes": list_css_in(&themes),
+        "iconThemes": list_css_in(&icons),
+        "themesDir": themes.to_string_lossy(),
+        "iconThemesDir": icons.to_string_lossy(),
+    })
+}
+
+#[tauri::command]
+pub fn read_custom_theme_css(kind: String, name: String) -> AppResult<String> {
+    let file = safe_css_name(&name)?;
+    let dir = if kind == "icons" {
+        paths::icon_themes_dir()
+    } else {
+        paths::themes_dir()
+    };
+    let path = dir.join(&file);
+    if !path.is_file() {
+        return Err(crate::error::AppError::msg("Tema no encontrado"));
+    }
+    let bytes = std::fs::read(&path)?;
+    if bytes.len() > 256 * 1024 {
+        return Err(crate::error::AppError::msg("El CSS supera 256 KB"));
+    }
+    String::from_utf8(bytes).map_err(|_| crate::error::AppError::msg("El CSS no es UTF-8"))
+}
+
+#[tauri::command]
+pub fn open_custom_themes_folder(kind: String) -> AppResult<()> {
+    let dir = if kind == "icons" {
+        paths::icon_themes_dir()
+    } else {
+        paths::themes_dir()
+    };
+    write_theme_readme(&dir);
+    crate::core::instances::content::open_abs(&dir)
+}

@@ -83,7 +83,7 @@ pub async fn run(
 
     // Perfil de versión / loader
     if let Some(ref vid) = meta.version_id {
-        if versions::read_local_json(vid).is_some() {
+        if versions::profile_locally_complete(vid) {
             items.push(ok(
                 "profile",
                 "Perfil de juego",
@@ -97,17 +97,18 @@ pub async fn run(
             items.push(err(
                 "profile",
                 "Perfil de juego",
-                "El perfil de la instancia no está instalado.",
+                "El perfil de la instancia está incompleto (JSON o jar del loader).",
                 Some("Usá Reparar o Reinstalar loader."),
             ));
         }
     } else if loader_norm != "vanilla" {
+        push_action(&mut suggested_actions, "repair");
         push_action(&mut suggested_actions, "reinstall_loader");
         items.push(warn(
             "profile",
-            "Perfil de juego",
-            "Sin version_id guardado; se resolverá al lanzar.",
-            Some("Si falla al jugar, reinstalá el loader."),
+            "Instalación incompleta",
+            "Sin perfil de loader todavía; el primer Jugar lo va a instalar.",
+            Some("Si falla, usá Reparar."),
         ));
     } else {
         items.push(ok(
@@ -115,6 +116,24 @@ pub async fn run(
             "Perfil de juego",
             format!("Vanilla {} listo para resolver.", meta.mc_version),
             None,
+        ));
+    }
+
+    if versions::vanilla_locally_complete(&meta.mc_version) {
+        items.push(ok(
+            "vanilla",
+            "Minecraft base",
+            format!("Jar, assets y librerías de {} en disco.", meta.mc_version),
+            None,
+        ));
+    } else {
+        blocking = true;
+        push_action(&mut suggested_actions, "repair");
+        items.push(err(
+            "vanilla",
+            "Minecraft base incompleto",
+            format!("Faltan archivos de Minecraft {} (jar, índice o librerías).", meta.mc_version),
+            Some("Reparar completa lo que falta (no re-descarga lo que ya está)."),
         ));
     }
 
@@ -306,6 +325,30 @@ pub async fn run(
             format!("No se pudo analizar conflictos: {e}"),
             None,
         )),
+    }
+
+    let mods_dir = game_dir.join("mods");
+    let mut missing_deps: Vec<String> = Vec::new();
+    for entry in crate::core::store::mod_index::read_all(&mods_dir) {
+        for dep_id in &entry.dependencies {
+            if !crate::core::store::mod_index::project_installed(&mods_dir, dep_id)
+                && !crate::core::store::jar_already_present(&mods_dir, dep_id)
+            {
+                missing_deps.push(format!("{} → {dep_id}", entry.filename));
+            }
+        }
+    }
+    if !missing_deps.is_empty() {
+        blocking = true;
+        push_action(&mut suggested_actions, "open_store");
+        let n = missing_deps.len();
+        let hint = missing_deps.into_iter().take(6).collect::<Vec<_>>().join(" · ");
+        items.push(err(
+            "store-deps",
+            "Dependencias faltantes",
+            format!("El índice declara {n} dependencia(s) que no están en mods/."),
+            Some(hint.as_str()),
+        ));
     }
 
     // Compatibilidad Modrinth (resumen, no un ítem por mod)

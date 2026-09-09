@@ -42,6 +42,8 @@ pub struct AuthCtx {
 /// Config efectiva de JVM (ya resuelto el override del usuario).
 pub struct JvmCtx {
     pub ram_mb: u32,
+    /// Heap inicial. 0 = automático (ram/4, mínimo 512).
+    pub ram_min_mb: u32,
     pub gc: String,
     pub extra_args: Vec<String>,
     pub java_path: PathBuf,
@@ -387,6 +389,15 @@ fn extract_native_jar(jar: &Path, dest: &Path) -> AppResult<()> {
     Ok(())
 }
 
+/// Heap inicial: valor del usuario, o ~25 % del máximo (mínimo 512 MiB, estilo Prism).
+fn resolve_xms(ram_mb: u32, ram_min_mb: u32) -> u32 {
+    if ram_min_mb > 0 {
+        ram_min_mb.clamp(256, ram_mb)
+    } else {
+        (ram_mb / 4).max(512).min(ram_mb)
+    }
+}
+
 /// JVM args (RAM + GC). Java 8 no soporta flags Aikar/AlwaysPreTouch (Java 9+).
 fn merge_extra_jvm_args(args: &mut Vec<String>, extra: &[String]) {
     for a in extra {
@@ -410,7 +421,7 @@ fn build_jvm_ram_gc(jvm: &JvmCtx) -> Vec<String> {
         return args;
     }
 
-    let xms = (jvm.ram_mb / 4).max(512).min(jvm.ram_mb);
+    let xms = resolve_xms(jvm.ram_mb, jvm.ram_min_mb);
     let mut args = vec![
         format!("-Xmx{}M", jvm.ram_mb),
         format!("-Xms{}M", xms),
@@ -932,6 +943,7 @@ mod tests {
         };
         let jvm = JvmCtx {
             ram_mb: 2048,
+            ram_min_mb: 0,
             gc: "Auto".into(),
             extra_args: vec![],
             java_path: PathBuf::from("java"),
@@ -968,5 +980,13 @@ mod tests {
         );
         eprintln!("library path arg: {}", lib_args[0]);
         eprintln!("first 15 args: {:?}", &args[..args.len().min(15)]);
+    }
+
+    #[test]
+    fn xms_auto_and_manual() {
+        assert_eq!(resolve_xms(4096, 0), 1024);
+        assert_eq!(resolve_xms(2048, 0), 512);
+        assert_eq!(resolve_xms(4096, 2048), 2048);
+        assert_eq!(resolve_xms(2048, 4096), 2048);
     }
 }

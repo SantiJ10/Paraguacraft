@@ -174,7 +174,7 @@ async fn get_bytes(client: &reqwest::Client, url: &str) -> AppResult<Vec<u8>> {
             let resp = client.get(&u).send().await?.error_for_status()?;
             Ok(resp.bytes().await?.to_vec())
         },
-        2,
+        3,
     )
     .await
 }

@@ -24,6 +24,9 @@ pub struct HardwareInfo {
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
     pub ram_mb: u32,
+    /// Heap inicial (-Xms). 0 = automático (~25 % de ram_mb, mínimo 512).
+    #[serde(default)]
+    pub ram_min_mb: u32,
     pub gc_type: String,
     pub java_path: Option<String>,
     pub close_on_launch: bool,
@@ -31,6 +34,15 @@ pub struct AppSettings {
     pub gpu_compat_mode: String,
     pub theme: String,
     pub accent: String,
+    /// Estilo de iconos del launcher: `filled` | `simple`.
+    #[serde(default = "default_icon_style")]
+    pub icon_style: String,
+    /// Archivo `.css` en `themes/` (vacío = ninguno).
+    #[serde(default)]
+    pub custom_theme: String,
+    /// Archivo `.css` en `iconthemes/` (vacío = ninguno).
+    #[serde(default)]
+    pub custom_icon_theme: String,
     pub language: String,
     /// API key opcional de CurseForge (la tienda CF la requiere).
     #[serde(default)]
@@ -108,10 +120,15 @@ fn default_pvp_play_style() -> String {
     "competitive".into()
 }
 
+fn default_icon_style() -> String {
+    "filled".into()
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         AppSettings {
             ram_mb: 4096,
+            ram_min_mb: 0,
             gc_type: "Auto".into(),
             java_path: None,
             close_on_launch: false,
@@ -119,6 +136,9 @@ impl Default for AppSettings {
             gpu_compat_mode: "off".into(),
             theme: "dark".into(),
             accent: "green".into(),
+            icon_style: "filled".into(),
+            custom_theme: String::new(),
+            custom_icon_theme: String::new(),
             language: "es".into(),
             curseforge_api_key: None,
             download_concurrency: 0,
@@ -322,6 +342,11 @@ pub struct StoreDependency {
     pub dependency_type: String,
     /// true si ya hay un archivo de este proyecto instalado en el destino.
     pub already_installed: bool,
+    /// Títulos de mods que piden esta dependencia (diálogo "Requerido por").
+    #[serde(default)]
+    pub required_by: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub filename: Option<String>,
 }
 
 /// Mundo detectado en saves/ o carpeta de servidor.

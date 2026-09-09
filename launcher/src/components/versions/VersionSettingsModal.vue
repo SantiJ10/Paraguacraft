@@ -33,6 +33,7 @@ const error = ref<string | null>(null);
 const message = ref<string | null>(null);
 
 const ramMb = ref(4096);
+const ramMinMb = ref(0);
 const gc = ref<GcType>("Auto");
 const jvmArgs = ref("");
 const javaPath = ref("");
@@ -61,6 +62,7 @@ async function load() {
     content.value = await api.listInstanceContent(props.instanceId);
     folderPath.value = await api.getInstanceFolderPath(props.instanceId);
     ramMb.value = meta.value.ramMb || 4096;
+    ramMinMb.value = meta.value.ramMinMb || 0;
     gc.value = (meta.value.gc as GcType) ?? "Auto";
     jvmArgs.value = meta.value.jvmArgs ?? "";
     javaPath.value = meta.value.javaPath ?? "";
@@ -93,6 +95,7 @@ async function saveJava() {
     meta.value = await api.setInstanceConfig({
       id: props.instanceId,
       ramMb: ramMb.value,
+      ramMinMb: ramMinMb.value,
       jvmArgs: jvmArgs.value || null,
       gc: gc.value,
       javaPath: javaPath.value || null,
@@ -111,7 +114,8 @@ async function saveLoader() {
   error.value = null;
   try {
     if (loader.value !== meta.value.loader || loaderVersion.value !== meta.value.loaderVersion) {
-      await api.setInstanceLoader(props.instanceId, loader.value, loaderVersion.value);
+      const r = await api.setInstanceLoader(props.instanceId, loader.value, loaderVersion.value);
+      if (r.warning) message.value = r.warning;
     }
     meta.value = await api.getInstanceMeta(props.instanceId);
     message.value = "Loader actualizado.";
@@ -231,9 +235,14 @@ const selectedLoaderInfo = computed(() => loaders.value.find((l) => l.id === loa
             <!-- Java -->
             <section v-else-if="tab === 'java'" class="space-y-4">
               <label class="block">
-                <span class="mb-1 block text-sm text-gray-400">RAM (MB)</span>
+                <span class="mb-1 block text-sm text-gray-400">RAM máxima (MB)</span>
                 <input v-model.number="ramMb" type="range" min="1024" :max="maxRam" step="256" class="w-full" />
                 <span class="text-sm font-semibold">{{ ramMb }} MB</span>
+              </label>
+              <label class="block">
+                <span class="mb-1 block text-sm text-gray-400">RAM mínima (MB) — 0 = auto</span>
+                <input v-model.number="ramMinMb" type="range" min="0" :max="ramMb" step="256" class="w-full" />
+                <span class="text-sm font-semibold">{{ ramMinMb || "Auto" }}</span>
               </label>
               <label class="block">
                 <span class="mb-1 block text-sm text-gray-400">Recolector GC</span>

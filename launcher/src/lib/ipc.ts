@@ -50,7 +50,10 @@ import type {
   Instance,
   InstanceContentItem,
   InstanceMeta,
+  SetLoaderResult,
   JavaInstallation,
+  MojangRuntimeInfo,
+  CustomThemeList,
   LoaderInfo,
   MinecraftVersion,
   StoreVersion,
@@ -151,6 +154,7 @@ export const api = {
     }
     return delay({
       ramMb: mockHardware.recommendedRamMb,
+      ramMinMb: 0,
       gcType: mockHardware.recommendedGc,
       javaPath: null,
       closeOnLaunch: false,
@@ -158,6 +162,9 @@ export const api = {
       gpuCompatMode: "off",
       theme: "dark",
       accent: "green",
+      iconStyle: "filled",
+      customTheme: "",
+      customIconTheme: "",
       language: "es",
       discordRpc: true,
       discordRpcVersion: true,
@@ -347,6 +354,51 @@ export const api = {
 
   async downloadTemurin(major: number, force = false): Promise<string> {
     return invokeReal<string>("download_temurin", { major, force });
+  },
+
+  async downloadZulu(major: number, force = false): Promise<string> {
+    return invokeReal<string>("download_zulu", { major, force });
+  },
+
+  async listMojangRuntimes(): Promise<MojangRuntimeInfo[]> {
+    return invokeReal<MojangRuntimeInfo[]>("list_mojang_runtimes");
+  },
+
+  async downloadMojangRuntime(component: string): Promise<string> {
+    return invokeReal<string>("download_mojang_runtime", { component });
+  },
+
+  async pickJavaExecutable(): Promise<JavaInstallation> {
+    return invokeReal<JavaInstallation>("pick_java_executable");
+  },
+
+  async listCustomThemes(): Promise<CustomThemeList> {
+    if (!isTauri()) {
+      return { themes: [], iconThemes: [], themesDir: "", iconThemesDir: "" };
+    }
+    return invokeReal<CustomThemeList>("list_custom_themes");
+  },
+
+  async readCustomThemeCss(kind: "theme" | "icons", name: string): Promise<string> {
+    return invokeReal<string>("read_custom_theme_css", { kind, name });
+  },
+
+  async openCustomThemesFolder(kind: "theme" | "icons"): Promise<void> {
+    await invokeReal<void>("open_custom_themes_folder", { kind });
+  },
+
+  async getResourceBudgetGlobal(): Promise<ResourceBudget> {
+    if (!isTauri()) {
+      return {
+        launcherMb: 0,
+        javaMb: 4096,
+        systemFreeMb: 8000,
+        totalRamMb: 16000,
+        tier: "media",
+        profileLabel: "Gama media",
+      };
+    }
+    return invokeReal<ResourceBudget>("get_resource_budget_global");
   },
 
   // --- Instancias ---
@@ -687,6 +739,10 @@ export const api = {
     return invokeReal<number>("update_instance_content", { instanceId });
   },
 
+  async ensureContentIndex(instanceId: string): Promise<number> {
+    return invokeReal<number>("store_ensure_content_index", { instanceId });
+  },
+
   // --- Lanzamiento (Fase 3) ---
   async launchInstance(
     instanceId: string,
@@ -766,6 +822,7 @@ export const api = {
   async setInstanceConfig(payload: {
     id: string;
     ramMb?: number | null;
+    ramMinMb?: number | null;
     jvmArgs?: string | null;
     gc?: string | null;
     javaPath?: string | null;
@@ -797,8 +854,8 @@ export const api = {
     return invokeReal<string>("get_instance_folder_path", { id });
   },
 
-  async setInstanceLoader(id: string, loader: string, loaderVersion: string): Promise<InstanceMeta> {
-    return invokeReal<InstanceMeta>("set_instance_loader", { id, loader, loaderVersion });
+  async setInstanceLoader(id: string, loader: string, loaderVersion: string): Promise<SetLoaderResult> {
+    return invokeReal<SetLoaderResult>("set_instance_loader", { id, loader, loaderVersion });
   },
 
   async reinstallInstanceLoader(id: string): Promise<Instance> {

@@ -62,6 +62,15 @@ const isPvpModern = computed(() => loaderKind.value === "paraguacraft-pvp-modern
 const instanceId = computed(() => String(route.params.id ?? ""));
 const instance = computed(() => instances.instances.find((i) => i.id === instanceId.value) ?? null);
 const isExternal = computed(() => instanceId.value.startsWith("ext::"));
+const indexing = ref(false);
+const playBlocked = computed(() => {
+  if (isExternal.value) return false;
+  if (preLaunchReport.value && !preLaunchReport.value.ready) return true;
+  return modConflicts.value.some((c) => c.severity === "error");
+});
+const incompleteInstall = computed(
+  () => !isExternal.value && !!meta.value && !meta.value.versionId,
+);
 
 /** Cabecera: lista o metadata (instancias legacy recién resueltas). */
 const displayInstance = computed((): Instance | null => {
@@ -93,6 +102,7 @@ const tabs: Array<{ id: TabId; label: string }> = [
 
 // ── Config form ──
 const ramMb = ref(4096);
+const ramMinMb = ref(0);
 const gc = ref<GcType>("Auto");
 const jvmArgs = ref("");
 const javaPath = ref("");
@@ -173,6 +183,7 @@ async function loadAll() {
     }
     if (!isExternal.value) {
       ramMb.value = meta.value.ramMb || 4096;
+      ramMinMb.value = meta.value.ramMinMb || 0;
       gc.value = (meta.value.gc as GcType) ?? "Auto";
       jvmArgs.value = meta.value.jvmArgs ?? "";
       javaPath.value = meta.value.javaPath ?? "";
@@ -292,6 +303,12 @@ async function loadLogsQuiet() {
 async function play(compete = false) {
   const inst = displayInstance.value;
   if (!inst) return;
+  if (playBlocked.value) {
+    showPreLaunch.value = true;
+    error.value =
+      "Hay problemas que impiden jugar (instalación incompleta, conflictos o salud). Usá Reparar o Salud.";
+    return;
+  }
   launching.value = true;
   error.value = null;
   try {
@@ -365,6 +382,22 @@ async function updateContent() {
   }
 }
 
+async function indexContent() {
+  indexing.value = true;
+  message.value = null;
+  try {
+    const n = await api.ensureContentIndex(instanceId.value);
+    message.value =
+      n > 0
+        ? `${n} archivo(s) identificados para actualizaciones.`
+        : "Nada nuevo para indexar (o ya estaban en el índice).";
+  } catch (e) {
+    error.value = String(e);
+  } finally {
+    indexing.value = false;
+  }
+}
+
 function goStore() {
   if (instance.value) instances.select(instance.value.id);
   router.push({ name: "store" });
@@ -399,11 +432,13 @@ async function saveConfig() {
   error.value = null;
   try {
     if (loader.value !== meta.value?.loader || loaderVersion.value !== meta.value?.loaderVersion) {
-      await api.setInstanceLoader(instanceId.value, loader.value, loaderVersion.value);
+      const r = await api.setInstanceLoader(instanceId.value, loader.value, loaderVersion.value);
+      if (r.warning) message.value = r.warning;
     }
     await api.setInstanceConfig({
       id: instanceId.value,
       ramMb: ramMb.value,
+      ramMinMb: ramMinMb.value,
       jvmArgs: jvmArgs.value || null,
       gc: gc.value,
       javaPath: javaPath.value || null,
@@ -424,7 +459,8 @@ async function reinstallLoader() {
   error.value = null;
   try {
     if (loader.value !== meta.value?.loader || loaderVersion.value !== meta.value?.loaderVersion) {
-      await api.setInstanceLoader(instanceId.value, loader.value, loaderVersion.value);
+      const r = await api.setInstanceLoader(instanceId.value, loader.value, loaderVersion.value);
+      if (r.warning) message.value = r.warning;
     }
     await api.reinstallInstanceLoader(instanceId.value);
     message.value = "Loader reinstalado correctamente.";
@@ -670,7 +706,7 @@ async function exportInstance() {
             v-if="isPvp"
             size="lg"
             variant="primary"
-            :disabled="launching || app.launchPhase === 'running'"
+            :disabled="launching || app.launchPhase === 'running' || playBlocked"
             title="Cierra el launcher, Game Mode, RAM óptima y perfil PvP competitivo"
             @click="compete"
           >
@@ -679,7 +715,8 @@ async function exportInstance() {
           <BaseButton
             size="lg"
             :variant="isPvp ? 'secondary' : 'primary'"
-            :disabled="launching || app.launchPhase === 'running'"
+            :disabled="launching || app.launchPhase === 'running' || playBlocked"
+            :title="playBlocked ? 'Hay problemas de salud o conflictos. Usá Reparar o Salud.' : undefined"
             @click="play(false)"
           >
             {{ launching ? "Lanzando…" : "Jugar" }}
@@ -717,6 +754,14 @@ async function exportInstance() {
           </BaseButton>
         </div>
       </header>
+
+      <div
+        v-if="incompleteInstall"
+        class="mb-4 rounded-xl border border-amber-500/40 bg-amber-950/30 px-4 py-3 text-sm text-amber-100"
+      >
+        Instalación incompleta: todavía no hay perfil de loader. El primer Jugar lo descarga;
+        si falla, usá Reparar.
+      </div>
 
       <div
         v-if="resourceBudget && !isExternal"
@@ -914,6 +959,9 @@ async function exportInstance() {
           <BaseButton size="sm" variant="secondary" :disabled="updating" @click="updateContent">
             {{ updating ? "Actualizando…" : "Actualizar mods" }}
           </BaseButton>
+          <BaseButton size="sm" variant="secondary" :disabled="indexing" @click="indexContent">
+            {{ indexing ? "Indexando…" : "Indexar jars" }}
+          </BaseButton>
           <BaseButton size="sm" variant="secondary" :disabled="contentBusy" @click="addContentFiles('mods')">
             + Agregar mods
           </BaseButton>
@@ -1088,10 +1136,36 @@ async function exportInstance() {
 
             <label class="block">
               <span class="mb-1 flex justify-between text-sm text-gray-300">
-                <span>Memoria RAM</span>
+                <span>Memoria máxima (-Xmx)</span>
                 <span class="font-semibold text-pc-green">{{ (ramMb / 1024).toFixed(1) }} GB</span>
               </span>
               <input v-model.number="ramMb" type="range" min="1024" :max="maxRam" step="512" class="w-full accent-pc-green" @input="autoManaged = false" />
+            </label>
+
+            <label class="block">
+              <span class="mb-1 flex justify-between text-sm text-gray-300">
+                <span>Memoria mínima (-Xms)</span>
+                <span class="font-semibold text-pc-green">{{ ramMinMb ? `${(ramMinMb / 1024).toFixed(1)} GB` : "Auto" }}</span>
+              </span>
+              <label class="mb-2 flex items-center gap-2 text-xs text-gray-400">
+                <input
+                  type="checkbox"
+                  :checked="!ramMinMb"
+                  class="accent-pc-green"
+                  @change="ramMinMb = ($event.target as HTMLInputElement).checked ? 0 : 512; autoManaged = false"
+                />
+                Automático
+              </label>
+              <input
+                v-if="ramMinMb"
+                v-model.number="ramMinMb"
+                type="range"
+                min="256"
+                :max="ramMb"
+                step="256"
+                class="w-full accent-pc-green"
+                @input="autoManaged = false"
+              />
             </label>
 
             <label class="block">

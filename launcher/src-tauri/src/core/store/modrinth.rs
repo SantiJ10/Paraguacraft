@@ -334,13 +334,28 @@ pub async fn install_version_id(
     let dest = dest_dir.join(&filename);
     net::download_all(
         client,
-        vec![DownloadItem::new(dl, dest).with_sha1(sha1)],
+        vec![DownloadItem::new(dl, dest).with_sha1(sha1.clone())],
         1,
         app,
         &format!("store-v-{version_id}"),
         &filename,
     )
     .await?;
+    if let Ok(v) = net::fetch_json::<Value>(client, &format!("{API}/version/{version_id}")).await {
+        if let Some(pid) = v["project_id"].as_str() {
+            let _ = super::mod_index::record(
+                &dest_dir,
+                "modrinth",
+                pid,
+                version_id,
+                &filename,
+                sha1,
+                None,
+                &[],
+                &[],
+            );
+        }
+    }
     Ok(filename)
 }
 
@@ -364,7 +379,7 @@ async fn best_file(
     file_from_version(&version, project_type)
 }
 
-async fn fetch_best_version(
+pub async fn fetch_best_version(
     client: &reqwest::Client,
     project_id: &str,
     project_type: &str,
@@ -385,7 +400,7 @@ async fn fetch_best_version(
         .ok_or_else(|| AppError::msg("No hay version compatible con esta instancia"))
 }
 
-fn file_from_version(version: &Value, project_type: &str) -> AppResult<(String, String, Option<String>)> {
+pub fn file_from_version(version: &Value, project_type: &str) -> AppResult<(String, String, Option<String>)> {
     let files = version["files"].as_array().cloned().unwrap_or_default();
     let file = files
         .iter()
@@ -431,17 +446,31 @@ async fn install_recursive(
                         continue;
                     }
                 }
-                let _ = Box::pin(install_recursive(
-                    app,
-                    client,
-                    dep_project,
-                    project_type,
-                    mc,
-                    loader,
-                    dest_dir.clone(),
-                    visiting,
-                ))
-                .await;
+                let candidates = super::deps::remap_project_ids("modrinth", loader, dep_project);
+                let mut last_err = None;
+                for cand in candidates {
+                    match Box::pin(install_recursive(
+                        app,
+                        client,
+                        &cand,
+                        project_type,
+                        mc,
+                        loader,
+                        dest_dir.clone(),
+                        visiting,
+                    ))
+                    .await
+                    {
+                        Ok(_) => {
+                            last_err = None;
+                            break;
+                        }
+                        Err(e) => last_err = Some(e),
+                    }
+                }
+                if let Some(e) = last_err {
+                    return Err(e);
+                }
             }
         }
     }
@@ -454,25 +483,37 @@ async fn install_recursive(
     let dest = dest_dir.join(&filename);
     net::download_all(
         client,
-        vec![DownloadItem::new(url, dest).with_sha1(sha1)],
+        vec![DownloadItem::new(url, dest).with_sha1(sha1.clone())],
         1,
         app,
         &format!("store-{project_id}"),
         &filename,
     )
     .await?;
+    let file_id = version["id"].as_str().unwrap_or_default();
+    let _ = super::mod_index::record(
+        &dest_dir,
+        "modrinth",
+        project_id,
+        file_id,
+        &filename,
+        sha1,
+        Some(mc),
+        &[loader.to_string()],
+        &[],
+    );
     Ok(filename)
 }
 
-async fn fetch_project_brief(client: &reqwest::Client, project_id: &str) -> AppResult<(String, String)> {
+pub async fn fetch_project_brief(client: &reqwest::Client, project_id: &str) -> AppResult<(String, String)> {
     let p: Value = net::fetch_json(client, &format!("{API}/project/{project_id}")).await?;
     let title = p["title"].as_str().unwrap_or(project_id).to_string();
     let icon = p["icon_url"].as_str().unwrap_or_default().to_string();
     Ok((title, icon))
 }
 
-/// Dependencias requeridas/embebidas declaradas en una version concreta (Modrinth ya
-/// las trae en el JSON de `/version/{id}`), para el modal de confirmacion antes de instalar.
+/// Dependencias requeridas/embebidas declaradas en una version concreta (legacy 1 nivel).
+#[allow(dead_code)]
 pub async fn list_required_dependencies(
     client: &reqwest::Client,
     version_id: &str,
@@ -518,6 +559,8 @@ pub async fn list_required_dependencies(
             icon_url,
             dependency_type: dep_type,
             already_installed,
+            required_by: Vec::new(),
+            filename,
         });
     }
     Ok(out)

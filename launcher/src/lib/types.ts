@@ -185,6 +185,8 @@ export interface StoreDependency {
   iconUrl: string;
   dependencyType: "required" | "optional" | "embedded" | string;
   alreadyInstalled: boolean;
+  requiredBy?: string[];
+  filename?: string | null;
 }
 
 export interface WorldInfo {
@@ -412,13 +414,18 @@ export interface DownloadTask {
 
 export interface AppSettings {
   ramMb: number;
+  /** Heap inicial (-Xms). 0 = automático. */
+  ramMinMb?: number;
   gcType: GcType;
   javaPath: string | null;
   closeOnLaunch: boolean;
   optimizeGraphics: boolean;
   gpuCompatMode: "off" | "mesa-d3d12" | "mesa-llvmpipe" | "mesa-zink";
-  theme: "dark" | "darker";
-  accent: "green" | "ai";
+  theme: "dark" | "darker" | "light";
+  accent: "green" | "ai" | "blue" | "orange";
+  iconStyle?: "filled" | "simple";
+  customTheme?: string;
+  customIconTheme?: string;
   language: "es" | "en" | "pt";
   curseforgeApiKey?: string | null;
   downloadConcurrency?: number;
@@ -583,6 +590,7 @@ export interface InstanceMeta {
   loaderVersion: string;
   source: string;
   ramMb: number;
+  ramMinMb?: number;
   totalPlayMinutes: number;
   lastPlayed: string | null;
   versionId: string | null;
@@ -594,6 +602,11 @@ export interface InstanceMeta {
   performanceTier?: string | null;
   /** null = ajuste global */
   showGameConsole?: boolean | null;
+}
+
+export interface SetLoaderResult {
+  meta: InstanceMeta;
+  warning?: string | null;
 }
 
 export interface InstanceContentItem {
@@ -639,6 +652,20 @@ export interface JavaInstallation {
   versionFull: string;
   vendor: string;
   source: string;
+}
+
+export interface MojangRuntimeInfo {
+  component: string;
+  name: string;
+  version: string;
+  installed: boolean;
+}
+
+export interface CustomThemeList {
+  themes: string[];
+  iconThemes: string[];
+  themesDir: string;
+  iconThemesDir: string;
 }
 
 export interface BackupInfo {

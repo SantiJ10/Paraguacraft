@@ -95,6 +95,43 @@ async fn get_json(client: &reqwest::Client, url: &str, key: &str) -> AppResult<V
     Ok(resp.json().await?)
 }
 
+/// classId por project id (para colocar archivos de un pack en mods/ vs resourcepacks/).
+pub async fn mods_class_ids(
+    client: &reqwest::Client,
+    key: &str,
+    ids: &[String],
+) -> HashMap<String, u64> {
+    let mut out = HashMap::new();
+    if key.trim().is_empty() || ids.is_empty() {
+        return out;
+    }
+    let nums: Vec<u64> = ids.iter().filter_map(|s| s.parse().ok()).collect();
+    for chunk in nums.chunks(50) {
+        let body = json!({ "modIds": chunk });
+        let Ok(resp) = client
+            .post(format!("{API}/mods"))
+            .header("x-api-key", key.trim())
+            .header("Accept", "application/json")
+            .json(&body)
+            .send()
+            .await
+        else {
+            continue;
+        };
+        let Ok(data) = resp.json::<Value>().await else {
+            continue;
+        };
+        if let Some(arr) = data["data"].as_array() {
+            for m in arr {
+                if let (Some(id), Some(cid)) = (m["id"].as_u64(), m["classId"].as_u64()) {
+                    out.insert(id.to_string(), cid);
+                }
+            }
+        }
+    }
+    out
+}
+
 /// Ficha completa (screenshots + descripción + autores).
 pub async fn project_detail(
     client: &reqwest::Client,
@@ -196,6 +233,17 @@ fn class_to_type(class_id: u64) -> &'static str {
         6945 => "datapack",
         5 => "plugin",
         _ => "mod",
+    }
+}
+
+/// Subcarpeta de instancia según classId de CurseForge.
+pub fn class_id_subdir(class_id: u64) -> &'static str {
+    match class_id {
+        12 => "resourcepacks",
+        6552 => "shaderpacks",
+        6945 => "datapacks",
+        5 => "plugins",
+        _ => "mods",
     }
 }
 
@@ -321,8 +369,33 @@ pub async fn list_files_raw(
             url.push_str(&format!("&modLoaderType={lt}"));
         }
     }
-    let resp = get_json(client, &url, key).await?;
-    Ok(resp["data"].as_array().cloned().unwrap_or_default())
+    list_files_paginated(client, key, &url).await
+}
+
+async fn list_files_paginated(
+    client: &reqwest::Client,
+    key: &str,
+    base_url: &str,
+) -> AppResult<Vec<Value>> {
+    let mut all = Vec::new();
+    let mut index: u32 = 0;
+    loop {
+        let sep = if base_url.contains('?') { "&" } else { "?" };
+        let url = format!("{base_url}{sep}index={index}");
+        let resp = get_json(client, &url, key).await?;
+        let files = resp["data"].as_array().cloned().unwrap_or_default();
+        let batch = files.len() as u32;
+        let total = resp["pagination"]["totalCount"].as_u64().unwrap_or(0);
+        all.extend(files);
+        index += batch;
+        if batch == 0 || (total > 0 && u64::from(index) >= total) || all.len() >= 400 {
+            break;
+        }
+        if batch < 50 {
+            break;
+        }
+    }
+    Ok(all)
 }
 
 /// Lista archivos/versiones del mod compatibles con mc + loader.
@@ -394,8 +467,7 @@ pub async fn list_all_versions(
         ));
     }
     let url = format!("{API}/mods/{mod_id}/files?pageSize=50");
-    let resp = get_json(client, &url, key).await?;
-    let files = resp["data"].as_array().cloned().unwrap_or_default();
+    let files = list_files_paginated(client, key, &url).await?;
     Ok(files
         .iter()
         .map(file_to_version)
@@ -409,8 +481,8 @@ pub async fn list_all_versions(
         .collect())
 }
 
-/// Dependencias requeridas declaradas en el archivo (relationType 3 = RequiredDependency),
-/// para el modal de confirmacion antes de instalar.
+/// Dependencias requeridas declaradas en el archivo (relationType 3 = RequiredDependency).
+#[allow(dead_code)]
 pub async fn list_required_dependencies(
     client: &reqwest::Client,
     key: &str,
@@ -462,6 +534,8 @@ pub async fn list_required_dependencies(
             icon_url,
             dependency_type: "required".into(),
             already_installed,
+            required_by: Vec::new(),
+            filename,
         });
     }
     Ok(out)
@@ -528,7 +602,7 @@ pub async fn install_file_id(
 
     match net::download_all(
         client,
-        vec![DownloadItem::new(dl.clone(), dest).with_sha1(sha1)],
+        vec![DownloadItem::new(dl.clone(), dest).with_sha1(sha1.clone())],
         1,
         app,
         &format!("store-{mod_id}-{file_id}"),
@@ -536,7 +610,20 @@ pub async fn install_file_id(
     )
     .await
     {
-        Ok(()) => Ok(filename),
+        Ok(()) => {
+            let _ = super::mod_index::record(
+                &dest_dir,
+                "curseforge",
+                mod_id,
+                file_id,
+                &filename,
+                sha1,
+                None,
+                &[],
+                &[],
+            );
+            Ok(filename)
+        }
         Err(e) => {
             let low = e.to_string().to_lowercase();
             if low.contains("403") || low.contains("forbidden") || low.contains("401") {
@@ -733,7 +820,7 @@ pub async fn install(
 
     match net::download_all(
         client,
-        vec![DownloadItem::new(dl.clone(), dest).with_sha1(sha1)],
+        vec![DownloadItem::new(dl.clone(), dest).with_sha1(sha1.clone())],
         1,
         app,
         &format!("store-{mod_id}"),
@@ -741,7 +828,48 @@ pub async fn install(
     )
     .await
     {
-        Ok(()) => Ok(filename),
+        Ok(()) => {
+            let fid = file_id.to_string();
+            let _ = super::mod_index::record(
+                &dest_dir,
+                "curseforge",
+                mod_id,
+                &fid,
+                &filename,
+                sha1,
+                Some(mc),
+                &[loader.to_string()],
+                &[],
+            );
+            let deps = super::deps::resolve_required(
+                client,
+                "curseforge",
+                key,
+                mod_id,
+                &fid,
+                project_type,
+                mc,
+                loader,
+                Some(dest_dir.as_path()),
+            )
+            .await
+            .unwrap_or_default();
+            let pending: Vec<_> = deps.into_iter().filter(|d| !d.already_installed).collect();
+            if !pending.is_empty() {
+                super::deps::install_listed(
+                    app,
+                    client,
+                    "curseforge",
+                    key,
+                    mc,
+                    loader,
+                    dest_dir.as_path(),
+                    &pending,
+                )
+                .await?;
+            }
+            Ok(filename)
+        }
         Err(e) => {
             let low = e.to_string().to_lowercase();
             if low.contains("403") || low.contains("forbidden") || low.contains("401") {

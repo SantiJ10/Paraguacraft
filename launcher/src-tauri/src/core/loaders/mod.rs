@@ -332,6 +332,7 @@ pub fn version_id_matches_loader(loader: &str, version_id: &str, mc: &str) -> bo
     }
 }
 
+#[allow(dead_code)]
 fn cmp_semver(a: &str, b: &str) -> std::cmp::Ordering {
     let pa: Vec<u32> = a
         .split('.')
@@ -352,8 +353,9 @@ fn cmp_semver(a: &str, b: &str) -> std::cmp::Ordering {
     std::cmp::Ordering::Equal
 }
 
-/// Busca un perfil ya instalado en `versions/` para mc + loader (instancias legacy Python).
-pub fn find_version_id_for_loader(mc: &str, loader: &str) -> Option<String> {
+/// Busca un perfil en `versions/` para mc + loader.
+/// Si `preferred_loader_version` no está vacío, solo acepta esa build (no el semver más nuevo del .minecraft compartido).
+pub fn find_version_id_for_loader(mc: &str, loader: &str, preferred_loader_version: &str) -> Option<String> {
     let kind = normalize(loader);
     let dir = crate::core::versions::versions_dir();
     let Ok(entries) = std::fs::read_dir(&dir) else {
@@ -400,8 +402,11 @@ pub fn find_version_id_for_loader(mc: &str, loader: &str) -> Option<String> {
             candidates.push((name, loader_ver.unwrap_or_default()));
         }
     }
-    candidates.sort_by(|a, b| cmp_semver(&a.1, &b.1));
-    candidates.pop().map(|(id, _)| id)
+    let pref = preferred_loader_version.trim();
+    if !pref.is_empty() {
+        return candidates.into_iter().find(|(_, lv)| lv == pref).map(|(id, _)| id);
+    }
+    None
 }
 
 /// Resuelve la version del loader cuando falta (instancias importadas del launcher Python).
@@ -422,7 +427,7 @@ pub async fn resolve_loader_version(
     if !trimmed.is_empty() {
         return Ok(trimmed.to_string());
     }
-    if let Some(vid) = find_version_id_for_loader(mc, loader) {
+    if let Some(vid) = find_version_id_for_loader(mc, loader, trimmed) {
         if let Some(v) = loader_version_from_version_id(loader, &vid, mc) {
             if !v.is_empty() {
                 return Ok(v);

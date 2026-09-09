@@ -7,9 +7,12 @@
 pub mod autoupdate;
 pub mod cfpack;
 pub mod curseforge;
+pub mod deps;
 pub mod destinations;
+pub mod mod_index;
 pub mod modrinth;
 pub mod mrpack;
+pub mod overrides;
 pub mod server_modpack;
 
 use std::path::PathBuf;
@@ -35,20 +38,45 @@ where
         .map_err(|e| AppError::msg(format!("Tarea interna interrumpida: {e}")))?
 }
 
-/// Devuelve true si ya hay un jar de este nombre (o variante `.disabled`/parcial por
-/// coincidencia de "stem") en `dest_dir`. Evita re-descargar dependencias ya instaladas.
+/// Id canónico de un jar: recorta sufijos de versión (`fabric-api-0.119.jar` → `fabric-api`).
+pub fn jar_canonical_id(filename: &str) -> String {
+    let mut s = filename.to_lowercase();
+    for suf in [".jar.disabled", ".jar", ".zip", ".disabled"] {
+        if let Some(stripped) = s.strip_suffix(suf) {
+            s = stripped.to_string();
+            break;
+        }
+    }
+    let bytes = s.as_bytes();
+    for i in 0..bytes.len() {
+        if (bytes[i] == b'-' || bytes[i] == b'_')
+            && bytes.get(i + 1).is_some_and(|c| c.is_ascii_digit())
+        {
+            return s[..i].to_string();
+        }
+    }
+    s
+}
+
+/// Devuelve true si ya hay un jar de este proyecto (mismo id canónico), no un sub-mod
+/// (`sodium` no coincide con `sodium-extra`).
 pub fn jar_already_present(dest_dir: &std::path::Path, filename: &str) -> bool {
     let target = dest_dir.join(filename);
     if target.is_file() {
         return true;
     }
-    let stem = filename
-        .trim_end_matches(".jar")
-        .trim_end_matches(".disabled")
-        .to_lowercase();
+    let disabled = dest_dir.join(format!("{filename}.disabled"));
+    if disabled.is_file() {
+        return true;
+    }
+    let id = jar_canonical_id(filename);
+    if id.is_empty() {
+        return false;
+    }
     dest_dir.read_dir().into_iter().flatten().flatten().any(|e| {
         let n = e.file_name().to_string_lossy().to_lowercase();
-        (n.ends_with(".jar") || n.ends_with(".jar.disabled")) && n.contains(&stem)
+        (n.ends_with(".jar") || n.ends_with(".jar.disabled") || n.ends_with(".zip"))
+            && jar_canonical_id(&n) == id
     })
 }
 
@@ -186,26 +214,18 @@ pub async fn list_required_dependencies(
     dest_dir: Option<&std::path::Path>,
 ) -> AppResult<Vec<StoreDependency>> {
     let loader = loaders::store_loader_for(loader, mc);
-    match provider {
-        "modrinth" => {
-            modrinth::list_required_dependencies(client, file_id_or_version_id, mc, &loader, dest_dir)
-                .await
-        }
-        "curseforge" => {
-            curseforge::list_required_dependencies(
-                client,
-                cf_key,
-                project_id,
-                file_id_or_version_id,
-                project_type,
-                mc,
-                &loader,
-                dest_dir,
-            )
-            .await
-        }
-        other => Err(AppError::msg(format!("Proveedor desconocido: {other}"))),
-    }
+    deps::resolve_required(
+        client,
+        provider,
+        cf_key,
+        project_id,
+        file_id_or_version_id,
+        project_type,
+        mc,
+        &loader,
+        dest_dir,
+    )
+    .await
 }
 
 /// Lista versiones/archivos del proyecto compatibles con mc + loader.
@@ -311,6 +331,13 @@ fn validate_server_mod(server_id: &str, mc: &str, loader: &str) -> AppResult<Pat
                 prof.name
             )));
         }
+    } else if st.starts_with("neoforge") {
+        if !loaders::loaders_compatible("neoforge", loader) {
+            return Err(AppError::msg(format!(
+                "El servidor \"{}\" es NeoForge; el mod requiere {loader}.",
+                prof.name
+            )));
+        }
     } else if st.starts_with("forge") {
         if !loaders::loaders_compatible("forge", loader) {
             return Err(AppError::msg(format!(
@@ -320,7 +347,7 @@ fn validate_server_mod(server_id: &str, mc: &str, loader: &str) -> AppResult<Pat
         }
     } else {
         return Err(AppError::msg(format!(
-            "El servidor \"{}\" no acepta mods de cliente (solo Fabric/Forge). Usá plugins en servidores Paper.",
+            "El servidor \"{}\" no acepta mods de cliente (solo Fabric/Forge/NeoForge). Usá plugins en servidores Paper.",
             prof.name
         )));
     }
@@ -424,14 +451,16 @@ pub async fn install_version(
     }
     let loader_required = project_type == "mod";
     let dest_dir = resolve_dest_dir(project_type, &dest, mc, loader, loader_required)?;
+    let dest_for_index = dest_dir.clone();
+    let store_loader = loaders::store_loader_for(loader, mc);
 
-    match provider {
+    let filename = match provider {
         "modrinth" => {
             let hint = match (filename, download_url) {
-                (Some(f), Some(u)) => Some((f, u, sha1)),
+                (Some(f), Some(u)) => Some((f, u, sha1.clone())),
                 _ => None,
             };
-            modrinth::install_version_id(app, client, version_id, dest_dir, hint).await
+            modrinth::install_version_id(app, client, version_id, dest_dir, hint).await?
         }
         "curseforge" => {
             curseforge::install_file_id(
@@ -442,10 +471,40 @@ pub async fn install_version(
                 version_id,
                 dest_dir,
             )
-            .await
+            .await?
         }
-        other => Err(AppError::msg(format!("Proveedor desconocido: {other}"))),
+        other => return Err(AppError::msg(format!("Proveedor desconocido: {other}"))),
+    };
+    if project_type == "mod" {
+        let dep_ids = deps::resolve_required(
+            client,
+            provider,
+            cf_key,
+            project_id,
+            version_id,
+            project_type,
+            mc,
+            &store_loader,
+            Some(dest_for_index.as_path()),
+        )
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .map(|d| d.project_id)
+        .collect::<Vec<_>>();
+        let _ = mod_index::record(
+            &dest_for_index,
+            provider,
+            project_id,
+            version_id,
+            &filename,
+            sha1,
+            Some(mc),
+            &[store_loader],
+            &dep_ids,
+        );
     }
+    Ok(filename)
 }
 
 /// Instala un proyecto en la instancia, usando su metadata (mc + loader) para
@@ -517,6 +576,16 @@ mod tests {
     fn modpack_defaults_to_8gb() {
         assert_eq!(recommended_ram_gb("modpack", "", "un pack"), Some(8));
         assert_eq!(recommended_ram_gb("mod", "", "sodium"), None);
+    }
+
+    #[test]
+    fn jar_canonical_does_not_confuse_sodium_extra() {
+        assert_eq!(jar_canonical_id("sodium-0.6.13+mc1.21.1.jar"), "sodium");
+        assert_eq!(
+            jar_canonical_id("sodium-extra-0.6.0+mc1.21.1.jar"),
+            "sodium-extra"
+        );
+        assert_eq!(jar_canonical_id("fabric-api-0.119.2+1.21.1.jar"), "fabric-api");
     }
 }
 

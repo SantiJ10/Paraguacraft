@@ -83,10 +83,14 @@ pub fn run() {
             // Settings
             commands::settings::get_settings,
             commands::settings::save_settings,
+            commands::settings::list_custom_themes,
+            commands::settings::read_custom_theme_css,
+            commands::settings::open_custom_themes_folder,
             commands::cleanup::shutdown_background_services,
             commands::performance::optimize_minecraft_options,
             commands::performance::apply_recommended_performance,
             commands::compete::get_resource_budget,
+            commands::compete::get_resource_budget_global,
             commands::compete::sync_pvp_config,
             commands::playbook::run_pre_launch_check,
             commands::playbook::get_instance_weight,
@@ -111,6 +115,10 @@ pub fn run() {
             commands::java::java_required_for_mc,
             commands::java::java_info_for_mc,
             commands::java::download_temurin,
+            commands::java::download_zulu,
+            commands::java::list_mojang_runtimes,
+            commands::java::download_mojang_runtime,
+            commands::java::pick_java_executable,
             // Accounts
             commands::accounts::get_accounts,
             commands::accounts::set_active_account,
@@ -188,6 +196,7 @@ pub fn run() {
             commands::store::list_instance_worlds,
             commands::store::list_server_worlds,
             commands::store::update_instance_content,
+            commands::store::store_ensure_content_index,
             // Lanzamiento (Fase 3)
             commands::launch::launch_instance,
             commands::launch::get_last_launch_args,

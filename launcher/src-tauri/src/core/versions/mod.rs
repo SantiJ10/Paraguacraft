@@ -433,10 +433,13 @@ fn client_jar_path(id: &str) -> PathBuf {
     paths::default_minecraft_dir().join("versions").join(id).join(format!("{id}.jar"))
 }
 
-/// Vanilla ya está en disco (jar + JSON + índice de assets): no hace falta
-/// pegarle a piston-meta en cada Jugar.
+/// Vanilla ya está en disco (jar con tamaño, JSON, índice de assets y librerías).
 pub fn vanilla_locally_complete(id: &str) -> bool {
-    if !client_jar_path(id).is_file() || !version_json_path(id).is_file() {
+    let jar = client_jar_path(id);
+    if !jar.is_file() || !version_json_path(id).is_file() {
+        return false;
+    }
+    if std::fs::metadata(&jar).map(|m| m.len()).unwrap_or(0) < 1024 {
         return false;
     }
     let Some(v) = read_local_json(id) else {
@@ -446,13 +449,38 @@ pub fn vanilla_locally_complete(id: &str) -> bool {
         return false;
     }
     match v["assetIndex"]["id"].as_str() {
-        Some(asset_id) if !asset_id.is_empty() => paths::default_minecraft_dir()
-            .join("assets")
-            .join("indexes")
-            .join(format!("{asset_id}.json"))
-            .is_file(),
-        _ => true,
+        Some(asset_id) if !asset_id.is_empty() => {
+            if !paths::default_minecraft_dir()
+                .join("assets")
+                .join("indexes")
+                .join(format!("{asset_id}.json"))
+                .is_file()
+            {
+                return false;
+            }
+        }
+        _ => {}
     }
+    let libs = collect_library_items(&v);
+    !libs.iter().any(|item| !item.dest.is_file())
+}
+
+/// Perfil de loader listo: JSON + jar del cliente (o inheritsFrom con vanilla jar).
+pub fn profile_locally_complete(id: &str) -> bool {
+    let Some(v) = read_local_json(id) else {
+        return false;
+    };
+    if let Some(parent) = v["inheritsFrom"].as_str() {
+        if !parent.is_empty() && parent != id && !client_jar_path(parent).is_file() {
+            return false;
+        }
+    } else {
+        let jar = client_jar_path(id);
+        if !jar.is_file() || std::fs::metadata(&jar).map(|m| m.len()).unwrap_or(0) < 256 {
+            return false;
+        }
+    }
+    true
 }
 
 /// Instala una version vanilla completa (idempotente; reusa lo ya descargado).

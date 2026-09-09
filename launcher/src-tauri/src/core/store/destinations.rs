@@ -73,7 +73,9 @@ pub fn list_server_worlds(server_id: &str) -> AppResult<(Vec<WorldInfo>, String)
 pub fn plugin_dest_dir(server_id: &str) -> AppResult<PathBuf> {
     let prof = servers::profile_by_id(server_id)?;
     let dir = servers::folder_for(&prof);
-    let sub = if prof.server_type.starts_with("fabric") {
+    let sub = if prof.server_type.starts_with("fabric") || prof.server_type.starts_with("neoforge") {
+        "mods"
+    } else if prof.server_type.starts_with("forge") {
         "mods"
     } else {
         "plugins"
@@ -87,9 +89,9 @@ pub fn plugin_dest_dir(server_id: &str) -> AppResult<PathBuf> {
 pub fn mod_dest_dir(server_id: &str) -> AppResult<PathBuf> {
     let prof = servers::profile_by_id(server_id)?;
     let st = prof.server_type.as_str();
-    if !st.starts_with("fabric") && !st.starts_with("forge") {
+    if !st.starts_with("fabric") && !st.starts_with("forge") && !st.starts_with("neoforge") {
         return Err(AppError::msg(format!(
-            "El servidor \"{}\" no tiene carpeta mods/ (solo Fabric/Forge).",
+            "El servidor \"{}\" no tiene carpeta mods/ (solo Fabric/Forge/NeoForge).",
             prof.name
         )));
     }

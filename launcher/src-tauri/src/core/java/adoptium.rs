@@ -124,7 +124,7 @@ pub async fn download(
     Ok(java.to_string_lossy().to_string())
 }
 
-fn extract_zip(archive: &Path, dest: &Path) -> AppResult<()> {
+pub(crate) fn extract_zip(archive: &Path, dest: &Path) -> AppResult<()> {
     let file = std::fs::File::open(archive)?;
     let mut zip = zip::ZipArchive::new(file)?;
     for i in 0..zip.len() {
@@ -146,7 +146,7 @@ fn extract_zip(archive: &Path, dest: &Path) -> AppResult<()> {
     Ok(())
 }
 
-fn extract_tar_gz(archive: &Path, dest: &Path) -> AppResult<()> {
+pub(crate) fn extract_tar_gz(archive: &Path, dest: &Path) -> AppResult<()> {
     let file = std::fs::File::open(archive)?;
     let gz = flate2::read::GzDecoder::new(file);
     let mut tar = tar::Archive::new(gz);
@@ -155,7 +155,7 @@ fn extract_tar_gz(archive: &Path, dest: &Path) -> AppResult<()> {
 }
 
 /// Busca recursivamente el binario `java(w)` dentro del JRE extraido.
-fn find_java_binary(root: &Path) -> Option<PathBuf> {
+pub(crate) fn find_java_binary(root: &Path) -> Option<PathBuf> {
     let target = if cfg!(target_os = "windows") { "javaw.exe" } else { "java" };
     let mut stack = vec![root.to_path_buf()];
     while let Some(dir) = stack.pop() {

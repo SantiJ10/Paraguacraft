@@ -669,10 +669,11 @@ function currentDestPayload() {
   };
 }
 
-/** Instala las dependencias que el usuario confirmó, sin abortar si alguna falla. */
+/** Instala las dependencias que el usuario confirmó. Un fallo no se silencia. */
 async function installConfirmedDependencies() {
   if (!props.item || !dependenciesToInstall.value.length) return;
   const dest = currentDestPayload();
+  const failed: string[] = [];
   for (const dep of dependenciesToInstall.value) {
     try {
       if (dep.versionId) {
@@ -695,12 +696,16 @@ async function installConfirmedDependencies() {
           instanceId: dest.instanceId,
         });
       }
-    } catch {
-      // Una dependencia individual puede fallar (sin build para esta mc/loader, etc.);
-      // no abortamos el resto de la instalación por eso.
+    } catch (e) {
+      failed.push(`${dep.title}: ${String(e)}`);
     }
   }
   dependenciesToInstall.value = [];
+  if (failed.length) {
+    throw new Error(
+      `No se pudieron instalar ${failed.length} dependencia(s):\n${failed.slice(0, 4).join("\n")}`,
+    );
+  }
 }
 
 async function install() {
@@ -764,6 +769,21 @@ async function install() {
     });
 
     await installConfirmedDependencies();
+
+    if (dest.instanceId) {
+      try {
+        const conflicts = await api.scanModConflicts(dest.instanceId);
+        const hard = conflicts.filter((c) => c.severity === "error");
+        if (hard.length) {
+          error.value = hard.map((c) => `${c.title}: ${c.detail}`).join("\n");
+          await instances.load(true);
+          emit("installed");
+          return;
+        }
+      } catch {
+        /* scan opcional */
+      }
+    }
 
     await instances.load(true);
     emit("installed");
@@ -869,7 +889,7 @@ function sourceLabel(source: string): string {
 function serverTypeLabel(t: string): string {
   if (t.startsWith("fabric")) return "Fabric";
   if (t.startsWith("paper")) return "Paper";
-  if (t.startsWith("forge")) return "Forge";
+  if (t.startsWith("neoforge")) return "NeoForge";
   return t;
 }
 
@@ -1605,6 +1625,9 @@ async function installRecommended(p: RecommendedPlugin) {
                 <p class="truncate text-sm font-semibold">{{ dep.title }}</p>
                 <p class="text-[11px] uppercase tracking-wide text-gray-500">
                   {{ dep.dependencyType === "required" ? "Requerida" : dep.dependencyType }}
+                </p>
+                <p v-if="dep.requiredBy?.length" class="truncate text-[11px] text-gray-400">
+                  Requerido por: {{ dep.requiredBy.join(", ") }}
                 </p>
               </div>
             </label>

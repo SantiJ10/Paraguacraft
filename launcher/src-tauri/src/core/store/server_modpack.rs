@@ -178,12 +178,14 @@ async fn apply_mrpack_to_dest(
     if !items.is_empty() {
         net::download_all(client, items, 12, app, "server-modpack", label).await?;
     }
+    let _ = super::overrides::cleanup_previous(dest);
     super::run_blocking({
         let b = bytes.to_vec();
         let d = dest.clone();
         move || apply_zip_prefixes(&b, &d, &["overrides", "server-overrides"])
     })
     .await?;
+    let _ = super::overrides::record_from_zip(dest, bytes, &["overrides", "server-overrides"]);
     Ok(())
 }
 
@@ -318,8 +320,12 @@ async fn install_cf_manifest_to_server(
     if files.is_empty() {
         return Err(AppError::msg("El manifest no declara archivos del modpack"));
     }
-    let mods_dir = dest.join("mods");
-    std::fs::create_dir_all(&mods_dir)?;
+    let project_ids: Vec<String> = files
+        .iter()
+        .filter_map(|f| f["projectID"].as_u64().map(|n| n.to_string()))
+        .collect();
+    let class_map = curseforge::mods_class_ids(client, key, &project_ids).await;
+    let conc = net::concurrency_from_settings().min(12);
     let mut items = Vec::new();
     for (i, f) in files.iter().enumerate() {
         let project_id = f["projectID"].as_u64().unwrap_or(0).to_string();
@@ -334,14 +340,18 @@ async fn install_cf_manifest_to_server(
             .to_string();
         let dl = curseforge::file_download_url(&file_resp);
         let sha1 = curseforge::file_sha1(&file_resp);
-        items.push(DownloadItem::new(dl, mods_dir.join(&filename)).with_sha1(sha1));
+        let class_id = class_map.get(&project_id).copied().unwrap_or(6);
+        let sub = curseforge::class_id_subdir(class_id);
+        let sub_dir = dest.join(sub);
+        std::fs::create_dir_all(&sub_dir)?;
+        items.push(DownloadItem::new(dl, sub_dir.join(&filename)).with_sha1(sha1));
         if items.len() >= 24 {
-            net::download_all(client, items, 8, app, &format!("srv-cfpack-{i}"), label).await?;
+            net::download_all(client, items, conc, app, &format!("srv-cfpack-{i}"), label).await?;
             items = Vec::new();
         }
     }
     if !items.is_empty() {
-        net::download_all(client, items, 8, app, "srv-cfpack-final", label).await?;
+        net::download_all(client, items, conc, app, "srv-cfpack-final", label).await?;
     }
     Ok(())
 }
@@ -403,12 +413,15 @@ pub async fn import_cfpack_version_to_server(
         .unwrap_or("overrides")
         .trim_end_matches('/')
         .to_string();
+    let _ = super::overrides::cleanup_previous(&dest);
     super::run_blocking({
         let b = bytes.clone();
         let d = dest.clone();
-        move || apply_zip_prefixes(&b, &d, &[&overrides])
+        let ov = overrides.clone();
+        move || apply_zip_prefixes(&b, &d, &[&ov])
     })
     .await?;
+    let _ = super::overrides::record_from_zip(&dest, &bytes, &[&overrides]);
 
     Ok(prof)
 }

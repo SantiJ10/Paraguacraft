@@ -3,6 +3,7 @@
 
 use std::path::PathBuf;
 
+use serde::Serialize;
 use serde_json::Value;
 use tauri::AppHandle;
 
@@ -33,6 +34,52 @@ pub fn jvm_platform() -> &'static str {
     } else {
         "linux"
     }
+}
+
+/// Catálogo que el usuario puede instalar a mano (estilo Prism: runtime oficial).
+const INSTALLABLE: &[(&str, &str)] = &[
+    ("jre-legacy", "Java 8"),
+    ("java-runtime-gamma", "Java 17"),
+    ("java-runtime-delta", "Java 21"),
+    ("java-runtime-epsilon", "Java 25"),
+];
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MojangRuntimeInfo {
+    pub component: String,
+    pub name: String,
+    pub version: String,
+    pub installed: bool,
+}
+
+/// Lista runtimes Mojang disponibles para esta plataforma.
+pub async fn list_runtimes(http: &reqwest::Client) -> AppResult<Vec<MojangRuntimeInfo>> {
+    let manifest: Value = net::fetch_json(http, JVM_MANIFEST_URL).await?;
+    let platform = jvm_platform();
+    let Some(plat) = manifest.get(platform).and_then(|v| v.as_object()) else {
+        return Ok(Vec::new());
+    };
+    let mut out = Vec::new();
+    for (component, label) in INSTALLABLE {
+        let Some(arr) = plat.get(*component).and_then(|v| v.as_array()) else {
+            continue;
+        };
+        let version = arr
+            .first()
+            .and_then(|e| e.get("version"))
+            .and_then(|v| v.get("name"))
+            .and_then(|n| n.as_str())
+            .unwrap_or("")
+            .to_string();
+        out.push(MojangRuntimeInfo {
+            component: (*component).to_string(),
+            name: (*label).to_string(),
+            version,
+            installed: find_executable(component).is_some(),
+        });
+    }
+    Ok(out)
 }
 
 /// Componentes Mojang a probar según versión MC (como `_java_exe_para_version`).

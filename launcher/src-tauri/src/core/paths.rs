@@ -39,6 +39,20 @@ pub fn java_dir() -> PathBuf {
     dir
 }
 
+/// Temas CSS del usuario (`%APPDATA%/ParaguacraftLauncher/themes`).
+pub fn themes_dir() -> PathBuf {
+    let dir = data_dir().join("themes");
+    let _ = std::fs::create_dir_all(&dir);
+    dir
+}
+
+/// Packs de iconos CSS (`%APPDATA%/ParaguacraftLauncher/iconthemes`).
+pub fn icon_themes_dir() -> PathBuf {
+    let dir = data_dir().join("iconthemes");
+    let _ = std::fs::create_dir_all(&dir);
+    dir
+}
+
 /// `.minecraft` por defecto segun el SO.
 pub fn default_minecraft_dir() -> PathBuf {
     if cfg!(target_os = "windows") {

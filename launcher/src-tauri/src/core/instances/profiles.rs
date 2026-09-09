@@ -74,6 +74,7 @@ pub fn create(
         loader_version: loader_version.to_string(),
         source: "paraguacraft".into(),
         ram_mb: default_ram,
+        ram_min_mb: 0,
         total_play_minutes: 0,
         last_played: None,
         version_id: None,
@@ -120,6 +121,7 @@ pub fn set_ram(id: &str, ram_mb: u32) -> AppResult<Instance> {
 pub fn set_config(
     id: &str,
     ram_mb: Option<u32>,
+    ram_min_mb: Option<u32>,
     jvm_args: Option<String>,
     gc: Option<String>,
     java_path: Option<String>,
@@ -132,6 +134,9 @@ pub fn set_config(
         .ok_or_else(|| AppError::msg("Sin metadata"))?;
     if let Some(r) = ram_mb {
         meta.ram_mb = r;
+    }
+    if let Some(r) = ram_min_mb {
+        meta.ram_min_mb = r;
     }
     meta.jvm_args = jvm_args.filter(|s| !s.trim().is_empty());
     meta.gc = gc.filter(|s| !s.trim().is_empty());
@@ -181,17 +186,43 @@ pub fn set_version_id(id: &str, version_id: &str) -> AppResult<()> {
 }
 
 /// Actualiza loader y version; limpia version_id para forzar reinstalacion.
-pub fn set_loader(id: &str, loader: &str, loader_version: &str) -> AppResult<InstanceMeta> {
+pub fn set_loader(id: &str, loader: &str, loader_version: &str) -> AppResult<SetLoaderResult> {
     ensure_local(id)?;
     let mut meta = read_meta(id)
         .or_else(|| super::resolve_meta(id))
         .ok_or_else(|| AppError::msg("Sin metadata"))?;
+    let old_store = crate::core::loaders::store_loader_for(&meta.loader, &meta.mc_version);
+    let new_store = crate::core::loaders::store_loader_for(loader, &meta.mc_version);
+    let mods_dir = instance_dir(id).join("mods");
+    let has_mods = mods_dir
+        .read_dir()
+        .into_iter()
+        .flatten()
+        .flatten()
+        .any(|e| {
+            let n = e.file_name().to_string_lossy().to_lowercase();
+            n.ends_with(".jar") || n.ends_with(".jar.disabled")
+        });
     meta.loader = crate::core::loaders::normalize(loader);
     meta.loader_version = loader_version.trim().to_string();
     meta.version_id = None;
     super::sync_loader_icon(&mut meta);
     write_meta(id, &meta)?;
-    Ok(meta)
+    let warning = if old_store != new_store && has_mods {
+        Some(format!(
+            "Cambiaste de {old_store} a {new_store}. Los mods en mods/ pueden ser incompatibles; no se borraron (mundos y configs siguen)."
+        ))
+    } else {
+        None
+    };
+    Ok(SetLoaderResult { meta, warning })
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetLoaderResult {
+    pub meta: super::InstanceMeta,
+    pub warning: Option<String>,
 }
 
 pub fn duplicate(id: &str, new_name: &str) -> AppResult<Instance> {

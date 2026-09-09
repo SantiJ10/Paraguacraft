@@ -14,6 +14,7 @@ const app = useAppStore();
 
 const meta = ref<InstanceMeta | null>(null);
 const ramMb = ref(4096);
+const ramMinMb = ref(0);
 const gc = ref<GcType>("Auto");
 const jvmArgs = ref("");
 const javaPath = ref("");
@@ -29,6 +30,7 @@ onMounted(async () => {
     const m = await api.getInstanceMeta(props.instance.id);
     meta.value = m;
     ramMb.value = m.ramMb || 4096;
+    ramMinMb.value = m.ramMinMb || 0;
     gc.value = (m.gc as GcType) ?? "Auto";
     jvmArgs.value = m.jvmArgs ?? "";
     javaPath.value = m.javaPath ?? "";
@@ -45,6 +47,7 @@ async function save() {
     await api.setInstanceConfig({
       id: props.instance.id,
       ramMb: ramMb.value,
+      ramMinMb: ramMinMb.value,
       jvmArgs: jvmArgs.value || null,
       gc: gc.value,
       javaPath: javaPath.value || null,
@@ -88,9 +91,34 @@ async function backToAuto() {
       <div class="space-y-4">
         <label class="block">
           <span class="mb-1 flex justify-between text-sm text-gray-300">
-            <span>Memoria RAM</span><span class="font-semibold text-pc-green">{{ (ramMb / 1024).toFixed(1) }} GB</span>
+            <span>Memoria máxima (-Xmx)</span><span class="font-semibold text-pc-green">{{ (ramMb / 1024).toFixed(1) }} GB</span>
           </span>
           <input v-model.number="ramMb" type="range" min="1024" :max="maxRam" step="512" class="w-full accent-pc-green" />
+        </label>
+
+        <label class="block">
+          <span class="mb-1 flex justify-between text-sm text-gray-300">
+            <span>Memoria mínima (-Xms)</span>
+            <span class="font-semibold text-pc-green">{{ ramMinMb ? `${(ramMinMb / 1024).toFixed(1)} GB` : "Auto" }}</span>
+          </span>
+          <label class="mb-2 flex items-center gap-2 text-xs text-gray-400">
+            <input
+              type="checkbox"
+              :checked="!ramMinMb"
+              class="accent-pc-green"
+              @change="ramMinMb = ($event.target as HTMLInputElement).checked ? 0 : 512"
+            />
+            Automático
+          </label>
+          <input
+            v-if="ramMinMb"
+            v-model.number="ramMinMb"
+            type="range"
+            min="256"
+            :max="ramMb"
+            step="256"
+            class="w-full accent-pc-green"
+          />
         </label>
 
         <label class="block">

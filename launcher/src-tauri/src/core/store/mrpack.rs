@@ -174,13 +174,14 @@ pub async fn import_modrinth(
     }
     net::download_all(client, items, 12, app, "mrpack-import", &format!("Modpack {name}")).await?;
 
-    // 5) Aplicar overrides (ZIP en spawn_blocking).
+    let _ = super::overrides::cleanup_previous(&dest);
     super::run_blocking({
         let b = bytes.clone();
         let d = dest.clone();
         move || apply_overrides(&b, &d)
     })
     .await?;
+    let _ = super::overrides::record_from_zip(&dest, &bytes, &["overrides", "client-overrides"]);
 
     instances::read_meta(&inst.id)
         .map(|m| m.into_instance(&inst.id, &dest))

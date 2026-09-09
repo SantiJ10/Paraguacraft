@@ -1,10 +1,11 @@
-//! Gestor de Java: deteccion, runtime Mojang, Temurin y resolucion por version MC.
+//! Gestor de Java: deteccion, runtime Mojang, Temurin, Zulu y resolucion por version MC.
 
 pub mod adoptium;
 pub mod detect;
 pub mod mojang;
 pub mod resolve;
 pub mod verify;
+pub mod zulu;
 
 use crate::models::JavaInstallation;
 

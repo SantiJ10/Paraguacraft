@@ -1,12 +1,12 @@
 {
-  "version": "1.1.40",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.40/Instalar_Paraguacraft_v1.1.40.exe",
-  "size_bytes": 5737429,
-  "sha256": "b1dcb84f1d28a393efc7699669da532dbddb1ad9ae29806dd5611164f54548e5",
-  "notes": "- Si Mojang no responde (piston-meta / 29.json), usa launchermeta y BMCLAPI\n- Instancias ya instaladas (Optimized, Fabric, Forge, PvP, vanilla) arrancan sin re-bajar vanilla",
+  "version": "1.1.41",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.41/Instalar_Paraguacraft_v1.1.41.exe",
+  "size_bytes": 5782609,
+  "sha256": "139b926b1dfb83a738d4f017ed5240df13dc62511ea5289d98435b0deb9fde34",
+  "notes": "- Java: Mojang, Adoptium (Temurin) y Azul Zulu 8/17/21/25 desde Ajustes\n- RAM mínima y máxima (Xms/Xmx) global y por instancia\n- Tienda con dependencias recursivas; Optimized usa el mismo pipeline (Fabric o Forge según la MC)\n- Tema claro, acentos e iconos; CSS propio en themes/",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.40/Instalar_Paraguacraft_v1.1.40.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.41/Instalar_Paraguacraft_v1.1.41.exe",
       "signature": ""
     }
   }

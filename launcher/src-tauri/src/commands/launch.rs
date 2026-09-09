@@ -82,7 +82,7 @@ async fn resolve_auth(http: &reqwest::Client, offline: bool) -> AppResult<AuthCt
 }
 
 fn local_profile_ready(version_id: &str) -> bool {
-    versions::read_local_json(version_id).is_some()
+    versions::profile_locally_complete(version_id)
 }
 
 const OFFLINE_MISSING: &str =
@@ -121,7 +121,7 @@ async fn resolve_launch_id(
         }
     }
     if loader != "vanilla" {
-        if let Some(vid) = loaders::find_version_id_for_loader(mc, &loader) {
+        if let Some(vid) = loaders::find_version_id_for_loader(mc, &loader, &meta.loader_version) {
             if local_profile_ready(&vid) {
                 meta.version_id = Some(vid.clone());
                 if meta.loader_version.is_empty() {
@@ -280,6 +280,11 @@ async fn spawn_for_instance(
     } else {
         settings.ram_mb
     };
+    let ram_min = if meta.ram_min_mb > 0 {
+        meta.ram_min_mb
+    } else {
+        settings.ram_min_mb
+    };
     // Respeta la RAM elegida por el usuario; solo baja el tope si supera lo seguro del sistema
     // (deja ~1.5 GB para Windows/launcher) para evitar que el SO mate Java.
     let hw = crate::core::hardware::detect();
@@ -347,6 +352,7 @@ async fn spawn_for_instance(
         .unwrap_or_else(|| crate::core::java::required_for_mc(&mc));
     let jvm = JvmCtx {
         ram_mb: ram,
+        ram_min_mb: ram_min.min(ram),
         gc,
         extra_args,
         java_path,

@@ -31,28 +31,37 @@ pub async fn repair(
     quarantine_broken_jars(&dir.join("mods"), &mut report)?;
     quarantine_broken_jars(&dir.join("shaderpacks"), &mut report)?;
 
-    push_info(
-        &mut report,
-        "Reinstalando Minecraft base",
-        &format!("Descargando/verificando Minecraft {}…", meta.mc_version),
-        None,
-    );
-
-    if let Err(e) = versions::install_vanilla(app, client, &meta.mc_version).await {
-        push_error(
+    if versions::vanilla_locally_complete(&meta.mc_version) {
+        push_info(
             &mut report,
-            "Fallo al reinstalar Minecraft",
-            e.to_string(),
+            "Minecraft base ya completo",
+            "Jar, índice de assets y librerías están en disco; no se re-descarga vanilla.",
             None,
         );
-        return Ok(report);
+    } else {
+        push_info(
+            &mut report,
+            "Reinstalando Minecraft base",
+            &format!("Completando archivos faltantes de Minecraft {}…", meta.mc_version),
+            None,
+        );
+
+        if let Err(e) = versions::install_vanilla(app, client, &meta.mc_version).await {
+            push_error(
+                &mut report,
+                "Fallo al reinstalar Minecraft",
+                e.to_string(),
+                None,
+            );
+            return Ok(report);
+        }
+        push_fixed(
+            &mut report,
+            "Minecraft base verificado",
+            "Librerías y cliente de la versión están presentes.",
+            None,
+        );
     }
-    push_fixed(
-        &mut report,
-        "Minecraft base verificado",
-        "Librerías y cliente de la versión están presentes.",
-        None,
-    );
 
     let loader = loaders::normalize(&meta.loader);
     match loaders::install_loader(

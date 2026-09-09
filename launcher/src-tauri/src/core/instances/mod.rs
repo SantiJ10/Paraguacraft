@@ -39,6 +39,9 @@ pub struct InstanceMeta {
     pub source: String,
     #[serde(default)]
     pub ram_mb: u32,
+    /// Heap inicial (-Xms). 0 = automático o el valor global.
+    #[serde(default)]
+    pub ram_min_mb: u32,
     #[serde(default)]
     pub total_play_minutes: u64,
     #[serde(default)]
@@ -212,7 +215,11 @@ fn enrich_legacy_meta(folder: &str, meta: &mut InstanceMeta) {
             || !crate::core::loaders::version_id_matches_loader(&meta.loader, v, &meta.mc_version)
     }) {
         if let Some(vid) =
-            crate::core::loaders::find_version_id_for_loader(&meta.mc_version, &meta.loader)
+            crate::core::loaders::find_version_id_for_loader(
+                &meta.mc_version,
+                &meta.loader,
+                &meta.loader_version,
+            )
         {
             meta.version_id = Some(vid.clone());
             if meta.loader_version.is_empty() {
@@ -300,7 +307,11 @@ fn repair_meta_from_mods(folder: &str, meta: &mut InstanceMeta) {
             || !crate::core::loaders::version_id_matches_loader(&meta.loader, v, &meta.mc_version)
     }) {
         if let Some(vid) =
-            crate::core::loaders::find_version_id_for_loader(&meta.mc_version, &meta.loader)
+            crate::core::loaders::find_version_id_for_loader(
+                &meta.mc_version,
+                &meta.loader,
+                &meta.loader_version,
+            )
         {
             meta.version_id = Some(vid);
         }
@@ -362,6 +373,7 @@ pub fn resolve_external_meta(ext_id: &str) -> Option<InstanceMeta> {
         loader_version: inst.loader_version,
         source: inst.source,
         ram_mb: if inst.ram_mb > 0 { inst.ram_mb } else { 4096 },
+        ram_min_mb: 0,
         total_play_minutes: inst.total_play_minutes,
         last_played: inst.last_played,
         version_id: Some(ext_id.rsplit("::").next()?.to_string()),
@@ -445,6 +457,7 @@ pub fn meta_from_folder_name(folder: &str) -> InstanceMeta {
         loader_version: String::new(),
         source: "paraguacraft".into(),
         ram_mb: 4096,
+        ram_min_mb: 0,
         total_play_minutes: 0,
         last_played: None,
         version_id: None,

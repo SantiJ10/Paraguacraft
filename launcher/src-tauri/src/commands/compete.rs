@@ -19,6 +19,13 @@ pub fn get_resource_budget(instance_id: String) -> AppResult<compete_mode::Resou
     Ok(compete_mode::resource_budget(ram))
 }
 
+#[tauri::command]
+pub fn get_resource_budget_global() -> compete_mode::ResourceBudget {
+    let settings: crate::models::AppSettings =
+        crate::config::read_json(&crate::core::paths::config_file()).unwrap_or_default();
+    compete_mode::resource_budget(settings.ram_mb)
+}
+
 /// Re-aplica el preset PvP (culling/HUD/toggle sprint) de la instancia segun
 /// su loader y el tier de hardware detectado. Util cuando Paraguabot sugiere
 /// "Sincronizar PvP" tras un ajuste manual que desalineo la config in-game.
