@@ -389,7 +389,7 @@ fn extract_native_jar(jar: &Path, dest: &Path) -> AppResult<()> {
     Ok(())
 }
 
-/// Heap inicial: valor del usuario, o ~25 % del máximo (mínimo 512 MiB, estilo Prism).
+/// Heap inicial: valor del usuario, o ~25 % del máximo (mínimo 512 MiB).
 fn resolve_xms(ram_mb: u32, ram_min_mb: u32) -> u32 {
     if ram_min_mb > 0 {
         ram_min_mb.clamp(256, ram_mb)

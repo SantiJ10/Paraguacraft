@@ -48,7 +48,7 @@ async function finish() {
   }
   await settings.save();
 
-  // Crear Optimized recomendado (flujo cliente), no importar Lunar/Prism.
+  // Crear Optimized recomendado (flujo cliente).
   try {
     const { useInstancesStore } = await import("@/stores/instances");
     const instances = useInstancesStore();

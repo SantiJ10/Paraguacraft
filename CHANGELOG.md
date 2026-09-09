@@ -3,11 +3,17 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [1.1.42] - 2026-09-09
+
+### Launcher
+- Ajustes muestra el consumo actual del launcher y la RAM libre del sistema, sin tareas en segundo plano.
+- Instancias de otras carpetas de Minecraft agrupadas como Importadas.
+
 ## [1.1.41] - 2026-09-09
 
 ### Launcher
 - **Java**: descarga Mojang, Eclipse Temurin (Adoptium) y **Azul Zulu** (8 / 17 / 21 / 25) desde Ajustes. También se puede elegir un `java.exe` del disco.
-- **RAM**: mínimo (-Xms) y máximo (-Xmx), global y por instancia (estilo Prism).
+- **RAM**: mínimo (-Xms) y máximo (-Xmx), global y por instancia.
 - **Apariencia**: tema claro, más acentos, iconos simples/rellenos y CSS propio en `themes/` / `iconthemes/`.
 - **Tienda / instancias**: dependencias REQUIRED recursivas, índice de jars, packs CF en la carpeta correcta, launch sin re-bajar vanilla si ya está completo. **Optimized usa el mismo pipeline** (tienda = Fabric o Forge según la MC).
 - **Consumo**: Ajustes muestra la RAM actual del launcher.

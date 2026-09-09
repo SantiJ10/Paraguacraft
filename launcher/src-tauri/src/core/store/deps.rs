@@ -1,5 +1,5 @@
 //! Resolución recursiva de dependencias REQUIRED (Modrinth + CurseForge).
-//! Estilo Prism `GetModDependenciesTask`: tope de profundidad, ciclos, remap Quilt↔Fabric.
+//! Tope de profundidad, ciclos, remap Quilt↔Fabric.
 
 use std::collections::HashSet;
 use std::path::Path;

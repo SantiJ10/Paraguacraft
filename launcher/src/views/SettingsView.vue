@@ -509,7 +509,7 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
           Launcher ahora: <span class="font-semibold text-pc-green">{{ launcherBudget.launcherMb }} MB</span>
           · RAM libre del sistema: {{ formatRam(launcherBudget.systemFreeMb) }}
           de {{ formatRam(launcherBudget.totalRamMb) }}.
-          Prism (Qt nativo) ronda 100 MB; este launcher usa WebView, así que el piso es más alto, pero no hay escaneos en segundo plano.
+          Sin tareas en segundo plano: solo usa RAM cuando hace falta.
         </p>
 
         <label class="mb-5 block">
@@ -1280,8 +1280,7 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
             </BaseButton>
           </div>
           <p class="mt-2 text-xs text-gray-500">
-            Soltá un <code class="text-gray-400">.css</code> en la carpeta y recargá. No es el motor de temas de Prism (Qt),
-            pero alcanza para cambiar colores, fondos e iconos.
+            Soltá un <code class="text-gray-400">.css</code> en la carpeta y recargá para cambiar colores, fondos e iconos.
           </p>
           <BaseButton size="sm" variant="ghost" class="mt-2" :disabled="!isTauri()" @click="reloadCustomCss">
             Recargar todo

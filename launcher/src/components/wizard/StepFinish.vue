@@ -19,7 +19,7 @@ const recommendedMc =
     <h2 class="text-2xl font-bold">Listo para jugar</h2>
     <p class="mt-1 text-gray-400">
       Crearemos <span class="font-semibold text-white">Paraguacraft Optimized</span> ({{ recommendedMc }})
-      afinado a tu PC. Importar Lunar/Prism queda para más tarde en Instancias.
+      afinado a tu PC. Si ya tenés perfiles, los podés traer después desde Instancias.
     </p>
 
     <div class="mt-6 space-y-2 rounded-xl border border-surface-4 bg-surface-2 p-4 text-left text-sm">

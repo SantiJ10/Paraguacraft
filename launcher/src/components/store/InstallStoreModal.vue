@@ -875,15 +875,9 @@ function formatDate(iso: string) {
 }
 
 function sourceLabel(source: string): string {
-  const labels: Record<string, string> = {
-    paraguacraft: "Paraguacraft",
-    vanilla: "Vanilla",
-    prism: "Prism",
-    lunar: "Lunar",
-    tlauncher: "TLauncher",
-    sklauncher: "SKLauncher",
-  };
-  return labels[source] ?? source;
+  if (source === "paraguacraft") return "Paraguacraft";
+  if (source === "vanilla") return "Vanilla";
+  return "Importada";
 }
 
 function serverTypeLabel(t: string): string {
@@ -1220,7 +1214,7 @@ async function installRecommended(p: RecommendedPlugin) {
                   :disabled="!externalCompatible.length"
                   @click="installTarget = 'external'"
                 >
-                  <p class="font-semibold">Otro launcher (Prism, Lunar, .minecraft)</p>
+                  <p class="font-semibold">Otra carpeta de Minecraft</p>
                   <p class="text-xs text-gray-500">
                     {{
                       externalCompatible.length
@@ -1393,13 +1387,13 @@ async function installRecommended(p: RecommendedPlugin) {
                   Elegí la instancia destino
                   <template v-if="loaderRequired"> ({{ mcVersion }} · {{ loaderId }})</template>
                   <template v-else> ({{ mcVersion }})</template>
-                  · {{ installTarget === "external" ? "otro launcher" : "Paraguacraft" }}.
+                  · {{ installTarget === "external" ? "otra carpeta" : "Paraguacraft" }}.
                 </p>
                 <p
                   v-if="!(installTarget === 'external' ? externalCompatible : localCompatible).length"
                   class="text-sm text-amber-400"
                 >
-                  No hay instancias compatibles. Creá una en Versiones/Instancias o escaneá otros launchers.
+                  No hay instancias compatibles. Creá una en Versiones/Instancias o detectá otras instalaciones.
                 </p>
                 <div class="space-y-2">
                   <button

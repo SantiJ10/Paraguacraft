@@ -1,7 +1,7 @@
 import type { Instance, MinecraftVersion, VersionChannel } from "@/lib/types";
 import { normalizeLoaderId } from "@/lib/loaders";
 
-/** Tarjetas destacadas estilo Lunar (PARAGUA X.X). Excluidas del grupo "Otras versiones". */
+/** Tarjetas destacadas PARAGUA (versión propia). Excluidas del grupo "Otras versiones". */
 export const FEATURED_VERSION_KEYS = [
   "26",
   "1.21",

@@ -10,33 +10,34 @@ import BaseButton from "@/components/common/BaseButton.vue";
 import NewInstanceModal from "@/components/instance/NewInstanceModal.vue";
 import ImportModpackModal from "@/components/instance/ImportModpackModal.vue";
 import { isTauri } from "@/lib/ipc";
-import type { Instance, InstanceSource } from "@/lib/types";
+import type { Instance } from "@/lib/types";
 
 const router = useRouter();
 const instances = useInstancesStore();
 const app = useAppStore();
 
 const query = ref("");
-const sourceFilter = ref<InstanceSource | "all">("all");
+const sourceFilter = ref<"all" | "paraguacraft" | "vanilla" | "imported">("all");
+
+const sources: Array<{ id: "all" | "paraguacraft" | "vanilla" | "imported"; label: string }> = [
+  { id: "all", label: "Todas" },
+  { id: "paraguacraft", label: "Paraguacraft" },
+  { id: "vanilla", label: "Vanilla" },
+  { id: "imported", label: "Importadas" },
+];
 const showNew = ref(false);
 const showImport = ref(false);
 const actionError = ref<string | null>(null);
 const launchingId = ref<string | null>(null);
 
-const sources: Array<{ id: InstanceSource | "all"; label: string }> = [
-  { id: "all", label: "Todas" },
-  { id: "paraguacraft", label: "Paraguacraft" },
-  { id: "vanilla", label: "Vanilla" },
-  { id: "lunar", label: "Lunar" },
-  { id: "prism", label: "Prism" },
-  { id: "tlauncher", label: "TLauncher" },
-  { id: "sklauncher", label: "SKLauncher" },
-];
-
 const filtered = computed(() =>
   instances.instances.filter((i) => {
     const matchQuery = i.name.toLowerCase().includes(query.value.trim().toLowerCase());
-    const matchSource = sourceFilter.value === "all" || i.source === sourceFilter.value;
+    const matchSource =
+      sourceFilter.value === "all" ||
+      (sourceFilter.value === "imported"
+        ? i.source !== "paraguacraft" && i.source !== "vanilla"
+        : i.source === sourceFilter.value);
     return matchQuery && matchSource;
   }),
 );
@@ -68,7 +69,7 @@ async function play(inst: Instance) {
       </div>
       <div class="flex gap-2">
         <BaseButton variant="secondary" :disabled="instances.scanning || !isTauri()" @click="instances.scan()">
-          {{ instances.scanning ? "Escaneando..." : "Detectar otros launchers" }}
+          {{ instances.scanning ? "Escaneando..." : "Detectar otras instalaciones" }}
         </BaseButton>
         <BaseButton variant="secondary" @click="showImport = true">Importar modpack</BaseButton>
         <BaseButton @click="showNew = true">+ Nueva instancia</BaseButton>

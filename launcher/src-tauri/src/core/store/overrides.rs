@@ -1,4 +1,4 @@
-//! Libro de overrides de un modpack (Prism `overrides.txt`).
+//! Libro de overrides de un modpack (archivos que el pack no debe pisar).
 //! Al reimportar/actualizar se borran los archivos de la versión anterior.
 
 use std::fs;

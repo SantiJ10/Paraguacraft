@@ -317,7 +317,7 @@ function goAccounts() {
 
 <template>
   <div class="flex h-full min-h-0">
-    <!-- Grid central estilo Lunar -->
+    <!-- Grid central de versiones destacadas -->
     <div class="flex min-w-0 flex-1 flex-col">
       <div class="flex flex-wrap items-center gap-3 border-b border-surface-3 px-6 py-4">
         <SearchInput v-model="query" placeholder="Buscar tus versiones PARAGUA…" class="w-72" />

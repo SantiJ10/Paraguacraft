@@ -918,7 +918,7 @@ async function exportInstance() {
       </div>
 
       <p v-if="isExternal" class="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-200">
-        Instancia detectada en otro launcher. Podes jugarla, instalar mods desde la tienda o importarla a Paraguacraft.
+        Instancia detectada en otra carpeta de Minecraft. Podés jugarla, instalar mods desde la tienda o importarla a Paraguacraft.
       </p>
 
       <p v-if="error" class="mb-4 text-sm text-red-400">{{ error }}</p>

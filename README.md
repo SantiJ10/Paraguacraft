@@ -45,17 +45,7 @@ Cliente competitivo de **Minecraft 1.8.9** y **1.21.11** listo para Hypixel: **F
 
 > Valores aproximados; varían según GPU, drivers y resolución.
 
-### Paraguacraft PvP vs otros clientes
-
-
-| Aspecto              | Paraguacraft PvP                  | Lunar        | Badlion            | Vanilla + OptiFine |
-| -------------------- | --------------------------------- | ------------ | ------------------ | ------------------ |
-| Precio               | Gratis                            | Gratis       | Gratis / Plus pago | Gratis             |
-| Boost de FPS         | Fast Render + culling + anti-leak | Alto         | Alto               | Solo OptiFine      |
-| Overlay de música    | Spotify + YouTube con carátula    | Solo Spotify | Solo Spotify       | No                 |
-| Quick Play Hypixel   | Sí (menú integrado)               | Sí           | Sí                 | No                 |
-| Cuenta / login extra | No requiere                       | Cuenta Lunar | Cuenta Badlion     | No                 |
-
+**También incluye:** overlay de Spotify y YouTube con carátula, Quick Play de Hypixel en el menú, y **sin cuenta extra**: entras con Microsoft o modo offline.
 
 ## Para qué sirve
 

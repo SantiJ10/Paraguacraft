@@ -36,7 +36,7 @@ pub fn jvm_platform() -> &'static str {
     }
 }
 
-/// Catálogo que el usuario puede instalar a mano (estilo Prism: runtime oficial).
+/// Catálogo que el usuario puede instalar a mano (runtime oficial de Mojang).
 const INSTALLABLE: &[(&str, &str)] = &[
     ("jre-legacy", "Java 8"),
     ("java-runtime-gamma", "Java 17"),
