@@ -69,6 +69,7 @@ processResources {
 }
 
 jar {
+    // Publicar SIEMPRE con `gradlew build` (reobfJar). `jar` solo deja nombres MCP y crashea en 1.8.9.
     // 3. NUEVO: Extraemos la libreria Mixin y la inyectamos eliminando firmas de seguridad
     from(configurations.embed.collect { it.isDirectory() ? it : zipTree(it) }) {
         exclude "META-INF/*.RSA", "META-INF/*.SF", "META-INF/*.DSA", "META-INF/MANIFEST.MF"

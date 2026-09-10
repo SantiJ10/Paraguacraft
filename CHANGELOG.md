@@ -7,6 +7,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ### Cliente PvP 1.8.9 (2.1.64)
 - Los perfiles auto por modo ya no pisan combo, armadura, reach ni otros toggles del usuario.
+- JAR reobfuscado (el primer 2.1.64 sin `reobfJar` crasheaba al arrancar).
 
 ### Cliente PvP Modern (0.9.38)
 - Menú overlay sin tarjetas encima del pie/cabecera; subpantallas muestran el mundo, no la constelación.

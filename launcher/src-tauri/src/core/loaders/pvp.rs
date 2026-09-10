@@ -39,7 +39,7 @@ const FALLBACK_RELEASE_TAG: &str = "pvp-client-2.1.64";
 const FALLBACK_MODS: &[(&str, &str)] = &[
     (
         "ParaguacraftPvP-2.1.64.jar",
-        "9f305591a39fe467accba201b415c59a971265dd",
+        "b299ba2637d4a6ff6c87fe344d594905e744e79c",
     ),
     (
         "Hytils-Reborn-1.8.9-forge-1.7.5.jar",
