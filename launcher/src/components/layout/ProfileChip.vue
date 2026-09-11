@@ -88,7 +88,7 @@ watch(
     <Transition name="pop">
       <div
         v-if="open"
-        class="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-surface-4 bg-surface-2 shadow-2xl"
+      class="absolute right-0 top-full z-[90] mt-2 w-56 overflow-hidden rounded-xl border border-surface-4 bg-surface-2 shadow-2xl"
         @click.stop
       >
         <div class="border-b border-surface-4 px-3 py-2.5">

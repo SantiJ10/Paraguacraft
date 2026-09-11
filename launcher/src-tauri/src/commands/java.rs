@@ -10,19 +10,25 @@ use crate::models::JavaInstallation;
 use crate::state::AppState;
 
 /// Detecta Javas. Con `force_refresh` ignora la cache.
+/// Async + spawn_blocking: el scan de disco no congela la UI de Ajustes.
 #[tauri::command]
-pub fn detect_javas(state: State<'_, AppState>, force_refresh: Option<bool>) -> Vec<JavaInstallation> {
-    if !force_refresh.unwrap_or(false) {
-        let cache = state.java_cache.lock().unwrap();
-        if let Some(found) = cache.as_ref() {
-            return found.clone();
+pub async fn detect_javas(
+    state: State<'_, AppState>,
+    force_refresh: Option<bool>,
+) -> AppResult<Vec<JavaInstallation>> {
+    let force = force_refresh.unwrap_or(false);
+    if !force {
+        if let Some(found) = state.java_cache.lock().unwrap().clone() {
+            return Ok(found);
         }
     } else {
         *state.java_cache.lock().unwrap() = None;
     }
-    let found = java::detect::detect_all();
+    let found = tokio::task::spawn_blocking(java::detect::detect_all)
+        .await
+        .unwrap_or_else(|_| Vec::new());
     *state.java_cache.lock().unwrap() = Some(found.clone());
-    found
+    Ok(found)
 }
 
 /// Verifica una ruta de Java concreta (selector "elegir Java").

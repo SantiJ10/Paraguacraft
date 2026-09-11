@@ -13,11 +13,12 @@ import SkinAvatar from "@/components/account/SkinAvatar.vue";
 import JavaManager from "@/components/settings/JavaManager.vue";
 import { formatRam } from "@/composables/useFormat";
 import { applyAccentTheme, ACCENT_SWATCHES, type AccentId } from "@/composables/useAccent";
-import { applyCustomCss } from "@/composables/useAppearance";
+import { applyCustomCss, normalizeWallpaper, type WallpaperId } from "@/composables/useAppearance";
 import { api, isTauri } from "@/lib/ipc";
 import { normalizeLoaderId } from "@/lib/loaders";
 import { useI18n } from "@/composables/useI18n";
 import type { CleanupInfo, CustomThemeList, ExtrasStatus, GcType, PvpClientStatus, ResourceBudget, AppSettings } from "@/lib/types";
+import type { MessageKey } from "@/i18n";
 
 const settings = useSettingsStore();
 const accounts = useAccountsStore();
@@ -157,10 +158,13 @@ onMounted(async () => {
     void loadAiStatus();
     const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 800));
     idle(() => {
-      javaSectionReady.value = true;
       void refreshLauncherBudget();
       void refreshCustomThemes();
     });
+    // Java scan is pesado: no montar el bloque hasta que Ajustes ya se pueda scrollear.
+    window.setTimeout(() => {
+      javaSectionReady.value = true;
+    }, 1800);
   }
 });
 
@@ -227,6 +231,22 @@ async function optimizeMinecraftOptions() {
 function setAccent(accent: AccentId) {
   settings.update("accent", accent);
   applyAccentTheme(accent);
+}
+
+const wallpaperOptions: { id: WallpaperId; swatch: string; label: MessageKey }[] = [
+  { id: "none", swatch: "#121212", label: "settings_wallpaper_none" },
+  { id: "banner", swatch: "#1557c0", label: "settings_wallpaper_banner" },
+];
+
+async function setWallpaper(id: WallpaperId) {
+  settings.update("wallpaper", id);
+}
+
+async function pickCustomWallpaper() {
+  const path = await api.pickWallpaperFile();
+  if (!path) return;
+  settings.update("wallpaperCustomPath", path);
+  settings.update("wallpaper", "custom");
 }
 
 async function refreshUpdate() {
@@ -1246,6 +1266,31 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
             @click="setAccent(swatch.id)"
           />
         </div>
+
+        <p class="mb-2 text-sm text-gray-300">{{ i18n.t("settings_wallpaper") }}</p>
+        <div class="mb-3 flex flex-wrap gap-2">
+          <button
+            v-for="opt in wallpaperOptions"
+            :key="opt.id"
+            type="button"
+            class="flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs font-semibold"
+            :class="normalizeWallpaper(settings.settings.wallpaper) === opt.id ? 'border-pc-green bg-pc-green/10 text-pc-green' : 'border-surface-5 text-gray-300 hover:border-surface-6'"
+            @click="setWallpaper(opt.id)"
+          >
+            <span class="h-4 w-4 rounded" :style="{ background: opt.swatch }" />
+            {{ i18n.t(opt.label) }}
+          </button>
+          <button
+            type="button"
+            class="rounded-lg border px-2.5 py-1.5 text-xs font-semibold"
+            :class="settings.settings.wallpaper === 'custom' ? 'border-pc-green bg-pc-green/10 text-pc-green' : 'border-surface-5 text-gray-300 hover:border-surface-6'"
+            :disabled="!isTauri()"
+            @click="pickCustomWallpaper"
+          >
+            {{ i18n.t("settings_wallpaper_custom") }}
+          </button>
+        </div>
+        <p class="mb-5 text-xs text-gray-500">{{ i18n.t("settings_wallpaper_hint") }}</p>
 
         <div class="mb-4">
           <span class="mb-1 block text-sm text-gray-300">Tema personalizado (CSS)</span>

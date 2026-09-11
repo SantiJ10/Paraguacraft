@@ -1,0 +1,13 @@
+{
+  "version": "0.1.12",
+  "versionCode": 13,
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/mobile-0.1.12/Paraguacraft-mobile-0.1.12-debug.apk",
+  "size_bytes": 143398622,
+  "sha256": "ec4b2d09b8dcf638e68380431f0f67cb6836bf105d65c5f19c93cdf55a30d774",
+  "notes": "- Optimized es una instancia Paraguacraft para mejorar el rendimiento (sin KEO)\n- Cada usuario muestra su propia cabeza de skin al seleccionar la cuenta\n- Controles clásicos/modernos se marcan al toque y el editor abre el layout elegido",
+  "platforms": {
+    "android": {
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/mobile-0.1.12/Paraguacraft-mobile-0.1.12-debug.apk"
+    }
+  }
+}

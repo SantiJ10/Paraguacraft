@@ -2,7 +2,7 @@
 
 use tauri::{AppHandle, State};
 
-use crate::core::updater::{self, UpdateInfo};
+use crate::core::updater::{self, HomeNewsItem, UpdateInfo};
 use crate::error::AppResult;
 use crate::state::AppState;
 
@@ -10,6 +10,12 @@ use crate::state::AppState;
 pub async fn check_launcher_update(state: State<'_, AppState>) -> AppResult<UpdateInfo> {
     let (http, _net) = state.net_scope();
     updater::check(&http).await
+}
+
+#[tauri::command]
+pub async fn list_home_news(state: State<'_, AppState>) -> AppResult<Vec<HomeNewsItem>> {
+    let (http, _net) = state.net_scope();
+    updater::list_home_news(&http).await
 }
 
 #[tauri::command]

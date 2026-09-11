@@ -19,6 +19,7 @@ import { useAccountsStore } from "@/stores/accounts";
 import { useAppStore } from "@/stores/app";
 import { useDownloadsStore } from "@/stores/downloads";
 import { useInstancesStore } from "@/stores/instances";
+import { markBedrockPlayed } from "@/composables/useBedrockRecent";
 
 const router = useRouter();
 const downloads = useDownloadsStore();
@@ -296,6 +297,7 @@ async function launchBedrock() {
   error.value = null;
   bedrockMessage.value = "Abriendo Bedrock…";
   try {
+    markBedrockPlayed();
     await api.launchBedrock();
   } catch (e) {
     error.value = String(e);

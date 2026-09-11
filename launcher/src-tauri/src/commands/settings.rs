@@ -1,8 +1,10 @@
 //! Comandos de configuracion (persistencia real en `launcher_config.json`).
 
+use tauri::AppHandle;
+
 use crate::config;
 use crate::core::paths;
-use crate::error::AppResult;
+use crate::error::{AppError, AppResult};
 use crate::models::AppSettings;
 
 #[tauri::command]
@@ -130,4 +132,21 @@ pub fn open_custom_themes_folder(kind: String) -> AppResult<()> {
     };
     write_theme_readme(&dir);
     crate::core::instances::content::open_abs(&dir)
+}
+
+#[tauri::command]
+pub async fn pick_wallpaper_file(app: AppHandle) -> AppResult<Option<String>> {
+    use tauri_plugin_dialog::DialogExt;
+    let file = app
+        .dialog()
+        .file()
+        .add_filter("Imagen", &["png", "jpg", "jpeg", "webp"])
+        .blocking_pick_file();
+    let Some(file) = file else {
+        return Ok(None);
+    };
+    let path = file
+        .into_path()
+        .map_err(|e| AppError::msg(format!("Ruta inválida: {e}")))?;
+    Ok(Some(path.to_string_lossy().to_string()))
 }

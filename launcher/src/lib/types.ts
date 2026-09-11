@@ -275,6 +275,13 @@ export interface ApplySkinResult {
   premium: boolean;
 }
 
+export interface PremiumCape {
+  id: string;
+  alias: string;
+  url: string;
+  active: boolean;
+}
+
 export interface UpdateInfo {
   currentVersion: string;
   latestVersion: string;
@@ -455,6 +462,18 @@ export interface AppSettings {
   gameHeight?: number;
   /** Borderless HWND en vanilla/Forge/Fabric. Los PvP usan el mod del menú. */
   osBorderless?: boolean;
+  /** none | banner | night | river | nether | custom */
+  wallpaper?: string;
+  wallpaperCustomPath?: string;
+}
+
+export interface HomeNewsItem {
+  tag: string;
+  name: string;
+  body: string;
+  publishedAt: string;
+  htmlUrl: string;
+  kind: "launcher" | "mobile" | "other" | string;
 }
 
 export interface LastLaunchArgs {

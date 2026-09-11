@@ -8,7 +8,7 @@ import BaseButton from "@/components/common/BaseButton.vue";
 import SkinPreview3D from "@/components/skins/SkinPreview3D.vue";
 import { useAccountsStore } from "@/stores/accounts";
 import { useSkinsStore } from "@/stores/skins";
-import type { ApplySkinResult, SkinCatalogEntry, SkinCatalogPage, SkinHistoryEntry, SkinLookup } from "@/lib/types";
+import type { ApplySkinResult, PremiumCape, SkinCatalogEntry, SkinCatalogPage, SkinHistoryEntry, SkinLookup } from "@/lib/types";
 
 type Tab = "library" | "store" | "import";
 
@@ -80,6 +80,8 @@ const importUrl = ref("");
 const importUrlVariant = ref<"classic" | "slim">("classic");
 
 const history = ref<SkinHistoryEntry[]>([]);
+const premiumCapes = ref<PremiumCape[]>([]);
+const capePath = ref<string | null>(null);
 
 const selectedPreview = ref<{
   skinUrl: string | null;
@@ -117,6 +119,17 @@ function setPreview(opts: {
     model: opts.model ?? "classic",
     capeUrl: opts.capeUrl ?? null,
     username: opts.username ?? null,
+  };
+}
+
+/** Recorte del frente de la capa (UV 10×16 en textura 64×32), como el launcher de Minecraft. */
+function capeThumbStyle(url: string): Record<string, string> {
+  return {
+    backgroundImage: `url(${url})`,
+    backgroundRepeat: "no-repeat",
+    backgroundSize: "640% 200%",
+    backgroundPosition: "1.85% 6.25%",
+    imageRendering: "pixelated",
   };
 }
 
@@ -278,6 +291,54 @@ async function applyImportUrl() {
   await runApply(() => api.applySkinFromUrl(url, importUrlVariant.value, name));
 }
 
+async function pickCapeFile() {
+  if (!isTauri()) return;
+  const path = await api.pickCapeFile();
+  if (!path) return;
+  capePath.value = path;
+}
+
+async function applyCapeFile() {
+  if (!capePath.value) return;
+  busy.value = true;
+  message.value = null;
+  try {
+    const r = await api.applyCapeFile(capePath.value);
+    message.value = r.message;
+    setPreview({
+      ...selectedPreview.value,
+      capeUrl: convertFileSrc(capePath.value),
+    });
+  } catch (e) {
+    message.value = String(e);
+  } finally {
+    busy.value = false;
+  }
+}
+
+async function loadPremiumCapes() {
+  try {
+    premiumCapes.value = await api.listPremiumCapes();
+  } catch {
+    premiumCapes.value = [];
+  }
+}
+
+async function usePremiumCape(cape: PremiumCape) {
+  busy.value = true;
+  message.value = null;
+  try {
+    await api.equipPremiumCape(cape.id);
+    setPreview({ ...selectedPreview.value, capeUrl: cape.url });
+    message.value = `Capa ${cape.alias} activa`;
+    await loadPremiumCapes();
+  } catch (e) {
+    message.value = String(e);
+  } finally {
+    busy.value = false;
+  }
+}
+
 async function applyHistory(entry: SkinHistoryEntry) {
   setPreview({
     skinUrl: entry.url,
@@ -340,6 +401,7 @@ onMounted(async () => {
   await skins.refresh();
   await refreshPremiumMode();
   await loadHistory();
+  await loadPremiumCapes();
   setPreview({
     skinUrl: accountSkinUrl.value,
     model: skins.activeSkin?.model === "slim" ? "slim" : "classic",
@@ -551,6 +613,39 @@ onMounted(async () => {
             </div>
           </div>
 
+          <div v-if="premiumCapes.length" class="mb-6">
+            <h2 class="mb-3 text-sm font-bold uppercase tracking-wider text-gray-400">Capas del inventario (premium)</h2>
+            <div class="flex flex-wrap gap-4">
+              <button
+                v-for="cape in premiumCapes"
+                :key="cape.id"
+                type="button"
+                class="group flex w-[88px] flex-col items-center gap-2"
+                :disabled="busy"
+                @click="usePremiumCape(cape)"
+              >
+                <div
+                  class="flex h-[92px] w-[72px] items-center justify-center overflow-hidden rounded-xl border-2 bg-surface-1"
+                  :class="cape.active ? 'border-pc-green' : 'border-surface-4 group-hover:border-pc-green/60'"
+                >
+                  <div
+                    v-if="cape.url"
+                    class="h-[64px] w-[40px] shrink-0"
+                    :style="capeThumbStyle(cape.url)"
+                    :title="cape.alias"
+                  />
+                  <span v-else class="px-1 text-center text-[10px] text-gray-500">{{ cape.alias }}</span>
+                </div>
+                <span
+                  class="w-full truncate text-center text-[11px] font-bold"
+                  :class="cape.active ? 'text-pc-green' : 'text-gray-300'"
+                >
+                  {{ cape.alias }}
+                </span>
+              </button>
+            </div>
+          </div>
+
           <div>
             <h2 class="mb-3 text-sm font-bold uppercase tracking-wider text-gray-400">Recomendadas</h2>
             <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
@@ -715,6 +810,18 @@ onMounted(async () => {
               <BaseButton block :disabled="!importUrl.trim() || busy" @click="applyImportUrl">
                 Descargar y aplicar
               </BaseButton>
+            </div>
+
+            <div class="rounded-2xl border border-surface-4 bg-surface-2 p-5 lg:col-span-2">
+              <h2 class="mb-2 font-bold">Importar capa (.png)</h2>
+              <p class="mb-3 text-sm text-gray-400">
+                PNG de capa (típicamente 64×32). Se guarda en CustomSkinLoader para premium y no-premium.
+              </p>
+              <p v-if="capePath" class="mb-2 truncate text-xs text-gray-500">{{ capePath }}</p>
+              <div class="flex gap-2">
+                <BaseButton variant="secondary" @click="pickCapeFile">Elegir capa</BaseButton>
+                <BaseButton :disabled="!capePath || busy" @click="applyCapeFile">Aplicar capa</BaseButton>
+              </div>
             </div>
           </div>
         </template>

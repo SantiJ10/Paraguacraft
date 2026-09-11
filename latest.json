@@ -1,12 +1,12 @@
 {
-  "version": "1.1.42",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.42/Instalar_Paraguacraft_v1.1.42.exe",
-  "size_bytes": 5784000,
-  "sha256": "eb3f62726bbcc123e7842d64354e7d3780ba18193822a6413afae440405a3a75",
-  "notes": "- Ajustes muestra el consumo del launcher y la RAM libre del sistema\n- Java: Mojang, Adoptium (Temurin) y Azul Zulu 8/17/21/25 desde Ajustes\n- RAM mínima y máxima (Xms/Xmx) global y por instancia\n- Tienda con dependencias recursivas; Optimized usa el mismo pipeline (Fabric o Forge según la MC)",
+  "version": "1.1.43",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.43/Instalar_Paraguacraft_v1.1.43.exe",
+  "size_bytes": 5843016,
+  "sha256": "be5003def56f451c7a714f1ea4de5e8a32e29d25a605463206f93401de0794f3",
+  "notes": "- Inicio: carátula de la canción, novedades PC y Android, sin servidores favoritos\n- Capas premium con miniatura como el launcher de Minecraft\n- PARAGUA Bedrock primero en Versiones y en Jugados recientemente\n- Ajustes ya no se congela al escanear Java",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.42/Instalar_Paraguacraft_v1.1.42.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.43/Instalar_Paraguacraft_v1.1.43.exe",
       "signature": ""
     }
   }

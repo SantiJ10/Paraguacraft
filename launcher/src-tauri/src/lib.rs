@@ -279,6 +279,10 @@ pub fn run() {
             commands::skins::sync_pending_premium_skin,
             commands::skins::pick_skin_file_for_preview,
             commands::skins::apply_skin_file_with_variant,
+            commands::skins::pick_cape_file,
+            commands::skins::apply_cape_file,
+            commands::skins::list_premium_capes,
+            commands::skins::equip_premium_cape,
             // Spotify
             commands::spotify::spotify_status,
             commands::spotify::spotify_save_credentials,
@@ -297,6 +301,8 @@ pub fn run() {
             commands::spotify::spotify_repeat,
             commands::updater::check_launcher_update,
             commands::updater::download_and_install_launcher_update,
+            commands::updater::list_home_news,
+            commands::settings::pick_wallpaper_file,
         ])
         .run(tauri::generate_context!())
         .expect("error al iniciar Paraguacraft Launcher");

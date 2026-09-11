@@ -264,3 +264,59 @@ pub async fn apply_skin_file_with_variant(
 ) -> AppResult<offline::ApplySkinResult> {
     apply_skin_file_path(state, path, variant).await
 }
+
+#[tauri::command]
+pub async fn pick_cape_file(app: AppHandle) -> AppResult<Option<String>> {
+    use tauri_plugin_dialog::DialogExt;
+    let file = app
+        .dialog()
+        .file()
+        .add_filter("Capa PNG", &["png"])
+        .blocking_pick_file();
+    let Some(file) = file else {
+        return Ok(None);
+    };
+    let path = file
+        .into_path()
+        .map_err(|e| AppError::msg(format!("Ruta inválida: {e}")))?;
+    Ok(Some(path.to_string_lossy().to_string()))
+}
+
+#[tauri::command]
+pub fn apply_cape_file(path: String) -> AppResult<offline::ApplySkinResult> {
+    let username = accounts::active_account()
+        .map(|a| a.username)
+        .unwrap_or_else(|| "Steve".into());
+    offline::apply_offline_cape(PathBuf::from(path).as_path(), &username)
+}
+
+#[tauri::command]
+pub async fn list_premium_capes(state: State<'_, AppState>) -> AppResult<Vec<mojang::PremiumCape>> {
+    let http = state.client();
+    let result = mojang::list_premium_capes(&http).await;
+    state.shutdown_network();
+    result
+}
+
+#[tauri::command]
+pub async fn equip_premium_cape(state: State<'_, AppState>, cape_id: String) -> AppResult<()> {
+    let http = state.client();
+    let result = mojang::equip_premium_cape(&http, &cape_id).await?;
+    if let Ok(list) = mojang::list_premium_capes(&http).await {
+        if let Some(cape) = list.into_iter().find(|c| c.id == cape_id) {
+            if !cape.url.is_empty() {
+                let username = accounts::active_account()
+                    .map(|a| a.username)
+                    .unwrap_or_else(|| "Steve".into());
+                if let Ok(bytes) = mojang::download_skin_png(&http, &cape.url).await {
+                    let tmp = std::env::temp_dir().join("pc_cape.png");
+                    let _ = std::fs::write(&tmp, bytes);
+                    let _ = offline::apply_offline_cape(&tmp, &username);
+                    let _ = std::fs::remove_file(&tmp);
+                }
+            }
+        }
+    }
+    state.shutdown_network();
+    Ok(result)
+}

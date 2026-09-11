@@ -29,6 +29,18 @@ pub struct UpdateInfo {
     pub asset_name: Option<String>,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HomeNewsItem {
+    pub tag: String,
+    pub name: String,
+    pub body: String,
+    pub published_at: String,
+    pub html_url: String,
+    /// `launcher` | `mobile` | `other`
+    pub kind: String,
+}
+
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateProgress {
@@ -165,6 +177,122 @@ fn pick_asset(assets: &[serde_json::Value]) -> Option<(String, String)> {
     }
     scored.sort_by(|a, b| b.0.cmp(&a.0));
     scored.into_iter().next().map(|(_, n, u)| (n, u))
+}
+
+fn news_kind(tag: &str) -> &'static str {
+    let t = tag.trim();
+    if t.starts_with("mobile-") || t.contains("mobile") {
+        "mobile"
+    } else if t.starts_with('v') || t.chars().next().is_some_and(|c| c.is_ascii_digit()) {
+        "launcher"
+    } else {
+        "other"
+    }
+}
+
+fn excerpt_body(body: &str) -> String {
+    let plain = body
+        .lines()
+        .map(|l| {
+            l.trim()
+                .trim_start_matches('#')
+                .trim_start_matches('-')
+                .trim_start_matches('*')
+                .trim()
+        })
+        .filter(|l| !l.is_empty() && !l.starts_with('<') && !l.starts_with("http"))
+        .take(2)
+        .collect::<Vec<_>>()
+        .join(" ");
+    const MAX: usize = 140;
+    if plain.chars().count() <= MAX {
+        plain
+    } else {
+        let cut: String = plain.chars().take(MAX).collect();
+        format!("{cut}…")
+    }
+}
+
+/// Novedades del repo (releases de GitHub), para el Inicio tipo Battly.
+pub async fn list_home_news(client: &reqwest::Client) -> AppResult<Vec<HomeNewsItem>> {
+    let url = format!("https://api.github.com/repos/{REPO}/releases?per_page=40");
+    let resp = client
+        .get(&url)
+        .header("Accept", "application/vnd.github+json")
+        .header("User-Agent", "ParaguacraftLauncher/2.0")
+        .send()
+        .await?
+        .error_for_status()?;
+    let releases: Vec<serde_json::Value> = resp.json().await?;
+    let mut launcher = Vec::new();
+    let mut mobile = Vec::new();
+    for r in releases {
+        if r["draft"].as_bool().unwrap_or(false) {
+            continue;
+        }
+        let tag = r["tag_name"].as_str().unwrap_or("").to_string();
+        if tag.is_empty() {
+            continue;
+        }
+        let kind = news_kind(&tag);
+        if kind != "launcher" && kind != "mobile" {
+            continue;
+        }
+        // Evitar releases viejos de Python / PvP como “novedad PC”.
+        if kind == "launcher" && !is_pc_launcher_news(&r) {
+            continue;
+        }
+        let name = r["name"]
+            .as_str()
+            .filter(|s| !s.is_empty())
+            .unwrap_or(&tag)
+            .to_string();
+        let item = HomeNewsItem {
+            tag: tag.clone(),
+            name,
+            body: excerpt_body(r["body"].as_str().unwrap_or("")),
+            published_at: r["published_at"].as_str().unwrap_or("").to_string(),
+            html_url: r["html_url"].as_str().unwrap_or("").to_string(),
+            kind: kind.into(),
+        };
+        if kind == "mobile" {
+            if mobile.len() < 3 {
+                mobile.push(item);
+            }
+        } else if launcher.len() < 3 {
+            launcher.push(item);
+        }
+        if launcher.len() >= 3 && mobile.len() >= 3 {
+            break;
+        }
+    }
+    let mut out = Vec::new();
+    let n = launcher.len().max(mobile.len());
+    for i in 0..n {
+        if i < launcher.len() {
+            out.push(launcher[i].clone());
+        }
+        if i < mobile.len() {
+            out.push(mobile[i].clone());
+        }
+    }
+    Ok(out)
+}
+
+fn is_pc_launcher_news(release: &serde_json::Value) -> bool {
+    let tag = release["tag_name"].as_str().unwrap_or("").to_lowercase();
+    if tag.starts_with("mobile-") || tag.contains("mobile") || tag.contains("pvp") {
+        return false;
+    }
+    if is_unified_launcher_release(release) {
+        return true;
+    }
+    if tag.starts_with('v') || tag.chars().next().is_some_and(|c| c.is_ascii_digit()) {
+        let base = version_base(&tag);
+        // Tauri unificado 1.1.x (y 6.9+ histórico).
+        return base >= [1, 1, 0, 0] && (base < [5, 0, 0, 0] || base >= [6, 9, 0, 0]);
+    }
+    false
 }
 
 pub async fn check(client: &reqwest::Client) -> AppResult<UpdateInfo> {

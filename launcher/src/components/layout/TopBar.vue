@@ -15,7 +15,7 @@ async function openCafecito() {
 
 <template>
   <header
-    class="relative flex shrink-0 items-center justify-between gap-3 border-b border-surface-3/60 bg-surface-0/50 px-4 py-2"
+    class="relative z-[80] flex shrink-0 items-center justify-between gap-3 border-b border-surface-3/60 bg-surface-0/75 px-4 py-2 backdrop-blur-md"
   >
     <button
       type="button"

@@ -98,6 +98,12 @@ pub struct AppSettings {
     /// Borderless HWND en vanilla/Forge/Fabric/Optimized. Nunca en clientes PvP.
     #[serde(default = "default_true")]
     pub os_borderless: bool,
+    /// Fondo del launcher: `none` | `banner` | `night` | `river` | `nether` | `custom`.
+    #[serde(default = "default_wallpaper")]
+    pub wallpaper: String,
+    /// Ruta local si `wallpaper` es `custom`.
+    #[serde(default)]
+    pub wallpaper_custom_path: String,
 }
 
 fn default_auto_update_check() -> bool {
@@ -122,6 +128,10 @@ fn default_pvp_play_style() -> String {
 
 fn default_icon_style() -> String {
     "filled".into()
+}
+
+fn default_wallpaper() -> String {
+    "banner".into()
 }
 
 impl Default for AppSettings {
@@ -161,6 +171,8 @@ impl Default for AppSettings {
             game_width: 0,
             game_height: 0,
             os_borderless: true,
+            wallpaper: "banner".into(),
+            wallpaper_custom_path: String::new(),
         }
     }
 }

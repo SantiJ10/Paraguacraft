@@ -86,6 +86,10 @@
   .nav-item-active {
     @apply bg-pc-green/15 text-pc-green;
   }
+
+  .glass-card {
+    @apply bg-surface-2/80 backdrop-blur-md;
+  }
 }
 
 /* Acento morado (Paraguabot) */

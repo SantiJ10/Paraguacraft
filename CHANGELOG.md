@@ -3,6 +3,13 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [1.1.43] - 2026-09-11
+
+### Launcher
+- Inicio: carátula de la canción en Estado, novedades PC+Android con texto corto, sin servidores favoritos.
+- Capas premium con miniatura (como el launcher de Minecraft).
+- PARAGUA Bedrock primero en Versiones y en Jugados recientemente.
+
 ## Clientes PvP 2.1.64 / 0.9.38 - 2026-09-09
 
 ### Cliente PvP 1.8.9 (2.1.64)

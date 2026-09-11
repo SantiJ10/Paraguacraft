@@ -35,7 +35,7 @@ async function openCafecito() {
 <template>
   <header
     data-tauri-drag-region
-    class="flex h-10 shrink-0 items-center justify-between border-b border-surface-3 bg-surface-0 pl-3 pr-1 select-none"
+    class="flex h-10 shrink-0 items-center justify-between border-b border-surface-3/70 bg-surface-0/80 pl-3 pr-1 select-none backdrop-blur-md"
   >
     <div data-tauri-drag-region class="flex min-w-0 flex-1 items-center gap-2 pointer-events-none">
       <img src="/favicon.png" alt="" class="h-4 w-4 rounded-sm pointer-events-none" />

@@ -2,7 +2,6 @@
 defineOptions({ name: "home" });
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
-import mainBanner from "@/assets/main_banner.png";
 import SkinAvatar from "@/components/account/SkinAvatar.vue";
 import { useInstancesStore } from "@/stores/instances";
 import { useAccountsStore } from "@/stores/accounts";
@@ -11,8 +10,9 @@ import { useSkinsStore } from "@/stores/skins";
 import BaseButton from "@/components/common/BaseButton.vue";
 import InstanceCard from "@/components/common/InstanceCard.vue";
 import InstanceIcon from "@/components/instance/InstanceIcon.vue";
-import FavoriteServersPanel from "@/components/home/FavoriteServersPanel.vue";
-import GameProfilesPanel from "@/components/home/GameProfilesPanel.vue";
+import NewsFeed from "@/components/home/NewsFeed.vue";
+import HomeStatusPanel from "@/components/home/HomeStatusPanel.vue";
+import BedrockHomeCard from "@/components/home/BedrockHomeCard.vue";
 import { formatPlaytime } from "@/composables/useFormat";
 import type { Instance } from "@/lib/types";
 
@@ -76,20 +76,11 @@ async function play(inst: { id: string; name: string }) {
     </div>
     <template v-else>
     <section v-if="featured" class="relative shrink-0 overflow-hidden">
-      <div class="relative flex min-h-[380px] flex-col justify-end px-8 pb-10 pt-16">
-        <div class="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
-          <img
-            :src="mainBanner"
-            alt=""
-            class="h-full w-full object-cover object-[center_20%] opacity-80"
-            draggable="false"
-            decoding="async"
-            fetchpriority="high"
-          />
-          <div
-            class="absolute inset-0 bg-gradient-to-t from-surface-1 via-surface-1/35 to-surface-1/10"
-          />
-        </div>
+      <div class="relative flex min-h-[240px] flex-col justify-end px-8 pb-8 pt-10">
+        <div
+          class="pointer-events-none absolute inset-0 z-0 bg-gradient-to-t from-surface-1/90 via-surface-1/25 to-transparent"
+          aria-hidden="true"
+        />
 
         <div class="relative z-10 max-w-3xl">
           <div class="flex items-center gap-3">
@@ -153,13 +144,18 @@ async function play(inst: { id: string; name: string }) {
       </div>
     </section>
 
-    <section class="flex-1 border-t border-surface-3 bg-surface-1 p-8 space-y-8">
-      <GameProfilesPanel />
-      <FavoriteServersPanel />
+    <section class="flex-1 border-t border-surface-3/40 bg-surface-1/55 p-8 space-y-8 backdrop-blur-[2px]">
+      <div class="grid gap-6 lg:grid-cols-3">
+        <div class="lg:col-span-2">
+          <NewsFeed />
+        </div>
+        <HomeStatusPanel @play="play" />
+      </div>
 
       <div>
         <h2 class="mb-4 text-lg font-bold">Jugados recientemente</h2>
         <div class="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4">
+          <BedrockHomeCard />
           <InstanceCard
             v-for="inst in instances.recent"
             :key="inst.id"

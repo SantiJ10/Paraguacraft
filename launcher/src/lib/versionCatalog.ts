@@ -126,6 +126,16 @@ export function buildVersionCards(
 
   const cards: VersionCardModel[] = [];
 
+  cards.push({
+    id: "bedrock",
+    kind: "bedrock",
+    title: paraguaTitle("bedrock"),
+    description: DESCRIPTIONS.bedrock!,
+    accent: "#3498DB",
+    subs: [],
+    imageKey: "bedrock",
+  });
+
   for (const key of FEATURED_VERSION_KEYS) {
     const subs =
       key === "26"
@@ -188,16 +198,6 @@ export function buildVersionCards(
       imageKey: "instaladas",
     });
   }
-
-  cards.push({
-    id: "bedrock",
-    kind: "bedrock",
-    title: paraguaTitle("bedrock"),
-    description: DESCRIPTIONS.bedrock!,
-    accent: "#3498DB",
-    subs: [],
-    imageKey: "bedrock",
-  });
 
   return cards;
 }

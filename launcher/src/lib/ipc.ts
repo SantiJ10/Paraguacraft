@@ -24,6 +24,7 @@ import type {
   FavoriteServer,
   AiAssistResponse,
   ApplySkinResult,
+  PremiumCape,
   ServerProfile,
   ServerStatus,
   RunningServer,
@@ -37,6 +38,7 @@ import type {
   SkinHistoryEntry,
   StructuredInvokeError,
   UpdateInfo,
+  HomeNewsItem,
   PvpClientStatus,
   ResourceBudget,
   PreLaunchCheckReport,
@@ -178,6 +180,8 @@ export const api = {
       gameWidth: 0,
       gameHeight: 0,
       osBorderless: true,
+      wallpaper: "banner",
+      wallpaperCustomPath: "",
     });
   },
 
@@ -1289,6 +1293,50 @@ export const api = {
 
   async applySkinFileWithVariant(path: string, variant: string): Promise<ApplySkinResult> {
     return invokeReal<ApplySkinResult>("apply_skin_file_with_variant", { path, variant });
+  },
+
+  async pickCapeFile(): Promise<string | null> {
+    return invokeReal<string | null>("pick_cape_file");
+  },
+
+  async applyCapeFile(path: string): Promise<ApplySkinResult> {
+    return invokeReal<ApplySkinResult>("apply_cape_file", { path });
+  },
+
+  async listPremiumCapes(): Promise<PremiumCape[]> {
+    if (isTauri()) return invokeReal<PremiumCape[]>("list_premium_capes");
+    return delay([]);
+  },
+
+  async equipPremiumCape(capeId: string): Promise<void> {
+    await invokeReal<void>("equip_premium_cape", { capeId });
+  },
+
+  async listHomeNews(): Promise<HomeNewsItem[]> {
+    if (isTauri()) return invokeReal<HomeNewsItem[]>("list_home_news");
+    return delay([
+      {
+        tag: "mobile-0.1.10",
+        name: "Paraguacraft Mobile 0.1.10",
+        body: "Menú tipo Battly: Espacio, Controles y Skins. Tienda en 2 columnas.",
+        publishedAt: new Date().toISOString(),
+        htmlUrl: "https://github.com/SantiJ10/Paraguacraft/releases/tag/mobile-0.1.10",
+        kind: "mobile",
+      },
+      {
+        tag: "v1.1.42",
+        name: "Paraguacraft 1.1.42",
+        body: "Ajustes y docs del launcher de PC.",
+        publishedAt: new Date().toISOString(),
+        htmlUrl: "https://github.com/SantiJ10/Paraguacraft/releases/tag/v1.1.42",
+        kind: "launcher",
+      },
+    ]);
+  },
+
+  async pickWallpaperFile(): Promise<string | null> {
+    if (!isTauri()) return null;
+    return invokeReal<string | null>("pick_wallpaper_file");
   },
 
   async checkLauncherUpdate(): Promise<UpdateInfo> {

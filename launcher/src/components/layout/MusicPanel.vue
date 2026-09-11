@@ -122,7 +122,7 @@ onMounted(() => {
   <Transition name="panel">
     <section
       v-if="music.panelOpen"
-      class="absolute right-0 top-full z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-surface-4 bg-surface-2 shadow-2xl"
+      class="absolute right-0 top-full z-[90] mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-surface-4 bg-surface-2 shadow-2xl"
     >
       <header class="flex items-center justify-between border-b border-surface-4 px-4 py-3">
         <div>

@@ -17,11 +17,16 @@ use crate::core::servers;
 use crate::error::{AppError, AppResult};
 
 pub const OFFLINE_SKIN_FILE: &str = "paraguacraft_offline_skin.png";
+pub const OFFLINE_CAPE_FILE: &str = "paraguacraft_offline_cape.png";
 const FACE_CACHE_FILE: &str = "paraguacraft_offline_skin_face.png";
 
 /// Ruta global donde se guarda la skin offline del usuario.
 pub fn global_skin_path() -> PathBuf {
     paths::default_minecraft_dir().join(OFFLINE_SKIN_FILE)
+}
+
+pub fn global_cape_path() -> PathBuf {
+    paths::default_minecraft_dir().join(OFFLINE_CAPE_FILE)
 }
 
 /// Cache de cara 2D (avatar launcher) recortada de la skin global.
@@ -106,9 +111,26 @@ pub fn write_local_skin(game_dir: &Path, username: &str, skin_path: &Path) -> Ap
     // Solo borra skins del account actual? Better: keep all but ensure current is correct.
     // History collision: if someone else has nick from old cache wrong - we only write current user.
     std::fs::copy(skin_path, &dest)?;
-    // Asegura carpeta Capes vacia por si acaso.
     let capes = game_dir.join("CustomSkinLoader/LocalSkin/capes");
-    let _ = std::fs::create_dir_all(capes);
+    let _ = std::fs::create_dir_all(&capes);
+    Ok(())
+}
+
+pub fn write_local_cape(game_dir: &Path, username: &str, cape_path: &Path) -> AppResult<()> {
+    let user = username.trim();
+    if user.is_empty() || !cape_path.is_file() {
+        return Ok(());
+    }
+    crate::core::skins::csl::write_ely_config(game_dir);
+    let dest = game_dir
+        .join("CustomSkinLoader")
+        .join("LocalSkin")
+        .join("capes")
+        .join(format!("{user}.png"));
+    if let Some(parent) = dest.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::copy(cape_path, &dest)?;
     Ok(())
 }
 
@@ -130,6 +152,9 @@ pub fn apply_to_game_dir(game_dir: &Path, skin_path: &Path, mc_version: &str) ->
         .map(|a| a.username)
         .unwrap_or_else(|| "Steve".into());
     write_local_skin(game_dir, &username, skin_path)?;
+    if global_cape_path().is_file() {
+        let _ = write_local_cape(game_dir, &username, &global_cape_path());
+    }
 
     // 3) PvP Modern: property solo para el cliente local (SkinManager lo usa si hay mixin)
     write_modern_skin_property(game_dir, skin_path);
@@ -314,6 +339,38 @@ pub fn apply_offline_skin(src: &Path, username: &str) -> AppResult<ApplySkinResu
     })
 }
 
+pub fn apply_offline_cape(src: &Path, username: &str) -> AppResult<ApplySkinResult> {
+    if !src.is_file() {
+        return Err(AppError::msg("Archivo de capa no encontrado"));
+    }
+    let dest = global_cape_path();
+    if let Some(parent) = dest.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::copy(src, &dest)?;
+    let mut instances = 0u32;
+    let root = paths::instances_dir();
+    if root.is_dir() {
+        for entry in std::fs::read_dir(&root)?.flatten() {
+            if entry.path().is_dir() {
+                write_local_cape(&entry.path(), username, &dest)?;
+                instances += 1;
+            }
+        }
+    }
+    Ok(ApplySkinResult {
+        ok: true,
+        message: if instances > 0 {
+            format!("Capa aplicada en {instances} instancia(s). Reentra al mundo.")
+        } else {
+            "Capa guardada: se aplica al abrir el juego.".into()
+        },
+        instances,
+        server_sync: 0,
+        premium: false,
+    })
+}
+
 /// Antes de lanzar: limpia brand pack y escribe LocalSkin de la cuenta activa.
 pub fn ensure_for_launch(game_dir: &Path, mc_version: &str) -> AppResult<()> {
     // Siempre purgar defaults envenenados (aunque no haya skin actual)
@@ -326,6 +383,11 @@ pub fn ensure_for_launch(game_dir: &Path, mc_version: &str) -> AppResult<()> {
     let global = global_skin_path();
     if global.is_file() {
         apply_to_game_dir(game_dir, &global, mc_version)?;
+    } else if global_cape_path().is_file() {
+        let username = accounts::active_account()
+            .map(|a| a.username)
+            .unwrap_or_else(|| "Steve".into());
+        let _ = write_local_cape(game_dir, &username, &global_cape_path());
     }
     Ok(())
 }

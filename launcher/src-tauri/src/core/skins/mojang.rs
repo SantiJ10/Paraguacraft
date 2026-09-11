@@ -12,6 +12,8 @@ use crate::error::{AppError, AppResult};
 const PROFILE_URL: &str = "https://api.mojang.com/users/profiles/minecraft";
 const SESSION_URL: &str = "https://sessionserver.mojang.com/session/minecraft/profile";
 const UPLOAD_URL: &str = "https://api.minecraftservices.com/minecraft/profile/skins";
+const MC_PROFILE_URL: &str = "https://api.minecraftservices.com/minecraft/profile";
+const CAPE_ACTIVE_URL: &str = "https://api.minecraftservices.com/minecraft/profile/capes/active";
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -364,4 +366,85 @@ pub async fn upload_premium_skin(
 
 pub fn active_can_upload_premium() -> bool {
     accounts::active_account().is_some_and(|a| a.premium)
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PremiumCape {
+    pub id: String,
+    pub alias: String,
+    pub url: String,
+    pub active: bool,
+}
+
+#[derive(Deserialize)]
+struct McServicesProfile {
+    #[serde(default)]
+    capes: Vec<McServicesCape>,
+}
+
+#[derive(Deserialize)]
+struct McServicesCape {
+    id: String,
+    #[serde(default)]
+    alias: String,
+    #[serde(default)]
+    url: String,
+    #[serde(default)]
+    state: String,
+}
+
+pub async fn list_premium_capes(http: &reqwest::Client) -> AppResult<Vec<PremiumCape>> {
+    let acc = accounts::active_account().ok_or_else(|| AppError::msg("Sin cuenta activa"))?;
+    if !acc.premium {
+        return Ok(vec![]);
+    }
+    let token = store::get_token(&acc.id).ok_or_else(|| AppError::msg("Sin token Premium"))?;
+    let resp = http
+        .get(MC_PROFILE_URL)
+        .header("Authorization", format!("Bearer {}", token.mc_access_token))
+        .send()
+        .await
+        .map_err(|e| AppError::msg(format!("Perfil Mojang: {e}")))?;
+    if !resp.status().is_success() {
+        return Ok(vec![]);
+    }
+    let profile: McServicesProfile = resp
+        .json()
+        .await
+        .map_err(|e| AppError::msg(format!("Perfil Mojang inválido: {e}")))?;
+    Ok(profile
+        .capes
+        .into_iter()
+        .map(|c| PremiumCape {
+            id: c.id,
+            alias: if c.alias.is_empty() {
+                "Capa".into()
+            } else {
+                c.alias
+            },
+            url: c.url.replace("http://", "https://"),
+            active: c.state.eq_ignore_ascii_case("ACTIVE"),
+        })
+        .collect())
+}
+
+pub async fn equip_premium_cape(http: &reqwest::Client, cape_id: &str) -> AppResult<()> {
+    let acc = accounts::active_account().ok_or_else(|| AppError::msg("Sin cuenta activa"))?;
+    let token = store::get_token(&acc.id).ok_or_else(|| AppError::msg("Sin token Premium"))?;
+    let resp = http
+        .put(CAPE_ACTIVE_URL)
+        .header("Authorization", format!("Bearer {}", token.mc_access_token))
+        .header("Content-Type", "application/json")
+        .body(format!(r#"{{"capeId":"{}"}}"#, cape_id.trim()))
+        .send()
+        .await
+        .map_err(|e| AppError::msg(format!("Capa Mojang: {e}")))?;
+    if resp.status().is_success() {
+        return Ok(());
+    }
+    Err(AppError::msg(format!(
+        "Mojang no pudo activar la capa (HTTP {})",
+        resp.status()
+    )))
 }

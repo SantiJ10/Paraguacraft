@@ -42,7 +42,7 @@ fn has_csl_jar(mods_dir: &Path) -> bool {
 
 /// Escribe preferencias para Mojang → Ely.by → LocalSkin.
 /// Re-escribe si falta ElyBy en el loadlist (configs viejas).
-fn write_ely_config(game_dir: &Path) {
+pub fn write_ely_config(game_dir: &Path) {
     let cfg_dir = game_dir.join("CustomSkinLoader");
     let _ = std::fs::create_dir_all(cfg_dir.join("LocalSkin/skins"));
     let _ = std::fs::create_dir_all(cfg_dir.join("LocalSkin/capes"));

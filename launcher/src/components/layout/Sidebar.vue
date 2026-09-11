@@ -80,7 +80,7 @@ const icons: Record<string, string> = {
 </script>
 
 <template>
-  <aside class="flex w-60 shrink-0 flex-col border-r border-surface-3 bg-surface-0">
+  <aside class="flex w-60 shrink-0 flex-col border-r border-surface-3/70 bg-surface-0/85 backdrop-blur-md">
     <div class="flex items-center gap-2 border-b border-surface-3 px-4 py-3">
       <img :src="launcherIcon" alt="" class="h-8 w-8 rounded-md" />
       <span class="text-sm font-bold tracking-wide text-gray-200">PARAGUACRAFT</span>
