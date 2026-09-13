@@ -42,6 +42,8 @@ pub struct BedrockStatus {
     pub active_version: Option<String>,
     pub developer_mode: bool,
     pub conflict_store: bool,
+    /// Hay mundos en com.mojang (Store, sideload o datos que quedaron).
+    pub has_saves: bool,
 }
 
 pub fn status() -> BedrockStatus {
@@ -58,6 +60,7 @@ pub fn status() -> BedrockStatus {
         active_version: extra.active_version,
         developer_mode: extra.developer_mode,
         conflict_store: extra.conflict_store,
+        has_saves: extra.has_saves,
     }
 }
 
@@ -80,6 +83,17 @@ pub fn com_mojang_dir() -> Option<std::path::PathBuf> {
     #[cfg(not(windows))]
     {
         None
+    }
+}
+
+pub fn all_com_mojang_dirs() -> Vec<std::path::PathBuf> {
+    #[cfg(windows)]
+    {
+        windows::all_mojang_dirs()
+    }
+    #[cfg(not(windows))]
+    {
+        Vec::new()
     }
 }
 

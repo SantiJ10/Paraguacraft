@@ -187,10 +187,49 @@ pub async fn resolve_download_url(
     }
     let urls = extract_download_urls(&text);
     pick_cdn_url(&urls).ok_or_else(|| {
-        AppError::msg(
-            "No hay URL pública para esta versión. Las betas/preview requieren el programa Insider.",
-        )
+        AppError::msg("FE3 no devolvió un link de CDN para esta revisión.")
     })
+}
+
+pub fn no_public_url_message(version: &str) -> String {
+    let major = version
+        .split('.')
+        .next()
+        .and_then(|p| p.parse::<u32>().ok())
+        .unwrap_or(0);
+    if major == 0 {
+        format!(
+            "Microsoft ya no publica el AppX de Bedrock {version} (Pocket 0.x). Las que se pueden bajar empiezan en 1.2+."
+        )
+    } else {
+        format!(
+            "Microsoft no devolvió un link de descarga para Bedrock {version}. Si es beta/Preview hace falta Insider; si es muy vieja, el CDN ya no la tiene."
+        )
+    }
+}
+
+/// Prueba varias revisiones FE3; las 0.x casi nunca tienen URL pública.
+pub async fn resolve_public_appx(
+    client: &reqwest::Client,
+    update_identity: &str,
+    version: &str,
+) -> AppResult<String> {
+    let identity = update_identity.trim();
+    if identity.starts_with("http://") || identity.starts_with("https://") {
+        return Ok(identity.to_string());
+    }
+    const REVS: &[&str] = &["1", "2", "200", "201"];
+    for (i, rev) in REVS.iter().enumerate() {
+        match resolve_download_url(client, identity, rev).await {
+            Ok(url) => return Ok(url),
+            Err(e) if i + 1 == REVS.len() => {
+                let _ = e;
+                return Err(AppError::msg(no_public_url_message(version)));
+            }
+            Err(_) => continue,
+        }
+    }
+    Err(AppError::msg(no_public_url_message(version)))
 }
 
 #[cfg(test)]
@@ -234,5 +273,12 @@ mod tests {
     fn unix_epoch_iso() {
         assert_eq!(unix_to_iso(0), "1970-01-01T00:00:00.000Z");
         assert_eq!(unix_to_iso(1_704_067_200), "2024-01-01T00:00:00.000Z");
+    }
+
+    #[test]
+    fn pocket_error_is_not_insider() {
+        let msg = no_public_url_message("0.15.0.0");
+        assert!(msg.contains("0.x"));
+        assert!(!msg.to_lowercase().contains("insider"));
     }
 }

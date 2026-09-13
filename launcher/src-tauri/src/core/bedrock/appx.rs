@@ -192,6 +192,8 @@ pub fn query_registered() -> Option<RegisteredPackage> {
     let script = format!(
         "$ErrorActionPreference='SilentlyContinue';\
          $p = Get-AppxPackage -Name {PACKAGE_NAME} | Select-Object -First 1;\
+         if (-not $p) {{ $p = Get-AppxPackage -Name Microsoft.MinecraftWindowsBeta | Select-Object -First 1 }};\
+         if (-not $p) {{ $p = Get-AppxPackage -Name '*Minecraft*' | Where-Object {{ $_.Name -notmatch 'Education|Dungeons|Launcher' }} | Select-Object -First 1 }};\
          if ($p) {{ Write-Output ('{{0}}|{{1}}|{{2}}' -f $p.Version, $p.InstallLocation, $p.PackageFullName) }}"
     );
     let out = run_powershell(&script).ok()?;
@@ -232,10 +234,11 @@ pub fn register_package(game_dir: &Path) -> AppResult<()> {
     let script = format!(
         "$ErrorActionPreference='Stop';\
          try {{\
-           $pkgs = Get-AppxPackage -Name {PACKAGE_NAME};\
+           $pkgs = Get-AppxPackage -Name '*Minecraft*' | Where-Object {{ $_.Name -notmatch 'Education|Dungeons|Launcher' }};\
            foreach ($p in $pkgs) {{\
              if ($p.InstallLocation -ne {loc}) {{\
-               Remove-AppxPackage -Package $p.PackageFullName;\
+               try {{ Remove-AppxPackage -Package $p.PackageFullName -PreserveApplicationData }}\
+               catch {{ Remove-AppxPackage -Package $p.PackageFullName }}\
              }}\
            }}\
            Add-AppxPackage -Register {man} -ForceApplicationShutdown;\

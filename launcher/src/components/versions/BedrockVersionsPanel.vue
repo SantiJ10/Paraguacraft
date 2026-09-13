@@ -43,7 +43,11 @@ const canManage = computed(
 );
 
 const needsDisclaimer = computed(
-  () => !!props.status?.conflictStore || !props.status?.developerMode,
+  () =>
+    !props.status?.developerMode
+    || !!props.status?.conflictStore
+    || !!props.status?.storeInstalled
+    || (!!props.status?.hasSaves && !props.status?.managedActive),
 );
 
 function iconSrc(path: string | null | undefined): string | null {
@@ -85,6 +89,13 @@ function isRecentBedrock(version: string): boolean {
 
 function catalogKind(v: BedrockCatalogVersion): string {
   return (v.type ?? (v as { kind?: string }).kind ?? "").toLowerCase();
+}
+
+function catalogUnavailable(v: BedrockCatalogVersion): string {
+  if (catalogKind(v) !== "release") return "Beta / Preview — programa Insider";
+  const major = versionParts(v.version)[0] ?? 0;
+  if (major === 0) return "Microsoft ya no publica esta AppX (0.x)";
+  return "No disponible";
 }
 
 const filteredCatalog = computed(() => {
@@ -322,10 +333,21 @@ async function removePack(p: BedrockPack) {
         class="rounded-lg border border-[#F39C12]/30 bg-[#1A1A1A] p-3 text-xs leading-relaxed text-gray-400"
       >
         <p class="font-semibold text-[#F39C12]">Antes de instalar versiones extraídas</p>
+        <p v-if="status?.storeInstalled || status?.hasSaves" class="mt-1 text-gray-300">
+          Se detectó
+          <span v-if="status?.storeInstalled">Minecraft de la Store</span>
+          <span v-if="status?.storeInstalled && status?.hasSaves"> y </span>
+          <span v-if="status?.hasSaves">mundos en com.mojang</span>.
+          Hacé Backup acá; no lo borres desde Configuración de Windows.
+        </p>
         <ul class="mt-2 list-disc space-y-1 pl-4">
           <li>Tenés que <span class="text-gray-200">poseer</span> Minecraft / Game Pass. Las AppX salen del CDN de Microsoft.</li>
           <li>Windows solo registra <span class="text-gray-200">una</span> versión a la vez. Se desregistra el Minecraft de la Store.</li>
           <li>Hace falta el <span class="text-gray-200">Modo desarrollador</span> de Windows.</li>
+          <li>
+            <span class="text-[#F39C12]">No lo desinstales desde Configuración de Windows</span>:
+            eso borra los mundos. Tocá Backup y después Jugar; el launcher desregistra la Store y deja com.mojang.
+          </li>
         </ul>
         <div class="mt-3 flex flex-col gap-2">
           <BaseButton size="sm" variant="secondary" :disabled="setupBusy" @click="backup">
@@ -417,7 +439,7 @@ async function removePack(p: BedrockPack) {
           >
             <div class="min-w-0">
               <p class="truncate text-sm">{{ v.version }}</p>
-              <p v-if="!v.installable" class="text-[10px] text-gray-500">Beta / Preview — no disponible</p>
+              <p v-if="!v.installable" class="text-[10px] text-gray-500">{{ catalogUnavailable(v) }}</p>
             </div>
             <BaseButton
               v-if="v.installable"
@@ -444,11 +466,18 @@ async function removePack(p: BedrockPack) {
       <div>
         <div class="mb-1.5 flex items-center justify-between">
           <p class="text-[10px] font-black uppercase tracking-widest text-gray-500">Mundos</p>
-          <button type="button" class="text-[10px] text-[#3498DB] hover:underline" @click="openContent('worlds')">
-            Carpeta
-          </button>
+          <div class="flex gap-2">
+            <button type="button" class="text-[10px] text-[#3498DB] hover:underline" :disabled="setupBusy" @click="backup">
+              Backup
+            </button>
+            <button type="button" class="text-[10px] text-[#3498DB] hover:underline" @click="openContent('worlds')">
+              Carpeta
+            </button>
+          </div>
         </div>
-        <p v-if="!worlds.length" class="text-xs text-gray-500">Sin mundos en com.mojang.</p>
+        <p v-if="!worlds.length" class="text-xs text-gray-500">
+          Sin mundos en com.mojang. Si los tenías y desinstalaste Minecraft desde Configuración de Windows, esa carpeta se borra.
+        </p>
         <ul v-else class="max-h-36 space-y-1 overflow-y-auto">
           <li v-for="w in worlds" :key="w.id" class="flex items-center gap-2 rounded-lg bg-surface-2 px-2 py-1.5">
             <img

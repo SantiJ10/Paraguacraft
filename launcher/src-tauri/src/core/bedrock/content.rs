@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{AppError, AppResult};
 
-use super::com_mojang_dir;
+use super::{all_com_mojang_dirs, com_mojang_dir};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -33,6 +33,14 @@ fn mojang() -> AppResult<PathBuf> {
     })
 }
 
+fn mojang_roots() -> Vec<PathBuf> {
+    let dirs = all_com_mojang_dirs();
+    if !dirs.is_empty() {
+        return dirs;
+    }
+    com_mojang_dir().into_iter().collect()
+}
+
 fn read_trimmed(path: &Path) -> Option<String> {
     std::fs::read_to_string(path)
         .ok()
@@ -51,33 +59,37 @@ fn folder_icon(dir: &Path) -> Option<String> {
 }
 
 pub fn list_worlds() -> Vec<BedrockWorld> {
-    let Ok(root) = mojang() else {
-        return Vec::new();
-    };
-    let worlds = root.join("minecraftWorlds");
-    let Ok(entries) = std::fs::read_dir(&worlds) else {
-        return Vec::new();
-    };
     let mut out = Vec::new();
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if !path.is_dir() {
+    let mut seen = std::collections::HashSet::new();
+    for root in mojang_roots() {
+        let worlds = root.join("minecraftWorlds");
+        let Ok(entries) = std::fs::read_dir(&worlds) else {
             continue;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
+            }
+            let folder = entry.file_name().to_string_lossy().to_string();
+            if folder.starts_with('.') {
+                continue;
+            }
+            if !path.join("level.dat").is_file() && !path.join("levelname.txt").is_file() {
+                continue;
+            }
+            let key = path.to_string_lossy().to_string();
+            if !seen.insert(key) {
+                continue;
+            }
+            let name = read_trimmed(&path.join("levelname.txt")).unwrap_or_else(|| folder.clone());
+            out.push(BedrockWorld {
+                id: folder,
+                name,
+                path: path.to_string_lossy().to_string(),
+                icon_path: folder_icon(&path),
+            });
         }
-        let id = entry.file_name().to_string_lossy().to_string();
-        if id.starts_with('.') {
-            continue;
-        }
-        if !path.join("level.dat").is_file() && !path.join("levelname.txt").is_file() {
-            continue;
-        }
-        let name = read_trimmed(&path.join("levelname.txt")).unwrap_or_else(|| id.clone());
-        out.push(BedrockWorld {
-            id,
-            name,
-            path: path.to_string_lossy().to_string(),
-            icon_path: folder_icon(&path),
-        });
     }
     out.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
     out
@@ -100,33 +112,38 @@ fn pack_name(dir: &Path, fallback: &str) -> String {
 }
 
 fn list_pack_folder(folder: &str, kind: &str) -> Vec<BedrockPack> {
-    let Ok(root) = mojang() else {
-        return Vec::new();
-    };
-    let dir = root.join(folder);
-    let Ok(entries) = std::fs::read_dir(&dir) else {
-        return Vec::new();
-    };
     let mut out = Vec::new();
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if !path.is_dir() {
+    let mut seen = std::collections::HashSet::new();
+    for root in mojang_roots() {
+        let dir = root.join(folder);
+        let Ok(entries) = std::fs::read_dir(&dir) else {
             continue;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
+            }
+            let id = entry.file_name().to_string_lossy().to_string();
+            if id.starts_with('.') {
+                continue;
+            }
+            if !path.join("manifest.json").is_file() {
+                continue;
+            }
+            let key = path.to_string_lossy().to_string();
+            if !seen.insert(key) {
+                continue;
+            }
+            let name = pack_name(&path, &id);
+            out.push(BedrockPack {
+                id,
+                name,
+                kind: kind.to_string(),
+                path: path.to_string_lossy().to_string(),
+                icon_path: folder_icon(&path),
+            });
         }
-        let id = entry.file_name().to_string_lossy().to_string();
-        if id.starts_with('.') {
-            continue;
-        }
-        if !path.join("manifest.json").is_file() {
-            continue;
-        }
-        out.push(BedrockPack {
-            name: pack_name(&path, &id),
-            id,
-            kind: kind.to_string(),
-            path: path.to_string_lossy().to_string(),
-            icon_path: folder_icon(&path),
-        });
     }
     out.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
     out

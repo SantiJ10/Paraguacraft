@@ -48,6 +48,7 @@ pub struct BedrockVersionStatus {
     pub active_version: Option<String>,
     pub developer_mode: bool,
     pub conflict_store: bool,
+    pub has_saves: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -115,12 +116,28 @@ fn type_from_str(raw: &str) -> &'static str {
 }
 
 fn make_version(version: String, update_identity: String, kind: &str) -> BedrockVersion {
-    BedrockVersion {
-        installable: kind == "release" && !update_identity.is_empty(),
+    refresh_installable(BedrockVersion {
+        installable: false,
         version,
         update_identity,
         kind: kind.to_string(),
-    }
+    })
+}
+
+fn refresh_installable(mut v: BedrockVersion) -> BedrockVersion {
+    v.installable =
+        v.kind == "release" && !v.update_identity.is_empty() && is_fe3_public_era(&v.version);
+    v
+}
+
+/// Pocket 0.x ya no tiene AppX en el CDN público de Microsoft (FE3).
+fn is_fe3_public_era(version: &str) -> bool {
+    version
+        .split('.')
+        .next()
+        .and_then(|p| p.parse::<u32>().ok())
+        .unwrap_or(0)
+        >= 1
 }
 
 fn parse_legacy_db(data: &[serde_json::Value]) -> Vec<BedrockVersion> {
@@ -291,7 +308,7 @@ pub async fn list_catalog(client: &reqwest::Client, force: bool) -> AppResult<Ve
         if let Ok(raw) = std::fs::read_to_string(&cache) {
             if let Ok(cached) = serde_json::from_str::<VersionDbCache>(&raw) {
                 if now_secs().saturating_sub(cached.time) < CACHE_TTL_SECS && !cached.versions.is_empty() {
-                    return Ok(cached.versions);
+                    return Ok(cached.versions.into_iter().map(refresh_installable).collect());
                 }
             }
         }
@@ -441,10 +458,16 @@ pub fn extra_status() -> BedrockVersionStatus {
                 installed.iter().any(|v| paths_match(Path::new(&v.path), l))
             })
             .unwrap_or(false);
-        let conflict_store = loc
-            .as_deref()
-            .map(super::appx::is_store_location)
-            .unwrap_or(false);
+        let store_from_ps = pkg.is_some()
+            && loc
+                .as_deref()
+                .map(|l| l.is_empty() || super::appx::is_store_location(l))
+                .unwrap_or(true);
+        let store_from_disk = super::windows::find_exe_paths().iter().any(|p| p.is_file())
+            || super::windows::has_store_package_folder();
+        let store_installed = !managed_active && (store_from_ps || store_from_disk);
+        let conflict_store = store_installed;
+        let has_saves = super::windows::has_minecraft_worlds();
         let active_version = if managed_active {
             installed.into_iter().find(|v| v.active).map(|v| v.version)
         } else {
@@ -453,11 +476,12 @@ pub fn extra_status() -> BedrockVersionStatus {
                 .filter(|s| !s.is_empty())
         };
         BedrockVersionStatus {
-            store_installed: pkg.is_some() && conflict_store,
+            store_installed,
             managed_active,
             active_version,
             developer_mode: super::appx::is_developer_mode_enabled(),
             conflict_store,
+            has_saves,
         }
     }
     #[cfg(not(windows))]
@@ -468,6 +492,7 @@ pub fn extra_status() -> BedrockVersionStatus {
             active_version: None,
             developer_mode: false,
             conflict_store: false,
+            has_saves: false,
         }
     }
 }
@@ -522,12 +547,16 @@ pub async fn install_version(app: &AppHandle, catalog_client: &reqwest::Client, 
                 "Las betas y Preview no se pueden bajar todavía (hace falta el programa Insider).",
             ));
         }
+        if !is_fe3_public_era(version) {
+            return Err(AppError::msg(fe3::no_public_url_message(version)));
+        }
         let id = format!("bedrock-{version}");
         let label = format!("Bedrock {version}");
         emit_progress(app, &id, &label, 0.0, "downloading");
+        let _ = backup_saves();
 
         let soap_client = extra_http();
-        let url = match fe3::resolve_download_url(&soap_client, &entry.update_identity, "1").await {
+        let url = match fe3::resolve_public_appx(&soap_client, &entry.update_identity, version).await {
             Ok(u) => u,
             Err(e) => {
                 emit_error(app, &id, &label, &e.to_string());
@@ -582,6 +611,7 @@ pub fn switch_version(version: &str) -> AppResult<()> {
         if found.active {
             return Ok(());
         }
+        let _ = backup_saves();
         super::windows::kill_bedrock();
         std::thread::sleep(std::time::Duration::from_millis(400));
         super::appx::register_package(Path::new(&found.path))?;
@@ -638,21 +668,34 @@ pub fn open_microsoft_store() -> AppResult<()> {
 }
 
 pub fn backup_saves() -> AppResult<String> {
-    let src = super::com_mojang_dir().ok_or_else(|| {
-        AppError::msg("No hay carpeta com.mojang todavía. Abrí Bedrock una vez o instalalo desde la Store.")
-    })?;
+    let srcs = super::all_com_mojang_dirs();
+    if srcs.is_empty() {
+        return Err(AppError::msg(
+            "No hay carpeta com.mojang. Si tenés el Minecraft de la Store, abrilo una vez o no lo desinstales desde Configuración de Windows (eso borra los mundos).",
+        ));
+    }
     let stamp = now_secs();
     let dest = paths::data_dir()
         .join("bedrock-backup")
         .join(format!("com.mojang-{stamp}"));
-    std::fs::create_dir_all(dest.parent().unwrap_or(Path::new(".")))?;
+    std::fs::create_dir_all(&dest)?;
     #[cfg(windows)]
     {
-        super::appx::copy_dir(&src, &dest)?;
+        for (i, src) in srcs.iter().enumerate() {
+            let name = src
+                .parent()
+                .and_then(|p| p.parent())
+                .and_then(|p| p.parent())
+                .and_then(|p| p.file_name())
+                .map(|s| s.to_string_lossy().to_string())
+                .filter(|s| !s.is_empty())
+                .unwrap_or_else(|| format!("com.mojang-{i}"));
+            super::appx::copy_dir(src, &dest.join(name))?;
+        }
     }
     #[cfg(not(windows))]
     {
-        let _ = src;
+        let _ = srcs;
         return Err(AppError::msg("Bedrock solo está disponible en Windows"));
     }
     Ok(dest.to_string_lossy().to_string())
@@ -664,16 +707,36 @@ mod tests {
 
     #[test]
     fn parse_legacy_array() {
-        let json = r#"[["1.16.201.2","5754a03d-d8d5-489f-b24d-efc31b3fd32d",0],["1.21.30.3","aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",0],["1.21.40.1","bbbbbbbb-bbbb-cccc-dddd-eeeeeeeeeeee",1]]"#;
+        let json = r#"[["0.15.0.0","aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",0],["1.16.201.2","5754a03d-d8d5-489f-b24d-efc31b3fd32d",0],["1.21.30.3","aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",0],["1.21.40.1","bbbbbbbb-bbbb-cccc-dddd-eeeeeeeeeeee",1]]"#;
         let list = parse_version_db(json).unwrap();
+        assert!(list.iter().any(|v| v.version == "0.15.0.0" && !v.installable));
         assert!(list.iter().any(|v| v.version == "1.21.30.3" && v.installable));
         assert!(list.iter().any(|v| v.version == "1.21.40.1" && !v.installable && v.kind == "beta"));
         assert_eq!(list[0].version, "1.21.40.1");
     }
 
     #[test]
+    fn pocket_0x_is_not_fe3_public() {
+        assert!(!is_fe3_public_era("0.15.0.0"));
+        assert!(!is_fe3_public_era("0.14.2.1"));
+        assert!(is_fe3_public_era("1.2.8.0"));
+        assert!(is_fe3_public_era("1.21.114.1"));
+    }
+
+    #[test]
     fn sanitize_dir() {
         assert_eq!(sanitize_version_dir("1.21.30.3"), "1.21.30.3");
         assert_eq!(sanitize_version_dir("1.21 foo/bar"), "1.21_foo_bar");
+    }
+
+    #[test]
+    fn stale_cache_marks_pocket_not_installable() {
+        let stale = BedrockVersion {
+            version: "0.14.2.1".into(),
+            update_identity: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee".into(),
+            kind: "release".into(),
+            installable: true,
+        };
+        assert!(!refresh_installable(stale).installable);
     }
 }

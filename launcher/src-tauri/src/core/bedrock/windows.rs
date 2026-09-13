@@ -71,27 +71,59 @@ fn is_bedrock_menu_title(title: &str) -> bool {
 }
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
-pub fn mojang_dir() -> Option<PathBuf> {
-    let local = std::env::var_os("LOCALAPPDATA")?;
+pub fn all_mojang_dirs() -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    let Some(local) = std::env::var_os("LOCALAPPDATA") else {
+        return out;
+    };
     let packages = PathBuf::from(local).join("Packages");
-    if !packages.is_dir() {
-        return None;
-    }
     let Ok(entries) = std::fs::read_dir(packages) else {
-        return None;
+        return out;
     };
     for entry in entries.flatten() {
-        let name = entry.file_name().to_string_lossy().to_string();
-        if name.starts_with("Microsoft.MinecraftUWP_")
-            || name.starts_with("Microsoft.MinecraftWindowsBeta_")
-        {
-            let mojang = entry.path().join("LocalState/games/com.mojang");
-            if mojang.is_dir() {
-                return Some(mojang);
-            }
+        let name = entry.file_name().to_string_lossy().to_lowercase();
+        if !name.contains("minecraft") {
+            continue;
+        }
+        let mojang = entry.path().join("LocalState/games/com.mojang");
+        if mojang.is_dir() {
+            out.push(mojang);
         }
     }
-    None
+    out
+}
+
+pub fn mojang_dir() -> Option<PathBuf> {
+    all_mojang_dirs().into_iter().next()
+}
+
+pub fn has_minecraft_worlds() -> bool {
+    all_mojang_dirs().iter().any(|d| {
+        let worlds = d.join("minecraftWorlds");
+        let Ok(entries) = std::fs::read_dir(worlds) else {
+            return false;
+        };
+        entries.flatten().any(|e| {
+            let p = e.path();
+            p.is_dir() && (p.join("level.dat").is_file() || p.join("levelname.txt").is_file())
+        })
+    })
+}
+
+/// Carpeta UWP de Minecraft (Store / Game Pass), aunque WindowsApps no se pueda listar.
+pub fn has_store_package_folder() -> bool {
+    let Some(local) = std::env::var_os("LOCALAPPDATA") else {
+        return false;
+    };
+    let packages = PathBuf::from(local).join("Packages");
+    let Ok(entries) = std::fs::read_dir(packages) else {
+        return false;
+    };
+    entries.flatten().any(|entry| {
+        let name = entry.file_name().to_string_lossy().to_lowercase();
+        (name.contains("minecraftuwp") || name.contains("minecraftwindows"))
+            && entry.path().is_dir()
+    })
 }
 
 pub fn has_bedrock_data() -> bool {

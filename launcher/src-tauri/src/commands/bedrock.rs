@@ -48,6 +48,7 @@ pub async fn get_bedrock_status() -> bedrock::BedrockStatus {
             active_version: None,
             developer_mode: false,
             conflict_store: false,
+            has_saves: false,
         })
 }
 

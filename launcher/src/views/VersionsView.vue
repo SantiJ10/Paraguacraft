@@ -109,6 +109,7 @@ async function refreshBedrock() {
       activeVersion: null,
       developerMode: false,
       conflictStore: false,
+      hasSaves: false,
     };
     return;
   }

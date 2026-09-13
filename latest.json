@@ -1,12 +1,12 @@
 {
-  "version": "1.1.48",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.48/Instalar_Paraguacraft_v1.1.48.exe",
-  "size_bytes": 5944649,
-  "sha256": "9bd0cd72c05ca302347e166157884a3739a0590a803259dc66ad99c35d007e44",
-  "notes": "- Discord RPC en PARAGUA Bedrock (Store y versiones extraídas, actuales y viejas)\n- El RPC dura toda la partida (ya no se corta a los 10 min)\n- Versiones al instante y Jugar Bedrock sin No responde",
+  "version": "1.1.49",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.49/Instalar_Paraguacraft_v1.1.49.exe",
+  "size_bytes": 5947655,
+  "sha256": "80673bae0581ae309b10a56103e1c2d93b2d9bc941f1a738a137ee0d4c1bd925",
+  "notes": "- Pocket 0.x ya no se ofrece como instalable (Microsoft no publica esas AppX; no es Insider)\n- Detecta el Minecraft de la Store y los mundos para Backup antes de extraer una versión\n- No desinstales Bedrock desde Configuración de Windows: eso borra com.mojang",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.48/Instalar_Paraguacraft_v1.1.48.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.49/Instalar_Paraguacraft_v1.1.49.exe",
       "signature": ""
     }
   }

@@ -97,6 +97,7 @@ export interface BedrockStatus {
   activeVersion: string | null;
   developerMode: boolean;
   conflictStore: boolean;
+  hasSaves: boolean;
 }
 
 export interface BedrockCatalogVersion {

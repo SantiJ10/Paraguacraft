@@ -820,6 +820,7 @@ export const api = {
       activeVersion: null,
       developerMode: false,
       conflictStore: false,
+      hasSaves: false,
     });
   },
 
