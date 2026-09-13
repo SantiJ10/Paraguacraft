@@ -35,6 +35,7 @@ const setupBusy = ref(false);
 const contentBusy = ref(false);
 const accepted = ref(false);
 const showAll = ref(false);
+const showOld = ref(false);
 const showSetup = ref(true);
 
 const canManage = computed(
@@ -62,25 +63,55 @@ function versionLabel(status: BedrockStatus | null): string {
   return "No instalado";
 }
 
+function versionParts(v: string): number[] {
+  return v.split(".").map((p) => Number.parseInt(p, 10) || 0);
+}
+
+function cmpVerDesc(a: string, b: string): number {
+  const pa = versionParts(a);
+  const pb = versionParts(b);
+  const n = Math.max(pa.length, pb.length);
+  for (let i = 0; i < n; i++) {
+    const d = (pb[i] ?? 0) - (pa[i] ?? 0);
+    if (d) return d;
+  }
+  return 0;
+}
+
+function isRecentBedrock(version: string): boolean {
+  const p = versionParts(version);
+  return (p[0] ?? 0) > 1 || ((p[0] ?? 0) === 1 && (p[1] ?? 0) >= 16);
+}
+
+function catalogKind(v: BedrockCatalogVersion): string {
+  return (v.type ?? (v as { kind?: string }).kind ?? "").toLowerCase();
+}
+
 const filteredCatalog = computed(() => {
   const q = query.value.trim().toLowerCase();
-  let list = catalog.value.filter((v) => {
-    if (q) {
-      return v.version.toLowerCase().includes(q) || v.type.toLowerCase().includes(q);
-    }
-    return v.type === "release";
-  });
   const installedSet = new Set(installed.value.map((i) => i.version));
-  list = list.filter((v) => !installedSet.has(v.version));
-  if (!showAll.value && !q) return list.slice(0, 24);
+  let list = catalog.value.filter((v) => !installedSet.has(v.version));
+  if (q) {
+    list = list.filter(
+      (v) => v.version.toLowerCase().includes(q) || catalogKind(v).includes(q),
+    );
+  } else {
+    list = list.filter((v) => catalogKind(v) === "release");
+    if (!showOld.value) list = list.filter((v) => isRecentBedrock(v.version));
+  }
+  list = [...list].sort((a, b) => cmpVerDesc(a.version, b.version));
+  if (!showAll.value && !q) return list.slice(0, 20);
   return list;
 });
 
 const hiddenCount = computed(() => {
   if (showAll.value || query.value.trim()) return 0;
   const installedSet = new Set(installed.value.map((i) => i.version));
-  const n = catalog.value.filter((v) => v.type === "release" && !installedSet.has(v.version)).length;
-  return Math.max(0, n - 24);
+  const n = catalog.value.filter((v) => {
+    if (installedSet.has(v.version) || catalogKind(v) !== "release") return false;
+    return showOld.value || isRecentBedrock(v.version);
+  }).length;
+  return Math.max(0, n - 20);
 });
 
 async function loadAll(forceCatalog = false) {
@@ -368,15 +399,20 @@ async function removePack(p: BedrockPack) {
       <div>
         <div class="mb-1.5 flex items-center justify-between">
           <p class="text-[10px] font-black uppercase tracking-widest text-gray-500">Catálogo</p>
-          <button type="button" class="text-[10px] text-[#3498DB] hover:underline" @click="loadAll(true)">
-            Actualizar
-          </button>
+          <div class="flex gap-2">
+            <button type="button" class="text-[10px] text-gray-500 hover:underline" @click="showOld = !showOld">
+              {{ showOld ? "Solo 1.16+" : "Incluir antiguas" }}
+            </button>
+            <button type="button" class="text-[10px] text-[#3498DB] hover:underline" @click="loadAll(true)">
+              Actualizar
+            </button>
+          </div>
         </div>
         <p v-if="loading && !catalog.length" class="text-xs text-gray-500">Cargando versiones…</p>
         <ul class="max-h-56 space-y-1 overflow-y-auto pr-0.5">
           <li
             v-for="v in filteredCatalog"
-            :key="`${v.type}:${v.version}`"
+            :key="`${catalogKind(v)}:${v.version}`"
             class="flex items-center justify-between gap-2 rounded-lg border border-surface-4 px-2.5 py-1.5"
           >
             <div class="min-w-0">

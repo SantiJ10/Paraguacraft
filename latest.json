@@ -1,12 +1,12 @@
 {
-  "version": "1.1.45",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.45/Instalar_Paraguacraft_v1.1.45.exe",
-  "size_bytes": 5891637,
-  "sha256": "ba5e1fb24e23a61cdf0420013b602fd562840c1066db9b3bf054f910542671ad",
-  "notes": "- Gestor de versiones Bedrock: releases oficiales (AppX de Microsoft), solo cuenta premium\n- Mundos y packs de com.mojang en la ficha PARAGUA Bedrock\n- Backup de mundos, Modo desarrollador y aviso al desregistrar el Minecraft de la Store",
+  "version": "1.1.46",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.46/Instalar_Paraguacraft_v1.1.46.exe",
+  "size_bytes": 5925830,
+  "sha256": "1b13c95d972739835ffd1decfaecbd04aa614ff4aa99fa71fad7e0776bb69f2c",
+  "notes": "- Bedrock: descarga AppX vía TLS de Windows (arregla el error FE3)\n- Catálogo Bedrock muestra 1.16+ primero; las antiguas quedan en Incluir antiguas\n- Gestor de versiones y mundos/packs (premium Microsoft)",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.45/Instalar_Paraguacraft_v1.1.45.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.46/Instalar_Paraguacraft_v1.1.46.exe",
       "signature": ""
     }
   }

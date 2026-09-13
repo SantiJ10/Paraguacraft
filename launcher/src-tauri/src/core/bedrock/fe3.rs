@@ -168,9 +168,15 @@ pub async fn resolve_download_url(
     let resp = client
         .post(SECURED_URL)
         .header("content-type", "application/soap+xml; charset=utf-8")
+        .header("user-agent", "Windows-Update-Agent/10.0.10011.16384 Client-Protocol/2.0")
         .body(body)
         .send()
-        .await?;
+        .await
+        .map_err(|e| {
+            AppError::msg(format!(
+                "No se pudo contactar el CDN de Microsoft (FE3): {e}"
+            ))
+        })?;
     let status = resp.status();
     let text = resp.text().await.unwrap_or_default();
     if !status.is_success() {

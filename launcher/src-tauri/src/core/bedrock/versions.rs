@@ -325,12 +325,17 @@ pub async fn list_catalog(client: &reqwest::Client, force: bool) -> AppResult<Ve
 }
 
 fn extra_http() -> reqwest::Client {
-    reqwest::Client::builder()
-        .user_agent("SantiJ10/Paraguacraft (https://paraguacraft.gg)")
+    let mut builder = reqwest::Client::builder()
+        .user_agent("Windows-Update-Agent/10.0.10011.16384 Client-Protocol/2.0")
         .timeout(std::time::Duration::from_secs(4 * 3600))
         .connect_timeout(std::time::Duration::from_secs(30))
-        .build()
-        .unwrap_or_else(|_| reqwest::Client::new())
+        .http1_only()
+        .tcp_nodelay(true);
+    #[cfg(windows)]
+    {
+        builder = builder.use_native_tls();
+    }
+    builder.build().unwrap_or_else(|_| reqwest::Client::new())
 }
 
 fn emit_progress(app: &AppHandle, id: &str, label: &str, progress: f64, status: &str) {
