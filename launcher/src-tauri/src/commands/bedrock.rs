@@ -10,6 +10,14 @@ use crate::error::{AppError, AppResult};
 use crate::models::AppSettings;
 use crate::state::AppState;
 
+async fn run_blocking<T: Send + 'static>(
+    f: impl FnOnce() -> AppResult<T> + Send + 'static,
+) -> AppResult<T> {
+    tokio::task::spawn_blocking(f)
+        .await
+        .unwrap_or_else(|e| Err(AppError::msg(format!("Tarea abortada: {e}"))))
+}
+
 fn require_premium() -> AppResult<String> {
     let account = accounts::active_account()
         .ok_or_else(|| AppError::msg("No hay cuenta activa. Agrega una en Ajustes."))?;
@@ -27,14 +35,30 @@ fn watch_after_launch(app: AppHandle, username: String) {
 }
 
 #[tauri::command]
-pub fn get_bedrock_status() -> bedrock::BedrockStatus {
-    bedrock::status()
+pub async fn get_bedrock_status() -> bedrock::BedrockStatus {
+    tokio::task::spawn_blocking(bedrock::status)
+        .await
+        .unwrap_or_else(|_| bedrock::BedrockStatus {
+            platform_supported: cfg!(windows),
+            installed: false,
+            premium_allowed: false,
+            username: None,
+            store_installed: false,
+            managed_active: false,
+            active_version: None,
+            developer_mode: false,
+            conflict_store: false,
+        })
 }
 
 #[tauri::command]
-pub fn launch_bedrock(app: AppHandle) -> AppResult<()> {
-    let username = require_premium()?;
-    bedrock::launch(&username)?;
+pub async fn launch_bedrock(app: AppHandle) -> AppResult<()> {
+    let username = run_blocking(|| {
+        let username = require_premium()?;
+        bedrock::launch(&username)?;
+        Ok(username)
+    })
+    .await?;
     watch_after_launch(app, username);
     Ok(())
 }
@@ -50,9 +74,12 @@ pub async fn list_bedrock_versions(
 }
 
 #[tauri::command]
-pub fn list_installed_bedrock_versions() -> AppResult<Vec<bedrock::BedrockInstalledVersion>> {
-    require_premium()?;
-    Ok(bedrock::list_installed())
+pub async fn list_installed_bedrock_versions() -> AppResult<Vec<bedrock::BedrockInstalledVersion>> {
+    run_blocking(|| {
+        require_premium()?;
+        Ok(bedrock::list_installed())
+    })
+    .await
 }
 
 #[tauri::command]
@@ -67,75 +94,107 @@ pub async fn install_bedrock_version(
 }
 
 #[tauri::command]
-pub fn switch_bedrock_version(version: String) -> AppResult<()> {
-    require_premium()?;
-    bedrock::switch_version(&version)
+pub async fn switch_bedrock_version(version: String) -> AppResult<()> {
+    run_blocking(move || {
+        require_premium()?;
+        bedrock::switch_version(&version)
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn remove_bedrock_version(version: String) -> AppResult<()> {
-    require_premium()?;
-    bedrock::remove_version(&version)
+pub async fn remove_bedrock_version(version: String) -> AppResult<()> {
+    run_blocking(move || {
+        require_premium()?;
+        bedrock::remove_version(&version)
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn launch_bedrock_version(app: AppHandle, version: String) -> AppResult<()> {
-    let username = bedrock::launch_version(&version)?;
+pub async fn launch_bedrock_version(app: AppHandle, version: String) -> AppResult<()> {
+    let username = run_blocking(move || bedrock::launch_version(&version)).await?;
     watch_after_launch(app, username);
     Ok(())
 }
 
 #[tauri::command]
-pub fn bedrock_developer_mode() -> bool {
-    bedrock::developer_mode()
+pub async fn bedrock_developer_mode() -> bool {
+    tokio::task::spawn_blocking(bedrock::developer_mode)
+        .await
+        .unwrap_or(false)
 }
 
 #[tauri::command]
-pub fn enable_bedrock_developer_mode() -> AppResult<()> {
-    require_premium()?;
-    bedrock::enable_developer_mode()
+pub async fn enable_bedrock_developer_mode() -> AppResult<()> {
+    run_blocking(|| {
+        require_premium()?;
+        bedrock::enable_developer_mode()
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn backup_bedrock_saves() -> AppResult<String> {
-    require_premium()?;
-    bedrock::backup_saves()
+pub async fn backup_bedrock_saves() -> AppResult<String> {
+    run_blocking(|| {
+        require_premium()?;
+        bedrock::backup_saves()
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn open_microsoft_store_bedrock() -> AppResult<()> {
-    require_premium()?;
-    bedrock::open_microsoft_store()
+pub async fn open_microsoft_store_bedrock() -> AppResult<()> {
+    run_blocking(|| {
+        require_premium()?;
+        bedrock::open_microsoft_store()
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn list_bedrock_worlds() -> AppResult<Vec<bedrock::BedrockWorld>> {
-    require_premium()?;
-    Ok(bedrock::list_worlds())
+pub async fn list_bedrock_worlds() -> AppResult<Vec<bedrock::BedrockWorld>> {
+    run_blocking(|| {
+        require_premium()?;
+        Ok(bedrock::list_worlds())
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn list_bedrock_packs() -> AppResult<Vec<bedrock::BedrockPack>> {
-    require_premium()?;
-    Ok(bedrock::list_packs())
+pub async fn list_bedrock_packs() -> AppResult<Vec<bedrock::BedrockPack>> {
+    run_blocking(|| {
+        require_premium()?;
+        Ok(bedrock::list_packs())
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn open_bedrock_folder(kind: String) -> AppResult<()> {
-    require_premium()?;
-    bedrock::open_content_folder(&kind)
+pub async fn open_bedrock_folder(kind: String) -> AppResult<()> {
+    run_blocking(move || {
+        require_premium()?;
+        bedrock::open_content_folder(&kind)
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn delete_bedrock_world(id: String) -> AppResult<()> {
-    require_premium()?;
-    bedrock::delete_world(&id)
+pub async fn delete_bedrock_world(id: String) -> AppResult<()> {
+    run_blocking(move || {
+        require_premium()?;
+        bedrock::delete_world(&id)
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn delete_bedrock_pack(kind: String, id: String) -> AppResult<()> {
-    require_premium()?;
-    bedrock::delete_pack(&kind, &id)
+pub async fn delete_bedrock_pack(kind: String, id: String) -> AppResult<()> {
+    run_blocking(move || {
+        require_premium()?;
+        bedrock::delete_pack(&kind, &id)
+    })
+    .await
 }
 
 #[tauri::command]

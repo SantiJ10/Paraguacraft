@@ -28,8 +28,9 @@ const accounts = useAccountsStore();
 const app = useAppStore();
 
 const versions = ref<MinecraftVersion[]>([]);
-const cards = ref<VersionCardModel[]>([]);
-const selectedCard = ref<VersionCardModel | null>(null);
+const initialCards = buildVersionCards([], []);
+const cards = ref<VersionCardModel[]>(initialCards);
+const selectedCard = ref<VersionCardModel | null>(initialCards[0] ?? null);
 const mcVersion = ref("");
 const loaders = ref<LoaderInfo[]>([]);
 const loadingLoaders = ref(false);
@@ -229,12 +230,26 @@ watch(
 );
 
 onMounted(async () => {
-  await downloads.initEvents();
-  await accounts.load();
-  await instances.load();
-  versions.value = await api.getVersions();
-  await refreshBedrock();
-  await bindBedrockEvents();
+  void downloads.initEvents();
+  void bindBedrockEvents();
+  await Promise.all([
+    accounts.load().catch((e) => {
+      error.value = String(e);
+    }),
+    instances.load().then(() => refreshCards()),
+    api
+      .getVersions()
+      .then((list) => {
+        versions.value = list;
+        return refreshCards();
+      })
+      .catch((e) => {
+        error.value = String(e);
+      }),
+    refreshBedrock().catch((e) => {
+      error.value = String(e);
+    }),
+  ]);
   await refreshCards();
 });
 
@@ -356,7 +371,12 @@ function goAccounts() {
             @select="selectCard"
           />
         </div>
-        <p v-if="!filteredCards.length" class="py-20 text-center text-gray-500">No hay versiones que coincidan.</p>
+        <p
+          v-if="query.trim() && !filteredCards.length"
+          class="py-20 text-center text-gray-500"
+        >
+          No hay versiones que coincidan.
+        </p>
       </div>
     </div>
 

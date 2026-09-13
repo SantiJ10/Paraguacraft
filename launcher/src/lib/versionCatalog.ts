@@ -87,6 +87,11 @@ function groupKey(versionId: string): string | null {
   return null;
 }
 
+/** Portada de una instancia Java (misma familia que las tarjetas PARAGUA). */
+export function coverKeyForMcVersion(versionId: string): string {
+  return groupKey(versionId) ?? "otras";
+}
+
 /** Releases oficiales 26.x (26.1.2, 26.2, etc.). */
 export function isMc26Release(versionId: string): boolean {
   return /^26\.\d/.test(versionId);

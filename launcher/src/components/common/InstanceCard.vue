@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import type { Instance } from "@/lib/types";
 import InstanceIcon from "@/components/instance/InstanceIcon.vue";
+import BaseButton from "@/components/common/BaseButton.vue";
 import ContextMenu, { type ContextMenuItem } from "@/components/common/ContextMenu.vue";
 import { formatPlaytime, formatRelative } from "@/composables/useFormat";
+import { coverKeyForMcVersion, versionCardImageUrl } from "@/lib/versionCatalog";
 import { useInstancesStore } from "@/stores/instances";
 import { useAppStore } from "@/stores/app";
 
@@ -18,6 +20,15 @@ const app = useAppStore();
 const menu = ref<{ x: number; y: number } | null>(null);
 const busy = ref(false);
 const localError = ref<string | null>(null);
+const coverFailed = ref(false);
+const coverUrl = computed(() => versionCardImageUrl(coverKeyForMcVersion(props.instance.mcVersion)));
+
+watch(
+  () => props.instance.mcVersion,
+  () => {
+    coverFailed.value = false;
+  },
+);
 
 const menuItems: ContextMenuItem[] = [
   { id: "open", label: "Abrir" },
@@ -88,38 +99,53 @@ async function onSelect(id: string) {
 
 <template>
   <div
-    class="lunar-card group relative cursor-pointer overflow-hidden"
+    class="lunar-card group relative flex h-full min-h-[220px] cursor-pointer flex-col overflow-hidden"
     :class="selected ? '!border-pc-green' : ''"
     @click="$emit('open')"
     @contextmenu="onContext"
   >
-    <div class="flex items-center gap-3 p-4">
-      <InstanceIcon :icon="instance.icon" size="md" />
-      <div class="min-w-0 flex-1">
-        <p class="truncate text-base font-bold text-white">{{ instance.name }}</p>
-        <p class="text-xs text-gray-400">
-          MC {{ instance.mcVersion }}
-          <span class="text-gray-600">·</span>
-          <span class="capitalize">{{ instance.loader.replace(/-/g, " ") }}</span>
-        </p>
-        <p v-if="instance.modCount" class="mt-0.5 text-[11px] text-gray-500">
-          {{ instance.modCount }} mods
-        </p>
+    <div class="relative min-h-[5rem] flex-1 overflow-hidden">
+      <img
+        v-if="!coverFailed"
+        :src="coverUrl"
+        alt=""
+        class="absolute inset-0 h-full w-full object-cover opacity-80"
+        @error="coverFailed = true"
+      />
+      <div
+        v-else
+        class="absolute inset-0 bg-gradient-to-br from-surface-4 to-surface-2"
+      />
+      <div class="absolute inset-0 bg-gradient-to-t from-surface-2 via-surface-2/40 to-transparent" />
+    </div>
+    <div class="relative bg-surface-2">
+      <div class="flex items-center gap-3 p-4 pt-3">
+        <InstanceIcon :icon="instance.icon" size="md" />
+        <div class="min-w-0 flex-1">
+          <p class="truncate text-base font-bold text-white">{{ instance.name }}</p>
+          <p class="text-xs text-gray-400">
+            MC {{ instance.mcVersion }}
+            <span class="text-gray-600">·</span>
+            <span class="capitalize">{{ instance.loader.replace(/-/g, " ") }}</span>
+          </p>
+          <p v-if="instance.modCount" class="mt-0.5 text-[11px] text-gray-500">
+            {{ instance.modCount }} mods
+          </p>
+        </div>
       </div>
+      <div class="flex items-center justify-between px-4 pb-2 text-xs text-gray-500">
+        <span>{{ formatRelative(instance.lastPlayed) }}</span>
+        <span>{{ formatPlaytime(instance.totalPlayMinutes) }}</span>
+      </div>
+      <BaseButton
+        class="w-full rounded-none"
+        :disabled="busy || app.launchPhase === 'running'"
+        @click.stop="$emit('play')"
+      >
+        {{ busy ? "…" : "Jugar" }}
+      </BaseButton>
+      <p v-if="localError" class="px-3 pb-2 text-[10px] text-red-400">{{ localError }}</p>
     </div>
-    <div class="flex items-center justify-between border-t border-surface-3 px-4 py-2 text-xs text-gray-500">
-      <span>{{ formatRelative(instance.lastPlayed) }}</span>
-      <span>{{ formatPlaytime(instance.totalPlayMinutes) }}</span>
-    </div>
-    <button
-      class="flex w-full items-center justify-center gap-2 bg-pc-green/10 py-2.5 text-sm font-bold text-pc-green transition-colors hover:bg-pc-green/20"
-      :disabled="busy || app.launchPhase === 'running'"
-      @click.stop="$emit('play')"
-    >
-      <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
-      {{ busy ? "…" : "Jugar" }}
-    </button>
-    <p v-if="localError" class="px-3 pb-2 text-[10px] text-red-400">{{ localError }}</p>
 
     <ContextMenu
       v-if="menu"

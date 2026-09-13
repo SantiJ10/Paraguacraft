@@ -1,12 +1,12 @@
 {
-  "version": "1.1.46",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.46/Instalar_Paraguacraft_v1.1.46.exe",
-  "size_bytes": 5925830,
-  "sha256": "1b13c95d972739835ffd1decfaecbd04aa614ff4aa99fa71fad7e0776bb69f2c",
-  "notes": "- Bedrock: descarga AppX vía TLS de Windows (arregla el error FE3)\n- Catálogo Bedrock muestra 1.16+ primero; las antiguas quedan en Incluir antiguas\n- Gestor de versiones y mundos/packs (premium Microsoft)",
+  "version": "1.1.47",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.47/Instalar_Paraguacraft_v1.1.47.exe",
+  "size_bytes": 5941635,
+  "sha256": "e5130fa4c916f132b59a9882fb1da01bba4f9fdd3c6d66b744528ea83fe15691",
+  "notes": "- Versiones se muestran al instante (sin el vacío de 5 segundos)\n- Jugar Bedrock ya no congela el launcher en No responde\n- Jugados recientemente: tarjetas Java y Bedrock con la misma portada llena",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.46/Instalar_Paraguacraft_v1.1.46.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.47/Instalar_Paraguacraft_v1.1.47.exe",
       "signature": ""
     }
   }

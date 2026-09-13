@@ -82,13 +82,38 @@ pub fn find_exe_paths() -> Vec<PathBuf> {
     paths
 }
 
-fn discover_aumids() -> Vec<String> {
+fn wide(s: &str) -> Vec<u16> {
+    OsStr::new(s).encode_wide().chain(Some(0)).collect()
+}
+
+fn try_shell_open(aumid: &str) -> bool {
+    use windows_sys::Win32::UI::Shell::ShellExecuteW;
+    use windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+
+    let file = wide(aumid);
+    let op = wide("open");
+    let ret = unsafe {
+        ShellExecuteW(
+            std::ptr::null_mut(),
+            op.as_ptr(),
+            file.as_ptr(),
+            std::ptr::null(),
+            std::ptr::null(),
+            SW_SHOWNORMAL as i32,
+        )
+    };
+    ret as isize > 32
+}
+
+const KNOWN_AUMIDS: [&str; 2] = [
+    r"shell:AppsFolder\Microsoft.MinecraftUWP_8wekyb3d8bbwe!App",
+    r"shell:AppsFolder\Microsoft.MinecraftWindowsBeta_8wekyb3d8bbwe!App",
+];
+
+fn powershell_aumids() -> Vec<String> {
     use std::os::windows::process::CommandExt;
 
-    let mut aumids = vec![
-        r"shell:AppsFolder\Microsoft.MinecraftUWP_8wekyb3d8bbwe!App".to_string(),
-        r"shell:AppsFolder\Microsoft.MinecraftWindowsBeta_8wekyb3d8bbwe!App".to_string(),
-    ];
+    let mut aumids = Vec::new();
     if let Ok(out) = std::process::Command::new("powershell")
         .args([
             "-NoProfile",
@@ -105,10 +130,7 @@ fn discover_aumids() -> Vec<String> {
             for line in String::from_utf8_lossy(&out.stdout).lines() {
                 let pfn = line.trim();
                 if !pfn.is_empty() {
-                    let dyn_id = format!(r"shell:AppsFolder\{pfn}!App");
-                    if !aumids.contains(&dyn_id) {
-                        aumids.insert(0, dyn_id);
-                    }
+                    aumids.push(format!(r"shell:AppsFolder\{pfn}!App"));
                 }
             }
         }
@@ -116,28 +138,18 @@ fn discover_aumids() -> Vec<String> {
     aumids
 }
 
-fn wide(s: &str) -> Vec<u16> {
-    OsStr::new(s).encode_wide().chain(Some(0)).collect()
-}
-
 pub fn open_bedrock_app(_username: &str) -> AppResult<()> {
-    use windows_sys::Win32::UI::Shell::ShellExecuteW;
-    use windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+    for aumid in KNOWN_AUMIDS {
+        if try_shell_open(aumid) {
+            return Ok(());
+        }
+    }
 
-    for aumid in discover_aumids() {
-        let file = wide(&aumid);
-        let op = wide("open");
-        let ret = unsafe {
-            ShellExecuteW(
-                std::ptr::null_mut(),
-                op.as_ptr(),
-                file.as_ptr(),
-                std::ptr::null(),
-                std::ptr::null(),
-                SW_SHOWNORMAL as i32,
-            )
-        };
-        if ret as isize > 32 {
+    for aumid in powershell_aumids() {
+        if KNOWN_AUMIDS.contains(&aumid.as_str()) {
+            continue;
+        }
+        if try_shell_open(&aumid) {
             return Ok(());
         }
     }
