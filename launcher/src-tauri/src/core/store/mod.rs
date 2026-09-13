@@ -14,6 +14,7 @@ pub mod modrinth;
 pub mod mrpack;
 pub mod overrides;
 pub mod server_modpack;
+pub mod worlds;
 
 use std::path::PathBuf;
 
@@ -103,6 +104,7 @@ pub fn content_subdir(project_type: &str) -> &'static str {
         "shader" => "shaderpacks",
         "datapack" => "datapacks",
         "plugin" => "plugins",
+        "world" | "worlds" => "saves",
         _ => "mods",
     }
 }
@@ -272,6 +274,7 @@ fn validate_instance(
     mc: &str,
     loader: &str,
     loader_required: bool,
+    flexible_mc: bool,
 ) -> AppResult<PathBuf> {
     if instance_id.starts_with("ext::") {
         let inst = instances::scan::find_external(instance_id).ok_or_else(|| {
@@ -279,7 +282,8 @@ fn validate_instance(
                 "Instancia externa no encontrada. Usa «Escanear» en Instancias y reintenta.",
             )
         })?;
-        if inst.mc_version != mc {
+        if inst.mc_version != mc && !(flexible_mc && worlds::mc_flexible_match(&inst.mc_version, mc))
+        {
             return Err(AppError::msg(format!(
                 "La instancia \"{}\" usa Minecraft {}, no {mc}.",
                 inst.name, inst.mc_version
@@ -297,7 +301,7 @@ fn validate_instance(
     }
 
     let meta = instances::ensure_meta(instance_id)?;
-    if meta.mc_version != mc {
+    if meta.mc_version != mc && !(flexible_mc && worlds::mc_flexible_match(&meta.mc_version, mc)) {
         return Err(AppError::msg(format!(
             "La instancia \"{}\" usa Minecraft {}, no {mc}.",
             meta.name, meta.mc_version
@@ -399,7 +403,7 @@ pub fn resolve_dest_dir(
                 .as_deref()
                 .filter(|s| !s.is_empty())
                 .ok_or_else(|| AppError::msg("Seleccioná una instancia para el datapack."))?;
-            let _ = validate_instance(iid, mc, loader, false)?;
+            let _ = validate_instance(iid, mc, loader, false, true)?;
             destinations::datapack_dest_instance(iid, dest.world_name.as_deref())
         }
         _ if dest.kind == "server" => {
@@ -422,7 +426,8 @@ pub fn resolve_dest_dir(
                 .as_deref()
                 .filter(|s| !s.is_empty())
                 .ok_or_else(|| AppError::msg("Seleccioná una instancia destino."))?;
-            let base = validate_instance(iid, mc, loader, loader_required)?;
+            let flexible_mc = matches!(project_type, "world" | "worlds" | "datapack");
+            let base = validate_instance(iid, mc, loader, loader_required, flexible_mc)?;
             Ok(base.join(content_subdir(project_type)))
         }
     }
@@ -475,6 +480,7 @@ pub async fn install_version(
         }
         other => return Err(AppError::msg(format!("Proveedor desconocido: {other}"))),
     };
+    let filename = worlds::finalize_if_world(project_type, &dest_for_index, &filename)?;
     if project_type == "mod" {
         let dep_ids = deps::resolve_required(
             client,
@@ -538,17 +544,19 @@ pub async fn install(
     };
 
     let dest_dir: PathBuf = base.join(content_subdir(project_type));
+    let dest_clone = dest_dir.clone();
 
-    match provider {
+    let filename = match provider {
         "modrinth" => {
-            modrinth::install(app, client, project_id, project_type, &mc, &loader, dest_dir).await
+            modrinth::install(app, client, project_id, project_type, &mc, &loader, dest_dir).await?
         }
         "curseforge" => {
             curseforge::install(app, client, cf_key, project_id, project_type, &mc, &loader, dest_dir)
-                .await
+                .await?
         }
-        other => Err(AppError::msg(format!("Proveedor desconocido: {other}"))),
-    }
+        other => return Err(AppError::msg(format!("Proveedor desconocido: {other}"))),
+    };
+    worlds::finalize_if_world(project_type, &dest_clone, &filename)
 }
 
 #[cfg(test)]

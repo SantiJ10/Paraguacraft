@@ -37,6 +37,7 @@ const tabs: Array<{ id: ContentType; label: string }> = [
   { id: "resourcepack", label: "Resource packs" },
   { id: "shader", label: "Shaders" },
   { id: "datapack", label: "Data packs" },
+  { id: "world", label: "Mundos" },
   { id: "plugin", label: "Plugins" },
 ];
 
@@ -86,6 +87,10 @@ onMounted(async () => {
 
 watch([provider, typeFilter, filterMc, filterLoader], () => refresh(0));
 
+watch(typeFilter, (t) => {
+  if (t === "world") provider.value = "curseforge";
+});
+
 function search() {
   refresh(0, true);
 }
@@ -128,7 +133,7 @@ function onInstalled() {
   <div class="p-8">
     <h1 class="text-2xl font-bold">Tienda</h1>
     <p class="text-sm text-gray-500">
-      Explora mods, packs y más desde Modrinth y CurseForge. Al instalar, elegirás versión, plataforma e instancia.
+      Explora mods, packs, mundos y más desde Modrinth y CurseForge. Los mundos se buscan en CurseForge (como en esa tienda).
     </p>
 
     <div class="my-5 flex flex-wrap items-center gap-3">

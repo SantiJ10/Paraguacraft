@@ -103,6 +103,7 @@ const MC_CHANNELS: Array<{ id: VersionChannel | "all"; label: string }> = [
 const projectType = computed(() => props.item?.projectType ?? "mod");
 const isPlugin = computed(() => projectType.value === "plugin");
 const isDatapack = computed(() => projectType.value === "datapack");
+const isWorld = computed(() => projectType.value === "world");
 const isModpack = computed(() => projectType.value === "modpack");
 const isInstanceFlow = computed(
   () => !isPlugin.value && !isDatapack.value && !isModpack.value,
@@ -207,10 +208,19 @@ function isExternal(id: string): boolean {
   return id.startsWith("ext::");
 }
 
+function mcCompatible(instanceMc: string, want: string, flexible: boolean): boolean {
+  if (instanceMc === want) return true;
+  if (!flexible) return false;
+  if (/^\d+\.\d+$/.test(want) && instanceMc.startsWith(`${want}.`)) return true;
+  if (/^\d+\.\d+$/.test(instanceMc) && want.startsWith(`${instanceMc}.`)) return true;
+  return false;
+}
+
 const compatibleInstances = computed(() => {
   if (!mcVersion.value) return [];
+  const flexible = isWorld.value || isDatapack.value;
   return instances.instances.filter((i) => {
-    if (i.mcVersion !== mcVersion.value) return false;
+    if (!mcCompatible(i.mcVersion, mcVersion.value, flexible)) return false;
     if (!loaderRequired.value) return true;
     return loadersCompatible(i.loader, loaderId.value, mcVersion.value);
   });
@@ -1184,7 +1194,9 @@ async function installRecommended(p: RecommendedPlugin) {
 
             <!-- Paso: Destino (mod / shader / resourcepack) -->
             <div v-else-if="isInstanceFlow && step === destinationStep" class="space-y-3">
-              <p class="text-sm text-gray-400">¿Dónde querés instalar este contenido?</p>
+              <p class="text-sm text-gray-400">
+                {{ isWorld ? "¿En qué instancia querés dejar el mundo (Un jugador)?" : "¿Dónde querés instalar este contenido?" }}
+              </p>
               <div class="grid gap-2">
                 <button
                   type="button"
@@ -1200,7 +1212,7 @@ async function installRecommended(p: RecommendedPlugin) {
                   <p class="font-semibold">Instancia Paraguacraft</p>
                   <p class="text-xs text-gray-500">
                     {{ localCompatible.length ? `${localCompatible.length} compatible(s)` : "Sin instancias compatibles" }}
-                    · mods/
+                    · {{ isWorld ? "saves/" : "mods/" }}
                   </p>
                 </button>
                 <button

@@ -28,6 +28,7 @@ fn class_id(project_type: &str) -> Option<&'static str> {
         "modpack" => Some("4471"),
         "plugin" => Some("5"),
         "datapack" => Some("6945"),
+        "world" => Some("17"),
         _ => None,
     }
 }
@@ -52,6 +53,7 @@ fn project_page_url(slug: &str, class_id: u64) -> String {
         6552 => "shaders",
         4471 => "modpacks",
         6945 => "data-packs",
+        17 => "worlds",
         _ => "mc-mods",
     };
     format!("https://www.curseforge.com/minecraft/{section}/{slug}")
@@ -231,6 +233,7 @@ fn class_to_type(class_id: u64) -> &'static str {
         6552 => "shader",
         4471 => "modpack",
         6945 => "datapack",
+        17 => "world",
         5 => "plugin",
         _ => "mod",
     }
@@ -242,6 +245,7 @@ pub fn class_id_subdir(class_id: u64) -> &'static str {
         12 => "resourcepacks",
         6552 => "shaderpacks",
         6945 => "datapacks",
+        17 => "saves",
         5 => "plugins",
         _ => "mods",
     }

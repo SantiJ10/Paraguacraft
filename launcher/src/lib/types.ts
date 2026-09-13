@@ -114,7 +114,8 @@ export type ContentType =
   | "resourcepack"
   | "shader"
   | "datapack"
-  | "plugin";
+  | "plugin"
+  | "world";
 
 export type ContentProvider = "modrinth" | "curseforge";
 
