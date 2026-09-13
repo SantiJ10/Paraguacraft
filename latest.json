@@ -1,12 +1,12 @@
 {
-  "version": "1.1.43",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.43/Instalar_Paraguacraft_v1.1.43.exe",
-  "size_bytes": 5843016,
-  "sha256": "be5003def56f451c7a714f1ea4de5e8a32e29d25a605463206f93401de0794f3",
-  "notes": "- Inicio: carátula de la canción, novedades PC y Android, sin servidores favoritos\n- Capas premium con miniatura como el launcher de Minecraft\n- PARAGUA Bedrock primero en Versiones y en Jugados recientemente\n- Ajustes ya no se congela al escanear Java",
+  "version": "1.1.44",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.44/Instalar_Paraguacraft_v1.1.44.exe",
+  "size_bytes": 5846373,
+  "sha256": "255ef695020a5bb14cb70aa9fd03339aff3ae1f7fa2d372d4c6eab96730eaa76",
+  "notes": "- Tienda: pestaña Mundos (CurseForge) y descarga a saves/ de la instancia\n- OneBlock y mapas aparecen en Un jugador (extrae el ZIP, no lo deja crudo)\n- 1.21 coincide con 1.21.11 al elegir instancia",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.43/Instalar_Paraguacraft_v1.1.43.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.44/Instalar_Paraguacraft_v1.1.44.exe",
       "signature": ""
     }
   }
