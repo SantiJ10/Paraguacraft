@@ -52,7 +52,7 @@ const DESCRIPTIONS: Record<string, string> = {
   snapshots: "Versiones de desarrollo Mojang. Inestables — para probar features futuras.",
   alpha_beta: "Alpha y Beta clásicas. El Minecraft de los inicios.",
   instaladas: "Versiones que ya tenés instaladas con su loader detectado.",
-  bedrock: "Minecraft: Bedrock Edition · Xbox / Microsoft Store",
+  bedrock: "Minecraft: Bedrock Edition · versiones oficiales (AppX) + Store",
 };
 
 /** Nombre de archivo PNG en public/web-assets (1.21 → 1_21). */

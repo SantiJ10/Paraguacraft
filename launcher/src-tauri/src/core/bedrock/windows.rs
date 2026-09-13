@@ -45,6 +45,19 @@ pub fn has_bedrock_data() -> bool {
     mojang_dir().is_some()
 }
 
+/// Cierra el proceso UWP para poder (des)registrar el paquete.
+pub fn kill_bedrock() {
+    use std::os::windows::process::CommandExt;
+    for name in ["Minecraft.Windows.exe", "minecraftuwp.exe", "minecraftpe.exe"] {
+        let _ = std::process::Command::new("taskkill")
+            .args(["/F", "/IM", name, "/T"])
+            .creation_flags(CREATE_NO_WINDOW)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status();
+    }
+}
+
 pub fn find_exe_paths() -> Vec<PathBuf> {
     let mut paths = vec![
         PathBuf::from(r"C:\XboxGames\Minecraft for Windows\Content\Minecraft.Windows.exe"),

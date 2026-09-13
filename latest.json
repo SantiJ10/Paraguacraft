@@ -1,12 +1,12 @@
 {
-  "version": "1.1.44",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.44/Instalar_Paraguacraft_v1.1.44.exe",
-  "size_bytes": 5846373,
-  "sha256": "255ef695020a5bb14cb70aa9fd03339aff3ae1f7fa2d372d4c6eab96730eaa76",
-  "notes": "- Tienda: pestaña Mundos (CurseForge) y descarga a saves/ de la instancia\n- OneBlock y mapas aparecen en Un jugador (extrae el ZIP, no lo deja crudo)\n- 1.21 coincide con 1.21.11 al elegir instancia",
+  "version": "1.1.45",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.45/Instalar_Paraguacraft_v1.1.45.exe",
+  "size_bytes": 5891637,
+  "sha256": "ba5e1fb24e23a61cdf0420013b602fd562840c1066db9b3bf054f910542671ad",
+  "notes": "- Gestor de versiones Bedrock: releases oficiales (AppX de Microsoft), solo cuenta premium\n- Mundos y packs de com.mojang en la ficha PARAGUA Bedrock\n- Backup de mundos, Modo desarrollador y aviso al desregistrar el Minecraft de la Store",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.44/Instalar_Paraguacraft_v1.1.44.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.45/Instalar_Paraguacraft_v1.1.45.exe",
       "signature": ""
     }
   }

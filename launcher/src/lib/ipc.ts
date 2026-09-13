@@ -49,6 +49,10 @@ import type {
   SystemSpecs,
   ImportInstanceIconResult,
   BedrockStatus,
+  BedrockCatalogVersion,
+  BedrockInstalledVersion,
+  BedrockWorld,
+  BedrockPack,
   Instance,
   InstanceContentItem,
   InstanceMeta,
@@ -811,11 +815,76 @@ export const api = {
       installed: false,
       premiumAllowed: false,
       username: null,
+      storeInstalled: false,
+      managedActive: false,
+      activeVersion: null,
+      developerMode: false,
+      conflictStore: false,
     });
   },
 
   async launchBedrock(): Promise<void> {
     await invokeReal<void>("launch_bedrock");
+  },
+
+  async listBedrockVersions(force = false): Promise<BedrockCatalogVersion[]> {
+    return invokeReal<BedrockCatalogVersion[]>("list_bedrock_versions", { force });
+  },
+
+  async listInstalledBedrockVersions(): Promise<BedrockInstalledVersion[]> {
+    return invokeReal<BedrockInstalledVersion[]>("list_installed_bedrock_versions");
+  },
+
+  async installBedrockVersion(version: string): Promise<void> {
+    await invokeReal<void>("install_bedrock_version", { version });
+  },
+
+  async switchBedrockVersion(version: string): Promise<void> {
+    await invokeReal<void>("switch_bedrock_version", { version });
+  },
+
+  async removeBedrockVersion(version: string): Promise<void> {
+    await invokeReal<void>("remove_bedrock_version", { version });
+  },
+
+  async launchBedrockVersion(version: string): Promise<void> {
+    await invokeReal<void>("launch_bedrock_version", { version });
+  },
+
+  async enableBedrockDeveloperMode(): Promise<void> {
+    await invokeReal<void>("enable_bedrock_developer_mode");
+  },
+
+  async backupBedrockSaves(): Promise<string> {
+    return invokeReal<string>("backup_bedrock_saves");
+  },
+
+  async openMicrosoftStoreBedrock(): Promise<void> {
+    await invokeReal<void>("open_microsoft_store_bedrock");
+  },
+
+  async listBedrockWorlds(): Promise<BedrockWorld[]> {
+    return invokeReal<BedrockWorld[]>("list_bedrock_worlds");
+  },
+
+  async listBedrockPacks(): Promise<BedrockPack[]> {
+    return invokeReal<BedrockPack[]>("list_bedrock_packs");
+  },
+
+  async openBedrockFolder(kind: string): Promise<void> {
+    await invokeReal<void>("open_bedrock_folder", { kind });
+  },
+
+  async deleteBedrockWorld(id: string): Promise<void> {
+    await invokeReal<void>("delete_bedrock_world", { id });
+  },
+
+  async deleteBedrockPack(kind: string, id: string): Promise<void> {
+    await invokeReal<void>("delete_bedrock_pack", { kind, id });
+  },
+
+  async importBedrockPack(): Promise<string> {
+    return invokeReal<string>("import_bedrock_pack");
   },
 
   // --- Config por instancia (Regla 2: override del usuario) ---

@@ -48,6 +48,11 @@ async function refresh() {
       installed: false,
       premiumAllowed: false,
       username: null,
+      storeInstalled: false,
+      managedActive: false,
+      activeVersion: null,
+      developerMode: false,
+      conflictStore: false,
     };
     return;
   }
@@ -90,6 +95,10 @@ function goAccounts() {
   router.push({ name: "settings", hash: "#accounts" });
 }
 
+function goVersions() {
+  router.push({ name: "versions" });
+}
+
 onMounted(async () => {
   await accounts.load();
   await refresh();
@@ -118,7 +127,13 @@ watch(() => accounts.active?.id, () => {
         <div class="min-w-0">
           <h2 class="text-lg font-bold text-[#3498DB]">Minecraft: Bedrock Edition</h2>
           <p class="mt-0.5 text-sm text-gray-400">
-            Xbox / Microsoft Store · requiere cuenta Microsoft
+            {{
+              status?.managedActive && status.activeVersion
+                ? `Versión ${status.activeVersion} (gestionada)`
+                : status?.activeVersion
+                  ? `Store ${status.activeVersion} · cuenta Microsoft`
+                  : "Xbox / Microsoft Store · requiere cuenta Microsoft"
+            }}
           </p>
           <p v-if="status?.username && status.premiumAllowed" class="mt-1 text-xs text-gray-500">
             Cuenta activa: {{ status.username }}
@@ -145,7 +160,10 @@ watch(() => accounts.active?.id, () => {
         </div>
 
         <div v-else-if="notInstalled" class="rounded-lg border border-surface-4 bg-surface-3/80 p-3 text-sm text-gray-400">
-          No se detectó Bedrock. Instalalo desde Xbox o Microsoft Store e intentá de nuevo.
+          No se detectó Bedrock. Instalá una versión extraída o el de Xbox / Microsoft Store.
+          <BaseButton size="sm" variant="secondary" class="mt-3 w-full" @click="goVersions">
+            Abrir versiones
+          </BaseButton>
         </div>
 
         <template v-else-if="canLaunch">

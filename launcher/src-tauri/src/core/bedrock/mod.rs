@@ -1,11 +1,16 @@
-//! Minecraft: Bedrock Edition (Windows Store / Xbox).
+//! Minecraft: Bedrock Edition (Windows Store / Xbox + gestor de versiones AppX).
 //!
-//! Mismo flujo que `lanzar_bedrock` del launcher Python: requiere cuenta premium
-//! (Microsoft), instala el resource pack de branding, abre la app UWP y vigila
-//! la sesión (renombrar ventana, RPC, minimizar launcher).
+//! Lanzar el Bedrock instalado requiere cuenta premium (Microsoft). Las versiones
+//! extraídas se bajan del CDN oficial de Microsoft (FE3); no se redistribuyen.
 
 #[cfg(windows)]
 mod windows;
+#[cfg(windows)]
+mod appx;
+
+mod content;
+mod fe3;
+mod versions;
 
 use serde::Serialize;
 
@@ -19,6 +24,9 @@ const PACK_VERSION: [u32; 3] = [1, 0, 0];
 /// Logo del menú principal Paraguacraft (mismo asset que Java).
 const BRAND_LOGO: &[u8] = crate::core::branding::BEDROCK_TITLE_PNG;
 
+pub use content::{BedrockPack, BedrockWorld};
+pub use versions::{BedrockInstalledVersion, BedrockVersion};
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BedrockStatus {
@@ -29,15 +37,27 @@ pub struct BedrockStatus {
     /// La cuenta activa es premium (Microsoft).
     pub premium_allowed: bool,
     pub username: Option<String>,
+    pub store_installed: bool,
+    pub managed_active: bool,
+    pub active_version: Option<String>,
+    pub developer_mode: bool,
+    pub conflict_store: bool,
 }
 
 pub fn status() -> BedrockStatus {
     let acc = accounts::active_account();
+    let extra = versions::extra_status();
+    let installed = is_installed() || extra.managed_active || extra.store_installed;
     BedrockStatus {
         platform_supported: cfg!(windows),
-        installed: is_installed(),
+        installed,
         premium_allowed: acc.as_ref().is_some_and(|a| a.premium),
         username: acc.map(|a| a.username),
+        store_installed: extra.store_installed,
+        managed_active: extra.managed_active,
+        active_version: extra.active_version,
+        developer_mode: extra.developer_mode,
+        conflict_store: extra.conflict_store,
     }
 }
 
@@ -52,18 +72,22 @@ fn is_installed() -> bool {
     }
 }
 
-/// Instala el resource pack «Paraguacraft Branding» en la carpeta Bedrock.
-pub fn install_branding_pack() -> AppResult<()> {
+pub fn com_mojang_dir() -> Option<std::path::PathBuf> {
     #[cfg(windows)]
     {
-        let mojang = windows::mojang_dir()
-            .ok_or_else(|| AppError::msg("Bedrock no encontrado (instalá desde Xbox / Microsoft Store)"))?;
-        install_pack_at(&mojang)
+        windows::mojang_dir()
     }
     #[cfg(not(windows))]
     {
-        Err(AppError::msg("Bedrock solo está disponible en Windows"))
+        None
     }
+}
+
+/// Instala el resource pack «Paraguacraft Branding» en la carpeta Bedrock.
+pub fn install_branding_pack() -> AppResult<()> {
+    let mojang = com_mojang_dir()
+        .ok_or_else(|| AppError::msg("Bedrock no encontrado (instalá desde Xbox / Microsoft Store)"))?;
+    install_pack_at(&mojang)
 }
 
 fn install_pack_at(mojang_dir: &std::path::Path) -> AppResult<()> {
@@ -123,14 +147,20 @@ fn install_pack_at(mojang_dir: &std::path::Path) -> AppResult<()> {
     Ok(())
 }
 
-/// Lanza Bedrock. Solo cuentas premium (Microsoft).
-pub fn launch(username: &str) -> AppResult<()> {
-    if !accounts::active_account().is_some_and(|a| a.premium) {
+fn require_premium() -> AppResult<String> {
+    let account = accounts::active_account()
+        .ok_or_else(|| AppError::msg("No hay cuenta activa. Agrega una en Ajustes."))?;
+    if !account.premium {
         return Err(AppError::msg(
             "Se necesita cuenta Premium (Microsoft) para jugar Minecraft: Bedrock Edition",
         ));
     }
+    Ok(account.username)
+}
 
+/// Lanza Bedrock. Solo cuentas premium (Microsoft).
+pub fn launch(username: &str) -> AppResult<()> {
+    require_premium()?;
     let _ = install_branding_pack();
 
     #[cfg(windows)]
@@ -144,6 +174,13 @@ pub fn launch(username: &str) -> AppResult<()> {
     }
 }
 
+pub fn launch_version(version: &str) -> AppResult<String> {
+    let username = require_premium()?;
+    versions::switch_version(version)?;
+    launch(&username)?;
+    Ok(username)
+}
+
 #[cfg(windows)]
 pub use windows::watch_session;
 
@@ -154,3 +191,11 @@ pub fn watch_session(
     _close_on_launch: bool,
 ) {
 }
+
+pub use content::{
+    delete_pack, delete_world, import_archive, list_packs, list_worlds, open_folder as open_content_folder,
+};
+pub use versions::{
+    backup_saves, developer_mode, enable_developer_mode, install_version, list_catalog,
+    list_installed, open_microsoft_store, remove_version, switch_version,
+};

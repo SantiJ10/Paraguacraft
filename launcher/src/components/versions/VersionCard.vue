@@ -81,7 +81,7 @@ const cardStyle = {
           </span>
         </div>
         <p v-else-if="card.kind === 'bedrock'" class="text-xs text-gray-400">
-          Xbox / Microsoft Store
+          Versiones oficiales · Store / extraídas
         </p>
       </div>
     </div>

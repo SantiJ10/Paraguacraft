@@ -67,7 +67,13 @@ async function play() {
     <div class="flex items-center gap-3 p-4 pt-3">
       <div class="min-w-0 flex-1">
         <p class="truncate text-base font-bold text-white">PARAGUA Bedrock</p>
-        <p class="text-xs text-gray-400">Xbox / Microsoft Store</p>
+        <p class="text-xs text-gray-400">
+          {{ status?.managedActive && status.activeVersion
+            ? `v${status.activeVersion}`
+            : status?.activeVersion
+              ? `Store ${status.activeVersion}`
+              : "Xbox / Microsoft Store" }}
+        </p>
         <p class="mt-0.5 text-[11px] text-gray-500">{{ formatRelative(lastPlayed) }}</p>
       </div>
     </div>

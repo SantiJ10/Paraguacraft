@@ -92,6 +92,40 @@ export interface BedrockStatus {
   installed: boolean;
   premiumAllowed: boolean;
   username: string | null;
+  storeInstalled: boolean;
+  managedActive: boolean;
+  activeVersion: string | null;
+  developerMode: boolean;
+  conflictStore: boolean;
+}
+
+export interface BedrockCatalogVersion {
+  version: string;
+  updateIdentity: string;
+  type: "release" | "beta" | "preview" | string;
+  installable: boolean;
+}
+
+export interface BedrockInstalledVersion {
+  version: string;
+  type: string;
+  path: string;
+  active: boolean;
+}
+
+export interface BedrockWorld {
+  id: string;
+  name: string;
+  path: string;
+  iconPath: string | null;
+}
+
+export interface BedrockPack {
+  id: string;
+  name: string;
+  kind: "resource" | "behavior" | string;
+  path: string;
+  iconPath: string | null;
 }
 
 export interface Instance {

@@ -98,7 +98,17 @@ async function refreshCards() {
 
 async function refreshBedrock() {
   if (!isTauri()) {
-    bedrockStatus.value = { platformSupported: false, installed: false, premiumAllowed: false, username: null };
+    bedrockStatus.value = {
+      platformSupported: false,
+      installed: false,
+      premiumAllowed: false,
+      username: null,
+      storeInstalled: false,
+      managedActive: false,
+      activeVersion: null,
+      developerMode: false,
+      conflictStore: false,
+    };
     return;
   }
   bedrockStatus.value = await api.getBedrockStatus();
@@ -375,6 +385,7 @@ function goAccounts() {
       @launch-bedrock="launchBedrock"
       @open-settings="openSettings"
       @go-accounts="goAccounts"
+      @refresh-bedrock="refreshBedrock"
     />
 
     <VersionSettingsModal

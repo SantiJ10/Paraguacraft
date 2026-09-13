@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import BaseButton from "@/components/common/BaseButton.vue";
+import BedrockVersionsPanel from "@/components/versions/BedrockVersionsPanel.vue";
 import { contentFolderIcon } from "@/lib/contentIcons";
 import { loaderDisplayName, loaderIconSrc } from "@/lib/loaderIcons";
 import type { BedrockStatus, Instance, InstanceContentItem, LoaderInfo } from "@/lib/types";
@@ -34,6 +35,7 @@ const emit = defineEmits<{
   launchBedrock: [];
   openSettings: [];
   goAccounts: [];
+  refreshBedrock: [];
 }>();
 
 const imgFailed = ref(false);
@@ -105,9 +107,15 @@ const panelTitle = computed(() => {
               Agregar cuenta Microsoft
             </BaseButton>
           </div>
-          <p v-else-if="bedrockStatus && !bedrockStatus.installed" class="mt-4 text-sm text-gray-400">
-            No se detectó Bedrock. Instalalo desde Xbox / Microsoft Store.
+          <p v-else-if="bedrockStatus && !bedrockStatus.platformSupported" class="mt-4 text-sm text-gray-400">
+            Bedrock solo está disponible en Windows.
           </p>
+          <BedrockVersionsPanel
+            v-else
+            :status="bedrockStatus"
+            :premium-locked="premiumLocked"
+            @refresh-status="emit('refreshBedrock')"
+          />
         </template>
 
         <!-- Java version cards -->
@@ -192,7 +200,7 @@ const panelTitle = computed(() => {
       </div>
 
       <div class="border-t border-surface-3 p-4">
-        <div v-if="isBedrock" class="flex gap-2">
+        <div v-if="isBedrock" class="flex flex-col gap-2">
           <BaseButton
             class="flex-1 !bg-[#0078D4] hover:!bg-[#106EBE]"
             size="lg"
@@ -201,6 +209,9 @@ const panelTitle = computed(() => {
           >
             {{ busy ? "Abriendo…" : "Abrir Bedrock" }}
           </BaseButton>
+          <p v-if="!canLaunchBedrock && !premiumLocked" class="text-center text-[11px] text-gray-500">
+            Instalá una versión extraída o el Minecraft de la Store.
+          </p>
         </div>
         <div v-else class="flex gap-2">
           <button
