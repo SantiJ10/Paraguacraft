@@ -16,6 +16,59 @@ use crate::models::AppSettings;
 
 const BEDROCK_TITLE: &str = "Paraguacraft Bedrock";
 const PROC_NAMES: [&str; 3] = ["minecraft.windows.exe", "minecraftuwp.exe", "minecraftpe.exe"];
+
+fn is_bedrock_process_name(name: &str) -> bool {
+    let n = name.to_lowercase();
+    PROC_NAMES.contains(&n.as_str())
+        || n.contains("minecraftwindowsbeta")
+        || (n.starts_with("minecraft") && n.contains("windows") && n.ends_with(".exe"))
+}
+
+fn is_bedrock_process(p: &sysinfo::Process) -> bool {
+    if is_bedrock_process_name(&p.name().to_string_lossy()) {
+        return true;
+    }
+    let Some(path) = p.exe() else {
+        return false;
+    };
+    let s = path.to_string_lossy().to_lowercase().replace('/', "\\");
+    s.ends_with("\\minecraft.windows.exe")
+        || s.contains("\\microsoft.minecraftuwp")
+        || s.contains("\\microsoft.minecraftwindowsbeta")
+}
+
+fn collect_bedrock_pids(sys: &System) -> Vec<u32> {
+    sys.processes()
+        .iter()
+        .filter_map(|(pid, p)| is_bedrock_process(p).then_some(pid.as_u32()))
+        .collect()
+}
+
+fn bedrock_game_pid() -> Option<u32> {
+    let mut sys = System::new();
+    sys.refresh_processes(ProcessesToUpdate::All, true);
+    let mut fallback = None;
+    for (pid, p) in sys.processes() {
+        if !is_bedrock_process(p) {
+            continue;
+        }
+        let name = p.name().to_string_lossy().to_lowercase();
+        if name == "minecraft.windows.exe" {
+            return Some(pid.as_u32());
+        }
+        fallback = Some(pid.as_u32());
+    }
+    fallback
+}
+
+fn is_bedrock_menu_title(title: &str) -> bool {
+    let l = title.trim().to_lowercase();
+    l == "minecraft"
+        || l == "minecraft: bedrock edition"
+        || l == "minecraft: windows 10 edition"
+        || l == "minecraft windows 10 edition"
+        || l.contains("minecraft for windows")
+}
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 pub fn mojang_dir() -> Option<PathBuf> {
@@ -171,25 +224,54 @@ pub fn open_bedrock_app(_username: &str) -> AppResult<()> {
     ))
 }
 
-/// Vigila la sesión Bedrock: estado, RPC, minimizar launcher, renombrar ventana.
-pub fn watch_session(app: AppHandle, username: String, close_on_launch: bool) {
+/// Vigila la sesión Bedrock: estado, RPC (cualquier versión Store/extraída), minimizar launcher.
+pub fn watch_session(
+    app: AppHandle,
+    username: String,
+    close_on_launch: bool,
+    version: Option<String>,
+) {
     std::thread::spawn(move || {
+        let settings = config::read_json::<AppSettings>(&crate::core::paths::config_file())
+            .unwrap_or_default();
+        let display_user = username.replace(" [PREMIUM]", "");
+        let ver = version.as_deref().map(str::trim).filter(|s| !s.is_empty());
+
+        if settings.discord_rpc {
+            discord_rpc::set_bedrock_loading(
+                &display_user,
+                ver,
+                settings.discord_rpc_version,
+                settings.discord_rpc_time,
+            );
+        }
+
         emit_status(&app, "Detectando Bedrock…");
 
-        if !wait_for_bedrock_process(Duration::from_secs(120)) {
+        if !wait_for_bedrock_process(Duration::from_secs(180)) {
+            if settings.discord_rpc {
+                discord_rpc::set_launcher_idle(&display_user);
+            }
             emit_status(&app, "");
             return;
+        }
+
+        if let Some(pid) = bedrock_game_pid() {
+            discord_rpc::bind_game_pid(pid);
         }
 
         emit_status(&app, "Bedrock activo");
         let _ = app.emit("bedrock://started", serde_json::json!({}));
         game_session::set_running(true);
 
-        let settings = config::read_json::<AppSettings>(&crate::core::paths::config_file())
-            .unwrap_or_default();
-        let display_user = username.replace(" [PREMIUM]", "");
         if settings.discord_rpc {
-            discord_rpc::set_bedrock_loading(&display_user, settings.discord_rpc_time);
+            discord_rpc::set_bedrock_session(
+                &display_user,
+                ver,
+                Some("En el menú"),
+                settings.discord_rpc_version,
+                settings.discord_rpc_time,
+            );
         }
 
         if let Some(win) = app.get_webview_window("main") {
@@ -200,12 +282,10 @@ pub fn watch_session(app: AppHandle, username: String, close_on_launch: bool) {
             }
         }
 
-        let start = std::time::Instant::now();
-        let max_run = Duration::from_secs(600);
         let mut last_rename = std::time::Instant::now();
         let mut last_rpc_state = String::from("En el menú");
         let mut last_rpc_sent = String::new();
-        while start.elapsed() < max_run {
+        loop {
             if !bedrock_running() {
                 break;
             }
@@ -216,7 +296,9 @@ pub fn watch_session(app: AppHandle, username: String, close_on_launch: bool) {
                     last_rpc_sent = state.clone();
                     discord_rpc::set_bedrock_session(
                         &display_user,
+                        ver,
                         Some(&state),
+                        settings.discord_rpc_version,
                         settings.discord_rpc_time,
                     );
                 }
@@ -230,6 +312,7 @@ pub fn watch_session(app: AppHandle, username: String, close_on_launch: bool) {
         }
 
         game_session::set_running(false);
+        discord_rpc::clear_game_pid();
 
         if let Some(win) = app.get_webview_window("main") {
             if close_on_launch {
@@ -267,23 +350,14 @@ fn wait_for_bedrock_process(timeout: Duration) -> bool {
 }
 
 fn bedrock_running() -> bool {
-    let mut sys = System::new();
-    sys.refresh_processes(ProcessesToUpdate::All, true);
-    sys.processes().values().any(|p| {
-        let name = p.name().to_string_lossy().to_lowercase();
-        PROC_NAMES.contains(&name.as_str())
-    })
+    bedrock_game_pid().is_some()
 }
 
 fn bedrock_rpc_state(title: Option<&str>, last: &mut String) -> String {
     match title {
         None => last.clone(),
         Some(t) if t.contains("Paraguacraft") => last.clone(),
-        Some(t)
-            if t.eq_ignore_ascii_case("Minecraft")
-                || t.contains("Minecraft for Windows")
-                || t.eq_ignore_ascii_case("Minecraft: Bedrock Edition") =>
-        {
+        Some(t) if is_bedrock_menu_title(t) => {
             let s = "En el menú".to_string();
             *last = s.clone();
             s
@@ -307,14 +381,7 @@ fn read_bedrock_window_title() -> Option<String> {
         title: Option<String>,
     }
 
-    let bedrock_pids: Vec<u32> = sys
-        .processes()
-        .iter()
-        .filter_map(|(pid, p)| {
-            let name = p.name().to_string_lossy().to_lowercase();
-            PROC_NAMES.contains(&name.as_str()).then_some(pid.as_u32())
-        })
-        .collect();
+    let bedrock_pids: Vec<u32> = collect_bedrock_pids(&sys);
 
     let mut ctx = Ctx {
         pids: bedrock_pids,
@@ -373,14 +440,7 @@ fn rename_bedrock_windows(new_title: &str) {
         pids: Vec<u32>,
     }
 
-    let bedrock_pids: Vec<u32> = sys
-        .processes()
-        .iter()
-        .filter_map(|(pid, p)| {
-            let name = p.name().to_string_lossy().to_lowercase();
-            PROC_NAMES.contains(&name.as_str()).then_some(pid.as_u32())
-        })
-        .collect();
+    let bedrock_pids: Vec<u32> = collect_bedrock_pids(&sys);
 
     let ctx = Ctx {
         title: new_title.to_string(),
@@ -427,3 +487,38 @@ fn rename_bedrock_windows(new_title: &str) {
         EnumWindows(Some(callback), lparam);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn detects_current_and_legacy_process_names() {
+        assert!(is_bedrock_process_name("Minecraft.Windows.exe"));
+        assert!(is_bedrock_process_name("minecraftuwp.exe"));
+        assert!(is_bedrock_process_name("MinecraftPE.exe"));
+        assert!(is_bedrock_process_name("MinecraftWindowsBeta.exe"));
+        assert!(!is_bedrock_process_name("MinecraftLauncher.exe"));
+        assert!(!is_bedrock_process_name("javaw.exe"));
+    }
+
+    #[test]
+    fn old_win10_titles_count_as_menu() {
+        assert!(is_bedrock_menu_title("Minecraft"));
+        assert!(is_bedrock_menu_title("Minecraft: Bedrock Edition"));
+        assert!(is_bedrock_menu_title("Minecraft: Windows 10 Edition"));
+        assert!(is_bedrock_menu_title("Minecraft for Windows"));
+        assert!(!is_bedrock_menu_title("Mi mundo"));
+    }
+
+    #[test]
+    fn rpc_state_keeps_world_name_on_old_titles() {
+        let mut last = String::from("En el menú");
+        assert_eq!(
+            bedrock_rpc_state(Some("Minecraft: Windows 10 Edition"), &mut last),
+            "En el menú"
+        );
+        assert_eq!(bedrock_rpc_state(Some("Survival"), &mut last), "Survival");
+    }
+}
+

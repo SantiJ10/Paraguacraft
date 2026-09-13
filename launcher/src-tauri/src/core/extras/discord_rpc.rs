@@ -293,35 +293,53 @@ fn small_for_loader(loader: &str) -> (Option<&'static str>, Option<&'static str>
 }
 
 /// RPC al detectar el proceso Bedrock (antes de leer ventana).
-pub fn set_bedrock_loading(username: &str, show_time: bool) {
-    let art = server_assets::art_for_host(None);
-    update(
-        &format!("{username} - Bedrock Edition"),
-        "En el menú",
-        show_time,
-        Some(&art.large_image),
-        Some(&art.large_text),
-        Some("play"),
-        Some("Bedrock"),
-    );
+pub fn set_bedrock_loading(
+    username: &str,
+    version: Option<&str>,
+    show_version: bool,
+    show_time: bool,
+) {
+    set_bedrock_session(username, version, Some("En el menú"), show_version, show_time);
 }
 
-/// RPC in-game Bedrock: `{user} - Bedrock Edition` + menú/mundo en state.
-pub fn set_bedrock_session(username: &str, mode_line: Option<&str>, show_time: bool) {
+/// RPC in-game Bedrock: `{user} - Bedrock {version}` + menú/mundo en state.
+/// Sirve igual para Store, 1.21.x y versiones extraídas viejas (1.16, 1.2, …).
+pub fn set_bedrock_session(
+    username: &str,
+    version: Option<&str>,
+    mode_line: Option<&str>,
+    show_version: bool,
+    show_time: bool,
+) {
+    let details = bedrock_details(username, version, show_version);
     let state = mode_line
         .filter(|s| !s.is_empty())
         .unwrap_or("En el menú")
         .to_string();
     let art = server_assets::art_for_host(None);
+    let version_hover = version
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|v| format!("PARAGUA Bedrock {v}"));
     update(
-        &format!("{username} - Bedrock Edition"),
+        &details,
         &state,
         show_time,
         Some(&art.large_image),
         Some(&art.large_text),
         Some("play"),
-        Some("Bedrock"),
+        Some(version_hover.as_deref().unwrap_or("PARAGUA Bedrock")),
     );
+}
+
+fn bedrock_details(username: &str, version: Option<&str>, show_version: bool) -> String {
+    match (
+        show_version,
+        version.map(str::trim).filter(|s| !s.is_empty()),
+    ) {
+        (true, Some(v)) => format!("{username} - Bedrock {v}"),
+        _ => format!("{username} - Bedrock Edition"),
+    }
 }
 
 /// Actualiza RPC según pantalla del launcher (idle / settings). No pisa juego activo.
@@ -494,5 +512,25 @@ mod tests {
         assert_eq!(art.large_image, server_assets::BASE_ASSET);
         assert_eq!(art.large_text, server_assets::BASE_HOVER);
         assert_eq!(art.small_image.as_deref(), Some("play"));
+    }
+
+    #[test]
+    fn bedrock_details_include_any_version() {
+        assert_eq!(
+            bedrock_details("SanJlf", Some("1.21.114.1"), true),
+            "SanJlf - Bedrock 1.21.114.1"
+        );
+        assert_eq!(
+            bedrock_details("SanJlf", Some("1.1.5.0"), true),
+            "SanJlf - Bedrock 1.1.5.0"
+        );
+        assert_eq!(
+            bedrock_details("SanJlf", Some("1.16.40.2"), false),
+            "SanJlf - Bedrock Edition"
+        );
+        assert_eq!(
+            bedrock_details("SanJlf", None, true),
+            "SanJlf - Bedrock Edition"
+        );
     }
 }

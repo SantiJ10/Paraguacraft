@@ -1,12 +1,12 @@
 {
-  "version": "1.1.47",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.47/Instalar_Paraguacraft_v1.1.47.exe",
-  "size_bytes": 5941635,
-  "sha256": "e5130fa4c916f132b59a9882fb1da01bba4f9fdd3c6d66b744528ea83fe15691",
-  "notes": "- Versiones se muestran al instante (sin el vacío de 5 segundos)\n- Jugar Bedrock ya no congela el launcher en No responde\n- Jugados recientemente: tarjetas Java y Bedrock con la misma portada llena",
+  "version": "1.1.48",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.48/Instalar_Paraguacraft_v1.1.48.exe",
+  "size_bytes": 5944649,
+  "sha256": "9bd0cd72c05ca302347e166157884a3739a0590a803259dc66ad99c35d007e44",
+  "notes": "- Discord RPC en PARAGUA Bedrock (Store y versiones extraídas, actuales y viejas)\n- El RPC dura toda la partida (ya no se corta a los 10 min)\n- Versiones al instante y Jugar Bedrock sin No responde",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.47/Instalar_Paraguacraft_v1.1.47.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.48/Instalar_Paraguacraft_v1.1.48.exe",
       "signature": ""
     }
   }

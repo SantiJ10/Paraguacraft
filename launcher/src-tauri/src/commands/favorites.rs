@@ -128,7 +128,8 @@ pub fn join_favorite_bedrock(app: AppHandle, id: String) -> AppResult<String> {
     let username = account.username.clone();
 
     bedrock::launch(&username)?;
-    bedrock::watch_session(app, username, settings.close_on_launch);
+    let version = bedrock::status().active_version;
+    bedrock::watch_session(app, username, settings.close_on_launch, version);
 
     Ok(address)
 }

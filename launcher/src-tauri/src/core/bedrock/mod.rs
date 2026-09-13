@@ -189,6 +189,7 @@ pub fn watch_session(
     _app: tauri::AppHandle,
     _username: String,
     _close_on_launch: bool,
+    _version: Option<String>,
 ) {
 }
 

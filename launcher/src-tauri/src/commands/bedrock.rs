@@ -29,9 +29,9 @@ fn require_premium() -> AppResult<String> {
     Ok(account.username)
 }
 
-fn watch_after_launch(app: AppHandle, username: String) {
+fn watch_after_launch(app: AppHandle, username: String, version: Option<String>) {
     let settings = config::read_json::<AppSettings>(&paths::config_file()).unwrap_or_default();
-    bedrock::watch_session(app, username, settings.close_on_launch);
+    bedrock::watch_session(app, username, settings.close_on_launch, version);
 }
 
 #[tauri::command]
@@ -53,13 +53,13 @@ pub async fn get_bedrock_status() -> bedrock::BedrockStatus {
 
 #[tauri::command]
 pub async fn launch_bedrock(app: AppHandle) -> AppResult<()> {
-    let username = run_blocking(|| {
+    let (username, version) = run_blocking(|| {
         let username = require_premium()?;
         bedrock::launch(&username)?;
-        Ok(username)
+        Ok((username, bedrock::status().active_version))
     })
     .await?;
-    watch_after_launch(app, username);
+    watch_after_launch(app, username, version);
     Ok(())
 }
 
@@ -113,8 +113,9 @@ pub async fn remove_bedrock_version(version: String) -> AppResult<()> {
 
 #[tauri::command]
 pub async fn launch_bedrock_version(app: AppHandle, version: String) -> AppResult<()> {
+    let ver = version.clone();
     let username = run_blocking(move || bedrock::launch_version(&version)).await?;
-    watch_after_launch(app, username);
+    watch_after_launch(app, username, Some(ver));
     Ok(())
 }
 
