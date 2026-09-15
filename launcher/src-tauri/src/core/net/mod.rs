@@ -53,17 +53,28 @@ pub fn sha1_hex(bytes: &[u8]) -> String {
 /// SHA-1 de un archivo leyendo por bloques (un index de assets son cientos de
 /// MB; cargarlos enteros en RAM dispara el pico de memoria del launcher).
 fn sha1_file(path: &Path) -> std::io::Result<String> {
+    let (hasher, _) = seed_hasher(path)?;
+    Ok(hex::encode(hasher.finalize()))
+}
+
+/// Estado del SHA-1 tras consumir el archivo entero, más cuántos bytes cubrió.
+///
+/// Para reanudar hace falta el hash a medias, no el digest final: se siembra
+/// con el `.part` y se sigue alimentando con lo que va llegando.
+fn seed_hasher(path: &Path) -> std::io::Result<(Sha1, u64)> {
     let mut file = std::fs::File::open(path)?;
     let mut hasher = Sha1::new();
     let mut buf = vec![0u8; 64 * 1024];
+    let mut total = 0u64;
     loop {
         let n = file.read(&mut buf)?;
         if n == 0 {
             break;
         }
         hasher.update(&buf[..n]);
+        total += n as u64;
     }
-    Ok(hex::encode(hasher.finalize()))
+    Ok((hasher, total))
 }
 
 /// Máximo de archivos recordados; al pasarse se descarta todo y se rehashea.
@@ -299,22 +310,98 @@ pub async fn download_one(client: &reqwest::Client, item: &DownloadItem) -> AppR
     let dest = item.dest.clone();
     let sha1 = item.sha1.clone();
     let mut last_err = None;
-    let mut bytes = None;
     for url in mirror_urls(&item.url) {
-        match get_bytes(client, &url).await {
-            Ok(b) => {
-                bytes = Some(b);
-                break;
-            }
+        match with_retries_n(|| stream_download(client, &url, &dest, sha1.as_deref()), 3).await {
+            Ok(n) => return Ok(n),
             Err(e) => last_err = Some(e),
         }
     }
-    let bytes = bytes.ok_or_else(|| last_err.unwrap_or_else(|| AppError::msg("Error de red")))?;
+    Err(last_err.unwrap_or_else(|| AppError::msg("Error de red")))
+}
 
-    // Hash + escritura atómica tocan disco y CPU: fuera del runtime async.
-    tokio::task::spawn_blocking(move || commit_download(dest, sha1, bytes))
+/// Baja a `.part` escribiendo a medida que llegan los chunks, y reanuda si ya
+/// había bytes de un intento anterior.
+///
+/// Antes el archivo entero se juntaba en RAM antes de tocar disco: con 28
+/// descargas en paralelo y un `client.jar` de 100 MB el pico de memoria era
+/// enorme, y cualquier corte obligaba a empezar de cero.
+async fn stream_download(
+    client: &reqwest::Client,
+    url: &str,
+    dest: &Path,
+    sha1: Option<&str>,
+) -> AppResult<u64> {
+    use tokio::io::AsyncWriteExt;
+
+    if let Some(parent) = dest.parent() {
+        tokio::fs::create_dir_all(parent).await?;
+    }
+    let tmp = dest.with_extension("part");
+
+    // Reanudar sin hash sería a ciegas: si el resto viene de otro espejo no hay
+    // forma de detectar que el pegado quedó corrupto.
+    let resumable = sha1.is_some();
+    let have = if resumable {
+        tokio::fs::metadata(&tmp).await.map(|m| m.len()).unwrap_or(0)
+    } else {
+        0
+    };
+
+    let mut req = client.get(url);
+    if have > 0 {
+        req = req.header(reqwest::header::RANGE, format!("bytes={have}-"));
+    }
+    let resp = req.send().await?.error_for_status()?;
+    let resumed = have > 0 && resp.status() == reqwest::StatusCode::PARTIAL_CONTENT;
+
+    // Si el servidor ignoró el Range hay que rehacer el archivo desde cero.
+    let (mut hasher, mut written, mut file) = if resumed {
+        let (seed, len) = hash_existing_part(tmp.clone()).await?;
+        let handle = tokio::fs::OpenOptions::new().append(true).open(&tmp).await?;
+        (seed, len, handle)
+    } else {
+        (Sha1::new(), 0u64, tokio::fs::File::create(&tmp).await?)
+    };
+
+    let mut stream = resp.bytes_stream();
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk?;
+        hasher.update(&chunk);
+        file.write_all(&chunk).await?;
+        written += chunk.len() as u64;
+    }
+    file.flush().await?;
+    drop(file);
+
+    if let Some(expected) = sha1 {
+        let got = hex::encode(hasher.finalize());
+        if !got.eq_ignore_ascii_case(expected)
+            && !legacy_library_sha1_soft_ok(dest, written as usize)
+        {
+            // Sin borrarlo, el próximo intento reanudaría sobre bytes malos.
+            let _ = tokio::fs::remove_file(&tmp).await;
+            return Err(AppError::msg(format!(
+                "SHA-1 invalido para {} (esperado {expected}, obtenido {got})",
+                dest.display()
+            )));
+        }
+    }
+
+    tokio::fs::rename(&tmp, dest).await?;
+    if let Some(expected) = sha1 {
+        if let Some((len, mtime)) = file_signature(dest) {
+            remember_verified(dest, len, mtime, expected.to_string());
+        }
+    }
+    Ok(written)
+}
+
+/// Rehace el SHA-1 de lo ya bajado, por bloques para no cargarlo en RAM.
+async fn hash_existing_part(tmp: PathBuf) -> AppResult<(Sha1, u64)> {
+    tokio::task::spawn_blocking(move || seed_hasher(&tmp))
         .await
-        .unwrap_or_else(|e| Err(AppError::msg(format!("Descarga abortada: {e}"))))
+    .unwrap_or_else(|e| Err(std::io::Error::other(format!("Lectura abortada: {e}"))))
+    .map_err(AppError::from)
 }
 
 /// ¿Ya está en disco y verificado? `stat` + SHA-1 son sincrónicos, así que el
@@ -330,32 +417,6 @@ async fn skip_existing(item: &DownloadItem) -> bool {
     })
     .await
     .unwrap_or(false)
-}
-
-fn commit_download(dest: PathBuf, sha1: Option<String>, bytes: Vec<u8>) -> AppResult<u64> {
-    if let Some(expected) = &sha1 {
-        let got = sha1_hex(&bytes);
-        if !got.eq_ignore_ascii_case(expected) && !legacy_library_sha1_soft_ok(&dest, bytes.len()) {
-            return Err(AppError::msg(format!(
-                "SHA-1 invalido para {} (esperado {expected}, obtenido {got})",
-                dest.display()
-            )));
-        }
-    }
-
-    if let Some(parent) = dest.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    let tmp = dest.with_extension("part");
-    std::fs::write(&tmp, &bytes)?;
-    std::fs::rename(&tmp, &dest)?;
-
-    if let Some(expected) = sha1 {
-        if let Some((len, mtime)) = file_signature(&dest) {
-            remember_verified(&dest, len, mtime, expected);
-        }
-    }
-    Ok(bytes.len() as u64)
 }
 
 const DRIVE_FOLDER_ID: &str = "1kiGI_iWfoiAxDAHfnhlHya-MxYs7Fwbt";
@@ -603,6 +664,28 @@ mod tests {
         std::fs::write(&path, &data).unwrap();
 
         assert_eq!(sha1_file(&path).unwrap(), sha1_hex(&data));
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn resumed_hash_equals_full_file_hash() {
+        let dir = std::env::temp_dir().join("pg-resume-test");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("half.part");
+        let whole: Vec<u8> = (0..150_000u32).map(|i| (i % 251) as u8).collect();
+        // Corte en medio de un bloque de lectura, como un corte de red real.
+        let (prefix, suffix) = whole.split_at(57_000);
+        std::fs::write(&path, prefix).unwrap();
+
+        let (mut hasher, seeded) = seed_hasher(&path).unwrap();
+        assert_eq!(seeded, prefix.len() as u64, "el Range arranca donde quedó el .part");
+        hasher.update(suffix);
+
+        assert_eq!(
+            hex::encode(hasher.finalize()),
+            sha1_hex(&whole),
+            "reanudar debe dar el mismo SHA-1 que bajar todo de una"
+        );
         let _ = std::fs::remove_file(&path);
     }
 
