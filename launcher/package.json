@@ -6,7 +6,9 @@
   "description": "Paraguacraft Launcher - cliente de Minecraft Java multiplataforma (Tauri v2 + Vue 3)",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc --noEmit && vite build",
+    "gen:ipc": "node scripts/gen-ipc-commands.mjs",
+    "check:ipc": "node scripts/gen-ipc-commands.mjs --check",
+    "build": "npm run check:ipc && vue-tsc --noEmit && vite build",
     "build:ci": "vite build",
     "preview": "vite preview",
     "tauri": "tauri",

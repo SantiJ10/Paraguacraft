@@ -80,14 +80,21 @@ import {
   mockVersions,
 } from "@/lib/mock/data";
 import { minotarBody, minotarHelm, minotarSkin, STEVE_AVATAR_URL } from "@/lib/skins";
+import type { IpcCommand } from "@/lib/ipc-commands";
 
 /** True si corremos dentro del runtime de Tauri (no en un navegador suelto). */
 export function isTauri(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 }
 
-/** Invoca un comando Tauri. */
-async function invokeReal<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+/**
+ * Invoca un comando Tauri.
+ *
+ * `cmd` se restringe a los comandos que Rust registra de verdad (ver
+ * `ipc-commands.ts`, generado); asi renombrar uno en el backend rompe el
+ * typecheck en vez de fallar al apretar el boton.
+ */
+async function invokeReal<T>(cmd: IpcCommand, args?: Record<string, unknown>): Promise<T> {
   const { invoke } = await import("@tauri-apps/api/core");
   return invoke<T>(cmd, args);
 }
