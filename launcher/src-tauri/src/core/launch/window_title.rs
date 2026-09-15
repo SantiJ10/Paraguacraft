@@ -57,7 +57,7 @@ fn apply_title(pid: u32, new_title: &str) -> TitleHit {
     use std::os::windows::ffi::OsStrExt;
     use windows_sys::Win32::UI::WindowsAndMessaging::{GetWindowTextLengthW, GetWindowTextW, SetWindowTextW};
 
-    let Some(hwnd) = super::game_hwnd::find(pid) else {
+    let Some(hwnd) = super::game_hwnd::find_cached(pid) else {
         return TitleHit::Missing;
     };
     let len = unsafe { GetWindowTextLengthW(hwnd) };

@@ -317,8 +317,9 @@ pub fn watch_session(
         let mut last_rename = std::time::Instant::now();
         let mut last_rpc_state = String::from("En el menú");
         let mut last_rpc_sent = String::new();
+        let mut watch = BedrockWatch::new();
         loop {
-            if !bedrock_running() {
+            if !watch.alive() {
                 break;
             }
             if settings.discord_rpc {
@@ -383,6 +384,39 @@ fn wait_for_bedrock_process(timeout: Duration) -> bool {
 
 fn bedrock_running() -> bool {
     bedrock_game_pid().is_some()
+}
+
+/// Chequeo de "sigue vivo" que reusa el PID ya encontrado.
+///
+/// El escaneo completo de procesos es caro y el loop de sesión lo hacía dos
+/// veces por segundo mientras Bedrock renderizaba. Con el PID conocido se
+/// refresca solo ese proceso; el barrido completo queda para reencontrarlo.
+struct BedrockWatch {
+    sys: System,
+    pid: Option<u32>,
+}
+
+impl BedrockWatch {
+    fn new() -> Self {
+        BedrockWatch {
+            sys: System::new(),
+            pid: None,
+        }
+    }
+
+    fn alive(&mut self) -> bool {
+        if let Some(pid) = self.pid {
+            let target = sysinfo::Pid::from_u32(pid);
+            self.sys.refresh_processes(ProcessesToUpdate::Some(&[target]), true);
+            // `is_bedrock_process` cubre el reciclado de PID por parte de Windows.
+            if self.sys.process(target).map(is_bedrock_process).unwrap_or(false) {
+                return true;
+            }
+            self.pid = None;
+        }
+        self.pid = bedrock_game_pid();
+        self.pid.is_some()
+    }
 }
 
 fn bedrock_rpc_state(title: Option<&str>, last: &mut String) -> String {

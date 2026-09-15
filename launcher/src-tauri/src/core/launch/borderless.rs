@@ -100,7 +100,7 @@ async fn watch_loop(pid: u32, stop: Arc<AtomicBool>) {
 
 #[cfg(target_os = "windows")]
 fn apply_for_pid(pid: u32) -> bool {
-    let Some(hwnd) = super::game_hwnd::find(pid) else {
+    let Some(hwnd) = super::game_hwnd::find_cached(pid) else {
         return false;
     };
     apply_borderless(hwnd)

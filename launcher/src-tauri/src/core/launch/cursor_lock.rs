@@ -38,7 +38,7 @@ fn tick(pid: u32) {
         GetCursorInfo, GetForegroundWindow, GetWindowRect, CURSORINFO,
     };
 
-    let Some(hwnd) = super::game_hwnd::find(pid) else {
+    let Some(hwnd) = super::game_hwnd::find_cached(pid) else {
         release();
         return;
     };

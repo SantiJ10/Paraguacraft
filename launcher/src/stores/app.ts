@@ -83,6 +83,9 @@ export const useAppStore = defineStore("app", () => {
       await listen<{ instanceId?: string }>("game://started", (ev) => {
         activeGameInstanceId.value = ev.payload?.instanceId ?? null;
         setLaunch("running", "Jugando — launcher suspendido");
+        // La ventana queda oculta en la bandeja: seguir sondeando la skin solo
+        // le roba CPU al juego.
+        skins.stopWatch();
       }),
     );
     track(
@@ -100,18 +103,21 @@ export const useAppStore = defineStore("app", () => {
       await listen("game://exited", () => {
         setLaunch("idle", "Listo para jugar");
         void skins.refresh();
+        skins.startWatch();
         void api.setDiscordRpcScreen("idle");
       }),
     );
     track(
       await listen("bedrock://started", () => {
         setLaunch("running", "Bedrock activo — launcher minimizado");
+        skins.stopWatch();
       }),
     );
     track(
       await listen("bedrock://exited", () => {
         setLaunch("idle", "Listo para jugar");
         void skins.refresh();
+        skins.startWatch();
         void api.setDiscordRpcScreen("idle");
       }),
     );
@@ -121,6 +127,7 @@ export const useAppStore = defineStore("app", () => {
         (ev) => {
           setLaunch("idle", "El juego terminó con error");
           void skins.refresh();
+          skins.startWatch();
           if (ev.payload?.diagnosis) {
             lastCrash.value = {
               instanceId: ev.payload.instanceId,

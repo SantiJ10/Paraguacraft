@@ -15,6 +15,52 @@ pub fn is_excluded_title(title: &str) -> bool {
         || t.contains("geforce overlay")
 }
 
+#[cfg(target_os = "windows")]
+static CACHED: std::sync::Mutex<Option<(u32, isize)>> = std::sync::Mutex::new(None);
+
+/// Igual que [`find`], pero recuerda el handle entre llamadas.
+///
+/// `EnumWindows` recorre todas las ventanas del escritorio y pide el título de
+/// cada una. Los watchers lo llamaban hasta 25 veces por segundo durante toda
+/// la partida; revalidar el handle guardado son tres syscalls.
+#[cfg(target_os = "windows")]
+pub fn find_cached(pid: u32) -> Option<windows_sys::Win32::Foundation::HWND> {
+    if let Ok(guard) = CACHED.lock() {
+        if let Some((cached_pid, raw)) = *guard {
+            let hwnd = raw as windows_sys::Win32::Foundation::HWND;
+            if cached_pid == pid && still_owned_by(hwnd, pid) {
+                return Some(hwnd);
+            }
+        }
+    }
+    // Cambió de ventana (fullscreen, recreación del contexto) o es la primera vez.
+    let found = find(pid);
+    if let Ok(mut guard) = CACHED.lock() {
+        *guard = found.map(|hwnd| (pid, hwnd as isize));
+    }
+    found
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn find_cached(_pid: u32) -> Option<isize> {
+    None
+}
+
+#[cfg(target_os = "windows")]
+fn still_owned_by(hwnd: windows_sys::Win32::Foundation::HWND, pid: u32) -> bool {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        GetWindowThreadProcessId, IsWindow, IsWindowVisible,
+    };
+    unsafe {
+        if IsWindow(hwnd) == 0 || IsWindowVisible(hwnd) == 0 {
+            return false;
+        }
+        let mut wpid: u32 = 0;
+        GetWindowThreadProcessId(hwnd, &mut wpid);
+        wpid == pid
+    }
+}
+
 /// Ventana visible del PID, ya inicializada (cliente ≥ 640×360).
 #[cfg(target_os = "windows")]
 pub fn find(pid: u32) -> Option<windows_sys::Win32::Foundation::HWND> {

@@ -1,5 +1,6 @@
 //! Deteccion de hardware y autoconfig de JVM/GC/RAM.
 
+use std::sync::atomic::{AtomicU32, Ordering as AtomicOrdering};
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
@@ -309,16 +310,62 @@ fn detect_gpu_name() -> Option<String> {
 }
 
 /// Lectura de uso/temperatura de GPU para el HUD in-game (Windows).
+#[derive(Clone, Copy)]
 pub struct GpuSnapshot {
     pub usage_pct: f32,
     pub temp_c: f32,
 }
 
+/// El HUD relee esto cada 500 ms durante toda la partida.
+const GPU_SNAPSHOT_TTL: Duration = Duration::from_millis(2000);
+
+/// Fallos seguidos antes de dar por perdida una métrica.
+const GPU_PROBE_MAX_FAILURES: u32 = 3;
+
+static GPU_SNAPSHOT: OnceLock<Mutex<Option<(GpuSnapshot, Instant)>>> = OnceLock::new();
+static GPU_USAGE_FAILS: AtomicU32 = AtomicU32::new(0);
+static GPU_TEMP_FAILS: AtomicU32 = AtomicU32::new(0);
+
+/// Uso y temperatura de GPU, cacheados.
+///
+/// Cada sondeo lanza PowerShell o `nvidia-smi`. Hacerlo dos veces por segundo
+/// mientras Minecraft renderiza le robaba CPU al juego y provocaba microcortes
+/// en equipos de gama baja.
 pub fn read_gpu_snapshot() -> GpuSnapshot {
-  GpuSnapshot {
-    usage_pct: read_gpu_usage_pct().unwrap_or(-1.0),
-    temp_c: read_gpu_temp_c().unwrap_or(-1.0),
-  }
+    let cache = GPU_SNAPSHOT.get_or_init(|| Mutex::new(None));
+    if let Ok(guard) = cache.lock() {
+        if let Some((snapshot, at)) = guard.as_ref() {
+            if at.elapsed() < GPU_SNAPSHOT_TTL {
+                return *snapshot;
+            }
+        }
+    }
+    let snapshot = GpuSnapshot {
+        usage_pct: probe_gpu(&GPU_USAGE_FAILS, read_gpu_usage_pct),
+        temp_c: probe_gpu(&GPU_TEMP_FAILS, read_gpu_temp_c),
+    };
+    if let Ok(mut guard) = cache.lock() {
+        *guard = Some((snapshot, Instant::now()));
+    }
+    snapshot
+}
+
+/// Deja de sondear una métrica que ya falló varias veces: sin contador de GPU
+/// ni `nvidia-smi`, reintentar solo gasta procesos que siempre van a fallar.
+fn probe_gpu(fails: &AtomicU32, read: fn() -> Option<f32>) -> f32 {
+    if fails.load(AtomicOrdering::Relaxed) >= GPU_PROBE_MAX_FAILURES {
+        return -1.0;
+    }
+    match read() {
+        Some(value) => {
+            fails.store(0, AtomicOrdering::Relaxed);
+            value
+        }
+        None => {
+            fails.fetch_add(1, AtomicOrdering::Relaxed);
+            -1.0
+        }
+    }
 }
 
 fn read_gpu_usage_pct() -> Option<f32> {
