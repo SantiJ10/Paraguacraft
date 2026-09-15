@@ -3,6 +3,18 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [1.1.50] - 2026-09-15
+
+### Launcher
+- Menos CPU mientras Minecraft corre: el handle de la ventana se cachea, el HUD deja de lanzar PowerShell/nvidia-smi cada 500 ms, Bedrock solo refresca su propio PID y el sondeo de skins se pausa en bandeja.
+- Las descargas escriben a disco en streaming y reanudan con Range en vez de juntar el archivo entero en RAM.
+- Los nombres de comandos IPC se chequean contra el registro de Rust.
+
+### Android 0.1.16
+- El logger nativo ya no hace `fdatasync` por cada línea; el visor de log in-game está acotado.
+- El hilo de Controllable deja de quemar un núcleo; el escaneo de dispositivos de entrada se cachea.
+- Listas de instancias/workspace no se reconstruyen si nada cambió; iconos de perfil con LRU y downsample.
+
 ## [1.1.43] - 2026-09-11
 
 ### Launcher

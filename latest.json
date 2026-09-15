@@ -1,12 +1,12 @@
 {
-  "version": "1.1.49",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.49/Instalar_Paraguacraft_v1.1.49.exe",
-  "size_bytes": 5947655,
-  "sha256": "80673bae0581ae309b10a56103e1c2d93b2d9bc941f1a738a137ee0d4c1bd925",
-  "notes": "- Pocket 0.x ya no se ofrece como instalable (Microsoft no publica esas AppX; no es Insider)\n- Detecta el Minecraft de la Store y los mundos para Backup antes de extraer una versión\n- No desinstales Bedrock desde Configuración de Windows: eso borra com.mojang",
+  "version": "1.1.50",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.50/Instalar_Paraguacraft_v1.1.50.exe",
+  "size_bytes": 5966906,
+  "sha256": "408f063414bee2447dbd4cffeab67193e77902aec008f49ee9d8a527c74ef6dc",
+  "notes": "- Menos CPU en partida: sin EnumWindows ni PowerShell de GPU cada pocos ms\n- Descargas en streaming con resume (Range) en vez de cargar el archivo en RAM\n- Nombres de comandos IPC tipados contra el backend Rust",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.49/Instalar_Paraguacraft_v1.1.49.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.50/Instalar_Paraguacraft_v1.1.50.exe",
       "signature": ""
     }
   }
