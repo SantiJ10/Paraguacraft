@@ -51,6 +51,10 @@ function onPointerDown(e: PointerEvent) {
   }
 }
 
+function onScroll() {
+  emit("close");
+}
+
 watch(
   () => [props.x, props.y, props.items.length],
   async () => {
@@ -65,13 +69,14 @@ onMounted(async () => {
   window.addEventListener("keydown", onKey);
   window.addEventListener("pointerdown", onPointerDown, true);
   window.addEventListener("resize", clampPosition);
-  window.addEventListener("scroll", () => emit("close"), true);
+  window.addEventListener("scroll", onScroll, true);
 });
 
 onUnmounted(() => {
   window.removeEventListener("keydown", onKey);
   window.removeEventListener("pointerdown", onPointerDown, true);
   window.removeEventListener("resize", clampPosition);
+  window.removeEventListener("scroll", onScroll, true);
 });
 </script>
 

@@ -36,14 +36,22 @@ export const useDownloadsStore = defineStore("downloads", () => {
     }
   }
 
+  let unlisten: (() => void) | null = null;
+
   /** Suscribe a los eventos de progreso del backend (idempotente). */
   async function initEvents() {
     if (listening || !isTauri()) return;
     listening = true;
     const { listen } = await import("@tauri-apps/api/event");
-    await listen<DownloadTask>("download://progress", (event) => {
+    unlisten = await listen<DownloadTask>("download://progress", (event) => {
       applyProgress(event.payload);
     });
+  }
+
+  function disposeEvents() {
+    unlisten?.();
+    unlisten = null;
+    listening = false;
   }
 
   function enqueueDemo(label: string) {
@@ -69,5 +77,14 @@ export const useDownloadsStore = defineStore("downloads", () => {
     }, 500);
   }
 
-  return { tasks, active, failed, hasActivity, initEvents, applyProgress, enqueueDemo };
+  return {
+    tasks,
+    active,
+    failed,
+    hasActivity,
+    initEvents,
+    disposeEvents,
+    applyProgress,
+    enqueueDemo,
+  };
 });

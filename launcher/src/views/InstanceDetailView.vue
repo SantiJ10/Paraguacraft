@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useInstancesStore } from "@/stores/instances";
 import { useAppStore } from "@/stores/app";
@@ -15,6 +15,7 @@ import { normalizeLoaderId } from "@/lib/loaders";
 import { formatPlaytime, formatRelative } from "@/composables/useFormat";
 import SearchInput from "@/components/common/SearchInput.vue";
 import InstanceContentRow from "@/components/instance/InstanceContentRow.vue";
+import { useDebounced } from "@/composables/useDebounced";
 
 type TabId = "content" | "files" | "logs" | "settings";
 
@@ -26,7 +27,9 @@ const downloads = useDownloadsStore();
 
 const tab = ref<TabId>("content");
 const meta = ref<InstanceMeta | null>(null);
-const content = ref<InstanceContentItem[]>([]);
+// Se reemplaza entero en cada recarga y sus items son inmutables: la
+// reactividad profunda solo agregaría un proxy por cada uno de los cientos de mods.
+const content = shallowRef<InstanceContentItem[]>([]);
 const folderPath = ref("");
 const loading = ref(true);
 const error = ref<string | null>(null);
@@ -43,6 +46,7 @@ const isLiveLog = computed(
   () => app.launchPhase === "running" && app.activeGameInstanceId === instanceId.value,
 );
 const contentSearch = ref("");
+const contentQuery = useDebounced(contentSearch);
 const contentKind = ref<"all" | "mod" | "resourcepack" | "shader">("all");
 const contentBusy = ref(false);
 const exporting = ref(false);
@@ -599,7 +603,7 @@ async function importExternal() {
 }
 
 const contentByFolder = computed(() => {
-  const q = contentSearch.value.trim().toLowerCase();
+  const q = contentQuery.value.trim().toLowerCase();
   const map = new Map<string, InstanceContentItem[]>();
   for (const item of content.value) {
     if (contentKind.value !== "all" && item.kind !== contentKind.value) continue;

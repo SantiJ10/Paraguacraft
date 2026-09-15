@@ -208,7 +208,14 @@ function onInstalled() {
         @click="openDetail(item)"
       >
         <div class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-4 text-2xl">
-          <img v-if="item.iconUrl" :src="item.iconUrl" :alt="item.title" class="h-full w-full object-cover" />
+          <img
+            v-if="item.iconUrl"
+            :src="item.iconUrl"
+            :alt="item.title"
+            loading="lazy"
+            decoding="async"
+            class="h-full w-full object-cover"
+          />
           <span v-else>{{ item.title[0] }}</span>
         </div>
         <div class="min-w-0 flex-1">

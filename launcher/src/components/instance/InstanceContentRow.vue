@@ -48,6 +48,8 @@ function humanizeName(raw: string) {
     <img
       :src="iconSrc"
       alt=""
+      loading="lazy"
+      decoding="async"
       class="mt-0.5 shrink-0 rounded-lg bg-surface-3 object-cover"
       :class="compact ? 'h-10 w-10' : 'h-12 w-12'"
     />

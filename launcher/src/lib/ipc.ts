@@ -276,7 +276,9 @@ export const api = {
 
   async optimizeMinecraftOptions(): Promise<{ tier: string; applied: Record<string, string>; path: string }> {
     if (isTauri()) {
-      return invokeReal("optimize_minecraft_options");
+      return invokeReal<{ tier: string; applied: Record<string, string>; path: string }>(
+        "optimize_minecraft_options",
+      );
     }
     return delay({ tier: "media", applied: {}, path: "" });
   },
@@ -1048,15 +1050,15 @@ export const api = {
   },
 
   async aiStatus(): Promise<{ configured: boolean; provider: string | null }> {
-    return invokeReal("ai_status");
+    return invokeReal<{ configured: boolean; provider: string | null }>("ai_status");
   },
 
   async apiKeysManaged(): Promise<boolean> {
-    return invokeReal("api_keys_managed");
+    return invokeReal<boolean>("api_keys_managed");
   },
 
   async saveGroqApiKey(key: string): Promise<void> {
-    return invokeReal("save_groq_api_key", { key });
+    return invokeReal<void>("save_groq_api_key", { key });
   },
 
   async syncOverlayMusic(

@@ -566,6 +566,8 @@ async function removePack(p: BedrockPack) {
               v-if="iconSrc(p.iconPath)"
               :src="iconSrc(p.iconPath)!"
               alt=""
+              loading="lazy"
+              decoding="async"
               class="h-8 w-8 shrink-0 rounded object-cover"
             />
             <div class="min-w-0 flex-1">

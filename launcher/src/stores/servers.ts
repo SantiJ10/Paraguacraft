@@ -38,14 +38,22 @@ export const useServersStore = defineStore("servers", () => {
     }
   }
 
+  let unlistenRunning: (() => void) | null = null;
+
   async function watchRunning() {
     if (runningWatchBound || !isTauri()) return;
     runningWatchBound = true;
     const { listen } = await import("@tauri-apps/api/event");
-    await listen<{ servers?: RunningServer[] }>("server://running", (ev) => {
+    unlistenRunning = await listen<{ servers?: RunningServer[] }>("server://running", (ev) => {
       running.value = ev.payload?.servers ?? [];
     });
     await refreshRunning();
+  }
+
+  function unwatchRunning() {
+    unlistenRunning?.();
+    unlistenRunning = null;
+    runningWatchBound = false;
   }
 
   async function stopRunning(id?: string) {
@@ -144,6 +152,7 @@ export const useServersStore = defineStore("servers", () => {
     status,
     importFolder,
     watchRunning,
+    unwatchRunning,
     refreshRunning,
     stopRunning,
   };

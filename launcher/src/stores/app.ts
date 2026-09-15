@@ -48,14 +48,30 @@ export const useAppStore = defineStore("app", () => {
 
   let gameEventsBound = false;
   let updateEventsBound = false;
+  // El store vive lo que vive la app, pero sin guardar los unlisten cada
+  // recarga en caliente deja los handlers viejos escuchando.
+  const unlisteners: Array<() => void> = [];
+
+  function track(unlisten: () => void) {
+    unlisteners.push(unlisten);
+  }
+
+  /** Corta todas las suscripciones. Idempotente. */
+  function disposeEvents() {
+    while (unlisteners.length) unlisteners.pop()?.();
+    gameEventsBound = false;
+    updateEventsBound = false;
+  }
 
   async function initUpdateEvents() {
     if (updateEventsBound || !isTauri()) return;
     updateEventsBound = true;
     const { listen } = await import("@tauri-apps/api/event");
-    await listen<UpdateProgress>("update://progress", (ev) => {
-      updateProgress.value = ev.payload;
-    });
+    track(
+      await listen<UpdateProgress>("update://progress", (ev) => {
+        updateProgress.value = ev.payload;
+      }),
+    );
   }
 
   async function initGameEvents() {
@@ -63,60 +79,74 @@ export const useAppStore = defineStore("app", () => {
     gameEventsBound = true;
     const { listen } = await import("@tauri-apps/api/event");
     const skins = useSkinsStore();
-    await listen<{ instanceId?: string }>("game://started", (ev) => {
-      activeGameInstanceId.value = ev.payload?.instanceId ?? null;
-      setLaunch("running", "Jugando — launcher suspendido");
-    });
-    await listen<{ phase?: string; message?: string }>("game://status", (ev) => {
-      const phase = (ev.payload?.phase as LaunchPhase | undefined) ?? "preparing";
-      const message = ev.payload?.message ?? launchMessage.value;
-      if (phase === "idle" || phase === "running") {
-        setLaunch(phase, message);
-      } else if (launchPhase.value !== "running") {
-        setLaunch(phase, message);
-      }
-    });
-    await listen("game://exited", () => {
-      setLaunch("idle", "Listo para jugar");
-      void skins.refresh();
-      void api.setDiscordRpcScreen("idle");
-    });
-    await listen("bedrock://started", () => {
-      setLaunch("running", "Bedrock activo — launcher minimizado");
-    });
-    await listen("bedrock://exited", () => {
-      setLaunch("idle", "Listo para jugar");
-      void skins.refresh();
-      void api.setDiscordRpcScreen("idle");
-    });
-    await listen<{ instanceId: string; exitCode: number; diagnosis?: CrashDiagnosis }>(
-      "game://crashed",
-      (ev) => {
-        setLaunch("idle", "El juego terminó con error");
-        void skins.refresh();
-        if (ev.payload?.diagnosis) {
-          lastCrash.value = {
-            instanceId: ev.payload.instanceId,
-            exitCode: ev.payload.exitCode,
-            diagnosis: ev.payload.diagnosis,
-          };
-        }
-      },
+    track(
+      await listen<{ instanceId?: string }>("game://started", (ev) => {
+        activeGameInstanceId.value = ev.payload?.instanceId ?? null;
+        setLaunch("running", "Jugando — launcher suspendido");
+      }),
     );
-    await listen<{ serverId: string; address: string; kind?: string }>(
-      "playit://address",
-      (ev) => {
-        const { serverId, address, kind } = ev.payload ?? {};
-        if (!serverId || !address) return;
-        const servers = useServersStore();
-        const current = servers.servers.find((s) => s.id === serverId);
-        if (!current) return;
-        if (kind === "bedrock") {
-          servers.upsert({ ...current, playitBedrockAddress: address });
-        } else {
-          servers.upsert({ ...current, playitAddress: address });
+    track(
+      await listen<{ phase?: string; message?: string }>("game://status", (ev) => {
+        const phase = (ev.payload?.phase as LaunchPhase | undefined) ?? "preparing";
+        const message = ev.payload?.message ?? launchMessage.value;
+        if (phase === "idle" || phase === "running") {
+          setLaunch(phase, message);
+        } else if (launchPhase.value !== "running") {
+          setLaunch(phase, message);
         }
-      },
+      }),
+    );
+    track(
+      await listen("game://exited", () => {
+        setLaunch("idle", "Listo para jugar");
+        void skins.refresh();
+        void api.setDiscordRpcScreen("idle");
+      }),
+    );
+    track(
+      await listen("bedrock://started", () => {
+        setLaunch("running", "Bedrock activo — launcher minimizado");
+      }),
+    );
+    track(
+      await listen("bedrock://exited", () => {
+        setLaunch("idle", "Listo para jugar");
+        void skins.refresh();
+        void api.setDiscordRpcScreen("idle");
+      }),
+    );
+    track(
+      await listen<{ instanceId: string; exitCode: number; diagnosis?: CrashDiagnosis }>(
+        "game://crashed",
+        (ev) => {
+          setLaunch("idle", "El juego terminó con error");
+          void skins.refresh();
+          if (ev.payload?.diagnosis) {
+            lastCrash.value = {
+              instanceId: ev.payload.instanceId,
+              exitCode: ev.payload.exitCode,
+              diagnosis: ev.payload.diagnosis,
+            };
+          }
+        },
+      ),
+    );
+    track(
+      await listen<{ serverId: string; address: string; kind?: string }>(
+        "playit://address",
+        (ev) => {
+          const { serverId, address, kind } = ev.payload ?? {};
+          if (!serverId || !address) return;
+          const servers = useServersStore();
+          const current = servers.servers.find((s) => s.id === serverId);
+          if (!current) return;
+          if (kind === "bedrock") {
+            servers.upsert({ ...current, playitBedrockAddress: address });
+          } else {
+            servers.upsert({ ...current, playitAddress: address });
+          }
+        },
+      ),
     );
   }
 
@@ -234,6 +264,7 @@ export const useAppStore = defineStore("app", () => {
     setLaunch,
     initGameEvents,
     initUpdateEvents,
+    disposeEvents,
     launch,
     checkUpdate,
     openUpdateDownload,

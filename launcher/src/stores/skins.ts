@@ -70,6 +70,11 @@ export const useSkinsStore = defineStore("skins", () => {
     return inflight;
   }
 
+  // Guardados para poder quitarlos: sin esto `stopWatch` dejaba vivos el
+  // focus y el visibilitychange, que siguen refrescando la skin para siempre.
+  let onFocus: (() => void) | null = null;
+  let onVis: (() => void) | null = null;
+
   function startWatch() {
     if (watching || typeof window === "undefined") return;
     watching = true;
@@ -77,10 +82,11 @@ export const useSkinsStore = defineStore("skins", () => {
       void refresh(true);
     };
     watchTimer = window.setInterval(tick, WATCH_MS);
-    const onVis = () => {
+    onFocus = tick;
+    onVis = () => {
       if (document.visibilityState === "visible") tick();
     };
-    window.addEventListener("focus", tick);
+    window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVis);
   }
 
@@ -89,6 +95,14 @@ export const useSkinsStore = defineStore("skins", () => {
     if (watchTimer !== null) {
       window.clearInterval(watchTimer);
       watchTimer = null;
+    }
+    if (onFocus) {
+      window.removeEventListener("focus", onFocus);
+      onFocus = null;
+    }
+    if (onVis) {
+      document.removeEventListener("visibilitychange", onVis);
+      onVis = null;
     }
   }
 

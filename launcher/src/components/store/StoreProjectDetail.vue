@@ -188,7 +188,13 @@ function formatDate(iso?: string | null): string {
                 :class="i === galleryIndex ? 'border-orange-400' : 'border-transparent opacity-70'"
                 @click="galleryIndex = i"
               >
-                <img :src="g.url" class="h-full w-full object-cover" alt="" />
+                <img
+                  :src="g.url"
+                  loading="lazy"
+                  decoding="async"
+                  class="h-full w-full object-cover"
+                  alt=""
+                />
               </button>
             </div>
           </div>

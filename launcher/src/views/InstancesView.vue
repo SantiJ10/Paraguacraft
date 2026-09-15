@@ -10,6 +10,7 @@ import BaseButton from "@/components/common/BaseButton.vue";
 import NewInstanceModal from "@/components/instance/NewInstanceModal.vue";
 import ImportModpackModal from "@/components/instance/ImportModpackModal.vue";
 import { isTauri } from "@/lib/ipc";
+import { useDebounced } from "@/composables/useDebounced";
 import type { Instance } from "@/lib/types";
 
 const router = useRouter();
@@ -17,6 +18,7 @@ const instances = useInstancesStore();
 const app = useAppStore();
 
 const query = ref("");
+const debouncedQuery = useDebounced(query);
 const sourceFilter = ref<"all" | "paraguacraft" | "vanilla" | "imported">("all");
 
 const sources: Array<{ id: "all" | "paraguacraft" | "vanilla" | "imported"; label: string }> = [
@@ -30,17 +32,18 @@ const showImport = ref(false);
 const actionError = ref<string | null>(null);
 const launchingId = ref<string | null>(null);
 
-const filtered = computed(() =>
-  instances.instances.filter((i) => {
-    const matchQuery = i.name.toLowerCase().includes(query.value.trim().toLowerCase());
+const filtered = computed(() => {
+  const q = debouncedQuery.value.trim().toLowerCase();
+  return instances.instances.filter((i) => {
+    const matchQuery = i.name.toLowerCase().includes(q);
     const matchSource =
       sourceFilter.value === "all" ||
       (sourceFilter.value === "imported"
         ? i.source !== "paraguacraft" && i.source !== "vanilla"
         : i.source === sourceFilter.value);
     return matchQuery && matchSource;
-  }),
-);
+  });
+});
 
 function openInstance(inst: Instance) {
   instances.select(inst.id);
