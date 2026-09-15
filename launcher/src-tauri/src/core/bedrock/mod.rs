@@ -24,7 +24,7 @@ const PACK_VERSION: [u32; 3] = [1, 0, 0];
 /// Logo del menú principal Paraguacraft (mismo asset que Java).
 const BRAND_LOGO: &[u8] = crate::core::branding::BEDROCK_TITLE_PNG;
 
-pub use content::{BedrockPack, BedrockWorld};
+pub use content::{BedrockImport, BedrockPack, BedrockWorld};
 pub use versions::{BedrockInstalledVersion, BedrockVersion};
 
 #[derive(Debug, Clone, Serialize)]
@@ -208,7 +208,8 @@ pub fn watch_session(
 }
 
 pub use content::{
-    delete_pack, delete_world, import_archive, list_packs, list_worlds, open_folder as open_content_folder,
+    delete_pack, delete_world, import_archive, install_from_url as install_pack_from_url, list_packs,
+    list_worlds, open_folder as open_content_folder,
 };
 pub use versions::{
     backup_saves, developer_mode, enable_developer_mode, install_version, list_catalog,

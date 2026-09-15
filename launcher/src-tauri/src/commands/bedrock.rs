@@ -199,8 +199,19 @@ pub async fn delete_bedrock_pack(kind: String, id: String) -> AppResult<()> {
     .await
 }
 
+/// Descarga un `.mcpack` / `.mcaddon` / `.mcworld` desde una URL y lo instala.
 #[tauri::command]
-pub async fn import_bedrock_pack(app: AppHandle) -> AppResult<String> {
+pub async fn install_bedrock_pack_url(
+    state: State<'_, AppState>,
+    url: String,
+) -> AppResult<bedrock::BedrockImport> {
+    require_premium()?;
+    let (http, _net) = state.net_scope();
+    bedrock::install_pack_from_url(&http, &url).await
+}
+
+#[tauri::command]
+pub async fn import_bedrock_pack(app: AppHandle) -> AppResult<bedrock::BedrockImport> {
     require_premium()?;
     use tauri_plugin_dialog::DialogExt;
 

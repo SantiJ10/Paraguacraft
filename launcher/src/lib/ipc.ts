@@ -53,6 +53,7 @@ import type {
   BedrockInstalledVersion,
   BedrockWorld,
   BedrockPack,
+  BedrockImport,
   Instance,
   InstanceContentItem,
   InstanceMeta,
@@ -884,8 +885,12 @@ export const api = {
     await invokeReal<void>("delete_bedrock_pack", { kind, id });
   },
 
-  async importBedrockPack(): Promise<string> {
-    return invokeReal<string>("import_bedrock_pack");
+  async importBedrockPack(): Promise<BedrockImport> {
+    return invokeReal<BedrockImport>("import_bedrock_pack");
+  },
+
+  async installBedrockPackUrl(url: string): Promise<BedrockImport> {
+    return invokeReal<BedrockImport>("install_bedrock_pack_url", { url });
   },
 
   // --- Config por instancia (Regla 2: override del usuario) ---

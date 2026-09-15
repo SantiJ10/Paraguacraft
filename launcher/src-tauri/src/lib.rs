@@ -227,6 +227,7 @@ pub fn run() {
             commands::bedrock::delete_bedrock_world,
             commands::bedrock::delete_bedrock_pack,
             commands::bedrock::import_bedrock_pack,
+            commands::bedrock::install_bedrock_pack_url,
             // Fase 4
             commands::diagnostics::diagnose_instance,
             commands::diagnostics::ai_assist,

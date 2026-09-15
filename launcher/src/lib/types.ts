@@ -121,6 +121,17 @@ export interface BedrockWorld {
   iconPath: string | null;
 }
 
+export interface BedrockImport {
+  name: string;
+  kind: "world" | "resource" | "behavior" | string;
+  /** Packs instalados; un .mcaddon puede traer varios. */
+  packs: number;
+  /** Quedó activo en global_resource_packs.json sin abrir el juego. */
+  activated: boolean;
+  /** Se bajó min_engine_version para que cargue en la Bedrock activa. */
+  downgraded: boolean;
+}
+
 export interface BedrockPack {
   id: string;
   name: string;

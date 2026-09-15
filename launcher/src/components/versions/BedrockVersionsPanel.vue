@@ -5,6 +5,7 @@ import BaseButton from "@/components/common/BaseButton.vue";
 import { api, isTauri } from "@/lib/ipc";
 import type {
   BedrockCatalogVersion,
+  BedrockImport,
   BedrockInstalledVersion,
   BedrockPack,
   BedrockStatus,
@@ -27,6 +28,7 @@ const installed = ref<BedrockInstalledVersion[]>([]);
 const worlds = ref<BedrockWorld[]>([]);
 const packs = ref<BedrockPack[]>([]);
 const query = ref("");
+const packUrl = ref("");
 const loading = ref(false);
 const error = ref<string | null>(null);
 const notice = ref<string | null>(null);
@@ -280,16 +282,44 @@ async function openContent(kind: string) {
   }
 }
 
+function importSummary(res: BedrockImport): string {
+  if (res.kind === "world") return `Mundo importado: ${res.name}`;
+  const what = res.packs > 1 ? `${res.packs} packs` : `Pack ${res.name}`;
+  const extras: string[] = [];
+  if (res.activated) extras.push("activado");
+  if (res.downgraded) extras.push("ajustado a tu versión de Bedrock");
+  return extras.length ? `${what} — ${extras.join(" y ")}.` : `${what} instalado.`;
+}
+
 async function importPack() {
   contentBusy.value = true;
   error.value = null;
   try {
-    const name = await api.importBedrockPack();
-    notice.value = `Importado: ${name}`;
+    const res = await api.importBedrockPack();
+    notice.value = importSummary(res);
     await refreshContent();
   } catch (e) {
     const msg = String(e);
     if (!msg.toLowerCase().includes("no se seleccion")) error.value = msg;
+  } finally {
+    contentBusy.value = false;
+  }
+}
+
+async function installPackUrl() {
+  const url = packUrl.value.trim();
+  if (!url) return;
+  contentBusy.value = true;
+  error.value = null;
+  notice.value = "Descargando pack…";
+  try {
+    const res = await api.installBedrockPackUrl(url);
+    notice.value = importSummary(res);
+    packUrl.value = "";
+    await refreshContent();
+  } catch (e) {
+    error.value = String(e);
+    notice.value = null;
   } finally {
     contentBusy.value = false;
   }
@@ -507,6 +537,28 @@ async function removePack(p: BedrockPack) {
             </button>
           </div>
         </div>
+        <form class="mb-2 flex gap-1.5" @submit.prevent="installPackUrl">
+          <input
+            v-model="packUrl"
+            type="url"
+            inputmode="url"
+            placeholder="Pegá el link de un .mcpack o .mcaddon"
+            class="min-w-0 flex-1 rounded-lg border border-surface-5 bg-surface-3 px-2.5 py-1.5 text-xs outline-none focus:border-[#3498DB]"
+          />
+          <BaseButton
+            size="sm"
+            variant="secondary"
+            class="!px-2 !py-1 text-[11px]"
+            :disabled="contentBusy || !packUrl.trim()"
+            @click="installPackUrl"
+          >
+            Bajar
+          </BaseButton>
+        </form>
+        <p class="mb-2 text-[10px] leading-relaxed text-gray-500">
+          Se instala y se activa solo. Si el pack pide una Bedrock más nueva que la tuya,
+          se le baja el mínimo para que igual cargue.
+        </p>
         <p v-if="!packs.length" class="text-xs text-gray-500">Sin resource/behavior packs.</p>
         <ul v-else class="max-h-36 space-y-1 overflow-y-auto">
           <li v-for="p in packs" :key="`${p.kind}:${p.id}`" class="flex items-center gap-2 rounded-lg bg-surface-2 px-2 py-1.5">
