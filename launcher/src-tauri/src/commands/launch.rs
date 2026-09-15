@@ -287,7 +287,10 @@ async fn spawn_for_instance(
     };
     // Respeta la RAM elegida por el usuario; solo baja el tope si supera lo seguro del sistema
     // (deja ~1.5 GB para Windows/launcher) para evitar que el SO mate Java.
-    let hw = crate::core::hardware::detect();
+    // Con la caché vencida esto relee sysinfo (y PowerShell en Windows).
+    let hw = tokio::task::spawn_blocking(crate::core::hardware::detect)
+        .await
+        .unwrap_or_else(|_| crate::core::hardware::detect());
     let ram = {
         let total_mb = ((hw.ram_gb * 1024.0).round() as u32).max(2048);
         let max_safe = total_mb.saturating_sub(1536).max(1024);
@@ -370,7 +373,17 @@ async fn spawn_for_instance(
         None
     };
 
-    let (args, java) = launch::build_command(&launch_id, &game_dir, &auth, &jvm, resolution)?;
+    // Arma el classpath y extrae los natives: I/O de disco pesado, fuera del runtime.
+    let (args, java) = {
+        let launch_id = launch_id.clone();
+        let dir = game_dir.clone();
+        let auth = auth.clone();
+        tokio::task::spawn_blocking(move || {
+            launch::build_command(&launch_id, &dir, &auth, &jvm, resolution)
+        })
+        .await
+        .unwrap_or_else(|e| Err(AppError::msg(format!("Preparación abortada: {e}"))))?
+    };
     let mut args = args;
     if let Some(addr) = server_address.as_deref().filter(|s| !s.trim().is_empty()) {
         launch::append_server_join(&mut args, addr.trim());
@@ -403,18 +416,18 @@ async fn spawn_for_instance(
         }
         _ => {}
     }
-    let launch_env: Vec<(&str, &str)> = launch_env_owned
-        .iter()
-        .map(|(k, v)| (k.as_str(), v.as_str()))
-        .collect();
-    let child = launch::spawn_game(
-        &java,
-        &args,
-        &game_dir,
-        &launch_env,
-        java_major,
-        show_console,
-    )?;
+    let child = {
+        let dir = game_dir.clone();
+        tokio::task::spawn_blocking(move || {
+            let launch_env: Vec<(&str, &str)> = launch_env_owned
+                .iter()
+                .map(|(k, v)| (k.as_str(), v.as_str()))
+                .collect();
+            launch::spawn_game(&java, &args, &dir, &launch_env, java_major, show_console)
+        })
+        .await
+        .unwrap_or_else(|e| Err(AppError::msg(format!("Lanzamiento abortado: {e}"))))?
+    };
     let pid = child.id();
     crate::core::extras::discord_rpc::bind_game_pid(pid);
 
@@ -471,7 +484,10 @@ async fn spawn_for_instance(
     );
 
     state.shutdown_network();
-    *state.java_cache.lock().unwrap() = None;
+    // El juego ya arrancó: un mutex envenenado no debe tumbar el lanzamiento.
+    if let Ok(mut cache) = state.java_cache.lock() {
+        *cache = None;
+    }
 
     launch::apply_launch_window(app, close_on_launch, soft_close);
 

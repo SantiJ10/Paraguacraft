@@ -9,11 +9,14 @@
 //!   - Sin hilos propios: corre sobre el runtime de Tauri. El cliente se libera
 //!     en idle desde `AppState::net_end` cuando termina el grupo.
 
+use std::collections::HashMap;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, OnceLock};
 
 use futures_util::stream::{self, StreamExt};
+use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
 use tauri::{AppHandle, Emitter};
 
@@ -47,12 +50,119 @@ pub fn sha1_hex(bytes: &[u8]) -> String {
     hex::encode(h.finalize())
 }
 
-/// Verifica el SHA-1 de un archivo existente (para skip).
-fn file_matches_sha1(path: &Path, expected: &str) -> bool {
-    match std::fs::read(path) {
-        Ok(bytes) => sha1_hex(&bytes).eq_ignore_ascii_case(expected),
-        Err(_) => false,
+/// SHA-1 de un archivo leyendo por bloques (un index de assets son cientos de
+/// MB; cargarlos enteros en RAM dispara el pico de memoria del launcher).
+fn sha1_file(path: &Path) -> std::io::Result<String> {
+    let mut file = std::fs::File::open(path)?;
+    let mut hasher = Sha1::new();
+    let mut buf = vec![0u8; 64 * 1024];
+    loop {
+        let n = file.read(&mut buf)?;
+        if n == 0 {
+            break;
+        }
+        hasher.update(&buf[..n]);
     }
+    Ok(hex::encode(hasher.finalize()))
+}
+
+/// Máximo de archivos recordados; al pasarse se descarta todo y se rehashea.
+const VERIFY_CACHE_MAX: usize = 40_000;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct VerifyEntry {
+    len: u64,
+    mtime: u64,
+    sha1: String,
+}
+
+#[derive(Default)]
+struct VerifyCache {
+    entries: HashMap<String, VerifyEntry>,
+    dirty: bool,
+}
+
+fn verify_cache_path() -> PathBuf {
+    paths::data_dir().join("download-verify.json")
+}
+
+fn verify_cache() -> &'static Mutex<VerifyCache> {
+    static CACHE: OnceLock<Mutex<VerifyCache>> = OnceLock::new();
+    CACHE.get_or_init(|| {
+        let entries = std::fs::read_to_string(verify_cache_path())
+            .ok()
+            .and_then(|raw| serde_json::from_str::<HashMap<String, VerifyEntry>>(&raw).ok())
+            .unwrap_or_default();
+        Mutex::new(VerifyCache { entries, dirty: false })
+    })
+}
+
+/// Vuelca la caché a disco. Se llama al cerrar cada grupo de descargas.
+pub fn flush_verify_cache() {
+    let Ok(mut cache) = verify_cache().lock() else {
+        return;
+    };
+    if !cache.dirty {
+        return;
+    }
+    cache.dirty = false;
+    if cache.entries.len() > VERIFY_CACHE_MAX {
+        cache.entries.clear();
+    }
+    let path = verify_cache_path();
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    if let Ok(json) = serde_json::to_string(&cache.entries) {
+        let _ = std::fs::write(path, json);
+    }
+}
+
+/// Identidad barata de un archivo: si tamaño y mtime no cambiaron, el
+/// contenido tampoco (y el SHA-1 guardado sigue valiendo).
+fn file_signature(path: &Path) -> Option<(u64, u64)> {
+    let meta = std::fs::metadata(path).ok()?;
+    if !meta.is_file() {
+        return None;
+    }
+    let mtime = meta
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    Some((meta.len(), mtime))
+}
+
+fn remember_verified(path: &Path, len: u64, mtime: u64, sha1: String) {
+    if let Ok(mut cache) = verify_cache().lock() {
+        cache
+            .entries
+            .insert(path.to_string_lossy().into_owned(), VerifyEntry { len, mtime, sha1 });
+        cache.dirty = true;
+    }
+}
+
+/// Verifica el SHA-1 de un archivo existente (para skip).
+///
+/// Bloquea: llamar siempre dentro de `spawn_blocking`.
+fn file_matches_sha1(path: &Path, expected: &str) -> bool {
+    let Some((len, mtime)) = file_signature(path) else {
+        return false;
+    };
+    let key = path.to_string_lossy();
+    if let Ok(cache) = verify_cache().lock() {
+        if let Some(hit) = cache.entries.get(key.as_ref()) {
+            if hit.len == len && hit.mtime == mtime {
+                return hit.sha1.eq_ignore_ascii_case(expected);
+            }
+        }
+    }
+    let Ok(got) = sha1_file(path) else {
+        return false;
+    };
+    remember_verified(path, len, mtime, got.clone());
+    got.eq_ignore_ascii_case(expected)
 }
 
 /// Mojang publica SHA-1 incorrectos en natives legacy (1.8–1.12). Aceptar si tamaño plausible.
@@ -182,17 +292,8 @@ async fn get_bytes(client: &reqwest::Client, url: &str) -> AppResult<Vec<u8>> {
 /// Descarga un archivo de forma atomica y verificada. Devuelve bytes escritos
 /// (0 si se reuso por skip).
 pub async fn download_one(client: &reqwest::Client, item: &DownloadItem) -> AppResult<u64> {
-    if let Some(expected) = &item.sha1 {
-        if item.dest.is_file() && file_matches_sha1(&item.dest, expected) {
-            return Ok(0);
-        }
-    } else if item.dest.is_file() {
-        // Sin hash: si ya existe, lo damos por bueno (assets/libs ya presentes).
+    if skip_existing(item).await {
         return Ok(0);
-    }
-
-    if let Some(parent) = item.dest.parent() {
-        std::fs::create_dir_all(parent)?;
     }
 
     let dest = item.dest.clone();
@@ -210,6 +311,28 @@ pub async fn download_one(client: &reqwest::Client, item: &DownloadItem) -> AppR
     }
     let bytes = bytes.ok_or_else(|| last_err.unwrap_or_else(|| AppError::msg("Error de red")))?;
 
+    // Hash + escritura atómica tocan disco y CPU: fuera del runtime async.
+    tokio::task::spawn_blocking(move || commit_download(dest, sha1, bytes))
+        .await
+        .unwrap_or_else(|e| Err(AppError::msg(format!("Descarga abortada: {e}"))))
+}
+
+/// ¿Ya está en disco y verificado? `stat` + SHA-1 son sincrónicos, así que el
+/// chequeo entero va a un hilo de bloqueo: con miles de assets, hacerlo sobre
+/// el runtime congela el IPC hacia la UI.
+async fn skip_existing(item: &DownloadItem) -> bool {
+    let dest = item.dest.clone();
+    let sha1 = item.sha1.clone();
+    tokio::task::spawn_blocking(move || match sha1 {
+        Some(expected) => dest.is_file() && file_matches_sha1(&dest, &expected),
+        // Sin hash: si ya existe, lo damos por bueno (assets/libs ya presentes).
+        None => dest.is_file(),
+    })
+    .await
+    .unwrap_or(false)
+}
+
+fn commit_download(dest: PathBuf, sha1: Option<String>, bytes: Vec<u8>) -> AppResult<u64> {
     if let Some(expected) = &sha1 {
         let got = sha1_hex(&bytes);
         if !got.eq_ignore_ascii_case(expected) && !legacy_library_sha1_soft_ok(&dest, bytes.len()) {
@@ -220,9 +343,18 @@ pub async fn download_one(client: &reqwest::Client, item: &DownloadItem) -> AppR
         }
     }
 
+    if let Some(parent) = dest.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
     let tmp = dest.with_extension("part");
     std::fs::write(&tmp, &bytes)?;
     std::fs::rename(&tmp, &dest)?;
+
+    if let Some(expected) = sha1 {
+        if let Some((len, mtime)) = file_signature(&dest) {
+            remember_verified(&dest, len, mtime, expected);
+        }
+    }
     Ok(bytes.len() as u64)
 }
 
@@ -387,9 +519,16 @@ pub async fn download_all(
     }))
     .buffer_unordered(concurrency);
 
+    let mut outcome = Ok(());
     while let Some(res) = stream.next().await {
-        res?;
+        if let Err(e) = res {
+            outcome = Err(e);
+            break;
+        }
     }
+    // Persistir lo verificado aunque el grupo haya fallado a la mitad.
+    let _ = tokio::task::spawn_blocking(flush_verify_cache).await;
+    outcome?;
     emit_simple(app, group_id, label, 100.0, "done");
     Ok(())
 }
@@ -453,6 +592,38 @@ pub fn url_encode(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sha1_file_matches_in_memory_hash() {
+        let dir = std::env::temp_dir().join("pg-sha1-stream-test");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("blob.bin");
+        // Más grande que el buffer de 64 KiB para cubrir el bucle de lectura.
+        let data: Vec<u8> = (0..200_000u32).map(|i| (i % 251) as u8).collect();
+        std::fs::write(&path, &data).unwrap();
+
+        assert_eq!(sha1_file(&path).unwrap(), sha1_hex(&data));
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn signature_changes_when_file_is_rewritten() {
+        let dir = std::env::temp_dir().join("pg-sig-test");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("sig.bin");
+        std::fs::write(&path, b"uno").unwrap();
+        let first = file_signature(&path).unwrap();
+        std::fs::write(&path, b"uno y algo mas largo").unwrap();
+        let second = file_signature(&path).unwrap();
+
+        assert_ne!(first, second, "tamaño distinto debe invalidar la caché");
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn missing_file_has_no_signature() {
+        assert!(file_signature(Path::new("no-existe-pg-test.bin")).is_none());
+    }
 
     #[test]
     fn mirrors_piston_meta_asset_index() {

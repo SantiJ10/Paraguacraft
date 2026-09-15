@@ -170,7 +170,9 @@ pub async fn ensure_launch_java(
     }
 
     let (http, _guard) = state.net_scope();
-    *state.java_cache.lock().unwrap() = None;
+    if let Ok(mut cache) = state.java_cache.lock() {
+        *cache = None;
+    }
     let path = adoptium::download(app, &http, required, false).await?;
     Ok(format_path(Path::new(&path), JavaRole::Launch))
 }

@@ -31,6 +31,7 @@ use crate::core::versions;
 use crate::error::{AppError, AppResult};
 
 /// Datos de autenticacion resueltos para el lanzamiento.
+#[derive(Clone)]
 pub struct AuthCtx {
     pub username: String,
     pub uuid: String,
