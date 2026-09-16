@@ -14,6 +14,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - 1.8.9: el HUD de servidor dejó de leer `servers.dat` en cada frame (el ícono se cachea, incluso cuando no existe), el texto ASCII ya no genera basura por cada `drawString` y la carátula de la canción se busca en disco una sola vez. Esto es lo que causaba el stutter de cámara.
 - Moderno: la lista de ítems cercanos se calcula una vez por tick en lugar de en cada frame, y la carátula también se lee una sola vez.
 
+### Android 0.1.18
+- El botón **FPS ilimitado** ahora escribe `maxFps 260` y pone Sodium Extra en 0. En 0.1.17, si `options.txt` ya tenía 60, el toggle no hacía nada y Optimized 1.21.11 seguía capado.
+
 ### Android 0.1.17
 - Se terminó el cap a 60 FPS: el launcher respeta el límite que elegís y mantiene sincronizado el `fps_limit` de Sodium Extra en cada arranque.
 - Las versiones legacy eligen GL4ES según la versión de Java que pide Mojang, así 1.9–1.16 dejan de abrir en pantalla negra.
