@@ -9,6 +9,11 @@ public final class TextUtil {
         if (input == null || input.isEmpty()) {
             return "";
         }
+        // El HUD de musica sanitiza titulo y artista en cada frame. ASCII sale
+        // igual que entra, asi que devolverlo tal cual evita basura para el GC.
+        if (isPlainAscii(input)) {
+            return input;
+        }
         StringBuilder out = new StringBuilder(input.length());
         for (int i = 0; i < input.length(); i++) {
             char c = input.charAt(i);
@@ -19,6 +24,16 @@ public final class TextUtil {
             out.append(replaceAccent(c));
         }
         return out.toString();
+    }
+
+    /** `replaceAccent` solo toca caracteres > 127, asi que ASCII puro no cambia. */
+    private static boolean isPlainAscii(String input) {
+        for (int i = 0; i < input.length(); i++) {
+            if (input.charAt(i) > 127) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static char replaceAccent(char c) {

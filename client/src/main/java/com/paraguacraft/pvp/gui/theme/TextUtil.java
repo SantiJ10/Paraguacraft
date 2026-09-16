@@ -27,6 +27,13 @@ public final class TextUtil {
         if (input == null || input.isEmpty()) {
             return "";
         }
+        // Esto corre en cada drawString y getStringWidth del juego (HUD, chat,
+        // scoreboard, nametags). Como ASCII sale igual que entra, devolverlo tal
+        // cual evita un String nuevo por llamada: en 1.8.9 esa basura llenaba el
+        // heap y las pausas de GC se sentian como tirones de camara.
+        if (isPlainAscii(input)) {
+            return input;
+        }
         StringBuilder out = new StringBuilder(input.length());
         for (int i = 0; i < input.length(); i++) {
             char c = input.charAt(i);
@@ -37,6 +44,16 @@ public final class TextUtil {
             out.append(replaceAccent(c));
         }
         return out.toString();
+    }
+
+    /** `replaceAccent` solo toca caracteres > 127, asi que ASCII puro no cambia. */
+    private static boolean isPlainAscii(String input) {
+        for (int i = 0; i < input.length(); i++) {
+            if (input.charAt(i) > 127) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static char replaceAccent(char c) {

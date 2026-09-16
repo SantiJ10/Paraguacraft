@@ -34,6 +34,7 @@ public final class MusicArtCache {
     private static int texW = 1;
     private static int texH = 1;
     private static final AtomicBoolean loading = new AtomicBoolean(false);
+    private static boolean diskChecked = false;
 
     private MusicArtCache() {}
 
@@ -49,14 +50,22 @@ public final class MusicArtCache {
             cachedUrl = normalized;
             clearTexture();
             loading.set(false);
+            diskChecked = false;
         }
         if (textureId != null) {
             return textureId;
         }
-        byte[] cached = readCachedBytes(normalized);
-        if (cached != null && cached.length > 0) {
-            registerFromBytes(normalized, cached);
-            return textureId;
+        // El HUD llama esto por frame. Leer la cache de disco (y en el peor caso
+        // listar el directorio entero) y decodificar el PNG aca clavaba la camara
+        // hasta que la caratula terminara de cargar, asi que se intenta una sola
+        // vez por URL y el resto queda en el hilo de descarga.
+        if (!diskChecked) {
+            diskChecked = true;
+            byte[] cached = readCachedBytes(normalized);
+            if (cached != null && cached.length > 0) {
+                registerFromBytes(normalized, cached);
+                return textureId;
+            }
         }
         if (loading.compareAndSet(false, true)) {
             final String fetchUrl = normalized;

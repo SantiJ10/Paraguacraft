@@ -30,6 +30,7 @@ public final class MusicArtCache {
     private static int texW = 64;
     private static int texH = 64;
     private static final AtomicBoolean loading = new AtomicBoolean(false);
+    private static boolean diskChecked = false;
 
     private MusicArtCache() {}
 
@@ -47,15 +48,22 @@ public final class MusicArtCache {
             texW = 64;
             texH = 64;
             loading.set(false);
+            diskChecked = false;
         }
         if (texture != null) {
             return texture;
         }
-        byte[] cached = readCachedBytes(normalized);
-        if (cached != null && cached.length > 0) {
-            registerFromBytes(normalized, cached);
-            if (texture != null) {
-                return texture;
+        // Esto se llama desde el HUD, o sea en el hilo de render y por frame.
+        // Leer la caché de disco una sola vez por URL evita clavar la cámara
+        // mientras la carátula todavía no está descargada.
+        if (!diskChecked) {
+            diskChecked = true;
+            byte[] cached = readCachedBytes(normalized);
+            if (cached != null && cached.length > 0) {
+                registerFromBytes(normalized, cached);
+                if (texture != null) {
+                    return texture;
+                }
             }
         }
         if (loading.compareAndSet(false, true)) {

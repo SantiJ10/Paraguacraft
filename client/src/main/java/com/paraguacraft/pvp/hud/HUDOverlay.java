@@ -441,51 +441,15 @@ public class HUDOverlay extends Gui {
         int y = ModConfig.serverY;
         String ip = mc.getCurrentServerData().serverIP;
         
-        ResourceLocation serverIcon = LOGO_GENERICO; 
-        String base64Icon = mc.getCurrentServerData().getBase64EncodedIconData();
-
-        // 1. Buscamos agresivamente el Favicon en el disco (servers.dat)
-        if (base64Icon == null || base64Icon.isEmpty()) {
-            try {
-                net.minecraft.client.multiplayer.ServerList list = new net.minecraft.client.multiplayer.ServerList(mc);
-                list.loadServerList();
-                for (int i = 0; i < list.countServers(); ++i) {
-                    net.minecraft.client.multiplayer.ServerData d = list.getServerData(i);
-                    // Comprobación flexible por si entras por un proxy o IP secundaria
-                    if (d.serverIP.toLowerCase().contains(ip.toLowerCase()) && d.getBase64EncodedIconData() != null) {
-                        base64Icon = d.getBase64EncodedIconData();
-                        break;
-                    }
-                }
-            } catch (Exception e) {} 
-        }
-
-        // 2. Decodificación de Imagen Base64
-        if (base64Icon != null && !base64Icon.isEmpty()) {
-            if (serverIconCache.containsKey(ip)) {
-                serverIcon = serverIconCache.get(ip);
-            } else {
-                try {
-                    String decodedData = base64Icon;
-                    // Limpiamos la cabecera por las dudas
-                    if (decodedData.startsWith("data:image/png;base64,")) {
-                        decodedData = decodedData.substring("data:image/png;base64,".length());
-                    }
-                    
-                    byte[] imageBytes = org.apache.commons.codec.binary.Base64.decodeBase64(decodedData);
-                    BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageBytes));
-                    
-                    if (image != null) {
-                        DynamicTexture texture = new DynamicTexture(image);
-                        ResourceLocation loc = mc.getTextureManager().getDynamicTextureLocation("server_icon_" + ip.replace(".", "_"), texture);
-                        serverIconCache.put(ip, loc); 
-                        serverIcon = loc;
-                    }
-                } catch (Exception e) {
-                    // MAGIA: No guardamos la Ender Pearl en caché si falla. 
-                    // Lo dejamos que lo vuelva a intentar en el próximo frame.
-                }
-            }
+        // Resolver el icono lee servers.dat del disco y decodifica un PNG. Antes
+        // eso pasaba en cada frame, y un fallo no se guardaba en caché, así que
+        // en un servidor sin favicon (proxy o conexión directa) el disco se leía
+        // para siempre y la cámara daba tirones. Ahora se resuelve una vez por
+        // IP, incluido el fallo; clearCaches() lo descarta al cambiar de mundo.
+        ResourceLocation serverIcon = serverIconCache.get(ip);
+        if (serverIcon == null) {
+            serverIcon = resolveServerIcon(ip);
+            serverIconCache.put(ip, serverIcon);
         }
 
         // 3. Renderizado del Ícono
@@ -513,6 +477,50 @@ public class HUDOverlay extends Gui {
 
         // 4. IP Limpia sin rectángulos
         HudDraw.text(ip, x + 20, y + 4, UiTheme.TEXT);
+    }
+
+    /** Devuelve el favicon del servidor, o LOGO_GENERICO si no hay o falla. */
+    private ResourceLocation resolveServerIcon(String ip) {
+        String base64Icon = mc.getCurrentServerData().getBase64EncodedIconData();
+        if (base64Icon == null || base64Icon.isEmpty()) {
+            base64Icon = faviconFromServerList(ip);
+        }
+        if (base64Icon == null || base64Icon.isEmpty()) {
+            return LOGO_GENERICO;
+        }
+        try {
+            String decodedData = base64Icon;
+            // Limpiamos la cabecera por las dudas
+            if (decodedData.startsWith("data:image/png;base64,")) {
+                decodedData = decodedData.substring("data:image/png;base64,".length());
+            }
+            byte[] imageBytes = org.apache.commons.codec.binary.Base64.decodeBase64(decodedData);
+            BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageBytes));
+            if (image == null) {
+                return LOGO_GENERICO;
+            }
+            DynamicTexture texture = new DynamicTexture(image);
+            return mc.getTextureManager().getDynamicTextureLocation("server_icon_" + ip.replace(".", "_"), texture);
+        } catch (Exception e) {
+            return LOGO_GENERICO;
+        }
+    }
+
+    /** Busca el favicon en servers.dat: toca disco, llamar solo una vez por IP. */
+    private String faviconFromServerList(String ip) {
+        try {
+            net.minecraft.client.multiplayer.ServerList list = new net.minecraft.client.multiplayer.ServerList(mc);
+            list.loadServerList();
+            for (int i = 0; i < list.countServers(); ++i) {
+                net.minecraft.client.multiplayer.ServerData d = list.getServerData(i);
+                // Comprobación flexible por si entras por un proxy o IP secundaria
+                if (d.serverIP.toLowerCase().contains(ip.toLowerCase()) && d.getBase64EncodedIconData() != null) {
+                    return d.getBase64EncodedIconData();
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 
     // ============================================================

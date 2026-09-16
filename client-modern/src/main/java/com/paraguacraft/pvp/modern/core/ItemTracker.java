@@ -139,17 +139,35 @@ public final class ItemTracker {
         return to.normalize().dotProduct(look) >= minDot;
     }
 
+    /**
+     * Recorre todas las entidades del mundo, asi que el costo crece con lo lleno
+     * que este el servidor. Se llama desde el HUD y desde el pase de mundo, o sea
+     * dos veces por frame: se cachea por un tick, que es lo que tarda el juego en
+     * mover los items de todas formas.
+     */
+    private static final long NEARBY_TTL_MS = 50;
+    private static List<ItemEntity> nearbyCache = List.of();
+    private static long nearbyAt = 0;
+    private static double nearbyRange = -1;
+
     private static List<ItemEntity> nearby(MinecraftClient client, double range) {
-        List<ItemEntity> out = new ArrayList<>();
         if (client.world == null || client.player == null) {
-            return out;
+            return List.of();
         }
+        long now = System.currentTimeMillis();
+        if (range == nearbyRange && now - nearbyAt < NEARBY_TTL_MS) {
+            return nearbyCache;
+        }
+        List<ItemEntity> out = new ArrayList<>();
         for (var e : client.world.getEntities()) {
             if (e instanceof ItemEntity item && client.player.distanceTo(item) <= range) {
                 out.add(item);
             }
         }
         out.sort(Comparator.comparingDouble(a -> client.player.squaredDistanceTo(a)));
+        nearbyCache = out;
+        nearbyAt = now;
+        nearbyRange = range;
         return out;
     }
 }
