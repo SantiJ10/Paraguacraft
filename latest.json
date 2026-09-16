@@ -1,12 +1,12 @@
 {
-  "version": "1.1.50",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.50/Instalar_Paraguacraft_v1.1.50.exe",
-  "size_bytes": 5966906,
-  "sha256": "408f063414bee2447dbd4cffeab67193e77902aec008f49ee9d8a527c74ef6dc",
-  "notes": "- Menos CPU en partida: sin EnumWindows ni PowerShell de GPU cada pocos ms\n- Descargas en streaming con resume (Range) en vez de cargar el archivo en RAM\n- Nombres de comandos IPC tipados contra el backend Rust",
+  "version": "1.1.51",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.51/Instalar_Paraguacraft_v1.1.51.exe",
+  "size_bytes": 0,
+  "sha256": "",
+  "notes": "- Menos tirones: el heap de Java arranca del tamaño final, sin redimensionados en partida\n- Gama baja con perfil G1 liviano; AlwaysPreTouch y ZGC solo donde suman\n- Los presets PvP ahora respetan el tope seguro de RAM del sistema",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.50/Instalar_Paraguacraft_v1.1.50.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.51/Instalar_Paraguacraft_v1.1.51.exe",
       "signature": ""
     }
   }

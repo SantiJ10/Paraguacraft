@@ -3,6 +3,23 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [1.1.51] - 2026-09-16
+
+### Launcher
+- El heap de Java arranca directamente en su tamaño final, así Minecraft no se frena a mitad de partida para redimensionarlo.
+- Las máquinas de gama baja usan un perfil G1 liviano en vez de flags pensados para servidores; `AlwaysPreTouch` y ZGC quedan solo donde el heap es grande y el equipo lo banca.
+- Los presets PvP ahora respetan el tope seguro de RAM del sistema en vez de pedir memoria de más.
+
+### Clientes PvP
+- 1.8.9: el HUD de servidor dejó de leer `servers.dat` en cada frame (el ícono se cachea, incluso cuando no existe), el texto ASCII ya no genera basura por cada `drawString` y la carátula de la canción se busca en disco una sola vez. Esto es lo que causaba el stutter de cámara.
+- Moderno: la lista de ítems cercanos se calcula una vez por tick en lugar de en cada frame, y la carátula también se lee una sola vez.
+
+### Android 0.1.17
+- Se terminó el cap a 60 FPS: el launcher respeta el límite que elegís y mantiene sincronizado el `fps_limit` de Sodium Extra en cada arranque.
+- Las versiones legacy eligen GL4ES según la versión de Java que pide Mojang, así 1.9–1.16 dejan de abrir en pantalla negra.
+- `-Xms` pasa al 50% de `-Xmx` y se purgan flags de escritorio hostiles en móvil, para no despertar al low-memory killer.
+- La RAM que configurás a mano ya no se pisa sola cuando el sistema reporta poca memoria libre.
+
 ## [1.1.50] - 2026-09-15
 
 ### Launcher
