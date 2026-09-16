@@ -40,6 +40,15 @@ pub fn resolve_ram_mb(ram_gb: f64) -> u32 {
     mb
 }
 
+/// Igual que [`resolve_ram_mb`] pero sin pasarse del techo seguro del sistema.
+///
+/// `ceiling_mb` es la RAM ya acotada en `commands::launch` (deja ~1.5 GB para el
+/// SO). Sin esto, en una máquina de 4 GB el preset pedía 2560 MB de heap más lo
+/// que Minecraft reserva fuera del heap, y el equipo terminaba en swap.
+pub fn resolve_ram_mb_capped(ram_gb: f64, ceiling_mb: u32) -> u32 {
+    resolve_ram_mb(ram_gb).min(ceiling_mb.max(1024))
+}
+
 fn g1_flags_baja() -> Vec<&'static str> {
     vec![
         "-XX:+UnlockExperimentalVMOptions",
@@ -66,8 +75,8 @@ fn g1_flags_media_alta() -> Vec<&'static str> {
 }
 
 /// `-Xms`/`-Xmx` + G1 tuneado por gama (solo Java 8).
-pub fn build_jvm_args(ram_gb: f64) -> Vec<String> {
-    let ram_mb = resolve_ram_mb(ram_gb);
+pub fn build_jvm_args(ram_gb: f64, ceiling_mb: u32) -> Vec<String> {
+    let ram_mb = resolve_ram_mb_capped(ram_gb, ceiling_mb);
     let tier = tier_from_ram_gb(ram_gb);
     let mut args = vec![
         format!("-Xms{ram_mb}M"),
@@ -78,6 +87,7 @@ pub fn build_jvm_args(ram_gb: f64) -> Vec<String> {
         Tier::Media | Tier::Alta => g1_flags_media_alta(),
     };
     args.extend(flags.iter().map(|s| (*s).to_string()));
+    args.push("-XX:+PerfDisableSharedMem".into());
     args
 }
 
@@ -90,6 +100,14 @@ mod tests {
         assert_eq!(resolve_ram_mb(4.0), 2560);
         assert_eq!(resolve_ram_mb(8.0), 3584);
         assert_eq!(resolve_ram_mb(32.0), 4096);
+    }
+
+    #[test]
+    fn respects_safe_ram_ceiling() {
+        // 4 GB de sistema: el techo seguro manda sobre el preset.
+        assert_eq!(resolve_ram_mb_capped(4.0, 2048), 2048);
+        // Con margen de sobra, el preset queda intacto.
+        assert_eq!(resolve_ram_mb_capped(32.0, 12288), 4096);
     }
 
     #[test]

@@ -390,14 +390,56 @@ fn extract_native_jar(jar: &Path, dest: &Path) -> AppResult<()> {
     Ok(())
 }
 
-/// Heap inicial: valor del usuario, o ~25 % del máximo (mínimo 512 MiB).
+/// Heap inicial: valor del usuario, o igual al máximo.
+///
+/// Con `-Xms` por debajo de `-Xmx` la JVM agranda el heap en pleno juego, y cada
+/// redimensión es una pausa que se siente como tirón. Los presets PvP ya usaban
+/// `Xms = Xmx`; el resto de las instancias ahora también. El tope ya viene
+/// acotado a la RAM segura del sistema desde `commands::launch`.
 fn resolve_xms(ram_mb: u32, ram_min_mb: u32) -> u32 {
     if ram_min_mb > 0 {
         ram_min_mb.clamp(256, ram_mb)
     } else {
-        (ram_mb / 4).max(512).min(ram_mb)
+        ram_mb
     }
 }
+
+/// G1 para clientes. Las flags "Aikar" están pensadas para servidores con heaps
+/// grandes: en un heap chico `InitiatingHeapOccupancyPercent=15` dispara mixed GC
+/// antes de tiempo y agrega pausas justo en las máquinas que menos las aguantan.
+fn g1_client_flags(ram_mb: u32) -> Vec<String> {
+    let light = [
+        "-XX:+UseG1GC",
+        "-XX:MaxGCPauseMillis=50",
+        "-XX:G1NewSizePercent=20",
+        "-XX:G1MaxNewSizePercent=40",
+        "-XX:G1HeapRegionSize=4M",
+        "-XX:G1ReservePercent=20",
+        "-XX:InitiatingHeapOccupancyPercent=35",
+        "-XX:+PerfDisableSharedMem",
+        "-XX:MaxTenuringThreshold=1",
+    ];
+    let aikar = [
+        "-XX:+UseG1GC",
+        "-XX:G1NewSizePercent=30",
+        "-XX:G1MaxNewSizePercent=40",
+        "-XX:G1HeapRegionSize=8M",
+        "-XX:G1ReservePercent=20",
+        "-XX:G1HeapWastePercent=5",
+        "-XX:G1MixedGCCountTarget=4",
+        "-XX:InitiatingHeapOccupancyPercent=15",
+        "-XX:G1MixedGCLiveThresholdPercent=90",
+        "-XX:G1RSetUpdatingPauseTimePercent=5",
+        "-XX:SurvivorRatio=32",
+        "-XX:+PerfDisableSharedMem",
+        "-XX:MaxTenuringThreshold=1",
+    ];
+    let flags: &[&str] = if ram_mb >= BIG_HEAP_MB { &aikar } else { &light };
+    flags.iter().map(|s| (*s).to_string()).collect()
+}
+
+/// A partir de este heap conviene GC concurrente pesado (ZGC) y precomprometer.
+const BIG_HEAP_MB: u32 = 4096;
 
 /// JVM args (RAM + GC). Java 8 no soporta flags Aikar/AlwaysPreTouch (Java 9+).
 fn merge_extra_jvm_args(args: &mut Vec<String>, extra: &[String]) {
@@ -410,14 +452,20 @@ fn merge_extra_jvm_args(args: &mut Vec<String>, extra: &[String]) {
 }
 
 fn build_jvm_ram_gc(jvm: &JvmCtx) -> Vec<String> {
+    let tier = crate::core::hardware::detect().perfil_sugerido;
+    let low_end = tier == "baja";
+
+    // `jvm.ram_mb` ya viene acotado a la RAM segura del sistema. Los presets PvP
+    // calculaban su heap solo desde la RAM total y se salteaban ese tope, así que
+    // en una máquina de 4 GB pedían 2.5-3 GB y la empujaban al swap.
     if pvp_jvm::applies(&jvm.loader, &jvm.mc_version, jvm.java_major) {
-        let mut args = pvp_jvm::build_jvm_args(jvm.system_ram_gb);
+        let mut args = pvp_jvm::build_jvm_args(jvm.system_ram_gb, jvm.ram_mb);
         merge_extra_jvm_args(&mut args, &jvm.extra_args);
         return args;
     }
 
     if modern_pvp_jvm::applies(&jvm.loader, &jvm.mc_version, jvm.java_major) {
-        let mut args = modern_pvp_jvm::build_jvm_args(jvm.system_ram_gb);
+        let mut args = modern_pvp_jvm::build_jvm_args(jvm.system_ram_gb, jvm.ram_mb);
         merge_extra_jvm_args(&mut args, &jvm.extra_args);
         return args;
     }
@@ -439,6 +487,7 @@ fn build_jvm_ram_gc(jvm: &JvmCtx) -> Vec<String> {
                 "-XX:G1ReservePercent=20",
                 "-XX:MaxTenuringThreshold=1",
                 "-XX:+DisableExplicitGC",
+                "-XX:+PerfDisableSharedMem",
             ]
             .iter()
             .map(|s| (*s).to_string()),
@@ -447,11 +496,22 @@ fn build_jvm_ram_gc(jvm: &JvmCtx) -> Vec<String> {
         args.extend([
             "-XX:+UnlockExperimentalVMOptions".into(),
             "-XX:+DisableExplicitGC".into(),
-            "-XX:+AlwaysPreTouch".into(),
         ]);
-        let force_zgc = jvm.mc_version.trim() == "1.21.11" && jvm.java_major >= 21
+        // AlwaysPreTouch compromete el heap entero al arrancar. En una máquina
+        // chica eso pelea desde el minuto cero con el SO y la memoria compartida
+        // de la GPU, así que se reserva para equipos con heap grande.
+        let big_heap = jvm.ram_mb >= BIG_HEAP_MB && !low_end;
+        if big_heap {
+            args.push("-XX:+AlwaysPreTouch".into());
+        }
+        // ZGC tiene sobrecosto notable en heaps chicos; antes se forzaba en
+        // 1.21.11 sin mirar la gama del equipo.
+        let force_zgc = jvm.mc_version.trim() == "1.21.11"
+            && jvm.java_major >= 21
+            && big_heap
             && jvm.gc != "Shenandoah"
             && jvm.gc != "G1GC";
+        let mut using_g1 = false;
         match jvm.gc.as_str() {
             "ZGC" if jvm.java_major >= 15 => {
                 args.push("-XX:+UseZGC".into());
@@ -464,32 +524,21 @@ fn build_jvm_ram_gc(jvm: &JvmCtx) -> Vec<String> {
                 args.push("-XX:+ZGenerational".into());
             }
             "Shenandoah" if jvm.java_major >= 12 => args.push("-XX:+UseShenandoahGC".into()),
-            _ => args.extend(
-                [
-                    "-XX:+UseG1GC",
-                    "-XX:G1NewSizePercent=30",
-                    "-XX:G1MaxNewSizePercent=40",
-                    "-XX:G1HeapRegionSize=8M",
-                    "-XX:G1ReservePercent=20",
-                    "-XX:G1HeapWastePercent=5",
-                    "-XX:G1MixedGCCountTarget=4",
-                    "-XX:InitiatingHeapOccupancyPercent=15",
-                    "-XX:G1MixedGCLiveThresholdPercent=90",
-                    "-XX:G1RSetUpdatingPauseTimePercent=5",
-                    "-XX:SurvivorRatio=32",
-                    "-XX:+PerfDisableSharedMem",
-                    "-XX:MaxTenuringThreshold=1",
-                ]
-                .iter()
-                .map(|s| s.to_string()),
-            ),
+            _ => {
+                using_g1 = true;
+                args.extend(g1_client_flags(jvm.ram_mb));
+            }
+        }
+        // El tuning por gama es todo de G1; con ZGC/Shenandoah solo ensucia el log.
+        if using_g1 {
+            args.extend(optimizer::extra_jvm_args_for(
+                &tier,
+                &jvm.loader,
+                &jvm.mc_version,
+                jvm.java_major,
+            ));
         }
     }
-
-    // Motor de optimizacion dinamica: tuning extra por gama de PC para instancias
-    // genericas (los presets PvP de arriba ya tienen el suyo y no se duplican).
-    let tier = crate::core::hardware::detect().perfil_sugerido;
-    args.extend(optimizer::extra_jvm_args_for(&tier, &jvm.loader, &jvm.mc_version, jvm.java_major));
 
     merge_extra_jvm_args(&mut args, &jvm.extra_args);
     args
@@ -985,8 +1034,9 @@ mod tests {
 
     #[test]
     fn xms_auto_and_manual() {
-        assert_eq!(resolve_xms(4096, 0), 1024);
-        assert_eq!(resolve_xms(2048, 0), 512);
+        // Sin valor del usuario, Xms = Xmx para no redimensionar el heap en juego.
+        assert_eq!(resolve_xms(4096, 0), 4096);
+        assert_eq!(resolve_xms(2048, 0), 2048);
         assert_eq!(resolve_xms(4096, 2048), 2048);
         assert_eq!(resolve_xms(2048, 4096), 2048);
     }
