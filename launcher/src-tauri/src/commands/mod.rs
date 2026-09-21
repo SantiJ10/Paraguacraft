@@ -6,6 +6,7 @@ pub mod cleanup;
 pub mod compete;
 pub mod playbook;
 pub mod diagnostics;
+pub mod downloads;
 pub mod extras;
 pub mod favorites;
 pub mod hardware;

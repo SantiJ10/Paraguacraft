@@ -45,6 +45,7 @@ fn emit(app: &AppHandle, id: &str, label: &str, progress: f64, status: &str) {
             speed: String::new(),
             error: None,
             failed_file: None,
+            folder: None,
         },
     );
 }

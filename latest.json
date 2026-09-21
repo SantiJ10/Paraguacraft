@@ -1,12 +1,10 @@
 {
-  "version": "1.1.51",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.51/Instalar_Paraguacraft_v1.1.51.exe",
-  "size_bytes": 5970119,
-  "sha256": "ce4486ece5392cf4b8371be458349309b8ddc14e13c095ece3b4243a7c94f9ee",
-  "notes": "- Menos tirones: el heap de Java arranca del tamaño final, sin redimensionados en partida\n- Gama baja con perfil G1 liviano; AlwaysPreTouch y ZGC solo donde suman\n- Los presets PvP ahora respetan el tope seguro de RAM del sistema",
+  "version": "1.1.52",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.52/Instalar_Paraguacraft_v1.1.52.exe",
+  "notes": "- Instalar un modpack en dos clics: pack → instancia → jugar\n- Cola de descargas: pausar, cancelar, reintentar y abrir carpeta\n- Detener un servidor local (Playit + consola) ya no congela el launcher",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.51/Instalar_Paraguacraft_v1.1.51.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.52/Instalar_Paraguacraft_v1.1.52.exe",
       "signature": ""
     }
   }

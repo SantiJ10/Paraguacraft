@@ -155,7 +155,26 @@ fn baked_groq_key() -> Option<&'static str> {
 
 /// True si las keys vienen del launcher (env / compile-time) y no hace falta pedirlas al usuario.
 pub fn api_keys_managed_by_launcher() -> bool {
-    curseforge_api_key_from_env_or_baked().is_some() && groq_api_key_from_env_or_baked().is_some()
+    curseforge_key_managed() && groq_key_managed()
+}
+
+/// Key de CurseForge embebida (CI) o inyectada por entorno: el usuario no tiene que pegarla.
+pub fn curseforge_key_managed() -> bool {
+    curseforge_api_key_from_env_or_baked().is_some()
+}
+
+/// Hay una key usable (env, bake, secrets o Ajustes).
+pub fn curseforge_key_ready() -> bool {
+    !curseforge_api_key().trim().is_empty()
+}
+
+pub fn groq_key_managed() -> bool {
+    groq_api_key_from_env_or_baked().is_some()
+}
+
+/// Mensaje para builds sin key: no mencionar `.env` al usuario final.
+pub fn missing_curseforge_key_message() -> &'static str {
+    "CurseForge requiere una API key. Pegala en Ajustes → Tienda (console.curseforge.com)."
 }
 
 fn curseforge_api_key_from_env_or_baked() -> Option<String> {

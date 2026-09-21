@@ -1,6 +1,6 @@
 # Paraguacraft Launcher — desarrollo
 
-Código fuente en `src/` (Vue 3) y `src-tauri/` (Rust).
+Código fuente en `src/` (interfaz) y `src-tauri/` (motor nativo).
 
 ```bash
 npm install

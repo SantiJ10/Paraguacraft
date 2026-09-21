@@ -353,11 +353,22 @@ async function startServer() {
 }
 
 async function stopServer() {
+  await haltServer(false);
+}
+
+async function forceStopServer() {
+  await haltServer(true);
+}
+
+async function haltServer(force: boolean) {
   busy.value = true;
+  startFastPolling(20000);
   try {
-    await api.stopServer(serverId.value);
+    if (force) await api.stopServerForce(serverId.value);
+    else await api.stopServer(serverId.value);
     await refreshStatus();
-    message.value = "Servidor detenido.";
+    await refreshLog();
+    message.value = force ? "Servidor forzado a cerrar." : "Servidor detenido.";
   } catch (e) {
     error.value = String(e);
   } finally {
@@ -533,8 +544,16 @@ async function startPlayit() {
 }
 
 async function stopPlayit() {
-  await api.stopPlayit(serverId.value);
-  await refreshStatus();
+  busy.value = true;
+  try {
+    await api.stopPlayit(serverId.value);
+    await refreshStatus();
+    message.value = "Playit detenido.";
+  } catch (e) {
+    error.value = String(e);
+  } finally {
+    busy.value = false;
+  }
 }
 
 async function resetPlayit() {
@@ -757,6 +776,15 @@ function serverTypeLabel(t: string) {
           </BaseButton>
           <BaseButton size="lg" variant="secondary" :disabled="busy || !status?.running" @click="stopServer">
             {{ busy && status?.running ? "Deteniendo…" : "Detener" }}
+          </BaseButton>
+          <BaseButton
+            size="lg"
+            variant="danger"
+            :disabled="!status?.running"
+            title="Cierra cmd, Java y Playit sin esperar el stop del servidor"
+            @click="forceStopServer"
+          >
+            Forzar cierre
           </BaseButton>
           <BaseButton variant="secondary" :disabled="busy" @click="prepareJar">Preparar</BaseButton>
           <BaseButton

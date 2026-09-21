@@ -12,8 +12,9 @@
 use std::collections::HashMap;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
+use std::time::Duration;
 
 use futures_util::stream::{self, StreamExt};
 use serde::{Deserialize, Serialize};
@@ -188,6 +189,142 @@ fn legacy_library_sha1_soft_ok(dest: &Path, size: usize) -> bool {
         || p.contains("net/java/jutils")
 }
 
+pub const CANCELLED_MSG: &str = "Descarga cancelada";
+
+pub fn is_cancelled(e: &AppError) -> bool {
+    matches!(e, AppError::Msg(s) if s == CANCELLED_MSG)
+}
+
+struct GroupControl {
+    cancel: AtomicBool,
+    paused: AtomicBool,
+    progress: AtomicU32,
+    label: Mutex<String>,
+    folder: Mutex<Option<String>>,
+    app: AppHandle,
+}
+
+fn group_controls() -> &'static Mutex<HashMap<String, Arc<GroupControl>>> {
+    static CONTROLS: OnceLock<Mutex<HashMap<String, Arc<GroupControl>>>> = OnceLock::new();
+    CONTROLS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn register_group(id: &str, ctrl: Arc<GroupControl>) {
+    if let Ok(mut map) = group_controls().lock() {
+        map.insert(id.to_string(), ctrl);
+    }
+}
+
+fn unregister_group(id: &str) {
+    if let Ok(mut map) = group_controls().lock() {
+        map.remove(id);
+    }
+}
+
+struct GroupGuard {
+    id: String,
+}
+
+impl Drop for GroupGuard {
+    fn drop(&mut self) {
+        unregister_group(&self.id);
+    }
+}
+
+/// Pausa, reanuda o cancela un grupo de `download_all`.
+pub fn control_group(id: &str, action: &str) -> AppResult<()> {
+    let action = action.trim().to_ascii_lowercase();
+    let ctrl = {
+        let map = group_controls()
+            .lock()
+            .map_err(|_| AppError::msg("Cola de descargas ocupada"))?;
+        map.get(id).cloned()
+    };
+    let Some(ctrl) = ctrl else {
+        if action == "cancel" {
+            return Ok(());
+        }
+        return Err(AppError::msg("Esa descarga ya terminó"));
+    };
+    let label = ctrl
+        .label
+        .lock()
+        .map(|s| s.clone())
+        .unwrap_or_else(|_| id.to_string());
+    let folder = ctrl.folder.lock().ok().and_then(|f| f.clone());
+    let progress = f64::from(ctrl.progress.load(Ordering::Relaxed));
+    match action.as_str() {
+        "cancel" => {
+            ctrl.paused.store(false, Ordering::Relaxed);
+            ctrl.cancel.store(true, Ordering::Relaxed);
+            emit(
+                &ctrl.app,
+                id,
+                &label,
+                progress,
+                "cancelled",
+                Some(CANCELLED_MSG),
+                None,
+                "",
+                folder.as_deref(),
+            );
+            Ok(())
+        }
+        "pause" => {
+            if ctrl.cancel.load(Ordering::Relaxed) {
+                return Ok(());
+            }
+            ctrl.paused.store(true, Ordering::Relaxed);
+            emit(
+                &ctrl.app,
+                id,
+                &label,
+                progress,
+                "paused",
+                None,
+                None,
+                "",
+                folder.as_deref(),
+            );
+            Ok(())
+        }
+        "resume" => {
+            if ctrl.cancel.load(Ordering::Relaxed) {
+                return Ok(());
+            }
+            ctrl.paused.store(false, Ordering::Relaxed);
+            emit(
+                &ctrl.app,
+                id,
+                &label,
+                progress,
+                "downloading",
+                None,
+                None,
+                "",
+                folder.as_deref(),
+            );
+            Ok(())
+        }
+        _ => Err(AppError::msg(format!("Acción desconocida: {action}"))),
+    }
+}
+
+async fn wait_if_paused(control: &Option<Arc<GroupControl>>) -> AppResult<()> {
+    let Some(ctrl) = control else {
+        return Ok(());
+    };
+    loop {
+        if ctrl.cancel.load(Ordering::Relaxed) {
+            return Err(AppError::msg(CANCELLED_MSG));
+        }
+        if !ctrl.paused.load(Ordering::Relaxed) {
+            return Ok(());
+        }
+        tokio::time::sleep(Duration::from_millis(150)).await;
+    }
+}
+
 fn emit(
     app: &AppHandle,
     id: &str,
@@ -196,6 +333,8 @@ fn emit(
     status: &str,
     error: Option<&str>,
     failed_file: Option<&str>,
+    speed: &str,
+    folder: Option<&str>,
 ) {
     let _ = app.emit(
         "download://progress",
@@ -204,15 +343,12 @@ fn emit(
             label: label.to_string(),
             progress,
             status: status.to_string(),
-            speed: String::new(),
+            speed: speed.to_string(),
             error: error.map(String::from),
             failed_file: failed_file.map(String::from),
+            folder: folder.map(String::from),
         },
     );
-}
-
-fn emit_simple(app: &AppHandle, id: &str, label: &str, progress: f64, status: &str) {
-    emit(app, id, label, progress, status, None, None);
 }
 
 fn is_retryable_status(status: reqwest::StatusCode) -> bool {
@@ -220,6 +356,9 @@ fn is_retryable_status(status: reqwest::StatusCode) -> bool {
 }
 
 fn http_retryable(e: &AppError) -> bool {
+    if is_cancelled(e) {
+        return false;
+    }
     match e {
         AppError::Http(http) => {
             http.is_timeout()
@@ -303,6 +442,15 @@ async fn get_bytes(client: &reqwest::Client, url: &str) -> AppResult<Vec<u8>> {
 /// Descarga un archivo de forma atomica y verificada. Devuelve bytes escritos
 /// (0 si se reuso por skip).
 pub async fn download_one(client: &reqwest::Client, item: &DownloadItem) -> AppResult<u64> {
+    download_one_with(client, item, None).await
+}
+
+async fn download_one_with(
+    client: &reqwest::Client,
+    item: &DownloadItem,
+    control: Option<Arc<GroupControl>>,
+) -> AppResult<u64> {
+    wait_if_paused(&control).await?;
     if skip_existing(item).await {
         return Ok(0);
     }
@@ -311,8 +459,15 @@ pub async fn download_one(client: &reqwest::Client, item: &DownloadItem) -> AppR
     let sha1 = item.sha1.clone();
     let mut last_err = None;
     for url in mirror_urls(&item.url) {
-        match with_retries_n(|| stream_download(client, &url, &dest, sha1.as_deref()), 3).await {
+        wait_if_paused(&control).await?;
+        match with_retries_n(
+            || stream_download(client, &url, &dest, sha1.as_deref(), control.clone()),
+            3,
+        )
+        .await
+        {
             Ok(n) => return Ok(n),
+            Err(e) if is_cancelled(&e) => return Err(e),
             Err(e) => last_err = Some(e),
         }
     }
@@ -330,8 +485,11 @@ async fn stream_download(
     url: &str,
     dest: &Path,
     sha1: Option<&str>,
+    control: Option<Arc<GroupControl>>,
 ) -> AppResult<u64> {
     use tokio::io::AsyncWriteExt;
+
+    wait_if_paused(&control).await?;
 
     if let Some(parent) = dest.parent() {
         tokio::fs::create_dir_all(parent).await?;
@@ -365,6 +523,7 @@ async fn stream_download(
 
     let mut stream = resp.bytes_stream();
     while let Some(chunk) = stream.next().await {
+        wait_if_paused(&control).await?;
         let chunk = chunk?;
         hasher.update(&chunk);
         file.write_all(&chunk).await?;
@@ -527,6 +686,24 @@ pub async fn download_all(
     if total == 0 {
         return Ok(());
     }
+    let folder = items.first().and_then(|it| {
+        it.dest
+            .parent()
+            .map(|p| p.to_string_lossy().into_owned())
+    });
+    let ctrl = Arc::new(GroupControl {
+        cancel: AtomicBool::new(false),
+        paused: AtomicBool::new(false),
+        progress: AtomicU32::new(0),
+        label: Mutex::new(label.to_string()),
+        folder: Mutex::new(folder.clone()),
+        app: app.clone(),
+    });
+    register_group(group_id, ctrl.clone());
+    let _guard = GroupGuard {
+        id: group_id.to_string(),
+    };
+
     let done = Arc::new(AtomicUsize::new(0));
     let last_emit_pct = Arc::new(AtomicU32::new(0));
     let concurrency = if total > 400 {
@@ -537,42 +714,70 @@ pub async fn download_all(
         concurrency.clamp(1, 32)
     };
 
-    emit_simple(app, group_id, label, 0.0, "downloading");
+    let speed0 = format!("0/{total}");
+    emit(
+        app,
+        group_id,
+        label,
+        0.0,
+        "downloading",
+        None,
+        None,
+        &speed0,
+        folder.as_deref(),
+    );
 
     let mut stream = stream::iter(items.into_iter().map(|item| {
         let client = client.clone();
         let app = app.clone();
         let done = done.clone();
         let last_emit_pct = last_emit_pct.clone();
+        let ctrl = ctrl.clone();
         let group = group_id.to_string();
         let label = label.to_string();
+        let folder = folder.clone();
         async move {
             let file_label = item
                 .dest
                 .file_name()
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_else(|| item.url.clone());
-            let res = download_one(&client, &item).await;
+            let res = download_one_with(&client, &item, Some(ctrl.clone())).await;
             let n = done.fetch_add(1, Ordering::SeqCst) + 1;
             let pct = (n as f64 / total as f64) * 100.0;
             let pct_i = pct.floor() as u32;
+            ctrl.progress.store(pct_i, Ordering::Relaxed);
+            let speed = format!("{n}/{total}");
             let should_emit = res.is_err()
                 || n == total
                 || pct_i > last_emit_pct.load(Ordering::Relaxed);
             if should_emit {
                 last_emit_pct.store(pct_i, Ordering::Relaxed);
                 if let Err(ref e) = res {
+                    let status = if is_cancelled(e) { "cancelled" } else { "error" };
                     emit(
                         &app,
                         &group,
                         &label,
                         pct,
-                        "error",
+                        status,
                         Some(&e.to_string()),
                         Some(&file_label),
+                        &speed,
+                        folder.as_deref(),
                     );
                 } else {
-                    emit_simple(&app, &group, &label, pct, "downloading");
+                    emit(
+                        &app,
+                        &group,
+                        &label,
+                        pct,
+                        "downloading",
+                        None,
+                        None,
+                        &speed,
+                        folder.as_deref(),
+                    );
                 }
             }
             res.map(|_| ())
@@ -589,9 +794,37 @@ pub async fn download_all(
     }
     // Persistir lo verificado aunque el grupo haya fallado a la mitad.
     let _ = tokio::task::spawn_blocking(flush_verify_cache).await;
-    outcome?;
-    emit_simple(app, group_id, label, 100.0, "done");
-    Ok(())
+    match outcome {
+        Ok(()) => {
+            emit(
+                app,
+                group_id,
+                label,
+                100.0,
+                "done",
+                None,
+                None,
+                &format!("{total}/{total}"),
+                folder.as_deref(),
+            );
+            Ok(())
+        }
+        Err(e) if is_cancelled(&e) => {
+            emit(
+                app,
+                group_id,
+                label,
+                f64::from(ctrl.progress.load(Ordering::Relaxed)),
+                "cancelled",
+                Some(CANCELLED_MSG),
+                None,
+                "",
+                folder.as_deref(),
+            );
+            Err(e)
+        }
+        Err(e) => Err(e),
+    }
 }
 
 /// Comprueba si hay internet con un GET corto (sin reintentos largos).
@@ -706,6 +939,13 @@ mod tests {
     #[test]
     fn missing_file_has_no_signature() {
         assert!(file_signature(Path::new("no-existe-pg-test.bin")).is_none());
+    }
+
+    #[test]
+    fn cancelled_error_is_not_retryable() {
+        let e = AppError::msg(CANCELLED_MSG);
+        assert!(is_cancelled(&e));
+        assert!(!http_retryable(&e));
     }
 
     #[test]

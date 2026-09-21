@@ -21,6 +21,7 @@ import type {
   ExtrasStatus,
   DeviceCodeStart,
   DownloadTask,
+  CurseforgeStatus,
   FavoriteServer,
   AiAssistResponse,
   ApplySkinResult,
@@ -1039,6 +1040,16 @@ export const api = {
     return delay([]);
   },
 
+  async downloadControl(id: string, action: "cancel" | "pause" | "resume"): Promise<void> {
+    if (!isTauri()) return;
+    await invokeReal<void>("download_control", { id, action });
+  },
+
+  async revealDownloadPath(path: string): Promise<void> {
+    if (!isTauri() || !path) return;
+    await invokeReal<void>("reveal_download_path", { path });
+  },
+
   // --- Fase 4: diagnostico, servidores, skins, update ---
   async diagnoseInstance(instanceId: string, exitCode: number): Promise<CrashDiagnosis> {
     return invokeReal<CrashDiagnosis>("diagnose_instance", { instanceId, exitCode });
@@ -1062,6 +1073,11 @@ export const api = {
 
   async apiKeysManaged(): Promise<boolean> {
     return invokeReal<boolean>("api_keys_managed");
+  },
+
+  async curseforgeStatus(): Promise<CurseforgeStatus> {
+    if (!isTauri()) return { ready: false, managed: false };
+    return invokeReal<CurseforgeStatus>("curseforge_status");
   },
 
   async saveGroqApiKey(key: string): Promise<void> {

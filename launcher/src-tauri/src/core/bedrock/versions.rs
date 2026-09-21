@@ -366,6 +366,7 @@ fn emit_progress(app: &AppHandle, id: &str, label: &str, progress: f64, status: 
             speed: String::new(),
             error: None,
             failed_file: None,
+            folder: None,
         },
     );
 }
@@ -381,6 +382,7 @@ fn emit_error(app: &AppHandle, id: &str, label: &str, err: &str) {
             speed: String::new(),
             error: Some(err.to_string()),
             failed_file: None,
+            folder: None,
         },
     );
 }

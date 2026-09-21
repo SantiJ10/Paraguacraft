@@ -41,6 +41,22 @@ pub fn api_keys_managed() -> bool {
     crate::config::keys::api_keys_managed_by_launcher()
 }
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CurseforgeStatus {
+    pub ready: bool,
+    pub managed: bool,
+}
+
+/// Si CurseForge ya tiene key (bake/env/Ajustes) y si el usuario no tiene que pegarla.
+#[tauri::command]
+pub fn curseforge_status() -> CurseforgeStatus {
+    CurseforgeStatus {
+        ready: crate::config::keys::curseforge_key_ready(),
+        managed: crate::config::keys::curseforge_key_managed(),
+    }
+}
+
 #[tauri::command]
 pub fn save_groq_api_key(key: String) -> AppResult<()> {
     crate::config::keys::save_groq_api_key(&key)

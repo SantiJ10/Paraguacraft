@@ -29,8 +29,10 @@ pub fn create_server(
 }
 
 #[tauri::command]
-pub fn delete_server(id: String) -> AppResult<()> {
-    servers::delete(&id)
+pub async fn delete_server(id: String) -> AppResult<()> {
+    tauri::async_runtime::spawn_blocking(move || servers::delete(&id))
+        .await
+        .map_err(|e| AppError::msg(format!("delete_server: {e}")))?
 }
 
 #[tauri::command]
@@ -122,13 +124,24 @@ pub async fn stop_server_force(id: String) -> AppResult<()> {
 }
 
 #[tauri::command]
-pub fn start_playit(id: String) -> AppResult<String> {
-    servers::start_playit(&id)
+pub async fn start_playit(id: String) -> AppResult<String> {
+    tauri::async_runtime::spawn_blocking(move || servers::start_playit(&id))
+        .await
+        .map_err(|e| AppError::msg(format!("start_playit: {e}")))?
 }
 
 #[tauri::command]
-pub fn stop_playit(id: String) -> AppResult<()> {
-    servers::stop_playit(&id)
+pub async fn stop_playit(id: String) -> AppResult<()> {
+    tauri::async_runtime::spawn_blocking(move || servers::stop_playit(&id))
+        .await
+        .map_err(|e| AppError::msg(format!("stop_playit: {e}")))?
+}
+
+#[tauri::command]
+pub async fn send_server_command(id: String, command: String) -> AppResult<()> {
+    tauri::async_runtime::spawn_blocking(move || servers::send_command(&id, &command))
+        .await
+        .map_err(|e| AppError::msg(format!("send_server_command: {e}")))?
 }
 
 #[tauri::command]
@@ -171,11 +184,6 @@ pub fn get_server_log(id: String, max_lines: Option<usize>) -> Vec<String> {
 pub fn export_server_log(id: String) -> AppResult<String> {
     let dir = servers::folder_for_id(&id)?;
     crate::core::server_console::export_to_file(&id, &dir)
-}
-
-#[tauri::command]
-pub fn send_server_command(id: String, command: String) -> AppResult<()> {
-    servers::send_command(&id, &command)
 }
 
 #[tauri::command]

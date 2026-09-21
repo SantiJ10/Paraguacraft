@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
-import { openUrl } from "@/lib/ipc";
+import { useRoute } from "vue-router";
+import { api, openUrl } from "@/lib/ipc";
 import { storeLoader } from "@/lib/loaders";
-import type { ContentProvider, ContentType, StoreItem } from "@/lib/types";
+import type { ContentProvider, ContentType, CurseforgeStatus, StoreItem } from "@/lib/types";
 import SearchInput from "@/components/common/SearchInput.vue";
 import BaseButton from "@/components/common/BaseButton.vue";
 import Pagination from "@/components/common/Pagination.vue";
 import InstallStoreModal from "@/components/store/InstallStoreModal.vue";
+import QuickModpackModal from "@/components/store/QuickModpackModal.vue";
 import StoreProjectDetail from "@/components/store/StoreProjectDetail.vue";
 import { useDownloadsStore } from "@/stores/downloads";
 import { useStoreStore } from "@/stores/store";
@@ -15,6 +17,7 @@ import { formatNumber } from "@/composables/useFormat";
 
 defineOptions({ name: "store" });
 
+const route = useRoute();
 const downloads = useDownloadsStore();
 const storeStore = useStoreStore();
 const instances = useInstancesStore();
@@ -26,9 +29,12 @@ const typeFilter = ref<ContentType>("mod");
 const filterByInstance = ref(true);
 /** Mods CF bloqueados por distribución: id → URL del proyecto */
 const distributionBlocked = ref<Record<string, { url: string; name: string }>>({});
+const cfStatus = ref<CurseforgeStatus>({ ready: true, managed: false });
 
 const installOpen = ref(false);
 const installItem = ref<StoreItem | null>(null);
+const quickOpen = ref(false);
+const quickItem = ref<StoreItem | null>(null);
 const detailItem = ref<StoreItem | null>(null);
 
 const tabs: Array<{ id: ContentType; label: string }> = [
@@ -82,13 +88,33 @@ function refresh(offset = 0, force = false) {
 
 onMounted(async () => {
   await instances.load();
+  try {
+    cfStatus.value = await api.curseforgeStatus();
+  } catch {
+    cfStatus.value = { ready: false, managed: false };
+  }
+  applyRouteQuery();
   refresh();
 });
+
+watch(
+  () => [route.query.tab, route.query.type],
+  () => applyRouteQuery(),
+);
+
+function applyRouteQuery() {
+  const raw = String(route.query.tab || route.query.type || "");
+  if (tabs.some((t) => t.id === raw)) {
+    typeFilter.value = raw as ContentType;
+    if (raw === "modpack") filterByInstance.value = false;
+  }
+}
 
 watch([provider, typeFilter, filterMc, filterLoader], () => refresh(0));
 
 watch(typeFilter, (t) => {
   if (t === "world") provider.value = "curseforge";
+  if (t === "modpack") filterByInstance.value = false;
 });
 
 function search() {
@@ -100,7 +126,17 @@ function onPageChange(offset: number) {
 }
 
 function openInstall(item: StoreItem) {
+  if (item.projectType === "modpack") {
+    quickItem.value = item;
+    quickOpen.value = true;
+    return;
+  }
   installItem.value = item;
+  installOpen.value = true;
+}
+
+function openAdvancedInstall() {
+  installItem.value = quickItem.value;
   installOpen.value = true;
 }
 
@@ -133,7 +169,7 @@ function onInstalled() {
   <div class="p-8">
     <h1 class="text-2xl font-bold">Tienda</h1>
     <p class="text-sm text-gray-500">
-      Explora mods, packs, mundos y más desde Modrinth y CurseForge. Los mundos se buscan en CurseForge (como en esa tienda).
+      Explora mods, packs, mundos y más desde Modrinth y CurseForge. En Modpacks: Instalar → nombre → Jugar.
     </p>
 
     <div class="my-5 flex flex-wrap items-center gap-3">
@@ -192,6 +228,13 @@ function onInstalled() {
     </div>
 
     <p v-if="error" class="mb-4 rounded-lg bg-red-500/10 px-4 py-2 text-sm text-red-400">{{ error }}</p>
+    <p
+      v-if="provider === 'curseforge' && !cfStatus.ready"
+      class="mb-4 rounded-lg bg-amber-500/10 px-4 py-2 text-sm text-amber-300"
+    >
+      CurseForge no está habilitado en esta build. Pegá una API key en Ajustes → Tienda
+      (<a class="underline" href="https://console.curseforge.com/" target="_blank" rel="noopener">console.curseforge.com</a>).
+    </p>
     <p v-if="loading && !items.length" class="text-sm text-gray-500">Buscando…</p>
     <p v-else-if="!items.length" class="text-sm text-gray-500">
       Sin resultados. Probá otra búsqueda o cambiá de categoría.
@@ -256,6 +299,12 @@ function onInstalled() {
     />
 
     <InstallStoreModal v-model:open="installOpen" :item="installItem" @installed="onInstalled" />
+    <QuickModpackModal
+      v-model:open="quickOpen"
+      :item="quickItem"
+      @installed="onInstalled"
+      @advanced="openAdvancedInstall"
+    />
     <StoreProjectDetail
       v-if="detailItem"
       :item="detailItem"

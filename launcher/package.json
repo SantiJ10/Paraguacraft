@@ -1,9 +1,9 @@
 {
   "name": "paraguacraft-launcher",
-  "version": "1.1.51",
+  "version": "1.1.52",
   "private": true,
   "type": "module",
-  "description": "Paraguacraft Launcher - cliente de Minecraft Java multiplataforma (Tauri v2 + Vue 3)",
+  "description": "Paraguacraft Launcher - cliente de Minecraft Java para Windows",
   "scripts": {
     "dev": "vite",
     "gen:ipc": "node scripts/gen-ipc-commands.mjs",

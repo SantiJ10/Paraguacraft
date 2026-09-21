@@ -59,11 +59,15 @@ fn project_page_url(slug: &str, class_id: u64) -> String {
     format!("https://www.curseforge.com/minecraft/{section}/{slug}")
 }
 
+fn missing_key() -> AppError {
+    AppError::msg(crate::config::keys::missing_curseforge_key_message())
+}
+
 fn distribution_blocked(name: &str, url: &str) -> AppError {
     AppError::structured(StructuredError {
         code: "cf_distribution_blocked".into(),
         message: format!(
-            "CurseForge bloqueo la descarga de \"{name}\": el autor no permite descargas de terceros (Project Distribution)."
+            "No se puede bajar \"{name}\" desde el launcher: el autor no permite descargas de terceros. Abrí la página del proyecto y descargalo a mano."
         ),
         project_url: Some(url.to_string()),
         project_name: Some(name.to_string()),
@@ -79,18 +83,20 @@ async fn get_json(client: &reqwest::Client, url: &str, key: &str) -> AppResult<V
         .await?;
     let status = resp.status();
     if status == reqwest::StatusCode::FORBIDDEN || status == reqwest::StatusCode::UNAUTHORIZED {
+        let managed = crate::config::keys::curseforge_key_managed();
         let hint = if key.trim().is_empty() {
-            "No hay API key configurada."
+            crate::config::keys::missing_curseforge_key_message().to_string()
         } else if key.contains('$') && !crate::config::keys::curseforge_api_key_looks_valid(key) {
-            "La API key parece corrupta (el `$` del inicio se expandió mal en .env)."
+            "La API key parece corrupta (el `$` del inicio se expandió mal).".to_string()
         } else if !key.trim().starts_with('$') && key.len() < 40 {
-            "La API key parece incompleta o inválida."
+            "La API key parece incompleta o inválida.".to_string()
+        } else if managed {
+            "CurseForge rechazó la petición. Reintentá en unos minutos.".to_string()
         } else {
-            "Verificá la API key en console.curseforge.com y en Ajustes."
+            "Verificá la API key en Ajustes → Tienda (console.curseforge.com).".to_string()
         };
         return Err(AppError::msg(format!(
-            "CurseForge rechazó la petición ({status}). {hint} \
-             Tip: en launcher/.env usá comillas simples, p.ej. CURSEFORGE_API_KEY='$2a$10$…'"
+            "CurseForge rechazó la petición ({status}). {hint}"
         )));
     }
     let resp = resp.error_for_status()?;
@@ -142,9 +148,7 @@ pub async fn project_detail(
     project_type: &str,
 ) -> AppResult<StoreProjectDetail> {
     if key.trim().is_empty() {
-        return Err(AppError::msg(
-            "CurseForge requiere una API key. Configurala en Ajustes.",
-        ));
+        return Err(missing_key());
     }
     let url = format!("{API}/mods/{project_id}");
     let resp = get_json(client, &url, key).await?;
@@ -294,9 +298,7 @@ pub async fn search(
     limit: u32,
 ) -> AppResult<StoreSearchResult> {
     if key.trim().is_empty() {
-        return Err(AppError::msg(
-            "CurseForge requiere una API key. Configurala en .env (CURSEFORGE_API_KEY) o en Ajustes.",
-        ));
+        return Err(missing_key());
     }
     let limit = limit.clamp(1, 50);
     let mut url = format!(
@@ -361,7 +363,7 @@ pub async fn list_files_raw(
 ) -> AppResult<Vec<Value>> {
     if key.trim().is_empty() {
         return Err(AppError::msg(
-            "CurseForge requiere una API key (.env o Ajustes).",
+            crate::config::keys::missing_curseforge_key_message(),
         ));
     }
     let mut url = format!("{API}/mods/{mod_id}/files?pageSize=50");
@@ -467,7 +469,7 @@ pub async fn list_all_versions(
 ) -> AppResult<Vec<StoreVersion>> {
     if key.trim().is_empty() {
         return Err(AppError::msg(
-            "CurseForge requiere una API key (.env o Ajustes).",
+            crate::config::keys::missing_curseforge_key_message(),
         ));
     }
     let url = format!("{API}/mods/{mod_id}/files?pageSize=50");
@@ -556,7 +558,7 @@ pub async fn install_file_id(
 ) -> AppResult<String> {
     if key.trim().is_empty() {
         return Err(AppError::msg(
-            "CurseForge requiere una API key (.env o Ajustes).",
+            crate::config::keys::missing_curseforge_key_message(),
         ));
     }
 
@@ -760,7 +762,7 @@ pub async fn install(
 ) -> AppResult<String> {
     if key.trim().is_empty() {
         return Err(AppError::msg(
-            "CurseForge requiere una API key (.env o Ajustes).",
+            crate::config::keys::missing_curseforge_key_message(),
         ));
     }
 

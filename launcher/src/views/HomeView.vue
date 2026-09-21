@@ -130,6 +130,9 @@ async function play(inst: { id: string; name: string }) {
             <BaseButton size="lg" variant="secondary" @click="openInstance(featured)">
               Gestionar
             </BaseButton>
+            <BaseButton size="lg" variant="ghost" @click="router.push({ name: 'store', query: { tab: 'modpack' } })">
+              Instalar modpack
+            </BaseButton>
           </div>
 
           <p v-if="launchError" class="mt-3 text-sm text-red-400">{{ launchError }}</p>

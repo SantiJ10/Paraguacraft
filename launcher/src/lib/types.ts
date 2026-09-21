@@ -454,7 +454,7 @@ export interface AiAssistResponse {
   actions: AiAction[];
 }
 
-export type DownloadStatus = "queued" | "downloading" | "done" | "error" | "paused";
+export type DownloadStatus = "queued" | "downloading" | "done" | "error" | "paused" | "cancelled";
 
 export interface DownloadTask {
   id: string;
@@ -464,6 +464,12 @@ export interface DownloadTask {
   speed: string;
   error?: string | null;
   failedFile?: string | null;
+  folder?: string | null;
+}
+
+export interface CurseforgeStatus {
+  ready: boolean;
+  managed: boolean;
 }
 
 export interface AppSettings {

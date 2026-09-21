@@ -110,16 +110,26 @@ const groqKey = ref("");
 const groqKeyMessage = ref<string | null>(null);
 const aiConfigured = ref<boolean | null>(null);
 const keysManaged = ref(false);
+const cfManaged = ref(false);
+const cfReady = ref(false);
 
 async function loadAiStatus() {
   if (!isTauri()) return;
   try {
-    const [st, managed] = await Promise.all([api.aiStatus(), api.apiKeysManaged()]);
+    const [st, managed, cf] = await Promise.all([
+      api.aiStatus(),
+      api.apiKeysManaged(),
+      api.curseforgeStatus(),
+    ]);
     aiConfigured.value = st.configured;
     keysManaged.value = managed;
+    cfManaged.value = cf.managed;
+    cfReady.value = cf.ready;
   } catch {
     aiConfigured.value = false;
     keysManaged.value = false;
+    cfManaged.value = false;
+    cfReady.value = false;
   }
 }
 
@@ -1191,8 +1201,13 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
       <!-- Tienda -->
       <section class="rounded-xl border border-surface-4 bg-surface-2 p-6">
         <h2 class="mb-4 flex items-center gap-2 text-lg font-bold"><span class="font-emoji">&#128722;</span> Tienda</h2>
-        <p v-if="keysManaged" class="mb-3 text-xs text-pc-green">CurseForge habilitado por el launcher.</p>
-        <label v-if="!keysManaged" class="block">
+        <p v-if="cfManaged || cfReady" class="mb-3 text-xs text-pc-green">
+          CurseForge habilitado por el launcher. No hace falta pegar una key.
+        </p>
+        <p v-else class="mb-3 text-xs text-amber-400">
+          Sin key de CurseForge: Modrinth funciona igual; CurseForge pide una key gratuita.
+        </p>
+        <label v-if="!cfManaged" class="block">
           <span class="mb-1 block text-sm text-gray-300">CurseForge API Key (opcional)</span>
           <input
             type="password"
@@ -1202,9 +1217,9 @@ async function runCleanup(kind: "logs" | "crash" | "both") {
             @input="settings.update('curseforgeApiKey', ($event.target as HTMLInputElement).value)"
           />
           <span class="mt-1 block text-xs text-gray-500">
-            Modrinth funciona sin key. CurseForge requiere una key gratuita de
+            Conseguí una key en
             <a class="text-pc-green underline" href="https://console.curseforge.com/" target="_blank" rel="noopener">console.curseforge.com</a>.
-            Si la key empieza con <code class="text-gray-400">$2a$</code>, en <code class="text-gray-400">launcher/.env</code> ponela entre comillas simples para evitar error 403.
+            Las builds oficiales ya la traen embebida.
           </span>
         </label>
       </section>

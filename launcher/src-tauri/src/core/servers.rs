@@ -133,11 +133,91 @@ struct ServerProcs {
 }
 
 fn procs() -> std::sync::MutexGuard<'static, Option<HashMap<String, ServerProcs>>> {
-    let mut g = PROCESSES.lock().unwrap();
+    let mut g = PROCESSES.lock().unwrap_or_else(|e| e.into_inner());
     if g.is_none() {
         *g = Some(HashMap::new());
     }
     g
+}
+
+fn take_mc(id: &str) -> Option<McProcess> {
+    let mut g = procs();
+    g.as_mut()?.get_mut(id)?.mc.take()
+}
+
+fn take_playit_child(id: &str) -> Option<Child> {
+    let mut g = procs();
+    g.as_mut()?.get_mut(id)?.playit.take()
+}
+
+/// `taskkill /T` corta cmd.exe **y** el Java/playit colgado debajo.
+/// Nunca hacemos `Child::wait` en el hilo que atiende la UI: si el proceso
+/// no muere, `wait` deja el launcher en «No responde».
+fn kill_pid_tree(pid: u32) {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        let spawned = Command::new("taskkill")
+            .args(["/PID", &pid.to_string(), "/T", "/F"])
+            .creation_flags(CREATE_NO_WINDOW)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn();
+        if let Ok(mut killer) = spawned {
+            let start = std::time::Instant::now();
+            loop {
+                match killer.try_wait() {
+                    Ok(Some(_)) => break,
+                    Ok(None) if start.elapsed() < Duration::from_secs(2) => {
+                        std::thread::sleep(Duration::from_millis(40));
+                    }
+                    _ => {
+                        let _ = killer.kill();
+                        let _ = std::thread::Builder::new()
+                            .name("reap-taskkill".into())
+                            .spawn(move || {
+                                let _ = killer.wait();
+                            });
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = Command::new("kill")
+            .args(["-KILL", "--", &pid.to_string()])
+            .status();
+        let _ = Command::new("pkill")
+            .args(["-KILL", "-P", &pid.to_string()])
+            .status();
+    }
+}
+
+fn reap_child(mut child: Child) {
+    let pid = child.id();
+    kill_pid_tree(pid);
+    let _ = child.kill();
+    let _ = std::thread::Builder::new()
+        .name("reap-child".into())
+        .spawn(move || {
+            let _ = child.wait();
+        });
+}
+
+fn reap_mc(mc: McProcess) {
+    let pid = mc.child.id();
+    kill_pid_tree(pid);
+    let _ = std::thread::Builder::new()
+        .name("reap-mc".into())
+        .spawn(move || {
+            drop(mc.stdin);
+            let mut child = mc.child;
+            let _ = child.kill();
+            let _ = child.wait();
+        });
 }
 
 pub fn list() -> Vec<ServerProfile> {
@@ -486,6 +566,65 @@ fn kill_orphan_java_for_dir(dir: &Path) -> usize {
             if proc.kill() {
                 killed += 1;
             }
+        }
+    }
+    killed
+}
+
+fn process_belongs_to_dir(proc: &sysinfo::Process, dir_slash: &str, dir_native: &str) -> bool {
+    let cmd = proc
+        .cmd()
+        .iter()
+        .map(|s| s.to_string_lossy())
+        .collect::<Vec<_>>()
+        .join(" ");
+    let cmd_norm = cmd.replace('\\', "/");
+    let cwd = proc
+        .cwd()
+        .map(|p| p.to_string_lossy().replace('\\', "/"))
+        .unwrap_or_default();
+    cmd_norm.contains(dir_slash) || cmd.contains(dir_native) || cwd.contains(dir_slash)
+}
+
+fn kill_orphan_cmd_for_dir(dir: &Path) -> usize {
+    let Ok(dir_canon) = dir.canonicalize().or_else(|_| Ok::<_, std::io::Error>(dir.to_path_buf()))
+    else {
+        return 0;
+    };
+    let needle = dir_canon.to_string_lossy().to_string();
+    let needle_slash = needle.replace('\\', "/");
+    let mut sys = sysinfo::System::new();
+    sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+    let mut killed = 0usize;
+    for (_pid, proc) in sys.processes() {
+        let name = proc.name().to_string_lossy().to_ascii_lowercase();
+        if name != "cmd.exe" && name != "cmd" && name != "conhost.exe" {
+            continue;
+        }
+        if process_belongs_to_dir(proc, &needle_slash, &needle) && proc.kill() {
+            killed += 1;
+        }
+    }
+    killed
+}
+
+fn kill_orphan_playit_for_dir(dir: &Path) -> usize {
+    let Ok(dir_canon) = dir.canonicalize().or_else(|_| Ok::<_, std::io::Error>(dir.to_path_buf()))
+    else {
+        return 0;
+    };
+    let needle = dir_canon.to_string_lossy().to_string();
+    let needle_slash = needle.replace('\\', "/");
+    let mut sys = sysinfo::System::new();
+    sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+    let mut killed = 0usize;
+    for (_pid, proc) in sys.processes() {
+        let name = proc.name().to_string_lossy().to_ascii_lowercase();
+        if name != "playit.exe" && name != "playit" {
+            continue;
+        }
+        if process_belongs_to_dir(proc, &needle_slash, &needle) && proc.kill() {
+            killed += 1;
         }
     }
     killed
@@ -1640,30 +1779,34 @@ pub fn stop_all_running() {
 
 pub fn stop_mc(id: &str) -> AppResult<()> {
     let dir = profile_by_id(id).ok().map(|p| folder_for(&p));
-    let mut g = procs();
-    if let Some(map) = g.as_mut() {
-        if let Some(sp) = map.get_mut(id) {
-            if let Some(mut mc) = sp.mc.take() {
-                let _ = mc.child.kill();
-            }
-        }
+    if let Some(mc) = take_mc(id) {
+        reap_mc(mc);
     }
-    drop(g);
     if let Some(dir) = dir {
         let _ = kill_orphan_java_for_dir(&dir);
+        let _ = kill_orphan_cmd_for_dir(&dir);
     }
     Ok(())
 }
 
-/// Envía `stop` por stdin y espera hasta 45 s antes de forzar kill.
-/// Llamar desde `spawn_blocking` / un hilo de trabajo: el sleep congela la UI.
+/// Envía `stop` por stdin y espera un poco; si Java/cmd no cierra, mata el árbol.
+/// Llamar desde `spawn_blocking`.
 pub fn stop_mc_graceful(id: &str) -> AppResult<()> {
     crate::core::server_console::append(
         id,
-        "[launcher] Enviando stop — el launcher sigue respondiendo mientras el server cierra.",
+        "[launcher] Enviando stop — si no cierra en unos segundos se fuerza el cierre.",
     );
-    let _ = send_command(id, "stop");
-    for _ in 0..45 {
+    match send_command(id, "stop") {
+        Ok(()) => {}
+        Err(_) => {
+            crate::core::server_console::append(
+                id,
+                "[launcher] La consola no respondió; forzando cierre de Java/cmd/playit.",
+            );
+            return stop(id);
+        }
+    }
+    for _ in 0..16 {
         if !is_mc_running(id) {
             let mut g = procs();
             if let Some(map) = g.as_mut() {
@@ -1671,17 +1814,19 @@ pub fn stop_mc_graceful(id: &str) -> AppResult<()> {
                     sp.mc = None;
                 }
             }
+            drop(g);
             crate::core::server_console::append(id, "[launcher] Servidor detenido correctamente.");
             let _ = stop_playit_only(id);
             emit_running_changed();
             return Ok(());
         }
-        std::thread::sleep(std::time::Duration::from_secs(1));
+        std::thread::sleep(Duration::from_millis(500));
     }
-    stop_mc(id)?;
-    stop_playit_only(id)?;
-    emit_running_changed();
-    Ok(())
+    crate::core::server_console::append(
+        id,
+        "[launcher] El servidor no cerró a tiempo. Matando cmd/Java/playit…",
+    );
+    stop(id)
 }
 
 pub fn send_command(id: &str, cmd: &str) -> AppResult<()> {
@@ -1689,24 +1834,58 @@ pub fn send_command(id: &str, cmd: &str) -> AppResult<()> {
     if cmd.is_empty() {
         return Err(AppError::msg("Comando vacío"));
     }
-    let mut g = procs();
-    let map = g.as_mut().ok_or_else(|| AppError::msg("Sin procesos"))?;
-    let sp = map.get_mut(id).ok_or_else(|| AppError::msg("Servidor no en ejecución"))?;
-    let mc = sp.mc.as_mut().ok_or_else(|| AppError::msg("Servidor no en ejecución"))?;
-    if mc.child.try_wait().ok().flatten().is_some() {
-        return Err(AppError::msg("Servidor no en ejecución"));
-    }
-    let stdin = mc.stdin.get_mut().unwrap();
-    let Some(stdin) = stdin.as_mut() else {
+    let stdin = {
+        let mut g = procs();
+        let map = g.as_mut().ok_or_else(|| AppError::msg("Sin procesos"))?;
+        let sp = map
+            .get_mut(id)
+            .ok_or_else(|| AppError::msg("Servidor no en ejecución"))?;
+        let mc = sp
+            .mc
+            .as_mut()
+            .ok_or_else(|| AppError::msg("Servidor no en ejecución"))?;
+        if mc.child.try_wait().ok().flatten().is_some() {
+            return Err(AppError::msg("Servidor no en ejecución"));
+        }
+        let mut slot = mc
+            .stdin
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        slot.take()
+    };
+    let Some(mut stdin) = stdin else {
         return Err(AppError::msg("Consola no disponible (Forge run.bat)"));
     };
     use std::io::Write;
-    stdin
-        .write_all(format!("{cmd}\n").as_bytes())
+    let payload = format!("{cmd}\n");
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::Builder::new()
+        .name("server-stdin".into())
+        .spawn(move || {
+            let res = stdin
+                .write_all(payload.as_bytes())
+                .and_then(|_| stdin.flush());
+            let _ = tx.send((res, stdin));
+        })
         .map_err(|e| AppError::msg(format!("No se pudo enviar comando: {e}")))?;
-    stdin.flush().ok();
-    crate::core::server_console::append(id, &format!("> {cmd}"));
-    Ok(())
+    match rx.recv_timeout(Duration::from_secs(2)) {
+        Ok((Ok(()), stdin)) => {
+            let mut g = procs();
+            if let Some(map) = g.as_mut() {
+                if let Some(sp) = map.get_mut(id) {
+                    if let Some(mc) = sp.mc.as_mut() {
+                        *mc.stdin.lock().unwrap_or_else(|e| e.into_inner()) = Some(stdin);
+                    }
+                }
+            }
+            crate::core::server_console::append(id, &format!("> {cmd}"));
+            Ok(())
+        }
+        Ok((Err(e), _)) => Err(AppError::msg(format!("No se pudo enviar comando: {e}"))),
+        Err(_) => Err(AppError::msg(
+            "La consola del servidor no responde (stdin bloqueado)",
+        )),
+    }
 }
 
 pub fn get_log(id: &str, max_lines: usize) -> Vec<String> {
@@ -1889,13 +2068,11 @@ fn spawn_claim_then_start(id: String, dir: PathBuf, playit: PathBuf, want_bedroc
 }
 
 fn stop_playit_only(id: &str) -> AppResult<()> {
-    let mut g = procs();
-    if let Some(map) = g.as_mut() {
-        if let Some(sp) = map.get_mut(id) {
-            if let Some(mut p) = sp.playit.take() {
-                let _ = p.kill();
-            }
-        }
+    if let Some(child) = take_playit_child(id) {
+        reap_child(child);
+    }
+    if let Ok(dir) = folder_for_id(id) {
+        let _ = kill_orphan_playit_for_dir(&dir);
     }
     Ok(())
 }

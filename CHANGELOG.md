@@ -3,6 +3,14 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [1.1.52] - 2026-09-21
+
+### Launcher
+- Instalar un modpack desde la tienda o Inicio en dos clics: pack → instancia → jugar.
+- Cola de descargas real: pausar, cancelar, reintentar y abrir la carpeta.
+- CurseForge en el instalador oficial sin pegar una API key; mensajes claros si un archivo no se puede bajar.
+- Detener un servidor local (Playit + consola) ya no congela el launcher.
+
 ## [1.1.51] - 2026-09-16
 
 ### Launcher
@@ -28,7 +36,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 ### Launcher
 - Menos CPU mientras Minecraft corre: el handle de la ventana se cachea, el HUD deja de lanzar PowerShell/nvidia-smi cada 500 ms, Bedrock solo refresca su propio PID y el sondeo de skins se pausa en bandeja.
 - Las descargas escriben a disco en streaming y reanudan con Range en vez de juntar el archivo entero en RAM.
-- Los nombres de comandos IPC se chequean contra el registro de Rust.
+- Los nombres de comandos IPC se chequean contra el registro interno.
 
 ### Android 0.1.16
 - El logger nativo ya no hace `fdatasync` por cada línea; el visor de log in-game está acotado.
@@ -1421,9 +1429,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [6.9.0] - 2026-06-22
 
-### 🚀 Lanzamiento mayor — Paraguacraft Launcher (Tauri v2)
+### 🚀 Lanzamiento mayor — Paraguacraft Launcher
 
-Reescritura completa del launcher: **Rust + Tauri v2 + Vue 3**. Cliente multiplataforma de grado comercial.
+Reescritura completa del launcher. Cliente multiplataforma de grado comercial.
 
 #### Rendimiento
 - **0% CPU en segundo plano** mientras jugás: el runtime apaga red, caches y hilos al lanzar Minecraft.

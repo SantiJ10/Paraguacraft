@@ -4,6 +4,7 @@ import type { RouteLocationNormalizedLoaded } from "vue-router";
 import Sidebar from "@/components/layout/Sidebar.vue";
 import TopBar from "@/components/layout/TopBar.vue";
 import StatusBar from "@/components/layout/StatusBar.vue";
+import DownloadQueue from "@/components/layout/DownloadQueue.vue";
 import AiPanel from "@/components/layout/AiPanel.vue";
 import MusicPlayer from "@/components/layout/MusicPlayer.vue";
 import MusicOverlay from "@/components/layout/MusicOverlay.vue";
@@ -110,6 +111,7 @@ onMounted(() => {
         </RouterView>
       </main>
       <StatusBar />
+      <DownloadQueue />
       <AiPanel />
       <MusicPlayer />
       <MusicOverlay />

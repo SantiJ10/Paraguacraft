@@ -726,6 +726,19 @@ async function install() {
   installedModpackName.value = null;
   try {
     await downloads.initEvents();
+    downloads.bindRetry(
+      [
+        "mrpack-import",
+        "cfpack-0",
+        "cfpack-1",
+        "cfpack-2",
+        "cfpack-final",
+        "ensure-libraries",
+        "install-loader",
+        "store-modpack",
+      ],
+      () => install(),
+    );
 
     if (isModpack.value) {
       if (modpackTarget.value === "server") {

@@ -18,8 +18,12 @@ const phaseColor = computed(
     })[app.launchPhase],
 );
 
-const footerTask = computed(() => downloads.failed[0] ?? downloads.active[0] ?? null);
-const isError = computed(() => footerTask.value?.status === "error");
+const footerTask = computed(
+  () => downloads.failed[0] ?? downloads.active[0] ?? downloads.tasks[downloads.tasks.length - 1] ?? null,
+);
+const isError = computed(
+  () => footerTask.value?.status === "error" || footerTask.value?.status === "cancelled",
+);
 </script>
 
 <template>
@@ -31,20 +35,24 @@ const isError = computed(() => footerTask.value?.status === "error");
       <span class="truncate">{{ app.launchMessage }}</span>
     </div>
 
-    <div v-if="footerTask" class="flex min-w-0 max-w-[70%] items-center gap-3">
-      <span class="truncate" :class="isError ? 'text-red-400' : ''">{{ footerTask.label }}</span>
-      <div v-if="!isError" class="w-32"><ProgressBar :value="footerTask.progress ?? 0" variant="ai" /></div>
-      <span v-if="!isError" class="shrink-0 tabular-nums">{{ footerTask.speed }}</span>
-      <span v-if="isError && footerTask.error" class="truncate text-red-400" :title="footerTask.error">
-        {{ footerTask.error }}
-      </span>
-      <span
-        v-if="isError && footerTask.failedFile"
-        class="hidden truncate font-mono text-[10px] text-gray-500 sm:inline"
-        :title="footerTask.failedFile"
-      >
-        {{ footerTask.failedFile }}
-      </span>
-    </div>
+    <button
+      type="button"
+      class="flex min-w-0 max-w-[70%] items-center gap-3 rounded-md px-1 py-0.5 text-left hover:bg-surface-3"
+      :class="footerTask ? '' : 'text-gray-500'"
+      @click="downloads.toggleQueue()"
+    >
+      <template v-if="footerTask">
+        <span class="truncate" :class="isError ? 'text-red-400' : ''">{{ footerTask.label }}</span>
+        <div v-if="!isError" class="w-32"><ProgressBar :value="footerTask.progress ?? 0" variant="ai" /></div>
+        <span v-if="!isError" class="shrink-0 tabular-nums">{{ footerTask.speed }}</span>
+        <span v-if="isError && footerTask.error" class="truncate text-red-400" :title="footerTask.error">
+          {{ footerTask.error }}
+        </span>
+        <span class="shrink-0 rounded bg-surface-4 px-1.5 py-0.5 text-[10px] font-bold text-white">
+          {{ downloads.tasks.length }}
+        </span>
+      </template>
+      <span v-else>Cola de descargas</span>
+    </button>
   </footer>
 </template>

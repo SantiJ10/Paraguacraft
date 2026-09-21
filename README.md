@@ -60,7 +60,7 @@ Cliente competitivo de **Minecraft 1.8.9** y **1.21.11** listo para Hypixel: **F
 
 | Área                 | Detalle                                                                                                                                                                 |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Rendimiento**      | Motor de descargas en Rust, SHA-1, 0 % CPU al jugar, JVM/RAM automática por hardware                                                                                    |
+| **Rendimiento**      | Motor de descargas nativo, SHA-1, 0 % CPU al jugar, JVM/RAM automática por hardware                                                                                     |
 | **Paraguacraft PvP** | Forge 1.8.9, OptiFine, Fabric 1.21.11, Sodium, mod HUD/GUI con optimizaciones, Quick Play Hypixel, overlay de música, alertas chat — **se actualiza solo** desde GitHub |
 | **Tienda**           | Modrinth + CurseForge, modpacks `.mrpack` y `.zip`                                                                                                                      |
 | **Instancias**       | Mods por carpeta, exportar/importar, reparar, favoritos con join directo                                                                                                |

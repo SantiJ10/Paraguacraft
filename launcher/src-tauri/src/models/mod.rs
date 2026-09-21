@@ -428,6 +428,9 @@ pub struct DownloadProgress {
     pub error: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub failed_file: Option<String>,
+    /// Carpeta del grupo (para “abrir carpeta” en la cola).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub folder: Option<String>,
 }
 
 /// Estado del cliente PvP (manifest remoto vs JAR instalado).
