@@ -1,6 +1,8 @@
 {
   "version": "1.1.52",
   "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.52/Instalar_Paraguacraft_v1.1.52.exe",
+  "size_bytes": 5991269,
+  "sha256": "da67edf8ad297ede230c31ad1a04df36daab9325d8b04a3eb1ad64c6a9c91f67",
   "notes": "- Instalar un modpack en dos clics: pack → instancia → jugar\n- Cola de descargas: pausar, cancelar, reintentar y abrir carpeta\n- Detener un servidor local (Playit + consola) ya no congela el launcher",
   "platforms": {
     "windows-x86_64": {
