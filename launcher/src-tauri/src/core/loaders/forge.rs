@@ -63,9 +63,10 @@ pub async fn versions(client: &reqwest::Client, mc: &str) -> AppResult<Vec<Strin
         .filter(|v| v.starts_with(&prefix))
         .map(|v| display_version(mc, &v))
         .collect();
-    matching.sort();
-    matching.dedup();
-    matching.reverse();
+    // Orden numérico: con `sort()` + `reverse()` la lista quedaba
+    // `47.4.9, 47.4.8, 47.4.6, …` y la UI recomendaba `47.4.9` con `47.4.26`
+    // ya publicada en el maven.
+    super::sort_versions_desc(&mut matching);
     Ok(matching)
 }
 
@@ -223,8 +224,51 @@ pub async fn install(
     )
     .await?;
 
-    super::find_installed_version_id(&[mc, "forge"])
-        .or_else(|| super::find_installed_version_id(&["forge", forge_version]))
+    super::find_installed_version_id(&[&format!("{mc}-forge-{forge_version}")])
         .or_else(|| super::find_installed_version_id(&[&full]))
+        .or_else(|| super::find_installed_version_id(&[mc, "forge"]))
+        .or_else(|| super::find_installed_version_id(&["forge", forge_version]))
         .ok_or_else(|| AppError::msg("Forge se instalo pero no se encontro el perfil generado"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn maven_id_modern_drops_mc_suffix() {
+        assert_eq!(resolve_maven_id("1.20.1", "47.4.26"), "1.20.1-47.4.26");
+        assert_eq!(resolve_maven_id("1.12.2", "14.23.5.2860"), "1.12.2-14.23.5.2860");
+    }
+
+    #[test]
+    fn maven_id_legacy_keeps_mc_suffix() {
+        assert_eq!(
+            resolve_maven_id("1.8.9", "11.15.1.2318"),
+            "1.8.9-11.15.1.2318-1.8.9"
+        );
+    }
+
+    /// La lista de la UI se usa para "instalar" y para el desplegable de versiones:
+    /// con orden lexicográfico la recomendada era 47.4.9 teniendo 47.4.26 en el maven.
+    #[test]
+    fn versions_list_newest_first() {
+        let mut v: Vec<String> = [
+            "47.4.9", "47.4.26", "47.4.10", "47.3.0", "47.4.6", "47.2.0",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+        super::super::sort_versions_desc(&mut v);
+        assert_eq!(v[0], "47.4.26");
+        assert_eq!(v[1], "47.4.10");
+        assert_eq!(v[2], "47.4.9");
+        assert_eq!(v.last().unwrap(), "47.2.0");
+    }
+
+    #[test]
+    fn legacy_display_version_strips_both_ends() {
+        assert_eq!(display_version("1.8.9", "1.8.9-11.15.1.2318-1.8.9"), "11.15.1.2318");
+        assert_eq!(display_version("1.20.1", "1.20.1-47.4.26"), "47.4.26");
+    }
 }

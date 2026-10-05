@@ -220,6 +220,11 @@ pub fn suggestions_for_category(category: &str) -> Vec<String> {
             "Quita mods recientes uno por uno.".into(),
             "Verifica compatibilidad MC + loader.".into(),
         ],
+        "mod_module_conflict" => vec![
+            "No es tu PC ni tu Java: es un mod que no arranca en este loader.".into(),
+            "Desactiva el mod indicado en el aviso de crash (queda como .jar.disabled).".into(),
+            "Si es una instancia Optimized, reinstalala para volver al set curado.".into(),
+        ],
         "gpu" => vec!["Actualiza drivers NVIDIA/AMD/Intel.".into()],
         "hypixel_scoreboard" => vec![
             "Actualiza Paraguacraft PvP desde Ajustes > Cliente PvP.".into(),

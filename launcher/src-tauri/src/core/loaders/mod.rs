@@ -332,25 +332,56 @@ pub fn version_id_matches_loader(loader: &str, version_id: &str, mc: &str) -> bo
     }
 }
 
-#[allow(dead_code)]
-fn cmp_semver(a: &str, b: &str) -> std::cmp::Ordering {
-    let pa: Vec<u32> = a
-        .split('.')
-        .filter_map(|p| p.parse().ok())
-        .collect();
-    let pb: Vec<u32> = b
-        .split('.')
-        .filter_map(|p| p.parse().ok())
-        .collect();
-    for i in 0..pa.len().max(pb.len()) {
-        let da = *pa.get(i).unwrap_or(&0);
-        let db = *pb.get(i).unwrap_or(&0);
+/// Compara versiones de loader **numéricamente**, no lexicográficamente.
+///
+/// `sort()` sobre strings pone `47.4.10` antes que `47.4.9` (porque `'1' < '9'`), así
+/// que la lista quedaba `47.4.9, 47.4.8, 47.4.6, …` y la UI recomendaba `47.4.9`
+/// aunque el maven ya tuviera `47.4.26` instalado. Además una release sin sufijo
+/// siempre gana a su pre-release (`21.9.16` > `21.9.16-beta`), de modo que
+/// `recommended` nunca es una beta aunque la estable esté disponible.
+pub fn cmp_loader_version(a: &str, b: &str) -> std::cmp::Ordering {
+    use std::cmp::Ordering;
+
+    fn parts(v: &str) -> (Vec<u64>, String) {
+        let v = v.trim();
+        let core = v.split(['-', '+']).next().unwrap_or(v);
+        let suffix = v[core.len()..].to_ascii_lowercase();
+        let nums = core
+            .split('.')
+            .map(|p| {
+                let digits: String = p.chars().take_while(char::is_ascii_digit).collect();
+                digits.parse::<u64>().unwrap_or(0)
+            })
+            .collect();
+        (nums, suffix)
+    }
+
+    let (na, sa) = parts(a);
+    let (nb, sb) = parts(b);
+    for i in 0..na.len().max(nb.len()) {
+        let da = na.get(i).copied().unwrap_or(0);
+        let db = nb.get(i).copied().unwrap_or(0);
         match da.cmp(&db) {
-            std::cmp::Ordering::Equal => {}
+            Ordering::Equal => {}
             other => return other,
         }
     }
-    std::cmp::Ordering::Equal
+    match (sa.is_empty(), sb.is_empty()) {
+        (true, false) => Ordering::Greater,
+        (false, true) => Ordering::Less,
+        _ => sa.cmp(&sb),
+    }
+}
+
+/// Dedup + orden descendente (la más nueva primero) para las listas de la UI.
+pub fn sort_versions_desc(versions: &mut Vec<String>) {
+    versions.sort_by(|a, b| cmp_loader_version(b, a));
+    versions.dedup();
+}
+
+#[allow(dead_code)]
+fn cmp_semver(a: &str, b: &str) -> std::cmp::Ordering {
+    cmp_loader_version(a, b)
 }
 
 /// Busca un perfil en `versions/` para mc + loader.
@@ -577,6 +608,37 @@ mod tests {
             "1.21.11",
             "1.21.11"
         ));
+    }
+
+    #[test]
+    fn numeric_compare_beats_lexicographic() {
+        use std::cmp::Ordering::*;
+        assert_eq!(cmp_loader_version("47.4.26", "47.4.9"), Greater);
+        assert_eq!(cmp_loader_version("47.4.9", "47.4.10"), Less);
+        assert_eq!(cmp_loader_version("21.11.45", "21.9.16"), Greater);
+        assert_eq!(cmp_loader_version("11.15.1.2318", "11.15.1.1721"), Greater);
+    }
+
+    #[test]
+    fn stable_release_beats_its_prerelease() {
+        use std::cmp::Ordering::*;
+        assert_eq!(cmp_loader_version("21.9.16", "21.9.16-beta"), Greater);
+        assert_eq!(
+            cmp_loader_version("26.2.0.88", "26.2.0.0-beta"),
+            Greater
+        );
+    }
+
+    #[test]
+    fn sort_versions_desc_dedups() {
+        let mut v = vec![
+            "47.4.9".to_string(),
+            "47.4.26".to_string(),
+            "47.4.9".to_string(),
+            "47.4.6".to_string(),
+        ];
+        sort_versions_desc(&mut v);
+        assert_eq!(v, vec!["47.4.26", "47.4.9", "47.4.6"]);
     }
 }
 

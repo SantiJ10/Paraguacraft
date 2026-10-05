@@ -182,13 +182,48 @@ fn ga_key(name: &str) -> String {
     }
 }
 
+/// ¿El loader ya aporta las clases de Minecraft desde `libraries/`?
+///
+/// Forge/NeoForge modernos (1.17+) no usan `versions/<mc>/<mc>.jar` para arrancar: FML
+/// construye el módulo `minecraft` con los jars de `net.minecraft:client` que el
+/// instalador dejó en `libraries/`. Si el jar vanilla heredado además va al `-cp`,
+/// ModLauncher lo resuelve como módulo automático (`_1._20._1`), que exporta los
+/// **mismos** paquetes `net.minecraft.*` que el módulo `minecraft`.
+///
+/// Los mods cuyo descriptor lleva `requires transitive` (los de Fabric porteados a
+/// Forge, como `chloride` e `immersive_optimization`) llegan a
+/// `Resolver.checkExportSuppliers` y la JVM aborta con
+/// `java.lang.module.ResolutionException: Modules _1._20._1 and minecraft export
+/// package net.minecraft.client to module <mod>`, dentro de
+/// `ModuleLayerHandler.buildLayer`. El proceso muere **antes** de que arranque Log4j:
+/// no hay `latest.log` ni crash-report, y el juego se cierra solo.
+///
+/// Acotado a Forge sobre 1.20.1, que es la combinación verificada con este crash. Las
+/// demás versiones conservan la conducta anterior.
+fn loader_supplies_minecraft_classes(merged: &Value, launch_id: &str, base_id: &str) -> bool {
+    // Tiene que ser un perfil de loader montado encima de una versión vanilla: si
+    // `launch_id == base_id` estamos launching vanilla, que sí usa su propio jar.
+    if launch_id == base_id || base_id != "1.20.1" {
+        return false;
+    }
+    // Forge/NeoForge 1.20.1 arrancan por BootstrapLauncher. Vanilla usa
+    // `net.minecraft.client.main.Main` y Fabric `KnotClient`: esos sí necesitan el jar
+    // vanilla en el `-cp`, así que no deben caer acá.
+    matches!(
+        merged["mainClass"].as_str().unwrap_or_default(),
+        "cpw.mods.bootstraplauncher.BootstrapLauncher"
+            | "net.minecraftforge.bootstrapforge.BootstrapLauncher"
+    )
+}
+
 /// Construye el classpath (libs + client jar), deduplicando por group:artifact
 /// (las libs del loader, que van primero, ganan).
-fn build_classpath(merged: &Value, base_id: &str) -> AppResult<Vec<PathBuf>> {
+fn build_classpath(merged: &Value, launch_id: &str, base_id: &str) -> AppResult<Vec<PathBuf>> {
     let libs_root = paths::default_minecraft_dir().join("libraries");
     let mut seen: HashSet<String> = HashSet::new();
     let mut cp: Vec<PathBuf> = Vec::new();
     let mut missing: Vec<String> = Vec::new();
+    let mut has_minecraft_client_lib = false;
 
     if let Some(libs) = merged["libraries"].as_array() {
         for lib in libs {
@@ -208,8 +243,12 @@ fn build_classpath(merged: &Value, base_id: &str) -> AppResult<Vec<PathBuf>> {
                 continue;
             }
             let key = if name.is_empty() { String::new() } else { ga_key(name) };
+            let is_minecraft_client = key == "net.minecraft:client";
             if !key.is_empty() && !seen.insert(key) {
                 continue;
+            }
+            if is_minecraft_client {
+                has_minecraft_client_lib = true;
             }
             let path = if let Some(p) = lib["downloads"]["artifact"]["path"].as_str() {
                 libs_root.join(p)
@@ -236,12 +275,16 @@ fn build_classpath(merged: &Value, base_id: &str) -> AppResult<Vec<PathBuf>> {
             cp.push(path);
         }
     }
-    // Client jar de la base.
-    let client = versions::jar_path(base_id);
-    if !client.is_file() {
-        missing.push(format!("client.jar ({base_id})"));
+    // Forge/NeoForge modernos (1.17+) ya traen `net.minecraft:client` en libraries/ y
+    // FML arma el módulo `minecraft` desde ahí. Agregar además el jar vanilla heredado
+    // duplica cada paquete `net.minecraft.*` → ver `loader_supplies_minecraft_classes`.
+    if !has_minecraft_client_lib && !loader_supplies_minecraft_classes(merged, launch_id, base_id) {
+        let client = versions::jar_path(base_id);
+        if !client.is_file() {
+            missing.push(format!("client.jar ({base_id})"));
+        }
+        cp.push(client);
     }
-    cp.push(client);
 
     if !missing.is_empty() {
         let preview: Vec<_> = missing.into_iter().take(8).collect();
@@ -555,7 +598,7 @@ pub fn build_command(
     let merged = load_merged(launch_id)?;
     let base_id = resolve_version_chain_base_id(launch_id);
 
-    let cp = build_classpath(&merged, &base_id)?;
+    let cp = build_classpath(&merged, launch_id, &base_id)?;
     let cp_str = cp
         .iter()
         .map(|p| p.to_string_lossy().to_string())
@@ -665,6 +708,14 @@ pub fn append_server_join(args: &mut Vec<String>, address: &str) {
 /// Nombre del archivo de args de último launch (depuración / soporte).
 pub const LAST_ARGS_FILE: &str = ".paraguacraft-java-args.txt";
 
+/// Log de stdout/stderr del proceso Java (`<instancia>/logs/stderr_stream.log`).
+///
+/// Forge/NeoForge pueden morir al **armar la capa de módulos**, antes de que arranque
+/// Log4j: en ese caso no hay ni una línea en `latest.log` ni crash-report, y el juego
+/// se cierra solo. Sin redirigir stderr, el launcher es un proceso GUI sin consola y
+/// ese `ResolutionException` se perdía, dejando al usuario sin log para diagnosticar.
+pub const STDERR_LOG_FILE: &str = "stderr_stream.log";
+
 /// Lanza el proceso de Minecraft. `show_console` usa java con ventana de consola (Windows).
 ///
 /// En Windows, `@args.txt` solo funciona desde Java 9+. Minecraft 1.8–1.16 usa Java 8:
@@ -702,6 +753,20 @@ pub fn spawn_game(
 
     // Visible en GetCommandLineW. Si va solo dentro de @args.txt, Discord no lo ve.
     cmd.arg(discord_java::DETECT_FLAG);
+
+    // Redirigimos stdout/stderr a un archivo del juego: es el único rastro cuando el
+    // proceso muere antes de que Log4j arranque (ver `STDERR_LOG_FILE`).
+    if std::fs::create_dir_all(instance_dir.join("logs")).is_ok() {
+        if let Ok(out) =
+            std::fs::File::create(instance_dir.join("logs").join(STDERR_LOG_FILE))
+        {
+            if let Ok(err) = out.try_clone() {
+                use std::process::Stdio;
+                cmd.stdout(Stdio::from(out));
+                cmd.stderr(Stdio::from(err));
+            }
+        }
+    }
 
     if use_arg_file {
         let at = arg_file.to_string_lossy();
@@ -975,6 +1040,82 @@ mod tests {
     use super::*;
     use std::path::PathBuf;
 
+    fn merged(main_class: &str) -> Value {
+        serde_json::json!({ "mainClass": main_class })
+    }
+
+    const BOOTSTRAP: &str = "cpw.mods.bootstraplauncher.BootstrapLauncher";
+
+    /// El perfil exacto que crasheaba: `1.20.1-forge-47.4.9` heredando de `1.20.1`.
+    #[test]
+    fn forge_1201_drops_the_inherited_vanilla_jar() {
+        let forge = merged(BOOTSTRAP);
+        assert!(loader_supplies_minecraft_classes(
+            &forge,
+            "1.20.1-forge-47.4.9",
+            "1.20.1"
+        ));
+    }
+
+    /// `_1._20._1` duplicaba los paquetes de `minecraft` y mataba la JVM al armar la capa
+    /// de módulos: el jar heredado no debe volver al classpath de Forge 1.20.1.
+    #[test]
+    fn forge_1201_classpath_has_no_vanilla_jar() {
+        let v = serde_json::json!({
+            "mainClass": BOOTSTRAP,
+            "libraries": [
+                { "name": "org.lwjgl:lwjgl:3.3.1", "downloads": { "artifact": { "path": "org/lwjgl/lwjgl/3.3.1/lwjgl-3.3.1.jar" } } }
+            ]
+        });
+
+        // Solo importa que el jar vanilla no se agregue; si falta alguna lib el error
+        // es de "missing", no de classpath, así que toleramos ese error.
+        if let Ok(cp) = build_classpath(&v, "1.20.1-forge-47.4.9", "1.20.1") {
+            assert!(
+                !cp.iter().any(|p| p.ends_with("1.20.1.jar")),
+                "el jar vanilla no debe entrar al classpath: {:?}",
+                cp.iter().filter(|p| p.ends_with("1.20.1.jar")).collect::<Vec<_>>()
+            );
+        }
+    }
+
+    /// Alcance acotado: el resto de versiones conserva el jar vanilla en el `-cp`.
+    #[test]
+    fn other_versions_keep_the_vanilla_jar() {
+        for (launch_id, base_id) in [
+            ("1.20.4-forge-49.1.0", "1.20.4"),
+            ("1.21.1-forge-52.0.28", "1.21.1"),
+            ("1.19.2-forge-43.2.0", "1.19.2"),
+            ("1.16.5-forge-36.2.39", "1.16.5"),
+        ] {
+            let v = merged(BOOTSTRAP);
+            assert!(
+                !loader_supplies_minecraft_classes(&v, launch_id, base_id),
+                "{launch_id} (hereda de {base_id}) debe seguir usando el jar vanilla"
+            );
+        }
+    }
+
+    /// Fabric 1.20.1 sí necesita el jar vanilla en el `-cp` (Knot no usa BootstrapLauncher).
+    #[test]
+    fn fabric_1201_keeps_the_vanilla_jar() {
+        let fabric = merged("net.fabricmc.loader.impl.launch.knot.KnotClient");
+        assert!(!loader_supplies_minecraft_classes(
+            &fabric,
+            "fabric-loader-0.16.9-1.20.1",
+            "1.20.1"
+        ));
+    }
+
+    /// Vanilla 1.20.1: `launch_id == base_id`, así que se queda con su propio jar.
+    #[test]
+    fn vanilla_1201_keeps_the_vanilla_jar() {
+        let vanilla = merged("net.minecraft.client.main.Main");
+        assert!(!loader_supplies_minecraft_classes(
+            &vanilla, "1.20.1", "1.20.1"
+        ));
+    }
+
     #[test]
     fn fabric_launch_sets_natives_library_path() {
         let launch_id = "fabric-loader-0.19.3-1.21.11";
@@ -1030,6 +1171,45 @@ mod tests {
         );
         eprintln!("library path arg: {}", lib_args[0]);
         eprintln!("first 15 args: {:?}", &args[..args.len().min(15)]);
+    }
+
+    /// Regresión sobre el perfil real instalado: `build_command` no debe volver a colgar
+    /// el jar vanilla de 1.20.1 en el `-cp` de Forge.
+    #[test]
+    fn real_forge_1201_command_has_no_vanilla_jar() {
+        let launch_id = "1.20.1-forge-47.4.9";
+        if versions::read_local_json(launch_id).is_none() {
+            eprintln!("skip: forge profile not installed");
+            return;
+        }
+        let auth = AuthCtx {
+            username: "test".into(),
+            uuid: "0".repeat(32),
+            access_token: "0".into(),
+            user_type: "legacy".into(),
+        };
+        let jvm = JvmCtx {
+            ram_mb: 2048,
+            ram_min_mb: 0,
+            gc: "Auto".into(),
+            extra_args: vec![],
+            java_path: PathBuf::from("java"),
+            java_major: 17,
+            mc_version: "1.20.1".into(),
+            loader: "forge".into(),
+            system_ram_gb: 16.0,
+        };
+        let inst = paths::instances_dir().join("Paraguacraft_1.20.1_forge");
+        let (args, _) = build_command(launch_id, &inst, &auth, &jvm, None).expect("build_command");
+
+        let cp_idx = args.iter().position(|a| a == "-cp").expect("falta -cp");
+        let cp = &args[cp_idx + 1];
+        assert!(
+            !cp.contains("versions\\1.20.1\\1.20.1.jar"),
+            "el jar vanilla no debe volver al classpath de Forge 1.20.1"
+        );
+        // Los módulos de FML sí tienen que estar, si no el juego no arranca.
+        assert!(cp.contains("fmlloader"), "faltan las libs de FML: {cp}");
     }
 
     #[test]

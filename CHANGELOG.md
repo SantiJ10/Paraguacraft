@@ -3,6 +3,34 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [1.1.53] - 2026-10-04
+
+### Fixed
+- **Forge 1.20.1 ya arranca.** Antes el juego se cerraba solo, sin ventana y sin log.
+  El launcher metía el jar vanilla heredado (`versions/1.20.1/1.20.1.jar`) en el `-cp`
+  junto a las libs de Forge. Como Forge/NeoForge ya traen `net.minecraft:client` en
+  `libraries/`, ese jar sobra: FML lo resolvía como módulo automático (`_1._20._1`)
+  exportando los **mismos** paquetes `net.minecraft.*` que el módulo `minecraft`.
+  Cualquier mod con `requires transitive` (los de Fabric porteados a Forge, como
+  `chloride` o `immersive_optimization`) hacía fallar la JVM con
+  `java.lang.module.ResolutionException: Modules _1._20._1 and minecraft export package
+  net.minecraft.client to module <mod>`, dentro de `ModuleLayerHandler.buildLayer`. El
+  proceso moría **antes** de arrancar Log4j, por eso no había ni `latest.log` ni
+  crash-report. Ahora el jar vanilla se omite para Forge 1.20.1; vanilla, Fabric y el
+  resto de versiones conservan la conducta anterior.
+- **Los crashes mudos ahora dejan log.** `stdout`/`stderr` del proceso Java se guardan en
+  `<instancia>/logs/stderr_stream.log`, y el diagnóstico los lee para clasificar el caso
+  como `mod_module_conflict` nombrando el mod responsable. Antes, al ser el launcher un
+  proceso GUI sin consola, esa excepción se perdía.
+
+### Changed
+- **Forge y NeoForge ordenan versiones por número, no por texto.** `47.4.26` ahora se
+  ofrece como recomendado en lugar de `47.4.9`, y la instalación resuelve el perfil
+  exacto en vez de adivinar.
+- **NeoForge aparece para las versiones nuevas de Minecraft.** El filtro de versión
+  ocultaba las ramas `26.x`; ahora se detectan y eligen bien, con fallback a betas cuando
+  la rama no tiene releases.
+
 ## [1.1.52] - 2026-09-21
 
 ### Launcher

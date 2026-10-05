@@ -84,6 +84,36 @@ fn truncate(s: &str, max: usize) -> String {
     out
 }
 
+/// Extrae el módulo culpable del `java.lang.module.ResolutionException` de la JVM:
+/// `… export package net.minecraft.util.profiling.jfr.event to module <nombre>`.
+///
+/// Ese módulo es un mod de `mods/`, así que tenemos el culpable exacto sin adivinar.
+fn conflicting_module(text: &str) -> Option<String> {
+    let low = text.to_lowercase();
+    if !(low.contains("resolutionexception")
+        || low.contains("findannotationexception")
+        || low.contains("export package"))
+    {
+        return None;
+    }
+    for raw in text.lines() {
+        let line = raw.trim();
+        let low_line = line.to_lowercase();
+        let Some(idx) = low_line.rfind(" to module ") else {
+            continue;
+        };
+        let name = line[idx + " to module ".len()..]
+            .split_whitespace()
+            .next()?
+            .trim_matches(|c: char| !c.is_alphanumeric() && c != '_')
+            .to_string();
+        if !name.is_empty() {
+            return Some(name);
+        }
+    }
+    None
+}
+
 fn extract_error_lines(text: &str) -> Vec<String> {
     let mut lines = Vec::new();
     for raw in text.lines() {
@@ -204,6 +234,25 @@ fn classify(combined: &str, exit_code: i32, log_empty: bool) -> DiagnosisCore {
             "Sesión Microsoft inválida o expirada.",
             "Cerrá sesión y volvé a iniciarla en Ajustes → Cuentas."
         );
+    }
+    if low.contains("resolutionexception")
+        || low.contains("findannotationexception")
+        || low.contains("split package")
+        || (low.contains("export package") && low.contains("module"))
+    {
+        let culprit = conflicting_module(combined);
+        let message = match culprit {
+            Some(m) => format!(
+                "El mod `{m}` chocó con la capa de módulos de Java y Minecraft ni llegó a abrir ventana."
+            ),
+            None => "Un mod chocó con la capa de módulos de Java y Minecraft ni llegó a abrir ventana."
+                .into(),
+        };
+        return DiagnosisCore {
+            category: "mod_module_conflict",
+            message,
+            hint: "Este crash pasa antes de que Log4j arranque: por eso no hay latest.log ni crash-report. Desactivá el mod señalado desde el aviso de crash y volvé a jugar.".into(),
+        };
     }
     if (low.contains("mixin") && (low.contains("apply") || low.contains("injection")))
         || low.contains("modloadingexception")
@@ -357,6 +406,10 @@ pub fn analyze_paths(log_path: &Path, crash_dir: &Path, exit_code: i32) -> Crash
     let log_tail = read_tail(log_path, 48_000);
     let log_empty = log_tail.trim().len() < 40;
 
+    // stderr del proceso Java (`logs/stderr_stream.log`). Cuando el juego muere antes
+    // de que arranque Log4j, este archivo es lo único que explica por qué.
+    let stderr = read_fresh_stderr(log_path);
+
     let crash = if crash_dir.is_dir() {
         latest_crash_report_for_log(crash_dir, Some(log_path))
     } else {
@@ -365,13 +418,15 @@ pub fn analyze_paths(log_path: &Path, crash_dir: &Path, exit_code: i32) -> Crash
 
     let crash_content = crash.as_ref().map(|(_, c)| c.as_str());
     let combined = format!(
-        "{}\n{}",
+        "{}\n{}\n{}",
         log_tail,
-        crash_content.unwrap_or_default()
+        crash_content.unwrap_or_default(),
+        stderr
     );
 
-    let error_line = pick_best_error_line(&log_tail, crash_content);
-    let mut core = classify(&combined, exit_code, log_empty);
+    let error_line = pick_best_error_line(&log_tail, crash_content)
+        .or_else(|| extract_error_lines(&stderr).into_iter().rev().find(|l| !l.contains("at ")));
+    let mut core = classify(&combined, exit_code, log_empty && stderr.trim().is_empty());
     enrich_generic(&mut core, &error_line);
 
     let mut suggestions = crate::core::ai::suggestions_for_category(core.category);
@@ -380,6 +435,11 @@ pub fn analyze_paths(log_path: &Path, crash_dir: &Path, exit_code: i32) -> Crash
             suggestions.insert(0, format!("Error clave: {}", truncate(line, 120)));
         }
         suggestions.push("Abrí la carpeta de la instancia → logs/latest.log.".into());
+    }
+    if !stderr.trim().is_empty() {
+        suggestions.push(
+            "El launcher guardó la salida de error del juego en logs/stderr_stream.log.".into(),
+        );
     }
     if crash.is_some() {
         suggestions.insert(
@@ -398,8 +458,13 @@ pub fn analyze_paths(log_path: &Path, crash_dir: &Path, exit_code: i32) -> Crash
         .collect();
 
     let game_dir = log_path.parent().and_then(|p| p.parent());
-    let (suspect_mod, suspect_mod_path) = game_dir
-        .and_then(|dir| detect_suspect_mod(dir, &combined))
+    // El módulo del error trae el modid exacto: buscamos ese jar en vez de adivinar.
+    let module = conflicting_module(&combined);
+    let detected = module
+        .as_deref()
+        .and_then(|m| game_dir.and_then(|d| detect_mod_by_id(d, m)))
+        .or_else(|| game_dir.and_then(|d| detect_suspect_mod(d, &combined)));
+    let (suspect_mod, suspect_mod_path) = detected
         .map(|(n, p)| (Some(n), Some(p)))
         .unwrap_or((None, None));
     if let Some(ref name) = suspect_mod {
@@ -421,6 +486,52 @@ pub fn analyze_paths(log_path: &Path, crash_dir: &Path, exit_code: i32) -> Crash
         suspect_mod,
         suspect_mod_path,
     }
+}
+
+/// Lee `logs/stderr_stream.log` si es de esta sesión (o del último minuto y medio).
+/// Un archivo viejo solo metería ruido en el diagnóstico.
+fn read_fresh_stderr(log_path: &Path) -> String {
+    let Some(dir) = log_path.parent() else {
+        return String::new();
+    };
+    let path = dir.join(crate::core::launch::STDERR_LOG_FILE);
+    let Ok(meta) = std::fs::metadata(&path) else {
+        return String::new();
+    };
+    let Ok(modified) = meta.modified() else {
+        return read_tail(&path, 24_000);
+    };
+    if let Ok(log_meta) = std::fs::metadata(log_path) {
+        if let Ok(log_modified) = log_meta.modified() {
+            if log_modified.duration_since(modified).unwrap_or_default()
+                > std::time::Duration::from_secs(90)
+            {
+                return String::new();
+            }
+        }
+    }
+    read_tail(&path, 24_000)
+}
+
+/// Busca en `mods/` el jar cuyo nombre empieza por el modid del error.
+fn detect_mod_by_id(game_dir: &Path, mod_id: &str) -> Option<(String, String)> {
+    let needle = mod_id.to_lowercase();
+    let rd = std::fs::read_dir(game_dir.join("mods")).ok()?;
+    for e in rd.flatten() {
+        let name = e.file_name().to_string_lossy().to_string();
+        let low = name.to_lowercase();
+        if !low.ends_with(".jar") {
+            continue;
+        }
+        let stem = low.trim_end_matches(".jar");
+        if stem == needle
+            || stem.starts_with(&format!("{needle}-"))
+            || stem.starts_with(&format!("{needle}_"))
+        {
+            return Some((name.clone(), format!("mods/{name}")));
+        }
+    }
+    None
 }
 
 fn detect_suspect_mod(game_dir: &Path, combined: &str) -> Option<(String, String)> {
@@ -471,4 +582,50 @@ fn detect_suspect_mod(game_dir: &Path, combined: &str) -> Option<(String, String
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// stderr real de un Forge 1.20.1 que murió al armar la capa de módulos: sin esto
+    /// el diagnóstico caía en "launch_abort" genérico, sin log ni mod culpable.
+    const STDERR_MODULE_CONFLICT: &str = "\
+[23:09:33:702] [STDERR]: Exception in thread \"main\" java.lang.module.ResolutionException: \
+Modules _1._20._1 and minecraft export package net.minecraft.util.profiling.jfr.event to \
+module immersive_optimization
+[23:09:33:702] [STDERR]: \tat java.base/java.lang.module.Resolver.resolveFail(Resolver.java:901)
+[23:09:33:703] [STDERR]: \tat MC-BOOTSTRAP/cpw.mods.modlauncher@10.0.9/...Launcher.main(Launcher.java:78)
+";
+
+    #[test]
+    fn parses_the_conflicting_module_name() {
+        assert_eq!(
+            conflicting_module(STDERR_MODULE_CONFLICT).as_deref(),
+            Some("immersive_optimization")
+        );
+    }
+
+    #[test]
+    fn classifies_module_layer_conflict() {
+        let core = classify(STDERR_MODULE_CONFLICT, -1, false);
+        assert_eq!(core.category, "mod_module_conflict");
+        assert!(core.message.contains("immersive_optimization"));
+    }
+
+    #[test]
+    fn unrelated_logs_have_no_conflicting_module() {
+        assert_eq!(conflicting_module("Loading screen debug info"), None);
+        assert_eq!(conflicting_module("[main/INFO] Done (12.345s)!"), None);
+    }
+
+    #[test]
+    fn module_conflict_does_not_shadow_normal_mod_errors() {
+        let core = classify(
+            "net.minecraftforge.fml.loading.ModLoadingException: Mod loading errors detected",
+            1,
+            false,
+        );
+        assert_eq!(core.category, "mods");
+    }
 }

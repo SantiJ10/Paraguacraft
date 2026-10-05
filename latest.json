@@ -1,12 +1,12 @@
 {
-  "version": "1.1.52",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.52/Instalar_Paraguacraft_v1.1.52.exe",
-  "size_bytes": 5991269,
-  "sha256": "da67edf8ad297ede230c31ad1a04df36daab9325d8b04a3eb1ad64c6a9c91f67",
-  "notes": "- Instalar un modpack en dos clics: pack → instancia → jugar\n- Cola de descargas: pausar, cancelar, reintentar y abrir carpeta\n- Detener un servidor local (Playit + consola) ya no congela el launcher",
+  "version": "1.1.53",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.53/Instalar_Paraguacraft_v1.1.53.exe",
+  "size_bytes": 5988464,
+  "sha256": "2ffdf9ad8a79ebeaf0efd62b76524e0b68b0aa71dd0c3cfbc30139168500c431",
+  "notes": "- Forge 1.20.1 arranca otra vez: el launcher ponía el jar de Minecraft dos veces en el classpath y la JVM moría antes de abrir la ventana\n- Los crashes mudos ahora dejan log (stderr_stream.log) y el diagnóstico nombra al mod responsable\n- Forge y NeoForge ordenan versiones por número: 47.4.26 se ofrece como recomendado en vez de 47.4.9",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.52/Instalar_Paraguacraft_v1.1.52.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.53/Instalar_Paraguacraft_v1.1.53.exe",
       "signature": ""
     }
   }
