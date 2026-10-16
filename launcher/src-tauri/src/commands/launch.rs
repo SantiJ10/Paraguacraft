@@ -683,7 +683,9 @@ pub async fn launch_instance(
                     let inst_dir = instances::instance_dir(&instance_id);
                     loaders::fabric_iris::install_bundle(&app, &http, &mc, &inst_dir).await?;
                 }
-                if loader == "paraguacraft-optimized" || loader == "paraguacraft-optimized-neoforge" {
+                if loader == "paraguacraft-optimized"
+        || loader == "paraguacraft-optimized-neoforge"
+        || loader == "paraguacraft-optimized-forge" {
                     launch::emit_status(&app, "downloading", "Sincronizando pack Optimized…");
                     let inst_dir = instances::instance_dir(&instance_id);
                     loaders::optimized::install_bundle_for_launch(&app, &http, &mc, &loader, &inst_dir)

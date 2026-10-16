@@ -767,20 +767,32 @@ pub fn start_mc(id: &str) -> AppResult<u32> {
         crate::core::server_console::clear(id);
     }
     crate::core::server_console::append(id, "[launcher] Iniciando servidor…");
-    if kind.starts_with("fabric") {
-        for msg in crate::core::server_setup::sanitize_server_mods(&dir, &prof.mc_version, java_major)
-        {
-            crate::core::server_console::append(id, &msg);
-        }
+    for msg in crate::core::server_setup::sanitize_server_mods(&dir, &prof.mc_version, java_major) {
+        crate::core::server_console::append(id, &msg);
     }
 
+    let xms = (ram / 4).max(512);
     let run_bat = dir.join("run.bat");
     let mut child = if crate::core::server_setup::is_forge_style(&kind) && run_bat.is_file() {
+        let mut jvm_lines = vec![
+            format!("-Xmx{ram}M"),
+            format!("-Xms{xms}M"),
+            "-Dfml.readTimeout=180".to_string(),
+            "-Dfml.loginTimeout=180".to_string(),
+        ];
+        for flag in aikar_flags(ram) {
+            jvm_lines.push(flag.to_string());
+        }
+        let _ = std::fs::write(
+            dir.join("user_jvm_args.txt"),
+            format!("{}\n", jvm_lines.join("\n")),
+        );
         crate::core::server_console::append(
             id,
             &format!(
-                "[launcher] {}: cmd /C call run.bat nogui",
-                crate::core::server_setup::type_label(&kind)
+                "[launcher] {}: cmd /C call run.bat nogui (Java {} · -Xmx{ram}M)",
+                crate::core::server_setup::type_label(&kind),
+                java.to_string_lossy()
             ),
         );
         let (stdin, stdout, stderr) = crate::core::server_console::pipe_stdio();
@@ -788,6 +800,12 @@ pub fn start_mc(id: &str) -> AppResult<u32> {
         cmd.current_dir(&dir).args(["/C", "call", "run.bat", "nogui"]);
         if let Some(ref home) = java_home {
             cmd.env("JAVA_HOME", home);
+            let bin = home.join("bin");
+            let orig_path = std::env::var_os("PATH").unwrap_or_default();
+            let mut new_path = std::ffi::OsString::from(&bin);
+            new_path.push(";");
+            new_path.push(orig_path);
+            cmd.env("PATH", new_path);
         }
         cmd.stdin(stdin).stdout(stdout).stderr(stderr);
         hide_console(&mut cmd);
@@ -795,7 +813,6 @@ pub fn start_mc(id: &str) -> AppResult<u32> {
             .map_err(|e| AppError::msg(format!("No se pudo iniciar run.bat: {e}")))?
     } else {
         let jar = resolve_start_jar(&dir, &prof.server_type)?;
-        let xms = (ram / 4).max(512);
         let jar_disp = jar.to_string_lossy();
         crate::core::server_console::append(
             id,
@@ -807,7 +824,9 @@ pub fn start_mc(id: &str) -> AppResult<u32> {
         let mut cmd = Command::new(&java);
         cmd.current_dir(&dir)
             .arg(format!("-Xmx{ram}M"))
-            .arg(format!("-Xms{xms}M"));
+            .arg(format!("-Xms{xms}M"))
+            .arg("-Dfml.readTimeout=180")
+            .arg("-Dfml.loginTimeout=180");
         if let Some(ref home) = java_home {
             cmd.env("JAVA_HOME", home);
         }

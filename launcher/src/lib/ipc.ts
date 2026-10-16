@@ -871,6 +871,10 @@ export const api = {
     return invokeReal<string>("backup_bedrock_saves");
   },
 
+  async restoreStoreBedrock(): Promise<boolean> {
+    return invokeReal<boolean>("restore_store_bedrock");
+  },
+
   async openMicrosoftStoreBedrock(): Promise<void> {
     await invokeReal<void>("open_microsoft_store_bedrock");
   },

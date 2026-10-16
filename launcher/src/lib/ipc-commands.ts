@@ -166,6 +166,7 @@ export type IpcCommand =
   | "reset_playit"
   | "reset_playit_full"
   | "restore_backup"
+  | "restore_store_bedrock"
   | "reveal_download_path"
   | "reveal_instance_content"
   | "run_cleanup"

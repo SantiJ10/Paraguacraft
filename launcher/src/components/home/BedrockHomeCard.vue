@@ -35,7 +35,7 @@ onMounted(async () => {
 });
 
 function openVersions() {
-  router.push({ name: "versions" });
+  router.push({ name: "versions", query: { card: "bedrock" } });
 }
 
 async function play() {
@@ -60,9 +60,14 @@ async function play() {
 
 <template>
   <div class="lunar-card group relative flex h-full min-h-[220px] flex-col overflow-hidden">
-    <div class="relative min-h-[5rem] flex-1 overflow-hidden">
+    <div class="relative min-h-[5rem] flex-1 overflow-hidden cursor-pointer" @click="openVersions">
       <img :src="imgUrl" alt="" class="absolute inset-0 h-full w-full object-cover opacity-80" />
       <div class="absolute inset-0 bg-gradient-to-t from-surface-2 via-surface-2/40 to-transparent" />
+      <span
+        class="absolute right-2.5 top-2.5 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-bold text-pc-green backdrop-blur-sm"
+      >
+        {{ status?.managedActive ? "Versión elegida" : "Última versión" }}
+      </span>
     </div>
     <div class="relative bg-surface-2">
       <div class="flex items-center gap-3 p-4 pt-3">
@@ -70,17 +75,27 @@ async function play() {
           <p class="truncate text-base font-bold text-white">PARAGUA Bedrock</p>
           <p class="text-xs text-gray-400">
             {{ status?.managedActive && status.activeVersion
-              ? `v${status.activeVersion}`
+              ? `v${status.activeVersion} (100% seguro)`
               : status?.activeVersion
-                ? `Store ${status.activeVersion}`
-                : "Xbox / Microsoft Store" }}
+                ? `Última ${status.activeVersion} (Store)`
+                : "Última versión / Versiones viejas" }}
           </p>
           <p class="mt-0.5 text-[11px] text-gray-500">{{ formatRelative(lastPlayed) }}</p>
         </div>
       </div>
-      <BaseButton class="w-full rounded-none" :disabled="busy || app.launchPhase === 'running'" @click="play">
-        {{ busy ? "…" : canLaunch ? "Jugar" : "Abrir" }}
-      </BaseButton>
+      <div class="flex border-t border-surface-3">
+        <BaseButton class="flex-1 rounded-none" :disabled="busy || app.launchPhase === 'running'" @click="play">
+          {{ busy ? "…" : canLaunch ? "Jugar" : "Abrir" }}
+        </BaseButton>
+        <button
+          type="button"
+          class="border-l border-surface-3 bg-surface-3 px-3 text-xs font-semibold text-gray-300 transition hover:bg-surface-4 hover:text-white"
+          title="Elegir entre la última versión o versiones viejas"
+          @click="openVersions"
+        >
+          Versión
+        </button>
+      </div>
       <p v-if="error" class="px-3 pb-2 text-[10px] text-red-400">{{ error }}</p>
     </div>
   </div>

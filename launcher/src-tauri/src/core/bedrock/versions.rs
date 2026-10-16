@@ -658,9 +658,29 @@ pub fn developer_mode() -> bool {
     extra_status().developer_mode
 }
 
+pub fn restore_store() -> AppResult<bool> {
+    #[cfg(windows)]
+    {
+        let _ = backup_saves();
+        super::windows::kill_bedrock();
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        super::appx::restore_store_or_unregister_managed()
+    }
+    #[cfg(not(windows))]
+    {
+        Err(AppError::msg("Bedrock solo está disponible en Windows"))
+    }
+}
+
 pub fn open_microsoft_store() -> AppResult<()> {
     #[cfg(windows)]
     {
+        if extra_status().managed_active {
+            let _ = backup_saves();
+            super::windows::kill_bedrock();
+            std::thread::sleep(std::time::Duration::from_millis(300));
+            let _ = super::appx::restore_store_or_unregister_managed();
+        }
         super::appx::open_store_product()
     }
     #[cfg(not(windows))]

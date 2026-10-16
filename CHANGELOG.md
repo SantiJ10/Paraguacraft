@@ -3,6 +3,21 @@
 Todos los cambios notables del launcher se documentan acá.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
+## [1.1.54] - 2026-10-16
+
+### Added
+- **Perfiles Optimized para Forge 1.20.1 (`47.4.10`) y Fabric 26.3 (PC y Android).** Incluyen los stacks completos de optimización, los shaders oficiales y ajustes por gama (`baja`/`media`/`alta`) sin pisar los cambios que el usuario haga después en `options.txt` o `config/`.
+- **Selector de versión en Paragua Bedrock (Última versión vs Versiones viejas).** Permite alternar en un clic entre la última versión oficial (Microsoft Store / Xbox App o última release FE3) y versiones anteriores (`1.16`–`1.21+`) con backup automático de `com.mojang` y sin riesgo de baneo.
+- **Buscador e instalador directo de mods/plugins compatibles en Servidores Locales.** Instala mods y plugins compatibles desde Modrinth y Hangar con dependencias automáticas para `Paper`, `Paper+Geyser`, `Fabric`, `Fabric+Geyser`, `Forge` y `NeoForge` en cualquier versión (incluyendo `1.8.9` y `1.12.2`), más 40 opciones editables en `server.properties`.
+
+### Fixed
+- **Conexión de amigos a servidores Forge/NeoForge.** Se agregan `-Dfml.readTimeout=180` y `-Dfml.loginTimeout=180` en `user_jvm_args.txt`, `JAVA_HOME/bin` en el `PATH` de `run.bat`, mods de red (`Connectivity`, `Cupboard`, `Packet Fixer`, `FerriteCore`, `ModernFix`) y cuarentena automática de mods exclusivos de cliente o con bytecode de Java incompatible.
+- **`ParaguacraftBrandPack` compatible en todas las versiones, loaders, betas y snapshots.** Nuevo parser de versiones (`b1.x`, `a1.x`, `YYwWWa`, `-pre`, `-rc`, `26.x`) y `pack.mcmeta` multi-esquema (`supported_formats` + `min_format`/`max_format`) con limpieza automática de `incompatibleResourcePacks`.
+
+### Android 0.1.21
+- **Descarga de Forge y modpacks acelerada en paralelo (8 hilos).** `ForgeDownloadTask` pre-extrae `maven/` y descarga todas las librerías de `install_profile.json` + `version.json` y el `client.jar` antes de abrir el instalador con Java 17+.
+- **`keo optimized 1.20.1` y perfiles Optimized Forge/Fabric ya no se cuelgan en la pantalla roja de Mojang.** `MobileCompat` desactiva los mods incompatibles con GL4ES/ANGLE en Android, apaga `earlyWindowControl` en `fml.toml`, escala el heap según la RAM real del teléfono y aplica tuning G1GC móvil.
+
 ## [1.1.53] - 2026-10-04
 
 ### Fixed

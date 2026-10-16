@@ -32,6 +32,8 @@ pub fn normalize(loader: &str) -> String {
         || (l.contains("optimized") && l.contains("neoforge"))
     {
         "paraguacraft-optimized-neoforge".into()
+    } else if l.contains("optimized-forge") || (l.contains("optimized") && l.contains("forge")) {
+        "paraguacraft-optimized-forge".into()
     } else if l.contains("paraguacraft-optimized")
         || l == "optimized"
         || (l.contains("paraguacraft") && l.contains("optimized"))
@@ -95,6 +97,7 @@ pub fn store_loader_for(loader: &str, mc: &str) -> String {
     match normalize(loader).as_str() {
         "fabric-iris" | "paraguacraft-pvp-modern" => "fabric".into(),
         "paraguacraft-optimized-neoforge" => "neoforge".into(),
+        "paraguacraft-optimized-forge" => "forge".into(),
         "paraguacraft-pvp" => "forge".into(),
         "paraguacraft-optimized" => {
             if optimized::is_optifine_mc(mc) {
@@ -129,6 +132,7 @@ pub async fn loader_versions(
         "fabric-iris" => fabric_iris::versions(client, mc).await,
         "paraguacraft-optimized" => optimized::versions(client, mc).await,
         "paraguacraft-optimized-neoforge" => optimized::versions_neoforge(client, mc).await,
+        "paraguacraft-optimized-forge" => optimized::versions_forge(client, mc).await,
         "paraguacraft-pvp-modern" => pvp_modern::versions(client, mc).await,
         "paraguacraft-pvp" => pvp::versions(client, mc).await,
         "quilt" => quilt::versions(client, mc).await,
@@ -261,6 +265,22 @@ pub async fn available_loaders(client: &reqwest::Client, mc: &str) -> AppResult<
         }
     }
 
+    if let Ok(forge_vers) = optimized::versions_forge(client, mc).await {
+        if !forge_vers.is_empty() {
+            let recommended = forge_vers.first().cloned();
+            out.push(LoaderInfo {
+                id: optimized::ID_FORGE.into(),
+                name: "Paraguacraft Optimized (Forge)".into(),
+                description: format!(
+                    "Forge 47.4.10 + Embeddium/Oculus + mods Keo Optimized v{}. Shaders incluidos (off).",
+                    optimized::PACK_VERSION
+                ),
+                versions: forge_vers,
+                recommended,
+            });
+        }
+    }
+
     Ok(out)
 }
 
@@ -289,7 +309,7 @@ pub fn loader_version_from_version_id(loader: &str, version_id: &str, mc: &str) 
             .strip_prefix("quilt-loader-")?
             .strip_suffix(&mc_suffix)
             .map(String::from),
-        "forge" | "paraguacraft-pvp" => version_id
+        "forge" | "paraguacraft-pvp" | "paraguacraft-optimized-forge" => version_id
             .strip_prefix(&format!("{mc}-forge-"))
             .map(String::from),
         "neoforge" | "paraguacraft-optimized-neoforge" => version_id
@@ -323,7 +343,9 @@ pub fn version_id_matches_loader(loader: &str, version_id: &str, mc: &str) -> bo
             version_id.starts_with("fabric-loader-") && version_id.ends_with(&mc_suffix)
         }
         "quilt" => version_id.starts_with("quilt-loader-") && version_id.ends_with(&mc_suffix),
-        "forge" | "paraguacraft-pvp" => version_id.starts_with(&format!("{mc}-forge-")),
+        "forge" | "paraguacraft-pvp" | "paraguacraft-optimized-forge" => {
+            version_id.starts_with(&format!("{mc}-forge-"))
+        }
         "neoforge" | "paraguacraft-optimized-neoforge" => {
             version_id.starts_with(&format!("{mc}-neoforge-"))
         }
@@ -450,7 +472,9 @@ pub async fn resolve_loader_version(
     let trimmed = provided.trim();
     let kind = normalize(loader);
     // Pack curado Optimized: la versión real del backend se resuelve en install().
-    if (kind == "paraguacraft-optimized" || kind == "paraguacraft-optimized-neoforge")
+    if (kind == "paraguacraft-optimized"
+        || kind == "paraguacraft-optimized-neoforge"
+        || kind == "paraguacraft-optimized-forge")
         && (trimmed.is_empty() || trimmed == optimized::PACK_VERSION)
     {
         return Ok(optimized::PACK_VERSION.to_string());
@@ -505,6 +529,9 @@ pub async fn install_loader(
         "paraguacraft-optimized" => optimized::install(app, client, mc, &loader_version).await,
         "paraguacraft-optimized-neoforge" => {
             optimized::install_neoforge(app, client, mc, &loader_version).await
+        }
+        "paraguacraft-optimized-forge" => {
+            optimized::install_forge(app, client, mc, &loader_version).await
         }
         "paraguacraft-pvp-modern" => pvp_modern::install(app, client, mc, &loader_version).await,
         "paraguacraft-pvp" => pvp::install(app, client, mc, &loader_version).await,

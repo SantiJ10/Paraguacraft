@@ -7,6 +7,9 @@ export function storeLoader(loader: string, mc?: string): string {
   if (l.includes("optimized-neoforge") || (l.includes("optimized") && l.includes("neoforge"))) {
     return "neoforge";
   }
+  if (l.includes("optimized-forge") || (l.includes("optimized") && l.includes("forge"))) {
+    return "forge";
+  }
   if (l.includes("paraguacraft-optimized") || l === "optimized") {
     if (mc && OPTIMIZED_FORGE_MCS.has(mc)) return "forge";
     return "fabric";
@@ -29,6 +32,9 @@ export function normalizeLoaderId(loader: string): string {
   const l = loader.trim().toLowerCase().replace(/\s+/g, "-").replace(/\+/g, "-");
   if (l.includes("optimized-neoforge") || (l.includes("optimized") && l.includes("neoforge"))) {
     return "paraguacraft-optimized-neoforge";
+  }
+  if (l.includes("optimized-forge") || (l.includes("optimized") && l.includes("forge"))) {
+    return "paraguacraft-optimized-forge";
   }
   if (l.includes("paraguacraft-optimized") || l === "optimized") {
     return "paraguacraft-optimized";

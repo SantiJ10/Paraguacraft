@@ -1,7 +1,7 @@
 <script setup lang="ts">
 defineOptions({ name: "versions" });
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import SearchInput from "@/components/common/SearchInput.vue";
 import BaseButton from "@/components/common/BaseButton.vue";
 import VersionCard from "@/components/versions/VersionCard.vue";
@@ -21,6 +21,7 @@ import { useDownloadsStore } from "@/stores/downloads";
 import { useInstancesStore } from "@/stores/instances";
 import { markBedrockPlayed } from "@/composables/useBedrockRecent";
 
+const route = useRoute();
 const router = useRouter();
 const downloads = useDownloadsStore();
 const instances = useInstancesStore();
@@ -30,7 +31,13 @@ const app = useAppStore();
 const versions = ref<MinecraftVersion[]>([]);
 const initialCards = buildVersionCards([], []);
 const cards = ref<VersionCardModel[]>(initialCards);
-const selectedCard = ref<VersionCardModel | null>(initialCards[0] ?? null);
+const selectedCard = ref<VersionCardModel | null>(
+  (route.query.card === "bedrock"
+    ? initialCards.find((c) => c.kind === "bedrock")
+    : null) ??
+    initialCards[0] ??
+    null,
+);
 const mcVersion = ref("");
 const loaders = ref<LoaderInfo[]>([]);
 const loadingLoaders = ref(false);
@@ -92,6 +99,13 @@ const canLaunchBedrock = computed(
 
 async function refreshCards() {
   cards.value = buildVersionCards(versions.value, instances.instances);
+  if (route.query.card === "bedrock") {
+    const bCard = cards.value.find((c) => c.kind === "bedrock");
+    if (bCard && selectedCard.value?.id !== bCard.id) {
+      await selectCard(bCard);
+      return;
+    }
+  }
   if (!selectedCard.value && cards.value.length) {
     await selectCard(cards.value.find((c) => c.id === "1.21") ?? cards.value[0]!);
   }

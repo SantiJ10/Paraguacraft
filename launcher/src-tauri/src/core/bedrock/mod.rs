@@ -213,5 +213,5 @@ pub use content::{
 };
 pub use versions::{
     backup_saves, developer_mode, enable_developer_mode, install_version, list_catalog,
-    list_installed, open_microsoft_store, remove_version, switch_version,
+    list_installed, open_microsoft_store, remove_version, restore_store, switch_version,
 };

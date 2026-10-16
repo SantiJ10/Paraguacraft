@@ -171,7 +171,9 @@ pub async fn repair(
         }
     }
 
-    if loader == "paraguacraft-optimized" || loader == "paraguacraft-optimized-neoforge" {
+    if loader == "paraguacraft-optimized"
+        || loader == "paraguacraft-optimized-neoforge"
+        || loader == "paraguacraft-optimized-forge" {
         match loaders::optimized::install_bundle_for_launch(
             app,
             client,

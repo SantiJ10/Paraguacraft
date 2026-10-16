@@ -6,7 +6,7 @@ import { useServersStore } from "@/stores/servers";
 import { useFavoritesStore } from "@/stores/favorites";
 import { useAppStore } from "@/stores/app";
 import { api, isTauri } from "@/lib/ipc";
-import type { HangarPlugin, ServerContentItem, ServerRepairReport, ServerStatus } from "@/lib/types";
+import type { HangarPlugin, ServerContentItem, ServerRepairReport, ServerStatus, StoreItem } from "@/lib/types";
 import BaseButton from "@/components/common/BaseButton.vue";
 import { contentFolderIcon } from "@/lib/contentIcons";
 
@@ -14,19 +14,53 @@ type TabId = "console" | "properties" | "plugins" | "admin" | "files";
 
 const SERVER_RAM_PRESETS_MB = [2048, 4096, 6144, 8192, 12288, 16384] as const;
 
-const PROP_FIELDS: Array<{ key: string; label: string; type?: "select"; options?: string[] }> = [
+type PropField = { key: string; label: string; type?: "select"; options?: string[]; advanced?: boolean };
+const BOOL = ["true", "false"];
+const PROP_FIELDS: PropField[] = [
   { key: "motd", label: "MOTD" },
   { key: "max-players", label: "Máx. jugadores" },
   { key: "difficulty", label: "Dificultad", type: "select", options: ["peaceful", "easy", "normal", "hard"] },
   { key: "gamemode", label: "Modo de juego", type: "select", options: ["survival", "creative", "adventure", "spectator"] },
-  { key: "pvp", label: "PvP", type: "select", options: ["true", "false"] },
-  { key: "white-list", label: "Whitelist activa", type: "select", options: ["true", "false"] },
-  { key: "online-mode", label: "Online mode", type: "select", options: ["true", "false"] },
+  { key: "force-gamemode", label: "Forzar modo de juego", type: "select", options: BOOL },
+  { key: "hardcore", label: "Hardcore", type: "select", options: BOOL },
+  { key: "pvp", label: "PvP", type: "select", options: BOOL },
+  { key: "white-list", label: "Whitelist activa", type: "select", options: BOOL },
+  { key: "enforce-whitelist", label: "Forzar whitelist", type: "select", options: BOOL },
+  { key: "online-mode", label: "Online mode", type: "select", options: BOOL },
+  { key: "enforce-secure-profile", label: "Chat firmado obligatorio (1.19+)", type: "select", options: BOOL },
   { key: "server-port", label: "Puerto" },
   { key: "level-name", label: "Nombre del mundo" },
+  { key: "level-seed", label: "Semilla" },
+  { key: "level-type", label: "Tipo de mundo" },
+  { key: "generate-structures", label: "Generar estructuras", type: "select", options: BOOL },
+  { key: "allow-nether", label: "Permitir Nether", type: "select", options: BOOL },
+  { key: "allow-flight", label: "Permitir vuelo (mods/anticheat)", type: "select", options: BOOL },
+  { key: "spawn-monsters", label: "Monstruos", type: "select", options: BOOL },
+  { key: "spawn-animals", label: "Animales", type: "select", options: BOOL },
+  { key: "spawn-npcs", label: "Aldeanos/NPC", type: "select", options: BOOL },
+  { key: "enable-command-block", label: "Command blocks", type: "select", options: BOOL },
   { key: "view-distance", label: "View distance" },
+  { key: "simulation-distance", label: "Simulation distance (1.18+)" },
   { key: "spawn-protection", label: "Spawn protection" },
+  { key: "max-world-size", label: "Tamaño máx. del mundo" },
+  { key: "op-permission-level", label: "Nivel de permisos OP (1-4)" },
+  { key: "player-idle-timeout", label: "Kick por inactividad (min, 0=off)" },
+  { key: "network-compression-threshold", label: "Compresión de red (bytes, -1=off)", advanced: true },
+  { key: "max-tick-time", label: "Watchdog max-tick-time (ms, -1=off)", advanced: true },
+  { key: "entity-broadcast-range-percentage", label: "Rango de entidades (%)", advanced: true },
+  { key: "sync-chunk-writes", label: "Escritura de chunks sincrónica", type: "select", options: BOOL, advanced: true },
+  { key: "use-native-transport", label: "Transporte nativo (Linux)", type: "select", options: BOOL, advanced: true },
+  { key: "prevent-proxy-connections", label: "Bloquear proxys/VPN", type: "select", options: BOOL, advanced: true },
+  { key: "enable-status", label: "Aparecer en la lista de servers", type: "select", options: BOOL, advanced: true },
+  { key: "hide-online-players", label: "Ocultar lista de jugadores", type: "select", options: BOOL, advanced: true },
+  { key: "rate-limit", label: "Límite de paquetes/seg (0=off)", advanced: true },
+  { key: "server-ip", label: "IP de enlace (vacío = todas)", advanced: true },
+  { key: "resource-pack", label: "Resource pack (URL)", advanced: true },
+  { key: "resource-pack-sha1", label: "Resource pack SHA-1", advanced: true },
+  { key: "require-resource-pack", label: "Resource pack obligatorio", type: "select", options: BOOL, advanced: true },
 ];
+const showAdvancedProps = ref(false);
+const knownPropKeys = new Set(PROP_FIELDS.map((f) => f.key));
 
 const route = useRoute();
 const router = useRouter();
@@ -40,6 +74,15 @@ const status = ref<ServerStatus | null>(null);
 const logLines = ref<string[]>([]);
 const command = ref("");
 const props = ref<Record<string, string>>({});
+const visiblePropFields = computed(() =>
+  PROP_FIELDS.filter((f) => !f.advanced || showAdvancedProps.value),
+);
+/** Claves presentes en server.properties que la UI no conoce (editables en modo avanzado). */
+const extraPropKeys = computed(() =>
+  Object.keys(props.value)
+    .filter((k) => !knownPropKeys.has(k))
+    .sort(),
+);
 const content = ref<ServerContentItem[]>([]);
 const folderPath = ref("");
 const whitelist = ref<string[]>([]);
@@ -457,6 +500,107 @@ async function searchHangar() {
   busy.value = true;
   try {
     hangarResults.value = await api.hangarSearchPlugins(hangarQuery.value.trim());
+  } catch (e) {
+    error.value = String(e);
+  } finally {
+    busy.value = false;
+  }
+}
+
+const modrinthQuery = ref("");
+const modrinthResults = ref<StoreItem[]>([]);
+
+function serverStoreLoader(): string {
+  const st = (server.value?.serverType ?? "").toLowerCase();
+  if (st.includes("neoforge")) return "neoforge";
+  if (st.startsWith("forge")) return "forge";
+  if (st.startsWith("fabric")) return "fabric";
+  return "paper";
+}
+
+async function searchModrinthServer() {
+  if (!server.value) return;
+  busy.value = true;
+  error.value = null;
+  try {
+    const projectType = isModpackServer.value ? "mod" : "plugin";
+    const res = await api.searchStore({
+      provider: "modrinth",
+      query: modrinthQuery.value.trim(),
+      projectType,
+      mc: server.value.mcVersion,
+      loader: serverStoreLoader(),
+      limit: 20,
+    });
+    modrinthResults.value = res.items;
+  } catch (e) {
+    error.value = String(e);
+  } finally {
+    busy.value = false;
+  }
+}
+
+async function installModrinthServerItem(item: StoreItem) {
+  if (!server.value) return;
+  busy.value = true;
+  error.value = null;
+  message.value = null;
+  try {
+    const projectType = isModpackServer.value ? "mod" : "plugin";
+    const loader = serverStoreLoader();
+    const mc = server.value.mcVersion;
+    const versions = await api.listStoreVersions({
+      provider: "modrinth",
+      projectId: item.id,
+      projectType,
+      mc,
+      loader,
+    });
+    const first = versions[0];
+    if (!first) {
+      throw new Error(`No se encontró versión compatible de «${item.title}» para ${loader} ${mc}.`);
+    }
+    const deps = await api
+      .listStoreDependencies({
+        provider: "modrinth",
+        projectId: item.id,
+        projectType,
+        versionId: first.id,
+        mc,
+        loader,
+        destination: "server",
+        serverId: serverId.value,
+      })
+      .catch(() => []);
+    for (const dep of deps) {
+      if (dep.alreadyInstalled || !dep.versionId) continue;
+      await api.installStoreVersion({
+        provider: "modrinth",
+        projectId: dep.projectId,
+        projectType,
+        versionId: dep.versionId,
+        mc,
+        loader,
+        destination: "server",
+        serverId: serverId.value,
+        filename: dep.filename ?? undefined,
+      });
+    }
+    const fname = await api.installStoreVersion({
+      provider: "modrinth",
+      projectId: item.id,
+      projectType,
+      versionId: first.id,
+      mc,
+      loader,
+      destination: "server",
+      serverId: serverId.value,
+      filename: first.filename,
+      downloadUrl: first.downloadUrl ?? undefined,
+      sha1: first.sha1 ?? null,
+    });
+    message.value = `Instalado compatible (${mc} · ${serverTypeLabel(server.value.serverType)}): ${fname}`;
+    content.value = await api.listServerContent(serverId.value);
   } catch (e) {
     error.value = String(e);
   } finally {
@@ -1125,7 +1269,7 @@ function serverTypeLabel(t: string) {
         <div class="rounded-xl border border-surface-4 bg-surface-2 p-6">
         <h2 class="mb-4 text-lg font-bold">server.properties</h2>
         <div class="grid gap-4 sm:grid-cols-2">
-          <label v-for="f in PROP_FIELDS" :key="f.key" class="block text-sm">
+          <label v-for="f in visiblePropFields" :key="f.key" class="block text-sm">
             <span class="mb-1 block text-gray-400">{{ f.label }}</span>
             <select
               v-if="f.type === 'select'"
@@ -1141,14 +1285,66 @@ function serverTypeLabel(t: string) {
             />
           </label>
         </div>
+        <label class="mt-4 flex items-center gap-2 text-sm text-gray-400">
+          <input v-model="showAdvancedProps" type="checkbox" /> Mostrar avanzadas y otras claves del archivo
+        </label>
+        <div v-if="showAdvancedProps && extraPropKeys.length" class="mt-4 grid gap-4 sm:grid-cols-2">
+          <label v-for="k in extraPropKeys" :key="k" class="block text-sm">
+            <span class="mb-1 block text-gray-400">{{ k }}</span>
+            <input
+              v-model="props[k]"
+              class="w-full rounded-lg border border-surface-5 bg-surface-3 px-3 py-2 outline-none focus:border-pc-green"
+            />
+          </label>
+        </div>
         <BaseButton class="mt-6" :disabled="busy" @click="saveProps">Guardar propiedades</BaseButton>
         </div>
       </section>
 
       <!-- Plugins / Hangar / Modpacks -->
       <section v-else-if="tab === 'plugins'" class="space-y-4">
+        <div class="rounded-xl border border-surface-4 bg-surface-2 p-4">
+          <h3 class="mb-1 font-bold">
+            Descargar {{ isModpackServer ? "mods" : "plugins" }} compatibles ({{ server.mcVersion }} ·
+            {{ serverTypeLabel(server.serverType) }})
+          </h3>
+          <p class="mb-2 text-xs text-gray-500">
+            Filtra automáticamente por la versión exacta ({{ server.mcVersion }}) y el loader del servidor e instala sus dependencias requeridas.
+          </p>
+          <div class="flex gap-2">
+            <input
+              v-model="modrinthQuery"
+              :placeholder="
+                isModpackServer
+                  ? 'Buscar mods compatibles (FerriteCore,Connectivity, Waystones, JEI…)'
+                  : 'Buscar plugins compatibles (ViaVersion, SkinsRestorer, LuckPerms, EssentialsX…)'
+              "
+              class="min-w-0 flex-1 rounded-lg border border-surface-5 bg-surface-3 px-3 py-2 text-sm"
+              @keyup.enter="searchModrinthServer"
+            />
+            <BaseButton :disabled="busy" @click="searchModrinthServer">Buscar en Modrinth</BaseButton>
+          </div>
+          <ul v-if="modrinthResults.length" class="mt-3 max-h-64 divide-y divide-surface-3 overflow-y-auto pr-1">
+            <li v-for="item in modrinthResults" :key="item.id" class="flex items-center gap-3 py-2">
+              <img
+                v-if="item.iconUrl"
+                :src="item.iconUrl"
+                alt=""
+                class="h-9 w-9 shrink-0 rounded-lg bg-surface-3 object-cover"
+              />
+              <div class="min-w-0 flex-1">
+                <p class="truncate font-medium">{{ item.title }}</p>
+                <p class="truncate text-xs text-gray-500">{{ item.description }}</p>
+              </div>
+              <BaseButton size="sm" :disabled="busy" @click="installModrinthServerItem(item)">
+                Instalar
+              </BaseButton>
+            </li>
+          </ul>
+        </div>
+
         <div v-if="isPaper" class="rounded-xl border border-surface-4 bg-surface-2 p-4">
-          <h3 class="mb-2 font-bold">Buscar en Hangar</h3>
+          <h3 class="mb-2 font-bold">Buscar en Hangar (PaperMC)</h3>
           <div class="flex gap-2">
             <input
               v-model="hangarQuery"

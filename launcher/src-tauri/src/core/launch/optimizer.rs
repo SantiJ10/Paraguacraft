@@ -73,7 +73,12 @@ pub fn apply_graphics_profile(
         performance::optimize_modern_pvp_options(game_dir, tier)?;
         performance::apply_modern_pvp_mod_configs(game_dir, tier)?;
     } else if loader_l.contains("paraguacraft-optimized") {
-        // Reaplicar cada launch: gama + preset de uso (a través de tier resuelto) + MC.
+        // Se aplica UNA sola vez (marker `.paraguacraft_optimized_tuned`, lo escribe
+        // `optimized::apply_preconfig_once`). Después el usuario es dueño de options.txt
+        // y de las configs de los mods: el launcher no las vuelve a pisar.
+        if game_dir.join(".paraguacraft_optimized_tuned").is_file() {
+            return Ok(());
+        }
         let mc = if mc_version.trim().is_empty() {
             "1.21.11"
         } else {

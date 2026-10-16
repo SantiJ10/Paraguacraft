@@ -39,9 +39,43 @@ const accepted = ref(false);
 const showAll = ref(false);
 const showOld = ref(false);
 const showSetup = ref(true);
+const versionMode = ref<"latest" | "older">("latest");
+const quickTargetVersion = ref("");
 
 const canManage = computed(
   () => isTauri() && !!props.status?.platformSupported && !!props.status?.premiumAllowed,
+);
+
+const latestCatalogRelease = computed((): BedrockCatalogVersion | null => {
+  const releases = catalog.value
+    .filter((v) => catalogKind(v) === "release" && v.installable)
+    .sort((a, b) => cmpVerDesc(a.version, b.version));
+  return releases[0] ?? null;
+});
+
+const isLatestActive = computed(() => {
+  if (!props.status) return false;
+  if (props.status.storeInstalled && !props.status.managedActive) return true;
+  if (
+    props.status.managedActive &&
+    props.status.activeVersion &&
+    latestCatalogRelease.value &&
+    props.status.activeVersion === latestCatalogRelease.value.version
+  ) {
+    return true;
+  }
+  return false;
+});
+
+const selectableOlderVersions = computed(() => {
+  const releases = catalog.value
+    .filter((v) => catalogKind(v) === "release" && v.installable)
+    .sort((a, b) => cmpVerDesc(a.version, b.version));
+  return showOld.value ? releases : releases.filter((v) => isRecentBedrock(v.version));
+});
+
+const isQuickTargetInstalled = computed(() =>
+  installed.value.some((i) => i.version === quickTargetVersion.value),
 );
 
 const needsDisclaimer = computed(
@@ -64,8 +98,8 @@ function iconSrc(path: string | null | undefined): string | null {
 function versionLabel(status: BedrockStatus | null): string {
   if (!status) return "";
   if (status.managedActive && status.activeVersion) return `${status.activeVersion} (gestionada)`;
-  if (status.activeVersion) return `${status.activeVersion} (Store)`;
-  if (status.installed) return "Store / Xbox";
+  if (status.activeVersion) return `${status.activeVersion} (Store / Última)`;
+  if (status.installed) return "Store / Xbox (Última)";
   return "No instalado";
 }
 
@@ -142,6 +176,19 @@ async function loadAll(forceCatalog = false) {
     installed.value = inst;
     worlds.value = w;
     packs.value = p;
+    if (!quickTargetVersion.value) {
+      const activeManaged = inst.find((i) => i.active);
+      if (activeManaged) {
+        quickTargetVersion.value = activeManaged.version;
+        versionMode.value =
+          latestCatalogRelease.value && activeManaged.version === latestCatalogRelease.value.version
+            ? "latest"
+            : "older";
+      } else {
+        const secondRelease = selectableOlderVersions.value[1] ?? selectableOlderVersions.value[0];
+        if (secondRelease) quickTargetVersion.value = secondRelease.version;
+      }
+    }
   } catch (e) {
     error.value = String(e);
   } finally {
@@ -202,8 +249,103 @@ async function enableDev() {
 async function openStore() {
   try {
     await api.openMicrosoftStoreBedrock();
+    emit("refreshStatus");
   } catch (e) {
     error.value = String(e);
+  }
+}
+
+async function restoreStoreVersion() {
+  setupBusy.value = true;
+  error.value = null;
+  notice.value = "Restaurando versión oficial de Microsoft Store / Xbox App (tus mundos en com.mojang se conservan)…";
+  try {
+    const restored = await api.restoreStoreBedrock();
+    await loadAll();
+    emit("refreshStatus");
+    if (restored) {
+      notice.value = "Última versión oficial (Store / Xbox App) restaurada y lista para jugar.";
+    } else {
+      notice.value = "Registro limpio (mundos intactos). Abriendo Microsoft Store para activar la última versión…";
+      await api.openMicrosoftStoreBedrock();
+    }
+  } catch (e) {
+    error.value = String(e);
+    notice.value = null;
+  } finally {
+    setupBusy.value = false;
+  }
+}
+
+async function playLatestVersion() {
+  setupBusy.value = true;
+  error.value = null;
+  notice.value = null;
+  try {
+    // 1) Si ya está activa la Store o la última versión, abrimos directo.
+    if (props.status?.storeInstalled && !props.status?.managedActive) {
+      notice.value = "Abriendo última versión oficial (Microsoft Store / Xbox)…";
+      await api.launchBedrock();
+      return;
+    }
+    // 2) Intentar restaurar el paquete oficial de Store/XboxGames si está en disco.
+    const restored = await api.restoreStoreBedrock().catch(() => false);
+    if (restored) {
+      emit("refreshStatus");
+      await loadAll();
+      notice.value = "Abriendo última versión oficial (Microsoft Store / Xbox)…";
+      await api.launchBedrock();
+      return;
+    }
+    // 3) Si no está la Store en disco, usar o descargar la última release del catálogo FE3 oficial.
+    const latest = latestCatalogRelease.value;
+    if (!latest) {
+      await api.openMicrosoftStoreBedrock();
+      return;
+    }
+    const already = installed.value.find((i) => i.version === latest.version);
+    if (!already) {
+      notice.value = `Descargando última versión oficial (${latest.version}) desde Microsoft…`;
+      await api.installBedrockVersion(latest.version);
+    }
+    notice.value = `Lanzando Bedrock ${latest.version}…`;
+    await api.launchBedrockVersion(latest.version);
+    emit("refreshStatus");
+    await loadAll();
+  } catch (e) {
+    error.value = String(e);
+    notice.value = null;
+  } finally {
+    setupBusy.value = false;
+  }
+}
+
+async function playSelectedOlderVersion() {
+  const ver = quickTargetVersion.value.trim();
+  if (!ver) return;
+  if (!canInstallOrSwitch()) {
+    error.value = "Marcá que entendés el aviso (Store + Modo desarrollador) antes de cambiar de versión.";
+    showSetup.value = true;
+    return;
+  }
+  rememberDisclaimer();
+  busyVersion.value = ver;
+  error.value = null;
+  try {
+    const inst = installed.value.find((i) => i.version === ver);
+    if (!inst) {
+      notice.value = `Descargando Bedrock ${ver} desde Microsoft CDN…`;
+      await api.installBedrockVersion(ver);
+    }
+    notice.value = `Registrando y abriendo Bedrock ${ver} (backup automático de com.mojang)…`;
+    await api.launchBedrockVersion(ver);
+    emit("refreshStatus");
+    await loadAll();
+  } catch (e) {
+    error.value = String(e);
+    notice.value = null;
+  } finally {
+    busyVersion.value = null;
   }
 }
 
@@ -348,16 +490,119 @@ async function removePack(p: BedrockPack) {
 
 <template>
   <div v-if="!premiumLocked" class="mt-4 space-y-4">
-    <p class="text-xs text-gray-500">
-      Versión activa:
-      <span class="font-semibold text-gray-300">{{ versionLabel(status) }}</span>
-    </p>
+    <div class="rounded-xl border border-pc-green/30 bg-pc-green/5 p-3">
+      <div class="flex items-center justify-between gap-2">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-pc-green">
+          100% Seguro · Sin riesgo de baneo
+        </span>
+        <span class="rounded bg-surface-3 px-1.5 py-0.5 text-[10px] font-semibold text-gray-300">
+          {{ versionLabel(status) }}
+        </span>
+      </div>
+      <p class="mt-1 text-[11px] leading-relaxed text-gray-400">
+        Paquetes oficiales del servidor de Microsoft Update (FE3) sin inyección de DLLs ni modificaciones de memoria. Podés jugar en servidores oficiales, Realms y con amigos con total seguridad.
+      </p>
+    </div>
 
     <p v-if="status && !status.platformSupported" class="text-sm text-gray-400">
       El gestor de versiones Bedrock solo está en Windows.
     </p>
 
     <template v-else-if="canManage">
+      <!-- Selector principal: Última versión vs Versiones anteriores -->
+      <div class="rounded-xl border border-surface-4 bg-surface-2 p-3 space-y-3">
+        <p class="text-[10px] font-black uppercase tracking-widest text-gray-400">
+          Elegí qué versión de Paragua Bedrock jugar
+        </p>
+        <div class="grid grid-cols-2 gap-1.5 rounded-lg bg-surface-1 p-1">
+          <button
+            type="button"
+            class="rounded-md px-2.5 py-1.5 text-xs font-semibold transition"
+            :class="versionMode === 'latest' ? 'bg-[#0078D4] text-white' : 'text-gray-400 hover:text-white'"
+            @click="versionMode = 'latest'"
+          >
+            Última versión
+          </button>
+          <button
+            type="button"
+            class="rounded-md px-2.5 py-1.5 text-xs font-semibold transition"
+            :class="versionMode === 'older' ? 'bg-pc-green text-black' : 'text-gray-400 hover:text-white'"
+            @click="versionMode = 'older'"
+          >
+            Versiones viejas
+          </button>
+        </div>
+
+        <!-- Modo 1: Última versión -->
+        <div v-if="versionMode === 'latest'" class="space-y-2 pt-1">
+          <p class="text-xs text-gray-300">
+            Jugá la última versión oficial de Bedrock
+            <span v-if="latestCatalogRelease" class="font-semibold text-white">({{ latestCatalogRelease.version }})</span>
+            para entrar a Realms y servidores actualizados.
+          </p>
+          <BaseButton
+            size="sm"
+            class="w-full !bg-[#0078D4] hover:!bg-[#106EBE]"
+            :disabled="setupBusy || !!busyVersion"
+            @click="playLatestVersion"
+          >
+            {{
+              setupBusy
+                ? "Preparando última versión…"
+                : isLatestActive
+                  ? "Jugar última versión ahora"
+                  : "Activar y jugar última versión"
+            }}
+          </BaseButton>
+          <BaseButton
+            v-if="status?.managedActive"
+            size="sm"
+            variant="secondary"
+            class="w-full"
+            :disabled="setupBusy || !!busyVersion"
+            @click="restoreStoreVersion"
+          >
+            Restaurar Microsoft Store / Xbox App original
+          </BaseButton>
+        </div>
+
+        <!-- Modo 2: Versiones viejas -->
+        <div v-else class="space-y-2 pt-1">
+          <p class="text-xs text-gray-300">
+            Elegí cualquier versión anterior (1.21, 1.20, 1.19, 1.18, 1.17, 1.16…). El launcher hace backup automático de tus mundos antes de cambiar.
+          </p>
+          <select
+            v-model="quickTargetVersion"
+            class="w-full rounded-lg border border-surface-5 bg-surface-3 px-2.5 py-2 text-xs text-white outline-none focus:border-pc-green"
+          >
+            <option value="" disabled>Seleccioná una versión…</option>
+            <option
+              v-for="v in selectableOlderVersions"
+              :key="v.version"
+              :value="v.version"
+            >
+              Bedrock {{ v.version }}
+              {{ installed.some((i) => i.version === v.version) ? " (Instalada)" : "" }}
+              {{ status?.activeVersion === v.version && status?.managedActive ? " — Activa" : "" }}
+            </option>
+          </select>
+          <BaseButton
+            size="sm"
+            class="w-full"
+            :disabled="!quickTargetVersion || setupBusy || !!busyVersion"
+            @click="playSelectedOlderVersion"
+          >
+            {{
+              busyVersion === quickTargetVersion && quickTargetVersion
+                ? "Cambiando de versión…"
+                : isQuickTargetInstalled
+                  ? `Cambiar y jugar v${quickTargetVersion}`
+                  : `Descargar y jugar v${quickTargetVersion}`
+            }}
+          </BaseButton>
+        </div>
+      </div>
+
       <div
         v-if="needsDisclaimer && showSetup"
         class="rounded-lg border border-[#F39C12]/30 bg-[#1A1A1A] p-3 text-xs leading-relaxed text-gray-400"
@@ -372,11 +617,11 @@ async function removePack(p: BedrockPack) {
         </p>
         <ul class="mt-2 list-disc space-y-1 pl-4">
           <li>Tenés que <span class="text-gray-200">poseer</span> Minecraft / Game Pass. Las AppX salen del CDN de Microsoft.</li>
-          <li>Windows solo registra <span class="text-gray-200">una</span> versión a la vez. Se desregistra el Minecraft de la Store.</li>
+          <li>Windows solo registra <span class="text-gray-200">una</span> versión a la vez. Podés volver a la última versión con 1 clic cuando quieras.</li>
           <li>Hace falta el <span class="text-gray-200">Modo desarrollador</span> de Windows.</li>
           <li>
             <span class="text-[#F39C12]">No lo desinstales desde Configuración de Windows</span>:
-            eso borra los mundos. Tocá Backup y después Jugar; el launcher desregistra la Store y deja com.mojang.
+            eso borra los mundos. El launcher cambia de versión preservando com.mojang.
           </li>
         </ul>
         <div class="mt-3 flex flex-col gap-2">
@@ -394,7 +639,7 @@ async function removePack(p: BedrockPack) {
           </BaseButton>
           <label class="flex items-start gap-2 text-[11px] text-gray-400">
             <input v-model="accepted" type="checkbox" class="mt-0.5" @change="rememberDisclaimer" />
-            Entiendo que se desregistra el Minecraft de la Store al jugar una versión extraída.
+            Entiendo que se alterna el registro de la Store al jugar una versión extraída.
           </label>
         </div>
       </div>

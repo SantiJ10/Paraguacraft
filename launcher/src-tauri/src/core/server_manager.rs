@@ -28,7 +28,9 @@ pub async fn download_paper_server(
     dest: &Path,
 ) -> AppResult<()> {
     write_eula(dest.parent().unwrap_or(dest))?;
-    let url = format!("{PAPER_FILL_API}/projects/paper/versions/{mc}/builds");
+    // Paper no publica todas las versiones menores (p. ej. 1.8.9 → solo 1.8.8, mismo protocolo).
+    let paper_mc = paper_build_mc(mc);
+    let url = format!("{PAPER_FILL_API}/projects/paper/versions/{paper_mc}/builds");
     let builds: Value = net::fetch_json(client, &url).await.map_err(|_| {
         AppError::msg(format!(
             "Paper no tiene builds para Minecraft {mc}. Probá con Fabric, Forge o con otra versión."
@@ -53,7 +55,7 @@ pub async fn download_paper_server(
         1,
         app,
         "server-paper",
-        &format!("Paper {mc}"),
+        &format!("Paper {paper_mc}"),
     )
     .await
 }
@@ -132,7 +134,11 @@ pub async fn download_forge_server(
 ) -> AppResult<PathBuf> {
     write_eula(dir)?;
     let vers = forge::versions(client, mc).await?;
-    let fv = vers.first().ok_or_else(|| {
+    // Misma versión de Forge que el perfil Optimized (47.4.10 en 1.20.1) si existe, para que
+    // cliente y servidor hablen el mismo protocolo FML; si no, la más nueva.
+    let preferred = loaders::optimized::recommended_forge(mc)
+        .and_then(|rec| vers.iter().find(|v| v.as_str() == rec));
+    let fv = preferred.or_else(|| vers.first()).ok_or_else(|| {
         AppError::msg(format!(
             "Forge no tiene builds para Minecraft {mc}. Probá con NeoForge, Fabric o Paper."
         ))
@@ -255,4 +261,17 @@ fn find_forge_style_jar(dir: &Path, kind: &str) -> Option<PathBuf> {
         return Some(run_sh);
     }
     None
+}
+
+/// Versión de Paper equivalente cuando la exacta no existe en la API de PaperMC.
+/// Solo se mapean versiones con el mismo protocolo de red (los clientes entran igual).
+pub fn paper_build_mc(mc: &str) -> String {
+    match mc {
+        "1.8" | "1.8.1" | "1.8.2" | "1.8.3" | "1.8.4" | "1.8.5" | "1.8.6" | "1.8.7" | "1.8.9" => {
+            "1.8.8".into()
+        }
+        "1.10" | "1.10.1" => "1.10.2".into(),
+        "1.11" | "1.11.1" => "1.11.2".into(),
+        other => other.into(),
+    }
 }

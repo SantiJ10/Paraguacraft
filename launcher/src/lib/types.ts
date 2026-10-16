@@ -12,7 +12,8 @@ export type LoaderId =
   | "paraguacraft-pvp"
   | "paraguacraft-pvp-modern"
   | "paraguacraft-optimized"
-  | "paraguacraft-optimized-neoforge";
+  | "paraguacraft-optimized-neoforge"
+  | "paraguacraft-optimized-forge";
 
 export type GcType = "Auto" | "G1GC" | "ZGC" | "Shenandoah";
 

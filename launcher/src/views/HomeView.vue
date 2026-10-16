@@ -33,6 +33,7 @@ const featured = computed(() => {
 const featuredLoaderLabel = computed(() => {
   const l = featured.value?.loader ?? "";
   if (l.includes("optimized-neoforge")) return "Optimized NeoForge";
+  if (l.includes("optimized-forge")) return "Optimized Forge";
   if (l.includes("optimized")) return "Paraguacraft Optimized";
   if (l.includes("pvp-modern")) return "PvP 1.21";
   if (l.includes("pvp")) return "PvP 1.8.9";

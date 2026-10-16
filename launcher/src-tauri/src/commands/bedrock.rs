@@ -146,6 +146,15 @@ pub async fn backup_bedrock_saves() -> AppResult<String> {
 }
 
 #[tauri::command]
+pub async fn restore_store_bedrock() -> AppResult<bool> {
+    run_blocking(|| {
+        require_premium()?;
+        bedrock::restore_store()
+    })
+    .await
+}
+
+#[tauri::command]
 pub async fn open_microsoft_store_bedrock() -> AppResult<()> {
     run_blocking(|| {
         require_premium()?;

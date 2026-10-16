@@ -76,49 +76,91 @@ pub async fn install_plugin(
     };
     std::fs::create_dir_all(&target)?;
 
-    if !mc_version.is_empty() && !is_fabric {
+    let platform = if is_fabric { "FABRIC" } else { "PAPER" };
+    let mut matched_ver: Option<String> = None;
+
+    if !mc_version.is_empty() {
+        let mc_candidates: Vec<&str> = match mc_version {
+            "1.8.9" => vec!["1.8.9", "1.8.8", "1.8"],
+            "1.12.2" => vec!["1.12.2", "1.12"],
+            other => vec![other],
+        };
         let vc_url = format!("https://hangar.papermc.io/api/v1/projects/{owner}/{slug}/versions");
-        let vc = client
-            .get(&vc_url)
-            .query(&[("platform", "PAPER"), ("platformVersion", mc_version)])
-            .header("User-Agent", UA)
-            .send()
-            .await?;
-        if vc.status().is_success() {
-            let body: serde_json::Value = vc.json().await?;
-            if body.get("result").and_then(|r| r.as_array()).map(|a| a.is_empty()).unwrap_or(true) {
-                return Err(AppError::msg(format!(
-                    "'{slug}' no tiene versión para MC {mc_version} en Hangar."
-                )));
+        for mc_cand in mc_candidates {
+            let Ok(vc) = client
+                .get(&vc_url)
+                .query(&[("platform", platform), ("platformVersion", mc_cand)])
+                .header("User-Agent", UA)
+                .send()
+                .await
+            else {
+                continue;
+            };
+            if vc.status().is_success() {
+                if let Ok(body) = vc.json::<serde_json::Value>().await {
+                    if let Some(first) = body
+                        .get("result")
+                        .and_then(|r| r.as_array())
+                        .and_then(|a| a.first())
+                    {
+                        if let Some(name) = first.get("name").and_then(|n| n.as_str()) {
+                            matched_ver = Some(name.to_string());
+                            break;
+                        }
+                    }
+                }
             }
         }
     }
 
-    let latest_url = format!("https://hangar.papermc.io/api/v1/projects/{owner}/{slug}/latestrelease");
-    let ver_resp = client
-        .get(&latest_url)
-        .header("User-Agent", UA)
-        .send()
-        .await?;
-    if !ver_resp.status().is_success() {
-        return Err(AppError::msg(format!("No se pudo obtener versión de {slug}")));
+    if matched_ver.is_none() && mc_version.is_empty() {
+        let latest_url =
+            format!("https://hangar.papermc.io/api/v1/projects/{owner}/{slug}/latestrelease");
+        if let Ok(ver_resp) = client.get(&latest_url).header("User-Agent", UA).send().await {
+            if ver_resp.status().is_success() {
+                if let Ok(txt) = ver_resp.text().await {
+                    let v = txt.trim().trim_matches('"').to_string();
+                    if !v.is_empty() {
+                        matched_ver = Some(v);
+                    }
+                }
+            }
+        }
     }
-    let ver_name = ver_resp.text().await?.trim().trim_matches('"').to_string();
-    let platform = if is_fabric { "FABRIC" } else { "PAPER" };
-    let dl_url = format!(
-        "https://hangar.papermc.io/api/v1/projects/{owner}/{slug}/versions/{ver_name}/{platform}/download"
-    );
-    let bytes = client
-        .get(&dl_url)
-        .header("User-Agent", UA)
-        .send()
-        .await?
-        .error_for_status()?
-        .bytes()
-        .await?;
 
+    if let Some(ver_name) = matched_ver {
+        let dl_url = format!(
+            "https://hangar.papermc.io/api/v1/projects/{owner}/{slug}/versions/{ver_name}/{platform}/download"
+        );
+        if let Ok(resp) = client.get(&dl_url).header("User-Agent", UA).send().await {
+            if resp.status().is_success() {
+                if let Ok(bytes) = resp.bytes().await {
+                    if bytes.len() > 1000 {
+                        let fname = format!("{slug}.jar");
+                        let out = target.join(&fname);
+                        std::fs::write(&out, &bytes)?;
+                        return Ok(fname);
+                    }
+                }
+            }
+        }
+    }
+
+    // Fallback a Modrinth si Hangar no publica versión compatible para este MC (p. ej. 1.8.9 / 1.12.2)
+    let loaders: &[&str] = if is_fabric {
+        &["fabric"]
+    } else {
+        &["paper", "spigot", "bukkit"]
+    };
     let fname = format!("{slug}.jar");
     let out = target.join(&fname);
-    std::fs::write(&out, &bytes)?;
+    crate::core::server_setup::download_modrinth_plugin_direct(
+        client,
+        &slug.to_lowercase(),
+        loaders,
+        mc_version,
+        &out,
+    )
+    .await?;
     Ok(fname)
 }

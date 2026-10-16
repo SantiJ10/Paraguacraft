@@ -54,11 +54,28 @@ fn loaders_query(project_type: &str, loader: &str) -> Option<String> {
     None
 }
 
+fn mc_version_variants(mc: &str) -> Vec<&str> {
+    match mc {
+        "1.8.9" => vec!["1.8.9", "1.8.8", "1.8"],
+        "1.12.2" => vec!["1.12.2", "1.12"],
+        other if !other.is_empty() => vec![other],
+        _ => Vec::new(),
+    }
+}
+
 /// Construye las facetas de busqueda filtrando por tipo + version (+ loader).
 fn build_facets(project_type: &str, mc: &str, loader: &str) -> String {
     let mut groups: Vec<String> = vec![format!("[\"project_type:{project_type}\"]")];
-    if !mc.is_empty() {
-        groups.push(format!("[\"versions:{mc}\"]"));
+    let variants = mc_version_variants(mc);
+    if !variants.is_empty() {
+        groups.push(format!(
+            "[{}]",
+            variants
+                .iter()
+                .map(|v| format!("\"versions:{v}\""))
+                .collect::<Vec<_>>()
+                .join(",")
+        ));
     }
     if loader_relevant(project_type) && !loader.is_empty() && loader != "vanilla" {
         if project_type == "plugin" && PLUGIN_LOADERS_PAPER.contains(&loader) {
@@ -275,9 +292,22 @@ pub async fn list_versions(
     mc: &str,
     loader: &str,
 ) -> AppResult<Vec<StoreVersion>> {
+    let variants = mc_version_variants(mc);
+    let mcs_json = if variants.is_empty() {
+        format!("[\"{mc}\"]")
+    } else {
+        format!(
+            "[{}]",
+            variants
+                .iter()
+                .map(|v| format!("\"{v}\""))
+                .collect::<Vec<_>>()
+                .join(",")
+        )
+    };
     let mut url = format!(
         "{API}/project/{project_id}/version?game_versions={}",
-        net::url_encode(&format!("[\"{mc}\"]"))
+        net::url_encode(&mcs_json)
     );
     if let Some(q) = loaders_query(project_type, loader) {
         url.push_str(&format!("&loaders={}", net::url_encode(&q)));

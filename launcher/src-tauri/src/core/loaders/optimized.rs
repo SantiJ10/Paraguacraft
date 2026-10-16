@@ -27,14 +27,20 @@ use super::{fabric, forge, neoforge, optifine};
 
 pub const ID: &str = "paraguacraft-optimized";
 pub const ID_NEOFORGE: &str = "paraguacraft-optimized-neoforge";
+/// Optimized Forge (basado en Keo Optimized 2.0.0 para Forge 1.20.1).
+pub const ID_FORGE: &str = "paraguacraft-optimized-forge";
 
-const FABRIC_MCS: &[&str] = &["1.18.2", "1.20.1", "1.21.11", "26.2"];
+const FABRIC_MCS: &[&str] = &["1.18.2", "1.20.1", "1.21.11", "26.2", "26.3"];
 const OPTIFINE_MCS: &[&str] = &["1.8.9", "1.12.2"];
 const NEOFORGE_MCS: &[&str] = &[]; // Optimized NeoForge retirado (1.20.1 no se ofrece).
+/// Optimized sobre Forge moderno (Embeddium + Oculus), perfil aparte del Fabric.
+const FORGE_MCS: &[&str] = &["1.20.1"];
 
 /// Forge recomendado para Optimized legacy (mismo criterio que packs estables).
 const FORGE_1_8_9: &str = "11.15.1.2318";
 const FORGE_1_12_2: &str = "14.23.5.2860";
+/// Forge recomendado (oficial) para 1.20.1.
+const FORGE_1_20_1: &str = "47.4.10";
 
 const MODRINTH: &str = "https://api.modrinth.com/v2";
 const TUNED_MARKER: &str = ".paraguacraft_optimized_tuned";
@@ -223,6 +229,71 @@ const PINS_1_20_1_NEOFORGE: &[Pin] = &[
     Pin { slug: "badoptimizations", version_id: "DIugITgU" },
 ];
 
+/// 1.20.1 Forge 47.4.10: set definitivo de Paraguacraft Optimized (basado en Keo 2.0.0 +
+/// ajustes propios). Excluidos a pedido: The Verity Mod y From The Fog.
+const PINS_1_20_1_FORGE: &[Pin] = &[
+    Pin { slug: "embeddium", version_id: "UTbfe5d1" },
+    Pin { slug: "oculus", version_id: "iQ1SwGc3" },
+    Pin { slug: "modernfix", version_id: "hHwYTQwa" },
+    Pin { slug: "ferrite-core", version_id: "DG5Fn9Sz" },
+    Pin { slug: "entityculling", version_id: "ZqOeqW60" },
+    Pin { slug: "immediatelyfast", version_id: "OomXW3xp" },
+    Pin { slug: "clumps", version_id: "nAHGB5ls" },
+    Pin { slug: "cull-less-leaves-reforged", version_id: "wPOb8yEG" },
+    Pin { slug: "memoryleakfix", version_id: "3w0IxNtk" },
+    Pin { slug: "smooth-boot-reloaded", version_id: "HkfL3iGO" },
+    Pin { slug: "cloth-config", version_id: "t8TXrZvZ" },
+    Pin { slug: "starlight-forge", version_id: "cNa0vkNj" },
+    Pin { slug: "yacl", version_id: "sCWgXDYQ" },
+    Pin { slug: "geckolib", version_id: "aC5KMoNg" },
+    Pin { slug: "jei", version_id: "9jqubC9n" },
+    Pin { slug: "just-zoom", version_id: "dR5Rm140" },
+    Pin { slug: "konkrete", version_id: "skYziQQL" },
+    Pin { slug: "corpse", version_id: "7fc0hJN6" },
+    Pin { slug: "sound-physics-remastered", version_id: "qeWNOzYk" },
+];
+
+/// Mods Forge 1.20.1 que no están en Modrinth (solo CurseForge): se hospedan en el repo.
+struct HostedMod {
+    filename: &'static str,
+    sha256: &'static str,
+}
+
+const HOSTED_MODS_1_20_1_FORGE: &[HostedMod] = &[
+    HostedMod {
+        filename: "connectivity-1.20.1-7.6.jar",
+        sha256: "fbfa83da5a6f5717d34068af5283ebbb9f9a2474482bc818f588cd1bdbc11acd",
+    },
+    HostedMod {
+        filename: "cupboard-1.20.1-3.5.jar",
+        sha256: "68ac8d4df915d7610eca62edc7ad33e9fe6e938701766739a34f71abfc9bd20d",
+    },
+];
+/// 26.3 Fabric: espejo de Keo Optimized 1.0.0 (Sodium 0.9.2 + Iris 1.11.6).
+const PINS_26_3: &[Pin] = &[
+    Pin { slug: "sodium", version_id: "bAZQdGpg" },
+    Pin { slug: "iris", version_id: "bAdKrpw8" },
+    Pin { slug: "fabric-api", version_id: "BQfN2OGk" },
+    Pin { slug: "lithium", version_id: "WXHRsMRl" },
+    Pin { slug: "immediatelyfast", version_id: "ugNfVpVH" },
+    Pin { slug: "modmenu", version_id: "lcxkZSq6" },
+    Pin { slug: "sodium-extra", version_id: "te2y9qZn" },
+    Pin { slug: "clumps", version_id: "J4I1wxJZ" },
+    Pin { slug: "fzzy-config", version_id: "RlUQZcxK" },
+    Pin { slug: "zconfig", version_id: "tsgt79sG" },
+    Pin { slug: "zfastnoise", version_id: "bjeF0iDC" },
+    Pin { slug: "modernfix-mvus", version_id: "iKbywnU7" },
+    Pin { slug: "better-block-entities", version_id: "9VvhfLcA" },
+    Pin { slug: "fism", version_id: "cEcu5dxk" },
+    Pin { slug: "forge-config-api-port", version_id: "c1wkPZ5n" },
+    Pin { slug: "fabric-language-kotlin", version_id: "eRRZzGMc" },
+    Pin { slug: "asyncparticles", version_id: "56Y3sdzw" },
+    Pin { slug: "scalablelux", version_id: "g4eqNSKd" },
+    Pin { slug: "asynclogger", version_id: "Ert0LmWj" },
+    Pin { slug: "badoptimizations", version_id: "Sp0ctspw" },
+    Pin { slug: "crash-assistant", version_id: "siLE4Dq9" },
+];
+
 /// JARs a purgar siempre (incompatibles / Java 25+).
 const PURGE_NAME_NEEDLES: &[&str] = &[
     "voxy",
@@ -237,6 +308,7 @@ fn fabric_pins_for_mc(mc: &str) -> Option<&'static [Pin]> {
     match mc {
         "1.21.11" => Some(PINS_1_21_11),
         "26.2" => Some(PINS_26_2),
+        "26.3" => Some(PINS_26_3),
         "1.20.1" => Some(PINS_1_20_1_FABRIC),
         "1.18.2" => Some(PINS_1_18_2),
         _ => None,
@@ -292,10 +364,11 @@ fn cf_pins_for_mc(mc: &str) -> Option<&'static [CfPin]> {
     }
 }
 
-fn recommended_forge(mc: &str) -> Option<&'static str> {
+pub fn recommended_forge(mc: &str) -> Option<&'static str> {
     match mc {
         "1.8.9" => Some(FORGE_1_8_9),
         "1.12.2" => Some(FORGE_1_12_2),
+        "1.20.1" => Some(FORGE_1_20_1),
         _ => None,
     }
 }
@@ -312,6 +385,10 @@ pub fn is_neoforge_mc(mc: &str) -> bool {
     NEOFORGE_MCS.iter().any(|v| *v == mc)
 }
 
+pub fn is_forge_mc(mc: &str) -> bool {
+    FORGE_MCS.iter().any(|v| *v == mc)
+}
+
 /// True si Optimized sustituye a Fabric+Iris para esta MC.
 pub fn replaces_fabric_iris(mc: &str) -> bool {
     is_fabric_mc(mc)
@@ -324,6 +401,29 @@ pub async fn versions(client: &reqwest::Client, mc: &str) -> AppResult<Vec<Strin
         return Ok(vec![PACK_VERSION.to_string()]);
     }
     Ok(vec![])
+}
+
+pub async fn versions_forge(client: &reqwest::Client, mc: &str) -> AppResult<Vec<String>> {
+    if is_forge_mc(mc) {
+        let _ = client;
+        return Ok(vec![PACK_VERSION.to_string()]);
+    }
+    Ok(vec![])
+}
+
+pub async fn install_forge(
+    app: &AppHandle,
+    client: &reqwest::Client,
+    mc: &str,
+    loader_version: &str,
+) -> AppResult<String> {
+    if !is_forge_mc(mc) {
+        return Err(AppError::msg(format!(
+            "Paraguacraft Optimized (Forge) no soporta Minecraft {mc}"
+        )));
+    }
+    let ver = resolve_backend_loader_version(client, mc, loader_version, "forge").await?;
+    forge::install(app, client, mc, &ver).await
 }
 
 pub async fn versions_neoforge(client: &reqwest::Client, mc: &str) -> AppResult<Vec<String>> {
@@ -411,7 +511,23 @@ pub async fn install_bundle_for_launch(
     let hw = hardware::detect();
     let tier = hw.perfil_sugerido.clone();
 
-    if kind.contains("neoforge") {
+    if kind.contains("optimized-forge") {
+        purge_incompatible_jars(instance_dir);
+        // Krypton reemplaza el stack de red de Netty y es la causa típica de
+        // «Internal Exception / Bad packet ID» al entrar a servers Forge.
+        purge_jars_matching(instance_dir, &["krypton"]);
+        install_pinned_mods_required(
+            app,
+            client,
+            PINS_1_20_1_FORGE,
+            instance_dir,
+            REQUIRED_FORGE_PINS,
+        )
+        .await?;
+        install_hosted_mods(app, client, HOSTED_MODS_1_20_1_FORGE, instance_dir).await;
+        install_shaders_for_tier(app, client, mc, &["iris"], &tier, instance_dir).await?;
+        apply_preconfig_once(instance_dir, &tier, "forge", mc)?;
+    } else if kind.contains("neoforge") {
         purge_incompatible_jars(instance_dir);
         install_pinned_mods_required(
             app,
@@ -517,6 +633,23 @@ async fn install_cf_pins(
     Ok(())
 }
 
+/// Borra JARs de `mods/` cuyo nombre contenga alguna de las agujas (minúsculas).
+fn purge_jars_matching(instance_dir: &Path, needles: &[&str]) {
+    let Ok(entries) = std::fs::read_dir(instance_dir.join("mods")) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("").to_lowercase();
+        if (name.ends_with(".jar") || name.ends_with(".jar.disabled"))
+            && needles.iter().any(|n| name.contains(n))
+        {
+            let _ = std::fs::remove_file(&path);
+            eprintln!("[optimized] purged {}", path.display());
+        }
+    }
+}
+
 fn purge_incompatible_jars(instance_dir: &Path) {
     let mods_dir = instance_dir.join("mods");
     let Ok(entries) = std::fs::read_dir(&mods_dir) else {
@@ -560,7 +693,62 @@ async fn install_fabric_compatible_bundle(
 /// Mods críticos: si fallan, el cliente Fabric/NeoForge no arranca.
 const REQUIRED_FABRIC_PINS: &[&str] = &["fabric-api", "sodium", "iris", "lithium"];
 const REQUIRED_NEOFORGE_PINS: &[&str] = &["embeddium", "oculus", "modernfix"];
+const REQUIRED_FORGE_PINS: &[&str] = &["embeddium", "oculus", "modernfix"];
 
+/// Descarga mods hospedados en `bundled/optimized-mods/` verificando SHA-256.
+/// Errores no fatales: el pack arranca igual (solo se pierde el mod opcional).
+async fn install_hosted_mods(
+    app: &AppHandle,
+    client: &reqwest::Client,
+    mods: &[HostedMod],
+    instance_dir: &Path,
+) {
+    let mods_dir = instance_dir.join("mods");
+    if std::fs::create_dir_all(&mods_dir).is_err() {
+        return;
+    }
+    for hm in mods {
+        let dest = mods_dir.join(hm.filename);
+        if dest.is_file() {
+            if let Ok(bytes) = std::fs::read(&dest) {
+                if sha256_hex_str(&bytes).eq_ignore_ascii_case(hm.sha256) {
+                    continue;
+                }
+            }
+            let _ = std::fs::remove_file(&dest);
+        }
+        let urls = [
+            format!("https://raw.githubusercontent.com/{GITHUB_REPO}/main/bundled/optimized-mods/{}", hm.filename),
+            format!("https://cdn.jsdelivr.net/gh/{GITHUB_REPO}@main/bundled/optimized-mods/{}", hm.filename),
+        ];
+        let mut ok = false;
+        for url in urls {
+            let res = net::download_all(
+                client,
+                vec![DownloadItem::new(url, dest.clone())],
+                1,
+                app,
+                "optimized-hosted-mod",
+                hm.filename,
+            )
+            .await;
+            if res.is_ok() {
+                match std::fs::read(&dest) {
+                    Ok(b) if sha256_hex_str(&b).eq_ignore_ascii_case(hm.sha256) => {
+                        ok = true;
+                        break;
+                    }
+                    _ => {
+                        let _ = std::fs::remove_file(&dest);
+                    }
+                }
+            }
+        }
+        if !ok {
+            eprintln!("[optimized] hosted mod {} no disponible", hm.filename);
+        }
+    }
+}
 async fn install_pinned_mods(
     app: &AppHandle,
     client: &reqwest::Client,
@@ -983,9 +1171,9 @@ async fn install_shaders_for_tier(
         items.push(DownloadItem::new(url, dest).with_sha1(sha1));
     }
 
-    // Extras Keo (Chocapic / Skygleam / SOLAR) solo con OptiFine legacy.
-    // Fabric / NeoForge+Oculus usan el catálogo Iris de Modrinth.
-    let use_hosted = loaders.iter().any(|l| *l == "optifine");
+    // Extras Keo (Chocapic / Skygleam / SOLAR): son packs genéricos compatibles con
+    // OptiFine, Iris y Oculus, así que se instalan en todos los perfiles Optimized.
+    let use_hosted = true;
     if use_hosted {
         for hs in HOSTED_SHADERS {
             if !tier_allows_hosted(tier, hs.min_tier) {

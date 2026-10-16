@@ -88,7 +88,8 @@ pub fn ensure_enabled(game_dir: &Path, ver: McVersion, profile: PackProfile, min
     let mut new_lines = lines;
 
     if profile == PackProfile::Classic {
-        new_lines.retain(|l| !l.starts_with("texturepack:"));
+        new_lines.retain(|l| !l.starts_with("texturepack:") && !l.starts_with("skin:"));
+        new_lines.push(format!("skin:{PACK_NAME}.zip"));
         new_lines.push(format!("texturepack:{PACK_NAME}.zip"));
     } else if ver.major < 13 {
         let existing: Vec<String> = new_lines
@@ -152,6 +153,21 @@ pub fn ensure_enabled(game_dir: &Path, ver: McVersion, profile: PackProfile, min
         packs.extend(user_packs);
         new_lines.retain(|l| !l.starts_with("resourcePacks:"));
         new_lines.push(format!("resourcePacks:[{}]", packs.join(",")));
+    }
+
+    // Limpiar cualquier entrada previa de ParaguacraftBrandPack en incompatibleResourcePacks
+    if let Some(incomp_line) = new_lines
+        .iter()
+        .find(|l| l.starts_with("incompatibleResourcePacks:"))
+        .cloned()
+    {
+        let cleaned: Vec<String> = parse_quoted_packs(&incomp_line)
+            .into_iter()
+            .filter(|p| !p.contains(PACK_NAME))
+            .map(|p| format!("\"{p}\""))
+            .collect();
+        new_lines.retain(|l| !l.starts_with("incompatibleResourcePacks:"));
+        new_lines.push(format!("incompatibleResourcePacks:[{}]", cleaned.join(",")));
     }
 
     if let Some(parent) = options_path.parent() {

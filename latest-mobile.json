@@ -1,13 +1,13 @@
 {
-  "version": "0.1.16",
-  "versionCode": 17,
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/mobile-0.1.16/Paraguacraft-mobile-0.1.16-debug.apk",
-  "size_bytes": 143418417,
-  "sha256": "181dae0440e5656cd2718b783e30f67d08afa64bae2e0fc7ea6067c4fb04a084",
-  "notes": "- Logger sin fdatasync por línea; visor de log acotado\n- Controllable ya no clava un núcleo; dispositivos de entrada cacheados\n- Listas de instancias no se reconstruyen si nada cambió; iconos con LRU",
+  "version": "0.1.21",
+  "versionCode": 22,
+  "download_url": "https://github.com/SantiJ10/paraguacraft-mobile/releases/download/mobile-0.1.21/Paraguacraft-mobile-0.1.21-debug.apk",
+  "size_bytes": 143569549,
+  "sha256": "5323834fa9ec38c8476e24d9f4cce19222d873911e3335c6548700c5c13ee6a4",
+  "notes": "- Perfiles Optimized para Forge 1.20.1 (47.4.10) y Fabric 26.3 con shaders y ajustes por gama sin pisar tus opciones\n- Descarga e instalación de Forge y modpacks acelerada en paralelo (8 hilos)\n- keo optimized 1.20.1 ya no se cuelga en la pantalla roja de Mojang (MobileCompat + tuning G1GC)\n- ParaguacraftBrandPack compatible con todas las versiones, loaders, betas y snapshots",
   "platforms": {
     "android": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/mobile-0.1.16/Paraguacraft-mobile-0.1.16-debug.apk"
+      "url": "https://github.com/SantiJ10/paraguacraft-mobile/releases/download/mobile-0.1.21/Paraguacraft-mobile-0.1.21-debug.apk"
     }
   }
 }

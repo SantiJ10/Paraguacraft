@@ -43,6 +43,12 @@ export const LOADER_ICONS: LoaderIconOption[] = [
     src: optimized,
     description: "Instancia Paraguacraft para mejorar el rendimiento (NeoForge)",
   },
+  {
+    id: "paraguacraft-optimized-forge",
+    name: "Paraguacraft Optimized (Forge)",
+    src: optimized,
+    description: "Instancia Paraguacraft para mejorar el rendimiento (Forge 1.20.1)",
+  },
   { id: "paraguacraft-pvp", name: "Paraguacraft PvP 1.8.9", src: tnt, description: "Cliente PvP Forge" },
   { id: "paraguacraft-pvp-modern", name: "Paraguacraft PvP 1.21.11", src: tnt, description: "Cliente PvP Fabric" },
 ];

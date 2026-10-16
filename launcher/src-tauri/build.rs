@@ -99,11 +99,12 @@ fn main() {
         .save(packs_out.join("pack.png"))
         .expect("save pack.png");
 
-    // < 1.6 — texture pack clásico
+    // < 1.6 — texture pack clásico (Beta 1.2 – 1.5.2 + Release < 1.6)
     write_texturepack_zip(
         &packs_out.join("classic.zip"),
         &legacy256,
-        None,
+        &startup,
+        &pack_icon,
     );
 
     // 1.6 – 1.15
@@ -133,7 +134,7 @@ fn main() {
         &startup,
         &edition,
         &pack_icon,
-        r#"{"pack":{"pack_format":15,"description":"Marca Oficial Paraguacraft","supported_formats":[15,9999]}}"#,
+        r#"{"pack":{"pack_format":15,"description":"Marca Oficial Paraguacraft","supported_formats":[1,999],"min_format":[1,0],"max_format":[999,0]}}"#,
     );
 
     // 1.21.4 — textura wide 1024×256 (mismo bitmap; pack_format distinto)
@@ -143,7 +144,7 @@ fn main() {
         &startup,
         &edition,
         &pack_icon,
-        r#"{"pack":{"pack_format":46,"description":"Marca Oficial Paraguacraft","supported_formats":[46,9999]}}"#,
+        r#"{"pack":{"pack_format":46,"description":"Marca Oficial Paraguacraft","supported_formats":[1,999],"min_format":[1,0],"max_format":[999,0]}}"#,
     );
 
     // 1.21.5+ / 26.x — schema nuevo (zip en resourcepacks/)
@@ -153,7 +154,7 @@ fn main() {
         &startup,
         &edition,
         &pack_icon,
-        r#"{"pack":{"pack_format":75,"description":"Marca Oficial Paraguacraft","min_format":[75,0],"max_format":[99,0]}}"#,
+        r#"{"pack":{"pack_format":75,"description":"Marca Oficial Paraguacraft","supported_formats":[1,999],"min_format":[1,0],"max_format":[999,0]}}"#,
     );
 
     println!("cargo:rerun-if-changed=resources/branding");
@@ -191,7 +192,7 @@ fn alpha_bbox(img: &RgbaImage) -> Option<(u32, u32, u32, u32)> {
             }
         }
     }
-    found.then_some((min_x, min_y, max_x, max_y))
+    found.then_some((min_x, min_y, min_x.max(max_x), min_y.max(max_y)))
 }
 
 fn crop_bbox(img: &RgbaImage, bbox: (u32, u32, u32, u32)) -> RgbaImage {
@@ -366,11 +367,34 @@ fn png_bytes(img: &RgbaImage) -> Vec<u8> {
     buf.into_inner()
 }
 
-fn write_texturepack_zip(path: &Path, minecraft: &RgbaImage, _mcmeta: Option<&str>) {
+fn write_texturepack_zip(
+    path: &Path,
+    minecraft: &RgbaImage,
+    startup: &[u8],
+    pack_icon: &RgbaImage,
+) {
     let file = File::create(path).expect("create classic zip");
     let mut zip = ZipWriter::new(file);
     let opts = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
     let buf = png_bytes(minecraft);
+    let icon_buf = png_bytes(pack_icon);
+
+    zip.start_file("pack.txt", opts).expect("pack.txt");
+    zip.write_all(b"Marca Oficial Paraguacraft")
+        .expect("pack.txt write");
+
+    zip.start_file("pack.png", opts).expect("pack.png");
+    zip.write_all(&icon_buf).expect("pack.png write");
+
+    // Beta 1.2 – Release 1.5.2 usan /title/mclogo.png y /title/mojang.png
+    zip.start_file("title/mclogo.png", opts)
+        .expect("title/mclogo.png");
+    zip.write_all(&buf).expect("mclogo write");
+
+    zip.start_file("title/mojang.png", opts)
+        .expect("title/mojang.png");
+    zip.write_all(startup).expect("title/mojang write");
+
     zip.start_file("gui/title/minecraft.png", opts)
         .expect("zip entry");
     zip.write_all(&buf).expect("zip write");
@@ -405,6 +429,10 @@ fn write_java_pack_zip(
     zip.start_file(format!("{base}/mojangstudios.png"), opts)
         .expect("startup entry");
     zip.write_all(startup).expect("startup bytes");
+
+    zip.start_file(format!("{base}/mojang.png"), opts)
+        .expect("legacy startup entry");
+    zip.write_all(startup).expect("legacy startup bytes");
 
     let ed_buf = png_bytes(edition);
     zip.start_file(format!("{base}/edition.png"), opts)

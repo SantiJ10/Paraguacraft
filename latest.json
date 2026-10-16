@@ -1,12 +1,12 @@
 {
-  "version": "1.1.53",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.53/Instalar_Paraguacraft_v1.1.53.exe",
-  "size_bytes": 5997147,
-  "sha256": "cff513fd6ee26154ab1520ea6377ce72c9becd4a3bd0168fcc09a1876c15495c",
-  "notes": "- Forge 1.20.1 arranca otra vez: el launcher ponía el jar de Minecraft dos veces en el classpath y la JVM moría antes de abrir la ventana\n- Los crashes mudos ahora dejan log (stderr_stream.log) y el diagnóstico nombra al mod responsable\n- Forge y NeoForge ordenan versiones por número: 47.4.26 se ofrece como recomendado en vez de 47.4.9",
+  "version": "1.1.54",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.54/Instalar_Paraguacraft_v1.1.54.exe",
+  "size_bytes": 6014624,
+  "sha256": "7be2a89b3a74f6f9b2521b50d5c04b54a87f3f8130ae8abcaa20bf1263084c0f",
+  "notes": "- Perfiles Optimized para Forge 1.20.1 (47.4.10) y Fabric 26.3 con shaders y ajustes por gama sin pisar tus opciones\n- Servidores Forge/NeoForge: arreglo de desconexiones con amigos, cuarentena de mods cliente, 40 ajustes en server.properties y buscador de mods/plugins compatibles (1.8.9 a 26.3)\n- Paragua Bedrock: selector entre Última versión oficial y Versiones viejas con backup automático y 0 riesgo de baneo\n- ParaguacraftBrandPack compatible con todas las versiones, loaders, betas y snapshots",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.53/Instalar_Paraguacraft_v1.1.53.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.54/Instalar_Paraguacraft_v1.1.54.exe",
       "signature": ""
     }
   }

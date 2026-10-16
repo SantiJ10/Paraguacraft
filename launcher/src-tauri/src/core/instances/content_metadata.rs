@@ -257,6 +257,7 @@ fn check_compat(ver: &Value, mc: &str, loader: &str, folder: &str) -> (bool, Opt
                 || (norm == "paraguacraft-pvp" && (l == "forge" || l == "neoforge"))
                 || (norm == "paraguacraft-optimized"
                     && (l == &store || (store == "forge" && l == "optifine")))
+                || (norm == "paraguacraft-optimized-forge" && l == "forge")
                 || (norm == "paraguacraft-optimized-neoforge"
                     && (l == "neoforge" || l == "forge"))
         });

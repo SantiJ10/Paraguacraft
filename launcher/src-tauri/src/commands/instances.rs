@@ -218,7 +218,9 @@ pub async fn reinstall_instance_loader(
     let meta = instances::ensure_meta(&id)?;
     let dir = instances::instance_dir(&id);
     let loader = crate::core::loaders::normalize(&meta.loader);
-    if loader == "paraguacraft-optimized" || loader == "paraguacraft-optimized-neoforge" {
+    if loader == "paraguacraft-optimized"
+        || loader == "paraguacraft-optimized-neoforge"
+        || loader == "paraguacraft-optimized-forge" {
         let _ = crate::core::loaders::optimized::install_bundle_for_launch(
             &app,
             &http,

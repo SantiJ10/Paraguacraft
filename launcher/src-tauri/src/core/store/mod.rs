@@ -321,6 +321,7 @@ fn validate_server_mod(server_id: &str, mc: &str, loader: &str) -> AppResult<Pat
     if !prof.mc_version.is_empty()
         && prof.mc_version != "?"
         && prof.mc_version != mc
+        && !worlds::mc_flexible_match(&prof.mc_version, mc)
     {
         return Err(AppError::msg(format!(
             "El servidor \"{}\" usa Minecraft {}, no {mc}.",

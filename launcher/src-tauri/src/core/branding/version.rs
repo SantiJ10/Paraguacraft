@@ -29,26 +29,225 @@ impl PackProfile {
     }
 }
 
-pub fn parse_mc_version(version: &str) -> McVersion {
-    let parts: Vec<&str> = version.split('.').collect();
-    if parts.first().is_some_and(|p| *p == "26") {
-        McVersion {
-            major: 26,
-            minor: parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0),
-            patch: parts.get(2).and_then(|s| s.parse().ok()).unwrap_or(0),
-        }
-    } else if let Some(m) = parts.get(1).and_then(|s| s.parse().ok()) {
-        McVersion {
-            major: m,
-            minor: parts.get(2).and_then(|s| s.parse().ok()).unwrap_or(0),
-            patch: parts.get(3).and_then(|s| s.parse().ok()).unwrap_or(0),
-        }
+fn parse_leading_uint(s: &str) -> Option<u32> {
+    let digits: String = s.trim().chars().take_while(|c| c.is_ascii_digit()).collect();
+    if digits.is_empty() {
+        None
     } else {
-        McVersion {
-            major: 20,
+        digits.parse::<u32>().ok()
+    }
+}
+
+pub fn parse_mc_version(version: &str) -> McVersion {
+    let raw = version.trim().to_ascii_lowercase();
+    if raw.is_empty() {
+        return McVersion {
+            major: 21,
+            minor: 11,
+            patch: 0,
+        };
+    }
+
+    // Betas, Alphas, Classic, Infdev, Indev, Pre-classic (b1.7.3, a1.2.6, c0.30, inf-..., rd-...)
+    if raw.starts_with("b1.")
+        || raw.starts_with("beta")
+        || raw.starts_with("a1.")
+        || raw.starts_with("a0.")
+        || raw.starts_with("alpha")
+        || raw.starts_with("c0.")
+        || raw.starts_with("inf-")
+        || raw.starts_with("in-")
+        || raw.starts_with("rd-")
+    {
+        return McVersion {
+            major: 5,
             minor: 0,
             patch: 0,
+        };
+    }
+
+    // Snapshots semanales tipo YYwWWa (ej. 24w14a, 25w02a, 26w10a, 20w14infinite)
+    let bytes = raw.as_bytes();
+    if bytes.len() >= 5
+        && bytes[0].is_ascii_digit()
+        && bytes[1].is_ascii_digit()
+        && bytes[2] == b'w'
+        && bytes[3].is_ascii_digit()
+        && bytes[4].is_ascii_digit()
+    {
+        let yy = ((bytes[0] - b'0') as u32) * 10 + (bytes[1] - b'0') as u32;
+        let ww = ((bytes[3] - b'0') as u32) * 10 + (bytes[4] - b'0') as u32;
+        return match yy {
+            26.. => McVersion {
+                major: 26,
+                minor: 3,
+                patch: 0,
+            },
+            25 => {
+                if ww >= 40 {
+                    McVersion {
+                        major: 26,
+                        minor: 0,
+                        patch: 0,
+                    }
+                } else {
+                    McVersion {
+                        major: 21,
+                        minor: 11,
+                        patch: 0,
+                    }
+                }
+            }
+            24 => {
+                if ww >= 33 {
+                    McVersion {
+                        major: 21,
+                        minor: 4,
+                        patch: 0,
+                    }
+                } else {
+                    McVersion {
+                        major: 21,
+                        minor: 1,
+                        patch: 0,
+                    }
+                }
+            }
+            23 => {
+                if ww >= 31 {
+                    McVersion {
+                        major: 20,
+                        minor: 4,
+                        patch: 0,
+                    }
+                } else {
+                    McVersion {
+                        major: 20,
+                        minor: 1,
+                        patch: 0,
+                    }
+                }
+            }
+            22 => McVersion {
+                major: 19,
+                minor: 3,
+                patch: 0,
+            },
+            21 => McVersion {
+                major: 18,
+                minor: 0,
+                patch: 0,
+            },
+            20 => McVersion {
+                major: 16,
+                minor: 4,
+                patch: 0,
+            },
+            19 => McVersion {
+                major: 15,
+                minor: 0,
+                patch: 0,
+            },
+            18 => McVersion {
+                major: 14,
+                minor: 0,
+                patch: 0,
+            },
+            17 => McVersion {
+                major: 13,
+                minor: 0,
+                patch: 0,
+            },
+            16 => McVersion {
+                major: 11,
+                minor: 0,
+                patch: 0,
+            },
+            15 => McVersion {
+                major: 9,
+                minor: 0,
+                patch: 0,
+            },
+            14 => McVersion {
+                major: 8,
+                minor: 0,
+                patch: 0,
+            },
+            13 => {
+                if ww >= 16 {
+                    McVersion {
+                        major: 6,
+                        minor: 0,
+                        patch: 0,
+                    }
+                } else {
+                    McVersion {
+                        major: 5,
+                        minor: 0,
+                        patch: 0,
+                    }
+                }
+            }
+            _ => McVersion {
+                major: 5,
+                minor: 0,
+                patch: 0,
+            },
+        };
+    }
+
+    // Buscar tokens de versión dentro de IDs compuestos (ej. "fabric-loader-0.16.10-1.21.4", "1.20.1-forge-47.4.10", "1.21.4-pre2", "26.3-rc1")
+    for token in raw.split(|c: char| c.is_whitespace() || c == '/' || c == '\\') {
+        let parts: Vec<&str> = token.split('.').collect();
+        if let Some(first) = parts.first().and_then(|s| parse_leading_uint(s)) {
+            if first >= 26 {
+                return McVersion {
+                    major: first,
+                    minor: parts.get(1).and_then(|s| parse_leading_uint(s)).unwrap_or(0),
+                    patch: parts.get(2).and_then(|s| parse_leading_uint(s)).unwrap_or(0),
+                };
+            }
+            if first == 1 {
+                if let Some(m) = parts.get(1).and_then(|s| parse_leading_uint(s)) {
+                    return McVersion {
+                        major: m,
+                        minor: parts.get(2).and_then(|s| parse_leading_uint(s)).unwrap_or(0),
+                        patch: parts.get(3).and_then(|s| parse_leading_uint(s)).unwrap_or(0),
+                    };
+                }
+            }
         }
+    }
+
+    // Fallback si el ID tiene prefijos con guiones como "fabric-loader-0.16.10-1.20.1"
+    for sub in raw.split('-') {
+        let parts: Vec<&str> = sub.split('.').collect();
+        if let Some(first) = parts.first().and_then(|s| parse_leading_uint(s)) {
+            if first >= 26 && parts.len() >= 2 {
+                return McVersion {
+                    major: first,
+                    minor: parts.get(1).and_then(|s| parse_leading_uint(s)).unwrap_or(0),
+                    patch: parts.get(2).and_then(|s| parse_leading_uint(s)).unwrap_or(0),
+                };
+            }
+            if first == 1 && parts.len() >= 2 {
+                if let Some(m) = parts.get(1).and_then(|s| parse_leading_uint(s)) {
+                    if m >= 1 && m <= 25 {
+                        return McVersion {
+                            major: m,
+                            minor: parts.get(2).and_then(|s| parse_leading_uint(s)).unwrap_or(0),
+                            patch: parts.get(3).and_then(|s| parse_leading_uint(s)).unwrap_or(0),
+                        };
+                    }
+                }
+            }
+        }
+    }
+
+    McVersion {
+        major: 20,
+        minor: 0,
+        patch: 0,
     }
 }
 
@@ -111,20 +310,15 @@ pub fn pack_format_for_mc(mc: &str) -> u32 {
     }
 }
 
-/// JSON de `pack.mcmeta` compatible con la versión concreta de MC.
+/// JSON de `pack.mcmeta` compatible universalmente (releases, betas, pre-releases, RCs y snapshots).
 pub fn pack_mcmeta_json(mc: &str) -> String {
     let fmt = pack_format_for_mc(mc);
     let v = parse_mc_version(mc);
-    // 1.21.9+ / formatos altos: schema min_format / max_format.
-    if fmt >= 65 || v.major >= 26 || (v.major == 21 && v.minor >= 9) {
+    // 1.20+ (fmt >= 15): incluimos tanto supported_formats [1,999] (1.20.2–1.21.8)
+    // como min_format/max_format (1.21.9+ / 26.x / snapshots) junto al pack_format exacto.
+    if fmt >= 15 || v.major >= 20 {
         return format!(
-            r#"{{"pack":{{"pack_format":{fmt},"description":"Marca Oficial Paraguacraft","min_format":[{fmt},0],"max_format":[{fmt},0]}}}}"#
-        );
-    }
-    // 1.20.2+ entiende supported_formats (evita warnings en rangos cercanos).
-    if fmt >= 18 {
-        return format!(
-            r#"{{"pack":{{"pack_format":{fmt},"description":"Marca Oficial Paraguacraft","supported_formats":[{fmt},{fmt}]}}}}"#
+            r#"{{"pack":{{"pack_format":{fmt},"description":"Marca Oficial Paraguacraft","supported_formats":[1,999],"min_format":[1,0],"max_format":[999,0]}}}}"#
         );
     }
     format!(r#"{{"pack":{{"pack_format":{fmt},"description":"Marca Oficial Paraguacraft"}}}}"#)
@@ -136,22 +330,30 @@ mod tests {
 
     #[test]
     fn formats_key_versions() {
+        assert_eq!(pack_format_for_mc("b1.7.3"), 1);
         assert_eq!(pack_format_for_mc("1.8.9"), 1);
         assert_eq!(pack_format_for_mc("1.12.2"), 3);
         assert_eq!(pack_format_for_mc("1.18.2"), 8);
         assert_eq!(pack_format_for_mc("1.20.1"), 15);
+        assert_eq!(pack_format_for_mc("1.21.4-pre2"), 46);
+        assert_eq!(pack_format_for_mc("24w14a"), 34);
+        assert_eq!(pack_format_for_mc("26w10a"), 88);
         assert_eq!(pack_format_for_mc("1.21.11"), 75);
         assert_eq!(pack_format_for_mc("26.2"), 88);
+        assert_eq!(pack_format_for_mc("26.3"), 88);
     }
 
     #[test]
     fn logo_profile_uses_wide_from_1_20() {
+        assert_eq!(pack_profile(parse_mc_version("b1.7.3")), PackProfile::Classic);
         assert_eq!(pack_profile(parse_mc_version("1.19.4")), PackProfile::Standard);
         assert_eq!(pack_profile(parse_mc_version("1.20")), PackProfile::StandardRange);
         assert_eq!(pack_profile(parse_mc_version("1.20.1")), PackProfile::StandardRange);
         assert_eq!(pack_profile(parse_mc_version("1.20.4")), PackProfile::StandardRange);
         assert_eq!(pack_profile(parse_mc_version("1.21.1")), PackProfile::StandardRange);
         assert_eq!(pack_profile(parse_mc_version("1.21.4")), PackProfile::Wide);
+        assert_eq!(pack_profile(parse_mc_version("1.21.4-rc1")), PackProfile::Wide);
         assert_eq!(pack_profile(parse_mc_version("1.21.11")), PackProfile::Modern);
+        assert_eq!(pack_profile(parse_mc_version("26w10a")), PackProfile::Modern);
     }
 }

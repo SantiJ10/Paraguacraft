@@ -220,6 +220,7 @@ pub fn run() {
             commands::bedrock::bedrock_developer_mode,
             commands::bedrock::enable_bedrock_developer_mode,
             commands::bedrock::backup_bedrock_saves,
+            commands::bedrock::restore_store_bedrock,
             commands::bedrock::open_microsoft_store_bedrock,
             commands::bedrock::list_bedrock_worlds,
             commands::bedrock::list_bedrock_packs,

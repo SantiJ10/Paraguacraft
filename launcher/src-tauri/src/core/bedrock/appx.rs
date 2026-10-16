@@ -274,13 +274,54 @@ pub fn unregister_package(game_dir: &Path) -> AppResult<()> {
          $pkgs = Get-AppxPackage -Name {PACKAGE_NAME};\
          foreach ($p in $pkgs) {{\
            if ($p.InstallLocation -eq {loc}) {{\
-             Remove-AppxPackage -Package $p.PackageFullName;\
+             try {{ Remove-AppxPackage -Package $p.PackageFullName -PreserveApplicationData }}\
+             catch {{ Remove-AppxPackage -Package $p.PackageFullName }}\
            }}\
          }}",
         loc = ps_quote(&dir),
     );
     let _ = run_powershell(&script);
     Ok(())
+}
+
+/// Desregistra cualquier versión suelta (modo desarrollador) preservando `com.mojang`,
+/// e intenta re-registrar la instalación oficial de Microsoft Store / Xbox App si sigue en disco.
+/// Devuelve `Ok(true)` si quedó lista una instalación oficial Store/XboxGames, o `Ok(false)`
+/// si solo se limpió el registro para que la Store pueda instalar sin error `0x80073CFB`.
+pub fn restore_store_or_unregister_managed() -> AppResult<bool> {
+    let script = format!(
+        "$ErrorActionPreference='SilentlyContinue';\
+         $pkgs = Get-AppxPackage -Name '*Minecraft*' | Where-Object {{ $_.Name -notmatch 'Education|Dungeons|Launcher' }};\
+         foreach ($p in $pkgs) {{\
+           $loc = [string]$p.InstallLocation;\
+           if ($p.IsDevelopmentMode -or ($loc -and $loc -notmatch 'WindowsApps|XboxGames')) {{\
+             try {{ Remove-AppxPackage -Package $p.PackageFullName -PreserveApplicationData }}\
+             catch {{ Remove-AppxPackage -Package $p.PackageFullName }}\
+           }}\
+         }}\
+         $active = Get-AppxPackage -Name {PACKAGE_NAME} | Select-Object -First 1;\
+         if ($active) {{ Write-Output 'PG_STORE_READY'; exit 0 }}\
+         $xboxManifest = 'C:\\XboxGames\\Minecraft for Windows\\Content\\AppxManifest.xml';\
+         if (Test-Path $xboxManifest) {{\
+           try {{\
+             Add-AppxPackage -DisableDevelopmentMode -Register $xboxManifest -ForceApplicationShutdown;\
+             Write-Output 'PG_STORE_READY'; exit 0\
+           }} catch {{}}\
+         }}\
+         $staged = Get-AppxPackage -AllUsers -Name {PACKAGE_NAME} | Where-Object {{ $_.InstallLocation -match 'WindowsApps|XboxGames' }} | Sort-Object Version -Descending | Select-Object -First 1;\
+         if ($staged -and $staged.InstallLocation) {{\
+           $man = Join-Path $staged.InstallLocation 'AppxManifest.xml';\
+           if (Test-Path $man) {{\
+             try {{\
+               Add-AppxPackage -DisableDevelopmentMode -Register $man -ForceApplicationShutdown;\
+               Write-Output 'PG_STORE_READY'; exit 0\
+             }} catch {{}}\
+           }}\
+         }}\
+         Write-Output 'PG_UNREGISTERED_ONLY'"
+    );
+    let out = run_powershell(&script)?;
+    Ok(out.contains("PG_STORE_READY"))
 }
 
 pub fn is_developer_mode_enabled() -> bool {

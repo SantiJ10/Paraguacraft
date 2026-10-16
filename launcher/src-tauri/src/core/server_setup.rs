@@ -96,7 +96,15 @@ pub async fn prepare(
             }
             jar
         }
-        "forge" | "neoforge" => setup_forge_style(client, app, dir, &prof.mc_version, &kind).await?,
+        "forge" | "neoforge" => {
+            let res = setup_forge_style(client, app, dir, &prof.mc_version, &kind).await?;
+            let _ = setup_forge_mods(client, app, dir, sid, &prof.mc_version, &kind).await;
+            let java_major = crate::core::java::required_for_mc(&prof.mc_version);
+            for msg in sanitize_server_mods(dir, &prof.mc_version, java_major) {
+                crate::core::server_console::append(sid, &msg);
+            }
+            res
+        }
         other => return Err(AppError::msg(format!("Tipo no implementado: {other}"))),
     };
 
@@ -146,8 +154,8 @@ pub async fn soft_ensure_launcher_deps(
     let _ = std::fs::create_dir_all(dir.join("plugins"));
     let _ = std::fs::create_dir_all(dir.join("mods"));
 
-    // Quitar JARs incompatibles (p. ej. SkinsRestorer 26.x instalado por fallback) antes de re-descargar.
-    if kind.starts_with("fabric") {
+    // Quitar JARs incompatibles (p. ej. SkinsRestorer 26.x o mods solo-cliente) antes de re-descargar.
+    if kind.starts_with("fabric") || is_forge_style(&kind) {
         let java_major = crate::core::java::required_for_mc(&prof.mc_version);
         for msg in sanitize_server_mods(dir, &prof.mc_version, java_major) {
             crate::core::server_console::append(sid, &msg);
@@ -169,6 +177,7 @@ pub async fn soft_ensure_launcher_deps(
             crate::core::server_console::append(sid, &format!("[launcher] ⚠ playit agent: {e}"));
         }
     } else if is_forge_style(&kind) {
+        let _ = setup_forge_mods(client, app, dir, sid, &prof.mc_version, &kind).await;
         if let Err(e) = ensure_playit_exe(client, app, dir).await {
             crate::core::server_console::append(sid, &format!("[launcher] ⚠ playit agent: {e}"));
         }
@@ -349,7 +358,7 @@ async fn setup_paper_plugins(
             client,
             app,
             "skinsrestorer",
-            &["paper", "spigot"],
+            &["paper", "spigot", "bukkit"],
             mc,
             skins,
         )
@@ -433,6 +442,16 @@ async fn setup_fabric_mods(
         )
     })
     .await;
+    let packet_fixer = mods.join("packet-fixer.jar");
+    try_optional(server_id, "Packet Fixer", || {
+        download_modrinth_file(client, app, "packet-fixer", &["fabric"], mc, packet_fixer)
+    })
+    .await;
+    let ferrite = mods.join("ferrite-core.jar");
+    try_optional(server_id, "FerriteCore", || {
+        download_modrinth_file(client, app, "ferrite-core", &["fabric"], mc, ferrite)
+    })
+    .await;
 
     if with_geyser {
         let geyser = mods.join("Geyser-Fabric.jar");
@@ -449,6 +468,90 @@ async fn setup_fabric_mods(
     Ok(())
 }
 
+/// Instala mods de red/estabilidad para servidores Forge y NeoForge (evita desconexiones
+/// «Bad packet ID» / «Timed out» / «Packet too large» al entrar con ping alto o túnel Playit).
+async fn setup_forge_mods(
+    client: &reqwest::Client,
+    app: &AppHandle,
+    dir: &Path,
+    server_id: &str,
+    mc: &str,
+    kind: &str,
+) -> AppResult<()> {
+    let mods = dir.join("mods");
+    std::fs::create_dir_all(&mods)?;
+    let loaders: &'static [&'static str] = if kind == "neoforge" {
+        &["neoforge"]
+    } else {
+        &["forge"]
+    };
+
+    if kind != "neoforge" && mc == "1.20.1" {
+        for fname in ["connectivity-1.20.1-7.6.jar", "cupboard-1.20.1-3.5.jar"] {
+            let dest = mods.join(fname);
+            try_optional(server_id, fname, || {
+                ensure_bundled_optimized_mod(client, fname, &dest)
+            })
+            .await;
+        }
+    }
+
+    let packet_fixer = mods.join("packet-fixer.jar");
+    try_optional(server_id, "Packet Fixer", || {
+        download_modrinth_file(client, app, "packet-fixer", loaders, mc, packet_fixer)
+    })
+    .await;
+
+    let ferrite = mods.join("ferrite-core.jar");
+    try_optional(server_id, "FerriteCore", || {
+        download_modrinth_file(client, app, "ferrite-core", loaders, mc, ferrite)
+    })
+    .await;
+
+    let modernfix = mods.join("modernfix.jar");
+    try_optional(server_id, "ModernFix", || {
+        download_modrinth_file(client, app, "modernfix", loaders, mc, modernfix)
+    })
+    .await;
+
+    Ok(())
+}
+
+async fn ensure_bundled_optimized_mod(
+    client: &reqwest::Client,
+    filename: &str,
+    dest: &Path,
+) -> AppResult<()> {
+    if dest.is_file() && dest.metadata().map(|m| m.len()).unwrap_or(0) > 10_000 {
+        return Ok(());
+    }
+    // Intentar copiar desde bundled/optimized-mods local primero
+    let candidates = [
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../bundled/optimized-mods")
+            .join(filename),
+        crate::core::paths::data_dir()
+            .join("cache/optimized-mods")
+            .join(filename),
+    ];
+    for src in &candidates {
+        if src.is_file() && src.metadata().map(|m| m.len()).unwrap_or(0) > 10_000 {
+            std::fs::copy(src, dest)?;
+            return Ok(());
+        }
+    }
+    let url = format!(
+        "https://raw.githubusercontent.com/SantiJ10/Paraguacraft/main/bundled/optimized-mods/{filename}"
+    );
+    let tmp = dest.with_extension("part");
+    net::download_one(client, &DownloadItem::new(url, tmp.clone())).await?;
+    if dest.exists() {
+        let _ = std::fs::remove_file(dest);
+    }
+    std::fs::rename(&tmp, dest)?;
+    Ok(())
+}
+
 async fn download_hangar_plugin(
     client: &reqwest::Client,
     dir: &Path,
@@ -457,8 +560,15 @@ async fn download_hangar_plugin(
     mc: &str,
     dest: &Path,
 ) -> AppResult<()> {
-    if dest.is_file() && dest.metadata().map(|m| m.len()).unwrap_or(0) > 100_000 {
+    let java_major = crate::core::java::required_for_mc(mc);
+    if dest.is_file()
+        && dest.metadata().map(|m| m.len()).unwrap_or(0) > 100_000
+        && !jar_incompatible_with_server(dest, mc, java_major)
+    {
         return Ok(());
+    }
+    if dest.is_file() && jar_incompatible_with_server(dest, mc, java_major) {
+        let _ = quarantine_mod_jar(dest);
     }
     let installed = server_hangar::install_plugin(client, dir, owner, slug, mc, false).await?;
     let default_path = dir.join("plugins").join(&installed);
@@ -471,6 +581,93 @@ async fn download_hangar_plugin(
     Ok(())
 }
 
+fn mc_candidates_for_modrinth(mc: &str) -> Vec<&str> {
+    match mc {
+        "1.8.9" => vec!["1.8.9", "1.8.8", "1.8"],
+        "1.12.2" => vec!["1.12.2", "1.12"],
+        other => vec![other],
+    }
+}
+
+/// Descarga directa de un plugin/mod desde Modrinth (usado también como fallback de Hangar).
+pub async fn download_modrinth_plugin_direct(
+    client: &reqwest::Client,
+    slug: &str,
+    loaders: &[&str],
+    mc: &str,
+    dest: &Path,
+) -> AppResult<()> {
+    let java_major = crate::core::java::required_for_mc(mc);
+    let loaders_json = format!(
+        "[{}]",
+        loaders
+            .iter()
+            .map(|l| format!("\"{l}\""))
+            .collect::<Vec<_>>()
+            .join(",")
+    );
+    let mc_cands = mc_candidates_for_modrinth(mc);
+    let mcs_json = format!(
+        "[{}]",
+        mc_cands
+            .iter()
+            .map(|v| format!("\"{v}\""))
+            .collect::<Vec<_>>()
+            .join(",")
+    );
+    let url = format!(
+        "https://api.modrinth.com/v2/project/{slug}/version?game_versions={}&loaders={}",
+        net::url_encode(&mcs_json),
+        net::url_encode(&loaders_json)
+    );
+    let versions: Value = net::fetch_json(client, &url).await.unwrap_or(Value::Array(vec![]));
+    let arr = versions
+        .as_array()
+        .filter(|a| !a.is_empty())
+        .ok_or_else(|| AppError::msg(format!("Modrinth: {slug} no disponible para {mc}")))?;
+
+    for ver in arr.iter().take(6) {
+        let game_versions: Vec<String> = ver["game_versions"]
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
+            .unwrap_or_default();
+        if !game_versions.is_empty()
+            && !game_versions.iter().any(|v| mc_cands.contains(&v.as_str()))
+        {
+            continue;
+        }
+        let files = ver["files"].as_array().cloned().unwrap_or_default();
+        let Some(file) = files
+            .iter()
+            .find(|f| f["primary"].as_bool().unwrap_or(false))
+            .or_else(|| files.first())
+        else {
+            continue;
+        };
+        let Some(dl) = file["url"].as_str() else {
+            continue;
+        };
+        let tmp = dest.with_extension("part");
+        net::download_one(client, &DownloadItem::new(dl.to_string(), tmp.clone())).await?;
+        if jar_incompatible_with_server(&tmp, mc, java_major) {
+            let _ = std::fs::remove_file(&tmp);
+            continue;
+        }
+        if dest.exists() {
+            let _ = std::fs::remove_file(dest);
+        }
+        std::fs::rename(&tmp, dest)?;
+        return Ok(());
+    }
+    Err(AppError::msg(format!(
+        "Modrinth: {slug} sin versión compatible con MC {mc} (Java {java_major})"
+    )))
+}
+
 async fn download_modrinth_file(
     client: &reqwest::Client,
     app: &AppHandle,
@@ -479,22 +676,21 @@ async fn download_modrinth_file(
     mc: &str,
     dest: PathBuf,
 ) -> AppResult<()> {
-    // Nunca reutilizar un JAR ya presente sin comprobar: SkinsRestorer mal versionado
-    // (fallback sin filtro MC) rompía servidores 1.21.x con builds 26.x / Java 25+.
-    // SR < 15.11 no tiene api.elyByEnabled (skins no-premium en vanilla).
+    let java_major = crate::core::java::required_for_mc(mc);
     if dest.is_file()
         && slug.eq_ignore_ascii_case("skinsrestorer")
+        && java_major >= 17
         && skinsrestorer_needs_elyby_upgrade(&dest)
     {
         let _ = quarantine_mod_jar(&dest);
     }
     if dest.is_file()
-        && dest.metadata().map(|m| m.len()).unwrap_or(0) > 100_000
-        && !jar_incompatible_with_server(&dest, mc, 0)
+        && dest.metadata().map(|m| m.len()).unwrap_or(0) > 20_000
+        && !jar_incompatible_with_server(&dest, mc, java_major)
     {
         return Ok(());
     }
-    if dest.is_file() && jar_incompatible_with_server(&dest, mc, 0) {
+    if dest.is_file() && jar_incompatible_with_server(&dest, mc, java_major) {
         let _ = quarantine_mod_jar(&dest);
     }
 
@@ -506,92 +702,174 @@ async fn download_modrinth_file(
             .collect::<Vec<_>>()
             .join(",")
     );
-    // ESTRICITO: solo versiones que declaran este `game_versions`. Sin fallback a
-    // "latest any MC" (eso instalaba SkinsRestorer 26.2 en servers 1.21.1).
+    let mc_cands = mc_candidates_for_modrinth(mc);
+    let mcs_json = format!(
+        "[{}]",
+        mc_cands
+            .iter()
+            .map(|v| format!("\"{v}\""))
+            .collect::<Vec<_>>()
+            .join(",")
+    );
     let url = format!(
         "https://api.modrinth.com/v2/project/{slug}/version?game_versions={}&loaders={}",
-        net::url_encode(&format!("[\"{mc}\"]")),
+        net::url_encode(&mcs_json),
         net::url_encode(&loaders_json)
     );
     let versions: Value = net::fetch_json(client, &url).await.unwrap_or(Value::Array(vec![]));
-    let ver = versions
+    let arr = versions
         .as_array()
-        .and_then(|a| a.first())
+        .filter(|a| !a.is_empty())
         .ok_or_else(|| AppError::msg(format!("Modrinth: {slug} no disponible para {mc}")))?;
-    // Doble check del array game_versions del resultado.
-    let game_versions: Vec<String> = ver["game_versions"]
-        .as_array()
-        .map(|a| {
-            a.iter()
-                .filter_map(|v| v.as_str().map(String::from))
-                .collect()
-        })
-        .unwrap_or_default();
-    if !game_versions.is_empty() && !game_versions.iter().any(|v| v == mc) {
-        return Err(AppError::msg(format!(
-            "Modrinth: {slug} sin build exacta para {mc}"
-        )));
-    }
-    let files = ver["files"].as_array().cloned().unwrap_or_default();
-    let file = files
-        .iter()
-        .find(|f| f["primary"].as_bool().unwrap_or(false))
-        .or_else(|| files.first())
-        .ok_or_else(|| AppError::msg(format!("Modrinth: {slug} sin archivos")))?;
-    let dl = file["url"].as_str().ok_or_else(|| AppError::msg("Modrinth: sin URL"))?;
-    let filename = file["filename"].as_str().unwrap_or("mod.jar");
-    let target = if dest.extension().is_some() {
-        dest
-    } else {
-        dest.with_file_name(filename)
-    };
-    net::download_all(
-        client,
-        vec![DownloadItem::new(dl.to_string(), target.clone())],
-        1,
-        app,
-        &format!("modrinth-{slug}"),
-        filename,
-    )
-    .await?;
-    Ok(())
-}
 
-/// Cuarentena de JARs del launcher o del pack incompatibles con MC/Java del server.
-/// Devuelve mensajes para la consola del launcher.
-pub fn sanitize_server_mods(dir: &Path, mc: &str, java_major: u32) -> Vec<String> {
-    let mods = dir.join("mods");
-    let Ok(rd) = std::fs::read_dir(&mods) else {
-        return vec![];
-    };
-    let mut msgs = Vec::new();
-    for e in rd.flatten() {
-        let p = e.path();
-        if p.extension().and_then(|x| x.to_str()).map(|x| x.eq_ignore_ascii_case("jar")) != Some(true)
+    for ver in arr.iter().take(6) {
+        let game_versions: Vec<String> = ver["game_versions"]
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
+            .unwrap_or_default();
+        if !game_versions.is_empty()
+            && !game_versions.iter().any(|v| mc_cands.contains(&v.as_str()))
         {
             continue;
         }
-        let name = p
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("")
-            .to_ascii_lowercase();
-        // Submódulo C2ME que exige Java 25 en packs 1.21.1; el resto de C2ME suele andar en 21.
-        let force_native_math = name.contains("c2me") && name.contains("natives-math") && java_major < 25;
-        if force_native_math || jar_incompatible_with_server(&p, mc, java_major) {
-            match quarantine_mod_jar(&p) {
-                Ok(dest) => {
-                    msgs.push(format!(
-                        "[launcher] ⚠ Cuarentena (incompatible con MC {mc} / Java {java_major}): {} → {}",
-                        p.file_name().and_then(|n| n.to_str()).unwrap_or("?"),
-                        dest.file_name().and_then(|n| n.to_str()).unwrap_or("?")
-                    ));
-                }
-                Err(err) => {
-                    msgs.push(format!(
-                        "[launcher] ⚠ No se pudo aislar {}: {err}",
-                        p.file_name().and_then(|n| n.to_str()).unwrap_or("?")
-                    ));
+        let files = ver["files"].as_array().cloned().unwrap_or_default();
+        let Some(file) = files
+            .iter()
+            .find(|f| f["primary"].as_bool().unwrap_or(false))
+            .or_else(|| files.first())
+        else {
+            continue;
+        };
+        let Some(dl) = file["url"].as_str() else {
+            continue;
+        };
+        let filename = file["filename"].as_str().unwrap_or("mod.jar");
+        let target = if dest.extension().is_some() {
+            dest.clone()
+        } else {
+            dest.with_file_name(filename)
+        };
+        net::download_all(
+            client,
+            vec![DownloadItem::new(dl.to_string(), target.clone())],
+            1,
+            app,
+            &format!("modrinth-{slug}"),
+            filename,
+        )
+        .await?;
+        if jar_incompatible_with_server(&target, mc, java_major) {
+            let _ = std::fs::remove_file(&target);
+            continue;
+        }
+        return Ok(());
+    }
+    Err(AppError::msg(format!(
+        "Modrinth: {slug} sin build compatible con MC {mc} (Java {java_major})"
+    )))
+}
+
+const CLIENT_ONLY_MOD_PREFIXES: &[&str] = &[
+    "oculus-",
+    "iris-",
+    "sodium-",
+    "embeddium-",
+    "rubidium-",
+    "kryptonreforged",
+    "immediatelyfast-",
+    "3dskinlayers-",
+    "skinlayers3d-",
+    "entity_model_features_",
+    "entity_texture_features_",
+    "moreculling-",
+    "dynamic-fps-",
+    "dynamic_fps-",
+    "reeses-sodium-options",
+    "reeses_sodium_options",
+    "sodium-extra-",
+    "sodium_extra-",
+    "custom-crosshair-mod",
+    "freelook-",
+    "chat_heads-",
+    "toastcontrol-",
+    "cleanview-",
+    "controlling-",
+    "searchables-",
+    "configured-",
+    "catalogue-",
+    "modmenu-",
+    "zoomify-",
+    "lambdynamiclights-",
+    "continuity-",
+    "citresewn-",
+    "bobby-",
+    "farsight-",
+    "cubes-without-borders",
+    " crashassistant",
+    "crashassistant-",
+];
+
+fn is_known_client_only_jar_name(lower_name: &str) -> bool {
+    CLIENT_ONLY_MOD_PREFIXES
+        .iter()
+        .any(|p| lower_name.starts_with(p) || lower_name.contains(p))
+}
+
+/// Cuarentena de JARs del launcher o del pack incompatibles con MC/Java del server o solo-cliente.
+/// Devuelve mensajes para la consola del launcher.
+pub fn sanitize_server_mods(dir: &Path, mc: &str, java_major: u32) -> Vec<String> {
+    let mut msgs = Vec::new();
+    let effective_java = if java_major > 0 {
+        java_major
+    } else {
+        crate::core::java::required_for_mc(mc)
+    };
+    for sub in ["mods", "plugins"] {
+        let folder = dir.join(sub);
+        let Ok(rd) = std::fs::read_dir(&folder) else {
+            continue;
+        };
+        for e in rd.flatten() {
+            let p = e.path();
+            if p.extension()
+                .and_then(|x| x.to_str())
+                .map(|x| x.eq_ignore_ascii_case("jar"))
+                != Some(true)
+            {
+                continue;
+            }
+            let name = p
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("")
+                .to_ascii_lowercase();
+            let force_native_math =
+                name.contains("c2me") && name.contains("natives-math") && effective_java < 25;
+            let client_only = sub == "mods" && is_known_client_only_jar_name(&name);
+            if force_native_math || client_only || jar_incompatible_with_server(&p, mc, effective_java) {
+                match quarantine_mod_jar(&p) {
+                    Ok(dest) => {
+                        msgs.push(format!(
+                            "[launcher] ⚠ Cuarentena ({}) en {sub}/: {} → {}",
+                            if client_only {
+                                "mod solo-cliente".to_string()
+                            } else {
+                                format!("incompatible con MC {mc} / Java {effective_java}")
+                            },
+                            p.file_name().and_then(|n| n.to_str()).unwrap_or("?"),
+                            dest.file_name().and_then(|n| n.to_str()).unwrap_or("?")
+                        ));
+                    }
+                    Err(err) => {
+                        msgs.push(format!(
+                            "[launcher] ⚠ No se pudo aislar {}: {err}",
+                            p.file_name().and_then(|n| n.to_str()).unwrap_or("?")
+                        ));
+                    }
                 }
             }
         }
@@ -674,15 +952,62 @@ fn parse_plugin_version(text: &str) -> Option<(u32, u32, u32)> {
     None
 }
 
+/// Lee el bytecode `.class` principal (excluyendo `META-INF/versions/` y `module-info.class`)
+/// para detectar qué versión de Java exige un JAR (52 = Java 8, 61 = Java 17, 65 = Java 21, 69 = Java 25).
+fn read_jar_bytecode_java_major(path: &Path) -> Option<u32> {
+    let file = std::fs::File::open(path).ok()?;
+    let mut zip = zip::ZipArchive::new(file).ok()?;
+    for i in 0..zip.len() {
+        let Ok(mut entry) = zip.by_index(i) else {
+            continue;
+        };
+        let name = entry.name().to_string();
+        if !name.ends_with(".class")
+            || name.starts_with("META-INF/")
+            || name.ends_with("module-info.class")
+            || name.ends_with("package-info.class")
+        {
+            continue;
+        }
+        let mut header = [0u8; 8];
+        if std::io::Read::read_exact(&mut entry, &mut header).is_ok() {
+            if &header[0..4] == &[0xCA, 0xFE, 0xBA, 0xBE] {
+                let major = u16::from_be_bytes([header[6], header[7]]) as u32;
+                if major >= 45 {
+                    return Some(major.saturating_sub(44));
+                }
+            }
+        }
+    }
+    None
+}
+
 fn jar_incompatible_with_server(path: &Path, mc: &str, java_major: u32) -> bool {
+    let effective_java = if java_major > 0 {
+        java_major
+    } else {
+        crate::core::java::required_for_mc(mc)
+    };
+
+    if effective_java > 0 {
+        if let Some(class_java) = read_jar_bytecode_java_major(path) {
+            if class_java > effective_java {
+                return true;
+            }
+        }
+    }
+
     let Some(meta) = read_fabric_mod_json(path) else {
         return false;
     };
+    if meta.get("environment").and_then(|e| e.as_str()) == Some("client") {
+        return true;
+    }
     let depends = meta.get("depends").cloned().unwrap_or(Value::Null);
 
-    if java_major > 0 {
+    if effective_java > 0 {
         if let Some(min_java) = parse_java_dep_min(&depends["java"]) {
-            if java_major < min_java {
+            if effective_java < min_java {
                 return true;
             }
         }
@@ -692,9 +1017,6 @@ fn jar_incompatible_with_server(path: &Path, mc: &str, java_major: u32) -> bool 
     if mc_dep_incompatible_with(&mc_dep, mc) {
         return true;
     }
-
-    // id conocido: SkinsRestorer a veces viene sin depends legibles; confiar en el nombre
-    // solo si el JSON declara una versión de proyecto absurda no aplica. Nada extra.
 
     false
 }
