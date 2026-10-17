@@ -1,13 +1,13 @@
 {
-  "version": "0.1.22",
-  "versionCode": 23,
-  "download_url": "https://github.com/SantiJ10/paraguacraft-mobile/releases/download/mobile-0.1.22/Paraguacraft-mobile-0.1.22-debug.apk",
-  "size_bytes": 143575731,
-  "sha256": "b3828ae671caf0f8d285bc332b46c89c63d57e19e448842765961fb0eefeb44d",
-  "notes": "- Solución definitiva a errores ZipException (zip END header not found) en todos los loaders (Forge 1.20.1, Fabric 26.3, NeoForge, Quilt, Vanilla y modpacks)\n- Descargas atómicas (.part) con validación de cabecera ZIP/JAR antes de confirmar cualquier librería, cliente o mod\n- Auto-reparación de artefactos de procesadores de Forge (client-srg.jar, client-extra.jar, forge-client.jar, forge-universal.jar)\n- Herencia de argumentos JVM (--add-exports) en Fabric 26.3 y selección correcta de Java en perfiles heredados",
+  "version": "0.1.23",
+  "versionCode": 24,
+  "download_url": "https://github.com/SantiJ10/paraguacraft-mobile/releases/download/mobile-0.1.23/Paraguacraft-mobile-0.1.23-debug.apk",
+  "size_bytes": 143579304,
+  "sha256": "f37c72f34e1d406a56fadc53ec2ca258a8ecaee036b1997e6d9cd0817c18a736",
+  "notes": "- Solución a BackendCreationException (glGetError / vkGetInstanceProcAddr mismatch) en Minecraft 26.3 RenderPearl + Sodium 26.3 (PreLaunchChecks)\n- Solución a NullPointerException en Agent.handleForgeButton durante la instalación de Forge 1.20.1\n- Solución a errores ZipException (zip END header not found) en todos los loaders con descargas atómicas (.part) y auto-reparación de procesadores de Forge",
   "platforms": {
     "android": {
-      "url": "https://github.com/SantiJ10/paraguacraft-mobile/releases/download/mobile-0.1.22/Paraguacraft-mobile-0.1.22-debug.apk"
+      "url": "https://github.com/SantiJ10/paraguacraft-mobile/releases/download/mobile-0.1.23/Paraguacraft-mobile-0.1.23-debug.apk"
     }
   }
 }
