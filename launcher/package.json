@@ -17,7 +17,7 @@
     "release:windows:ci": "tauri build --verbose --config src-tauri/tauri.ci.windows.conf.json && node scripts/rename-windows-installer.mjs && node scripts/patch-latest-json.mjs"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2.12.5",
+    "@tauri-apps/api": "^2.12.4",
     "@tauri-apps/plugin-process": "^2.4.0",
     "@tauri-apps/plugin-shell": "^2.6.0",
     "@tauri-apps/plugin-updater": "^2.14.1",
@@ -27,7 +27,7 @@
     "vue-router": "^4.4.5"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.12.5",
+    "@tauri-apps/cli": "^2.12.4",
     "@vitejs/plugin-vue": "^5.2.1",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",
