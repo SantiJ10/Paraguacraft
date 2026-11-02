@@ -4,11 +4,12 @@
 //! versiones que existen para la version de Minecraft elegida. Si la lista
 //! viene vacia, ese loader no es instalable para esa version (la UI lo oculta).
 //!
-//! Providers: Fabric, Quilt, Forge, NeoForge, OptiFine.
+//! Providers: Fabric, Quilt, Forge, NeoForge, OptiFine, Horizon.
 
 pub mod fabric;
 pub mod fabric_iris;
 pub mod forge;
+pub mod horizon;
 pub mod neoforge;
 pub mod optifine;
 pub mod optimized;
@@ -52,6 +53,8 @@ pub fn normalize(loader: &str) -> String {
         || l == "pvp"
     {
         "paraguacraft-pvp".into()
+    } else if l.contains("horizon") {
+        "horizon".into()
     } else if l.contains("neoforge") {
         "neoforge".into()
     } else if l.contains("quilt") {
@@ -75,6 +78,7 @@ pub fn display_label(loader: &str) -> String {
         "paraguacraft-optimized-neoforge" => "Paraguacraft Optimized (NeoForge)".into(),
         "paraguacraft-pvp-modern" => "Paraguacraft PvP 1.21.11".into(),
         "paraguacraft-pvp" => "Paraguacraft PvP".into(),
+        "horizon" => "Horizon (Rust + Vulkan)".into(),
         "fabric" => "Fabric".into(),
         "quilt" => "Quilt".into(),
         "forge" => "Forge".into(),
@@ -106,6 +110,7 @@ pub fn store_loader_for(loader: &str, mc: &str) -> String {
                 "fabric".into()
             }
         }
+        "horizon" => "horizon".into(),
         other => other.into(),
     }
 }
@@ -139,6 +144,7 @@ pub async fn loader_versions(
         "forge" => forge::versions(client, mc).await,
         "neoforge" => neoforge::versions(client, mc).await,
         "optifine" => optifine::versions(client, mc).await,
+        "horizon" => horizon::versions(client, mc).await,
         other => Err(AppError::msg(format!("Loader desconocido: {other}"))),
     }
 }
@@ -222,6 +228,22 @@ pub async fn available_loaders(client: &reqwest::Client, mc: &str) -> AppResult<
                     name: "Paraguacraft PvP 1.21.11".into(),
                     description: "Cliente PvP dedicado: Fabric + Iris + mod Paraguacraft (separado de Fabric+Iris genérico).".into(),
                     versions: pvp_vers,
+                    recommended,
+                });
+            }
+        }
+    }
+
+    // Horizon (Rust + Vulkan): solo para MC 26.3 en Windows x64.
+    if mc == crate::core::horizon::HORIZON_MC_VERSION {
+        if let Ok(hor_vers) = horizon::versions(client, mc).await {
+            if !hor_vers.is_empty() {
+                let recommended = hor_vers.first().cloned();
+                out.push(LoaderInfo {
+                    id: "horizon".into(),
+                    name: "Horizon (Rust + Vulkan)".into(),
+                    description: "Motor nativo experimental para 26.3: sin Java, arranque <1s, ~300 MB RAM, Vulkan LODs 1024 chunks. Requiere cuenta Microsoft oficial con Minecraft comprado.".into(),
+                    versions: hor_vers,
                     recommended,
                 });
             }
@@ -322,6 +344,11 @@ pub fn loader_version_from_version_id(loader: &str, version_id: &str, mc: &str) 
                 None
             }
         }
+        "horizon" => {
+            // Horizon uses its own instance folder, not a version_id in versions/
+            // Return empty string to indicate it's valid but has no loader version
+            Some(String::new())
+        }
         _ => None,
     }
 }
@@ -350,6 +377,11 @@ pub fn version_id_matches_loader(loader: &str, version_id: &str, mc: &str) -> bo
             version_id.starts_with(&format!("{mc}-neoforge-"))
         }
         "optifine" => version_id.contains(mc) && version_id.to_lowercase().contains("optifine"),
+        "horizon" => {
+            // Horizon doesn't use a traditional version_id in versions/ - it's a native executable
+            // The version_id for horizon instances would be the instance folder name
+            version_id.starts_with("horizon-") || version_id.contains("horizon")
+        }
         _ => false,
     }
 }
@@ -424,7 +456,7 @@ pub fn find_version_id_for_loader(mc: &str, loader: &str, preferred_loader_versi
         if crate::core::versions::read_local_json(&name).is_none() {
             continue;
         }
-        let loader_ver = match kind.as_str() {
+        let mut loader_ver = match kind.as_str() {
             "fabric" | "fabric-iris" | "paraguacraft-pvp-modern"
                 if name.starts_with("fabric-loader-") && name.ends_with(&mc_suffix) =>
             {
@@ -449,8 +481,31 @@ pub fn find_version_id_for_loader(mc: &str, loader: &str, preferred_loader_versi
             }
             "optifine" if name.contains(mc) && name.to_lowercase().contains("optifine") => Some(String::new()),
             "vanilla" if name == mc => Some(String::new()),
+            "horizon" => {
+                // Horizon no usa profiles en versions/ - es un binario nativo
+                // Buscar en instancias locales si hay una instancia horizon
+                if name.starts_with("horizon-") {
+                    Some(String::new())
+                } else {
+                    None
+                }
+            }
             _ => None,
         };
+        // Horizon doesn't use versions/ directory - it uses instances/
+        if loader_ver.is_none() && kind == "horizon" {
+            // Check if there's a horizon instance already
+            let inst_dir = crate::core::instances::instance_dir(
+                &crate::core::instances::folder_for(mc, "horizon")
+            );
+            if inst_dir.is_dir() {
+                let name = crate::core::instances::folder_for(mc, "horizon");
+                loader_ver = Some(String::new());
+                if loader_ver.is_some() {
+                    candidates.push((name, String::new()));
+                }
+            }
+        }
         if loader_ver.is_some() {
             candidates.push((name, loader_ver.unwrap_or_default()));
         }
@@ -539,6 +594,7 @@ pub async fn install_loader(
         "forge" => forge::install(app, client, mc, &loader_version).await,
         "neoforge" => neoforge::install(app, client, mc, &loader_version).await,
         "optifine" => optifine::install(app, client, mc, &loader_version).await,
+        "horizon" => horizon::install(app, client, mc, &loader_version).await,
         other => Err(AppError::msg(format!("Loader desconocido: {other}"))),
     }
 }

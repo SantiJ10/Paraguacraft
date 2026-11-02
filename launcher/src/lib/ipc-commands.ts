@@ -58,6 +58,7 @@ export type IpcCommand =
   | "get_extras_status"
   | "get_hardware_info"
   | "get_horizon_status"
+  | "get_or_create_horizon_instance"
   | "get_instance_folder_path"
   | "get_instance_icon_data"
   | "get_instance_icon_path"

@@ -24,7 +24,7 @@ use crate::models::Instance;
 const META_FILE: &str = "paraguacraft.json";
 
 /// Metadata persistida por instancia.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct InstanceMeta {
     pub name: String,

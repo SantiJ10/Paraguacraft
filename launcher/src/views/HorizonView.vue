@@ -112,7 +112,10 @@ async function launchHorizon() {
   message.value = null;
   try {
     await downloads.initEvents();
-    const pid = await api.launchHorizonEngine();
+    // Obtener o crear la instancia de Horizon
+    const instanceId = await api.getOrCreateHorizonInstance();
+    // Lanzar usando el sistema normal de instancias
+    const pid = await api.launchInstance(instanceId, null, false);
     try {
       localStorage.setItem("pc.horizon.lastPlayed", new Date().toISOString());
     } catch {

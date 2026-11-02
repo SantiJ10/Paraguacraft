@@ -596,6 +596,92 @@ async fn launch_external(
     .await
 }
 
+/// Lanza una instancia de Horizon (motor nativo Rust + Vulkan).
+/// No usa Java, lanza el binario nativo directamente.
+async fn launch_horizon_instance(
+    app: &AppHandle,
+    state: &State<'_, AppState>,
+    instance_id: &str,
+    meta: &mut crate::core::instances::InstanceMeta,
+    mc: &str,
+    server_address: Option<String>,
+) -> AppResult<u32> {
+    use crate::core::horizon;
+
+    let (http, _net) = state.net_scope();
+
+    // Verificar que estamos en Windows x64
+    if !cfg!(all(target_os = "windows", target_arch = "x86_64")) {
+        return Err(AppError::msg(
+            "Horizon requiere Windows de 64 bits (x64).",
+        ));
+    }
+
+    // Usar la función unificada de horizon::launch que ya maneja instancias
+    let child = horizon::launch(app, &http).await?;
+    let pid = child.id();
+
+    // Obtener cuenta para Discord RPC y game session
+    let acc = accounts::active_account().ok_or_else(|| AppError::msg("No hay cuenta activa"))?;
+
+    // Discord RPC
+    let settings = config::read_json::<crate::models::AppSettings>(&paths::config_file()).unwrap_or_default();
+    if settings.discord_rpc {
+        crate::core::extras::discord_rpc::bind_game_pid(pid);
+        crate::core::extras::discord_rpc::set_playing_session(
+            &acc.username,
+            horizon::HORIZON_MC_VERSION,
+            "Horizon (Rust + Vulkan)",
+            &meta.name,
+            Some("Motor Vulkan Nativo"),
+            None,
+            true,
+            true,
+        );
+    }
+
+    // Game session tracking
+    crate::core::game_session::set_last_launch_instance(instance_id);
+    let instance_dir = instances::instance_dir(instance_id);
+    crate::core::client_console::begin_session(instance_id, &instance_dir);
+
+    launch::emit_started(app, instance_id, pid);
+    crate::core::game_session::set_running(true);
+
+    // No cerrar el launcher si hay consola
+    let soft_close = false;
+    launch::watch_exit(
+        app.clone(),
+        instance_id.to_string(),
+        child,
+        mc.to_string(),
+        acc.username.clone(),
+        "horizon".to_string(),
+        meta.name.clone(),
+        instance_dir.clone(),
+        server_address.clone(),
+        settings.clone(),
+        false,
+        false,
+        false,
+        soft_close,
+    );
+
+    state.shutdown_network();
+    if let Ok(mut cache) = state.java_cache.lock() {
+        *cache = None;
+    }
+
+    let close_on_launch = settings.close_on_launch;
+    launch::apply_launch_window(app, close_on_launch, soft_close);
+
+    // Actualizar metadata
+    meta.last_played = Some(now_secs().to_string());
+    let _ = instances::write_meta(instance_id, meta);
+
+    Ok(pid)
+}
+
 /// Lanza la instancia. Asegura instalacion (vanilla+loader), valida el token,
 /// arma el comando y lanza `javaw` sin consola; luego libera red y caches.
 /// Devuelve el PID del juego.
@@ -614,6 +700,11 @@ pub async fn launch_instance(
     let mut meta = instances::ensure_meta(&instance_id)?;
     let mc = meta.mc_version.clone();
     let loader = loaders::normalize(&meta.loader);
+
+    // Horizon (Rust + Vulkan nativo) no usa Java - lanzamiento especial
+    if loader == "horizon" {
+        return launch_horizon_instance(&app, &state, &instance_id, &mut meta, &mc, server_address).await;
+    }
 
     let settings = config::read_json::<AppSettings>(&paths::config_file()).unwrap_or_default();
     let use_compete = compete_mode.unwrap_or(false);

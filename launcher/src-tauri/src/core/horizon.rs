@@ -16,6 +16,7 @@ use tauri::AppHandle;
 use crate::config;
 use crate::core::accounts;
 use crate::core::hardware;
+use crate::core::instances;
 use crate::core::net::{self, DownloadItem};
 use crate::core::paths;
 use crate::core::versions;
@@ -27,7 +28,7 @@ const HORIZON_RELEASES_API: &str = "https://api.github.com/repos/horizon-rust/ho
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-struct HorizonMeta {
+pub struct HorizonMeta {
     #[serde(default)]
     installed_tag: Option<String>,
     #[serde(default)]
@@ -115,6 +116,9 @@ fn find_horizon_exe_in_dir(root: &Path) -> Option<PathBuf> {
         "Horizon.exe",
         "horizon-launcher.exe",
         "Horizon Launcher.exe",
+        "horizon_client.exe",
+        "horizon-client-win64.exe",
+        "horizon-win64.exe",
     ];
     for name in preferred {
         let p = root.join(name);
@@ -122,41 +126,35 @@ fn find_horizon_exe_in_dir(root: &Path) -> Option<PathBuf> {
             return Some(p);
         }
     }
-    // Búsqueda recursiva superficial (1 nivel de subcarpetas) tras extraer zip.
-    let Ok(rd) = std::fs::read_dir(root) else {
-        return None;
-    };
+    // Búsqueda recursiva profunda (hasta 3 niveles) tras extraer zip.
     let mut fallback_exe: Option<PathBuf> = None;
-    for entry in rd.flatten() {
-        let path = entry.path();
-        if path.is_file() {
-            let low = entry.file_name().to_string_lossy().to_ascii_lowercase();
-            if low.ends_with(".exe") && !low.contains("uninstall") && !low.contains("vc_redist") {
-                if low.contains("horizon") && !low.contains("server") {
-                    return Some(path);
-                }
-                if fallback_exe.is_none() {
-                    fallback_exe = Some(path);
-                }
-            }
-        } else if path.is_dir() {
-            for name in preferred {
-                let sub = path.join(name);
-                if sub.is_file() {
-                    return Some(sub);
-                }
-            }
-            if let Ok(sub_rd) = std::fs::read_dir(&path) {
-                for sub_e in sub_rd.flatten() {
-                    let sub_p = sub_e.path();
-                    let low = sub_e.file_name().to_string_lossy().to_ascii_lowercase();
-                    if sub_p.is_file()
-                        && low.ends_with(".exe")
-                        && low.contains("horizon")
-                        && !low.contains("uninstall")
-                    {
-                        return Some(sub_p);
+    let mut stack = vec![(root.to_path_buf(), 0)];
+    while let Some((dir, depth)) = stack.pop() {
+        if depth > 3 {
+            continue;
+        }
+        let Ok(rd) = std::fs::read_dir(&dir) else {
+            continue;
+        };
+        for entry in rd.flatten() {
+            let path = entry.path();
+            if path.is_file() {
+                let low = entry.file_name().to_string_lossy().to_ascii_lowercase();
+                if low.ends_with(".exe") && !low.contains("uninstall") && !low.contains("vc_redist") {
+                    // Prioridad 1: nombre contiene "horizon" y no "server"
+                    if low.contains("horizon") && !low.contains("server") {
+                        return Some(path);
                     }
+                    // Prioridad 2: cualquier .exe en la raíz o primera subcarpeta
+                    if fallback_exe.is_none() && depth <= 1 {
+                        fallback_exe = Some(path);
+                    }
+                }
+            } else if path.is_dir() {
+                // Saltar carpetas obvias que no contienen el binario
+                let dir_name = entry.file_name().to_string_lossy().to_ascii_lowercase();
+                if !dir_name.contains("uninstall") && !dir_name.contains("vc_redist") {
+                    stack.push((path, depth + 1));
                 }
             }
         }
@@ -338,9 +336,54 @@ pub async fn install_engine(app: &AppHandle, client: &reqwest::Client) -> AppRes
     };
     write_meta(&meta)?;
 
+    // Crear/actualizar la instancia de Horizon en instancias/
+    let _instance_dir = get_or_create_horizon_instance()?;
+    if let Some(mut instance_meta) = instances::read_meta(&instances::folder_for(HORIZON_MC_VERSION, "horizon")) {
+        instance_meta.loader_version = tag.clone();
+        instance_meta.version_id = Some(format!("horizon-{}", HORIZON_MC_VERSION));
+        let _ = instances::write_meta(&instances::folder_for(HORIZON_MC_VERSION, "horizon"), &instance_meta);
+    }
+
     let mut st = status(None).await;
     st.latest_tag = Some(tag);
     Ok(st)
+}
+
+/// Obtiene o crea la instancia de Horizon en la carpeta instancias.
+/// Devuelve la ruta del directorio de la instancia.
+pub fn get_or_create_horizon_instance() -> AppResult<PathBuf> {
+    let mc_version = HORIZON_MC_VERSION;
+    let instance_folder = instances::folder_for(mc_version, "horizon");
+    let instance_dir = instances::instance_dir(&instance_folder);
+
+    // Crear el directorio si no existe
+    std::fs::create_dir_all(&instance_dir)?;
+
+    // Crear/actualizar metadata si no existe
+    if instances::read_meta(&instance_folder).is_none() {
+        let meta = instances::InstanceMeta {
+            name: format!("{} Horizon", mc_version),
+            icon: instances::icon_for_loader("horizon"),
+            mc_version: mc_version.to_string(),
+            loader: "horizon".to_string(),
+            loader_version: "latest".to_string(),
+            source: "paraguacraft".to_string(),
+            ram_mb: 2048,
+            ram_min_mb: 1024,
+            total_play_minutes: 0,
+            last_played: None,
+            version_id: Some(format!("horizon-{}", mc_version)),
+            auto_managed: true,
+            jvm_args: None,
+            gc: None,
+            java_path: None,
+            performance_tier: None,
+            show_game_console: None,
+        };
+        instances::write_meta(&instance_folder, &meta)?;
+    }
+
+    Ok(instance_dir)
 }
 
 fn extract_zip(zip_path: &Path, dest_dir: &Path) -> AppResult<()> {
@@ -420,7 +463,7 @@ pub fn set_custom_binary(path: &Path) -> AppResult<HorizonStatus> {
     })
 }
 
-pub async fn launch(app: &AppHandle, client: &reqwest::Client) -> AppResult<u32> {
+pub async fn launch(app: &AppHandle, client: &reqwest::Client) -> AppResult<std::process::Child> {
     // 1. Verificación estricta de cuenta Microsoft oficial y token Mojang vigente.
     let acc = require_official_microsoft_account()?;
     let token = accounts::ensure_valid_token(client, &acc.id).await.map_err(|e| {
@@ -444,15 +487,37 @@ pub async fn launch(app: &AppHandle, client: &reqwest::Client) -> AppResult<u32>
         AppError::msg("No se encontró el ejecutable de Horizon. Tocá «Descargar Horizon» primero.")
     })?;
 
+    // 4. Obtener/crear la instancia de Horizon
+    let instance_dir = get_or_create_horizon_instance()?;
+    let _instance_meta = instances::read_meta(&instances::folder_for(HORIZON_MC_VERSION, "horizon"))
+        .unwrap_or_else(|| instances::InstanceMeta {
+            name: format!("{} Horizon", HORIZON_MC_VERSION),
+            icon: instances::icon_for_loader("horizon"),
+            mc_version: HORIZON_MC_VERSION.to_string(),
+            loader: "horizon".to_string(),
+            loader_version: "latest".to_string(),
+            source: "paraguacraft".to_string(),
+            ram_mb: 2048,
+            ram_min_mb: 1024,
+            total_play_minutes: 0,
+            last_played: None,
+            version_id: Some(format!("horizon-{}", HORIZON_MC_VERSION)),
+            auto_managed: true,
+            jvm_args: None,
+            gc: None,
+            java_path: None,
+            performance_tier: None,
+            show_game_console: None,
+        });
+
     let work_dir = exe
         .parent()
         .map(|p| p.to_path_buf())
         .unwrap_or_else(horizon_dir);
-    let mc_dir = paths::default_minecraft_dir();
 
     let mut cmd = Command::new(&exe);
     cmd.current_dir(&work_dir)
-        .env("MINECRAFT_DIR", &mc_dir)
+        .env("MINECRAFT_DIR", &instance_dir)
         .env("HORIZON_MC_USERNAME", &acc.username)
         .env("HORIZON_MC_UUID", &acc.uuid)
         .env("HORIZON_MC_ACCESS_TOKEN", &token.mc_access_token);
@@ -460,25 +525,8 @@ pub async fn launch(app: &AppHandle, client: &reqwest::Client) -> AppResult<u32>
     let child = cmd
         .spawn()
         .map_err(|e| AppError::msg(format!("No se pudo iniciar Horizon ({}): {e}", exe.display())))?;
-    let pid = child.id();
 
-    let settings =
-        config::read_json::<crate::models::AppSettings>(&paths::config_file()).unwrap_or_default();
-    if settings.discord_rpc {
-        crate::core::extras::discord_rpc::bind_game_pid(pid);
-        crate::core::extras::discord_rpc::set_playing_session(
-            &acc.username,
-            HORIZON_MC_VERSION,
-            "Horizon Rust",
-            "",
-            Some("Motor Vulkan Nativo"),
-            None,
-            true,
-            true,
-        );
-    }
-
-    Ok(pid)
+    Ok(child)
 }
 
 pub fn open_folder() -> AppResult<()> {

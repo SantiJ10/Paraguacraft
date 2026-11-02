@@ -948,6 +948,10 @@ export const api = {
     await invokeReal<void>("open_horizon_folder");
   },
 
+  async getOrCreateHorizonInstance(): Promise<string> {
+    return invokeReal<string>("get_or_create_horizon_instance");
+  },
+
   // --- Config por instancia (Regla 2: override del usuario) ---
   async getInstanceMeta(id: string): Promise<InstanceMeta> {
     return invokeReal<InstanceMeta>("get_instance_meta", { id });
