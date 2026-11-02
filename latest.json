@@ -1,12 +1,12 @@
 {
-  "version": "1.1.54",
-  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.54/Instalar_Paraguacraft_v1.1.54.exe",
-  "size_bytes": 6014624,
-  "sha256": "7be2a89b3a74f6f9b2521b50d5c04b54a87f3f8130ae8abcaa20bf1263084c0f",
+  "version": "1.1.55",
+  "download_url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.55/Instalar_Paraguacraft_v1.1.55.exe",
+  "size_bytes": 6059886,
+  "sha256": "6ace912a1fd532a1aee09ff9f0feaf3f2dea65ea24f5754dd490c1dd50c45cfa",
   "notes": "- Gestor visual de Mods por instancia: modal rápido desde Inicio/Instancias con íconos extraídos del JAR, versión, loader, filtros Activos/Off/Avisos y detección de conflictos\n- Skins personalizadas sin cuenta oficial: soporte automático en todos los loaders (CustomSkinLoader LocalSkin prioridad #1 + modelo Clásico/Slim) y Vanilla puro (Paraguacraft-MiSkin.zip)\n- Paragua × Horizon (MC 26.3): integración oficial del motor nativo Rust + Vulkan (<1s de arranque y hasta 1024 chunks, requiere cuenta Microsoft oficial)\n- Servidores para amigos en doble modo: Clásico (Java / CMD + Playit.gg) y Motor Ultraligero Nativo Rust (~80 MB RAM + Playit.gg)",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.54/Instalar_Paraguacraft_v1.1.54.exe",
+      "url": "https://github.com/SantiJ10/Paraguacraft/releases/download/v1.1.55/Instalar_Paraguacraft_v1.1.55.exe",
       "signature": ""
     }
   }
