@@ -61,9 +61,8 @@ pub fn steve_profile() -> SkinProfile {
 }
 
 pub fn profile_for(username: &str, uuid: &str, premium: bool) -> SkinProfile {
-    // Nunca exponer el PNG UV completo como avatar (la UI lo mostraría crudo).
-    // Preferir cache de cara si existe.
-    let local = if !premium && offline::has_global_skin() {
+    let has_local = !premium && offline::has_skin_for_user(username);
+    let local = if has_local {
         let face = offline::global_face_path();
         if !face.is_file() {
             offline::refresh_face_cache();
@@ -76,6 +75,11 @@ pub fn profile_for(username: &str, uuid: &str, premium: bool) -> SkinProfile {
     } else {
         None
     };
+    let model = if has_local {
+        offline::variant_for_user(username)
+    } else {
+        "classic".into()
+    };
     SkinProfile {
         username: username.to_string(),
         uuid: uuid.to_string(),
@@ -85,7 +89,7 @@ pub fn profile_for(username: &str, uuid: &str, premium: bool) -> SkinProfile {
         local_avatar_path: local,
         avatar_data_url: None,
         skin_url: None,
-        model: Some("classic".into()),
+        model: Some(model),
     }
 }
 
@@ -101,37 +105,35 @@ pub fn offline_profile(username: &str) -> SkinProfile {
 }
 
 pub async fn enrich_profile(http: &reqwest::Client, mut profile: SkinProfile) -> SkinProfile {
-    if !profile.premium && offline::has_global_skin() {
-        let path = offline::global_skin_path();
-        offline::refresh_face_cache();
-        let face = offline::global_face_path();
-        if face.is_file() {
-            profile.local_avatar_path = Some(face.to_string_lossy().to_string());
-        } else {
-            profile.local_avatar_path = None;
-        }
-        if let Ok(bytes) = std::fs::read(&path) {
-            let ts = path
-                .metadata()
-                .ok()
-                .and_then(|m| m.modified().ok())
-                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                .map(|d| d.as_secs())
-                .unwrap_or(0);
-            profile.avatar_url = format!("{}?v={ts}", avatar_url(&profile.uuid));
-            // Solo cara — NUNCA el UV completo como data URL.
-            profile.avatar_data_url = mojang::helm_data_url_from_skin_png(&bytes);
-            profile.skin_url = Some(format!("file://{}", path.to_string_lossy()));
-        }
-        if let Ok(info) = mojang::lookup_player(http, Some(&profile.username), Some(&profile.uuid)).await {
-            if info.ok {
-                if info.skin_url.is_some() {
-                    profile.skin_url = info.skin_url;
-                }
-                profile.model = Some(info.model);
+    if !profile.premium {
+        if let Some(path) = offline::effective_skin_path_for(&profile.username) {
+            offline::refresh_face_cache();
+            let face = offline::global_face_path();
+            if face.is_file() {
+                profile.local_avatar_path = Some(face.to_string_lossy().to_string());
+            } else {
+                profile.local_avatar_path = None;
             }
+            profile.model = Some(offline::variant_for_user(&profile.username));
+            if let Ok(bytes) = std::fs::read(&path) {
+                let ts = path
+                    .metadata()
+                    .ok()
+                    .and_then(|m| m.modified().ok())
+                    .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0);
+                profile.avatar_url = format!("{}?v={ts}", avatar_url(&profile.uuid));
+                profile.avatar_data_url = mojang::helm_data_url_from_skin_png(&bytes);
+                use base64::Engine;
+                profile.skin_url = Some(format!(
+                    "data:image/png;base64,{}",
+                    base64::engine::general_purpose::STANDARD.encode(&bytes)
+                ));
+            }
+            // No sobrescribir la skin personalizada del usuario offline con una cuenta ajena de Mojang.
+            return profile;
         }
-        return profile;
     }
 
     let cache_bust = std::time::SystemTime::now()
@@ -149,7 +151,9 @@ pub async fn enrich_profile(http: &reqwest::Client, mut profile: SkinProfile) ->
                         }
                     }
                 }
-                profile.username = info.username;
+                if profile.premium {
+                    profile.username = info.username;
+                }
             }
             profile.skin_url = info.skin_url.clone();
             profile.model = Some(info.model);
@@ -193,7 +197,7 @@ fn write_temp_png(bytes: &[u8]) -> AppResult<PathBuf> {
     Ok(tmp)
 }
 
-/// Descarga y aplica skin (Premium → Mojang, Offline → resource pack).
+/// Descarga y aplica skin (Premium → Mojang, Offline → LocalSkin + pack Vanilla + servidores).
 pub async fn apply_skin_bytes(
     http: &reqwest::Client,
     bytes: &[u8],
@@ -218,7 +222,7 @@ pub async fn apply_skin_file(
 
     if let Some(acc) = accounts::active_account() {
         if acc.premium {
-            let local = offline::apply_offline_skin(path, &acc.username)?;
+            let local = offline::apply_offline_skin_with_variant(path, &acc.username, variant)?;
             pending_premium::save_pending(&acc.id, path, variant)?;
 
             let upload_result = async {
@@ -262,7 +266,7 @@ pub async fn apply_skin_file(
     let username = accounts::active_account()
         .map(|a| a.username)
         .unwrap_or_else(|| "Steve".into());
-    let mut result = offline::apply_offline_skin(path, &username)?;
+    let mut result = offline::apply_offline_skin_with_variant(path, &username, variant)?;
     result.premium = false;
     if !history_url.is_empty() {
         history::push(history_name, history_url, variant);
@@ -276,6 +280,13 @@ pub async fn apply_from_url(
     variant: &str,
     history_name: &str,
 ) -> AppResult<ApplySkinResult> {
+    if let Some(b64) = url.strip_prefix("data:image/png;base64,") {
+        use base64::Engine;
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(b64.trim())
+            .map_err(|e| AppError::msg(format!("PNG base64 inválido: {e}")))?;
+        return apply_skin_bytes(http, &bytes, variant, history_name, "").await;
+    }
     let bytes = mojang::download_skin_png(http, url).await?;
     apply_skin_bytes(http, &bytes, variant, history_name, url).await
 }
@@ -287,7 +298,9 @@ pub async fn apply_from_username(
 ) -> AppResult<ApplySkinResult> {
     let info = mojang::lookup_player(http, Some(username), None).await?;
     if !info.ok {
-        return Err(AppError::msg(info.error.unwrap_or_else(|| "Jugador no encontrado".into())));
+        return Err(AppError::msg(
+            info.error.unwrap_or_else(|| "Jugador no encontrado".into()),
+        ));
     }
     let skin_url = info
         .skin_url

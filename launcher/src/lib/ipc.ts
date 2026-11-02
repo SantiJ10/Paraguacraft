@@ -55,6 +55,7 @@ import type {
   BedrockWorld,
   BedrockPack,
   BedrockImport,
+  HorizonStatus,
   Instance,
   InstanceContentItem,
   InstanceMeta,
@@ -907,6 +908,46 @@ export const api = {
     return invokeReal<BedrockImport>("install_bedrock_pack_url", { url });
   },
 
+  async getHorizonStatus(checkRemote = false): Promise<HorizonStatus> {
+    if (isTauri()) {
+      return invokeReal<HorizonStatus>("get_horizon_status", { checkRemote });
+    }
+    return delay({
+      platformSupported: false,
+      premiumAllowed: false,
+      username: null,
+      assets263Ready: false,
+      installed: false,
+      binaryPath: null,
+      installedTag: null,
+      latestTag: null,
+      customBinary: false,
+      gpuName: "GPU simulada",
+      vulkanHint: "Requiere Windows x64 + Vulkan 1.2+",
+      horizonDir: "",
+    });
+  },
+
+  async prepareHorizonAssets(): Promise<HorizonStatus> {
+    return invokeReal<HorizonStatus>("prepare_horizon_assets");
+  },
+
+  async installHorizonEngine(): Promise<HorizonStatus> {
+    return invokeReal<HorizonStatus>("install_horizon_engine");
+  },
+
+  async pickHorizonBinary(): Promise<HorizonStatus | null> {
+    return invokeReal<HorizonStatus | null>("pick_horizon_binary");
+  },
+
+  async launchHorizonEngine(): Promise<number> {
+    return invokeReal<number>("launch_horizon_engine");
+  },
+
+  async openHorizonFolder(): Promise<void> {
+    await invokeReal<void>("open_horizon_folder");
+  },
+
   // --- Config por instancia (Regla 2: override del usuario) ---
   async getInstanceMeta(id: string): Promise<InstanceMeta> {
     return invokeReal<InstanceMeta>("get_instance_meta", { id });
@@ -1113,6 +1154,7 @@ export const api = {
     mcVersion: string;
     serverType: string;
     ramMb: number;
+    showCmdWindow?: boolean;
   }): Promise<ServerProfile> {
     return invokeReal<ServerProfile>("create_server", { ...payload });
   },
@@ -1123,6 +1165,7 @@ export const api = {
     mcVersion?: string;
     ramMb?: number;
     port?: number;
+    showCmdWindow?: boolean;
   }): Promise<ServerProfile> {
     return invokeReal<ServerProfile>("update_server", { ...payload });
   },

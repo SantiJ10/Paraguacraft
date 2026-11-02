@@ -18,12 +18,18 @@ pub const SERVER_TYPES: &[&str] = &[
     "fabric-geyser",
     "forge",
     "neoforge",
+    "rust-native",
 ];
 
 /// Loaders que usan el mecanismo de instalador Maven `--installServer` (Forge/NeoForge):
 /// desde MC 1.17 no generan un jar único, sino `run.bat`/`run.sh` + `libraries/`.
 pub fn is_forge_style(kind: &str) -> bool {
     kind == "forge" || kind == "neoforge"
+}
+
+/// Servidor nativo compilado en Rust (estilo Horizon / Pumpkin: sin JVM, arranque <1s, ~80 MB RAM).
+pub fn is_rust_native(kind: &str) -> bool {
+    kind == "rust-native"
 }
 
 pub fn normalize_server_type(raw: &str) -> AppResult<String> {
@@ -34,8 +40,9 @@ pub fn normalize_server_type(raw: &str) -> AppResult<String> {
         "fabric-geyser" | "fabric+geyser" => Ok("fabric-geyser".into()),
         "forge" => Ok("forge".into()),
         "neoforge" => Ok("neoforge".into()),
+        "rust-native" | "horizon" | "horizon-server" | "pumpkin" => Ok("rust-native".into()),
         other => Err(AppError::msg(format!(
-            "Tipo de servidor invalido: {other}. Usa: paper, paper-geyser, fabric, fabric-geyser, forge, neoforge."
+            "Tipo de servidor invalido: {other}. Usa: paper, paper-geyser, fabric, fabric-geyser, forge, neoforge, rust-native."
         ))),
     }
 }
@@ -47,6 +54,7 @@ pub fn type_label(t: &str) -> &'static str {
         "fabric" => "Fabric",
         "forge" => "Forge",
         "neoforge" => "NeoForge",
+        "rust-native" => "Motor Rust Nativo (Horizon / Pumpkin)",
         _ => "Paper",
     }
 }
@@ -104,6 +112,12 @@ pub async fn prepare(
                 crate::core::server_console::append(sid, &msg);
             }
             res
+        }
+        "rust-native" => {
+            let bin = download_rust_native_server(client, app, dir, sid).await?;
+            let port = if prof.port > 0 { prof.port } else { 25565 };
+            sync_rust_server_config(dir, port);
+            bin
         }
         other => return Err(AppError::msg(format!("Tipo no implementado: {other}"))),
     };
@@ -181,8 +195,181 @@ pub async fn soft_ensure_launcher_deps(
         if let Err(e) = ensure_playit_exe(client, app, dir).await {
             crate::core::server_console::append(sid, &format!("[launcher] ⚠ playit agent: {e}"));
         }
+    } else if is_rust_native(&kind) {
+        let _ = download_rust_native_server(client, app, dir, sid).await;
+        if let Err(e) = ensure_playit_exe(client, app, dir).await {
+            crate::core::server_console::append(sid, &format!("[launcher] ⚠ playit agent: {e}"));
+        }
     }
     Ok(())
+}
+
+const RUST_SERVER_MIN_BYTES: u64 = 1_500_000;
+
+const RUST_SERVER_WIN_URLS: &[&str] = &[
+    "https://github.com/Pumpkin-MC/Pumpkin/releases/latest/download/pumpkin-X64-Windows.exe",
+    "https://github.com/Pumpkin-MC/Pumpkin/releases/download/nightly/pumpkin-X64-Windows.exe",
+];
+
+pub fn find_rust_server_exe(dir: &Path) -> Option<PathBuf> {
+    for name in ["horizon-server.exe", "rust-server.exe", "pumpkin.exe", "pumpkin-X64-Windows.exe"] {
+        let p = dir.join(name);
+        if p.is_file() && p.metadata().map(|m| m.len()).unwrap_or(0) >= RUST_SERVER_MIN_BYTES {
+            return Some(p);
+        }
+    }
+    None
+}
+
+async fn download_rust_native_server(
+    client: &reqwest::Client,
+    app: &AppHandle,
+    dir: &Path,
+    sid: &str,
+) -> AppResult<PathBuf> {
+    if let Some(existing) = find_rust_server_exe(dir) {
+        return Ok(existing);
+    }
+    let dest = dir.join("rust-server.exe");
+    let global = crate::core::paths::data_dir().join("rust-server-pumpkin.exe");
+    if global.is_file() && global.metadata().map(|m| m.len()).unwrap_or(0) >= RUST_SERVER_MIN_BYTES {
+        std::fs::copy(&global, &dest)?;
+        bootstrap_rust_server_config(dir, &dest);
+        return Ok(dest);
+    }
+
+    crate::core::server_console::append(
+        sid,
+        "[launcher] Descargando motor de servidor nativo en Rust (Pumpkin / ecosistema Horizon, sin Java)…",
+    );
+
+    let mut urls: Vec<String> = RUST_SERVER_WIN_URLS.iter().map(|s| (*s).to_string()).collect();
+    if let Ok(rel) = net::fetch_json::<Value>(
+        client,
+        "https://api.github.com/repos/Pumpkin-MC/Pumpkin/releases/latest",
+    )
+    .await
+    {
+        if let Some(arr) = rel["assets"].as_array() {
+            for a in arr {
+                let n = a["name"].as_str().unwrap_or("");
+                if n.eq_ignore_ascii_case("pumpkin-X64-Windows.exe") {
+                    if let Some(u) = a["browser_download_url"].as_str() {
+                        urls.insert(0, u.to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    let tmp = dest.with_extension("part");
+    for url in urls {
+        let res = net::download_all(
+            client,
+            vec![DownloadItem::new(url, tmp.clone())],
+            1,
+            app,
+            "rust-server-native",
+            "Motor Rust Nativo (Windows x64)",
+        )
+        .await;
+        if res.is_err() || tmp.metadata().map(|m| m.len()).unwrap_or(0) < RUST_SERVER_MIN_BYTES {
+            let _ = std::fs::remove_file(&tmp);
+            continue;
+        }
+        if dest.exists() {
+            let _ = std::fs::remove_file(&dest);
+        }
+        std::fs::rename(&tmp, &dest)?;
+        let _ = std::fs::copy(&dest, &global);
+        bootstrap_rust_server_config(dir, &dest);
+        return Ok(dest);
+    }
+
+    Err(AppError::msg(
+        "No se pudo descargar el motor nativo en Rust desde GitHub. Verificá tu conexión o intentá de nuevo.",
+    ))
+}
+
+fn bootstrap_rust_server_config(dir: &Path, exe: &Path) {
+    if dir.join("config/configuration.toml").is_file() || dir.join("pumpkin.toml").is_file() {
+        return;
+    }
+    let mut cmd = std::process::Command::new(exe);
+    cmd.current_dir(dir)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null());
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+    }
+    if let Ok(mut child) = cmd.spawn() {
+        std::thread::sleep(std::time::Duration::from_millis(1400));
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+}
+
+/// Sincroniza `server-port`, `online-mode`, `motd` y `max-players` de `server.properties`
+/// hacia `config/configuration.toml` / `pumpkin.toml` para que el panel de Propiedades y Playit funcionen igual.
+pub fn sync_rust_server_config(dir: &Path, fallback_port: u16) {
+    let props = crate::core::server_properties::read(dir).unwrap_or_default();
+    let port: u16 = props
+        .get("server-port")
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(fallback_port);
+    let online_mode = props
+        .get("online-mode")
+        .map(|s| s.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+    let max_players: u32 = props
+        .get("max-players")
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(20);
+    let motd = props
+        .get("motd")
+        .cloned()
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| "Un server Rust ultraligero en Paraguacraft".into())
+        .replace('"', "'");
+
+    for rel in [
+        "config/configuration.toml",
+        "configuration.toml",
+        "pumpkin.toml",
+    ] {
+        let p = dir.join(rel);
+        if !p.is_file() {
+            continue;
+        }
+        let Ok(raw) = std::fs::read_to_string(&p) else {
+            continue;
+        };
+        let mut out = Vec::new();
+        for line in raw.lines() {
+            let t = line.trim_start();
+            if t.starts_with("java_edition_address") {
+                out.push(format!("java_edition_address = \"0.0.0.0:{port}\""));
+            } else if t.starts_with("address =") || t.starts_with("address=") {
+                out.push(format!("address = \"0.0.0.0:{port}\""));
+            } else if t.starts_with("online_mode") {
+                out.push(format!("online_mode = {online_mode}"));
+            } else if t.starts_with("max_players") {
+                out.push(format!("max_players = {max_players}"));
+            } else if t.starts_with("motd =") || t.starts_with("motd=") {
+                if line.contains('[') {
+                    out.push(format!("motd = [\"{motd}\"]"));
+                } else {
+                    out.push(format!("motd = \"{motd}\""));
+                }
+            } else {
+                out.push(line.to_string());
+            }
+        }
+        let _ = std::fs::write(&p, format!("{}\n", out.join("\n")));
+    }
 }
 
 const PLAYIT_MIN_BYTES: u64 = 2_000_000;

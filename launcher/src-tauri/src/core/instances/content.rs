@@ -33,11 +33,15 @@ pub struct InstanceContentItem {
     pub compatible: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub compat_message: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mod_loader: Option<String>,
 }
 
 fn sha1_file(path: &Path) -> Option<String> {
     let meta = path.metadata().ok()?;
-    if meta.len() > 8_000_000 {
+    if meta.len() > 40_000_000 {
         return None;
     }
     let bytes = std::fs::read(path).ok()?;
@@ -71,6 +75,8 @@ fn push_jar(entries: &mut Vec<InstanceContentItem>, base: &Path, folder: &str, k
         local_icon_path: None,
         compatible: None,
         compat_message: None,
+        version: None,
+        mod_loader: None,
     });
 }
 
@@ -83,21 +89,23 @@ fn scan_folder_dir(entries: &mut Vec<InstanceContentItem>, base: &Path, folder: 
         let path = entry.path();
         if path.is_dir() {
             let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-            if name.starts_with('.') || name.ends_with(".disabled") {
+            if name.starts_with('.') {
                 continue;
             }
+            let enabled = !name.ends_with(".disabled");
+            let clean_name = name.trim_end_matches(".disabled").to_string();
             let rel = path
                 .strip_prefix(base)
                 .map(|p| p.to_string_lossy().replace('\\', "/"))
                 .unwrap_or_else(|_| format!("{folder}/{name}"));
             entries.push(InstanceContentItem {
                 path: rel.clone(),
-                name: name.to_string(),
+                name: clean_name,
                 folder: folder.to_string(),
                 kind: kind.to_string(),
                 size_bytes: dir_size(&path),
                 sha1: None,
-                enabled: true,
+                enabled,
                 display_name: None,
                 icon_url: None,
                 author: None,
@@ -105,11 +113,20 @@ fn scan_folder_dir(entries: &mut Vec<InstanceContentItem>, base: &Path, folder: 
                 local_icon_path: None,
                 compatible: None,
                 compat_message: None,
+                version: None,
+                mod_loader: None,
             });
             continue;
         }
-        if path.extension().and_then(|e| e.to_str()) == Some("jar")
-            || path.extension().and_then(|e| e.to_str()) == Some("zip")
+        let low = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        if low.ends_with(".jar")
+            || low.ends_with(".zip")
+            || low.ends_with(".jar.disabled")
+            || low.ends_with(".zip.disabled")
         {
             push_jar(entries, base, folder, kind, &path);
         }

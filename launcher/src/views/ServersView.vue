@@ -10,7 +10,9 @@ import BaseButton from "@/components/common/BaseButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import ContextMenu, { type ContextMenuItem } from "@/components/common/ContextMenu.vue";
 
-const SERVER_TYPES: Array<{ id: ServerType; label: string; icon: string; desc: string }> = [
+type EngineMode = "java-cmd" | "rust-horizon";
+
+const JAVA_SERVER_TYPES: Array<{ id: ServerType; label: string; icon: string; desc: string }> = [
   { id: "paper", label: "Paper", icon: "📄", desc: "Plugins · más estable" },
   { id: "paper-geyser", label: "Paper + Geyser", icon: "🌐", desc: "Plugins + Bedrock" },
   { id: "fabric", label: "Fabric", icon: "🧵", desc: "Mods · server side" },
@@ -19,9 +21,10 @@ const SERVER_TYPES: Array<{ id: ServerType; label: string; icon: string; desc: s
   { id: "neoforge", label: "NeoForge", icon: "⚙️", desc: "Modpacks modernos · MC 1.20.2+" },
 ];
 
-const SERVER_TYPE_LABELS: Record<string, string> = Object.fromEntries(
-  SERVER_TYPES.map((t) => [t.id, t.label]),
-);
+const SERVER_TYPE_LABELS: Record<string, string> = {
+  ...Object.fromEntries(JAVA_SERVER_TYPES.map((t) => [t.id, t.label])),
+  "rust-native": "Motor Ultraligero Rust (Horizon / Pumpkin)",
+};
 
 function serverTypeLabel(t: string): string {
   return SERVER_TYPE_LABELS[t] ?? t;
@@ -48,6 +51,12 @@ function toggleGuide() {
   }
 }
 
+function formatRamLabel(s: ServerProfile): string {
+  if (s.serverType === "rust-native") return "~80 MB RAM (Sin Java)";
+  if (s.ramMb < 1024) return `${s.ramMb} MB`;
+  return `${s.ramMb / 1024} GB`;
+}
+
 function formatRamGb(mb: number): string {
   return `${mb / 1024} GB`;
 }
@@ -61,10 +70,12 @@ const busy = ref<string | null>(null);
 const error = ref<string | null>(null);
 const showCreate = ref(false);
 
+const engineMode = ref<EngineMode>("java-cmd");
 const newName = ref("Mi servidor");
 const newMc = ref("1.21.1");
 const newType = ref<ServerType>("paper");
 const newRam = ref<number>(4096);
+const newShowCmd = ref<boolean>(false);
 const mcVersions = ref<MinecraftVersion[]>([]);
 const versionsLoading = ref(false);
 
@@ -81,9 +92,21 @@ const lastActiveServer = computed(() =>
   serversStore.servers.find((s) => s.id === serversStore.lastActiveId) ?? null,
 );
 
-/** Lista rápida; versiones MC / hardware solo al crear. */
 onMounted(() => {
   void refresh(false);
+});
+
+watch(engineMode, (mode) => {
+  if (mode === "rust-horizon") {
+    newType.value = "rust-native";
+    newMc.value = releaseMcVersions.value[0]?.id ?? "26.3";
+  } else if (newType.value === "rust-native") {
+    newType.value = "paper";
+    newMc.value =
+      releaseMcVersions.value.find((v) => v.id === "1.21.1")?.id ??
+      releaseMcVersions.value[0]?.id ??
+      "1.21.1";
+  }
 });
 
 async function ensureCreateDeps() {
@@ -92,10 +115,14 @@ async function ensureCreateDeps() {
   versionsLoading.value = true;
   try {
     mcVersions.value = await api.getVersions();
-    newMc.value =
-      releaseMcVersions.value.find((v) => v.id === "1.21.1")?.id ??
-      releaseMcVersions.value[0]?.id ??
-      "1.21.1";
+    if (engineMode.value === "rust-horizon") {
+      newMc.value = releaseMcVersions.value[0]?.id ?? "26.3";
+    } else {
+      newMc.value =
+        releaseMcVersions.value.find((v) => v.id === "1.21.1")?.id ??
+        releaseMcVersions.value[0]?.id ??
+        "1.21.1";
+    }
     if (
       ramOptions.value.length &&
       !ramOptions.value.includes(newRam.value as (typeof SERVER_RAM_PRESETS_MB)[number])
@@ -128,11 +155,13 @@ async function create() {
   error.value = null;
   try {
     await ensureCreateDeps();
+    const isRust = engineMode.value === "rust-horizon";
     const s = await serversStore.create({
       name: newName.value.trim(),
-      mcVersion: newMc.value.trim(),
-      serverType: newType.value,
-      ramMb: newRam.value,
+      mcVersion: isRust ? (releaseMcVersions.value[0]?.id ?? "26.3") : newMc.value.trim(),
+      serverType: isRust ? "rust-native" : newType.value,
+      ramMb: isRust ? 256 : newRam.value,
+      showCmdWindow: newShowCmd.value,
     });
     showCreate.value = false;
     router.push({ name: "server-detail", params: { id: s.id } });
@@ -222,9 +251,9 @@ async function onMenuSelect(id: string) {
   <div class="p-8">
     <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-bold">Servidores</h1>
+        <h1 class="text-2xl font-bold">Servidores para Amigos</h1>
         <p class="text-sm text-gray-500">
-          Panel local: consola, propiedades, plugins y Playit.gg.
+          Elegí entre el Modo Clásico (Java / CMD + Playit.gg) o el Motor Ultraligero Nativo Rust (estilo Horizon + Playit.gg).
         </p>
       </div>
       <div class="flex gap-2">
@@ -260,75 +289,94 @@ async function onMenuSelect(id: string) {
         @click="toggleGuide"
       >
         <div class="min-w-0">
-          <p class="text-sm font-bold text-sky-200">Cómo crear un servidor local</p>
+          <p class="text-sm font-bold text-sky-200">Dos formas de hostear para tus amigos + Playit.gg</p>
           <p class="mt-0.5 truncate text-xs text-gray-400">
-            Mini tutorial: Paper, Fabric, mods, EULA, localhost y Playit para tus amigos
+            Clásico Java/CMD (plugins, mods y Geyser) o Motor Nativo Rust (~80 MB RAM, arranque en &lt;1s)
           </p>
         </div>
         <span class="shrink-0 text-xs font-bold text-sky-300">{{ guideOpen ? "Ocultar" : "Ver guía" }}</span>
       </button>
       <div v-if="guideOpen" class="border-t border-sky-500/20 px-4 py-4 text-sm text-gray-300">
-        <ol class="list-decimal space-y-3 pl-5">
+        <ol class="list-decimal space-y-2.5 pl-5">
           <li>
-            <span class="font-semibold text-white">Creá el servidor acá</span>
-            — tocá
-            <span class="text-white">Nuevo servidor</span>, poné un nombre y elegí la versión de Minecraft.
-            La RAM se limita sola según tu PC.
+            <span class="font-semibold text-white">Opción 1 · Clásico (Java / CMD + Playit.gg):</span>
+            usa Paper, Fabric, Forge o NeoForge. Ideal para plugins, modpacks, redstone 100% vanilla, cualquier versión y entrada desde Bedrock con Geyser. Podés usar la consola integrada o abrir la ventana CMD clásica de Windows.
           </li>
           <li>
-            <span class="font-semibold text-white">Elegí el tipo según qué querés instalar</span>
-            —
-            <span class="text-white">Paper</span> (plugins, el más estable),
-            <span class="text-white">Fabric</span> (mods server-side),
-            <span class="text-white">Forge / NeoForge</span> (modpacks).
-            Las variantes con Geyser dejan entrar también desde Bedrock.
+            <span class="font-semibold text-white">Opción 2 · Ultraligero Rust (Estilo Horizon / Pumpkin + Playit.gg):</span>
+            binario nativo escrito en Rust sin máquina virtual Java. Consume ~80 MB de RAM y arranca en menos de 1 segundo, ideal para jugar en PCs de pocos recursos mientras tenés tu Minecraft abierto.
           </li>
           <li>
-            <span class="font-semibold text-white">Crear e instalar</span>
-            — Paraguacraft baja el JAR (Paper/Fabric/Forge) y deja la carpeta lista.
-            Entrá al servidor desde esta lista: vas a ver consola, propiedades, plugins/mods y backups.
-          </li>
-          <li>
-            <span class="font-semibold text-white">Aceptá el EULA y arrancá</span>
-            — la primera vez Minecraft pide el acuerdo de Mojang. Aceptalo desde el panel y tocá Iniciar.
-            Esperá a que la consola diga que el server está listo.
-          </li>
-          <li>
-            <span class="font-semibold text-white">Conectate desde el juego</span>
-            —
-            en Multijugador usá
-            <span class="font-mono text-pc-green">localhost</span>
-            (o <span class="font-mono text-pc-green">127.0.0.1</span>) y el puerto de Propiedades
-            (por defecto 25565). Jugá con la misma cuenta del launcher.
-          </li>
-          <li>
-            <span class="font-semibold text-white">Invitá amigos (Playit.gg)</span>
-            — en el detalle del server activá Playit. Te da una IP pública tipo
-            <span class="font-mono text-sky-300">*.tun.ply.gg</span>
-            para que otros entren sin abrir puertos del router.
-          </li>
-          <li>
-            <span class="font-semibold text-white">Plugins, mods y SkinsRestorer</span>
-            — instalalos desde la Tienda o copiando JARs a
-            <span class="font-mono text-white">plugins/</span> (Paper) o
-            <span class="font-mono text-white">mods/</span> (Fabric).
-            Si tus amigos son no-premium, usá online-mode=false + SkinsRestorer (Ely.by).
-            El mismo nick que en Ely.by se ve en vanilla.
-            Cuentas Microsoft Premium funcionan con online-mode=true.
+            <span class="font-semibold text-white">Invitá amigos sin abrir puertos:</span>
+            ambos modos usan tu mismo túnel compartido de <span class="font-mono text-sky-300">Playit.gg (*.tun.ply.gg)</span> automáticamente al iniciar.
           </li>
         </ol>
       </div>
     </section>
 
-    <div v-if="showCreate" class="mb-6 rounded-xl border border-surface-3 bg-surface-2 p-4">
-      <h2 class="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-400">Nuevo servidor</h2>
-      <p v-if="versionsLoading" class="mb-2 text-xs text-gray-500">Cargando versiones de Minecraft…</p>
-      <div class="mb-4 flex flex-wrap gap-2">
+    <div v-if="showCreate" class="mb-6 space-y-4 rounded-2xl border border-surface-3 bg-surface-2 p-5">
+      <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-400">Nuevo servidor · Elegí el motor</h2>
+
+      <!-- Selector de las dos opciones principales -->
+      <div class="grid gap-3 md:grid-cols-2">
         <button
-          v-for="t in SERVER_TYPES"
+          type="button"
+          class="rounded-xl border-2 p-4 text-left transition"
+          :class="
+            engineMode === 'java-cmd'
+              ? 'border-pc-green bg-pc-green/10'
+              : 'border-surface-4 bg-surface-3/60 hover:border-surface-5'
+          "
+          @click="engineMode = 'java-cmd'"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-sm font-bold text-white">🖥️ Opción 1 · Clásico (CMD / Java + Playit.gg)</span>
+            <span
+              class="rounded px-2 py-0.5 text-[10px] font-bold uppercase"
+              :class="engineMode === 'java-cmd' ? 'bg-pc-green text-black' : 'bg-surface-4 text-gray-400'"
+            >
+              Completo
+            </span>
+          </div>
+          <p class="mt-1.5 text-xs text-gray-400">
+            Paper, Fabric, Forge, NeoForge y Geyser (Bedrock). Compatible con todas las versiones, mods, plugins y SkinsRestorer.
+          </p>
+        </button>
+
+        <button
+          type="button"
+          class="rounded-xl border-2 p-4 text-left transition"
+          :class="
+            engineMode === 'rust-horizon'
+              ? 'border-amber-400 bg-amber-500/10'
+              : 'border-surface-4 bg-surface-3/60 hover:border-surface-5'
+          "
+          @click="engineMode = 'rust-horizon'"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-sm font-bold text-white">⚡ Opción 2 · Ultraligero Rust (Horizon / Pumpkin + Playit.gg)</span>
+            <span
+              class="rounded px-2 py-0.5 text-[10px] font-bold uppercase"
+              :class="engineMode === 'rust-horizon' ? 'bg-amber-400 text-black' : 'bg-amber-500/20 text-amber-300'"
+            >
+              ~80 MB RAM
+            </span>
+          </div>
+          <p class="mt-1.5 text-xs text-gray-400">
+            Cero Java · Arranca en &lt;1s · Motor nativo en Rust ideal para jugar con amigos sin consumir la RAM de tu PC.
+          </p>
+        </button>
+      </div>
+
+      <p v-if="versionsLoading" class="text-xs text-gray-500">Cargando versiones de Minecraft…</p>
+
+      <!-- Subtipos solo para Modo Clásico Java -->
+      <div v-if="engineMode === 'java-cmd'" class="flex flex-wrap gap-2">
+        <button
+          v-for="t in JAVA_SERVER_TYPES"
           :key="t.id"
           type="button"
-          class="flex min-w-[100px] flex-col items-center gap-0.5 rounded-lg border-2 px-3 py-2 text-xs font-bold transition"
+          class="flex min-w-[105px] flex-col items-center gap-0.5 rounded-lg border-2 px-3 py-2 text-xs font-bold transition"
           :class="
             newType === t.id
               ? 'border-pc-green bg-pc-green/10 text-pc-green'
@@ -340,13 +388,23 @@ async function onMenuSelect(id: string) {
           <span>{{ t.label }}</span>
         </button>
       </div>
+      <div
+        v-else
+        class="rounded-xl border border-amber-500/30 bg-amber-950/20 px-4 py-3 text-xs text-amber-100"
+      >
+        <p class="font-semibold text-amber-300">⚡ Motor Nativo Rust (estilo Horizon / Pumpkin MC 26.3)</p>
+        <p class="mt-0.5 text-amber-100/80">
+          No necesita Java ni consume gigabytes de RAM. Usa el mismo túnel automático de Playit.gg para que tus amigos entren con la IP pública o localhost.
+        </p>
+      </div>
+
       <div class="flex flex-wrap items-end gap-3">
         <label class="text-sm">
-          Nombre
+          Nombre del servidor
           <input v-model="newName" class="mt-1 block rounded-lg border border-surface-5 bg-surface-3 px-3 py-2" />
         </label>
-        <label class="text-sm">
-          MC
+        <label v-if="engineMode === 'java-cmd'" class="text-sm">
+          Versión MC
           <div class="mt-1 min-w-[10rem]">
             <AppSelect
               v-model="newMc"
@@ -360,8 +418,8 @@ async function onMenuSelect(id: string) {
             />
           </div>
         </label>
-        <label class="text-sm">
-          RAM
+        <label v-if="engineMode === 'java-cmd'" class="text-sm">
+          RAM asignada
           <div class="mt-1 min-w-[8rem]">
             <AppSelect
               :model-value="String(newRam)"
@@ -370,14 +428,20 @@ async function onMenuSelect(id: string) {
             />
           </div>
         </label>
-        <BaseButton :disabled="busy === 'create'" @click="create">Crear</BaseButton>
+        <label class="flex cursor-pointer items-center gap-2 rounded-lg border border-surface-4 bg-surface-3 px-3 py-2.5 text-xs text-gray-300">
+          <input v-model="newShowCmd" type="checkbox" class="accent-pc-green" />
+          <span>Abrir ventana CMD de Windows al iniciar</span>
+        </label>
+        <BaseButton :disabled="busy === 'create'" @click="create">
+          {{ busy === "create" ? "Creando…" : "Crear servidor" }}
+        </BaseButton>
       </div>
     </div>
 
     <p v-if="error" class="mb-4 rounded-lg bg-red-500/10 px-4 py-2 text-sm text-red-400">{{ error }}</p>
     <p v-if="loading" class="text-sm text-gray-500">Cargando…</p>
     <p v-else-if="!serversStore.servers.length" class="text-sm text-gray-500">
-      No hay servidores. Creá uno nuevo o importá una carpeta existente.
+      No hay servidores. Creá uno nuevo arriba o importá una carpeta existente.
     </p>
 
     <div class="grid gap-3 sm:grid-cols-2">
@@ -388,9 +452,25 @@ async function onMenuSelect(id: string) {
         @click="openServer(s.id)"
         @contextmenu="onServerContext($event, s)"
       >
-        <h3 class="font-bold">{{ s.name }}</h3>
-        <p class="text-xs text-gray-500">
-          {{ s.mcVersion }} · {{ serverTypeLabel(s.serverType) }} · {{ formatRamGb(s.ramMb) }}
+        <div class="flex items-center justify-between gap-2">
+          <h3 class="truncate font-bold">{{ s.name }}</h3>
+          <div class="flex shrink-0 items-center gap-1.5">
+            <span
+              v-if="s.serverType === 'rust-native'"
+              class="rounded bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-300"
+            >
+              ⚡ Rust Nativo
+            </span>
+            <span
+              v-if="s.showCmdWindow"
+              class="rounded bg-surface-4 px-2 py-0.5 text-[10px] font-semibold text-gray-300"
+            >
+              🪟 CMD
+            </span>
+          </div>
+        </div>
+        <p class="mt-1 text-xs text-gray-500">
+          MC {{ s.mcVersion }} · {{ serverTypeLabel(s.serverType) }} · {{ formatRamLabel(s) }}
           <span v-if="s.customFolder" class="text-amber-500/80"> · importado</span>
         </p>
         <p v-if="s.playitAddress" class="mt-1 truncate text-xs text-pc-green">Playit: {{ s.playitAddress }}</p>

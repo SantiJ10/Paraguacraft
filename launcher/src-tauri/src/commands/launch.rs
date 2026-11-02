@@ -216,9 +216,8 @@ async fn spawn_for_instance(
     }
 
     let loader_norm = loaders::normalize(&loader);
-    // Skin offline → LocalSkin por nick + purga texturas Steve/Alex del brand pack
-    // (antes se inyectaba en defaults y se veía LA MISMA skin en todos los jugadores).
-    let _ = crate::core::skins::offline::ensure_for_launch(&game_dir, &mc);
+    // Skin offline → LocalSkin por nick + pack dedicado en Vanilla puro + purga BrandPack.
+    let _ = crate::core::skins::offline::ensure_for_launch_with_loader(&game_dir, &mc, &loader_norm);
 
     if loader_norm == "paraguacraft-pvp" || loader_norm == "paraguacraft-pvp-modern" {
         // Marker one-shot desde perfiles → Practica. Sin marker: limpia sticky

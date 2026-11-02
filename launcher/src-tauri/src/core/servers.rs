@@ -33,6 +33,9 @@ pub struct ServerProfile {
     /// Carpeta externa importada (ruta absoluta). Si es None, usa `{data}/servers/{id}`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub custom_folder: Option<String>,
+    /// Si es `true`, abre una consola CMD clásica visible en Windows además del túnel Playit.gg.
+    #[serde(default)]
+    pub show_cmd_window: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -234,7 +237,7 @@ pub fn list_server_dirs() -> Vec<PathBuf> {
 }
 
 /// Valores de RAM permitidos para servidores (MB).
-pub const RAM_PRESETS_MB: [u32; 6] = [2048, 4096, 6144, 8192, 12288, 16384];
+pub const RAM_PRESETS_MB: [u32; 9] = [256, 512, 1024, 2048, 4096, 6144, 8192, 12288, 16384];
 
 pub fn normalize_ram_mb(ram_mb: u32) -> AppResult<u32> {
     if ram_mb == 0 {
@@ -244,16 +247,36 @@ pub fn normalize_ram_mb(ram_mb: u32) -> AppResult<u32> {
         return Ok(ram_mb);
     }
     Err(AppError::msg(
-        "RAM invalida. Valores permitidos: 2, 4, 6, 8, 12 o 16 GB.",
+        "RAM invalida. Valores permitidos: 256/512 MB (Rust) o 1, 2, 4, 6, 8, 12, 16 GB.",
     ))
 }
 
 pub fn create(name: &str, mc_version: &str, server_type: &str, ram_mb: u32) -> AppResult<ServerProfile> {
+    create_ex(name, mc_version, server_type, ram_mb, false)
+}
+
+pub fn create_ex(
+    name: &str,
+    mc_version: &str,
+    server_type: &str,
+    ram_mb: u32,
+    show_cmd_window: bool,
+) -> AppResult<ServerProfile> {
     let name = name.trim();
     if name.is_empty() {
         return Err(AppError::msg("Nombre vacio"));
     }
     let server_type = crate::core::server_setup::normalize_server_type(server_type)?;
+    let effective_ram = if crate::core::server_setup::is_rust_native(&server_type) && ram_mb == 0 {
+        512
+    } else {
+        normalize_ram_mb(ram_mb)?
+    };
+    let effective_mc = if crate::core::server_setup::is_rust_native(&server_type) && mc_version.trim().is_empty() {
+        "26.3".to_string()
+    } else {
+        mc_version.to_string()
+    };
     let id = format!("srv-{}", uuid::Uuid::new_v4());
     let dir = server_dir(&id);
     std::fs::create_dir_all(dir.join("plugins"))?;
@@ -263,14 +286,15 @@ pub fn create(name: &str, mc_version: &str, server_type: &str, ram_mb: u32) -> A
     let profile = ServerProfile {
         id: id.clone(),
         name: name.to_string(),
-        mc_version: mc_version.to_string(),
+        mc_version: effective_mc,
         server_type,
-        ram_mb: normalize_ram_mb(ram_mb)?,
+        ram_mb: effective_ram,
         port: 25565,
         created_at: now(),
         playit_address: crate::core::playit_shared::shared_address(),
         playit_bedrock_address: crate::core::playit_shared::shared_bedrock_address(),
         custom_folder: None,
+        show_cmd_window,
     };
     // Prefill plugin secret si ya hay uno en la cuenta local del launcher.
     let _ = crate::core::playit_shared::apply_to_server(&dir);
@@ -286,11 +310,14 @@ pub fn create(name: &str, mc_version: &str, server_type: &str, ram_mb: u32) -> A
     Ok(profile)
 }
 
-/// Indica si falta preparar el JAR del servidor.
+/// Indica si falta preparar el JAR o binario del servidor.
 pub fn needs_prepare(dir: &Path, server_type: &str) -> bool {
     let Ok(kind) = crate::core::server_setup::normalize_server_type(server_type) else {
         return true;
     };
+    if crate::core::server_setup::is_rust_native(&kind) {
+        return crate::core::server_setup::find_rust_server_exe(dir).is_none();
+    }
     if crate::core::server_setup::is_forge_style(&kind) {
         return !dir.join("run.bat").is_file()
             && !dir.join("run.sh").is_file()
@@ -308,6 +335,7 @@ pub fn update_profile(
     mc_version: Option<&str>,
     ram_mb: Option<u32>,
     port: Option<u16>,
+    show_cmd_window: Option<bool>,
 ) -> AppResult<ServerProfile> {
     let mut all = load_all();
     let idx = all
@@ -325,6 +353,9 @@ pub fn update_profile(
     }
     if let Some(p) = port {
         all[idx].port = p;
+    }
+    if let Some(cmd_win) = show_cmd_window {
+        all[idx].show_cmd_window = cmd_win;
     }
     let prof = all[idx].clone();
     save_all(&all)?;
@@ -535,8 +566,8 @@ pub fn emit_running_changed() {
     }
 }
 
-/// Java de este server fuera del mapa del launcher (crash del UI, kill forzado, etc.).
-/// Sin esto, `session.lock` del mundo bloquea el siguiente arranque con "otro proceso…".
+/// Java o motor nativo Rust de este server fuera del mapa del launcher (crash del UI, kill forzado, etc.).
+/// Sin esto, `session.lock` del mundo o el puerto 25565 bloquean el siguiente arranque.
 fn kill_orphan_java_for_dir(dir: &Path) -> usize {
     let Ok(dir_canon) = dir.canonicalize().or_else(|_| Ok::<_, std::io::Error>(dir.to_path_buf()))
     else {
@@ -549,7 +580,11 @@ fn kill_orphan_java_for_dir(dir: &Path) -> usize {
     let mut killed = 0usize;
     for (_pid, proc) in sys.processes() {
         let name = proc.name().to_string_lossy().to_ascii_lowercase();
-        if !name.contains("java") {
+        let is_srv_proc = name.contains("java")
+            || name.contains("rust-server")
+            || name.contains("horizon-server")
+            || name.contains("pumpkin");
+        if !is_srv_proc {
             continue;
         }
         let cmd = proc
@@ -559,9 +594,10 @@ fn kill_orphan_java_for_dir(dir: &Path) -> usize {
             .collect::<Vec<_>>()
             .join(" ");
         let cmd_norm = cmd.replace('\\', "/");
-        if cmd_norm.contains(&needle_slash)
+        if process_belongs_to_dir(proc, &needle_slash, &needle)
+            || cmd_norm.contains(&needle_slash)
             || cmd.contains(&needle)
-            || cmd_norm.contains("/server.jar") && cmd_norm.contains(&needle_slash)
+            || (cmd_norm.contains("/server.jar") && cmd_norm.contains(&needle_slash))
         {
             if proc.kill() {
                 killed += 1;
@@ -751,15 +787,6 @@ pub fn start_mc(id: &str) -> AppResult<u32> {
         }
     }
 
-    let java = resolve_server_java(&prof.mc_version)?;
-    let java_home = java
-        .parent()
-        .and_then(|bin| bin.parent())
-        .map(|h| h.to_path_buf());
-    let java_major = crate::core::java::verify::verify(&java, "server")
-        .map(|j| j.version_major)
-        .unwrap_or_else(|| crate::core::java::required_for_mc(&prof.mc_version));
-    let ram = prof.ram_mb;
     let kind = crate::core::server_setup::normalize_server_type(&prof.server_type)?;
 
     // clear ya se hizo en apply_to_server path; si falló early puede no - safe re-append only
@@ -767,78 +794,145 @@ pub fn start_mc(id: &str) -> AppResult<u32> {
         crate::core::server_console::clear(id);
     }
     crate::core::server_console::append(id, "[launcher] Iniciando servidor…");
-    for msg in crate::core::server_setup::sanitize_server_mods(&dir, &prof.mc_version, java_major) {
-        crate::core::server_console::append(id, &msg);
-    }
 
-    let xms = (ram / 4).max(512);
-    let run_bat = dir.join("run.bat");
-    let mut child = if crate::core::server_setup::is_forge_style(&kind) && run_bat.is_file() {
-        let mut jvm_lines = vec![
-            format!("-Xmx{ram}M"),
-            format!("-Xms{xms}M"),
-            "-Dfml.readTimeout=180".to_string(),
-            "-Dfml.loginTimeout=180".to_string(),
-        ];
-        for flag in aikar_flags(ram) {
-            jvm_lines.push(flag.to_string());
+    let mut child = if crate::core::server_setup::is_rust_native(&kind) {
+        crate::core::server_setup::sync_rust_server_config(&dir, port);
+        let exe = crate::core::server_setup::find_rust_server_exe(&dir).ok_or_else(|| {
+            AppError::msg(
+                "No se encontró el binario nativo Rust del servidor. Tocá «Preparar servidor» para descargarlo.",
+            )
+        })?;
+        if prof.show_cmd_window {
+            crate::core::server_console::append(
+                id,
+                &format!(
+                    "[launcher] Motor Ultraligero Rust en ventana CMD visible: {}",
+                    exe.to_string_lossy()
+                ),
+            );
+            let safe_title = prof.name.replace('"', "").replace('&', "y");
+            let cmd_line = format!(
+                "title Paraguacraft Rust Server - {} && \"{}\"",
+                safe_title,
+                exe.to_string_lossy()
+            );
+            let mut cmd = Command::new("cmd");
+            cmd.current_dir(&dir).args(["/C", &cmd_line]);
+            show_console(&mut cmd);
+            cmd.spawn().map_err(|e| {
+                AppError::msg(format!("No se pudo abrir ventana CMD del servidor Rust: {e}"))
+            })?
+        } else {
+            crate::core::server_console::append(
+                id,
+                &format!(
+                    "[launcher] Motor Ultraligero Rust (sin Java · arranque instantáneo): {}",
+                    exe.to_string_lossy()
+                ),
+            );
+            let (stdin, stdout, stderr) = crate::core::server_console::pipe_stdio();
+            let mut cmd = Command::new(&exe);
+            cmd.current_dir(&dir).stdin(stdin).stdout(stdout).stderr(stderr);
+            hide_console(&mut cmd);
+            cmd.spawn().map_err(|e| {
+                AppError::msg(format!("No se pudo iniciar el motor nativo Rust: {e}"))
+            })?
         }
-        let _ = std::fs::write(
-            dir.join("user_jvm_args.txt"),
-            format!("{}\n", jvm_lines.join("\n")),
-        );
-        crate::core::server_console::append(
-            id,
-            &format!(
-                "[launcher] {}: cmd /C call run.bat nogui (Java {} · -Xmx{ram}M)",
-                crate::core::server_setup::type_label(&kind),
-                java.to_string_lossy()
-            ),
-        );
-        let (stdin, stdout, stderr) = crate::core::server_console::pipe_stdio();
-        let mut cmd = Command::new("cmd");
-        cmd.current_dir(&dir).args(["/C", "call", "run.bat", "nogui"]);
-        if let Some(ref home) = java_home {
-            cmd.env("JAVA_HOME", home);
-            let bin = home.join("bin");
-            let orig_path = std::env::var_os("PATH").unwrap_or_default();
-            let mut new_path = std::ffi::OsString::from(&bin);
-            new_path.push(";");
-            new_path.push(orig_path);
-            cmd.env("PATH", new_path);
-        }
-        cmd.stdin(stdin).stdout(stdout).stderr(stderr);
-        hide_console(&mut cmd);
-        cmd.spawn()
-            .map_err(|e| AppError::msg(format!("No se pudo iniciar run.bat: {e}")))?
     } else {
-        let jar = resolve_start_jar(&dir, &prof.server_type)?;
-        let jar_disp = jar.to_string_lossy();
-        crate::core::server_console::append(
-            id,
-            &format!(
-                "[launcher] {} -Xmx{ram}M -Xms{xms}M -jar {jar_disp} nogui",
-                java.to_string_lossy()
-            ),
-        );
-        let mut cmd = Command::new(&java);
-        cmd.current_dir(&dir)
-            .arg(format!("-Xmx{ram}M"))
-            .arg(format!("-Xms{xms}M"))
-            .arg("-Dfml.readTimeout=180")
-            .arg("-Dfml.loginTimeout=180");
-        if let Some(ref home) = java_home {
-            cmd.env("JAVA_HOME", home);
+        let java = resolve_server_java(&prof.mc_version)?;
+        let java_home = java
+            .parent()
+            .and_then(|bin| bin.parent())
+            .map(|h| h.to_path_buf());
+        let java_major = crate::core::java::verify::verify(&java, "server")
+            .map(|j| j.version_major)
+            .unwrap_or_else(|| crate::core::java::required_for_mc(&prof.mc_version));
+        let ram = prof.ram_mb;
+
+        for msg in crate::core::server_setup::sanitize_server_mods(&dir, &prof.mc_version, java_major)
+        {
+            crate::core::server_console::append(id, &msg);
         }
-        for flag in aikar_flags(ram) {
-            cmd.arg(flag);
+
+        let xms = (ram / 4).max(512);
+        let run_bat = dir.join("run.bat");
+        if crate::core::server_setup::is_forge_style(&kind) && run_bat.is_file() {
+            let mut jvm_lines = vec![
+                format!("-Xmx{ram}M"),
+                format!("-Xms{xms}M"),
+                "-Dfml.readTimeout=180".to_string(),
+                "-Dfml.loginTimeout=180".to_string(),
+            ];
+            for flag in aikar_flags(ram) {
+                jvm_lines.push(flag.to_string());
+            }
+            let _ = std::fs::write(
+                dir.join("user_jvm_args.txt"),
+                format!("{}\n", jvm_lines.join("\n")),
+            );
+            crate::core::server_console::append(
+                id,
+                &format!(
+                    "[launcher] {}: cmd /C call run.bat nogui (Java {} · -Xmx{ram}M{})",
+                    crate::core::server_setup::type_label(&kind),
+                    java.to_string_lossy(),
+                    if prof.show_cmd_window { " · ventana CMD" } else { "" }
+                ),
+            );
+            let mut cmd = Command::new("cmd");
+            cmd.current_dir(&dir).args(["/C", "call", "run.bat", "nogui"]);
+            if let Some(ref home) = java_home {
+                cmd.env("JAVA_HOME", home);
+                let bin = home.join("bin");
+                let orig_path = std::env::var_os("PATH").unwrap_or_default();
+                let mut new_path = std::ffi::OsString::from(&bin);
+                new_path.push(";");
+                new_path.push(orig_path);
+                cmd.env("PATH", new_path);
+            }
+            if prof.show_cmd_window {
+                show_console(&mut cmd);
+            } else {
+                let (stdin, stdout, stderr) = crate::core::server_console::pipe_stdio();
+                cmd.stdin(stdin).stdout(stdout).stderr(stderr);
+                hide_console(&mut cmd);
+            }
+            cmd.spawn()
+                .map_err(|e| AppError::msg(format!("No se pudo iniciar run.bat: {e}")))?
+        } else {
+            let jar = resolve_start_jar(&dir, &prof.server_type)?;
+            let jar_disp = jar.to_string_lossy();
+            crate::core::server_console::append(
+                id,
+                &format!(
+                    "[launcher] {} -Xmx{ram}M -Xms{xms}M -jar {jar_disp} nogui{}",
+                    java.to_string_lossy(),
+                    if prof.show_cmd_window { " (ventana CMD visible)" } else { "" }
+                ),
+            );
+            let mut cmd = Command::new(&java);
+            cmd.current_dir(&dir)
+                .arg(format!("-Xmx{ram}M"))
+                .arg(format!("-Xms{xms}M"))
+                .arg("-Dfml.readTimeout=180")
+                .arg("-Dfml.loginTimeout=180");
+            if let Some(ref home) = java_home {
+                cmd.env("JAVA_HOME", home);
+            }
+            for flag in aikar_flags(ram) {
+                cmd.arg(flag);
+            }
+            cmd.arg("-jar").arg(&jar).arg("nogui");
+            if prof.show_cmd_window {
+                show_console(&mut cmd);
+            } else {
+                let (stdin, stdout, stderr) = crate::core::server_console::pipe_stdio();
+                cmd.stdin(stdin).stdout(stdout).stderr(stderr);
+                hide_console(&mut cmd);
+            }
+            cmd.spawn()
+                .map_err(|e| AppError::msg(format!("No se pudo iniciar el servidor: {e}")))?
         }
-        cmd.arg("-jar").arg(&jar).arg("nogui");
-        let (stdin, stdout, stderr) = crate::core::server_console::pipe_stdio();
-        cmd.stdin(stdin).stdout(stdout).stderr(stderr);
-        hide_console(&mut cmd);
-        cmd.spawn()
-            .map_err(|e| AppError::msg(format!("No se pudo iniciar el servidor: {e}")))?
     };
 
     let pid = child.id();
@@ -1873,7 +1967,9 @@ pub fn send_command(id: &str, cmd: &str) -> AppResult<()> {
         slot.take()
     };
     let Some(mut stdin) = stdin else {
-        return Err(AppError::msg("Consola no disponible (Forge run.bat)"));
+        return Err(AppError::msg(
+            "Consola interactiva en ventana CMD externa (escribí el comando en la ventana CMD).",
+        ));
     };
     use std::io::Write;
     let payload = format!("{cmd}\n");
@@ -2515,6 +2611,7 @@ pub fn import_folder(path: &str, name: Option<&str>) -> AppResult<ServerProfile>
     if !dir.is_dir() {
         return Err(AppError::msg("Ruta inválida o no es una carpeta."));
     }
+    let has_rust = crate::core::server_setup::find_rust_server_exe(&dir).is_some();
     let has_paper = dir.join("server.jar").is_file();
     let has_fabric = dir.join("fabric-server-launch.jar").is_file();
     let has_forge = dir.join("run.bat").is_file()
@@ -2531,13 +2628,19 @@ pub fn import_folder(path: &str, name: Option<&str>) -> AppResult<ServerProfile>
                 })
             })
             .unwrap_or(false);
-    if !has_paper && !has_fabric && !has_forge {
+    if !has_rust && !has_paper && !has_fabric && !has_forge {
         return Err(AppError::msg(
-            "No parece un servidor: se espera server.jar, fabric-server-launch.jar o un setup Forge/NeoForge.",
+            "No parece un servidor: se espera server.jar, fabric-server-launch.jar, Forge/NeoForge o motor nativo Rust.",
         ));
     }
     let server_type = detect_server_type(&dir);
-    let mc_version = detect_mc_version(&dir).unwrap_or_else(|| "?".into());
+    let mc_version = detect_mc_version(&dir).unwrap_or_else(|| {
+        if server_type == "rust-native" {
+            "26.3".into()
+        } else {
+            "?".into()
+        }
+    });
     let display_name = name
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
@@ -2548,14 +2651,15 @@ pub fn import_folder(path: &str, name: Option<&str>) -> AppResult<ServerProfile>
         id: id.clone(),
         name: display_name,
         mc_version,
+        ram_mb: if server_type == "rust-native" { 256 } else { 4096 },
         server_type,
-        ram_mb: 4096,
         port: read_port_from_props(&dir).unwrap_or(25565),
         created_at: now(),
         playit_address: playit_address_from_meta(&dir),
         playit_bedrock_address: playit_bedrock_from_meta(&dir)
             .or_else(|| crate::core::playit_shared::shared_bedrock_address()),
         custom_folder: Some(dir.to_string_lossy().to_string()),
+        show_cmd_window: false,
     };
 
     // No tocar configs existentes: solo eula y meta del launcher.
@@ -2613,6 +2717,11 @@ fn detect_server_type(dir: &Path) -> String {
                 })
                 .unwrap_or(false)
     });
+    if crate::core::server_setup::find_rust_server_exe(dir).is_some()
+        && !dir.join("server.jar").is_file()
+    {
+        return "rust-native".into();
+    }
     let fabric = dir.join("fabric-server-launch.jar").is_file();
     if fabric && has_geyser {
         "fabric-geyser".into()
@@ -2662,6 +2771,16 @@ fn hide_console(cmd: &mut Command) {
 
 #[cfg(not(target_os = "windows"))]
 fn hide_console(_cmd: &mut Command) {}
+
+#[cfg(target_os = "windows")]
+fn show_console(cmd: &mut Command) {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NEW_CONSOLE: u32 = 0x0000_0010;
+    cmd.creation_flags(CREATE_NEW_CONSOLE);
+}
+
+#[cfg(not(target_os = "windows"))]
+fn show_console(_cmd: &mut Command) {}
 
 #[cfg(test)]
 mod tests {

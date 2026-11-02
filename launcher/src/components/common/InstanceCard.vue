@@ -3,6 +3,7 @@ import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import type { Instance } from "@/lib/types";
 import InstanceIcon from "@/components/instance/InstanceIcon.vue";
+import InstanceModsModal from "@/components/instance/InstanceModsModal.vue";
 import BaseButton from "@/components/common/BaseButton.vue";
 import ContextMenu, { type ContextMenuItem } from "@/components/common/ContextMenu.vue";
 import { formatPlaytime, formatRelative } from "@/composables/useFormat";
@@ -18,6 +19,7 @@ const instances = useInstancesStore();
 const app = useAppStore();
 
 const menu = ref<{ x: number; y: number } | null>(null);
+const showModsModal = ref(false);
 const busy = ref(false);
 const localError = ref<string | null>(null);
 const coverFailed = ref(false);
@@ -31,10 +33,11 @@ watch(
 );
 
 const menuItems: ContextMenuItem[] = [
-  { id: "open", label: "Abrir" },
+  { id: "open", label: "Abrir detalles" },
+  { id: "mods", label: "Gestor de Mods" },
   { id: "play", label: "Jugar" },
   { id: "sep1", label: "", separator: true },
-  { id: "edit", label: "Editar" },
+  { id: "edit", label: "Configuración" },
   { id: "duplicate", label: "Duplicar" },
   { id: "sep2", label: "", separator: true },
   { id: "delete", label: "Eliminar", danger: true },
@@ -54,6 +57,10 @@ function openDetail() {
 async function onSelect(id: string) {
   menu.value = null;
   localError.value = null;
+  if (id === "mods") {
+    showModsModal.value = true;
+    return;
+  }
   if (id === "open" || id === "edit") {
     openDetail();
     return;
@@ -128,8 +135,8 @@ async function onSelect(id: string) {
             <span class="text-gray-600">·</span>
             <span class="capitalize">{{ instance.loader.replace(/-/g, " ") }}</span>
           </p>
-          <p v-if="instance.modCount" class="mt-0.5 text-[11px] text-gray-500">
-            {{ instance.modCount }} mods
+          <p v-if="instance.modCount" class="mt-0.5 text-[11px] text-pc-green/90">
+            {{ instance.modCount }} mods activos
           </p>
         </div>
       </div>
@@ -137,13 +144,23 @@ async function onSelect(id: string) {
         <span>{{ formatRelative(instance.lastPlayed) }}</span>
         <span>{{ formatPlaytime(instance.totalPlayMinutes) }}</span>
       </div>
-      <BaseButton
-        class="w-full rounded-none"
-        :disabled="busy || app.launchPhase === 'running'"
-        @click.stop="$emit('play')"
-      >
-        {{ busy ? "…" : "Jugar" }}
-      </BaseButton>
+      <div class="flex border-t border-surface-3">
+        <BaseButton
+          class="flex-1 rounded-none"
+          :disabled="busy || app.launchPhase === 'running'"
+          @click.stop="$emit('play')"
+        >
+          {{ busy ? "…" : "Jugar" }}
+        </BaseButton>
+        <button
+          type="button"
+          class="border-l border-surface-3 bg-surface-3/80 px-3.5 text-xs font-semibold text-gray-300 transition hover:bg-surface-4 hover:text-white"
+          title="Abrir Gestor visual de Mods y Packs de esta instancia"
+          @click.stop="showModsModal = true"
+        >
+          Mods<span v-if="instance.modCount" class="ml-1 font-mono text-[10px] text-pc-green">({{ instance.modCount }})</span>
+        </button>
+      </div>
       <p v-if="localError" class="px-3 pb-2 text-[10px] text-red-400">{{ localError }}</p>
     </div>
 
@@ -154,6 +171,12 @@ async function onSelect(id: string) {
       :items="menuItems"
       @close="menu = null"
       @select="onSelect"
+    />
+
+    <InstanceModsModal
+      v-if="showModsModal"
+      :instance="instance"
+      @close="showModsModal = false"
     />
   </div>
 </template>

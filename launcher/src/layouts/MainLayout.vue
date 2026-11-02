@@ -29,6 +29,7 @@ const KEEP_ALIVE_VIEWS = [
   "store",
   "skins",
   "versions",
+  "horizon",
   "servers",
   "settings",
   "server-detail",
@@ -105,7 +106,7 @@ onMounted(() => {
       <TopBar />
       <main class="flex-1 overflow-y-auto">
         <RouterView v-slot="{ Component, route }">
-          <KeepAlive :include="KEEP_ALIVE_VIEWS" :max="10">
+          <KeepAlive :include="KEEP_ALIVE_VIEWS" :max="11">
             <component :is="Component" :key="keepAliveKey(route)" />
           </KeepAlive>
         </RouterView>

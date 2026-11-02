@@ -417,10 +417,12 @@ onMounted(async () => {
       <div>
         <h1 class="text-2xl font-black">Selector de skins</h1>
         <p class="mt-1 text-sm text-gray-400">
-          <span v-if="premiumMode" class="text-pc-green">Premium → Mojang</span>
-          <span v-else-if="isOfflineAccount">Offline → pack local + Ely.by / CustomSkinLoader</span>
-          <span v-else>Offline → resource pack local</span>
-          · Jugando como {{ accounts.active?.username ?? "—" }}
+          <span v-if="premiumMode" class="text-pc-green">Cuenta Oficial Microsoft → Sincronización Mojang</span>
+          <span v-else-if="isOfflineAccount" class="text-pc-green">
+            Sin cuenta oficial → Skin personalizada activa en todos los loaders y Vanilla
+          </span>
+          <span v-else>Skin personalizada local</span>
+          · Jugando como <span class="font-semibold text-white">{{ accounts.active?.username ?? "—" }}</span>
         </p>
       </div>
       <div class="flex gap-2">
@@ -448,44 +450,36 @@ onMounted(async () => {
         @click="toggleOfflineGuide"
       >
         <div class="min-w-0">
-          <p class="text-sm font-bold text-sky-200">Skin en servidores · cuenta offline</p>
+          <p class="text-sm font-bold text-sky-200">Skins personalizadas sin cuenta oficial · Automático</p>
           <p class="mt-0.5 truncate text-xs text-gray-400">
-            Cómo verse bien vos y que otros con la config correcta también te vean
+            Funciona al instante en Vanilla, Fabric, Forge, NeoForge, OptiFine, Optimized, PvP y servidores
           </p>
         </div>
         <span class="shrink-0 text-xs font-bold text-sky-300">{{ offlineGuideOpen ? "Ocultar" : "Ver guía" }}</span>
       </button>
       <div v-if="offlineGuideOpen" class="border-t border-sky-500/20 px-4 py-4 text-sm text-gray-300">
-        <ol class="list-decimal space-y-3 pl-5">
+        <ol class="list-decimal space-y-2.5 pl-5">
           <li>
-            <span class="font-semibold text-white">Elegí y aplicá tu skin acá</span>
-            — biblioteca, tienda o Importar PNG. Se guarda para tu cuenta
-            <span class="font-mono text-pc-green">{{ accounts.active?.username }}</span>.
+            <span class="font-semibold text-white">Elegí cualquier skin o subí tu propio PNG</span>
+            — elegí brazos <span class="text-white">Anchos (Clásico)</span> o <span class="text-white">Delgados (Slim)</span> abajo del visor 3D y tocá <span class="text-pc-green font-semibold">Aplicar</span>. Se guarda para tu nick
+            <span class="font-mono text-pc-green">{{ accounts.active?.username }}</span> sin pisar otras cuentas.
           </li>
           <li>
-            <span class="font-semibold text-white">Jugá con esta misma cuenta offline</span>
-            (el nick del launcher debe coincidir con el de Ely.by). Al lanzar un loader con mods (PvP, Optimized, Fabric, Forge),
-            Paraguacraft instala <span class="text-white">CustomSkinLoader</span> solo.
+            <span class="font-semibold text-white">Funciona sola en cualquier versión y loader</span>
+            — en <span class="text-white">Fabric, Quilt, Forge, NeoForge, OptiFine, Optimized y PvP</span> el launcher configura
+            <span class="text-white">CustomSkinLoader</span> con tu PNG local en prioridad #1. En
+            <span class="text-white">Vanilla puro</span> activa automáticamente el pack <span class="font-mono text-xs text-white">Paraguacraft-MiSkin.zip</span>.
           </li>
           <li>
-            <span class="font-semibold text-white">Multiplayer: registrá el mismo nick en Ely.by</span>
-            y subí la misma skin en
+            <span class="font-semibold text-white">Para que tus amigos también vean tu skin en servidores</span>
+            — en los servidores creados en Paraguacraft sincronizamos <span class="text-white">SkinsRestorer</span> automáticamente; y para servidores públicos podés registrar el mismo nick en
             <button type="button" class="font-bold text-sky-300 underline decoration-sky-500/50 hover:text-sky-200" @click="openElyBy">
               ely.by
-            </button>.
-            Si tu nick del launcher es distinto, andá a
+            </button>
+            (o cambiar tu nick en
             <RouterLink to="/settings#accounts" class="font-bold text-sky-300 underline decoration-sky-500/50 hover:text-sky-200">
-              Ajustes → Cuentas → Renombrar
-            </RouterLink>
-            y poné el mismo nombre que en Ely.by. Así otros clientes con CustomSkinLoader pueden cargarte.
-          </li>
-          <li>
-            <span class="font-semibold text-white">Quién te ve</span>
-            —
-            <span class="text-white">vos</span> (LocalSkin / pack local del launcher, solo tu nick);
-            <span class="text-white">otros con CSL / Ely.by</span>;
-            en servers de Paraguacraft, <span class="text-white">SkinsRestorer pide a Ely.by</span>
-            y vanilla / PvP también te ven. Nunca se reutiliza tu historial de skins en otros jugadores.
+              Ajustes → Cuentas
+            </RouterLink>).
           </li>
         </ol>
         <div class="mt-4 flex flex-wrap gap-2">
@@ -523,9 +517,27 @@ onMounted(async () => {
             :model="selectedPreview.model"
             :cape-url="previewCape"
             :username="selectedPreview.username"
-            :height="420"
+            :height="400"
           />
-          <div class="mt-3 flex items-center justify-between gap-2">
+          <div class="mt-2.5 flex items-center justify-center gap-1 rounded-xl bg-surface-3 p-1 text-xs">
+            <button
+              type="button"
+              class="flex-1 rounded-lg py-1 font-semibold transition"
+              :class="selectedPreview.model === 'classic' ? 'bg-pc-green text-black' : 'text-gray-400 hover:text-white'"
+              @click="selectedPreview.model = 'classic'"
+            >
+              Clásico (4px)
+            </button>
+            <button
+              type="button"
+              class="flex-1 rounded-lg py-1 font-semibold transition"
+              :class="selectedPreview.model === 'slim' ? 'bg-pc-green text-black' : 'text-gray-400 hover:text-white'"
+              @click="selectedPreview.model = 'slim'"
+            >
+              Delgado (3px)
+            </button>
+          </div>
+          <div class="mt-2.5 flex items-center justify-between gap-2">
             <label class="flex items-center gap-2 text-xs text-gray-400">
               <input v-model="showCape" type="checkbox" class="accent-pc-green" />
               Mostrar capa

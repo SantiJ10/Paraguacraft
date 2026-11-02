@@ -24,8 +24,15 @@ pub fn create_server(
     mc_version: String,
     server_type: String,
     ram_mb: u32,
+    show_cmd_window: Option<bool>,
 ) -> AppResult<ServerProfile> {
-    servers::create(&name, &mc_version, &server_type, ram_mb)
+    servers::create_ex(
+        &name,
+        &mc_version,
+        &server_type,
+        ram_mb,
+        show_cmd_window.unwrap_or(false),
+    )
 }
 
 #[tauri::command]
@@ -52,6 +59,7 @@ pub fn update_server(
     mc_version: Option<String>,
     ram_mb: Option<u32>,
     port: Option<u16>,
+    show_cmd_window: Option<bool>,
 ) -> AppResult<ServerProfile> {
     servers::update_profile(
         &id,
@@ -59,6 +67,7 @@ pub fn update_server(
         mc_version.as_deref(),
         ram_mb,
         port,
+        show_cmd_window,
     )
 }
 
@@ -70,6 +79,7 @@ pub async fn start_server(
 ) -> AppResult<u32> {
     let prof = servers::profile_by_id(&id)?;
     let dir = servers::folder_for(&prof);
+    let kind = crate::core::server_setup::normalize_server_type(&prof.server_type)?;
     {
         let (http, _net) = state.net_scope();
         if servers::needs_prepare(&dir, &prof.server_type) {
@@ -84,7 +94,9 @@ pub async fn start_server(
             });
         }
     }
-    let _ = crate::core::java::resolve::ensure_server_java(&app, &state, &prof.mc_version).await?;
+    if !crate::core::server_setup::is_rust_native(&kind) {
+        let _ = crate::core::java::resolve::ensure_server_java(&app, &state, &prof.mc_version).await?;
+    }
     let pid = servers::start_mc(&id)?;
     // Túnel siempre en playit.exe (Rust), no en el plugin de Java.
     servers::disable_playit_plugin_jars(&id);
@@ -194,8 +206,16 @@ pub fn read_server_properties(id: String) -> AppResult<HashMap<String, String>> 
 
 #[tauri::command]
 pub fn write_server_properties(id: String, props: HashMap<String, String>) -> AppResult<()> {
-    let dir = servers::folder_for_id(&id)?;
-    server_properties::write(&dir, &props)
+    let prof = servers::profile_by_id(&id)?;
+    let dir = servers::folder_for(&prof);
+    server_properties::write(&dir, &props)?;
+    if let Ok(kind) = crate::core::server_setup::normalize_server_type(&prof.server_type) {
+        if crate::core::server_setup::is_rust_native(&kind) {
+            let port = if prof.port > 0 { prof.port } else { 25565 };
+            crate::core::server_setup::sync_rust_server_config(&dir, port);
+        }
+    }
+    Ok(())
 }
 
 #[tauri::command]

@@ -229,6 +229,12 @@ pub fn run() {
             commands::bedrock::delete_bedrock_pack,
             commands::bedrock::import_bedrock_pack,
             commands::bedrock::install_bedrock_pack_url,
+            commands::horizon::get_horizon_status,
+            commands::horizon::prepare_horizon_assets,
+            commands::horizon::install_horizon_engine,
+            commands::horizon::pick_horizon_binary,
+            commands::horizon::launch_horizon_engine,
+            commands::horizon::open_horizon_folder,
             // Fase 4
             commands::diagnostics::diagnose_instance,
             commands::diagnostics::ai_assist,

@@ -159,6 +159,7 @@ const serverId = computed(() => String(route.params.id ?? ""));
 const server = computed(
   () => serversStore.servers.find((s) => s.id === serverId.value) ?? null,
 );
+const isRustNative = computed(() => server.value?.serverType === "rust-native");
 const isFabric = computed(() => server.value?.serverType.startsWith("fabric") ?? false);
 const isNeoForge = computed(() => (server.value?.serverType ?? "").includes("neoforge"));
 const isForge = computed(() => {
@@ -167,7 +168,20 @@ const isForge = computed(() => {
 });
 /** Fabric / Forge / NeoForge — pueden importar modpacks. */
 const isModpackServer = computed(() => isFabric.value || isForge.value || isNeoForge.value);
-const isPaper = computed(() => !isModpackServer.value);
+const isPaper = computed(() => !isModpackServer.value && !isRustNative.value);
+
+async function toggleShowCmdWindow() {
+  if (!server.value) return;
+  try {
+    const next = !server.value.showCmdWindow;
+    await serversStore.update({ id: server.value.id, showCmdWindow: next });
+    message.value = next
+      ? "Modo ventana CMD visible activado para el próximo inicio."
+      : "Modo consola integrada activado para el próximo inicio.";
+  } catch (e) {
+    error.value = String(e);
+  }
+}
 
 const ramOptions = computed(() => {
   const maxMb = appStore.hardware
@@ -880,6 +894,7 @@ function serverTypeLabel(t: string) {
     "fabric-geyser": "Fabric + Geyser",
     forge: "Forge",
     neoforge: "NeoForge",
+    "rust-native": "Motor Ultraligero Rust (Horizon / Pumpkin)",
   };
   return map[t] ?? t;
 }
@@ -899,16 +914,34 @@ function serverTypeLabel(t: string) {
 
     <template v-else-if="server">
       <header class="mb-6 flex flex-wrap items-start gap-4">
-        <div class="flex h-16 w-16 items-center justify-center rounded-xl bg-surface-4 text-3xl">🖥️</div>
+        <div class="flex h-16 w-16 items-center justify-center rounded-xl bg-surface-4 text-3xl">
+          {{ isRustNative ? "⚡" : "🖥️" }}
+        </div>
         <div class="min-w-0 flex-1">
-          <h1 class="text-2xl font-bold">{{ server.name }}</h1>
+          <div class="flex flex-wrap items-center gap-2">
+            <h1 class="text-2xl font-bold">{{ server.name }}</h1>
+            <span
+              v-if="isRustNative"
+              class="rounded bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-300"
+            >
+              Motor Rust Nativo · Sin Java
+            </span>
+          </div>
           <p class="text-sm text-gray-400">
             Minecraft {{ server.mcVersion }} · {{ serverTypeLabel(server.serverType) }} ·
-            {{ (server.ramMb / 1024).toFixed(0) }} GB · puerto {{ server.port }}
+            {{ isRustNative ? "~80 MB RAM" : `${(server.ramMb / 1024).toFixed(0)} GB` }} · puerto {{ server.port }}
           </p>
           <p class="text-xs" :class="status?.running ? 'text-pc-green' : 'text-gray-500'">
             {{ status?.running ? `En ejecución (PID ${status?.pid ?? "?"})` : "Detenido" }}
             <span v-if="status?.playitRunning"> · túnel Playit activo</span>
+            <button
+              type="button"
+              class="ml-2 rounded border border-surface-5 bg-surface-3 px-2 py-0.5 text-[11px] font-semibold text-gray-300 transition hover:border-pc-green hover:text-white"
+              :title="status?.running ? 'Se aplicará en el próximo arranque' : 'Alternar entre consola integrada o ventana CMD clásica de Windows'"
+              @click="toggleShowCmdWindow"
+            >
+              {{ server.showCmdWindow ? "🪟 Ventana CMD: Sí" : "🪟 Ventana CMD: No" }}
+            </button>
           </p>
           <p v-if="playitAddr || status?.playitAddress" class="mt-1 text-xs text-pc-green">
             Playit: {{ status?.playitAddress ?? playitAddr }}

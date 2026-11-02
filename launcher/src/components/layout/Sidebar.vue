@@ -29,6 +29,7 @@ const nav = computed(() => [
   { name: "store", label: t("nav_store"), to: "/store", icon: "store" },
   { name: "skins", label: t("nav_skins"), to: "/skins", icon: "skins" },
   { name: "versions", label: t("nav_versions"), to: "/versions", icon: "layers" },
+  { name: "horizon", label: t("nav_horizon"), to: "/horizon", icon: "bolt" },
   { name: "servers", label: t("nav_servers"), to: serversNavTo.value, icon: "server" },
 ]);
 
@@ -72,6 +73,7 @@ const icons: Record<string, string> = {
   store: "M3 9l1-5h16l1 5M4 9v11h16V9M9 13h6",
   skins: "M12 2a4 4 0 00-4 4v2H6a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V10a2 2 0 00-2-2h-2V6a4 4 0 00-4-4zm0 2a2 2 0 012 2v2h-4V6a2 2 0 012-2z",
   layers: "M12 2l9 5-9 5-9-5 9-5zM3 12l9 5 9-5M3 17l9 5 9-5",
+  bolt: "M13 2L3 14h8l-1 8 10-12h-8l1-8z",
   server: "M4 6h16v4H4zM4 14h16v4H4zM6 8h.01M6 16h.01",
   settings:
     "M12 15a3 3 0 100-6 3 3 0 000 6zM19 12a7 7 0 00-.1-1l2-1.6-2-3.4-2.4 1a7 7 0 00-1.7-1l-.4-2.5h-4l-.4 2.5a7 7 0 00-1.7 1l-2.4-1-2 3.4 2 1.6a7 7 0 000 2l-2 1.6 2 3.4 2.4-1a7 7 0 001.7 1l.4 2.5h4l.4-2.5a7 7 0 001.7-1l2.4 1 2-3.4-2-1.6a7 7 0 00.1-1z",

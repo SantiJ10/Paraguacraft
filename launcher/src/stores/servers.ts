@@ -99,6 +99,7 @@ export const useServersStore = defineStore("servers", () => {
     mcVersion: string;
     serverType: string;
     ramMb: number;
+    showCmdWindow?: boolean;
   }) {
     const s = await api.createServer(payload);
     upsert(s);
@@ -129,6 +130,7 @@ export const useServersStore = defineStore("servers", () => {
     mcVersion?: string;
     ramMb?: number;
     port?: number;
+    showCmdWindow?: boolean;
   }) {
     const s = await api.updateServer(payload);
     upsert(s);

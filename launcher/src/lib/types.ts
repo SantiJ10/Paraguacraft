@@ -141,6 +141,21 @@ export interface BedrockPack {
   iconPath: string | null;
 }
 
+export interface HorizonStatus {
+  platformSupported: boolean;
+  premiumAllowed: boolean;
+  username: string | null;
+  assets263Ready: boolean;
+  installed: boolean;
+  binaryPath: string | null;
+  installedTag: string | null;
+  latestTag: string | null;
+  customBinary: boolean;
+  gpuName: string;
+  vulkanHint: string;
+  horizonDir: string;
+}
+
 export interface Instance {
   id: string;
   name: string;
@@ -365,7 +380,8 @@ export type ServerType =
   | "fabric"
   | "fabric-geyser"
   | "forge"
-  | "neoforge";
+  | "neoforge"
+  | "rust-native";
 
 export interface ServerProfile {
   id: string;
@@ -379,6 +395,7 @@ export interface ServerProfile {
   /** Túnel Bedrock (host o host:puerto público Playit). */
   playitBedrockAddress?: string | null;
   customFolder?: string | null;
+  showCmdWindow?: boolean;
 }
 
 export interface ServerStatus {
@@ -695,6 +712,8 @@ export interface InstanceContentItem {
   author?: string | null;
   description?: string | null;
   localIconPath?: string | null;
+  version?: string | null;
+  modLoader?: string | null;
   compatible?: boolean | null;
   compatMessage?: string | null;
 }

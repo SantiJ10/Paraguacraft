@@ -1,32 +1,29 @@
-//! CustomSkinLoader + Ely.by para cuentas no-premium.
+//! CustomSkinLoader + LocalSkin + Ely.by para cuentas sin cuenta oficial (offline).
 //!
-//! Inyecta el mod en `mods/` cuando el usuario lanza offline, para cargar skins
-//! desde Ely.by (visibles en servidores third-party para quien tenga CSL).
+//! Prioridad en `CustomSkinLoader.json`:
+//!   1. `LocalSkin` (`LocalSkin/skins/{USERNAME}.png` + modelo `default`/`slim`) → tu skin
+//!      personalizada SIEMPRE prevalece en tu nick activo, aunque ese nombre exista en Mojang/Ely.by.
+//!   2. `ElyBy` → otros jugadores no-premium registrados en Ely.by en multiplayer.
+//!   3. `Mojang` → otros jugadores con cuenta oficial en multiplayer.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use reqwest::Client;
 use tauri::AppHandle;
 
+use crate::core::loaders;
 use crate::core::store::modrinth;
 use crate::error::AppResult;
 
 const CSL_PROJECT: &str = "idMHQ4n2"; // CustomSkinLoader en Modrinth
 
-fn csl_loader_tag(loader: &str) -> Option<&'static str> {
-    let l = loader.to_ascii_lowercase();
-    if l.contains("fabric") || l.contains("pvp-modern") || l.contains("iris") {
-        Some("fabric")
-    } else if l.contains("neoforge") {
-        Some("neoforge")
-    } else if l.contains("forge") || l.contains("pvp") || l.contains("optifine") {
-        // 1.8–1.12 usan Forge; OptiFine+Forge también.
-        Some("forge")
-    } else if l.contains("optimized") {
-        // Optimized 1.20.1+ = Fabric (salvo legacy OptiFine).
-        Some("fabric")
-    } else {
-        None
+fn csl_loader_tag(loader: &str, mc: &str) -> Option<&'static str> {
+    match loaders::store_loader_for(loader, mc).as_str() {
+        "fabric" => Some("fabric"),
+        "quilt" => Some("quilt"),
+        "neoforge" => Some("neoforge"),
+        "forge" | "optifine" => Some("forge"),
+        _ => None,
     }
 }
 
@@ -36,51 +33,68 @@ fn has_csl_jar(mods_dir: &Path) -> bool {
     };
     rd.flatten().any(|e| {
         let n = e.file_name().to_string_lossy().to_ascii_lowercase();
-        n.ends_with(".jar") && n.contains("customskinloader")
+        n.ends_with(".jar") && !n.ends_with(".disabled") && n.contains("customskinloader")
     })
 }
 
-/// Escribe preferencias para Mojang → Ely.by → LocalSkin.
-/// Re-escribe si falta ElyBy en el loadlist (configs viejas).
+/// Escribe `CustomSkinLoader.json` con `LocalSkin` primero → `ElyBy` → `Mojang` y modelo `default`/`slim`.
 pub fn write_ely_config(game_dir: &Path) {
+    let variant = crate::core::skins::offline::active_skin_variant();
+    write_csl_config_with_variant(game_dir, &variant);
+}
+
+pub fn write_csl_config_with_variant(game_dir: &Path, variant: &str) {
     let cfg_dir = game_dir.join("CustomSkinLoader");
     let _ = std::fs::create_dir_all(cfg_dir.join("LocalSkin/skins"));
     let _ = std::fs::create_dir_all(cfg_dir.join("LocalSkin/capes"));
     let path = cfg_dir.join("CustomSkinLoader.json");
+
+    let csl_model = if variant == "slim" { "slim" } else { "default" };
+    let expected_marker = format!("\"model\": \"{csl_model}\"");
+
     let need_write = match std::fs::read_to_string(&path) {
-        Ok(s) => !s.contains("ElyBy") || !s.contains("LocalSkin"),
+        Ok(s) => {
+            !s.contains("\"buildNumber\": 2")
+                || !s.contains("ElyBy")
+                || !s.contains("LocalSkin")
+                || !s.contains(&expected_marker)
+        }
         Err(_) => true,
     };
     if !need_write {
         return;
     }
-    let body = r#"{
-  "version": "14.19",
-  "buildNumber": 0,
+
+    let body = format!(
+        r#"{{
+  "version": "14.20",
+  "buildNumber": 2,
   "loadlist": [
-    {
-      "name": "Mojang",
-      "type": "MojangAPI"
-    },
-    {
-      "name": "ElyBy",
-      "type": "ElyByAPI",
-      "root": "http://skinsystem.ely.by/"
-    },
-    {
+    {{
       "name": "LocalSkin",
       "type": "Legacy",
       "checkPNG": false,
-      "skin": "LocalSkin/skins/{USERNAME}.png",
-      "cape": "LocalSkin/capes/{USERNAME}.png"
-    }
+      "model": "{csl_model}",
+      "skin": "LocalSkin/skins/{{USERNAME}}.png",
+      "cape": "LocalSkin/capes/{{USERNAME}}.png"
+    }},
+    {{
+      "name": "ElyBy",
+      "type": "ElyByAPI",
+      "root": "http://skinsystem.ely.by/"
+    }},
+    {{
+      "name": "Mojang",
+      "type": "MojangAPI"
+    }}
   ]
-}
-"#;
+}}
+"#
+    );
     let _ = std::fs::write(path, body);
 }
 
-/// Instala CustomSkinLoader si la cuenta es offline y el loader lo soporta.
+/// Instala CustomSkinLoader en `mods/` si la cuenta es offline y la instancia admite mods.
 pub async fn ensure_for_offline_launch(
     app: &AppHandle,
     client: &Client,
@@ -93,19 +107,14 @@ pub async fn ensure_for_offline_launch(
     if auth != "legacy" && auth != "offline" {
         return Ok(());
     }
-    let Some(loader_tag) = csl_loader_tag(loader) else {
+    let Some(loader_tag) = csl_loader_tag(loader, mc) else {
         return Ok(());
     };
-    // Vanilla pure: no hay carpeta mods.
+
+    // En instancias Paraguacraft `versions/` es compartido globalmente, así que siempre
+    // aseguramos `mods/` cuando el loader soporta mods (Fabric/Quilt/Forge/NeoForge/Optimized/PvP).
     let mods_dir = game_dir.join("mods");
-    if !mods_dir.is_dir() {
-        // Si hay profile de Forge/Fabric el launcher ya creó mods/; si no, no forzar.
-        let has_versions = game_dir.join("versions").is_dir();
-        if !has_versions {
-            return Ok(());
-        }
-        let _ = std::fs::create_dir_all(&mods_dir);
-    }
+    let _ = std::fs::create_dir_all(&mods_dir);
 
     write_ely_config(game_dir);
 
@@ -113,7 +122,7 @@ pub async fn ensure_for_offline_launch(
         return Ok(());
     }
 
-    match modrinth::install(
+    let res = modrinth::install(
         app,
         client,
         CSL_PROJECT,
@@ -122,24 +131,39 @@ pub async fn ensure_for_offline_launch(
         loader_tag,
         mods_dir.clone(),
     )
-    .await
-    {
-        Ok(_) => Ok(()),
-        Err(e) => {
-            eprintln!("[paraguacraft] CustomSkinLoader (Ely.by): {e}");
-            // No bloquear el launch si Modrinth falla.
-            Ok(())
+    .await;
+
+    if res.is_err() && loader_tag == "quilt" {
+        // Quilt carga mods Fabric nativamente si no hay build específico etiquetado como quilt.
+        if let Err(e) = modrinth::install(
+            app,
+            client,
+            CSL_PROJECT,
+            "mod",
+            mc,
+            "fabric",
+            mods_dir,
+        )
+        .await
+        {
+            eprintln!("[paraguacraft] CustomSkinLoader fallback fabric en quilt: {e}");
         }
+        return Ok(());
     }
+
+    if let Err(e) = res {
+        eprintln!("[paraguacraft] CustomSkinLoader: {e}");
+    }
+    Ok(())
 }
 
-/// Solo escribe CustomSkinLoader.json (sin descargar el jar).
+/// Solo escribe CustomSkinLoader.json (modo sin conexión).
 pub fn ensure_local_config(game_dir: &Path, loader: &str, auth_type: &str) {
     let auth = auth_type.trim().to_ascii_lowercase();
     if auth != "legacy" && auth != "offline" {
         return;
     }
-    if csl_loader_tag(loader).is_none() {
+    if csl_loader_tag(loader, "").is_none() {
         return;
     }
     write_ely_config(game_dir);

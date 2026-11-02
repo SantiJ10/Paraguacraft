@@ -13,6 +13,7 @@ import InstanceIcon from "@/components/instance/InstanceIcon.vue";
 import NewsFeed from "@/components/home/NewsFeed.vue";
 import HomeStatusPanel from "@/components/home/HomeStatusPanel.vue";
 import BedrockHomeCard from "@/components/home/BedrockHomeCard.vue";
+import HorizonHomeCard from "@/components/home/HorizonHomeCard.vue";
 import { formatPlaytime } from "@/composables/useFormat";
 import type { Instance } from "@/lib/types";
 
@@ -160,6 +161,7 @@ async function play(inst: { id: string; name: string }) {
         <h2 class="mb-4 text-lg font-bold">Jugados recientemente</h2>
         <div class="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4">
           <BedrockHomeCard />
+          <HorizonHomeCard />
           <InstanceCard
             v-for="inst in instances.recent"
             :key="inst.id"

@@ -10,6 +10,7 @@ pub mod app_ctx;
 // Fase 2
 pub mod accounts;
 pub mod bedrock;
+pub mod horizon;
 pub mod branding;
 pub mod instances;
 pub mod java;

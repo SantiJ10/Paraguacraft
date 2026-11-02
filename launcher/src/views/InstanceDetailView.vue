@@ -48,6 +48,7 @@ const isLiveLog = computed(
 const contentSearch = ref("");
 const contentQuery = useDebounced(contentSearch);
 const contentKind = ref<"all" | "mod" | "resourcepack" | "shader">("all");
+const contentStatus = ref<"all" | "active" | "disabled" | "warn">("all");
 const contentBusy = ref(false);
 const exporting = ref(false);
 const resourceBudget = ref<ResourceBudget | null>(null);
@@ -607,9 +608,12 @@ const contentByFolder = computed(() => {
   const map = new Map<string, InstanceContentItem[]>();
   for (const item of content.value) {
     if (contentKind.value !== "all" && item.kind !== contentKind.value) continue;
+    if (contentStatus.value === "active" && !item.enabled) continue;
+    if (contentStatus.value === "disabled" && item.enabled) continue;
+    if (contentStatus.value === "warn" && item.compatible !== false) continue;
     if (q) {
-      const label = (item.displayName ?? item.name).toLowerCase();
-      if (!label.includes(q) && !item.name.toLowerCase().includes(q)) continue;
+      const label = `${item.displayName ?? ""} ${item.name} ${item.author ?? ""}`.toLowerCase();
+      if (!label.includes(q)) continue;
     }
     const list = map.get(item.folder) ?? [];
     list.push(item);
@@ -618,11 +622,26 @@ const contentByFolder = computed(() => {
   return map;
 });
 
+const contentStats = computed(() => {
+  const mods = content.value.filter((i) => i.kind === "mod");
+  const active = mods.filter((i) => i.enabled).length;
+  const disabled = mods.length - active;
+  const warn = content.value.filter((i) => i.compatible === false).length;
+  return { totalMods: mods.length, active, disabled, warn };
+});
+
 const contentKindTabs = [
   { id: "all" as const, label: "Todo" },
   { id: "mod" as const, label: "Mods" },
   { id: "resourcepack" as const, label: "Resource packs" },
   { id: "shader" as const, label: "Shaders" },
+];
+
+const contentStatusTabs = [
+  { id: "all" as const, label: "Todos" },
+  { id: "active" as const, label: "Activos" },
+  { id: "disabled" as const, label: "Desactivados" },
+  { id: "warn" as const, label: "Con avisos" },
 ];
 
 async function removeContent(item: InstanceContentItem) {
@@ -943,19 +962,44 @@ async function exportInstance() {
 
       <!-- Contenido -->
       <section v-if="tab === 'content'" class="space-y-4">
-        <div class="flex flex-wrap items-center gap-3">
-          <div class="w-56"><SearchInput v-model="contentSearch" placeholder="Buscar mod o pack…" /></div>
-          <div class="flex flex-wrap gap-1">
-            <button
-              v-for="k in contentKindTabs"
-              :key="k.id"
-              type="button"
-              class="rounded-full px-3 py-1 text-xs font-semibold transition-colors"
-              :class="contentKind === k.id ? 'bg-pc-green text-black' : 'bg-surface-3 text-gray-400 hover:text-white'"
-              @click="contentKind = k.id"
-            >
-              {{ k.label }}
-            </button>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex flex-wrap items-center gap-3">
+            <div class="w-56"><SearchInput v-model="contentSearch" placeholder="Buscar mod, autor o pack…" /></div>
+            <div class="flex flex-wrap gap-1">
+              <button
+                v-for="k in contentKindTabs"
+                :key="k.id"
+                type="button"
+                class="rounded-full px-3 py-1 text-xs font-semibold transition-colors"
+                :class="contentKind === k.id ? 'bg-pc-green text-black' : 'bg-surface-3 text-gray-400 hover:text-white'"
+                @click="contentKind = k.id"
+              >
+                {{ k.label }}
+              </button>
+            </div>
+            <div class="flex flex-wrap gap-1 border-l border-surface-4 pl-2">
+              <button
+                v-for="st in contentStatusTabs"
+                :key="st.id"
+                type="button"
+                class="rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors"
+                :class="contentStatus === st.id ? 'bg-surface-4 text-white ring-1 ring-pc-green/50' : 'bg-surface-3/60 text-gray-400 hover:text-white'"
+                @click="contentStatus = st.id"
+              >
+                {{ st.label }}
+              </button>
+            </div>
+          </div>
+          <div v-if="contentStats.totalMods > 0" class="flex items-center gap-2 text-xs">
+            <span class="rounded-lg bg-pc-green/15 px-2.5 py-1 font-semibold text-pc-green">
+              {{ contentStats.active }} activos
+            </span>
+            <span v-if="contentStats.disabled > 0" class="rounded-lg bg-surface-4 px-2.5 py-1 font-semibold text-gray-300">
+              {{ contentStats.disabled }} off
+            </span>
+            <span v-if="contentStats.warn > 0" class="rounded-lg bg-amber-500/20 px-2.5 py-1 font-semibold text-amber-300">
+              {{ contentStats.warn }} aviso(s)
+            </span>
           </div>
         </div>
 

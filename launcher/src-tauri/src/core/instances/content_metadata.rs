@@ -1,4 +1,4 @@
-//! Metadatos Modrinth (nombre, icono, autor) para contenido instalado.
+//! Metadatos Modrinth y manifiestos locales (.jar/.zip) para contenido instalado.
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -59,7 +59,12 @@ pub async fn enrich(
         }
     }
 
-    let project_ids: Vec<String> = hash_to_project.values().cloned().collect::<HashSet<_>>().into_iter().collect();
+    let project_ids: Vec<String> = hash_to_project
+        .values()
+        .cloned()
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect();
     let mut projects: HashMap<String, ProjectMeta> = HashMap::new();
     if !project_ids.is_empty() {
         let ids_json = serde_json::to_string(&project_ids).unwrap_or_else(|_| "[]".into());
@@ -107,6 +112,17 @@ pub async fn enrich(
                 }
             }
             if let Some(ver) = hash_version.get(hash) {
+                if let Some(vn) = ver["version_number"].as_str().filter(|s| !s.is_empty()) {
+                    item.version = Some(vn.to_string());
+                }
+                if item.mod_loader.is_none() {
+                    if let Some(arr) = ver["loaders"].as_array() {
+                        let ls: Vec<&str> = arr.iter().filter_map(|v| v.as_str()).collect();
+                        if !ls.is_empty() {
+                            item.mod_loader = Some(ls.join(" / "));
+                        }
+                    }
+                }
                 let (ok, msg) = check_compat(ver, &mc, &loader, &item.folder);
                 item.compatible = Some(ok);
                 if let Some(m) = msg {
@@ -142,6 +158,8 @@ fn enrich_local(base: &Path, item: &mut InstanceContentItem) {
                 }
             }
         }
+    } else if item.folder == "mods" {
+        enrich_local_mod_jar(&path, item);
     } else if item.folder == "resourcepacks" || item.folder == "shaderpacks" {
         if let Ok(file) = std::fs::File::open(&path) {
             if let Ok(mut zip) = zip::ZipArchive::new(file) {
@@ -160,7 +178,7 @@ fn enrich_local(base: &Path, item: &mut InstanceContentItem) {
                     }
                 }
                 if item.icon_url.is_none() {
-                    if let Some(data) = extract_zip_pack_png_data(&mut zip) {
+                    if let Some(data) = extract_zip_png_data(&mut zip, "pack.png") {
                         item.icon_url = Some(data);
                     }
                 }
@@ -169,8 +187,288 @@ fn enrich_local(base: &Path, item: &mut InstanceContentItem) {
     }
 }
 
-fn extract_zip_pack_png_data(zip: &mut zip::ZipArchive<std::fs::File>) -> Option<String> {
-    let mut entry = zip.by_name("pack.png").ok()?;
+fn enrich_local_mod_jar(path: &Path, item: &mut InstanceContentItem) {
+    let Ok(file) = std::fs::File::open(path) else {
+        return;
+    };
+    let Ok(mut zip) = zip::ZipArchive::new(file) else {
+        return;
+    };
+
+    let mut icon_candidate: Option<String> = None;
+
+    // 1. Fabric (fabric.mod.json)
+    if let Some(raw) = read_zip_text(&mut zip, "fabric.mod.json") {
+        if let Ok(v) = serde_json::from_str::<Value>(&raw) {
+            item.mod_loader = Some("Fabric".into());
+            if let Some(n) = v["name"].as_str().filter(|s| !s.trim().is_empty()) {
+                item.display_name = Some(n.trim().to_string());
+            }
+            if let Some(ver) = v["version"].as_str().filter(|s| !s.trim().is_empty()) {
+                item.version = Some(ver.trim().to_string());
+            }
+            if let Some(desc) = v["description"].as_str().filter(|s| !s.trim().is_empty()) {
+                item.description = Some(truncate(desc.trim(), 120));
+            }
+            if let Some(arr) = v["authors"].as_array() {
+                let names: Vec<String> = arr
+                    .iter()
+                    .filter_map(|a| {
+                        a.as_str()
+                            .map(String::from)
+                            .or_else(|| a["name"].as_str().map(String::from))
+                    })
+                    .collect();
+                if !names.is_empty() {
+                    item.author = Some(names.join(", "));
+                }
+            }
+            icon_candidate = v["icon"]
+                .as_str()
+                .map(String::from)
+                .or_else(|| {
+                    v["icon"]
+                        .as_object()
+                        .and_then(|obj| obj.values().filter_map(|x| x.as_str()).last().map(String::from))
+                });
+        }
+    }
+
+    // 2. Quilt (quilt.mod.json)
+    if item.display_name.is_none() {
+        if let Some(raw) = read_zip_text(&mut zip, "quilt.mod.json") {
+            if let Ok(v) = serde_json::from_str::<Value>(&raw) {
+                item.mod_loader = Some("Quilt".into());
+                let ql = &v["quilt_loader"];
+                let md = &ql["metadata"];
+                if let Some(n) = md["name"].as_str().filter(|s| !s.trim().is_empty()) {
+                    item.display_name = Some(n.trim().to_string());
+                }
+                if let Some(ver) = ql["version"].as_str().filter(|s| !s.trim().is_empty()) {
+                    item.version = Some(ver.trim().to_string());
+                }
+                if let Some(desc) = md["description"].as_str().filter(|s| !s.trim().is_empty()) {
+                    item.description = Some(truncate(desc.trim(), 120));
+                }
+                if let Some(obj) = md["contributors"].as_object() {
+                    let names: Vec<String> = obj.keys().cloned().collect();
+                    if !names.is_empty() {
+                        item.author = Some(names.join(", "));
+                    }
+                }
+                if icon_candidate.is_none() {
+                    icon_candidate = md["icon"].as_str().map(String::from);
+                }
+            }
+        }
+    }
+
+    // 3. NeoForge / Forge moderno (META-INF/neoforge.mods.toml | META-INF/mods.toml)
+    if item.display_name.is_none() {
+        for (entry_name, loader_label) in [
+            ("META-INF/neoforge.mods.toml", "NeoForge"),
+            ("META-INF/mods.toml", "Forge"),
+        ] {
+            if let Some(raw) = read_zip_text(&mut zip, entry_name) {
+                item.mod_loader = Some(loader_label.into());
+                if let Some(n) = extract_toml_field(&raw, "displayName") {
+                    item.display_name = Some(n);
+                }
+                if let Some(ver) = extract_toml_field(&raw, "version") {
+                    if ver.contains("${file.jarVersion}") {
+                        if let Some(mf_ver) = read_manifest_version(&mut zip) {
+                            item.version = Some(mf_ver);
+                        }
+                    } else if !ver.starts_with("${") {
+                        item.version = Some(ver);
+                    }
+                }
+                if let Some(auth) = extract_toml_field(&raw, "authors") {
+                    item.author = Some(auth);
+                }
+                if let Some(desc) = extract_toml_field(&raw, "description") {
+                    let clean = desc
+                        .lines()
+                        .map(str::trim)
+                        .filter(|l| !l.is_empty())
+                        .collect::<Vec<_>>()
+                        .join(" ");
+                    if !clean.is_empty() {
+                        item.description = Some(truncate(&clean, 120));
+                    }
+                }
+                if icon_candidate.is_none() {
+                    icon_candidate = extract_toml_field(&raw, "logoFile");
+                }
+                break;
+            }
+        }
+    }
+
+    // 4. Legacy Forge 1.7.10 / 1.8.9 / 1.12.2 (mcmod.info)
+    if item.display_name.is_none() {
+        if let Some(raw) = read_zip_text(&mut zip, "mcmod.info") {
+            if let Ok(v) = serde_json::from_str::<Value>(&raw) {
+                let first = v
+                    .as_array()
+                    .and_then(|a| a.first())
+                    .or_else(|| v["modList"].as_array().and_then(|a| a.first()));
+                if let Some(m) = first {
+                    item.mod_loader = Some("Forge".into());
+                    if let Some(n) = m["name"].as_str().filter(|s| !s.trim().is_empty()) {
+                        item.display_name = Some(n.trim().to_string());
+                    }
+                    if let Some(ver) = m["version"]
+                        .as_str()
+                        .filter(|s| !s.trim().is_empty() && !s.starts_with("${"))
+                    {
+                        item.version = Some(ver.trim().to_string());
+                    }
+                    if let Some(desc) = m["description"].as_str().filter(|s| !s.trim().is_empty()) {
+                        item.description = Some(truncate(desc.trim(), 120));
+                    }
+                    let authors = m["authorList"]
+                        .as_array()
+                        .or_else(|| m["authors"].as_array())
+                        .map(|arr| {
+                            arr.iter()
+                                .filter_map(|x| x.as_str().map(String::from))
+                                .collect::<Vec<_>>()
+                        })
+                        .unwrap_or_default();
+                    if !authors.is_empty() {
+                        item.author = Some(authors.join(", "));
+                    }
+                    if icon_candidate.is_none() {
+                        icon_candidate = m["logoFile"]
+                            .as_str()
+                            .filter(|s| !s.is_empty())
+                            .map(String::from);
+                    }
+                }
+            }
+        }
+    }
+
+    if item.icon_url.is_none() {
+        let mut cands = Vec::new();
+        if let Some(c) = icon_candidate {
+            let trimmed = c.trim_start_matches('/').to_string();
+            if !trimmed.is_empty() {
+                cands.push(trimmed);
+            }
+        }
+        cands.push("icon.png".into());
+        cands.push("logo.png".into());
+        cands.push("pack.png".into());
+        for cand in cands {
+            if let Some(data) = extract_zip_png_data(&mut zip, &cand) {
+                item.icon_url = Some(data);
+                break;
+            }
+        }
+    }
+}
+
+fn read_zip_text(zip: &mut zip::ZipArchive<std::fs::File>, name: &str) -> Option<String> {
+    let mut entry = zip.by_name(name).ok()?;
+    if entry.size() > 512_000 {
+        return None;
+    }
+    let mut buf = String::new();
+    std::io::Read::read_to_string(&mut entry, &mut buf).ok()?;
+    Some(buf)
+}
+
+fn read_manifest_version(zip: &mut zip::ZipArchive<std::fs::File>) -> Option<String> {
+    let raw = read_zip_text(zip, "META-INF/MANIFEST.MF")?;
+    for line in raw.lines() {
+        let t = line.trim();
+        if let Some(rest) = t
+            .strip_prefix("Implementation-Version:")
+            .or_else(|| t.strip_prefix("Specification-Version:"))
+        {
+            let v = rest.trim();
+            if !v.is_empty() {
+                return Some(v.to_string());
+            }
+        }
+    }
+    None
+}
+
+fn extract_toml_field(raw: &str, key: &str) -> Option<String> {
+    let scope = raw.find("[[mods]]").map(|idx| &raw[idx..]).unwrap_or(raw);
+    parse_toml_key_in_scope(scope, key).or_else(|| parse_toml_key_in_scope(raw, key))
+}
+
+fn parse_toml_key_in_scope(scope: &str, key: &str) -> Option<String> {
+    let mut rest = scope;
+    while !rest.is_empty() {
+        let (line, next) = match rest.split_once('\n') {
+            Some((l, n)) => (l, n),
+            None => (rest, ""),
+        };
+        let trimmed = line.trim_start();
+        if !trimmed.starts_with('#') {
+            if let Some(after_key) = trimmed.strip_prefix(key) {
+                let after_ws = after_key.trim_start();
+                if let Some(rhs) = after_ws.strip_prefix('=') {
+                    let rhs = rhs.trim();
+                    if let Some(multi) = rhs.strip_prefix("'''") {
+                        if let Some((inside, _)) = multi.split_once("'''") {
+                            let v = inside.trim();
+                            if !v.is_empty() {
+                                return Some(v.to_string());
+                            }
+                        } else if let Some((inside, _)) = next.split_once("'''") {
+                            let combined = format!("{multi}\n{inside}");
+                            let v = combined.trim();
+                            if !v.is_empty() {
+                                return Some(v.to_string());
+                            }
+                        }
+                    } else if let Some(multi) = rhs.strip_prefix("\"\"\"") {
+                        if let Some((inside, _)) = multi.split_once("\"\"\"") {
+                            let v = inside.trim();
+                            if !v.is_empty() {
+                                return Some(v.to_string());
+                            }
+                        } else if let Some((inside, _)) = next.split_once("\"\"\"") {
+                            let combined = format!("{multi}\n{inside}");
+                            let v = combined.trim();
+                            if !v.is_empty() {
+                                return Some(v.to_string());
+                            }
+                        }
+                    } else if let Some(q) = rhs.strip_prefix('"') {
+                        if let Some((val, _)) = q.split_once('"') {
+                            let v = val.trim();
+                            if !v.is_empty() {
+                                return Some(v.to_string());
+                            }
+                        }
+                    } else if let Some(q) = rhs.strip_prefix('\'') {
+                        if let Some((val, _)) = q.split_once('\'') {
+                            let v = val.trim();
+                            if !v.is_empty() {
+                                return Some(v.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        rest = next;
+    }
+    None
+}
+
+fn extract_zip_png_data(zip: &mut zip::ZipArchive<std::fs::File>, entry_path: &str) -> Option<String> {
+    let mut entry = zip.by_name(entry_path).ok()?;
+    if entry.size() > 1_500_000 {
+        return None;
+    }
     let mut buf = Vec::new();
     std::io::Read::read_to_end(&mut entry, &mut buf).ok()?;
     if buf.len() < 32 {
